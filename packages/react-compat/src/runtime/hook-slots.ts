@@ -1,4 +1,9 @@
-import type { DependencyList, ExternalStoreSubscribe, ReactContext } from '../types.js';
+import type {
+	AnyReactCallback,
+	DependencyList,
+	ExternalStoreSubscribe,
+	ReactContext
+} from '../types.js';
 
 /** Defines the state slot type contract. */
 export type StateSlot = { kind: 'state'; value: unknown; dispatch: (value: unknown) => void };
@@ -42,8 +47,8 @@ export type ExternalStoreSlot = {
 /** Defines the effect event slot type contract. */
 export type EffectEventSlot = {
 	kind: 'effect-event';
-	implementation: (...args: any[]) => unknown;
-	callback: (...args: any[]) => unknown;
+	implementation: AnyReactCallback;
+	callback: AnyReactCallback;
 };
 /** Defines the deferred slot type contract. */
 export type DeferredSlot = { kind: 'deferred'; value: unknown; input: unknown; scheduled: boolean };

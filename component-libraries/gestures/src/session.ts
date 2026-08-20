@@ -1,6 +1,6 @@
 import { type AnyComponentInstance, unwrap } from '@exactjs/core';
 import type {
-	GestureCallback,
+	AnyGestureCallback,
 	GestureSample,
 	PinchGestureSample,
 	PinchRecognizer
@@ -407,7 +407,7 @@ export class GestureSession implements Disposable {
 	/** Delivers a callback immediately or through the latest-only move queue. */
 	#invoke(
 		kind: string,
-		callback: GestureCallback<any> | undefined,
+		callback: AnyGestureCallback | undefined,
 		sample: GestureSample,
 		coalesce = false
 	): void {

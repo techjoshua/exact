@@ -24,6 +24,10 @@ export type ReactComponentType<P = Record<string, unknown>> =
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- React component props are contravariant and must retain DefinitelyTyped-compatible permissiveness at this boundary.
 export type AnyReactComponentType = ReactComponentType<any>;
 
+/** Existential callback shape required by React APIs that preserve each authored signature. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Callback parameters and results remain available through the surrounding generic type instead of being inspected here.
+export type AnyReactCallback = (...args: any[]) => any;
+
 /** Opaque mutable class value retained to match React's intentionally permissive class API. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- React class state supports arbitrary property access and updater inference in compatibility-authored code.
 type ReactClassState = any;

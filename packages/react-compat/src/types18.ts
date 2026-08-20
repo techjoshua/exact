@@ -24,7 +24,8 @@ declare global {
 				? {
 						readonly __exactReactCompatibilityError: 'The React 18 facade requires @types/react 18';
 					}
-				: JSXElementConstructor<any> | ExoticComponent<any>
+				: // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The probe mirrors the permissive generic defaults in @types/react 18.
+					JSXElementConstructor<any> | ExoticComponent<any>
 			: {
 					readonly __exactReactCompatibilityError: 'Load exactly one eXact React type facade';
 				};
