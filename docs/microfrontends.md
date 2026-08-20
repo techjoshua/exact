@@ -76,6 +76,9 @@ explicitly trusting the configured URL to execute. A build-replacement resolver 
 an explicit unpinned replacement. SRI covers the canonical entry response, not arbitrary mutable
 dependencies it imports, so production entries must reference immutable content-addressed chunks
 or keep their complete dependency graph under the same deployment trust boundary.
+Remote entry waits are owned by the mounting component: unmounting or replacing that component
+stops its wait without disrupting another component sharing the same load. The shared loader
+times out stalled entries after 30 seconds and retains at most 64 pending or completed entries.
 
 ## Protocol and recovery
 
@@ -104,6 +107,7 @@ remain server-private.
 
 ## Operational limits
 
+- Browser remote entry loading has a fixed 30-second timeout and a 64-entry shared cache ceiling.
 - Bun server `--hot` is unsupported because it cannot retain the last authorized generation; use
   watch/rebuild coordination instead.
 - Deployment discovery, signing, rollout policy, and service operation remain
