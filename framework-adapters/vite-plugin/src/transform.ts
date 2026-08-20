@@ -1,5 +1,5 @@
 import {
-	createLineSourceMap,
+	createTokenSourceMap,
 	type ExactSourceInspection,
 	type ExactCompilerSession
 } from '@exactjs/compiler';
@@ -76,7 +76,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					map:
 						options.sourceMap === false
 							? null
-							: createLineSourceMap(filename, code, reachedPublication.code),
+							: createTokenSourceMap(filename, code, reachedPublication.code),
 					moduleType: 'js'
 				}
 			: null;
@@ -166,7 +166,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				);
 				return {
 					code: clientCode,
-					map: options.sourceMap === false ? null : createLineSourceMap(filename, code, clientCode)
+					map: options.sourceMap === false ? null : createTokenSourceMap(filename, code, clientCode)
 				};
 			},
 			inspection: (result) =>

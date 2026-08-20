@@ -43,6 +43,13 @@ bundle. `hydrate` retains resumption metadata, `client` omits it, and both omit 
 component inventories already present in `componentBuild`. Leaving the option unset preserves the
 complete rendering-mode-neutral compiler contract.
 
+Source maps compose across native lowering and mapped host transforms. A `moduleTransform` that
+changes generated code must return a valid version 3 map when `sourceMap` is enabled; compilation
+fails instead of publishing an invented line map. Framework-generated prefixes remain unmapped,
+while unchanged compiled suffixes retain their native line and column mappings. Adapters that must
+recover mappings from an external transform can use `createTokenSourceMap()`; generated-only tokens
+are intentionally left unmapped.
+
 Build and test adapters can call `inspectExactComponentBuildFacts()` for the same protocol-1
 descriptive component/import projection without emitting JavaScript. The result contains no marker
 interpretation, package trust, or authorization decision; adapters must join its authored edges to

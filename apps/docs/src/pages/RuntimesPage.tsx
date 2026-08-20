@@ -178,6 +178,11 @@ export function RuntimesPage(this: Component<{}>) {
 					in the host build; <code>exactc</code> remains the escape hatch for other pipelines. All
 					four routes use the same persistent native compiler and expose no alternate backend.
 				</p>
+				<p>
+					Native source maps are composed through mapped host transforms. Framework-generated
+					regions stay unmapped, and adapter recovery maps follow matching token positions instead
+					of guessing that generated and authored line numbers still correspond.
+				</p>
 				<IntegrationTable caption="Build integrations" integrations={buildIntegrations} />
 			</section>
 
