@@ -19,5 +19,5 @@ work, mutate state, widen redaction, request unbounded data, or evaluate caller-
 JavaScript.
 
 Connection establishment, target discovery, and individual CDP requests are time-bounded. Target
-discovery responses and the number of pending requests are bounded as well; advanced callers may
+discovery responses, WebSocket messages, and the number of pending requests are bounded as well; advanced callers may
 tune these ceilings with `ExactCdpConnectionOptions` and cancel work with an `AbortSignal`.
