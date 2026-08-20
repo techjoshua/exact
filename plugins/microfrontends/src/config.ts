@@ -9,6 +9,8 @@ export type ExactRemoteExposureConfig = {
 export type ExactRemoteBindingConfig = {
 	endpoint: string;
 	clientEntry: string;
+	/** Browser-enforced SRI metadata for the canonical generated client entry. */
+	integrity?: string;
 	clientEntryResolver?: string;
 };
 
