@@ -20,6 +20,7 @@ export type ExactCdpConnectionOptions = Readonly<{
 	requestTimeoutMs?: number;
 	maxDiscoveryBytes?: number;
 	maxPendingRequests?: number;
+	maxMessageBytes?: number;
 }>;
 
 type Pending = {
@@ -42,6 +43,11 @@ export async function connectExactCdp(
 		'maxDiscoveryBytes'
 	);
 	const maxPendingRequests = positiveInteger(options.maxPendingRequests, 128, 'maxPendingRequests');
+	const maxMessageBytes = positiveInteger(
+		options.maxMessageBytes,
+		8 * 1024 * 1024,
+		'maxMessageBytes'
+	);
 	const webSocketUrl =
 		options.webSocketUrl ??
 		(await discoverWebSocketUrl(
@@ -85,6 +91,14 @@ export async function connectExactCdp(
 	const pending = new Map<number, Pending>();
 	const listeners = new Set<(method: string, params: unknown) => void>();
 	socket.addEventListener('message', (event) => {
+		if (
+			(typeof event.data === 'string' && utf8Length(event.data) > maxMessageBytes) ||
+			(event.data instanceof Blob && event.data.size > maxMessageBytes) ||
+			(event.data instanceof ArrayBuffer && event.data.byteLength > maxMessageBytes)
+		) {
+			socket.close();
+			return;
+		}
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(String(event.data));
@@ -161,6 +175,26 @@ function positiveInteger(value: number | undefined, fallback: number, name: stri
 	if (!Number.isSafeInteger(resolved) || resolved <= 0)
 		throw new Error(`CDP ${name} must be a positive integer`);
 	return resolved;
+}
+
+function utf8Length(value: string): number {
+	let bytes = 0;
+	for (let index = 0; index < value.length; index++) {
+		const code = value.charCodeAt(index);
+		if (code < 0x80) bytes++;
+		else if (code < 0x800) bytes += 2;
+		else if (
+			code >= 0xd800 &&
+			code <= 0xdbff &&
+			index + 1 < value.length &&
+			value.charCodeAt(index + 1) >= 0xdc00 &&
+			value.charCodeAt(index + 1) <= 0xdfff
+		) {
+			bytes += 4;
+			index++;
+		} else bytes += 3;
+	}
+	return bytes;
 }
 
 function cdpErrorMessage(value: unknown): string {

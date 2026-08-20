@@ -62,6 +62,17 @@ it('reconnects a service-worker port and replays unresolved work', async () => {
 	expect(statuses).toEqual(['connecting', 'reconnecting', 'ready']);
 });
 
+it('bounds locally retained requests while the page bridge is unavailable', async () => {
+	const runtime = panelRuntime();
+	vi.stubGlobal('chrome', runtime.chrome);
+	const client = createExactExtensionQueryClient(4, 50);
+	const requests = Array.from({ length: 32 }, () => client.connect());
+	await expect(client.connect()).rejects.toThrow('request queue is full');
+	const disconnected = client.disconnect();
+	await Promise.all(requests.map((request) => request.catch(() => undefined)));
+	await disconnected;
+});
+
 function status(value: 'ready' | 'waiting-for-page') {
 	return { channel: 'exact-devtools-control', type: 'status', status: value };
 }
