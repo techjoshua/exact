@@ -1,14 +1,14 @@
 import {
-	createCompiledTarget,
 	createContext,
 	LocalizationContext,
-	markExactComponent,
 	markExactEnhancementContexts,
 	TargetOverrides,
 	unwrap,
 	type Child,
 	type Component
 } from '@exactjs/core';
+import { createCompiledTarget } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { IntlPropertyActivation, IntlPropertyName } from './contracts.js';
 import type { IntlLocaleString } from './cldr-locale-types.js';
 import {

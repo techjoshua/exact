@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { createDynamicChild, createExpression, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render } from './index.js';

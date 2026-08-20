@@ -3,7 +3,6 @@ import type {
 	ComponentDomain,
 	DynamicComponentArtifact,
 	ComponentContextValues,
-	ExactComponentContinuationContract,
 	EnhancementEntry,
 	ComponentFunction,
 	ComponentInstance,
@@ -15,6 +14,7 @@ import type {
 	UnsafeHtmlAuditEvent,
 	VNode
 } from '@exactjs/core';
+import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type {

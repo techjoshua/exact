@@ -6,13 +6,17 @@ The release gate rejects unclassified additions.
 
 Application code should use component state, contexts, tasks, registries, JSX values, and authored
 VNode helpers from the root. Renderer and build-adapter code should prefer the matching
-`@exactjs/core/runtime/*` or `@exactjs/core/framework/*` subpath. Compiler-framework root exports
-are compatibility aliases during the 0.x deprecation window; they must not be treated as stable
-application contracts. They will be removed from the root at the next breaking release after all
-generated imports and maintained adapters use ownership-specific subpaths.
+`@exactjs/core/runtime/*` or `@exactjs/core/framework/*` subpath. Remaining compiler-framework root
+exports are compatibility aliases during the 0.x deprecation window; they must not be treated as
+stable application contracts.
 
-Render-program construction, inspection, fallback, cache diagnostics, and contracts have completed
-that migration and are available only from `@exactjs/core/runtime/render`.
+Render-program symbols and construction, compiled VNode/cell helpers, component instance
+construction/rendering, and compiled registry construction have completed that migration and are
+available only from `@exactjs/core/runtime/render` or `@exactjs/core/runtime/registry`. Executable
+component identities and contracts are available only from
+`@exactjs/core/framework/component-contracts`. The ownership release gate checks both module
+classification and this symbol-level exclusion so an internal helper cannot drift back into the
+root through a mixed application module.
 
 The client/server operation wire types are framework-owned contracts under
 `@exactjs/core/framework/operation-protocol`. Hydration depends on that neutral contract rather

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { type Component } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentType,
-	type Component,
 	type ExactComponentContract
-} from '@exactjs/core';
+} from '@exactjs/core/framework/component-contracts';
 import { ssrRootExecutionBlueprint } from './render/root-execution-cache.js';
 
 describe('SSR root execution blueprint cache', () => {

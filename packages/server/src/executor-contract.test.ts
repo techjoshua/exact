@@ -1,4 +1,7 @@
-import { exactComponentContract, exactComponentType } from '@exactjs/core';
+import {
+	exactComponentContract,
+	exactComponentType
+} from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import {
 	composeExactExecutorContract,

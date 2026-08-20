@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { createExpression, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { createEffectScope, flushSync } from '@exactjs/reactive';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';

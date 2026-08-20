@@ -4,10 +4,10 @@ import {
 	createExactRuntimeInspectionOwner,
 	createVNode,
 	defineTask,
-	exactComponentIdentity,
 	markExactInspectionSource,
 	type Component
 } from '@exactjs/core';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { createCompiledTestVNode, createTestVNode } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';

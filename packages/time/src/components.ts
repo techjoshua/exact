@@ -1,12 +1,12 @@
 import {
 	createContext,
 	intl,
-	markExactComponent,
 	markExactEnhancementContexts,
 	type Child,
 	type Component,
 	type ComponentInstance
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { isHydrationComponentDomain } from '@exactjs/core/framework/component-domains';
 import { unwrap } from '@exactjs/reactive';
 import { isTimeActivation } from './activation.js';

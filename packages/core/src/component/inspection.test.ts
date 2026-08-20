@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-	createComponentInstance,
 	createContext,
 	createExactRuntimeInspectionOwner,
 	defineTask,
@@ -8,6 +7,7 @@ import {
 	markExactInspectionSource,
 	type Component
 } from '../index.js';
+import { createComponentInstance } from '../runtime/render.js';
 import { createFrameworkComponentDomain } from './domain.js';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 

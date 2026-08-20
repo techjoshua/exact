@@ -69,6 +69,11 @@ Use ordinary callbacks and inferred tasks when they are sufficient. Reach for ex
 work needs placement, scheduling, cancellation capabilities, a stable key, or a human-readable
 identity.
 
+Renderer and compiler integrations import compiled VNode/component-instance machinery from
+`@exactjs/core/runtime/render`, compiled registries from `@exactjs/core/runtime/registry`, and
+executable component contracts from `@exactjs/core/framework/component-contracts`. Those SPI
+surfaces are deliberately absent from the application root.
+
 ## Learn more
 
 See the [component language](../../docs/component-language.md),

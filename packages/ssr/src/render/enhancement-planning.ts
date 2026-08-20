@@ -1,12 +1,8 @@
 import {
 	Suspense,
-	createComponentInstance,
 	createReadinessCoordinator,
-	getCellVNode,
-	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
-	renderInstance,
 	withTaskObserver,
 	type Child,
 	type ComponentFunction,
@@ -14,6 +10,12 @@ import {
 	type TaskObserver,
 	type VNode
 } from '@exactjs/core';
+import {
+	createComponentInstance,
+	getCellVNode,
+	isCellVNode,
+	renderInstance
+} from '@exactjs/core/runtime/render';
 import { flushSync, unwrap } from '@exactjs/reactive';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 import { isSsrRenderInterruption, isSsrRenderLimitError } from './limits.js';

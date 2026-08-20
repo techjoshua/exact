@@ -1,9 +1,6 @@
-import {
-	Suspense,
-	createCompiledComponentRegistry,
-	markExactComponent,
-	type Component
-} from '@exactjs/core';
+import { Suspense, type Component } from '@exactjs/core';
+import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderToString, renderToStringAsync } from './index.js';

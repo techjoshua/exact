@@ -2,15 +2,14 @@ import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	ErrorContext,
-	createComponentInstance,
 	createErrorContext,
 	createVNode,
 	isVNode,
-	renderInstance,
 	taskAwait,
 	type Component,
 	type ErrorReport
 } from './index.js';
+import { createComponentInstance, renderInstance } from './runtime/render.js';
 import { defaultErrorContext } from './component/errors.js';
 
 describe('@exactjs/core errors', () => {

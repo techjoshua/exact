@@ -6,7 +6,6 @@ import {
 	Activity,
 	Suspense,
 	activateTaskForHost,
-	createExpression,
 	createRef,
 	defineTask,
 	stageTaskMutation,
@@ -15,6 +14,7 @@ import {
 	type Component,
 	type RootLifecycle
 } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';

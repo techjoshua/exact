@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 import '@exactjs/dom/framework/enhancements';
-import {
-	Fragment,
-	createEnhancementNode,
-	createExpression,
-	createVNode,
-	markExactComponent,
-	type Component
-} from '@exactjs/core';
+import { Fragment, createEnhancementNode, createVNode, type Component } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { render } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';

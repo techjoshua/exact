@@ -5,12 +5,12 @@ import './structural-boundaries.js';
 import {
 	Suspense,
 	activateTaskForHost,
-	createExpression,
 	defineTask,
 	stageTaskMutation,
 	type Component,
 	type TaskContext
 } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';

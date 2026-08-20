@@ -1,7 +1,7 @@
 import type {
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract
-} from '@exactjs/core';
+} from '@exactjs/core/framework/component-contracts';
 import {
 	discardTaskMutations,
 	publishTaskMutations,

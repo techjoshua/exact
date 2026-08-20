@@ -11,13 +11,48 @@ for (const [owner, modules] of Object.entries(ownership))
 	}
 const sourceFile = ts.createSourceFile('index.ts', source, ts.ScriptTarget.Latest, true);
 const exportedModules = new Set();
+const exportedNames = new Set();
 for (const statement of sourceFile.statements)
-	if (ts.isExportDeclaration(statement) && statement.moduleSpecifier)
+	if (ts.isExportDeclaration(statement) && statement.moduleSpecifier) {
 		exportedModules.add(statement.moduleSpecifier.text);
+		if (statement.exportClause && ts.isNamedExports(statement.exportClause))
+			for (const element of statement.exportClause.elements) exportedNames.add(element.name.text);
+	}
 const missing = [...exportedModules].filter((module) => !classified.has(module));
-const stale = [...classified].filter(([module]) => !exportedModules.has(module));
-if (missing.length || stale.length)
+const staleApplication = ownership.application.filter((module) => !exportedModules.has(module));
+const forbiddenRootNames = [
+	'RenderProgram',
+	'ServerBoundary',
+	'ServerSlot',
+	'createCellVNode',
+	'createCompiledComponentRegistry',
+	'createCompiledComponentVNode',
+	'createCompiledFragment',
+	'createCompiledTarget',
+	'createCompiledVNode',
+	'createComponentInstance',
+	'createDynamicChild',
+	'createExpression',
+	'createForwardedExpression',
+	'createKeyedServerSlot',
+	'createServerBoundary',
+	'createServerSlot',
+	'getCellVNode',
+	'isCellVNode',
+	'renderInstance',
+	'reparentComponentInstance'
+];
+const leaked = forbiddenRootNames.filter((name) => exportedNames.has(name));
+const forbiddenModules = [
+	'./component/render.js',
+	'./component/runtime.js',
+	'./component-contracts.js'
+];
+const leakedModules = forbiddenModules.filter((module) => exportedModules.has(module));
+if (missing.length || staleApplication.length || leaked.length || leakedModules.length)
 	throw new Error(
-		`Core API ownership mismatch:${missing.map((module) => `\n- unclassified ${module}`).join('')}${stale.map(([module]) => `\n- stale ${module}`).join('')}`
+		`Core API ownership mismatch:${missing.map((module) => `\n- unclassified ${module}`).join('')}${staleApplication.map((module) => `\n- missing application module ${module}`).join('')}${leakedModules.map((module) => `\n- compiler module exported from root ${module}`).join('')}${leaked.map((name) => `\n- internal symbol exported from root ${name}`).join('')}`
 	);
-console.log(`core API ownership ok (${exportedModules.size} modules classified)`);
+console.log(
+	`core API ownership ok (${exportedModules.size} modules classified; compiler render/runtime contracts isolated)`
+);

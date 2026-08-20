@@ -1,4 +1,5 @@
-import { getCellVNode, type VNode, type VNodeCell } from '@exactjs/core';
+import { type VNode, type VNodeCell } from '@exactjs/core';
+import { getCellVNode } from '@exactjs/core/runtime/render';
 
 /**
  * Returns the transparent child of a compiled cell with any later root ownership attached.

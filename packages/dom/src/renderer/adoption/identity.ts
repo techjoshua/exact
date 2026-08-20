@@ -1,9 +1,5 @@
-import {
-	decodeExactMarkerPart,
-	exactComponentIdentity,
-	type ComponentInstance,
-	type VNode
-} from '@exactjs/core';
+import { decodeExactMarkerPart, type ComponentInstance, type VNode } from '@exactjs/core';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import type { EffectScope } from '@exactjs/reactive';
 
 import { describeVNodeType } from '../../debug.js';

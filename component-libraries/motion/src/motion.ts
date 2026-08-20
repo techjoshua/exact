@@ -1,4 +1,5 @@
-import { createVNode, markExactComponent, type Component } from '@exactjs/core';
+import { createVNode, type Component } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { MotionElementProps, MotionProps } from './contracts.js';
 import { MotionElement } from './motion-element.js';
 

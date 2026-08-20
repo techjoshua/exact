@@ -1,9 +1,8 @@
+import { isFiniteClientBoundary, type VNode } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	isFiniteClientBoundary,
-	readExactComponentContract,
-	type VNode
-} from '@exactjs/core';
+	readExactComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import { isReactive, isReactiveValue, peek, unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';

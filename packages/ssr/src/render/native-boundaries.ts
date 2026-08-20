@@ -1,7 +1,6 @@
 import {
 	ReadinessContext,
 	SuspensionContext,
-	createComponentInstance,
 	createReadinessCoordinator,
 	normalizeRenderResult,
 	unwrap,
@@ -10,6 +9,7 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
 import type { SsrContext } from '../types.js';
 
 type RenderChildren = (

@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementMarker, createExpression, createVNode, type Child } from '@exactjs/core';
+import { createEnhancementMarker, createVNode, type Child } from '@exactjs/core';
+import { createExpression } from '@exactjs/core/runtime/render';
 import { hydrate } from '@exactjs/hydrate/enhanced';
 import {
 	createIntlEnvironment,

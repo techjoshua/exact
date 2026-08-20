@@ -3,7 +3,6 @@ import {
 	createRef,
 	createVNode,
 	isExactComponentAuthorizationIdentity,
-	markExactComponent,
 	watch,
 	type Child,
 	type Component,
@@ -11,6 +10,7 @@ import {
 	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createExactClient, type ExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
 import type { ExactRemoteModule } from './artifacts.js';

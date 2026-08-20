@@ -1,12 +1,9 @@
+import { createContext, createVNode, type Component } from '@exactjs/core';
+import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
 import {
-	createComponentInstance,
-	createContext,
-	createVNode,
 	exactComponentContract,
-	exactComponentType,
-	renderInstance,
-	type Component
-} from '@exactjs/core';
+	exactComponentType
+} from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { adaptReactComponent } from './exact.js';
 import {

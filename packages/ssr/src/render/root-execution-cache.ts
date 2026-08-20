@@ -1,10 +1,10 @@
+import { type VNode } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentType,
 	readExactComponentContract,
-	type ExactComponentContract,
-	type VNode
-} from '@exactjs/core';
+	type ExactComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import {
 	createPreparedComponentInstance,
 	prepareComponentExecution,

@@ -3,13 +3,13 @@
  */
 import {
 	createEnhancementMarker,
-	createDynamicChild,
 	Fragment,
-	markExactComponent,
 	Target,
 	type Child,
 	type Component
 } from '@exactjs/core';
+import { createDynamicChild } from '@exactjs/core/runtime/render';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { renderToString } from '@exactjs/ssr';
 import { TimeUpdate } from '@exactjs/time';

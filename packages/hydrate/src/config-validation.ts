@@ -1,7 +1,5 @@
-import type {
-	ComponentResumptionActivation,
-	ExactComponentContinuationContract
-} from '@exactjs/core';
+import type { ComponentResumptionActivation } from '@exactjs/core';
+import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import {
 	isExactContinuationDependency,
 	isExactContinuationInvocation,

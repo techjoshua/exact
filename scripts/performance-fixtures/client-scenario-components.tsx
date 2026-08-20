@@ -4,11 +4,11 @@ import {
 	Suspense,
 	TaskContext,
 	createVNode,
-	markExactComponent,
 	type ActivityMode,
 	type Child,
 	type Component
 } from '@exactjs/core';
+import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { computed } from '@exactjs/reactive';
 
 /** Stable enhancement identity used by the client routing workload. */

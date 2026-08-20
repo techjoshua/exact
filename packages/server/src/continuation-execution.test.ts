@@ -2,9 +2,9 @@ import {
 	createContext,
 	mutateTaskCollection,
 	stageTaskMutation,
-	takeTaskCollectionMutations,
-	type ExactComponentContinuationContract
+	takeTaskCollectionMutations
 } from '@exactjs/core';
+import { type ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { createExactContinuationHandler } from './continuation-execution.js';
 import { dispatchExactOperation } from './operations.js';

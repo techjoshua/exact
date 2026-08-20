@@ -1,4 +1,7 @@
-import type { ExactCollectionMutation, ExactContinuationStatePathContract } from '@exactjs/core';
+import type {
+	ExactCollectionMutation,
+	ExactContinuationStatePathContract
+} from '@exactjs/core/framework/component-contracts';
 import { hasOnlySafeProtocolKeys } from '@exactjs/core/framework/protocol-records';
 import { isSafeObjectKey } from './safety.js';
 

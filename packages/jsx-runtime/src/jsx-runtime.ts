@@ -1,4 +1,5 @@
-import { createCellVNode, createVNode, Fragment } from '@exactjs/core';
+import { createVNode, Fragment } from '@exactjs/core';
+import { createCellVNode } from '@exactjs/core/runtime/render';
 import type {
 	Activity,
 	AuthoredComponentFunction,

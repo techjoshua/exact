@@ -2,12 +2,14 @@ import {
 	activateTaskForHost,
 	createVNode,
 	defineTask,
-	exactComponentContract,
-	exactComponentType,
 	markComponentContinuationTask,
 	type Component,
 	type TaskContext
 } from '@exactjs/core';
+import {
+	exactComponentContract,
+	exactComponentType
+} from '@exactjs/core/framework/component-contracts';
 
 /** A manually branded leaf used to measure the compiled continuation execution path. */
 function PlannedLeaf(this: Component<{ value: number }>, props: { value: number }) {
