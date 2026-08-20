@@ -24,9 +24,9 @@ import {
 import { analyzeSource } from './source-analysis.js';
 import { transformSource } from './transformation.js';
 import { createOwnedNativeCompilationSession } from './native-session.js';
-import { prepareArtifactPlanEntry, publishArtifactPlanEntry } from './artifact-entry-output.js';
+import { prepareArtifactPlanEntry, publishArtifactPlanEntries } from './artifact-entry-output.js';
 import { createExactInspectionBuildKey } from '../language-tools/build-catalog.js';
-import { finalizeArtifactInspection } from './artifact-inspection.js';
+import { prepareArtifactInspection } from './artifact-inspection.js';
 import { artifactAnalysis, retainArtifactAnalysis } from './analysis-results.js';
 import { validateExactLanguageProjections } from './language-validation.js';
 import { loadExactPackageEnhancements } from '@exactjs/config/node';
@@ -123,7 +123,6 @@ export async function compileFileArtifacts(
 		options.rootDir ?? path.dirname(inputFile),
 		options.languageExtensions
 	);
-	await publishArtifactPlanEntry(entry, result);
 	if (
 		client.inspectionCatalog &&
 		options.emitInspection !== undefined &&
@@ -133,12 +132,17 @@ export async function compileFileArtifacts(
 			{ ...result, inspection: Object.freeze({ inspection: client.inspectionCatalog }) },
 			analysis
 		);
-	const finalized = await finalizeArtifactInspection(
+	const finalization = prepareArtifactInspection(
 		[result],
 		options,
 		new Map([[path.resolve(inputFile), source]])
 	);
-	return finalized[0]!;
+	await publishArtifactPlanEntries(
+		[entry],
+		finalization.results,
+		finalization.mutation ? [finalization.mutation] : []
+	);
+	return finalization.results[0]!;
 }
 
 /** Compiles all artifact plan entries for the provided source inputs. */
@@ -190,13 +194,16 @@ export async function compileProjectArtifacts(
 		options.rootDir ?? commonRoot(entries.map((entry) => entry.inputFile)),
 		options.languageExtensions
 	);
-	await Promise.all(
-		results.map((result, index) => publishArtifactPlanEntry(entries[index]!, result))
-	);
 	const sources = new Map<string, string>();
 	for (const result of results)
 		sources.set(path.resolve(result.inputFile), await readFile(result.inputFile, 'utf8'));
-	return finalizeArtifactInspection(results, options, sources);
+	const finalization = prepareArtifactInspection(results, options, sources);
+	await publishArtifactPlanEntries(
+		entries,
+		finalization.results,
+		finalization.mutation ? [finalization.mutation] : []
+	);
+	return finalization.results;
 }
 
 /** Compiles precomputed artifact plan entries through one owned project session. */
@@ -285,11 +292,11 @@ async function compileArtifactPlanEntriesInternal(
 				options.instrumentInspection,
 				packageEnhancements,
 				capabilityOptions,
-				publish,
 				retainInspection
 			)
 		);
 	}
+	if (publish) await publishArtifactPlanEntries(entries, results);
 
 	return results;
 }
@@ -314,7 +321,6 @@ async function compileArtifactPlanEntry(
 	instrumentInspection?: TransformOptions['instrumentInspection'],
 	packageEnhancements: readonly ExactPackageEnhancementImport[] = [],
 	capabilityOptions: CapabilityCompilationOptions = {},
-	publish = true,
 	retainInspection = emitInspection !== undefined && emitInspection !== false
 ): Promise<CompileArtifactsResult> {
 	const source = await readFile(entry.inputFile, 'utf8');
@@ -388,7 +394,6 @@ async function compileArtifactPlanEntry(
 	const result = prepareArtifactPlanEntry(entry, base, client, server, sourceMap);
 	if (client.inspectionCatalog)
 		preparedLanguageProjections.set(result, client.inspectionCatalog.languageProjection);
-	if (publish) await publishArtifactPlanEntry(entry, result);
 	if (!client.inspectionCatalog || !retainInspection) return result;
 	const inspected = retainArtifactAnalysis(
 		{
