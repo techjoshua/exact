@@ -10,6 +10,7 @@ import {
 	continuationDependencies,
 	createExactContinuationHandler
 } from './continuation-execution.js';
+import { createRequestLifetime } from './context/request.js';
 import type {
 	ExactInvocationRequest,
 	ExactOperationError,
@@ -254,11 +255,14 @@ async function dispatchExactOperationAfterSecurity(
 		kind: executor ? 'continuation.receive' : 'task.start',
 		...observation
 	});
+	const operationLifetime =
+		request.signal && request.signal !== context.signal
+			? createRequestLifetime(context.signal, request.signal)
+			: undefined;
 	try {
-		const requestContext =
-			request.signal && request.signal !== context.signal
-				? { ...context, signal: request.signal }
-				: context;
+		const requestContext = operationLifetime
+			? { ...context, signal: operationLifetime.signal }
+			: context;
 		const observedRequestContext = context.debugRuntime
 			? {
 					...requestContext,
@@ -343,6 +347,8 @@ async function dispatchExactOperationAfterSecurity(
 			status: 500,
 			error: 'internal_error'
 		};
+	} finally {
+		operationLifetime?.dispose();
 	}
 }
 

@@ -161,6 +161,7 @@ export function createExactServerHandlerRegistry(
 export function createExactServerRuntime(options: ExactServerRuntimeOptions): ExactServerContext {
 	const registry = createExactServerHandlerRegistry(options);
 	const contextRuntime = createExactContextRuntime({
+		publicOrigin: options.publicOrigin,
 		applicationContexts: options.applicationContexts,
 		requestContexts: options.requestContexts,
 		contextOverrides: options.contextOverrides
@@ -168,6 +169,7 @@ export function createExactServerRuntime(options: ExactServerRuntimeOptions): Ex
 	const server: ExactServerContext = {
 		contract: options.contract,
 		...registry,
+		componentAuthorization: options.componentAuthorization,
 		publicOrigin: options.publicOrigin,
 		authorize: options.authorize,
 		validateCsrf: options.validateCsrf,
