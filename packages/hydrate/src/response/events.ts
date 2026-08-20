@@ -128,3 +128,18 @@ export function isExactStreamCompleteEvent(
 		hasOnlyKeys(record, ['event', 'version']) && record.event === 'complete' && record.version === 1
 	);
 }
+
+/** Reports whether an exact stream event carries observations owned by this response. */
+export function isExactStreamObservationsEvent(
+	value: unknown
+): value is Extract<ExactStreamEvent, { event: 'observations' }> {
+	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+		return false;
+	const record = value as Record<string, unknown>;
+	return (
+		hasOnlyKeys(record, ['event', 'version', 'observations']) &&
+		record.event === 'observations' &&
+		record.version === 1 &&
+		Array.isArray(record.observations)
+	);
+}

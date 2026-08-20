@@ -28,7 +28,7 @@ export type ExactDebugAuthorizationContext = Readonly<{
 	executionRoots: readonly string[];
 }>;
 
-/** Conservative limits applied to all debug sessions and queries. */
+/** Conservative limits applied to debug sessions, queries, and each request's observations. */
 export type ExactDebugLimits = Readonly<{
 	maxSessions?: number;
 	maxSessionMinutes?: number;
@@ -55,15 +55,28 @@ export interface ExactServerDebugRuntime {
 	handle(request: ExactRequestLike, input: ExactDebugRequest): Promise<ExactResponseLike>;
 	/** Revalidates a page session before the binding gateway creates or uses a remote child. */
 	authorize(request: ExactRequestLike, input: ExactDebugRequest): Promise<boolean>;
+	/** Authorizes one ordinary request to return observations to an attached browser session. */
+	createRequestRuntime(
+		request: ExactRequestLike,
+		sessionId: string
+	): Promise<ExactServerRequestDebugRuntime | undefined>;
 	close(): Promise<void>;
 	/** Registers one retained build catalog; disposing the handle retires that exact build. */
 	registerCatalog(catalog: ExactBuildInspectionCatalog): Readonly<{ dispose(): void }>;
-	/** Creates a request/root owner that fans component observations out to active sessions. */
+	identityFor(
+		sessionId: string,
+		input: Omit<ExactInspectionRuntimeId, 'sessionId' | 'side'>
+	): ExactInspectionRuntimeId;
+}
+
+/** Observation collector owned and disposed by exactly one server request. */
+export interface ExactServerRequestDebugRuntime {
+	/** Creates a root owner attached only to this request's bounded collector. */
 	inspectionOwner(
 		options: Readonly<{ buildKey: string; executionRoot: string; binding?: string }>
 	): ExactRuntimeInspectionOwner;
 	publish(event: ExactRuntimeInspectionEvent): void;
-	/** Publishes one server observation to each currently authorized attached session. */
+	/** Publishes one server observation into this request's bounded response attachment. */
 	observe(
 		event: Readonly<{
 			kind: ExactRuntimeInspectionEvent['kind'];
@@ -80,8 +93,6 @@ export interface ExactServerDebugRuntime {
 			attributes?: ExactRuntimeInspectionEvent['attributes'];
 		}>
 	): void;
-	identityFor(
-		sessionId: string,
-		input: Omit<ExactInspectionRuntimeId, 'sessionId' | 'side'>
-	): ExactInspectionRuntimeId;
+	drain(): readonly ExactRuntimeInspectionEvent[];
+	dispose(): void;
 }

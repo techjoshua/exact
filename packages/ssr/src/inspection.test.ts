@@ -40,7 +40,7 @@ describe('@exactjs/ssr inspection ownership', () => {
 		expect(JSON.stringify(events)).not.toContain('<h1');
 	});
 
-	it('automatically correlates request SSR with an authorized running build', async () => {
+	it('does not retain request SSR observations in the reusable server runtime', async () => {
 		function Page() {
 			return () => createVNode('h1', null, 'Server');
 		}
@@ -99,7 +99,7 @@ describe('@exactjs/ssr inspection ownership', () => {
 		);
 		const sessionId = JSON.parse(opened.body).session.id as string;
 
-		await renderExactRequestToHtmlResponse(
+		const rendered = await renderExactRequestToHtmlResponse(
 			{ method: 'GET', url: '/' },
 			server,
 			() => createVNode(Page, {}),
@@ -124,9 +124,9 @@ describe('@exactjs/ssr inspection ownership', () => {
 			},
 			server
 		);
-		const events = JSON.parse(timeline.body).result as ExactRuntimeInspectionEvent[];
-		expect(events.map((event) => event.kind)).toEqual(['component.construct', 'component.unmount']);
-		expect(events[0]!.id).toMatchObject({ sessionId, buildKey, executionRoot: 'page' });
+		expect(rendered.body).toContain('Server');
+		expect(timeline.status).toBe(404);
+		expect(JSON.parse(timeline.body)).toMatchObject({ reason: 'timeline-is-browser-owned' });
 		await server.dispose?.();
 	});
 });

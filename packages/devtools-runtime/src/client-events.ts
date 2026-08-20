@@ -27,17 +27,24 @@ export function createExactClientEventStore(
 		listener: (event: ExactRuntimeInspectionEvent) => void;
 	}>();
 	let retainedBytes = 0;
+	let sequence = 0;
 	const store: ExactClientEventStore = {
 		publish(event) {
-			const bytes = new TextEncoder().encode(JSON.stringify(event)).byteLength;
+			const nextSequence = ++sequence;
+			const retained = Object.freeze({
+				...event,
+				sequence: nextSequence,
+				cursor: nextSequence.toString(36)
+			});
+			const bytes = new TextEncoder().encode(JSON.stringify(retained)).byteLength;
 			if (bytes > maxBytes) return;
-			events.push({ event, bytes });
+			events.push({ event: retained, bytes });
 			retainedBytes += bytes;
 			while (events.length > maxEvents || retainedBytes > maxBytes)
 				retainedBytes -= events.shift()!.bytes;
 			for (const subscription of listeners)
-				if (exactInspectionEventMatches(event, subscription.filter))
-					deliver(subscription.listener, event);
+				if (exactInspectionEventMatches(retained, subscription.filter))
+					deliver(subscription.listener, retained);
 		},
 		query(cursor, filter) {
 			const sequence = cursor ? Number.parseInt(cursor, 36) : 0;
@@ -59,6 +66,7 @@ export function createExactClientEventStore(
 			events.length = 0;
 			retainedBytes = 0;
 			listeners.clear();
+			sequence = 0;
 		}
 	};
 	return Object.freeze(store);

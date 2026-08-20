@@ -72,6 +72,10 @@
 			"types": "./dist/framework/operation-protocol.d.ts",
 			"default": "./dist/framework/operation-protocol.js"
 		},
+		"./framework/inspection-transport": {
+			"types": "./dist/framework/inspection-transport.d.ts",
+			"default": "./dist/framework/inspection-transport.js"
+		},
 		"./runtime/render": {
 			"types": "./dist/runtime/render.d.ts",
 			"default": "./dist/runtime/render.js"
