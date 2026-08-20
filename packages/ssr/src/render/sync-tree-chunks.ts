@@ -58,12 +58,6 @@ import * as syncComponents from './sync-component.js';
 import { createSsrChunkMarker } from './sync-markers.js';
 import { applySsrTargetContributions } from './target-contributions.js';
 
-const syncComponentOperations = {
-	renderChildren,
-	componentMarkerId,
-	renderResumable: renderResumableComponentBoundary
-};
-
 /** Streams one synchronous VNode tree while preserving marker and ownership semantics. */
 export function* renderVNodeChunks(
 	context: SsrContext,
