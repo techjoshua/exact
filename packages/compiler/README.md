@@ -45,7 +45,6 @@ When direct compilation supplies both `rootDir` and `outDir`, every input must b
 source root. The compiler rejects an outside input before deriving or writing an output path.
 Artifact projects stage their complete client, server, shared, map, and inspection output set. A
 publication failure restores the previous files rather than leaving a partially updated build.
-
 Build-tool authors may set `componentContractProjection` only when producing a concrete runtime
 bundle. `hydrate` retains resumption metadata, `client` omits it, and both omit analysis-only
 component inventories already present in `componentBuild`. Leaving the option unset preserves the
