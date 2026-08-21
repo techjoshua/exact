@@ -41,14 +41,14 @@ import {
 	mutableComponentLifecycleHandlers,
 	mutableComponentRenderHandlers
 } from './lifecycle-handlers.js';
-import { createComponentListController } from './list-controller.js';
+import { componentListCapability, optionalComponentListCapability } from './list-capability.js';
 import { componentLocalizationCapability } from './localization-capability.js';
 import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins } from './plugins.js';
 import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
 import { reactiveValue } from './reactive-value.js';
 import type { IntlFacade } from '../localization/contracts.js';
-import { createComponentRefBinding, createComponentRefRegistry } from './ref-runtime.js';
+import { componentRefCapability } from './ref-capability.js';
 import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
@@ -79,9 +79,6 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 
 	private contextsValue?: Map<symbol, unknown>;
 	private contextTokensValue?: Map<symbol, ContextToken<unknown>>;
-	private refsValue?: Map<symbol, RefBinding<unknown>>;
-	private refsRegistry?: RefRegistry;
-	private lists?: ReturnType<typeof createComponentListController>;
 	private intlFacade?: IntlFacade;
 	private readonly inspection;
 	private readonly taskCapability = componentTaskCapability();
@@ -137,7 +134,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	}
 
 	get refs(): RefRegistry {
-		return (this.refsRegistry ??= createComponentRefRegistry(this));
+		return componentRefCapability().registry(this);
 	}
 
 	get intl(): IntlFacade {
@@ -170,11 +167,11 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	}
 
 	beginRender(): void {
-		this.lists?.beginRender();
+		optionalComponentListCapability()?.begin(this);
 	}
 
 	endRender(): void {
-		this.lists?.endRender();
+		optionalComponentListCapability()?.end(this);
 	}
 
 	hasContext(token: ContextToken<unknown>): boolean {
@@ -203,16 +200,11 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	}
 
 	ref<T>(key: RefKey<T>): RefBinding<T> {
-		const refs = (this.refsValue ??= new Map());
-		const existing = refs.get(key.id) as RefBinding<T> | undefined;
-		if (existing) return existing;
-		const binding = createComponentRefBinding(this, key);
-		refs.set(key.id, binding as RefBinding<unknown>);
-		return binding;
+		return componentRefCapability().ref(this, key);
 	}
 
 	readRef<T>(key: RefKey<T>): T | undefined {
-		return this.refsValue?.get(key.id)?.current as T | undefined;
+		return componentRefCapability().read(this, key);
 	}
 
 	map<T>(
@@ -223,7 +215,8 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		provenance?: Iterable<T>,
 		keyIdentity?: string
 	): VNode {
-		return (this.lists ??= createComponentListController()).map(
+		return componentListCapability().map(
+			this,
 			collection,
 			key,
 			render,
@@ -309,7 +302,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		};
 		if (this.renderStop) teardown(this.renderStop);
 		teardown(() => this.scope.stop());
-		if (this.lists) teardown(() => this.lists!.dispose());
+		teardown(() => optionalComponentListCapability()?.dispose(this));
 		if (this.mountController) teardown(() => this.mountController!.abort(reason));
 		if (this.taskState) teardown(() => this.taskCapability?.release(this.taskState, this));
 		for (const handler of componentLifecycleHandlers(this, 'unmount')) {

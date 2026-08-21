@@ -86,6 +86,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/dom/runtime/unsafe-html"},
 		{module: "@exactjs/dom/runtime/structural-boundaries"},
 		{module: "@exactjs/time/internal"},
+		{module: "@exactjs/core/runtime/lists"},
+		{module: "@exactjs/core/runtime/refs"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -178,6 +180,12 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	interactionUsed := containsInteractionRuntimeUse(root)
 	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root)
+	source := lowering.sourceFile.Text()
+	listUsed := containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "map") ||
+		strings.Contains(source, "this.map")
+	refsUsed := containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "ref", "readRef", "refs") ||
+		strings.Contains(source, "this.ref") || strings.Contains(source, "this.readRef") ||
+		strings.Contains(source, "this.refs")
 	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,
@@ -191,6 +199,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		if len(group.specifiers) == 0 {
 			if (index == 2 && (interopUsed || interactionUsed)) ||
 				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) ||
+				(group.module == "@exactjs/core/runtime/lists" && listUsed) ||
+				(group.module == "@exactjs/core/runtime/refs" && refsUsed) ||
 				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
 				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
 				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) {
@@ -221,6 +231,24 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		result = append(result, declaration)
 	}
 	return result
+}
+
+func containsComponentSurfaceUse(root *ast.Node, names ...string) bool {
+	accepted := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		accepted[name] = struct{}{}
+	}
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		member := node.AsPropertyAccessExpression()
+		_, matched := accepted[member.Name().Text()]
+		found = matched && member.Expression.Kind == ast.KindThisKeyword
+		return !found
+	})
+	return found
 }
 
 func partitionUsesStructuralBoundaries(plan PartitionPlan) bool {

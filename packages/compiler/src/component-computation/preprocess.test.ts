@@ -15,6 +15,8 @@ describe('@exactjs/compiler component computations', () => {
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/inspection');
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/registry');
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/enhancements');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/lists');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/refs');
 
 		const taskOutput = transform(
 			`function Search(this: Component<{ query: string; result?: string }>) {
@@ -28,6 +30,18 @@ describe('@exactjs/compiler component computations', () => {
 		);
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/tasks"');
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/reactivity"');
+	});
+
+	it('imports optional component surface capabilities only when authored', () => {
+		const output = transform(
+			`function Results(this: Component<{}>, props: { values: string[] }) {
+				const field = this.ref(inputRef);
+				return () => <>{this.map(props.values, value => value, value => <p>{value}</p>)}<input ref={field} /></>;
+			}`,
+			{ filename: 'Results.tsx' }
+		);
+		expect(output).toContain('import "@exactjs/core/runtime/lists"');
+		expect(output).toContain('import "@exactjs/core/runtime/refs"');
 	});
 
 	it('keeps nullish component-state initialization in setup', () => {

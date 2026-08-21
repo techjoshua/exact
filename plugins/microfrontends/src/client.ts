@@ -435,3 +435,4 @@ function validateRemoteModule(value: unknown): ExactRemoteModule {
 function normalizeFallback(value: Child | Child[] | undefined): Child[] {
 	return value === undefined ? [] : Array.isArray(value) ? value : [value];
 }
+import '@exactjs/core/runtime/refs';

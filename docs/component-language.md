@@ -113,6 +113,9 @@ lifecycle storage, task collections, and lifecycle cancellation are
 materialized when the component actually uses them. This does not make
 extracted unbound component methods valid: component methods use their
 instance receiver.
+Compiled artifacts also import ref and keyed-list ownership through focused runtime entries. A
+component graph without `this.ref`, `this.readRef`, `this.refs`, or `this.map` does not retain those
+implementations merely because the shared component interface exposes the methods.
 Reactive ownership follows the same rule: effect-scope methods are shared and
 their child, reaction, cleanup, and pause-waiter collections are created on
 first use. A DOM binding that observes no reactive dependency applies its value
