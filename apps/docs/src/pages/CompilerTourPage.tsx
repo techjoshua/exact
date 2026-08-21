@@ -78,6 +78,12 @@ export function CompilerTourPage(this: Component<{}>) {
 			<section>
 				<h2>What to notice</h2>
 				<p>
+					A component does not need a <code>.tsx</code> filename when it does not author JSX. The
+					compiler recognizes native components in ordinary TypeScript modules too. Installed eXact
+					libraries can provide precompiled browser and server artifacts, so applications consume
+					the correct target without executing the compiler at runtime.
+				</p>
+				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
 					boundary. Inputs outside it are rejected before any path beneath <code>outDir</code> is
 					derived or written. Client, server, shared, map, and inspection outputs are staged as one

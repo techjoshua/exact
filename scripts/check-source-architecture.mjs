@@ -61,7 +61,6 @@ const compilerlessComponentCeilings = new Map([
 	['packages/react-compat/src/runtime/nodes.ts', 3],
 	['packages/react-dom-compat/src/client.ts', 1],
 	['packages/react-dom-compat/src/server-shared.ts', 1],
-	['packages/request/src/provider.ts', 1],
 	['packages/testing/src/internal/fixtures.ts', 1],
 	['packages/testing/src/mounting/mount.ts', 1],
 	['packages/theme/src/components.ts', 1],
@@ -145,7 +144,9 @@ function inspectCompilerlessComponentCalls(relative, source) {
 	if (ceiling === undefined)
 		violations.push(`${relative}: new compilerless native component is not permitted`);
 	else if (count > ceiling)
-		violations.push(`${relative}: ${count} compilerless components exceeds its ceiling of ${ceiling}`);
+		violations.push(
+			`${relative}: ${count} compilerless components exceeds its ceiling of ${ceiling}`
+		);
 }
 
 function inspectFacade(relative, sourceFile) {
@@ -222,7 +223,9 @@ function inspectSize(file, source, isTest = false) {
 		if (ceiling === undefined)
 			violations.push(`${relative}: ${logicalLines} logical lines exceeds the ${limit}-line limit`);
 		else if (logicalLines > ceiling)
-			violations.push(`${relative}: ${logicalLines} logical lines exceeds its ceiling of ${ceiling}`);
+			violations.push(
+				`${relative}: ${logicalLines} logical lines exceeds its ceiling of ${ceiling}`
+			);
 	}
 }
 
