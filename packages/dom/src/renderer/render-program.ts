@@ -17,18 +17,6 @@ import { programTemplate } from './render-program-template.js';
 const elementNode = 1;
 const textNode = 3;
 
-type RenderProgramPropGroup = {
-	element: Element;
-	slots: readonly number[];
-	previous: Record<string, unknown>;
-	next: Record<string, unknown>;
-};
-
-type RenderProgramBindingPlan = {
-	textSlots: readonly number[];
-	propGroups: readonly RenderProgramPropGroup[];
-};
-
 /** Mounts a branded program, or reports that its generic region fallback is required. */
 export function mountRenderProgram(
 	root: Root,
@@ -300,25 +288,36 @@ export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 function bindRenderProgram(mounted: Mounted): boolean {
 	mounted.stop?.();
 	const state = mounted.renderProgram!;
-	const plan = prepareBindingPlan(state.invocation, state.slotNodes);
+	const previousProps = state.props ?? new Map<Element, Record<string, unknown>>();
+	state.props = previousProps;
 	let released = false;
 	let valid = true;
 	let initialBinding = true;
 	const release = () => {
 		if (released) return;
 		released = true;
-		for (const group of plan.propGroups) {
-			const ref = group.previous.ref as { fulfill(value: unknown): void } | undefined;
+		for (const [element, props] of previousProps) {
+			const ref = props.ref as { fulfill(value: unknown): void } | undefined;
 			ref?.fulfill(undefined);
-			clearElementProps(group.element);
+			clearElementProps(element);
 		}
+		previousProps.clear();
 		mounted.stop = undefined;
 		state.refresh = undefined;
 	};
 	const apply = () => {
-		for (const index of plan.textSlots) {
+		const nextProps = new Map<Element, Record<string, unknown>>();
+		for (let index = 0; index < state.slotNodes.length; index++) {
 			const value = unwrap(readRenderProgramSlot(state.invocation, index));
+			const slot = state.invocation.program.slots[index]!;
 			const target = state.slotNodes[index];
+			if (slot[0] !== 'text') {
+				const element = target as Element;
+				let props = nextProps.get(element);
+				if (!props) nextProps.set(element, (props = {}));
+				props[slot[3]] = value;
+				continue;
+			}
 			if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
 				valid = false;
 				return;
@@ -330,23 +329,30 @@ function bindRenderProgram(mounted: Mounted): boolean {
 			const node = target as Text;
 			if (node.data !== text) node.data = text;
 		}
-		for (const group of plan.propGroups) {
-			for (const index of group.slots) {
-				const slot = state.invocation.program.slots[index]!;
-				group.next[slot[3] as string] = unwrap(readRenderProgramSlot(state.invocation, index));
-			}
+		for (const [element, previous] of previousProps) {
+			if (!nextProps.has(element))
+				updateProps(state.root, element, previous, {}, mounted.scope, !initialBinding);
+		}
+		// Option values must exist before a parent select receives its controlled value. Static
+		// render-program templates deliberately omit slotted values, so DOM order alone cannot
+		// provide the browser's usual option-selection initialization.
+		const orderedProps = [...nextProps].sort(([left], [right]) => {
+			const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
+			const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
+			return leftPriority - rightPriority;
+		});
+		for (const [element, next] of orderedProps) {
 			updateProps(
 				state.root,
-				group.element,
-				group.previous,
-				group.next,
+				element,
+				previousProps.get(element) ?? {},
+				next,
 				mounted.scope,
 				!initialBinding
 			);
-			const previous = group.previous;
-			group.previous = group.next;
-			group.next = previous;
 		}
+		previousProps.clear();
+		for (const [element, props] of nextProps) previousProps.set(element, props);
 		initialBinding = false;
 	};
 	state.refresh = apply;
@@ -360,40 +366,6 @@ function bindRenderProgram(mounted: Mounted): boolean {
 		return false;
 	}
 	return true;
-}
-
-/** Prepares immutable slot grouping once instead of rebuilding it on every reactive pass. */
-function prepareBindingPlan(
-	invocation: ExactRenderProgramInvocation,
-	slotNodes: readonly (Node | undefined)[]
-): RenderProgramBindingPlan {
-	const textSlots: number[] = [];
-	const slotsByElement = new Map<Element, number[]>();
-	for (let index = 0; index < invocation.program.slots.length; index++) {
-		const slot = invocation.program.slots[index]!;
-		if (slot[0] === 'text') {
-			textSlots.push(index);
-			continue;
-		}
-		const element = slotNodes[index] as Element;
-		const slots = slotsByElement.get(element);
-		if (slots) slots.push(index);
-		else slotsByElement.set(element, [index]);
-	}
-	const propGroups = [...slotsByElement].map(([element, slots]) => ({
-		element,
-		slots: Object.freeze(slots),
-		previous: {},
-		next: {}
-	}));
-	// Option values must exist before a parent select receives its controlled value. Static
-	// templates omit slotted values, so prepare the required ordering once for every later pass.
-	propGroups.sort((left, right) => {
-		const leftPriority = left.element instanceof HTMLSelectElement ? 1 : 0;
-		const rightPriority = right.element instanceof HTMLSelectElement ? 1 : 0;
-		return leftPriority - rightPriority;
-	});
-	return { textSlots: Object.freeze(textSlots), propGroups: Object.freeze(propGroups) };
 }
 
 function validSlotNodes(
