@@ -200,6 +200,35 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 }
 
+func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-adjacent-text.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			export function Planned(props: { owner: string; status: string }) {
+				return () => <small>{props.owner} · {props.status}</small>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`<!---->\uE000exact:0\uE001<!---->`,
+		`<!---->\uE000exact:1\uE001<!---->`,
+		`["text",`,
+		`[1]`,
+		`[5]`,
+		`bindings: [["text", 0], ["text", 1]]`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("adjacent scalar program omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `createCompiledVNode("small"`) {
+		t.Fatalf("adjacent scalar children fell back to a generic host VNode:\n%s", response.Code)
+	}
+}
+
 func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,

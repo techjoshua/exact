@@ -65,6 +65,11 @@ register them in an authority set or repeatedly validate their internal tables d
 patch. Only the private render-program VNode kind selects this executor. Server responses, plugin
 payloads, and other external values remain validated at their actual ingress boundaries.
 
+Scalar text slots may sit beside static text or other scalar slots in one planned host. The
+compiler inserts anonymous template-only comment separators so HTML parsing cannot coalesce their
+text nodes, then emits the exact resulting paths. The separators carry no protocol identity; SSR
+continues to use request-owned dynamic markers and the hydration tape addresses those separately.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:
