@@ -4,7 +4,7 @@ import {
 	type ComponentFunction,
 	type ErrorReport
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactCompatibilityArtifact } from '@exactjs/core/framework/component-contracts';
 // React client roots can produce Suspense and Activity VNodes without compiler lowering.
 import '@exactjs/dom/structural-boundaries';
 import { render as renderExact, unmount as unmountExact } from '@exactjs/dom';
@@ -47,7 +47,7 @@ const RootHost = function ExactReactRoot(
 		return toExactNode(props.children);
 	};
 } as ComponentFunction<Record<string, never>, RootHostProps>;
-markExactComponent(RootHost, '@exactjs/react-dom-compat:RootHost');
+createExactCompatibilityArtifact(RootHost, '@exactjs/react-dom-compat:RootHost', 'client');
 
 class CompatibilityRoot implements Root {
 	private active = true;

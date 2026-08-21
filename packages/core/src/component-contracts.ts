@@ -224,6 +224,47 @@ export function markExactComponent<T extends AnyExactComponentCallable>(
 	return component;
 }
 
+/**
+ * Constructs the explicit target-local artifact used only at a foreign component boundary.
+ * Native eXact authoring must use compiler-produced artifacts instead.
+ */
+export function createExactCompatibilityArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string,
+	target: 'client' | 'server'
+): T {
+	if (!identity) throw new Error('eXact compatibility identity must be a non-empty string');
+	if (target !== 'client' && target !== 'server')
+		throw new TypeError('eXact compatibility artifacts require a target-local artifact target');
+	const implementationId = `${identity}:implementation`;
+	const contract: ExactComponentContract = {
+		version: 2,
+		placement: target,
+		role: target === 'client' ? 'client' : 'executor',
+		implementations: [
+			{ id: implementationId, name: component.name, role: 'root', implementation: component }
+		],
+		continuations: [],
+		executors: [],
+		boundaries: [],
+		execution: { version: 1, ports: [], transitions: [], reactive: [] },
+		definition: {
+			version: 1,
+			instantiate: component,
+			state: [],
+			tasks: [],
+			reactive: [],
+			render: 'returned-function',
+			capabilities: ['compatibility', 'dynamic-components']
+		}
+	};
+	Object.defineProperties(component, {
+		[exactComponentType]: { configurable: false, enumerable: false, value: identity },
+		[exactComponentContract]: { configurable: false, enumerable: false, value: contract }
+	});
+	return component;
+}
+
 /** Returns whether a callable carries a valid native eXact component identity. */
 export function isExactComponent(component: unknown): component is AnyExactComponentCallable {
 	if (typeof component !== 'function') return false;

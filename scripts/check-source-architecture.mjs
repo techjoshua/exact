@@ -37,10 +37,6 @@ const legacyArchitectureCeilings = new Map([
 ]);
 const compilerlessComponentCeilings = new Map([
 	['packages/dom/src/renderer/root-support.ts', 1],
-	['packages/react-compat/src/runtime/adapters.ts', 1],
-	['packages/react-compat/src/runtime/nodes.ts', 3],
-	['packages/react-dom-compat/src/client.ts', 1],
-	['packages/react-dom-compat/src/server-shared.ts', 1],
 	['packages/testing/src/internal/fixtures.ts', 1],
 ]);
 
