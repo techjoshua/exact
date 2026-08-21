@@ -73,17 +73,17 @@ export function adoptRenderProgram(
 	if (
 		!rootPlan ||
 		!matchesProgramElement(
-			dom,
-			rootPlan[0],
-			rootPlan[3],
-			rootPlan[4] ?? invocation.program.namespace
+				dom,
+				rootPlan[0],
+				rootPlan[2],
+				rootPlan[3] ?? invocation.program.namespace
 		)
 	)
 		return undefined;
 	for (const node of invocation.program.nodes) {
 		const plan = node;
 		const target = nodeAtPath(dom, plan[1]);
-		if (!matchesProgramElement(target, plan[0], plan[3], plan[4] ?? invocation.program.namespace))
+		if (!matchesProgramElement(target, plan[0], plan[2], plan[3] ?? invocation.program.namespace))
 			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) =>
@@ -210,10 +210,10 @@ function adoptMarkedRenderProgram(
 			node instanceof Element &&
 			rootNodePlan &&
 			matchesProgramElement(
-				node,
-				rootNodePlan[0],
-				rootNodePlan[3],
-				rootNodePlan[4] ?? invocation.program.namespace
+					node,
+					rootNodePlan[0],
+					rootNodePlan[2],
+					rootNodePlan[3] ?? invocation.program.namespace
 			)
 		) {
 			programRoot = node;
@@ -225,7 +225,7 @@ function adoptMarkedRenderProgram(
 	for (const planned of invocation.program.nodes) {
 		const plan = planned;
 		const element = hydrationIndex.elements.get(plan[0]);
-		if (!matchesProgramElement(element, plan[0], plan[3], plan[4] ?? invocation.program.namespace))
+		if (!matchesProgramElement(element, plan[0], plan[2], plan[3] ?? invocation.program.namespace))
 			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) => {
@@ -344,7 +344,7 @@ function bindRenderProgram(mounted: Mounted): boolean {
 				for (const index of indexes) {
 					const slot = state.invocation.program.slots[index]!;
 					if (slot[0] === 'text' || slot[0] === 'child') continue;
-					next[slot[3]] = unwrap(readRenderProgramSlot(state.invocation, index));
+					next[slot[2]] = unwrap(readRenderProgramSlot(state.invocation, index));
 				}
 				updateProps(
 					state.root,

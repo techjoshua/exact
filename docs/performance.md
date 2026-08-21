@@ -35,12 +35,11 @@ mutable containers and dynamically introduced fields retain the general reactive
 Optimistic journals, SSR resumption, snapshots, and DevTools therefore observe the same state
 contract without allocating a property-keyed top-level container for compiled fields.
 
-Compiler render programs also carry a production hydration tape. Fixed-width regions address
-intrinsic nodes and scalar marker ranges by their exact SSR child paths. A program that owns a
-variable-width structural child range instead claims compiler identities inside that finite program
-region, because content inside the range makes later physical child indexes intentionally variable.
-The adopter builds one ephemeral identity index for that bounded program region and releases it
-after the claim; no hydration index remains in live component state. Every claimed tag, namespace,
+Compiler render programs also carry production hydration identities. Mount paths address nodes in
+the compiler's own inert template; hydration does not duplicate those paths for the marker-expanded
+SSR tree. Instead, the adopter builds one ephemeral identity index for the bounded program region
+and releases it after the claim, so variable-width structural children do not invalidate later
+addresses and no hydration index remains in live component state. Every claimed tag, namespace,
 compiler identity, and dynamic marker pair is still checked. A stale or malformed plan
 therefore fails closed into the existing hydration recovery path, while markerless and generic
 hydration remain available for inputs that do not carry the compiler plan.

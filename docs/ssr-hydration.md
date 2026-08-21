@@ -91,8 +91,9 @@ Compiler render programs adopt their marked intrinsic nodes, scalar slots, and s
 ranges through stable compiler identities. A structural range can contain a variable number of SSR
 nodes, so later intrinsic claims use identities within the bounded program region rather than
 assuming a fixed physical sibling offset. One ephemeral region-local index serves all of those
-claims and is released before hydration completes. They retain the SSR DOM and marker protocol without
-rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
+claims and is released before hydration completes. The descriptor carries only its template mount
+paths; it does not duplicate a second path array for marker-expanded SSR. Programs retain the SSR DOM
+and marker protocol without rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses
 those structural results instead of recursively rediscovering roots through nested components.
