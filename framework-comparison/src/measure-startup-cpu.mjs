@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { analyzeStartupTrace, startupPercentile } from './startup-cpu-analysis.mjs';
+import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error(
@@ -97,6 +98,7 @@ async function measureColdStartup(browserInstance, participant, throttleRate) {
 	const session = await context.newCDPSession(page);
 	let tracing = false;
 	try {
+		await page.addInitScript(installBrowserVitals);
 		await session.send('Network.enable');
 		await session.send('Network.setCacheDisabled', { cacheDisabled: true });
 		await session.send('Performance.enable');
@@ -121,6 +123,7 @@ async function measureColdStartup(browserInstance, participant, throttleRate) {
 		const firstContentfulPaintMs = await page.evaluate(waitForFirstContentfulPaint);
 		await page.locator('.connection').getByText('Live service', { exact: true }).waitFor();
 		await page.evaluate(() => console.timeStamp('__framework_comparison_ready__'));
+		const vitals = await page.evaluate(readBrowserVitals);
 		const readiness = await page.evaluate(() => ({
 			readyMs: performance.now(),
 			navigation: performance.getEntriesByType('navigation')[0]?.toJSON() ?? null,
@@ -142,6 +145,7 @@ async function measureColdStartup(browserInstance, participant, throttleRate) {
 		tracing = false;
 		return {
 			firstContentfulPaintMs,
+			vitals,
 			readyMs: readiness.readyMs,
 			navigation: readiness.navigation,
 			scripts: readiness.scripts,
@@ -184,11 +188,32 @@ function summarizeCoverage(scripts) {
 				...script.functions.flatMap((entry) => entry.ranges.map((range) => range.endOffset))
 			),
 			functionCount: script.functions.length,
+			executedBytes: coveredBytes(
+				script.functions.flatMap((entry) => entry.ranges.filter((range) => range.count > 0))
+			),
 			invokedFunctionCount: script.functions.filter((entry) =>
 				entry.ranges.some((range) => range.count > 0)
 			).length
 		}))
 		.sort((left, right) => right.codeBytes - left.codeBytes);
+}
+
+/** Returns the union length of executed byte ranges without double-counting nested functions. */
+function coveredBytes(ranges) {
+	const sorted = ranges
+		.map((range) => [range.startOffset, range.endOffset])
+		.filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+		.sort((left, right) => left[0] - right[0] || right[1] - left[1]);
+	let total = 0;
+	let start = -1;
+	let end = -1;
+	for (const range of sorted) {
+		if (range[0] > end) {
+			if (end > start) total += end - start;
+			[start, end] = range;
+		} else end = Math.max(end, range[1]);
+	}
+	return total + (end > start ? end - start : 0);
 }
 
 function metricRecord(response) {
@@ -219,6 +244,11 @@ function summarizeSamples(samples) {
 	};
 	return {
 		firstContentfulPaintMs: metric((sample) => sample.firstContentfulPaintMs),
+		largestContentfulPaintMs: metric((sample) => sample.vitals.largestContentfulPaintMs),
+		longTaskCount: metric((sample) => sample.vitals.longTaskCount),
+		longTaskDurationMs: metric((sample) => sample.vitals.longTaskDurationMs),
+		totalBlockingTimeMs: metric((sample) => sample.vitals.totalBlockingTimeMs),
+		domElementCount: metric((sample) => sample.vitals.domElementCount),
 		readyMs: metric((sample) => sample.readyMs),
 		scriptDurationMs: metric((sample) => sample.performance.scriptDurationMs),
 		v8CompileDurationMs: metric((sample) => sample.performance.v8CompileDurationMs),
@@ -233,6 +263,9 @@ function summarizeSamples(samples) {
 		),
 		profiledCodeBytes: metric((sample) =>
 			sample.coverage.reduce((sum, script) => sum + script.codeBytes, 0)
+		),
+		executedCodeBytes: metric((sample) =>
+			sample.coverage.reduce((sum, script) => sum + script.executedBytes, 0)
 		),
 		profiledFunctionCount: metric((sample) =>
 			sample.coverage.reduce((sum, script) => sum + script.functionCount, 0)

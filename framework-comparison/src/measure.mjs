@@ -7,6 +7,7 @@ import { performance } from 'node:perf_hooks';
 import { chromium } from 'playwright';
 import { measureRetainedHeap } from './browser-memory.mjs';
 import { waitForFirstContentfulPaint } from './paint-timing.mjs';
+import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -145,6 +146,7 @@ async function measureBrowserSample(browserInstance, participant) {
 			failedRequests.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText}`)
 		);
 		await page.addInitScript(installInteractionTiming);
+		await page.addInitScript(installBrowserVitals);
 		const session = await context.newCDPSession(page);
 		await session.send('Performance.enable');
 		// EventSource intentionally keeps the network active, so semantic readiness gates the sample.
@@ -184,8 +186,10 @@ async function measureBrowserSample(browserInstance, participant) {
 		// Collect retained memory after interaction timing. A forced collection immediately before the
 		// click would turn optimistic feedback into a cold-allocation recovery measurement.
 		const heapBytes = await measureRetainedHeap(session);
+		const vitals = await page.evaluate(readBrowserVitals);
 		return {
 			navigation,
+			vitals,
 			heapBytes,
 			optimisticFeedbackMs: timing.optimisticFeedbackMs,
 			settlementMs: timing.settlementMs,
@@ -368,6 +372,22 @@ function summarizeBrowser(samples) {
 		),
 		firstContentfulPaintP50Ms: percentile(
 			samples.map((sample) => sample.navigation.firstContentfulPaintMs),
+			0.5
+		),
+		largestContentfulPaintP50Ms: percentile(
+			samples.map((sample) => sample.vitals.largestContentfulPaintMs),
+			0.5
+		),
+		totalBlockingTimeP50Ms: percentile(
+			samples.map((sample) => sample.vitals.totalBlockingTimeMs),
+			0.5
+		),
+		longTaskCountP50: percentile(
+			samples.map((sample) => sample.vitals.longTaskCount),
+			0.5
+		),
+		domElementCountP50: percentile(
+			samples.map((sample) => sample.vitals.domElementCount),
 			0.5
 		),
 		heapP50Bytes: percentile(
