@@ -293,24 +293,6 @@ function bindRenderProgram(mounted: Mounted): boolean {
 	let valid = true;
 	let initialBinding = true;
 	let stopBindings: Array<() => void> = [];
-	const propertySlots = new Map<Element, number[]>();
-	const textSlots: number[] = [];
-	for (let index = 0; index < state.slotNodes.length; index++) {
-		const slot = state.invocation.program.slots[index]!;
-		if (slot[0] === 'text') {
-			textSlots.push(index);
-			continue;
-		}
-		const element = state.slotNodes[index] as Element;
-		const indexes = propertySlots.get(element);
-		if (indexes) indexes.push(index);
-		else propertySlots.set(element, [index]);
-	}
-	const orderedPropertySlots = [...propertySlots].sort(([left], [right]) => {
-		const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
-		const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
-		return leftPriority - rightPriority;
-	});
 	const stopCurrentBindings = () => {
 		for (const stop of stopBindings) stop();
 		stopBindings = [];
@@ -331,28 +313,29 @@ function bindRenderProgram(mounted: Mounted): boolean {
 	const bind = () => {
 		stopCurrentBindings();
 		valid = true;
-		for (const index of textSlots) {
-			const applyText = () => {
-				const value = unwrap(readRenderProgramSlot(state.invocation, index));
-				const target = state.slotNodes[index];
-				if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
-					valid = false;
-					return;
-				}
-				const text =
-					value === null || value === undefined || value === false || value === true
-						? ''
-						: String(value);
-				const node = target as Text;
-				if (node.data !== text) node.data = text;
-			};
-			const stop = watchRetained(applyText, undefined, { scope: mounted.scope });
-			if (stop) stopBindings.push(stop);
-		}
-		// Option values must exist before a parent select receives its controlled value. Static
-		// render-program templates deliberately omit slotted values, so DOM order alone cannot
-		// provide the browser's usual option-selection initialization.
-		for (const [element, indexes] of orderedPropertySlots) {
+		for (const binding of state.invocation.program.bindings) {
+			if (binding[0] === 'text') {
+				const index = binding[1];
+				const applyText = () => {
+					const value = unwrap(readRenderProgramSlot(state.invocation, index));
+					const target = state.slotNodes[index];
+					if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
+						valid = false;
+						return;
+					}
+					const text =
+						value === null || value === undefined || value === false || value === true
+							? ''
+							: String(value);
+					const node = target as Text;
+					if (node.data !== text) node.data = text;
+				};
+				const stop = watchRetained(applyText, undefined, { scope: mounted.scope });
+				if (stop) stopBindings.push(stop);
+				continue;
+			}
+			const indexes = binding[1];
+			const element = state.slotNodes[indexes[0]!] as Element;
 			const applyProps = () => {
 				const next: Record<string, unknown> = {};
 				for (const index of indexes) {

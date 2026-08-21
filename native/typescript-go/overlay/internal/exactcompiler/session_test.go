@@ -138,6 +138,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		"version: 1",
 		"parts:",
 		`["text",`,
+		`bindings: [["text", 0]]`,
 		"ssrParts:",
 		"kind: \"node-open\"",
 		"kind: \"node-close\"",
@@ -187,10 +188,28 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		"createPreparedRenderProgram",
 		`["class", [], [], "className"]`,
 		`["property", [], [], "disabled"]`,
+		`bindings: [["text", 2], ["properties", [0, 1]]]`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
 		}
+	}
+}
+
+func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			export function Planned(props: { value: string }) {
+				return () => <select value={props.value}><option value="a">A</option></select>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `bindings: [["properties", [1]], ["properties", [0]]]`) {
+		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
 	}
 }
 

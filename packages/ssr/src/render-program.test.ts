@@ -25,6 +25,7 @@ it('writes compiler-owned scalar programs directly with hydration markers', () =
 				template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 				parts: ['<span data-exact-id="planned">', '</span>'],
 				slots: [['text', 'value', [0], [0]]],
+				bindings: [['text', 0]],
 				nodes: [['planned', [], [], 'span']],
 				ssrParts: ['', '<span data-exact-id="planned">', '', '</span>', ''],
 				ssrOperations: [
@@ -73,6 +74,7 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 				['property', [], [], 'disabled'],
 				['property', [], [], 'onClick']
 			],
+			bindings: [['properties', [0, 1, 2]]],
 			nodes: [['planned', [], [], 'button']]
 		}),
 		[() => ['primary', { active: true }], () => true, () => () => undefined],
@@ -96,6 +98,7 @@ it('materializes marker-mode program fallbacks inside their component scope', as
 					template: '<span>owned</span>',
 					parts: ['<span>owned</span>'],
 					slots: [],
+					bindings: [],
 					nodes: [['owned', [], [], 'span']]
 				}),
 				[],
