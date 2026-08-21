@@ -51,9 +51,6 @@ type jsxRuntimeNames struct {
 	inspectionSource       string
 	defineTask             string
 	bindTask               string
-	clientLatestTask       string
-	clientParallelTask     string
-	clientQueueTask        string
 	invokeTask             string
 	activateTask           string
 	taskOptions            string
@@ -91,7 +88,6 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/time/internal"},
 		{module: "@exactjs/core/runtime/lists"},
 		{module: "@exactjs/core/runtime/refs"},
-		{module: "@exactjs/core/runtime/task-latest"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -166,9 +162,6 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"markExactInspectionSource",
 		"defineTask",
 		"bindTaskForHost",
-		"defineClientLatestTaskForHost",
-		"defineClientParallelTaskForHost",
-		"defineClientQueueTaskForHost",
 		"invokeTask",
 		"activateTaskForHost",
 	}
@@ -180,10 +173,6 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			group := 2
 			if imported == "markExactInspectionSource" {
 				group = 3
-			} else if imported == "defineClientLatestTaskForHost" ||
-				imported == "defineClientParallelTaskForHost" ||
-				imported == "defineClientQueueTaskForHost" {
-				group = 15
 			}
 			add(group, imported, local)
 		}
@@ -468,9 +457,6 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		inspectionSource:       allocate("__exactInspectionSource"),
 		defineTask:             allocate("__exactDefineTask"),
 		bindTask:               allocate("__exactBindTask"),
-		clientLatestTask:       allocate("__exactClientLatestTask"),
-		clientParallelTask:     allocate("__exactClientParallelTask"),
-		clientQueueTask:        allocate("__exactClientQueueTask"),
 		invokeTask:             allocate("__exactInvokeTask"),
 		activateTask:           allocate("__exactActivateTask"),
 		delete:                 allocate("__exactDelete"),
