@@ -19,6 +19,7 @@ function wallSample(): TimeInstant {
 /**
  * Shared default wall clock. Its identity joins every compatible package copy, while `now()`
  * returns one immutable sample for all reads in the current synchronous reactive or render cycle.
+ * @exact shared
  */
 export const wallTimeClock: TimeClock = Object.freeze({
 	now: wallSample,
