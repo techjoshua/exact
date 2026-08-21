@@ -88,6 +88,10 @@
 			"types": "./dist/runtime/tasks.d.ts",
 			"default": "./dist/runtime/tasks.js"
 		},
+		"./runtime/task-latest": {
+			"types": "./dist/runtime/task-latest.d.ts",
+			"default": "./dist/runtime/task-latest.js"
+		},
 		"./runtime/inspection": {
 			"types": "./dist/runtime/inspection.d.ts",
 			"default": "./dist/runtime/inspection.js"

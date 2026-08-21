@@ -42,6 +42,14 @@ tag, namespace, compiler identity, and dynamic marker pair is still checked. A s
 tape therefore fails closed into the existing hydration recovery path, while markerless and generic
 hydration remain available for inputs that do not carry the compiler plan.
 
+Invocation-only client tasks with a statically known `latest`, `parallel`, or `queue` policy use a
+policy-specific lane selected by the compiler. These lanes retain ordinary task frames, context
+methods, structural settlement, cancellation, cleanup, optimistic state, and component ownership,
+but omit the general definition registry, dynamic keyed-lane selection, aggregate status records,
+and queue machinery that the selected policy cannot reach. Tasks that escape as values, expose
+status, use dynamic concurrency keys, capture default arguments, or cross the server boundary keep
+the general task ABI.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:

@@ -284,8 +284,8 @@ func (lowering *jsxLowering) taskDefinitionCall(expression *ast.Node) (found boo
 		return false
 	}
 	if ast.IsIdentifier(expression) {
-		if _, exists := lowering.taskDefinitionNames[expression.Text()]; exists {
-			return true
+		if task, exists := lowering.taskDefinitionNames[expression.Text()]; exists {
+			return !lowering.specializedClientTask(expression.Text(), task)
 		}
 	}
 	defer func() {
@@ -298,7 +298,9 @@ func (lowering *jsxLowering) taskDefinitionCall(expression *ast.Node) (found boo
 		lowering.checker,
 	)
 	if symbol != nil {
-		_, found = lowering.taskDefinitions[ast.GetSymbolId(symbol)]
+		if task, exists := lowering.taskDefinitions[ast.GetSymbolId(symbol)]; exists {
+			return !lowering.specializedClientTask(expression.Text(), task)
+		}
 	}
 	return found
 }
