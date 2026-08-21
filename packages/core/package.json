@@ -2,7 +2,6 @@
 	"name": "@exactjs/core",
 	"version": "0.1.0",
 	"type": "module",
-	"sideEffects": false,
 	"files": [
 		"AGENTS.md",
 		"dist",
