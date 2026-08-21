@@ -160,6 +160,15 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		return mutableComponentRenderHandlers(this);
 	}
 
+	own<T extends Disposable | AsyncDisposable | { dispose(): unknown }>(resource: T): T {
+		this.onUnmount(() => {
+			if ('dispose' in resource) resource.dispose();
+			else if (Symbol.dispose in resource) resource[Symbol.dispose]();
+			else return resource[Symbol.asyncDispose]();
+		});
+		return resource;
+	}
+
 	beginRender(): void {
 		optionalComponentListCapability()?.begin(this);
 	}

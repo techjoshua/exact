@@ -330,6 +330,10 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>Registers mounted work with an abort signal.</p>
 					<code>this.onUnmount()</code>
 					<p>Registers teardown or final bookkeeping.</p>
+					<code>this.own()</code>
+					<p>
+						Owns a disposable setup resource until this durable component instance is unmounted.
+					</p>
 					<code>this.onRender()</code>
 					<p>Observes render timing and dependencies.</p>
 					<code>this.log</code>

@@ -7,6 +7,23 @@ import type { Component, ComponentFunction } from './contracts.js';
 import { createCompiledComponentInstance, createComponentInstance } from './runtime.js';
 
 describe('compiled component capability construction', () => {
+	it('releases component-owned resources with the durable instance', () => {
+		let disposed = false;
+		const instance = createComponentInstance(function Owner(this: Component<{}>) {
+			const resource = this.own({
+				dispose() {
+					disposed = true;
+				}
+			});
+			expect(resource).toBeDefined();
+			return () => null;
+		}, {});
+
+		expect(disposed).toBe(false);
+		instance.unmount();
+		expect(disposed).toBe(true);
+	});
+
 	it('does not allocate a task owner for a compiler-proven task-free component', () => {
 		const implementation = function StaticPanel(this: Component<{}>) {
 			return () => null;

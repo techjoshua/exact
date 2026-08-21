@@ -5535,6 +5535,32 @@ func TestSessionRejectsNonSharedCapturedInputsForServerTasks(t *testing.T) {
 	}
 }
 
+func TestSessionAcceptsDurableComponentOwnedResources(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "owned-resource.ts", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> {
+				own<T>(resource: T): T;
+				onMount(callback: () => void): void;
+			}
+			declare class Session { reconcile(): void; dispose(): void; }
+			export function Owner(this: Component<{}>) {
+				const session = this.own(new Session());
+				this.onMount(() => session.reconcile());
+				return () => null;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if strings.Contains(diagnostic.Message, "cannot be owned") {
+			t.Fatalf("component ownership was rejected: %#v", response.Diagnostics)
+		}
+	}
+}
+
 func TestSessionAppliesCallablePlacementAndResidencyAnnotations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "policy.ts",
