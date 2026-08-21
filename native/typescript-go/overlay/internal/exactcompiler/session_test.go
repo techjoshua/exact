@@ -1528,7 +1528,10 @@ __fixtureTask2();
 	}
 	for _, expected := range []string{
 		`export function Panel_ExactClient_1(this: any, props: any = {})`,
-		`Object.assign(Panel_ExactClient_1, { [Symbol.for("@exactjs/component")]: "` + islandID + `" })`,
+		`[Symbol.for("@exactjs/component")]: "` + islandID + `"`,
+		`[Symbol.for("@exactjs/component-contract")]: {`,
+		`instantiate: Panel_ExactClient_1`,
+		`role: "client-island"`,
 		`if (props.__exactState)`,
 		`Object.assign(this.state, props.__exactState)`,
 		`title: props.title`,

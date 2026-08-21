@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/printer"
 )
 
 type islandValueCapture struct {
@@ -61,14 +62,97 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 			lowering.clientDefinitions,
 			lowering.clientIslandDefinition(island),
 			lowering.factory.NewExpressionStatement(
-				componentBrandAttachment(
+				clientIslandArtifactAttachment(
 					lowering.factory,
 					lowering.factory.NewIdentifier(island.name),
-					island.id,
+					island,
 				),
 			),
 		)
 	}
+}
+
+// clientIslandArtifactAttachment gives compiler-synthesized island functions
+// the same executable authority as analyzed source components. An island is a
+// native component, not an identity-only exception to the artifact ABI.
+func clientIslandArtifactAttachment(
+	factory *printer.NodeFactory,
+	implementation *ast.Node,
+	island clientElementIsland,
+) *ast.Node {
+	state := []string{}
+	seenState := make(map[string]struct{})
+	resumptionPaths := []string{}
+	for _, path := range island.statePaths {
+		if len(path) == 0 {
+			continue
+		}
+		joined := strings.Join(path, ".")
+		resumptionPaths = append(resumptionPaths, joined)
+		if _, exists := seenState[path[0]]; !exists {
+			seenState[path[0]] = struct{}{}
+			state = append(state, path[0])
+		}
+	}
+	capabilities := []string{"resumption"}
+	if island.interaction {
+		capabilities = append(capabilities, "interactions")
+	}
+	role := "client-island"
+	contract := contractObject(factory, true,
+		contractProperty(factory, "version", contractNumber(factory, 2)),
+		contractProperty(factory, "placement", contractString(factory, "client")),
+		contractProperty(factory, "role", contractString(factory, "client")),
+		contractProperty(factory, "implementations", contractArray(factory,
+			contractObject(factory, false,
+				contractProperty(factory, "id", contractString(factory, island.id+":implementation")),
+				contractProperty(factory, "name", contractString(factory, island.name)),
+				contractProperty(factory, "role", contractString(factory, role)),
+				contractProperty(factory, "implementation", implementation),
+			),
+		)),
+		contractProperty(factory, "continuations", contractArray(factory)),
+		contractProperty(factory, "executors", contractArray(factory)),
+		contractProperty(factory, "boundaries", contractArray(factory)),
+		contractProperty(factory, "definition", contractObject(factory, true,
+			contractProperty(factory, "version", contractNumber(factory, 1)),
+			contractProperty(factory, "instantiate", implementation),
+			contractProperty(factory, "state", stringMetadata(factory, state)),
+			contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
+		)),
+		contractProperty(factory, "execution", componentExecutionMetadata(
+			factory,
+			ComponentExecution{Version: 1},
+			true,
+		)),
+		contractProperty(factory, "resumption", contractObject(factory, true,
+			contractProperty(factory, "componentId", contractString(factory, island.id)),
+			contractProperty(factory, "statePaths", stringMetadata(factory, resumptionPaths)),
+			contractProperty(factory, "valueCaptures", contractArray(factory)),
+			contractProperty(factory, "contexts", contractArray(factory)),
+			contractProperty(factory, "boundaries", contractArray(factory)),
+		)),
+	)
+	return factory.NewCallExpression(
+		factory.NewPropertyAccessExpression(factory.NewIdentifier("Object"), nil, factory.NewIdentifier("assign"), ast.NodeFlagsNone),
+		nil,
+		nil,
+		factory.NewNodeList([]*ast.Node{implementation, contractObject(factory, false,
+			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
+				factory.NewCallExpression(
+					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
+					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component")}), ast.NodeFlagsNone,
+				),
+			), nil, nil, contractString(factory, island.id)),
+			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
+				factory.NewCallExpression(
+					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
+					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component-contract")}), ast.NodeFlagsNone,
+				),
+			), nil, nil, contract),
+		)}),
+		ast.NodeFlagsNone,
+	)
 }
 
 func (lowering *jsxLowering) clientIslandDefinition(
