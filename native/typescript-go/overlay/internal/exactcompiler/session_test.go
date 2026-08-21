@@ -135,7 +135,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 1",
+		"version: 2",
 		"parts:",
 		`["text",`,
 		`bindings: [["text", 0]]`,
@@ -186,7 +186,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
-		`["property", [], [], "disabled"]`,
+		`["property", [], "disabled"]`,
 		`template: "<button data-exact-id=\"`,
 		`class=\"action\"`,
 		`bindings: [["text", 1], ["properties", [0]]]`,
@@ -195,7 +195,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `["class", [], [], "className"]`) {
+	if strings.Contains(response.Code, `["class", [], "className"]`) {
 		t.Fatalf("static class was retained as a runtime slot:\n%s", response.Code)
 	}
 }
@@ -302,8 +302,8 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `namespace: "svg", template: "<path`) ||
-		!strings.Contains(response.Code, `[], [], "path"]`) ||
-		strings.Contains(response.Code, `[], [], "path", "svg"]`) {
+		!strings.Contains(response.Code, `[], "path"]`) ||
+		strings.Contains(response.Code, `[], "path", "svg"]`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
 }
@@ -1825,8 +1825,8 @@ func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
 		`<option data-exact-id=\"`,
 		`value=\"all\"`,
 		`value=\"high\"`,
-		`["property", [], [], "value"]`,
-		`["property", [], [], "__exactBindChange"]`,
+		`["property", [], "value"]`,
+		`["property", [], "__exactBindChange"]`,
 		`bindings: [["properties", [0, 1]]]`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2361,7 +2361,7 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 		strings.Contains(response.Code, `"className:disabled"`) {
 		t.Fatalf("conditional class namespace escaped into output:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `["class", [], [], "className"]`) {
+	if !strings.Contains(response.Code, `["class", [], "className"]`) {
 		t.Fatalf("conditional classes were not represented as one planned class operation:\n%s", response.Code)
 	}
 }

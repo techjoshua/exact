@@ -2,11 +2,10 @@ import type { VNode } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { RenderProgram } from './symbols.js';
 
-/** Compact compiler-emitted DOM-node tuple: identity, mount path, hydration path, tag, namespace. */
+/** Compact compiler-emitted DOM-node tuple: identity, mount path, tag, namespace. */
 export type ExactRenderProgramNode = readonly [
 	id: string,
 	path: readonly number[],
-	hydrationPath: readonly number[],
 	tag: string,
 	namespace?: 'html' | 'svg' | 'mathml'
 ];
@@ -17,28 +16,25 @@ export type ExactRenderProgramSsrOperation = Readonly<{
 	index: number;
 }>;
 
-/** Compact text slot: kind, marker identity, mount path, hydration path. */
+/** Compact text slot: kind, marker identity, mount path. */
 export type ExactRenderProgramTextSlot = readonly [
 	kind: 'text',
 	id: string,
-	path: readonly number[],
-	hydrationPath: readonly number[]
+	path: readonly number[]
 ];
 
-/** Compact property slot: kind, mount path, hydration path, property name. */
+/** Compact property slot: kind, mount path, property name. */
 export type ExactRenderProgramPropertySlot = readonly [
 	kind: 'property' | 'attribute' | 'style' | 'class' | 'url',
 	path: readonly number[],
-	hydrationPath: readonly number[],
 	name: string
 ];
 
-/** Compact structural child slot: kind, marker identity, mount path, hydration path. */
+/** Compact structural child slot: kind, marker identity, mount path. */
 export type ExactRenderProgramChildSlot = readonly [
 	kind: 'child',
 	id: string,
-	path: readonly number[],
-	hydrationPath: readonly number[]
+	path: readonly number[]
 ];
 
 /** One compiler-owned slot. The reader remains invocation-local. */
@@ -55,7 +51,7 @@ export type ExactRenderProgramBinding =
 
 /** Immutable shape emitted by the compiler for a finite intrinsic region. */
 export type ExactRenderProgram = Readonly<{
-	version: 1;
+	version: 2;
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
 	template: string;

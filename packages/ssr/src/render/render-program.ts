@@ -139,9 +139,10 @@ function renderProgramSlot(
 		return value === null || value === undefined || value === false || value === true
 			? ''
 			: escapeText(String(value));
-	if (!slot[3]) return '';
+	if (slot[0] === 'child') return '';
+	if (!slot[2]) return '';
 	const node = program.nodes.find((candidate) => samePath(candidate[1], slot[1]));
-	return renderAttrs({ [slot[3]]: value }, false, node?.[3], context);
+	return renderAttrs({ [slot[2]]: value }, false, node?.[2], context);
 }
 
 function samePath(left: readonly number[], right: readonly number[]): boolean {

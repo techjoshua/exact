@@ -13,12 +13,12 @@ import { createVNode } from './vnode.js';
 const fallback = () => createVNode('span', null);
 
 const program = (id: string) => ({
-	version: 1 as const,
+	version: 2 as const,
 	id,
 	namespace: 'html' as const,
 	template: '<p></p>',
 	parts: ['<p>', '</p>'],
-	slots: [['text', 'value', [0], [0]]] as const,
+	slots: [['text', 'value', [0]]] as const,
 	bindings: [['text', 0]] as const,
 	nodes: []
 });
@@ -52,8 +52,8 @@ describe('compiled render-program cache', () => {
 				...program('combined'),
 				parts: ['<p>', ':', '</p>'],
 				slots: [
-					['text', 'first', [0], [0]],
-					['text', 'second', [1], [1]]
+					['text', 'first', [0]],
+					['text', 'second', [1]]
 				] as const,
 				bindings: [
 					['text', 0],
