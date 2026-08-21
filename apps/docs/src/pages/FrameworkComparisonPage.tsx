@@ -53,10 +53,9 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					mutation, excluding automation waits while retaining any interaction-triggered hydration.
 				</p>
 				<p>
-					Paint samples require cross-origin isolation and keep the standard first-contentful-paint
-					start time as the canonical FCP metric. Chromium&apos;s optional render-completion and
-					frame presentation timestamps are recorded separately when the browser exposes them,
-					without substituting one definition for another.
+					Paint samples use the standard first-contentful-paint start time. Measured documents
+					navigate directly to each participant server so harness interception does not become part
+					of browser navigation timing.
 				</p>
 				<p>
 					Heap samples follow semantic readiness, one rendering opportunity, and explicit garbage

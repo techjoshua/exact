@@ -6,7 +6,7 @@ import { extname, relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { chromium } from 'playwright';
 import { measureRetainedHeap } from './browser-memory.mjs';
-import { isolatePageNavigation, waitForFirstContentfulPaint } from './paint-timing.mjs';
+import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -91,11 +91,7 @@ try {
 			sampleCount,
 			browserWarmupCount,
 			order: Object.keys(browserResults),
-			paintTiming: {
-				canonical: 'first-contentful-paint.startTime',
-				experimental: ['paintTime', 'presentationTime'],
-				crossOriginIsolation: 'required'
-			}
+			paintTiming: { canonical: 'first-contentful-paint.startTime' }
 		},
 		browser: browserResults,
 		server: await measureServer(),
@@ -138,7 +134,6 @@ async function measureBrowserSample(browserInstance, participant) {
 	await resetService({});
 	const context = await browserInstance.newContext();
 	try {
-		await context.grantPermissions(['local-network-access'], { origin: participant.url });
 		const page = await context.newPage();
 		const browserErrors = [];
 		const failedRequests = [];
@@ -149,17 +144,13 @@ async function measureBrowserSample(browserInstance, participant) {
 		page.on('requestfailed', (request) =>
 			failedRequests.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText}`)
 		);
-		await isolatePageNavigation(page, participant.url);
 		await page.addInitScript(installInteractionTiming);
 		const session = await context.newCDPSession(page);
 		await session.send('Performance.enable');
 		// EventSource intentionally keeps the network active, so semantic readiness gates the sample.
 		await page.goto(`${participant.url}/incidents/inc-100`, { waitUntil: 'domcontentloaded' });
 		await page.getByRole('heading', { name: 'Checkout authorization failures' }).waitFor();
-		const firstContentfulPaint = await page.evaluate(waitForFirstContentfulPaint);
-		const crossOriginIsolated = await page.evaluate(() => globalThis.crossOriginIsolated);
-		if (!crossOriginIsolated)
-			throw new Error(`Cross-origin isolation was not active for ${participant.id}`);
+		const firstContentfulPaintMs = await page.evaluate(waitForFirstContentfulPaint);
 		const navigation = await page.evaluate(() => {
 			const entry = performance.getEntriesByType('navigation')[0];
 			const scripts = performance
@@ -173,10 +164,7 @@ async function measureBrowserSample(browserInstance, participant) {
 				transferredScriptBytes: scripts
 			};
 		});
-		navigation.firstContentfulPaintMs = firstContentfulPaint.startTimeMs;
-		navigation.firstContentfulPaintPaintTimeMs = firstContentfulPaint.paintTimeMs;
-		navigation.firstContentfulPaintPresentationTimeMs = firstContentfulPaint.presentationTimeMs;
-		navigation.crossOriginIsolated = crossOriginIsolated;
+		navigation.firstContentfulPaintMs = firstContentfulPaintMs;
 		try {
 			await page.locator('.connection').getByText('Live service', { exact: true }).waitFor();
 		} catch (error) {
@@ -380,14 +368,6 @@ function summarizeBrowser(samples) {
 		),
 		firstContentfulPaintP50Ms: percentile(
 			samples.map((sample) => sample.navigation.firstContentfulPaintMs),
-			0.5
-		),
-		firstContentfulPaintPaintTimeP50Ms: percentile(
-			samples.map((sample) => sample.navigation.firstContentfulPaintPaintTimeMs),
-			0.5
-		),
-		firstContentfulPaintPresentationTimeP50Ms: percentile(
-			samples.map((sample) => sample.navigation.firstContentfulPaintPresentationTimeMs),
 			0.5
 		),
 		heapP50Bytes: percentile(

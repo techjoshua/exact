@@ -59,13 +59,11 @@ allocation churn, a process-wide footprint, or proof by itself that an applicati
 
 First contentful paint is read only after a buffered paint observer or a subsequent rendering opportunity confirms
 that Chromium published the entry. A missing paint entry fails the sample instead of silently reducing the
-population used for percentile calculation. Controlled participants run with uniform COOP/COEP response policy,
-an explicit local-network permission for the shared loopback service, and an assertion that the document is
-cross-origin isolated. The standard `PerformancePaintTiming.startTime` remains canonical FCP; optional
-`paintTime` and `presentationTime` fields are recorded independently as experimental render-completion and frame
-presentation evidence. Unsupported optional fields remain `null` rather than being substituted or inferred. Heap
-collection occurs after interaction timing so forced garbage collection cannot turn optimistic feedback into a
-cold-allocation benchmark.
+population used for percentile calculation. The standard `PerformancePaintTiming.startTime` is the sole FCP
+measurement. Measured document requests navigate directly from Chromium to the participant server; browser-route
+interception or another harness proxy must not become part of `PerformanceNavigationTiming`. Heap collection
+occurs after interaction timing so forced garbage collection cannot turn optimistic feedback into a cold-allocation
+benchmark.
 
 ### Cold-start CPU profile
 
