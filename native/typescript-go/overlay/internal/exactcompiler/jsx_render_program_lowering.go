@@ -375,9 +375,6 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 			return false
 		}
 		attribute := property.AsJsxAttribute()
-		if ast.IsJsxNamespacedName(attribute.Name()) {
-			return false
-		}
 		name := jsxAttributeText(attribute.Name())
 		if name == "key" || name == "data-exact-id" {
 			return false
@@ -385,7 +382,26 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		if _, exists := lowering.componentBindings[property.Pos()]; exists {
 			return false
 		}
-		if len(lowering.formBindingProperties(name, attribute.Initializer, attributes)) != 0 {
+		bindingProperties := lowering.formBindingProperties(name, attribute.Initializer, attributes)
+		if lowering.target == TargetServer {
+			if serverProperty := lowering.serverFormBindingProperty(name, attribute.Initializer); serverProperty != nil {
+				bindingProperties = []*ast.Node{serverProperty}
+			}
+		}
+		if len(bindingProperties) != 0 {
+			for _, bindingProperty := range bindingProperties {
+				assignment := bindingProperty.AsPropertyAssignment()
+				build.propertySlot(
+					lowering.dynamicID(property),
+					path,
+					hydrationPath,
+					assignment.Name().Text(),
+					assignment.Initializer,
+				)
+			}
+			continue
+		}
+		if ast.IsJsxNamespacedName(attribute.Name()) {
 			return false
 		}
 		if attributeName, value, static := staticRenderProgramAttribute(name, attribute.Initializer); static {
