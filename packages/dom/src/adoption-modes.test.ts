@@ -1,6 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/lists';
+import '@exactjs/core/runtime/refs';
 import {
 	Activity,
 	activateTaskForHost,

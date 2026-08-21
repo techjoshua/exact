@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import './framework/enhancements.js';
+import '@exactjs/core/runtime/refs';
 import {
 	createContext,
 	createEnhancementMarker,

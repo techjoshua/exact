@@ -3,6 +3,7 @@
  */
 import './structural-boundaries.js';
 import './framework/enhancements.js';
+import '@exactjs/core/runtime/refs';
 import {
 	Activity,
 	createContext,
