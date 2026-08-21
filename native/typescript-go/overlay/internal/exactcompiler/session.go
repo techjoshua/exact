@@ -440,6 +440,7 @@ func (s *Session) Execute(request Request) Response {
 	boundaries = append(boundaries, partitionBoundaries...)
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
+	attachComponentStateSlots(components, stateReads, stateWrites)
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()

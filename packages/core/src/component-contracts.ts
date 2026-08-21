@@ -154,7 +154,7 @@ export type ExactComponentExecutionContract = Readonly<{
 export type ExactCompiledComponentDefinitionContract = Readonly<{
 	version: 1;
 	instantiate: AnyExactComponentCallable;
-	/** Build-inspection inventories omitted from render-mode-projected runtime bundles. */
+	/** Stable top-level state slots used by the compiled component-state facade. */
 	state?: readonly string[];
 	tasks?: readonly string[];
 	reactive?: ExactComponentExecutionContract['reactive'];

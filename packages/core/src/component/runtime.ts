@@ -97,6 +97,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		domain: ComponentInstance<State>['domain'],
 		execution?: PreparedComponentExecution
 	) {
+		const contract = readExactComponentContract(type);
 		this.type = type;
 		this.parent = parent;
 		this.domain = domain;
@@ -106,7 +107,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		this.scope = createEffectScope(undefined, (error) => {
 			handleComponentError(this, createErrorReport(error, 'reactive', this, 'watch'));
 		});
-		this.state = createComponentState<State>(domain, () => this);
+		this.state = createComponentState<State>(domain, () => this, contract?.definition?.state);
 		this.props = createComponentProps(rawProps);
 		this.activation = createComponentActivation(
 			this,
@@ -114,7 +115,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			() => this.disposedValue,
 			() => this.activityBlockers?.size ?? 0
 		);
-		this.initialize(execution, rawProps);
+		this.initialize(execution, rawProps, contract);
 	}
 
 	get contexts(): Map<symbol, unknown> {
@@ -320,12 +321,15 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		if (failed) throw firstError;
 	}
 
-	private initialize(execution: PreparedComponentExecution | undefined, rawProps: Props): void {
+	private initialize(
+		execution: PreparedComponentExecution | undefined,
+		rawProps: Props,
+		contract: ReturnType<typeof readExactComponentContract>
+	): void {
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 		}
-		const contract = readExactComponentContract(this.type);
 		this.taskState = this.taskCapability?.create(
 			this,
 			this.type,

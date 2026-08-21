@@ -6,6 +6,45 @@ import (
 	"strings"
 )
 
+// attachComponentStateSlots assigns deterministic top-level storage indexes
+// from semantic state reads and writes, including compiler-resolved aliases.
+func attachComponentStateSlots(
+	components []Component,
+	reads []StateRead,
+	writes []StateWrite,
+) {
+	byComponent := make(map[string]map[string]struct{}, len(components))
+	add := func(component string, path []string) {
+		if component == "" || len(path) == 0 || path[0] == "" {
+			return
+		}
+		keys := byComponent[component]
+		if keys == nil {
+			keys = make(map[string]struct{})
+			byComponent[component] = keys
+		}
+		keys[path[0]] = struct{}{}
+	}
+	for _, read := range reads {
+		add(read.Component, read.Path)
+	}
+	for _, write := range writes {
+		add(write.Component, write.Path)
+	}
+	for index := range components {
+		keys := byComponent[components[index].Name]
+		if len(keys) == 0 {
+			continue
+		}
+		slots := make([]string, 0, len(keys))
+		for key := range keys {
+			slots = append(slots, key)
+		}
+		sort.Strings(slots)
+		components[index].StateSlots = slots
+	}
+}
+
 // attachComponentExecutionPlans derives compact local ports and invocation
 // wiring after continuation placement and policy analysis have completed.
 func attachComponentExecutionPlans(

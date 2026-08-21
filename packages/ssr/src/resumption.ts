@@ -9,6 +9,7 @@ import {
 	readExactComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { RenderToStringOptions } from './types.js';
+import { readReactiveOwnProperty } from '@exactjs/reactive';
 
 type MutableResumption = {
 	componentId: string;
@@ -77,9 +78,9 @@ function readPath(
 	let cursor = value;
 	for (const segment of path.split('.')) {
 		if (!safeSegment(segment) || !cursor || typeof cursor !== 'object') return { present: false };
-		const descriptor = Object.getOwnPropertyDescriptor(cursor, segment);
-		if (!descriptor || !('value' in descriptor)) return { present: false };
-		cursor = descriptor.value;
+		const field = readReactiveOwnProperty(cursor, segment);
+		if (!field.present) return field;
+		cursor = field.value;
 	}
 	return { present: true, value: cursor };
 }
