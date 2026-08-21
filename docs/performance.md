@@ -43,10 +43,12 @@ tape therefore fails closed into the existing hydration recovery path, while mar
 hydration remain available for inputs that do not carry the compiler plan.
 
 Render-program descriptors are emitted once as immutable module tables. Component instances join
-only their local expression dispatcher and optional recovery function to that shared table; they do
-not allocate a descriptor factory or repeat cache lookup and freezing. Multi-slot scalar programs
-use one indexed dispatcher when their expressions can be combined safely, while expressions that
-need independent statement bodies retain separate readers. This remains direct compiled DOM work,
+only their local expression readers and optional recovery function to that shared table; they do
+not allocate a descriptor factory or repeat cache lookup and freezing. The DOM executor retains
+independent reactions for text slots and for the compiler-known property group on each target
+element. A change therefore evaluates only the affected target group instead of rebuilding props
+for every element in the program. Replacement invocations also retrack their new readers rather
+than retaining dependencies from the previous invocation. This remains direct compiled DOM work,
 not a virtual-DOM or general bytecode interpreter.
 
 ## Commands

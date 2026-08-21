@@ -286,16 +286,39 @@ export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 }
 
 function bindRenderProgram(mounted: Mounted): boolean {
-	mounted.stop?.();
 	const state = mounted.renderProgram!;
 	const previousProps = state.props ?? new Map<Element, Record<string, unknown>>();
 	state.props = previousProps;
 	let released = false;
 	let valid = true;
 	let initialBinding = true;
+	let stopBindings: Array<() => void> = [];
+	const propertySlots = new Map<Element, number[]>();
+	const textSlots: number[] = [];
+	for (let index = 0; index < state.slotNodes.length; index++) {
+		const slot = state.invocation.program.slots[index]!;
+		if (slot[0] === 'text') {
+			textSlots.push(index);
+			continue;
+		}
+		const element = state.slotNodes[index] as Element;
+		const indexes = propertySlots.get(element);
+		if (indexes) indexes.push(index);
+		else propertySlots.set(element, [index]);
+	}
+	const orderedPropertySlots = [...propertySlots].sort(([left], [right]) => {
+		const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
+		const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
+		return leftPriority - rightPriority;
+	});
+	const stopCurrentBindings = () => {
+		for (const stop of stopBindings) stop();
+		stopBindings = [];
+	};
 	const release = () => {
 		if (released) return;
 		released = true;
+		stopCurrentBindings();
 		for (const [element, props] of previousProps) {
 			const ref = props.ref as { fulfill(value: unknown): void } | undefined;
 			ref?.fulfill(undefined);
@@ -305,64 +328,58 @@ function bindRenderProgram(mounted: Mounted): boolean {
 		mounted.stop = undefined;
 		state.refresh = undefined;
 	};
-	const apply = () => {
-		const nextProps = new Map<Element, Record<string, unknown>>();
-		for (let index = 0; index < state.slotNodes.length; index++) {
-			const value = unwrap(readRenderProgramSlot(state.invocation, index));
-			const slot = state.invocation.program.slots[index]!;
-			const target = state.slotNodes[index];
-			if (slot[0] !== 'text') {
-				const element = target as Element;
-				let props = nextProps.get(element);
-				if (!props) nextProps.set(element, (props = {}));
-				props[slot[3]] = value;
-				continue;
-			}
-			if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
-				valid = false;
-				return;
-			}
-			const text =
-				value === null || value === undefined || value === false || value === true
-					? ''
-					: String(value);
-			const node = target as Text;
-			if (node.data !== text) node.data = text;
-		}
-		for (const [element, previous] of previousProps) {
-			if (!nextProps.has(element))
-				updateProps(state.root, element, previous, {}, mounted.scope, !initialBinding);
+	const bind = () => {
+		stopCurrentBindings();
+		valid = true;
+		for (const index of textSlots) {
+			const applyText = () => {
+				const value = unwrap(readRenderProgramSlot(state.invocation, index));
+				const target = state.slotNodes[index];
+				if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
+					valid = false;
+					return;
+				}
+				const text =
+					value === null || value === undefined || value === false || value === true
+						? ''
+						: String(value);
+				const node = target as Text;
+				if (node.data !== text) node.data = text;
+			};
+			const stop = watchRetained(applyText, undefined, { scope: mounted.scope });
+			if (stop) stopBindings.push(stop);
 		}
 		// Option values must exist before a parent select receives its controlled value. Static
 		// render-program templates deliberately omit slotted values, so DOM order alone cannot
 		// provide the browser's usual option-selection initialization.
-		const orderedProps = [...nextProps].sort(([left], [right]) => {
-			const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
-			const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
-			return leftPriority - rightPriority;
-		});
-		for (const [element, next] of orderedProps) {
-			updateProps(
-				state.root,
-				element,
-				previousProps.get(element) ?? {},
-				next,
-				mounted.scope,
-				!initialBinding
-			);
+		for (const [element, indexes] of orderedPropertySlots) {
+			const applyProps = () => {
+				const next: Record<string, unknown> = {};
+				for (const index of indexes) {
+					const slot = state.invocation.program.slots[index]!;
+					if (slot[0] === 'text') continue;
+					next[slot[3]] = unwrap(readRenderProgramSlot(state.invocation, index));
+				}
+				updateProps(
+					state.root,
+					element,
+					previousProps.get(element) ?? {},
+					next,
+					mounted.scope,
+					!initialBinding
+				);
+				previousProps.set(element, next);
+			};
+			const stop = watchRetained(applyProps, undefined, { scope: mounted.scope });
+			if (stop) stopBindings.push(stop);
 		}
-		previousProps.clear();
-		for (const [element, props] of nextProps) previousProps.set(element, props);
 		initialBinding = false;
 	};
-	state.refresh = apply;
-	const stop = watchRetained(apply, undefined, { scope: mounted.scope });
-	mounted.stop = () => {
-		stop?.();
-		release();
-	};
+	state.refresh = bind;
+	mounted.stop = release;
+	bind();
 	if (!valid) {
-		mounted.stop();
+		release();
 		return false;
 	}
 	return true;
