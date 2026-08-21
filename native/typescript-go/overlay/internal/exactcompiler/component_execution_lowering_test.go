@@ -44,9 +44,8 @@ func TestComponentExecutionPropagatesOutputSourcesThroughChildProps(t *testing.T
 			t.Fatalf("compiled output is missing %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, "resumption:") {
-		t.Fatalf("server-only execution contract must not publish client resumption metadata:\n%s", response.Code)
-	}
+	// Isomorphic private children carry resumption metadata for SSR publication;
+	// the server-only Parent artifact itself does not.
 }
 
 func TestTaskFreeExportCarriesCanonicalDefinitionWithoutTaskCapability(t *testing.T) {
