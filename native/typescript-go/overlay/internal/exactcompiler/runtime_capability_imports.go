@@ -181,7 +181,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	interactionUsed := containsInteractionRuntimeUse(root)
 	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root)
 	source := lowering.sourceFile.Text()
-	listUsed := containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "map") ||
+	listUsed := lowering.listCapabilityUsed ||
+		containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "map") ||
 		strings.Contains(source, "this.map")
 	refsUsed := containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "ref", "readRef", "refs") ||
 		strings.Contains(source, "this.ref") || strings.Contains(source, "this.readRef") ||

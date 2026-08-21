@@ -46,6 +46,7 @@ type jsxLowering struct {
 	partitionPlan          PartitionPlan
 	dynamicComponents      map[int]dynamicComponentUseKind
 	componentLocalization  bool
+	listCapabilityUsed     bool
 	renderProgramFallback  bool
 	renderProgramContexts  map[int]renderProgramContext
 	declarativeRenderDepth int
