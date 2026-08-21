@@ -61,8 +61,6 @@ const compilerlessComponentCeilings = new Map([
 	['packages/react-dom-compat/src/server-shared.ts', 1],
 	['packages/testing/src/internal/fixtures.ts', 1],
 	['packages/testing/src/mounting/mount.ts', 1],
-	['packages/theme/src/components.ts', 1],
-	['packages/theme/src/enhancement-components.ts', 7],
 	['plugins/microfrontends/src/client.ts', 1],
 	['react-adapters/convex/src/adapter.ts', 1],
 	['react-adapters/jotai/src/adapter.ts', 1],

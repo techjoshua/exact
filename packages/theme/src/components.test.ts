@@ -10,6 +10,8 @@ import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { ThemeContext, ThemeScopeEnhancement } from './components.js';
 
+markExactComponent(ThemeScopeEnhancement, '@exactjs/theme:test-scope-artifact');
+
 describe('reactive theme scopes', () => {
 	it('updates an explicit reactive axis on a nested scope enhancement', () => {
 		let parent!: Component<{ temperament: 'dramatic' | 'monochrome' }>;

@@ -30,7 +30,10 @@ import { exactThemeContract, themeTones } from './token-contract.js';
 
 export { builtInTemperaments };
 
-/** Resolves a compact source into the complete immutable exact-theme/1 contract. */
+/**
+ * Resolves a compact source into the complete immutable exact-theme/1 contract.
+ * @exact pure
+ */
 export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 	if (!input || !input.environment)
 		throw new ThemeResolutionError(
