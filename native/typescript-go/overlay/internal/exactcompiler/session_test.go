@@ -3827,9 +3827,11 @@ func TestSessionSupportsAssignedAndExpressionTaskFunctions(t *testing.T) {
 			response.Diagnostics,
 		)
 	}
-	if strings.Count(response.Code, "__exactBindTask(this, __exactDefineTask(") != 2 ||
+	if strings.Contains(response.Code, "__exactBindTask(this, __exactDefineTask(") ||
+		!strings.Contains(response.Code, "__exactClientQueueTask(this, \"assigned\"") ||
+		!strings.Contains(response.Code, "__exactClientLatestTask(this, \"expressed\"") ||
 		strings.Contains(response.Code, "TaskContext.client()") ||
-		!strings.Contains(response.Code, "__exactInvokeTask(task, assigned, title)") {
+		strings.Contains(response.Code, "__exactInvokeTask(task, assigned, title)") {
 		t.Fatalf("assigned task functions were not lowered through the public ABI:\n%s", response.Code)
 	}
 }

@@ -723,6 +723,26 @@ func (lowering *jsxLowering) boundTaskDefinition(
 		lowering.factory.NewNodeList(properties),
 		true,
 	)
+	if captureArguments == nil && lowering.specializedClientTask(name, task) {
+		helper := "defineClientLatestTaskForHost"
+		local := lowering.names.clientLatestTask
+		if task.Concurrency == "parallel" {
+			helper = "defineClientParallelTaskForHost"
+			local = lowering.names.clientParallelTask
+		} else if task.Concurrency == "queue" {
+			helper = "defineClientQueueTaskForHost"
+			local = lowering.names.clientQueueTask
+		}
+		return lowering.taskHelperCall(
+			helper,
+			local,
+			[]*ast.Node{
+				lowering.factory.NewThisExpression(),
+				lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
+				work,
+			},
+		)
+	}
 	defined := lowering.taskHelperCall(
 		"defineTask",
 		lowering.names.defineTask,
@@ -734,6 +754,68 @@ func (lowering *jsxLowering) boundTaskDefinition(
 		[]*ast.Node{lowering.factory.NewThisExpression(), defined},
 	)
 	return bound
+}
+
+// specializedClientTask proves the narrow lane's complete authored surface before selecting it. Any
+// status access, callback escape, keyed policy, or non-default scheduling requirement retains the
+// general task runtime.
+func (lowering *jsxLowering) specializedClientTask(name string, task Task) bool {
+	if task.RequestedPlacement != "client" ||
+		(task.Concurrency != "latest" && task.Concurrency != "parallel" && task.Concurrency != "queue") ||
+		task.Priority != "normal" || task.Readiness != "nonblocking" || task.Detached ||
+		task.KeyLength != 0 {
+		return false
+	}
+	var declaration *ast.Node
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if node.Pos() == task.WorkStart && node.End()-node.Pos() == task.WorkLength && isCallableNode(node) {
+			declaration = node
+			return false
+		}
+		return declaration == nil
+	})
+	if declaration == nil || len(declaration.Parameters()) == 0 {
+		return false
+	}
+	var taskName *ast.Node
+	if ast.IsFunctionDeclaration(declaration) {
+		taskName = declaration.Name()
+	} else if declaration.Parent != nil && ast.IsVariableDeclaration(declaration.Parent) {
+		taskName = declaration.Parent.AsVariableDeclaration().Name()
+	}
+	if taskName == nil || !ast.IsIdentifier(taskName) || taskName.Text() != name {
+		return false
+	}
+	taskSymbol := lowering.checker.GetSymbolAtLocation(taskName)
+	if taskSymbol == nil {
+		return false
+	}
+	invocationOnly := true
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsIdentifier(node) || node == taskName || node.Text() != name {
+			return true
+		}
+		symbol := lowering.checker.GetSymbolAtLocation(node)
+		if symbol == nil || ast.GetSymbolId(symbol) != ast.GetSymbolId(taskSymbol) {
+			return true
+		}
+		parent := node.Parent
+		invocationOnly = parent != nil && ast.IsCallExpression(parent) &&
+			parent.AsCallExpression().Expression == node
+		if invocationOnly {
+			for current := node.Parent; current != nil; current = current.Parent {
+				if isCallableNode(current) {
+					_, callerIsTask := lowering.functionTasks[current.Pos()]
+					if callerIsTask && current != declaration {
+						invocationOnly = false
+					}
+					break
+				}
+			}
+		}
+		return invocationOnly
+	})
+	return invocationOnly
 }
 
 func (lowering *jsxLowering) taskConcurrencyKey(
