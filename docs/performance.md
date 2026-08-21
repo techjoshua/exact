@@ -69,6 +69,9 @@ Scalar text slots may sit beside static text or other scalar slots in one planne
 compiler inserts anonymous template-only comment separators so HTML parsing cannot coalesce their
 text nodes, then emits the exact resulting paths. The separators carry no protocol identity; SSR
 continues to use request-owned dynamic markers and the hydration tape addresses those separately.
+Compiler-owned `className:name` contributions are likewise combined into one planned class
+operation in authored order. Conditional class hosts no longer require a generic VNode merely to
+preserve class normalization and reactive updates.
 
 ## Commands
 

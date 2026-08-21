@@ -352,10 +352,25 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		return true
 	}
 	application := lowering.enhancementImports.applications[attributes.Pos()]
-	if len(application.components) != 0 || jsxHasConditionalClassName(attributes) {
+	if len(application.components) != 0 {
 		return false
 	}
+	conditionalClasses := jsxHasConditionalClassName(attributes)
+	classNameEmitted := false
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if conditionalClasses && jsxClassNameContribution(property) {
+			if !classNameEmitted {
+				build.propertySlot(
+					lowering.dynamicID(property),
+					path,
+					hydrationPath,
+					"className",
+					lowering.lowerClassNameValue(attributes, false),
+				)
+				classNameEmitted = true
+			}
+			continue
+		}
 		if ast.IsJsxSpreadAttribute(property) || !ast.IsJsxAttribute(property) {
 			return false
 		}
