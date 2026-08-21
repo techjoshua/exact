@@ -1,9 +1,9 @@
 import { type AnyComponentFunction, type VNode } from '@exactjs/core';
 import {
 	exactComponentContract,
-	exactComponentType,
-	readExactComponentContract,
-	type ExactComponentContract
+	exactComponentIdentity,
+	readExactCompiledComponentContract,
+	type ExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import {
 	createPreparedComponentInstance,
@@ -19,8 +19,8 @@ import type {
 
 /** Validated component metadata cached beneath one SSR root component. */
 export type SsrComponentExecutionBlueprint = Readonly<{
-	componentId?: string;
-	contract?: ExactComponentContract;
+	componentId: string;
+	contract: ExactCompiledComponentContract;
 	execution?: PreparedComponentExecution;
 }>;
 
@@ -74,7 +74,7 @@ export function ssrRootExecutionBlueprint(root: AnyComponentFunction): SsrRootEx
 		blueprint = {
 			resolve(component) {
 				const rawContract = attachedValue(component, exactComponentContract);
-				const componentId = attachedValue(component, exactComponentType);
+				const componentId = exactComponentIdentity(component);
 				const cached = components.get(component);
 				if (cached && cached.rawContract === rawContract && cached.componentId === componentId)
 					return cached.blueprint;
@@ -90,19 +90,19 @@ export function ssrRootExecutionBlueprint(root: AnyComponentFunction): SsrRootEx
 
 type CachedBlueprint = Readonly<{
 	rawContract: unknown;
-	componentId: unknown;
+	componentId: string;
 	blueprint: SsrComponentExecutionBlueprint;
 }>;
 
 function prepareComponentBlueprint(
 	component: AnyComponentFunction
 ): SsrComponentExecutionBlueprint {
-	const contract = readExactComponentContract(component);
-	const componentId = attachedValue(component, exactComponentType);
+	const contract = readExactCompiledComponentContract(component);
+	const componentId = exactComponentIdentity(component);
 	return Object.freeze({
-		...(typeof componentId === 'string' ? { componentId } : {}),
-		...(contract ? { contract } : {}),
-		...(contract?.execution ? { execution: prepareComponentExecution(contract.execution) } : {})
+		componentId,
+		contract,
+		...(contract.execution ? { execution: prepareComponentExecution(contract.execution) } : {})
 	});
 }
 
