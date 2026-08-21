@@ -44,6 +44,15 @@ function rejectUnusedReactCompatibility(): Plugin {
 				throw new Error(
 					`Enhancement-free eXact bundle retained the optional DOM enhancement host: ${unusedEnhancementHost}`
 				);
+			const unusedRefCapability = modules.find((id) =>
+				/[\\/]packages[\\/]core[\\/](?:src|dist)[\\/]component[\\/]ref-(?:capability-integration|runtime)\.(?:ts|js)$/.test(
+					id
+				)
+			);
+			if (unusedRefCapability)
+				throw new Error(
+					`Ref-free eXact bundle retained the optional component ref capability: ${unusedRefCapability}`
+				);
 		}
 	};
 }

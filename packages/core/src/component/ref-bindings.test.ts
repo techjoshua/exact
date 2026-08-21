@@ -1,6 +1,7 @@
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { createRef } from '../keys.js';
+import './ref-capability-integration.js';
 import type { Component, RefBinding } from './contracts.js';
 import { createComponentInstance } from './runtime.js';
 

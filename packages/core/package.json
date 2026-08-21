@@ -112,6 +112,14 @@
 			"types": "./dist/runtime/localization.d.ts",
 			"default": "./dist/runtime/localization.js"
 		},
+		"./runtime/lists": {
+			"types": "./dist/runtime/lists.d.ts",
+			"default": "./dist/runtime/lists.js"
+		},
+		"./runtime/refs": {
+			"types": "./dist/runtime/refs.d.ts",
+			"default": "./dist/runtime/refs.js"
+		},
 		"./localization": {
 			"types": "./dist/localization.d.ts",
 			"default": "./dist/localization.js"

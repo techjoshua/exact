@@ -16,8 +16,9 @@ The dated
 records the controlled raw, gzip, Brotli, and module-reachability change from moving the DOM
 enhancement host beside compiler-resolved providers.
 
-Compiled modules now import focused render, reactivity, task, inspection, registry, and enhancement
-facades. The base component constructor has no reverse import to the task implementation: task code
+Compiled modules now import focused render, reactivity, task, inspection, registry, ref, keyed-list,
+and enhancement facades. The base component constructor has no reverse import to optional ref,
+keyed-list, or task implementations: capability code
 installs its integration only when reachable, and a compiler-proven component with neither tasks
 nor interaction roots allocates no task owner. Event-owning components retain one because event
 callbacks execute as cancellable interaction tasks. Each exported component carries one immutable compiled definition; execution-plan and

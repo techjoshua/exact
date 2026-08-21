@@ -10,6 +10,8 @@ import {
 	type Component,
 	type VNode
 } from './index.js';
+import './component/ref-capability-integration.js';
+import './component/list-capability-integration.js';
 import { createComponentInstance, renderInstance } from './runtime/render.js';
 
 describe('@exactjs/core context-reactive', () => {
