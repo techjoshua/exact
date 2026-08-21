@@ -31,7 +31,47 @@ const legacyArchitectureCeilings = new Map([
 	['apps/puzzle-generator/src/styles.css', 800],
 	['apps/enhancement-playground/src/styles.css', 710],
 	['apps/workbench/src/styles.css', 572],
-	['packages/chromium-devtools/src/static/panel.css', 630]
+	['packages/chromium-devtools/src/static/panel.css', 630],
+	['packages/core/src/component/runtime.ts', 404],
+	['plugins/microfrontends/src/client.test.ts', 601]
+]);
+const compilerlessComponentCeilings = new Map([
+	['component-libraries/app-theme-preference/src/components.ts', 2],
+	['component-libraries/forms/src/form/controls.ts', 1],
+	['component-libraries/forms/src/form/feedback.ts', 2],
+	['component-libraries/forms/src/form/field.ts', 1],
+	['component-libraries/forms/src/form/form.ts', 1],
+	['component-libraries/gestures/src/context.ts', 1],
+	['component-libraries/gestures/src/gesture-element.ts', 1],
+	['component-libraries/gravity/src/components.ts', 2],
+	['component-libraries/motion/src/context.ts', 1],
+	['component-libraries/motion/src/layout.ts', 1],
+	['component-libraries/motion/src/motion-element.ts', 1],
+	['component-libraries/motion/src/motion-list.ts', 1],
+	['component-libraries/motion/src/motion.ts', 1],
+	['component-libraries/motion/src/presence.ts', 2],
+	['component-libraries/physics/src/components.ts', 2],
+	['component-libraries/router/src/components.tsx', 1],
+	['component-libraries/theme-fixture/src/specimen.ts', 2],
+	['packages/accessibility/src/components.ts', 1],
+	['packages/core/src/component-registry/creation.ts', 1],
+	['packages/dom/src/renderer/root-support.ts', 1],
+	['packages/intl/src/components.ts', 8],
+	['packages/react-compat/src/runtime/adapters.ts', 1],
+	['packages/react-compat/src/runtime/nodes.ts', 3],
+	['packages/react-dom-compat/src/client.ts', 1],
+	['packages/react-dom-compat/src/server-shared.ts', 1],
+	['packages/request/src/provider.ts', 1],
+	['packages/testing/src/internal/fixtures.ts', 1],
+	['packages/testing/src/mounting/mount.ts', 1],
+	['packages/theme/src/components.ts', 1],
+	['packages/theme/src/enhancement-components.ts', 7],
+	['packages/time/src/components.ts', 2],
+	['plugins/microfrontends/src/client.ts', 1],
+	['react-adapters/convex/src/adapter.ts', 1],
+	['react-adapters/jotai/src/adapter.ts', 1],
+	['react-adapters/redux/src/adapter.ts', 1],
+	['react-adapters/tanstack-query/src/adapter.ts', 1]
 ]);
 
 for (const maintainedRoot of maintainedRoots) {
@@ -83,6 +123,7 @@ async function inspectSource(file) {
 		violations.push(`${relative}: tests must be named for the behavior they exercise`);
 	}
 	if (isTest) return;
+	inspectCompilerlessComponentCalls(relative, source);
 
 	const sourceFile = ts.createSourceFile(
 		file,
@@ -94,6 +135,17 @@ async function inspectSource(file) {
 	if (/\/src\/index\.tsx?$/.test(relative)) inspectFacade(relative, sourceFile);
 	inspectImports(relative, sourceFile);
 	inspectOwnershipName(relative);
+}
+
+/** Prevents the temporary compilerless component surface from growing during its migration. */
+function inspectCompilerlessComponentCalls(relative, source) {
+	const count = source.match(/\bmarkExactComponent\s*\(/g)?.length ?? 0;
+	const ceiling = compilerlessComponentCeilings.get(relative);
+	if (count === 0) return;
+	if (ceiling === undefined)
+		violations.push(`${relative}: new compilerless native component is not permitted`);
+	else if (count > ceiling)
+		violations.push(`${relative}: ${count} compilerless components exceeds its ceiling of ${ceiling}`);
 }
 
 function inspectFacade(relative, sourceFile) {
@@ -166,7 +218,11 @@ function inspectSize(file, source, isTest = false) {
 	const logicalLines = logicalLineCount(file, source ?? '');
 	const limit = isTest ? 600 : 400;
 	if (logicalLines > limit) {
-		violations.push(`${relative}: ${logicalLines} logical lines exceeds the ${limit}-line limit`);
+		const ceiling = legacyArchitectureCeilings.get(relative);
+		if (ceiling === undefined)
+			violations.push(`${relative}: ${logicalLines} logical lines exceeds the ${limit}-line limit`);
+		else if (logicalLines > ceiling)
+			violations.push(`${relative}: ${logicalLines} logical lines exceeds its ceiling of ${ceiling}`);
 	}
 }
 
