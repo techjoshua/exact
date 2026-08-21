@@ -1,12 +1,4 @@
-import {
-	type AnyComponentInstance,
-	createErrorReport,
-	handleComponentError,
-	handleComponentSuspension,
-	normalizeRenderResult,
-	unwrap,
-	type Child
-} from '@exactjs/core';
+import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
 	readRenderProgramSlot,
 	type ExactRenderProgramInvocation
@@ -17,6 +9,7 @@ import { placeMountedBefore } from '../placement.js';
 import type { Mounted } from '../types.js';
 import { mountDetachedChildren } from './mounting/children.js';
 import { patchChildren } from './patching/children.js';
+import { readDynamicChildren } from './dynamic.js';
 
 /** Adopts every compiler-owned variable-width child range inside one program. */
 export function adoptProgramChildSlots(
@@ -53,11 +46,10 @@ export function adoptProgramChildSlots(
 			endIndex
 		);
 		if (!children) return false;
-		const childSlots = (state.childSlots ??= new Map());
-		childSlots.set(index, { end, children, value });
+		const childSlots = (state.childSlots ??= []);
+		childSlots.push({ slot: index, end, children, value });
 	}
-	if (state.childSlots)
-		mounted.children = [...state.childSlots.values()].flatMap((entry) => entry.children);
+	refreshMountedChildren(mounted);
 	return true;
 }
 
@@ -74,9 +66,12 @@ export function bindProgramChild(
 	const identity = slot?.[0] === 'child' ? slot[1] : undefined;
 	const end = findProgramChildEnd(start, identity);
 	if (!(start instanceof Comment) || !end || !start.parentNode) return false;
-	const childSlots = (state.childSlots ??= new Map());
-	const childState = childSlots.get(index) ?? { end, children: [] };
-	childSlots.set(index, childState);
+	const childSlots = (state.childSlots ??= []);
+	let childState = childSlots.find((candidate) => candidate.slot === index);
+	if (!childState) {
+		childState = { slot: index, end, children: [] };
+		childSlots.push(childState);
+	}
 	const applyChildren = () => {
 		const next = readProgramChildren(state.invocation, index, state.parentInstance);
 		if (sameProgramChildren(childState.value, next)) return;
@@ -104,7 +99,7 @@ export function bindProgramChild(
 			);
 		}
 		childState.value = next;
-		mounted.children = [...childSlots.values()].flatMap((entry) => entry.children);
+		refreshMountedChildren(mounted);
 	};
 	const stop = watchRetained(applyChildren, undefined, { scope: mounted.scope });
 	if (stop) stopBindings.push(stop);
@@ -129,21 +124,11 @@ function readProgramChildren(
 	index: number,
 	parentInstance: AnyComponentInstance | undefined
 ): Child[] {
-	try {
-		return normalizeRenderResult(
-			unwrap(readRenderProgramSlot(invocation, index)) as Child | Child[]
-		);
-	} catch (error) {
-		if (isPromiseLike(error)) {
-			handleComponentSuspension(parentInstance, error);
-			return [];
-		}
-		const fallback = handleComponentError(
-			parentInstance,
-			createErrorReport(error, 'render', parentInstance, 'compiled-child-slot')
-		);
-		return fallback ? normalizeRenderResult(fallback()) : [];
-	}
+	return readDynamicChildren(
+		() => readRenderProgramSlot(invocation, index),
+		parentInstance,
+		'compiled-child-slot'
+	);
 }
 
 function sameProgramChildren(
@@ -154,10 +139,8 @@ function sameProgramChildren(
 	return next.every((value, index) => Object.is(value, previous[index]));
 }
 
-function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-	return (
-		(typeof value === 'object' || typeof value === 'function') &&
-		value !== null &&
-		typeof (value as PromiseLike<unknown>).then === 'function'
-	);
+function refreshMountedChildren(mounted: Mounted): void {
+	mounted.children.length = 0;
+	for (const slot of mounted.renderProgram!.childSlots ?? [])
+		mounted.children.push(...slot.children);
 }

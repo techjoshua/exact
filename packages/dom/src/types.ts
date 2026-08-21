@@ -47,14 +47,12 @@ export type Mounted = {
 		/** Last effective planned props, grouped by their target element. */
 		props?: Map<Element, Record<string, unknown>>;
 		/** Mounted structural ranges keyed by their compiler slot index. */
-		childSlots?: Map<
-			number,
-			{
-				readonly end: Comment;
-				children: Mounted[];
-				value?: readonly Child[];
-			}
-		>;
+		childSlots?: Array<{
+			readonly slot: number;
+			readonly end: Comment;
+			children: Mounted[];
+			value?: readonly Child[];
+		}>;
 		/** Applies replacement readers without recreating the retained slot watcher. */
 		refresh?: () => void;
 	};

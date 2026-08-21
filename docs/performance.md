@@ -39,8 +39,9 @@ Compiler render programs also carry a production hydration tape. Fixed-width reg
 intrinsic nodes and scalar marker ranges by their exact SSR child paths. A program that owns a
 variable-width structural child range instead claims compiler identities inside that finite program
 region, because content inside the range makes later physical child indexes intentionally variable.
-This bounded claim does not build or retain a subtree-wide hydration index. Every claimed tag,
-namespace, compiler identity, and dynamic marker pair is still checked. A stale or malformed plan
+The adopter builds one ephemeral identity index for that bounded program region and releases it
+after the claim; no hydration index remains in live component state. Every claimed tag, namespace,
+compiler identity, and dynamic marker pair is still checked. A stale or malformed plan
 therefore fails closed into the existing hydration recovery path, while markerless and generic
 hydration remain available for inputs that do not carry the compiler plan.
 

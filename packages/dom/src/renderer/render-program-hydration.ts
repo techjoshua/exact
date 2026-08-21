@@ -1,28 +1,48 @@
-/** Finds one compiler-identified intrinsic inside a bounded render-program region. */
-export function findProgramElement(root: Element, id: string): Element | undefined {
-	if (root.getAttribute('data-exact-id') === id) return root;
-	const pending = [...root.children];
+/** Ephemeral identity index for one bounded variable-width program region. */
+export type ProgramHydrationIndex = Readonly<{
+	elements: ReadonlyMap<string, Element>;
+	markers: ReadonlyMap<string, Comment>;
+}>;
+
+/** Indexes compiler identities in one traversal; callers release the map after adoption. */
+export function indexProgramHydration(root: Element): ProgramHydrationIndex {
+	const elements = new Map<string, Element>();
+	const markers = new Map<string, Comment>();
+	const pending = [root as Node];
 	while (pending.length) {
-		const element = pending.shift()!;
-		if (element.getAttribute('data-exact-id') === id) return element;
-		pending.push(...element.children);
+		const node = pending.pop()!;
+		if (node instanceof Element) {
+			const id = node.getAttribute('data-exact-id');
+			if (id) elements.set(id, node);
+		} else if (node instanceof Comment && node.data.startsWith('exact:dynamic:')) {
+			markers.set(node.data, node);
+		}
+		for (let index = node.childNodes.length - 1; index >= 0; index--)
+			pending.push(node.childNodes[index]!);
 	}
-	return undefined;
+	return { elements, markers };
 }
 
 /** Claims one compiler-identified structural child marker. */
-export function claimProgramChildSlot(root: Element, id: string): Comment | undefined {
+export function claimProgramChildSlot(
+	index: ProgramHydrationIndex,
+	id: string
+): Comment | undefined {
 	const identity = markerIdentity(id);
-	const marker = findProgramMarker(root, `exact:dynamic:${identity}`);
+	const marker = index.markers.get(`exact:dynamic:${identity}`);
 	return marker instanceof Comment && marker.data === `exact:dynamic:${identity}`
 		? marker
 		: undefined;
 }
 
 /** Claims one compiler-identified SSR scalar range and materializes its empty text node. */
-export function claimProgramTextSlot(root: Element, id: string): Text | undefined {
+export function claimProgramTextSlot(
+	root: Element,
+	index: ProgramHydrationIndex,
+	id: string
+): Text | undefined {
 	const identity = markerIdentity(id);
-	const marker = findProgramMarker(root, `exact:dynamic:${identity}`);
+	const marker = index.markers.get(`exact:dynamic:${identity}`);
 	if (!(marker instanceof Comment) || marker.data !== `exact:dynamic:${identity}`) return undefined;
 	let text = marker.nextSibling instanceof Text ? marker.nextSibling : undefined;
 	const closing = text ? text.nextSibling : marker.nextSibling;
@@ -53,16 +73,6 @@ export function markedProgramRange(
 		const candidate = nodes[index];
 		if (candidate instanceof Comment && candidate.data === `/${start.data}`)
 			return { start, contentStart: cursor + 1, endIndex: index };
-	}
-	return undefined;
-}
-
-function findProgramMarker(root: Element, data: string): Comment | undefined {
-	const pending = [...root.childNodes];
-	while (pending.length) {
-		const node = pending.shift()!;
-		if (node instanceof Comment && node.data === data) return node;
-		pending.push(...node.childNodes);
 	}
 	return undefined;
 }

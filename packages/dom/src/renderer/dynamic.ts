@@ -132,21 +132,34 @@ export function dynamicChildren(
 		return [];
 	}
 	if (inspection?.status === 'failed') return dynamicFailure(inspection.error, parentInstance);
+	return readDynamicChildren(() => vnode.props.value, parentInstance, 'dynamic-component');
+}
+
+/** Normalizes one compiled dynamic reader through shared suspension and error ownership. */
+export function readDynamicChildren(
+	read: () => unknown,
+	parentInstance: AnyComponentInstance | undefined,
+	label: string
+): Child[] {
 	try {
-		return normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]);
+		return normalizeRenderResult(unwrap(read()) as Child | Child[]);
 	} catch (error) {
 		if (isPromiseLike(error)) {
 			handleComponentSuspension(parentInstance, error);
 			return [];
 		}
-		return dynamicFailure(error, parentInstance);
+		return dynamicFailure(error, parentInstance, label);
 	}
 }
 
-function dynamicFailure(error: unknown, parentInstance: AnyComponentInstance | undefined): Child[] {
+function dynamicFailure(
+	error: unknown,
+	parentInstance: AnyComponentInstance | undefined,
+	label = 'dynamic-component'
+): Child[] {
 	const fallback = handleComponentError(
 		parentInstance,
-		createErrorReport(error, 'render', parentInstance, 'dynamic-component')
+		createErrorReport(error, 'render', parentInstance, label)
 	);
 	return fallback ? normalizeRenderResult(fallback()) : [];
 }
