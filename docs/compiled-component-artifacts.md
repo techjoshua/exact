@@ -52,7 +52,7 @@ component's topology or interpret a universal component plan when the artifact a
 | Generic VNode component mounting and adoption     | Compilerless/dynamic fallback      | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
 | `createComponentRegistry()` callable entries      | Native dynamic selection           | Store compiled artifacts keyed by the finite registry                         |
 | Accessibility components                          | First-party native components      | Migrated to target-paired package artifacts                                   |
-| Internationalization components                   | First-party native components      | Compile during the internationalization package build                         |
+| Internationalization components                   | First-party native components      | Migrated to target-paired package artifacts                                   |
 | Request provider                                  | First-party native component       | Migrated to target-paired package artifacts                                   |
 | Theme components and enhancements                 | First-party native components      | Compile during the theme package build                                        |
 | Time components                                   | First-party native components      | Compile during the time package build                                         |

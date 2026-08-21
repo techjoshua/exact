@@ -1,4 +1,3 @@
-import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { IntlCurrency, IntlMessage, IntlPlural, IntlSelect, IntlUnit } from './components.js';
 import { cldr, currency, message, plural, select, unit } from './enhancements.js';
@@ -11,7 +10,5 @@ describe('intl component and enhancement surface', () => {
 		expect(currency).toBe(IntlCurrency);
 		expect(unit).toBe(IntlUnit);
 		expect(cldr).toBe(IntlUnit);
-		for (const component of [IntlMessage, IntlPlural, IntlSelect, IntlCurrency, IntlUnit])
-			expect(isExactComponent(component)).toBe(true);
 	});
 });

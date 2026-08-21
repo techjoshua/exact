@@ -1,14 +1,13 @@
 import {
 	createContext,
 	LocalizationContext,
-	markExactEnhancementContexts,
+	peek,
 	TargetOverrides,
 	unwrap,
 	type Child,
 	type Component
 } from '@exactjs/core';
 import { createCompiledTarget } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { IntlPropertyActivation, IntlPropertyName } from './contracts.js';
 import type { IntlLocaleString } from './cldr-locale-types.js';
 import {
@@ -41,28 +40,27 @@ export interface IntlLocaleProps {
 /** Publishes an internationalization environment to descendant enhancement components. */
 export function IntlProvider(this: Component<{}>, props: IntlProviderProps) {
 	const environment = unwrap(props.environment);
-	provideIntlEnvironment(this, environment);
+	this.setContext(IntlEnvironmentContext, environment);
+	this.setContext(LocalizationContext, localizationContext(environment));
 	return () => props.children;
 }
 
 /** Establishes a locale scope while projecting reactive language metadata through `_target`. */
 export function IntlLocale(this: Component<{}>, props: IntlLocaleProps) {
-	const parent = this.hasContext(IntlEnvironmentContext)
-		? this.getContext(IntlEnvironmentContext)
-		: undefined;
-	const requested = unwrap(props.locale);
-	const environment =
-		typeof requested === 'string'
+	// A locale scope owns one environment identity for its lifetime. A different
+	// authored locale replaces the scope rather than mutating a shared cached scope.
+	const environment = peek(() => {
+		const parent = this.hasContext(IntlEnvironmentContext)
+			? this.getContext(IntlEnvironmentContext)
+			: undefined;
+		const requested = unwrap(props.locale);
+		return typeof requested === 'string'
 			? (parent?.forLocale(requested) ?? createDefaultIntlEnvironment(requested))
 			: (parent ?? createDefaultIntlEnvironment());
-	provideIntlEnvironment(this, environment);
-	return () => {
-		const metadata = intlLocaleMetadata(environment.state.locale);
-		return createCompiledTarget(
-			{ lang: metadata.lang, dir: metadata.dir, [TargetOverrides]: ['lang', 'dir'] },
-			props.children
-		);
-	};
+	});
+	this.setContext(IntlEnvironmentContext, environment);
+	this.setContext(LocalizationContext, localizationContext(environment));
+	return () => renderIntlLocale(environment, props);
 }
 
 /** Internal enhancement props after generated source instrumentation. */
@@ -70,7 +68,6 @@ export interface IntlPreparedMessageProps {
 	name?: string;
 	/**
 	 * Names one translator-movable child structure for the intl analyzer.
-	 * @exact analyzer-only
 	 */
 	fragment?: string;
 	message?: true | string | PreparedIntlActivation;
@@ -115,13 +112,7 @@ export function IntlMessage(this: Component<{}>, props: IntlPreparedMessageProps
 	const environment = this.hasContext(IntlEnvironmentContext)
 		? this.getContext(IntlEnvironmentContext)
 		: undefined;
-	return () => {
-		const prepared = findPreparedActivation(props);
-		if (!prepared) return props.children;
-		if (!environment) throw new Error('Prepared intl messages require an ancestor IntlProvider');
-		const content = renderIntlActivation(prepared, environment);
-		return prepared.target ? prepared.target(content, prepared.values) : content;
-	};
+	return () => renderIntlMessage(props, environment);
 }
 
 /** Explicit plural component backed by the shared prepared-message renderer. */
@@ -159,58 +150,59 @@ export function IntlAttributes(this: Component<{}>, props: IntlPreparedAttribute
 	const environment = this.hasContext(IntlEnvironmentContext)
 		? this.getContext(IntlEnvironmentContext)
 		: undefined;
-	return () => {
-		const contributions: Record<string, unknown> = {};
-		for (const name of intlPropertyNames) {
-			const candidate = unwrap(props[name]);
-			if (!isPreparedIntlActivation(candidate)) continue;
-			if (!environment)
-				throw new Error('Prepared intl properties require an ancestor IntlProvider');
-			if (
-				candidate.descriptor.target.kind !== 'property' ||
-				candidate.descriptor.target.name !== name
-			)
-				throw new TypeError(`Prepared intl property ${name} has a mismatched descriptor target`);
-			contributions[name] = renderIntlActivation(candidate, environment)
-				.map((value) => String(value ?? ''))
-				.join('');
-		}
-		return createCompiledTarget(
-			{ ...contributions, [TargetOverrides]: Object.keys(contributions) },
-			props.children
-		);
-	};
+	return () => renderIntlAttributes(props, environment);
 }
 
-markExactComponent(IntlProvider, '@exactjs/intl:IntlProvider');
-markExactComponent(IntlLocale, '@exactjs/intl:IntlLocale');
-markExactComponent(IntlMessage, '@exactjs/intl:IntlMessage');
-markExactComponent(IntlPlural, '@exactjs/intl:IntlPlural');
-markExactComponent(IntlSelect, '@exactjs/intl:IntlSelect');
-markExactComponent(IntlCurrency, '@exactjs/intl:IntlCurrency');
-markExactComponent(IntlUnit, '@exactjs/intl:IntlUnit');
-markExactComponent(IntlAttributes, '@exactjs/intl:IntlAttributes');
-markExactEnhancementContexts(IntlProvider, {
-	provides: [IntlEnvironmentContext, LocalizationContext]
-});
-markExactEnhancementContexts(IntlLocale, {
-	provides: [IntlEnvironmentContext, LocalizationContext]
-});
-markExactEnhancementContexts(IntlMessage, { requires: [IntlEnvironmentContext] });
-markExactEnhancementContexts(IntlPlural, { requires: [IntlEnvironmentContext] });
-markExactEnhancementContexts(IntlSelect, { requires: [IntlEnvironmentContext] });
-markExactEnhancementContexts(IntlCurrency, { requires: [IntlEnvironmentContext] });
-markExactEnhancementContexts(IntlUnit, { requires: [IntlEnvironmentContext] });
-markExactEnhancementContexts(IntlAttributes, { requires: [IntlEnvironmentContext] });
+function renderIntlLocale(environment: IntlEnvironment, props: IntlLocaleProps): Child {
+	const metadata = intlLocaleMetadata(environment.state.locale);
+	return createCompiledTarget(
+		{ lang: metadata.lang, dir: metadata.dir, [TargetOverrides]: ['lang', 'dir'] },
+		props.children
+	);
+}
 
-function provideIntlEnvironment(component: Component<{}>, environment: IntlEnvironment): void {
-	component.setContext(IntlEnvironmentContext, environment);
-	component.setContext(LocalizationContext, {
+function renderIntlMessage(
+	props: IntlPreparedMessageProps,
+	environment: IntlEnvironment | undefined
+): Child | Child[] {
+	const prepared = findPreparedActivation(props);
+	if (!prepared) return props.children;
+	if (!environment) throw new Error('Prepared intl messages require an ancestor IntlProvider');
+	const content = renderIntlActivation(prepared, environment);
+	return prepared.target ? prepared.target(content, prepared.values) : content;
+}
+
+function renderIntlAttributes(
+	props: IntlPreparedAttributesProps,
+	environment: IntlEnvironment | undefined
+): Child {
+	const contributions: Record<string, unknown> = {};
+	for (const name of intlPropertyNames) {
+		const candidate = unwrap(props[name]);
+		if (!isPreparedIntlActivation(candidate)) continue;
+		if (!environment) throw new Error('Prepared intl properties require an ancestor IntlProvider');
+		if (
+			candidate.descriptor.target.kind !== 'property' ||
+			candidate.descriptor.target.name !== name
+		)
+			throw new TypeError(`Prepared intl property ${name} has a mismatched descriptor target`);
+		contributions[name] = renderIntlActivation(candidate, environment)
+			.map((value) => String(value ?? ''))
+			.join('');
+	}
+	return createCompiledTarget(
+		{ ...contributions, [TargetOverrides]: Object.keys(contributions) },
+		props.children
+	);
+}
+
+function localizationContext(environment: IntlEnvironment) {
+	return {
 		get locale() {
 			return environment.state.locale;
 		},
 		sourceLocale: environment.sourceLocale
-	});
+	};
 }
 
 function findPreparedActivation(
