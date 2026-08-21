@@ -5,7 +5,6 @@ import {
 	type Reactive,
 	type ReactiveValue
 } from '@exactjs/reactive';
-import { createComponentActivation, type ComponentActivation } from './activation.js';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
 import { getComponentContext, hasComponentContext, setComponentContext } from './context-api.js';
@@ -83,7 +82,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	private readonly inspection;
 	private readonly taskCapability = componentTaskCapability();
 	private taskState?: ComponentTaskCapabilityState;
-	private readonly activation: ComponentActivation;
+	private activeValue = false;
 	private activityBlockers?: Set<symbol>;
 	private mountedValue = false;
 	private disposedValue = false;
@@ -109,12 +108,6 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		});
 		this.state = createComponentState<State>(domain, () => this, contract?.definition?.state);
 		this.props = createComponentProps(rawProps);
-		this.activation = createComponentActivation(
-			this,
-			() => this.mountedValue,
-			() => this.disposedValue,
-			() => this.activityBlockers?.size ?? 0
-		);
 		this.initialize(execution, rawProps, contract);
 	}
 
@@ -262,7 +255,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 				handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'mount'));
 			}
 		}
-		this.activation.update();
+		this.updateActivation();
 	}
 
 	setActivity(token: symbol, active: boolean, reason = 'activity'): void {
@@ -277,7 +270,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			reason,
 			attributes: Object.freeze({ active: blockers === 0, blockers })
 		});
-		this.activation.update(reason);
+		this.updateActivation(reason);
 	}
 
 	updateProps(nextProps: Record<string, unknown>): void {
@@ -288,7 +281,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	unmount(reason = 'unmount'): void {
 		if (this.disposedValue) return;
 		this.inspection?.publish({ kind: 'component.unmount', component: this, reason });
-		if (this.activation.active) this.activation.deactivate(reason);
+		this.deactivate(reason);
 		this.disposedValue = true;
 		this.mountedValue = false;
 		let failed = false;
@@ -376,6 +369,52 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		}
 		this.renderFunctionValue = result;
 		this.taskCapability?.retain(this.taskState, this);
+	}
+
+	/** Advances the allocation-free activity state kept directly on the component record. */
+	private updateActivation(reason = 'activity'): void {
+		if (this.disposedValue || !this.mountedValue || this.activityBlockers?.size) {
+			this.deactivate(reason);
+			return;
+		}
+		if (this.activeValue) return;
+		this.activeValue = true;
+		this.inspection?.publish({ kind: 'component.activate', component: this, reason });
+		const handlers = componentLifecycleHandlers(this, 'activate');
+		this.activationController = handlers.length ? new AbortController() : undefined;
+		for (const handler of handlers) {
+			try {
+				const result = handler({ signal: this.activationController!.signal });
+				if (isPromiseLike(result))
+					observeLifecyclePromise(this, Promise.resolve(result), 'activate');
+			} catch (error) {
+				handleComponentError(
+					this,
+					createErrorReport(error, 'lifecycle', this, 'activate')
+				);
+			}
+		}
+	}
+
+	/** Deactivates the component without allocating a per-instance state-machine closure. */
+	private deactivate(reason: string): void {
+		if (!this.activeValue) return;
+		this.activeValue = false;
+		this.inspection?.publish({ kind: 'component.deactivate', component: this, reason });
+		this.activationController?.abort(reason);
+		this.activationController = undefined;
+		for (const handler of componentLifecycleHandlers(this, 'deactivate')) {
+			try {
+				const result = handler({ signal: AbortSignal.abort(reason), reason });
+				if (isPromiseLike(result))
+					observeLifecyclePromise(this, Promise.resolve(result), 'deactivate');
+			} catch (error) {
+				handleComponentError(
+					this,
+					createErrorReport(error, 'lifecycle', this, 'deactivate')
+				);
+			}
+		}
 	}
 }
 
