@@ -41,6 +41,11 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if !plan.keyed {
 		return nil
 	}
+	// The authored expression is Array.prototype.map; the component list
+	// capability only becomes visible after this lowering creates this.map.
+	// Record that semantic decision directly so runtime import selection does
+	// not have to rediscover a synthesized node from the original source tree.
+	lowering.listCapabilityUsed = true
 	item := lowering.factory.NewIdentifier("__exactItem")
 	var key *ast.Node = item
 	if !plan.primitive {

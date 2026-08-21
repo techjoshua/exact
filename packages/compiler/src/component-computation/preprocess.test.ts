@@ -42,6 +42,14 @@ describe('@exactjs/compiler component computations', () => {
 		);
 		expect(output).toContain('import "@exactjs/core/runtime/lists"');
 		expect(output).toContain('import "@exactjs/core/runtime/refs"');
+
+		const inferredListOutput = transform(
+			`function Results(this: Component<{}>, props: { values: string[] }) {
+				return () => <>{props.values.map(value => <p>{value}</p>)}</>;
+			}`,
+			{ filename: 'InferredResults.tsx' }
+		);
+		expect(inferredListOutput).toContain('import "@exactjs/core/runtime/lists"');
 	});
 
 	it('keeps nullish component-state initialization in setup', () => {
