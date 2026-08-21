@@ -69,6 +69,30 @@ func TestTaskFreeExportCarriesCanonicalDefinitionWithoutTaskCapability(t *testin
 	}
 }
 
+func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Greeting(this: Component<{ message: string }>, props: { name: string }) {
+				this.state.message = "Hello " + props.name;
+				return () => <p>{this.state.message}</p>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "activateComputationForHost as __exactActivateComputation") ||
+		!strings.Contains(response.Code, "__exactActivateComputation(this") {
+		t.Fatalf("hydrate projection did not select the synchronous computation lane:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `label: "__exactComponentComputation_`) {
+		t.Fatalf("hydrate projection wrapped a synchronous computation in a task definition:\n%s", response.Code)
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";

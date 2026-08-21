@@ -203,6 +203,18 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		rewrittenWork = lowering.inspectionSource(task.ID, rewrittenWork)
 	}
 	if !task.Invoked {
+		if lowering.contractProjection == ComponentContractProjectionHydrate &&
+			strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") &&
+			!task.Async && len(contextBindings) == 0 && len(task.ResultWritePath) == 0 {
+			return lowering.taskHelperCall(
+				"activateComputationForHost",
+				lowering.names.activateComputation,
+				append(
+					[]*ast.Node{lowering.factory.NewThisExpression(), rewrittenWork},
+					nextArguments...,
+				),
+			)
+		}
 		defined := lowering.setupTaskDefinition(
 			lowering.functionTaskLabel(task),
 			rewrittenWork,

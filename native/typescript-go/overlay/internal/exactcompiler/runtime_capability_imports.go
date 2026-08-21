@@ -55,6 +55,7 @@ type jsxRuntimeNames struct {
 	bindTask               string
 	invokeTask             string
 	activateTask           string
+	activateComputation    string
 	taskOptions            string
 	taskCombined           string
 	delete                 string
@@ -169,6 +170,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"bindTaskForHost",
 		"invokeTask",
 		"activateTaskForHost",
+		"activateComputationForHost",
 	}
 	for _, imported := range taskHelperOrder {
 		if local, used := lowering.taskHelpers[imported]; used {
@@ -485,6 +487,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		bindTask:               allocate("__exactBindTask"),
 		invokeTask:             allocate("__exactInvokeTask"),
 		activateTask:           allocate("__exactActivateTask"),
+		activateComputation:    allocate("__exactActivateComputation"),
 		delete:                 allocate("__exactDelete"),
 		arrayMutation:          allocate("__exactArrayMutation"),
 		collectionMutation:     allocate("__exactCollectionMutation"),
