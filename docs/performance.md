@@ -202,6 +202,12 @@ patching, or teardown. Do not compare a candidate directly with an older tracked
 intervening renderer features materially changed that workload; first establish a current
 same-tree baseline or describe the result as cumulative.
 
+Component activity state is stored directly on the durable component record. Activation and
+deactivation operations are shared prototype methods, so an ordinary component does not allocate a
+separate activity object or the closure set that would otherwise capture its lifetime. Uncommon
+activity blockers, lifecycle registrations, controllers, task state, refs, lists, and localization
+remain allocation-on-demand sidecars.
+
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
 representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed
