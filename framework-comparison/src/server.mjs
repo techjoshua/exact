@@ -23,10 +23,7 @@ export async function startComparisonServer(options = {}) {
 				...(body.length > 0 ? { body } : {})
 			});
 			const response = await service.fetch(request);
-			outgoing.writeHead(response.status, {
-				...Object.fromEntries(response.headers),
-				'cross-origin-resource-policy': 'cross-origin'
-			});
+			outgoing.writeHead(response.status, Object.fromEntries(response.headers));
 			if (response.body) Readable.fromWeb(response.body).pipe(outgoing);
 			else outgoing.end();
 		} catch (caught) {
