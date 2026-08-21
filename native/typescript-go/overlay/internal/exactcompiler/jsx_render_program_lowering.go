@@ -374,12 +374,42 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		if len(lowering.formBindingProperties(name, attribute.Initializer, attributes)) != 0 {
 			return false
 		}
+		if attributeName, value, static := staticRenderProgramAttribute(name, attribute.Initializer); static {
+			build.write(` ` + attributeName + `="` + html.EscapeString(value) + `"`)
+			continue
+		}
 		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
 		if reader != nil {
 			build.propertySlot(lowering.dynamicID(property), path, hydrationPath, name, reader)
 		}
 	}
 	return true
+}
+
+// staticRenderProgramAttribute recognizes source literals whose DOM property and SSR attribute
+// semantics are identical. Values that need URL policy, event installation, form binding, object
+// normalization, or custom-element property assignment deliberately remain runtime operations.
+func staticRenderProgramAttribute(name string, initializer *ast.Node) (string, string, bool) {
+	if initializer == nil || !ast.IsStringLiteral(initializer) {
+		return "", "", false
+	}
+	attributeName := name
+	switch name {
+	case "className":
+		attributeName = "class"
+	case "htmlFor":
+		attributeName = "for"
+	case "id", "class", "for", "title", "role", "type", "name", "value", "placeholder",
+		"autocomplete", "inputmode", "pattern", "min", "max", "step", "width", "height",
+		"colspan", "rowspan", "scope", "kind", "label", "media", "rel", "target", "download",
+		"crossorigin", "referrerpolicy", "fetchpriority", "loading", "decoding", "dir", "lang":
+		// These literal values have native attribute semantics in both template parsing and SSR.
+	default:
+		if !strings.HasPrefix(name, "data-") && !strings.HasPrefix(name, "aria-") {
+			return "", "", false
+		}
+	}
+	return attributeName, initializer.AsStringLiteral().Text, true
 }
 
 func renderProgramSlotKind(name string) string {
