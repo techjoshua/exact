@@ -104,6 +104,10 @@ func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T)
 		!strings.Contains(hydrate.Code, "boundaries: []") {
 		t.Fatalf("hydrate projection retained composition-only catalogs:\n%s", hydrate.Code)
 	}
+	if strings.Contains(hydrate.Code, "execution:") ||
+		strings.Contains(hydrate.Code, "componentExecutionValueForHost") {
+		t.Fatalf("hydrate projection retained server-operation execution metadata:\n%s", hydrate.Code)
+	}
 
 	client := NewSession().Execute(Request{
 		ID: "client.tsx", Kind: "compile", Target: TargetClient, Source: source,

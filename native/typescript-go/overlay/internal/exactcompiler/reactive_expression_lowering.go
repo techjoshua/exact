@@ -38,7 +38,8 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		helper,
 		[]*ast.Node{closure},
 	)
-	if paths, direct := lowering.componentExecutionOutputPaths(source); len(paths) != 0 {
+	if paths, direct := lowering.componentExecutionOutputPaths(source); len(paths) != 0 &&
+		lowering.contractProjection != ComponentContractProjectionHydrate {
 		pathValue := lowering.factory.NewStringLiteral(paths[0], ast.TokenFlagsNone)
 		if !direct {
 			values := make([]*ast.Node, len(paths))
