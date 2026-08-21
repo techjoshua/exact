@@ -5,6 +5,7 @@ import { relative, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { analyzeStartupTrace, startupPercentile } from './startup-cpu-analysis.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
+import { preciseExecutedBytes } from './precise-coverage.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error(
@@ -188,32 +189,12 @@ function summarizeCoverage(scripts) {
 				...script.functions.flatMap((entry) => entry.ranges.map((range) => range.endOffset))
 			),
 			functionCount: script.functions.length,
-			executedBytes: coveredBytes(
-				script.functions.flatMap((entry) => entry.ranges.filter((range) => range.count > 0))
-			),
+			executedBytes: preciseExecutedBytes(script.functions.flatMap((entry) => entry.ranges)),
 			invokedFunctionCount: script.functions.filter((entry) =>
 				entry.ranges.some((range) => range.count > 0)
 			).length
 		}))
 		.sort((left, right) => right.codeBytes - left.codeBytes);
-}
-
-/** Returns the union length of executed byte ranges without double-counting nested functions. */
-function coveredBytes(ranges) {
-	const sorted = ranges
-		.map((range) => [range.startOffset, range.endOffset])
-		.filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
-		.sort((left, right) => left[0] - right[0] || right[1] - left[1]);
-	let total = 0;
-	let start = -1;
-	let end = -1;
-	for (const range of sorted) {
-		if (range[0] > end) {
-			if (end > start) total += end - start;
-			[start, end] = range;
-		} else end = Math.max(end, range[1]);
-	}
-	return total + (end > start ? end - start : 0);
 }
 
 function metricRecord(response) {

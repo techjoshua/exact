@@ -167,8 +167,9 @@ compressed byte sizes must be deterministic before the suite reports a build bas
 
 The framework comparison additionally records FCP, LCP, long-task count and duration, total
 blocking time, DOM size at semantic readiness, per-script decoded and executed bytes, function
-inventory and invocation counts, and parse/compile/evaluation trace attribution. Executed bytes are
-the union of covered V8 ranges, so nested executed functions are not counted twice.
+inventory and invocation counts, and parse/compile/evaluation trace attribution. Executed bytes use
+the most-specific V8 coverage range for each source interval, so an uncalled function body is not
+hidden by its executed top-level script range and nested ranges are not counted twice.
 
 The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
 size and generation cost have their own scenarios, which keeps the two costs attributable.
