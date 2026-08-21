@@ -137,7 +137,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		"prepareCompiledRenderProgram",
 		"version: 1",
 		"parts:",
-		"kind: \"text\"",
+		`["text",`,
 		"ssrParts:",
 		"kind: \"node-open\"",
 		"kind: \"node-close\"",
@@ -185,10 +185,8 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
-		"kind: \"class\"",
-		"name: \"className\"",
-		"kind: \"property\"",
-		"name: \"disabled\"",
+		`["class", [], [], "className"]`,
+		`["property", [], [], "disabled"]`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
@@ -209,8 +207,8 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `namespace: "svg", template: "<path`) ||
-		!strings.Contains(response.Code, `tag: "path"`) ||
-		strings.Contains(response.Code, `tag: "path", namespace: "svg"`) {
+		!strings.Contains(response.Code, `[], [], "path"]`) ||
+		strings.Contains(response.Code, `[], [], "path", "svg"]`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
 }
@@ -228,9 +226,9 @@ func TestSessionEmitsOnlyRenderProgramNamespaceTransitions(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `tag: "div", namespace: "html"`) ||
-		strings.Contains(response.Code, `tag: "svg", namespace: "svg"`) ||
-		strings.Contains(response.Code, `tag: "foreignObject", namespace: "svg"`) {
+	if !strings.Contains(response.Code, `"div", "html"]`) ||
+		strings.Contains(response.Code, `"svg", "svg"]`) ||
+		strings.Contains(response.Code, `"foreignObject", "svg"]`) {
 		t.Fatalf("render program did not compact inherited namespaces:\n%s", response.Code)
 	}
 }
