@@ -89,6 +89,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 
 	constructor(
 		type: ComponentFunction<State, Props>,
+		instantiate: ComponentFunction<State, Props>,
 		rawProps: Props,
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
@@ -107,7 +108,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		});
 		this.state = createComponentState<State>(domain, () => this, contract?.definition?.state);
 		this.props = createComponentProps(rawProps);
-		this.initialize(execution, rawProps, contract);
+		this.initialize(instantiate, execution, rawProps, contract);
 	}
 
 	get contexts(): Map<symbol, unknown> {
@@ -314,6 +315,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 	}
 
 	private initialize(
+		instantiate: ComponentFunction<State, Props>,
 		execution: PreparedComponentExecution | undefined,
 		rawProps: Props,
 		contract: ExactComponentContract | undefined
@@ -338,15 +340,14 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		if (resumption) prepareComponentContextResumption(this, resumption);
 
 		let result: RenderFunction;
-		const instantiate = contract?.definition?.instantiate;
 		try {
 			result = withEffectScope(this.scope, () =>
 				withComponentDomain(this.domain, () =>
 					this.taskCapability
 						? this.taskCapability.run(this.taskState, () =>
-								(instantiate ?? this.type).call(this, this.props as Props)
+								instantiate.call(this, this.props as Props)
 							)
-						: (instantiate ?? this.type).call(this, this.props as Props)
+						: instantiate.call(this, this.props as Props)
 				)
 			);
 		} catch (error) {
