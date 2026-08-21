@@ -6,6 +6,7 @@ import {
 	exactComponentType,
 	isExactComponent,
 	markExactComponent,
+	readExactCompiledComponentContract,
 	readExactComponentContract
 } from './component-contracts.js';
 
@@ -16,6 +17,9 @@ describe('@exactjs/core component contracts', () => {
 		expect(isExactComponent(Component)).toBe(true);
 		expect(readExactComponentContract(Component)).toBeUndefined();
 		expect(exactComponentIdentity(Component)).toBe('@exactjs/core:test-component');
+		expect(() => readExactCompiledComponentContract(Component)).toThrow(
+			'compiled component artifact'
+		);
 	});
 
 	it('reads and composes target-local executable contracts', () => {
