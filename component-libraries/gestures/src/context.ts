@@ -1,5 +1,4 @@
 import { createContext, type Child, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { GestureConfigProps, GestureSettings } from './contracts.js';
 
 /** Defaults used outside an authored GestureConfig boundary. */
@@ -16,10 +15,7 @@ export const GestureContext = createContext<GestureSettings>('gesture.settings',
 });
 
 /** Publishes inherited gesture recognition policy for one logical subtree. */
-export const GestureConfig = markExactComponent(function GestureConfig(
-	this: Component<{}>,
-	props: GestureConfigProps
-) {
+export function GestureConfig(this: Component<{}>, props: GestureConfigProps) {
 	const parent = this.hasContext(GestureContext)
 		? this.getContext(GestureContext)
 		: defaultGestureSettings;
@@ -35,4 +31,4 @@ export const GestureConfig = markExactComponent(function GestureConfig(
 		}
 	});
 	return () => props.children as Child;
-}, '@exactjs/gestures:GestureConfig');
+}

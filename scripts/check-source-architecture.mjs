@@ -36,8 +36,6 @@ const legacyArchitectureCeilings = new Map([
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
 const compilerlessComponentCeilings = new Map([
-	['component-libraries/gestures/src/context.ts', 1],
-	['component-libraries/gestures/src/gesture-element.ts', 1],
 	['component-libraries/gravity/src/components.ts', 2],
 	['component-libraries/motion/src/context.ts', 1],
 	['component-libraries/motion/src/layout.ts', 1],

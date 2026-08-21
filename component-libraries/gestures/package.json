@@ -11,19 +11,26 @@
 	"exports": {
 		".": {
 			"types": "./capability.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./presets": {
 			"types": "./dist/presets.d.ts",
-			"default": "./dist/presets.js"
+			"browser": "./dist/client/presets.js",
+			"default": "./dist/server/presets.js"
 		},
 		"./testing": {
 			"types": "./dist/testing.d.ts",
-			"default": "./dist/testing.js"
+			"browser": "./dist/client/testing.js",
+			"default": "./dist/server/testing.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./capability.d.ts",
+	"exactCompiledComponents": [
+		"GestureConfig",
+		"GestureElement"
+	],
 	"sideEffects": false,
 	"exactComponentLibrary": {
 		"protocol": 1,
@@ -39,7 +46,7 @@
 		"@exactjs/testing": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc6 -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc6 -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
