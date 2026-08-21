@@ -64,8 +64,13 @@ export function ownMountedInstance(mounted: Mounted, instance: AnyComponentInsta
 
 /** Transforms render into its required representation. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
+	let root = roots.get(container);
 	const inspection = options.inspection ?? exactDomInspectionOwner();
-	if (inspection && !vnode.domain) {
+	if (root?.current.domain && !vnode.domain) {
+		// A hydrated or inspected root keeps owning later authored updates even when callers create
+		// the replacement VNode outside withComponentDomain(). Explicit domains still win.
+		vnode = { ...vnode, domain: root.current.domain };
+	} else if (inspection && !vnode.domain) {
 		vnode = {
 			...vnode,
 			domain: createFrameworkComponentDomain({
@@ -73,13 +78,6 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 				inspection
 			})
 		};
-	}
-	let root = roots.get(container);
-	if (root?.current.domain && !vnode.domain) {
-		// A hydrated root keeps owning later authored updates even when callers
-		// create the replacement VNode outside withComponentDomain(). Explicit
-		// domains still win for deliberate cross-root composition.
-		vnode = { ...vnode, domain: root.current.domain };
 	}
 	if (!root) {
 		root = createRendererRoot(container, vnode, options, { version: 0 });

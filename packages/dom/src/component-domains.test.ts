@@ -164,6 +164,28 @@ describe('component domain rendering', () => {
 		unmount(container);
 	});
 
+	it('retains an inspected root domain across caller-authored updates', () => {
+		const container = document.createElement('div');
+		const inspection = createExactRuntimeInspectionOwner({
+			buildKey: 'stable-inspected-root',
+			executionRoot: 'page'
+		});
+		function Panel(this: Component<{}>, props: { label: string }) {
+			return () => createVNode('button', null, props.label);
+		}
+		const restoreInspection = setExactDomInspectionOwner(inspection);
+		try {
+			render(createCompiledVNode(Panel, { label: 'first' }), container);
+			const first = findNodeOwnerInstance(container.querySelector('button')!);
+			render(createCompiledVNode(Panel, { label: 'second' }), container);
+			expect(findNodeOwnerInstance(container.querySelector('button')!)).toBe(first);
+			expect(container.textContent).toBe('second');
+		} finally {
+			restoreInspection();
+			unmount(container);
+		}
+	});
+
 	it('publishes redaction-safe target contribution ownership to production inspection', () => {
 		const container = document.createElement('div');
 		document.body.append(container);

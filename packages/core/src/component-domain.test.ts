@@ -38,6 +38,11 @@ describe('component domains', () => {
 	});
 
 	it('defaults ordinary roots to the page domain', () => {
+		expect(
+			(globalThis as Record<PropertyKey, unknown>)[
+				Symbol.for('@exactjs/page-component-domain')
+			]
+		).toBe(pageComponentDomain);
 		const instance = createComponentInstance(() => () => null, {});
 		expect(instance.domain).toBe(pageComponentDomain);
 		instance.unmount();
