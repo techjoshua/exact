@@ -11,6 +11,7 @@ import {
 	type TaskContext
 } from '@exactjs/core';
 import {
+	createExactFrameworkFixtureArtifact,
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
@@ -25,7 +26,7 @@ function resumablePage(id: string, label: string) {
 		this.state.label = label;
 		return () => createVNode('p', null, this.state.label);
 	};
-	return Object.assign(implementation, {
+	const page = Object.assign(implementation, {
 		[exactComponentType]: id,
 		[exactComponentContract]: {
 			version: 2 as const,
@@ -44,6 +45,7 @@ function resumablePage(id: string, label: string) {
 			}
 		}
 	});
+	return createExactFrameworkFixtureArtifact(page, id);
 }
 
 describe('@exactjs/hydrate component resumption', () => {

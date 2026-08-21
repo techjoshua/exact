@@ -6,7 +6,7 @@ import {
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactComponentContract
+	readExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
 
@@ -25,8 +25,8 @@ export function createComponentResumptionResolver(
 	const consumed = new Set<number>();
 	const history: number[] = [];
 	const resolve = ((type: AnyComponentFunction) => {
-		const contract = readExactComponentContract(type);
-		if (!contract?.resumption) return undefined;
+		const contract = readExactCompiledComponentContract(type);
+		if (!contract.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');

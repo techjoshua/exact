@@ -6,7 +6,7 @@ import {
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactComponentContract
+	readExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { RenderToStringOptions } from './types.js';
 import { readReactiveOwnProperty } from '@exactjs/reactive';
@@ -33,8 +33,8 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 				if (typeof checkpoint === 'number') records.splice(checkpoint);
 			},
 			onComponentCreated(instance) {
-				const contract = readExactComponentContract(instance.type);
-				if (contract?.resumption) {
+				const contract = readExactCompiledComponentContract(instance.type);
+				if (contract.resumption) {
 					const record: MutableResumption = {
 						componentId: exactComponentIdentity(instance.type),
 						values: {},
@@ -48,8 +48,8 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 			},
 			onComponentRendered(instance) {
 				const record = recordsByInstance.get(instance);
-				const contract = readExactComponentContract(instance.type);
-				if (record && contract?.resumption) {
+				const contract = readExactCompiledComponentContract(instance.type);
+				if (record && contract.resumption) {
 					for (const path of contract.resumption.statePaths) {
 						const found = readPath(instance.state, path);
 						if (found.present && found.value !== undefined) record.values[path] = found.value;

@@ -1,7 +1,7 @@
 import { isFiniteClientBoundary, type VNode } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactComponentContract
+	readExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { isReactive, isReactiveValue, peek, unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
@@ -48,8 +48,8 @@ export function renderResumableComponentBoundary(
 	props: Record<string, unknown>
 ): string {
 	if (typeof vnode.type !== 'function') return markerPair(context, id, () => html);
-	const contract = readExactComponentContract(vnode.type);
-	if (!contract?.resumption || !contract.continuations.length)
+	const contract = readExactCompiledComponentContract(vnode.type);
+	if (!contract.resumption || !contract.continuations.length)
 		return markerPair(context, id, () => html);
 	const name =
 		contract.implementations.find((implementation) => implementation.role === 'root')?.name ??

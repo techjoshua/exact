@@ -1,7 +1,8 @@
 import { type AnyComponentFunction } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactComponentContract
+	readExactCompiledComponentContract,
+	type ExactComponentExecutionContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
 
@@ -13,8 +14,8 @@ export function prepareClientIslandExecutionSlice(
 ): ComponentExecutionSlice {
 	const cached = slices.get(component);
 	if (cached) return cached;
-	const contract = readExactComponentContract(component);
-	if (!contract?.execution) return emptySlice;
+	const contract = readExactCompiledComponentContract(component);
+	if (!contract.execution) return emptySlice;
 	assertAcyclic(contract.execution);
 	const transitions = new Set(
 		contract.execution.transitions
@@ -30,9 +31,7 @@ export function prepareClientIslandExecutionSlice(
 
 const emptySlice: ComponentExecutionSlice = new Map();
 
-function assertAcyclic(
-	plan: NonNullable<ReturnType<typeof readExactComponentContract>>['execution']
-): void {
+function assertAcyclic(plan: ExactComponentExecutionContract | undefined): void {
 	if (!plan) return;
 	const producers = new Map<number, string[]>();
 	for (const transition of plan.transitions)
