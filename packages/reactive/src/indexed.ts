@@ -1,11 +1,14 @@
 import { proxyMarker, rawTarget } from './internal/symbols.js';
 import type { Reactive, ReactiveOptions } from './internal/types.js';
 import { reactive } from './observation.js';
+import { hasActiveTransaction, recordTransactionUndo, track, trigger } from './internal/deps.js';
+import { hasChanged, isReactiveContainer } from './change-detection.js';
+import { unwrap } from './internal/values.js';
 
 type IndexedRecord = {
 	readonly indexes: Map<PropertyKey, number>;
 	readonly initialized: Set<PropertyKey>;
-	readonly values: Reactive<unknown[]>;
+	readonly values: unknown[];
 };
 
 const indexedRecords = new WeakMap<object, IndexedRecord>();
@@ -22,27 +25,52 @@ export function indexedReactive<T extends object>(
 	const indexes = new Map<PropertyKey, number>();
 	for (const key of keys) if (!indexes.has(key)) indexes.set(key, indexes.size);
 	const names = [...indexes.keys()];
-	const values = reactive(new Array<unknown>(indexes.size), {
-		...options,
-		onMutation(key, operation) {
-			const index = typeof key === 'number' ? key : Number(key);
-			options.onMutation?.(
-				Number.isInteger(index) && index >= 0 && index < names.length ? names[index] : key,
-				operation
-			);
-		}
-	});
+	const values = new Array<unknown>(indexes.size);
 	const view: Record<PropertyKey, unknown> = {};
 	const initialized = new Set<PropertyKey>();
+	const read = (index: number) => {
+		track(values, index);
+		return values[index];
+	};
+	const write = (key: PropertyKey, index: number, next: unknown) => {
+		const previous = values[index];
+		const raw = unwrap(next);
+		const value =
+			raw && typeof raw === 'object' && isReactiveContainer(raw)
+				? reactive(raw as object, options)
+				: raw;
+		const wasInitialized = initialized.has(key);
+		if (wasInitialized && !hasChanged(previous, value)) return true;
+		if (hasActiveTransaction())
+			recordTransactionUndo(
+				() => {
+					values[index] = previous;
+					if (!wasInitialized) {
+						initialized.delete(key);
+						Reflect.deleteProperty(view, key);
+					}
+				},
+				values,
+				index
+			);
+		values[index] = value;
+		initialized.add(key);
+		trigger(values, index);
+		try {
+			options.onMutation?.(key, 'set');
+		} catch {
+			// Observability must not alter state semantics.
+		}
+		return true;
+	};
 
 	const install = (key: PropertyKey, index: number) => {
-		if (initialized.has(key)) return;
-		initialized.add(key);
+		if (Object.prototype.hasOwnProperty.call(view, key)) return;
 		Object.defineProperty(view, key, {
 			configurable: true,
 			enumerable: true,
-			get: () => Reflect.get(values, index),
-			set: (next) => Reflect.set(values, index, next)
+			get: () => read(index),
+			set: (next) => write(key, index, next)
 		});
 	};
 
@@ -51,7 +79,7 @@ export function indexedReactive<T extends object>(
 			if (key === proxyMarker) return true;
 			if (key === rawTarget) return target;
 			const index = indexes.get(key);
-			return index === undefined ? Reflect.get(target, key, receiver) : Reflect.get(values, index);
+			return index === undefined ? Reflect.get(target, key, receiver) : read(index);
 		},
 		set(target, key, next, receiver) {
 			let index = indexes.get(key);
@@ -65,7 +93,21 @@ export function indexedReactive<T extends object>(
 		},
 		deleteProperty(target, key) {
 			const index = indexes.get(key);
-			if (index !== undefined) Reflect.deleteProperty(values, index);
+			if (index !== undefined && initialized.has(key)) {
+				const previous = values[index];
+				if (hasActiveTransaction())
+					recordTransactionUndo(
+						() => {
+							values[index] = previous;
+							install(key, index);
+							initialized.add(key);
+						},
+						values,
+						index
+					);
+				values[index] = undefined;
+				trigger(values, index);
+			}
 			initialized.delete(key);
 			return Reflect.deleteProperty(target, key);
 		},
@@ -86,7 +128,7 @@ export function readReactiveOwnProperty(
 	if (indexed) {
 		const index = indexed.indexes.get(key);
 		return index !== undefined && indexed.initialized.has(key)
-			? { present: true, value: Reflect.get(indexed.values, index) }
+			? { present: true, value: indexed.values[index] }
 			: { present: false };
 	}
 	const descriptor = Object.getOwnPropertyDescriptor(value, key);
