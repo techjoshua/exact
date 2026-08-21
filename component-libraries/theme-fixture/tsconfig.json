@@ -4,9 +4,15 @@
 		"composite": true,
 		"rootDir": "src",
 		"outDir": "dist",
-		"lib": ["ES2022", "DOM"]
+		"lib": ["ES2022", "DOM"],
+		"jsx": "react-jsx",
+		"jsxImportSource": "@exactjs/jsx"
 	},
-	"references": [{ "path": "../../packages/core" }, { "path": "../../packages/theme" }],
+	"references": [
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/theme" }
+	],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts"]
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
