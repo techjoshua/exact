@@ -115,7 +115,7 @@ describe('@exactjs/compiler: diagnostics', () => {
 		);
 	});
 
-	it('compiles TSX and JSX files from directories', async () => {
+	it('compiles TypeScript and JavaScript source modules from directories', async () => {
 		const root = await createTestWorkspace('exact-project-');
 		await writeFile(path.join(root, 'one.tsx'), 'const one = <span />;');
 		await writeFile(path.join(root, 'two.jsx'), 'const two = <strong />;');
@@ -125,6 +125,7 @@ describe('@exactjs/compiler: diagnostics', () => {
 
 		expect(results.map((result) => path.basename(result.outputFile ?? ''))).toEqual([
 			'one.ts',
+			'skip.ts',
 			'two.js'
 		]);
 	});

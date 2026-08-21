@@ -24,9 +24,9 @@ export async function collectInputFiles(
 	return files.sort();
 }
 
-/** Returns whether a file path is a JSX/TSX input the compiler can transform. */
+/** Returns whether a file path is a source module the compiler can transform. */
 export function isTransformablePath(file: string): boolean {
-	return /\.[jt]sx$/i.test(file);
+	return /\.[cm]?[jt]sx?$/i.test(file) && !/\.d\.[cm]?ts$/i.test(file);
 }
 
 function isCheckableModulePath(file: string): boolean {
@@ -57,7 +57,7 @@ export function artifactPathsFor(
 	const root = rootDir ?? path.dirname(inputFile);
 	const relative = containedInputPath(inputFile, root);
 	const parsed = path.parse(relative);
-	const extension = parsed.ext.toLowerCase() === '.tsx' ? '.ts' : '.js';
+	const extension = /\.[cm]?tsx?$/i.test(parsed.ext) ? '.ts' : '.js';
 	const base = path.join(outDir, parsed.dir, parsed.name);
 	return {
 		clientFile: `${base}.exact.client${extension}`,
