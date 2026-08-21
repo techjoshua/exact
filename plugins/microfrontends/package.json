@@ -10,7 +10,8 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client-artifact/index.js",
+			"default": "./dist/server-artifact/index.js"
 		},
 		"./config": {
 			"types": "./dist/config.d.ts",
@@ -30,7 +31,8 @@
 		},
 		"./client": {
 			"types": "./dist/client.d.ts",
-			"default": "./dist/client.js"
+			"browser": "./dist/client-artifact/client.js",
+			"default": "./dist/server-artifact/client.js"
 		},
 		"./rollup": {
 			"types": "./dist/rollup.d.ts",
@@ -53,8 +55,18 @@
 			"default": "./dist/bun-feasibility.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server-artifact/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"RemoteComponent"
+	],
+	"exactCompileModules": [
+		"src/client.ts"
+	],
+	"exactTargetDirectories": {
+		"client": "client-artifact",
+		"server": "server-artifact"
+	},
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/compiler": "^0.1.0",
@@ -84,8 +96,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc6 -b",
-		"test": "vitest run",
+		"build": "tsc6 -b && node ../../scripts/compile-exact-package.mjs .",
+		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {
