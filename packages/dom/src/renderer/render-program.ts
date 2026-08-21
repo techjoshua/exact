@@ -19,7 +19,8 @@ import {
 	claimProgramTextSlot,
 	indexProgramHydration,
 	markedProgramRange,
-	sameProgramPath
+	programNodeAtPath,
+	type ProgramHydrationIndex
 } from './render-program-hydration.js';
 
 const elementNode = 1;
@@ -37,9 +38,14 @@ export function mountRenderProgram(
 	const fragment = materializeProgramTemplate(invocation.program, root.container.ownerDocument);
 	if (fragment.childNodes.length !== 1) return undefined;
 	const dom = fragment.firstChild!;
-	const slotNodes = invocation.program.slots.map((slot) =>
-		nodeAtPath(dom, slot[0] === 'text' || slot[0] === 'child' ? slot[2] : slot[1])
-	);
+	if (!(dom instanceof Element)) return undefined;
+	const programIndex = indexProgramHydration(dom);
+	const slotNodes = invocation.program.slots.map((slot) => {
+		if (slot[0] === 'text') return programNodeAtPath(dom, slot[2]);
+		if (slot[0] === 'child') return claimProgramChildSlot(programIndex, slot[1]);
+		const owner = invocation.program.nodes[slot[1]];
+		return owner ? programIndex.elements.get(owner[0]) : undefined;
+	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
@@ -48,9 +54,9 @@ export function mountRenderProgram(
 		children: [],
 		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
 	};
-	if (parentInstance) ownProgramNodes(invocation.program, dom, parentInstance);
+	if (parentInstance) ownProgramNodes(invocation.program, programIndex, parentInstance);
 	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
-		releaseProgramNodeOwners(invocation.program, dom);
+		releaseProgramNodeOwners(invocation.program, programIndex);
 		return undefined;
 	}
 	for (let index = 1; index < invocation.program.nodes.length; index++) countDomWork(root);
@@ -75,20 +81,24 @@ export function adoptRenderProgram(
 		!matchesProgramElement(
 				dom,
 				rootPlan[0],
-				rootPlan[2],
-				rootPlan[3] ?? invocation.program.namespace
+				rootPlan[1],
+				rootPlan[2] ?? invocation.program.namespace
 		)
 	)
 		return undefined;
-	for (const node of invocation.program.nodes) {
-		const plan = node;
-		const target = nodeAtPath(dom, plan[1]);
-		if (!matchesProgramElement(target, plan[0], plan[2], plan[3] ?? invocation.program.namespace))
+	if (!(dom instanceof Element)) return undefined;
+	const programIndex = indexProgramHydration(dom);
+	for (const plan of invocation.program.nodes) {
+		const target = programIndex.elements.get(plan[0]);
+		if (!matchesProgramElement(target, plan[0], plan[1], plan[2] ?? invocation.program.namespace))
 			return undefined;
 	}
-	const slotNodes = invocation.program.slots.map((slot) =>
-		nodeAtPath(dom, slot[0] === 'text' || slot[0] === 'child' ? slot[2] : slot[1])
-	);
+	const slotNodes = invocation.program.slots.map((slot) => {
+		if (slot[0] === 'text') return programNodeAtPath(dom, slot[2]);
+		if (slot[0] === 'child') return claimProgramChildSlot(programIndex, slot[1]);
+		const owner = invocation.program.nodes[slot[1]];
+		return owner ? programIndex.elements.get(owner[0]) : undefined;
+	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
@@ -97,9 +107,9 @@ export function adoptRenderProgram(
 		children: [],
 		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
 	};
-	ownProgramNodes(invocation.program, dom, parentInstance);
+	ownProgramNodes(invocation.program, programIndex, parentInstance);
 	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
-		releaseProgramNodeOwners(invocation.program, dom);
+		releaseProgramNodeOwners(invocation.program, programIndex);
 		return undefined;
 	}
 	for (const _node of invocation.program.nodes) countDomWork(root);
@@ -212,8 +222,8 @@ function adoptMarkedRenderProgram(
 			matchesProgramElement(
 					node,
 					rootNodePlan[0],
-					rootNodePlan[2],
-					rootNodePlan[3] ?? invocation.program.namespace
+					rootNodePlan[1],
+					rootNodePlan[2] ?? invocation.program.namespace
 			)
 		) {
 			programRoot = node;
@@ -225,7 +235,7 @@ function adoptMarkedRenderProgram(
 	for (const planned of invocation.program.nodes) {
 		const plan = planned;
 		const element = hydrationIndex.elements.get(plan[0]);
-		if (!matchesProgramElement(element, plan[0], plan[2], plan[3] ?? invocation.program.namespace))
+		if (!matchesProgramElement(element, plan[0], plan[1], plan[2] ?? invocation.program.namespace))
 			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) => {
@@ -234,7 +244,7 @@ function adoptMarkedRenderProgram(
 			return claimProgramTextSlot(programRoot, hydrationIndex, plan[1]);
 		if (plan[0] === 'child') return claimProgramChildSlot(hydrationIndex, plan[1]);
 		if (plan[0] === 'text') return undefined;
-		const owner = invocation.program.nodes.find((node) => sameProgramPath(node[1], plan[1]));
+		const owner = invocation.program.nodes[plan[1]];
 		return owner ? hydrationIndex.elements.get(owner[0]) : undefined;
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
@@ -385,28 +395,22 @@ function validSlotNodes(
 	});
 }
 
-function nodeAtPath(root: Node, path: readonly number[]): Node | undefined {
-	let node: Node | undefined = root;
-	for (const index of path) node = node?.childNodes[index];
-	return node;
-}
-
 function ownProgramNodes(
 	program: ExactRenderProgram,
-	root: Node,
+	index: ProgramHydrationIndex,
 	owner: AnyComponentInstance
 ): void {
 	for (const planned of program.nodes) {
-		const node = nodeAtPath(root, planned[1]);
+		const node = index.elements.get(planned[0]);
 		if (!node) continue;
 		setNodeOwner(node, owner);
 		if (node.nodeType === elementNode) setElementOwner(node as Element, owner);
 	}
 }
 
-function releaseProgramNodeOwners(program: ExactRenderProgram, root: Node): void {
+function releaseProgramNodeOwners(program: ExactRenderProgram, index: ProgramHydrationIndex): void {
 	for (const planned of program.nodes) {
-		const node = nodeAtPath(root, planned[1]);
+		const node = index.elements.get(planned[0]);
 		if (!node) continue;
 		clearNodeOwner(node);
 		if (node.nodeType === elementNode) clearElementOwner(node as Element);

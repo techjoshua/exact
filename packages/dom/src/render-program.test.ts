@@ -10,14 +10,14 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 	const vnode = createCompiledRenderProgram(
 		'render-program:test',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:test',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="planned">', '</span>'],
 			slots: [['text', 'label', [0]]],
 			bindings: [['text', 0]],
-			nodes: [['planned', [], 'span']]
+			nodes: [['planned', 'span']]
 		}),
 		[() => state.label],
 		() => createCompiledVNode('span', { 'data-exact-id': 'planned' }, state.label)
@@ -35,14 +35,14 @@ it('mounts and patches a static compiler program without reactive bindings', () 
 		createCompiledRenderProgram(
 			'render-program:static',
 			() => ({
-				version: 2,
+				version: 3,
 				id: 'render-program:static',
 				namespace: 'html',
 				template: '<p data-exact-id="static" class="message">Ready</p>',
 				parts: ['<p data-exact-id="static" class="message">Ready</p>'],
 				slots: [],
 				bindings: [],
-				nodes: [['static', [], 'p']]
+				nodes: [['static', 'p']]
 			}),
 			[]
 		);
@@ -62,14 +62,14 @@ it('materializes repeated program templates without sharing live DOM', () => {
 		createCompiledRenderProgram(
 			'render-program:repeated-template',
 			() => ({
-				version: 2,
+				version: 3,
 				id: 'render-program:repeated-template',
 				namespace: 'html',
 				template: '<p data-exact-id="repeated">Repeated</p>',
 				parts: [],
 				slots: [],
 				bindings: [],
-				nodes: [['repeated', [], 'p']]
+				nodes: [['repeated', 'p']]
 			}),
 			[]
 		);
@@ -93,19 +93,19 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 	const vnode = createCompiledRenderProgram(
 		'render-program:props',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:props',
 			namespace: 'html',
 			template: '<button data-exact-id="planned-button">Save</button>',
 			parts: ['<button data-exact-id="planned-button"', '', '', '', '>Save</button>'],
 			slots: [
-				['property', [], 'disabled'],
-				['style', [], 'style'],
-				['property', [], 'onClick'],
-				['property', [], 'ref']
+				['property', 0, 'disabled'],
+				['style', 0, 'style'],
+				['property', 0, 'onClick'],
+				['property', 0, 'ref']
 			],
 			bindings: [['properties', [0, 1, 2, 3]]],
-			nodes: [['planned-button', [], 'button']]
+			nodes: [['planned-button', 'button']]
 		}),
 		[() => state.disabled, () => ({ color: state.tone }), () => () => state.clicks++, () => ref],
 		() => createCompiledVNode('button', {}, 'Save')
@@ -131,7 +131,7 @@ it('applies a controlled select value after slotted option values', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:select-value-order',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:select-value-order',
 			namespace: 'html',
 			template:
@@ -143,9 +143,9 @@ it('applies a controlled select value after slotted option values', () => {
 				'>A4</option></select>'
 			],
 			slots: [
-				['property', [], 'value'],
-				['property', [0], 'value'],
-				['property', [1], 'value']
+				['property', 0, 'value'],
+				['property', 1, 'value'],
+				['property', 2, 'value']
 			],
 			bindings: [
 				['properties', [1]],
@@ -153,9 +153,9 @@ it('applies a controlled select value after slotted option values', () => {
 				['properties', [0]]
 			],
 			nodes: [
-				['page', [], 'select'],
-				['letter', [0], 'option'],
-				['a4', [1], 'option']
+				['page', 'select'],
+				['letter', 'option'],
+				['a4', 'option']
 			]
 		}),
 		[() => state.value, () => 'letter', () => 'a4'],
@@ -178,16 +178,16 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:svg',
 			namespace: 'svg',
 			template: '<svg data-exact-id="svg"><circle data-exact-id="circle"></circle></svg>',
 			parts: ['<svg data-exact-id="svg"><circle data-exact-id="circle"', '></circle></svg>'],
-			slots: [['property', [0], 'ref']],
+			slots: [['property', 1, 'ref']],
 			bindings: [['properties', [0]]],
 			nodes: [
-				['svg', [], 'svg'],
-				['circle', [0], 'circle']
+				['svg', 'svg'],
+				['circle', 'circle']
 			]
 		}),
 		[() => ref],
@@ -204,14 +204,14 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg-path',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:svg-path',
 			namespace: 'svg',
 			template: '<path data-exact-id="route"></path>',
 			parts: ['<path data-exact-id="route"', '></path>'],
-			slots: [['property', [], 'd']],
+			slots: [['property', 0, 'd']],
 			bindings: [['properties', [0]]],
-			nodes: [['route', [], 'path']]
+			nodes: [['route', 'path']]
 		}),
 		[() => 'M 0 0 L 10 10'],
 		() => createCompiledVNode('path', { 'data-exact-id': 'route' })
@@ -229,14 +229,14 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 		createCompiledRenderProgram(
 			'render-program:patched-event',
 			() => ({
-				version: 2,
+				version: 3,
 				id: 'render-program:patched-event',
 				namespace: 'html',
 				template: '<button data-exact-id="patched">Run</button>',
 				parts: ['<button data-exact-id="patched"', '>Run</button>'],
-				slots: [['property', [], 'onClick']],
+				slots: [['property', 0, 'onClick']],
 				bindings: [['properties', [0]]],
-				nodes: [['patched', [], 'button']]
+				nodes: [['patched', 'button']]
 			}),
 			[() => () => calls.push(label)],
 			() => createCompiledVNode('button', {}, 'Run')
@@ -254,14 +254,14 @@ it('evaluates an initial planned slot exactly once', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:single-read',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:single-read',
 			namespace: 'html',
 			template: '<span data-exact-id="single-read">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="single-read">', '</span>'],
 			slots: [['text', 'value', [0]]],
 			bindings: [['text', 0]],
-			nodes: [['single-read', [], 'span']]
+			nodes: [['single-read', 'span']]
 		}),
 		[
 			() => {
@@ -283,7 +283,7 @@ it('refreshes only the compiled slot group whose dependency changed', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:independent-slots',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:independent-slots',
 			namespace: 'html',
 			template:
@@ -298,9 +298,9 @@ it('refreshes only the compiled slot group whose dependency changed', () => {
 				['text', 1]
 			],
 			nodes: [
-				['slots', [], 'section'],
-				['first', [0], 'span'],
-				['second', [1], 'span']
+				['slots', 'section'],
+				['first', 'span'],
+				['second', 'span']
 			]
 		}),
 		[
@@ -328,7 +328,7 @@ it('preserves static text between compiler-separated scalar slots', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:adjacent-scalars',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:adjacent-scalars',
 			namespace: 'html',
 			template:
@@ -342,7 +342,7 @@ it('preserves static text between compiler-separated scalar slots', () => {
 				['text', 0],
 				['text', 1]
 			],
-			nodes: [['adjacent', [], 'small']]
+			nodes: [['adjacent', 'small']]
 		}),
 		[() => state.owner, () => state.status]
 	);
@@ -360,14 +360,14 @@ it('retracks replacement readers when a compiled program invocation is patched',
 		createCompiledRenderProgram(
 			'render-program:replacement-dependency',
 			() => ({
-				version: 2,
+				version: 3,
 				id: 'render-program:replacement-dependency',
 				namespace: 'html',
 				template: '<span data-exact-id="replacement">\ue000exact:0\ue001</span>',
 				parts: [],
 				slots: [['text', 'replacement', [0]]],
 				bindings: [['text', 0]],
-				nodes: [['replacement', [], 'span']]
+				nodes: [['replacement', 'span']]
 			}),
 			[reader]
 		);
@@ -392,14 +392,14 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 	const vnode = createCompiledRenderProgram(
 		'render-program:shape-fallback',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:shape-fallback',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="planned">', '</span>'],
 			slots: [['text', 'value', [0]]],
 			bindings: [['text', 0]],
-			nodes: [['planned', [], 'span']]
+			nodes: [['planned', 'span']]
 		}),
 		[() => createCompiledVNode('strong', {}, 'generic')],
 		() => createCompiledVNode('span', { 'data-exact-id': 'fallback' }, 'fallback')
@@ -414,7 +414,7 @@ it('claims marked SSR nodes from the compiler hydration tape without indexing th
 	const vnode = createCompiledRenderProgram(
 		'render-program:hydration-tape',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:hydration-tape',
 			namespace: 'html',
 			template:
@@ -425,7 +425,7 @@ it('claims marked SSR nodes from the compiler hydration tape without indexing th
 				'</button></section>'
 			],
 			slots: [
-				['property', [0], 'disabled'],
+				['property', 1, 'disabled'],
 				['text', 'label', [0, 0]]
 			],
 			bindings: [
@@ -433,8 +433,8 @@ it('claims marked SSR nodes from the compiler hydration tape without indexing th
 				['properties', [0]]
 			],
 			nodes: [
-				['root', [], 'section'],
-				['button', [0], 'button']
+				['root', 'section'],
+				['button', 'button']
 			]
 		}),
 		[() => state.disabled, () => state.label],
@@ -463,17 +463,17 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 	const vnode = createCompiledRenderProgram(
 		'render-program:child-slot',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:child-slot',
 			namespace: 'html',
 			template:
 				'<section data-exact-id="child-root"><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section>',
 			parts: [],
-			slots: [['child', 'child', [0]]],
+			slots: [['child', 'child']],
 			bindings: [['child', 0]],
 			nodes: [
-				['child-root', [], 'section'],
-				['after', [2], 'footer']
+				['child-root', 'section'],
+				['after', 'footer']
 			]
 		}),
 		[() => (state.shown ? createCompiledVNode('strong', {}, state.label) : null)]
@@ -496,17 +496,17 @@ it('claims a variable-width structural child range before later planned elements
 	const vnode = createCompiledRenderProgram(
 		'render-program:adopt-child-slot',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:adopt-child-slot',
 			namespace: 'html',
 			template:
 				'<section data-exact-id="child-root"><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section>',
 			parts: [],
-			slots: [['child', 'child', [0]]],
+			slots: [['child', 'child']],
 			bindings: [['child', 0]],
 			nodes: [
-				['child-root', [], 'section'],
-				['after', [2], 'footer']
+				['child-root', 'section'],
+				['after', 'footer']
 			]
 		}),
 		[() => createCompiledVNode('strong', { 'data-exact-id': 'nested' }, state.label)]
@@ -528,7 +528,7 @@ it('rejects a marked SSR program when its hydration tape does not match the DOM'
 	const vnode = createCompiledRenderProgram(
 		'render-program:invalid-hydration-tape',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:invalid-hydration-tape',
 			namespace: 'html',
 			template:
@@ -539,8 +539,8 @@ it('rejects a marked SSR program when its hydration tape does not match the DOM'
 			slots: [],
 			bindings: [],
 			nodes: [
-				['root', [], 'section'],
-				['missing-button', [0], 'button']
+				['root', 'section'],
+				['missing-button', 'button']
 			]
 		}),
 		[],

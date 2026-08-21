@@ -141,12 +141,8 @@ function renderProgramSlot(
 			: escapeText(String(value));
 	if (slot[0] === 'child') return '';
 	if (!slot[2]) return '';
-	const node = program.nodes.find((candidate) => samePath(candidate[1], slot[1]));
-	return renderAttrs({ [slot[2]]: value }, false, node?.[2], context);
-}
-
-function samePath(left: readonly number[], right: readonly number[]): boolean {
-	return left.length === right.length && left.every((value, index) => value === right[index]);
+	const node = program.nodes[slot[1]];
+	return renderAttrs({ [slot[2]]: value }, false, node?.[1], context);
 }
 
 /** Handles a render-program string node while leaving every other vnode untouched. */

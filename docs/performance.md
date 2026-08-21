@@ -35,12 +35,13 @@ mutable containers and dynamically introduced fields retain the general reactive
 Optimistic journals, SSR resumption, snapshots, and DevTools therefore observe the same state
 contract without allocating a property-keyed top-level container for compiled fields.
 
-Compiler render programs also carry production hydration identities. Mount paths address nodes in
-the compiler's own inert template; hydration does not duplicate those paths for the marker-expanded
-SSR tree. Instead, the adopter builds one ephemeral identity index for the bounded program region
-and releases it after the claim, so variable-width structural children do not invalidate later
-addresses and no hydration index remains in live component state. Every claimed tag, namespace,
-compiler identity, and dynamic marker pair is still checked. A stale or malformed plan
+Compiler render programs also carry production hydration identities. Elements and host-property
+slots use compact compiler indexes; structural child ranges use their emitted identities. Only
+scalar text slots retain a local path because markerless HTML has no identity marker for a text
+node. The adopter builds one ephemeral identity index for the bounded program region and releases
+it after the claim, so variable-width structural children do not invalidate later addresses and no
+hydration index remains in live component state. Every claimed tag, namespace, compiler identity,
+and dynamic marker pair is still checked. A stale or malformed plan
 therefore fails closed into the existing hydration recovery path, while markerless and generic
 hydration remain available for inputs that do not carry the compiler plan.
 

@@ -47,7 +47,7 @@ The native compiler emits branded render programs for compiler-finite intrinsic 
 SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
 form controls, events, and refs reuse the same host operations as generic rendering. Markerless SSR
 writes escaped parts directly, client mounting clones a cached inert template, and markerless
-hydration adopts with compiler paths. Nested conditional regions retain the namespace established
+hydration adopts elements by compiler identity plus scalar text by its local template path. Nested conditional regions retain the namespace established
 by their intrinsic JSX ancestors, and standalone SVG or MathML programs mount through a
 namespace-correct template. A finite intrinsic client program may contain compiler-owned structural
 child slots: the server renders those children recursively through the ordinary dynamic-marker
@@ -91,8 +91,8 @@ Compiler render programs adopt their marked intrinsic nodes, scalar slots, and s
 ranges through stable compiler identities. A structural range can contain a variable number of SSR
 nodes, so later intrinsic claims use identities within the bounded program region rather than
 assuming a fixed physical sibling offset. One ephemeral region-local index serves all of those
-claims and is released before hydration completes. The descriptor carries only its template mount
-paths; it does not duplicate a second path array for marker-expanded SSR. Programs retain the SSR DOM
+claims and is released before hydration completes. Element and property records use compiler table
+indexes rather than retained paths; only markerless scalar text needs a local template path. Programs retain the SSR DOM
 and marker protocol without rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses
