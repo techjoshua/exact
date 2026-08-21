@@ -127,6 +127,7 @@ describe('dynamic component boundaries', () => {
 				}
 			}
 		);
+		createExactFrameworkFixtureArtifact(ServerPanel, 'fixture:server-panel');
 		const scope = createEffectScope();
 		const vnode = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({

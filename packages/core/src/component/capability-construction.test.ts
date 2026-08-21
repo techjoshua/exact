@@ -4,10 +4,7 @@ import { exactComponentContract, exactComponentType } from '../component-contrac
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
-import {
-	createCompiledComponentInstance,
-	createFrameworkFixtureComponentInstance
-} from './runtime.js';
+import { createComponentInstance, createFrameworkFixtureComponentInstance } from './runtime.js';
 
 describe('compiled component capability construction', () => {
 	it('releases component-owned resources with the durable instance', () => {
@@ -61,7 +58,7 @@ describe('compiled component capability construction', () => {
 			}
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
-		const instance = createCompiledComponentInstance(StaticPanel, {});
+		const instance = createComponentInstance(StaticPanel, {});
 		expect(taskOwnerForHost(instance)).toBeUndefined();
 		instance.unmount();
 	});
@@ -78,7 +75,7 @@ describe('compiled component capability construction', () => {
 
 	it('rejects raw functions at the compiled construction boundary', () => {
 		expect(() =>
-			createCompiledComponentInstance(function Compilerless(this: Component<{}>) {
+			createComponentInstance(function Raw(this: Component<{}>) {
 				return () => null;
 			}, {})
 		).toThrow('compiled component artifact');
@@ -111,7 +108,7 @@ describe('compiled component capability construction', () => {
 			}
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
-		const instance = createCompiledComponentInstance(TaskPanel, {});
+		const instance = createComponentInstance(TaskPanel, {});
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
 	});

@@ -38,30 +38,6 @@ export function createComponentInstance<
 	);
 }
 
-/** Creates a native instance through mandatory compiler-owned construction wiring. */
-export function createCompiledComponentInstance<
-	State extends object,
-	Props extends Record<string, unknown>
->(
-	type: ComponentFunction<State, Props>,
-	rawProps: Props,
-	parent?: AnyComponentInstance,
-	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
-	domain = parent?.domain ?? pageComponentDomain
-): ComponentInstance<State> {
-	const contract = readExactCompiledComponentContract(type);
-	return new ComponentInstanceImpl(
-		type,
-		contract.definition.instantiate as ComponentFunction<State, Props>,
-		rawProps,
-		parent,
-		ambientContexts,
-		domain,
-		undefined,
-		contract
-	);
-}
-
 /** Creates an artifact-backed instance for low-level framework tests. */
 export function createFrameworkFixtureComponentInstance<
 	State extends object,
