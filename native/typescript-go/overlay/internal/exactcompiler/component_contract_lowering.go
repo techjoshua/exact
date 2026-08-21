@@ -652,6 +652,15 @@ func rootComponentContractAttachment(
 		role = "client"
 	}
 	projectedExecution := projectComponentExecution(component.Execution, target)
+	projectedContinuations := continuationMetadata(factory, componentContinuations, target == TargetClient)
+	projectedBoundaries := componentBoundaryMetadata(factory, component, boundaries)
+	if target == TargetClient && projection == ComponentContractProjectionHydrate {
+		// A hydration-only client executes its compiled local task definitions directly and
+		// receives server-operation authorization through the serialized hydration config.
+		// The verbose composition catalogs are needed only by complete and island clients.
+		projectedContinuations = contractArray(factory)
+		projectedBoundaries = contractArray(factory)
+	}
 	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
 	contractProperties := []*ast.Node{
 		contractProperty(
@@ -673,18 +682,10 @@ func rootComponentContractAttachment(
 		contractProperty(
 			factory,
 			"continuations",
-			continuationMetadata(
-				factory,
-				componentContinuations,
-				target == TargetClient,
-			),
+			projectedContinuations,
 		),
 		contractProperty(factory, "executors", executors),
-		contractProperty(
-			factory,
-			"boundaries",
-			componentBoundaryMetadata(factory, component, boundaries),
-		),
+		contractProperty(factory, "boundaries", projectedBoundaries),
 		contractProperty(
 			factory,
 			"execution",
