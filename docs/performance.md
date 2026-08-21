@@ -56,6 +56,13 @@ rediscover topology with maps or runtime sorting. Replacement invocations also r
 readers rather than retaining dependencies from the previous invocation. This remains direct
 compiled DOM work, not a virtual-DOM or general bytecode interpreter.
 
+Finite leaf component calls can also occupy compiler-owned structural slots inside an intrinsic
+program. The client then retains the parent host template and delegates only that child range to
+the component operation; complete and server artifacts publish the matching dynamic boundary while
+keeping recursive SSR execution. Stateful, interactive, contextual, split-boundary, and keyed-list
+component calls remain on the component lifecycle path until dedicated compiled operations carry
+those ownership requirements.
+
 The first mount of a descriptor consumes its parsed template fragment directly. An inert template
 is retained only after a second mount proves that the descriptor is repeated, such as a compiled
 keyed-list item. One-off page and component skeletons therefore do not retain a duplicate DOM tree

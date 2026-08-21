@@ -55,6 +55,12 @@ protocol, while hydration adopts and subsequently patches only the marked child 
 routed, opaque-spread, raw-content, and otherwise unproven hosts use the lazy region-local VNode
 fallback.
 
+A client program may place a finite leaf native component in one of those ranges. Server and
+complete artifacts retain the component's recursive execution and add the same stable range marker,
+so hydration claims the component without rediscovering the surrounding host tree. Components that
+own state, interactions, contexts, split boundaries, transitions, or keyed-list render callbacks
+remain explicit component lifecycle boundaries.
+
 Async SSR uses a request-owned FIFO scheduler for compiler-proven local, neutral, context-free
 component sibling groups. `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial execution,
 and is capped at 32. Child frames isolate renderer state and merge in authored order. Nested proven

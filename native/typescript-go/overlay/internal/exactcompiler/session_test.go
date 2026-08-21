@@ -272,6 +272,95 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 	}
 }
 
+func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.T) {
+	client := NewSession().Execute(Request{
+		ID: "planned-component-child.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			function Detail(props: { label: string }) {
+				return () => <strong>{props.label}</strong>;
+			}
+			export function Page(props: { label: string }) {
+				return () => <main><Detail label={props.label} /><footer>After</footer></main>;
+			}
+		`,
+	})
+	if client.Error != "" {
+		t.Fatal(client.Error)
+	}
+	for _, expected := range []string{
+		`["child",`,
+		`bindings: [["child", 0]]`,
+		`__exactComponentVNode(Detail`,
+	} {
+		if !strings.Contains(client.Code, expected) {
+			t.Fatalf("planned native component child omitted %q:\n%s", expected, client.Code)
+		}
+	}
+	if strings.Contains(client.Code, `__exactVNode("main"`) {
+		t.Fatalf("planned native component child retained a generic client host:\n%s", client.Code)
+	}
+
+	server := NewSession().Execute(Request{
+		ID: "planned-component-child.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			function Detail(props: { label: string }) {
+				return () => <strong>{props.label}</strong>;
+			}
+			export function Page(props: { label: string }) {
+				return () => <main><Detail label={props.label} /><footer>After</footer></main>;
+			}
+		`,
+	})
+	if server.Error != "" {
+		t.Fatal(server.Error)
+	}
+	if !strings.Contains(server.Code, `__exactVNode("main"`) {
+		t.Fatalf("server artifact did not retain recursive component rendering:\n%s", server.Code)
+	}
+
+	complete := NewSession().Execute(Request{
+		ID: "planned-component-child.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionComplete,
+		Source: `
+			function Detail(props: { label: string }) {
+				return () => <strong>{props.label}</strong>;
+			}
+			export function Page(props: { label: string }) {
+				return () => <main><Detail label={props.label} /><footer>After</footer></main>;
+			}
+		`,
+	})
+	if complete.Error != "" {
+		t.Fatal(complete.Error)
+	}
+	if !strings.Contains(complete.Code, `__exactVNode("main"`) ||
+		!strings.Contains(complete.Code, `__exactDynamic(() => __exactComponentVNode(Detail`) {
+		t.Fatalf("complete artifact did not retain recursive rendering with the client boundary:\n%s", complete.Code)
+	}
+
+	stateful := NewSession().Execute(Request{
+		ID: "planned-stateful-component-child.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			declare class Component<State> { state: State }
+			function Counter(this: Component<{ count: number }>) {
+				this.state.count = 0;
+				return () => <strong>{this.state.count}</strong>;
+			}
+			export function Page() {
+				return () => <main><Counter /><footer>After</footer></main>;
+			}
+		`,
+	})
+	if stateful.Error != "" {
+		t.Fatal(stateful.Error)
+	}
+	if !strings.Contains(stateful.Code, `__exactVNode("main"`) {
+		t.Fatalf("stateful component child escaped its component lifecycle path:\n%s", stateful.Code)
+	}
+}
+
 func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,

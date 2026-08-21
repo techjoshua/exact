@@ -435,7 +435,20 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 				lowering.call(lowering.names.dynamic, arguments),
 			)
 		default:
-			result = append(result, lowering.visitor.VisitNode(child))
+			emitted := lowering.visitor.VisitNode(child)
+			var tag *ast.Node
+			if ast.IsJsxElement(child) {
+				tag = child.AsJsxElement().OpeningElement.AsJsxOpeningElement().TagName
+			} else if ast.IsJsxSelfClosingElement(child) {
+				tag = child.AsJsxSelfClosingElement().TagName
+			}
+			if tag != nil && lowering.plannedComponentChild(tag) {
+				emitted = lowering.call(lowering.names.dynamic, []*ast.Node{
+					lowering.arrow(emitted),
+					lowering.factory.NewStringLiteral(lowering.dynamicID(child), ast.TokenFlagsNone),
+				})
+			}
+			result = append(result, emitted)
 		}
 	}
 	return result

@@ -304,11 +304,35 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 			domIndex += 3
 		case ast.IsJsxElement(child):
 			element := child.AsJsxElement()
+			childTag := openingTag(element.OpeningElement)
+			if !jsxIntrinsic(sourceText(lowering.sourceFile, childTag)) {
+				if !lowering.plannedComponentChild(childTag) {
+					return false
+				}
+				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
+					return false
+				}
+				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
+				domIndex += 2
+				continue
+			}
 			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace)) {
 				return false
 			}
 			domIndex++
 		case ast.IsJsxSelfClosingElement(child):
+			childTag := openingTag(child)
+			if !jsxIntrinsic(sourceText(lowering.sourceFile, childTag)) {
+				if !lowering.plannedComponentChild(childTag) {
+					return false
+				}
+				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
+					return false
+				}
+				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
+				domIndex += 2
+				continue
+			}
 			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace)) {
 				return false
 			}
@@ -323,6 +347,34 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	build.ssrOperation("node-close", nodeIndex)
 	return true
 }
+
+// plannedComponentChild limits direct component slots to finite leaf state machines. Stateful,
+// interactive, contextual, or structurally effectful components keep their established component
+// mount path until the compiler emits a dedicated component-slot lifecycle operation for them.
+func (lowering *jsxLowering) plannedComponentChild(tag *ast.Node) bool {
+	if lowering.declarativeRenderDepth > 0 || componentChildInsideMap(tag) || !ast.IsIdentifier(tag) {
+		return false
+	}
+	component, exists := lowering.components[tag.Text()]
+	return exists && len(component.StateSlots) == 0 && !component.Interactions &&
+		len(component.Contexts) == 0 && len(component.SplitBoundaries) == 0 &&
+		len(component.Execution.Transitions) == 0
+}
+
+func componentChildInsideMap(node *ast.Node) bool {
+	for current := node.Parent; current != nil; current = current.Parent {
+		if !ast.IsCallExpression(current) {
+			continue
+		}
+		expression := current.AsCallExpression().Expression
+		if ast.IsPropertyAccessExpression(expression) &&
+			expression.AsPropertyAccessExpression().Name().Text() == "map" {
+			return true
+		}
+	}
+	return false
+}
+
 
 func renderProgramNamespace(tag string, parent string) string {
 	if tag == "svg" {
