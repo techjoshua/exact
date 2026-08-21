@@ -233,9 +233,50 @@ export function createExactCompatibilityArtifact<T extends AnyExactComponentCall
 	identity: string,
 	target: 'client' | 'server'
 ): T {
-	if (!identity) throw new Error('eXact compatibility identity must be a non-empty string');
+	return attachRuntimeBoundaryArtifact(component, identity, target, [
+		'compatibility',
+		'dynamic-components'
+	]);
+}
+
+/** Constructs the narrow artifact for a framework-owned boundary over an opaque runtime VNode. */
+export function createExactDynamicBoundaryArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string,
+	target: 'client' | 'server'
+): T {
+	return attachRuntimeBoundaryArtifact(component, identity, target, [
+		'dynamic-components',
+		'interactions'
+	]);
+}
+
+/** Constructs a complete runtime artifact solely for low-level framework test fixtures. */
+export function createExactFrameworkFixtureArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string
+): T {
+	return attachRuntimeBoundaryArtifact(component, identity, 'client', [
+		'continuations',
+		'dynamic-components',
+		'enhancements',
+		'inspection',
+		'interactions',
+		'registry',
+		'resumption',
+		'tasks'
+	]);
+}
+
+function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string,
+	target: 'client' | 'server',
+	capabilities: ExactCompiledComponentDefinitionContract['capabilities']
+): T {
+	if (!identity) throw new Error('eXact runtime artifact identity must be a non-empty string');
 	if (target !== 'client' && target !== 'server')
-		throw new TypeError('eXact compatibility artifacts require a target-local artifact target');
+		throw new TypeError('eXact runtime artifacts require a target-local artifact target');
 	const implementationId = `${identity}:implementation`;
 	const contract: ExactComponentContract = {
 		version: 2,
@@ -255,7 +296,7 @@ export function createExactCompatibilityArtifact<T extends AnyExactComponentCall
 			tasks: [],
 			reactive: [],
 			render: 'returned-function',
-			capabilities: ['compatibility', 'dynamic-components']
+			capabilities
 		}
 	};
 	Object.defineProperties(component, {

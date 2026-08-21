@@ -67,8 +67,8 @@ component's topology or interpret a universal component plan when the artifact a
 | Microfrontend remote host                         | First-party native component       | Migrated to target-paired package artifacts                                   |
 | Native third-party state providers                | First-party native components      | Migrated to target-paired package artifacts                                   |
 | Time components                                   | First-party native components      | Migrated to target-paired package artifacts                                   |
-| DOM root support                                  | Framework-owned internal component | Replace with an internal compiled artifact or direct root operation           |
-| Testing mount host and fixtures                   | Test infrastructure                | Compile fixtures or construct an explicitly internal artifact fixture         |
+| DOM root support                                  | Opaque runtime VNode boundary       | Migrated to a narrow target-local dynamic-boundary artifact                   |
+| Testing mount host and fixtures                   | Test infrastructure                | Migrated to compiled hosts and explicit internal fixture artifacts            |
 | React compatibility boundaries                    | Foreign compatibility              | Migrated to explicit target-local compatibility artifacts                     |
 | Unsafe HTML, Activity, Suspense, opaque children  | Explicit dynamic operations        | Keep narrow region-local runtime capabilities                                 |
 

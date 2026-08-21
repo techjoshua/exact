@@ -10,7 +10,10 @@ import {
 	type VNodeType
 } from '@exactjs/core';
 import { createCompiledVNode } from '@exactjs/core/runtime/render';
-import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
+import {
+	createExactFrameworkFixtureArtifact,
+	isExactComponent
+} from '@exactjs/core/framework/component-contracts';
 import type { AnyExactComponentCallable } from '@exactjs/core/framework/component-contracts';
 import { jsx, jsxs } from '@exactjs/jsx';
 
@@ -27,7 +30,7 @@ type TestJsxType = VNodeType | AnyAuthoredComponentFunction;
 function testType<T extends TestJsxType>(type: T): T {
 	const authoredName = typeof type === 'function' ? type.name : '';
 	if (typeof type === 'function' && !isExactComponent(type))
-		markExactComponent(
+		createExactFrameworkFixtureArtifact(
 			type,
 			`@exactjs/testing:fixture:${authoredName || 'anonymous'}:${++nextFixtureId}`
 		);
