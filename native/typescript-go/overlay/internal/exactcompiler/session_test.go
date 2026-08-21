@@ -136,6 +136,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		"createPreparedRenderProgram",
 		"prepareCompiledRenderProgram",
 		"version: 1",
+		"parts:",
 		"kind: \"text\"",
 		"ssrParts:",
 		"kind: \"node-open\"",
@@ -162,6 +163,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
+		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) {

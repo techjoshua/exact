@@ -27,7 +27,7 @@ export function renderSsrProgram(
 	if (!invocation || context.reactMarkup)
 		return { fallback: materializeProgramFallback(vnode, owner) };
 	const { program } = invocation;
-	if (program.parts.length !== program.slots.length + 1)
+	if (!program.parts || program.parts.length !== program.slots.length + 1)
 		return { fallback: materializeProgramFallback(vnode, owner) };
 	if (context.markers && !hasValidSsrOperations(program))
 		return { fallback: materializeProgramFallback(vnode, owner) };
