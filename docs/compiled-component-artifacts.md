@@ -69,7 +69,7 @@ component's topology or interpret a universal component plan when the artifact a
 | Time components                                   | First-party native components      | Migrated to target-paired package artifacts                                   |
 | DOM root support                                  | Framework-owned internal component | Replace with an internal compiled artifact or direct root operation           |
 | Testing mount host and fixtures                   | Test infrastructure                | Compile fixtures or construct an explicitly internal artifact fixture         |
-| React compatibility boundaries                    | Foreign compatibility              | Keep adapter-owned and isolated from the native component type                |
+| React compatibility boundaries                    | Foreign compatibility              | Migrated to explicit target-local compatibility artifacts                     |
 | Unsafe HTML, Activity, Suspense, opaque children  | Explicit dynamic operations        | Keep narrow region-local runtime capabilities                                 |
 
 ## Transitional rules

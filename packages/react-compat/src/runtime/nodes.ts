@@ -11,7 +11,10 @@ import {
 	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
-import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
+import {
+	createExactCompatibilityArtifact,
+	isExactComponent
+} from '@exactjs/core/framework/component-contracts';
 import { currentWorkPriority } from '@exactjs/reactive';
 import {
 	REACT_ACTIVITY_TYPE,
@@ -117,7 +120,11 @@ const ExactVNodeBoundary = function ExactVNodeBoundary(
 ) {
 	return () => props.vnode;
 } as ComponentFunction<Record<string, never>, { vnode: VNode }>;
-markExactComponent(ExactVNodeBoundary, '@exactjs/react-compat:ExactVNodeBoundary');
+createExactCompatibilityArtifact(
+	ExactVNodeBoundary,
+	'@exactjs/react-compat:ExactVNodeBoundary',
+	'client'
+);
 
 const ExactVNodeBoundaryType = Object.defineProperties(
 	function ReactExactVNodeBoundary(): never {
@@ -293,8 +300,16 @@ const ReactSuspenseBoundary = function ReactSuspenseBoundary(
 		);
 } as ComponentFunction<Record<string, never>, Record<string, unknown>>;
 
-markExactComponent(ReactProfilerBoundary, '@exactjs/react-compat:ReactProfilerBoundary');
-markExactComponent(ReactSuspenseBoundary, '@exactjs/react-compat:ReactSuspenseBoundary');
+createExactCompatibilityArtifact(
+	ReactProfilerBoundary,
+	'@exactjs/react-compat:ReactProfilerBoundary',
+	'client'
+);
+createExactCompatibilityArtifact(
+	ReactSuspenseBoundary,
+	'@exactjs/react-compat:ReactSuspenseBoundary',
+	'client'
+);
 
 /** Reports whether react portal. */
 export function isReactPortal(value: unknown): value is import('../types.js').ReactPortal {

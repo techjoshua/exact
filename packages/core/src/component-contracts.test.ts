@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	composeExactComponentContracts,
+	createExactCompatibilityArtifact,
 	exactComponentContract,
 	exactComponentIdentity,
 	exactComponentType,
@@ -20,6 +21,30 @@ describe('@exactjs/core component contracts', () => {
 		expect(() => readExactCompiledComponentContract(Component)).toThrow(
 			'compiled component artifact'
 		);
+	});
+
+	it('constructs a complete artifact only for an explicit foreign compatibility boundary', () => {
+		const Component = createExactCompatibilityArtifact(
+			function Component() {},
+			'@exactjs/core:test-compatibility',
+			'client'
+		);
+
+		expect(readExactCompiledComponentContract(Component)).toMatchObject({
+			placement: 'client',
+			role: 'client',
+			definition: {
+				instantiate: Component,
+				capabilities: ['compatibility', 'dynamic-components']
+			}
+		});
+		expect(() =>
+			createExactCompatibilityArtifact(
+				function Invalid() {},
+				'compatibility:invalid',
+				'default' as 'client'
+			)
+		).toThrow('target-local artifact target');
 	});
 
 	it('reads and composes target-local executable contracts', () => {

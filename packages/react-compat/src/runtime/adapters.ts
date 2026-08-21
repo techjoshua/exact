@@ -8,7 +8,7 @@ import {
 	type ComponentFunction,
 	type ComponentInstance
 } from '@exactjs/core';
-import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactCompatibilityArtifact, isExactComponent } from '@exactjs/core/framework/component-contracts';
 import type {
 	AnyReactComponentType,
 	ReactClassInstance,
@@ -70,9 +70,10 @@ const adapterCache = new WeakMap<object, AnyComponentFunction>();
 let nextCompatibilityAdapterId = 0;
 
 function markCompatibilityAdapter<T extends AnyComponentFunction>(adapter: T): T {
-	return markExactComponent(
+	return createExactCompatibilityArtifact(
 		adapter,
-		`@exactjs/react-compat:adapter:${++nextCompatibilityAdapterId}`
+		`@exactjs/react-compat:adapter:${++nextCompatibilityAdapterId}`,
+		'client'
 	);
 }
 
