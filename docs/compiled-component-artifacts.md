@@ -56,6 +56,7 @@ component's topology or interpret a universal component plan when the artifact a
 | Request provider                                  | First-party native component       | Migrated to target-paired package artifacts                                   |
 | Theme components and enhancements                 | First-party native components      | Migrated to target-paired package artifacts                                   |
 | Application theme preference components           | Repository application components  | Migrated to target-paired package artifacts                                   |
+| Form components                                   | First-party component library      | Migrated to target-paired package artifacts                                   |
 | Time components                                   | First-party native components      | Migrated to target-paired package artifacts                                   |
 | DOM root support                                  | Framework-owned internal component | Replace with an internal compiled artifact or direct root operation           |
 | Testing mount host and fixtures                   | Test infrastructure                | Compile fixtures or construct an explicitly internal artifact fixture         |

@@ -1,5 +1,4 @@
 import { createVNode, peek, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 
 import { FieldContext } from './context.js';
 import type { FieldHelpProps } from './contracts.js';
@@ -25,6 +24,3 @@ export function FieldError(this: Component<{}>, props: FieldErrorProps) {
 			? createVNode('span', { ...props, id: field.errorId, role: 'alert' }, field.error)
 			: null;
 }
-
-markExactComponent(FieldHelp, '@exactjs/forms:FieldHelp');
-markExactComponent(FieldError, '@exactjs/forms:FieldError');
