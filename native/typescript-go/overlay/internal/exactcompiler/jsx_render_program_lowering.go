@@ -62,11 +62,13 @@ func (build *renderProgramBuild) ssrOperation(kind string, index int) {
 
 func (build *renderProgramBuild) textSlot(id string, path []int, hydrationPath []int, reader *ast.Node) {
 	index := len(build.slots)
-	build.template.WriteString(fmt.Sprintf("\ue000exact:%d\ue001", index))
+	build.template.WriteString(fmt.Sprintf("<!---->\ue000exact:%d\ue001<!---->", index))
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
 	build.ssrOperation("slot", index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: append([]int(nil), path...), hydrationPath: append([]int(nil), hydrationPath...), reader: reader})
+	mountPath := append([]int(nil), path...)
+	mountPath[len(mountPath)-1]++
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: mountPath, hydrationPath: append([]int(nil), hydrationPath...), reader: reader})
 }
 
 func (build *renderProgramBuild) propertySlot(id string, path []int, hydrationPath []int, name string, reader *ast.Node) {
@@ -283,15 +285,12 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 			if expression == nil {
 				continue
 			}
-			// Adjacent text would be coalesced by HTML parsing and cannot retain an
-			// independently addressable reactive slot without extra marker nodes.
-			if domIndex != 0 || len(semantic) != 1 ||
-				expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 ||
+			if expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 ||
 				!lowering.scalarRenderProgramExpression(expression) {
 				return false
 			}
 			build.textSlot(lowering.dynamicID(child), childPath, childHydrationPath, lowering.visitor.VisitNode(expression))
-			domIndex++
+			domIndex += 3
 			hydrationIndex += 3
 		case ast.IsJsxElement(child):
 			element := child.AsJsxElement()

@@ -294,6 +294,37 @@ it('refreshes only the compiled slot group whose dependency changed', () => {
 	expect(container.textContent).toBe('changedb');
 });
 
+it('preserves static text between compiler-separated scalar slots', () => {
+	const state = reactive({ owner: 'Assigned', status: 'open' });
+	const vnode = createCompiledRenderProgram(
+		'render-program:adjacent-scalars',
+		() => ({
+			version: 1,
+			id: 'render-program:adjacent-scalars',
+			namespace: 'html',
+			template:
+				'<small data-exact-id="adjacent"><!---->\ue000exact:0\ue001<!----> · <!---->\ue000exact:1\ue001<!----></small>',
+			parts: ['<small data-exact-id="adjacent">', ' · ', '</small>'],
+			slots: [
+				['text', 'owner', [1], [0]],
+				['text', 'status', [5], [4]]
+			],
+			bindings: [
+				['text', 0],
+				['text', 1]
+			],
+			nodes: [['adjacent', [], [], 'small']]
+		}),
+		[() => state.owner, () => state.status]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(container.textContent).toBe('Assigned · open');
+	state.status = 'closed';
+	flushSync();
+	expect(container.textContent).toBe('Assigned · closed');
+});
+
 it('retracks replacement readers when a compiled program invocation is patched', () => {
 	const state = reactive({ first: 'a', second: 'b' });
 	const program = (reader: () => string) =>
