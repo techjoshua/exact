@@ -50,7 +50,7 @@ component's topology or interpret a universal component plan when the artifact a
 | `defineTask()` in compiler output                 | Generic task fallback              | Emit compiler-selected computation or task lanes                              |
 | `defineTask()` as an advanced runtime API         | Internal/advanced primitive        | Move out of the normal compiled runtime graph                                 |
 | Generic VNode component mounting and adoption     | Compilerless/dynamic fallback      | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
-| `createComponentRegistry()` callable entries      | Native dynamic selection           | Store compiled artifacts keyed by the finite registry                         |
+| `createComponentRegistry()` callable entries      | Native dynamic selection           | Migrated to compiler-selected target-local facade artifacts                   |
 | Accessibility components                          | First-party native components      | Migrated to target-paired package artifacts                                   |
 | Internationalization components                   | First-party native components      | Migrated to target-paired package artifacts                                   |
 | Request provider                                  | First-party native component       | Migrated to target-paired package artifacts                                   |

@@ -35,7 +35,7 @@ markExactComponent(
 	'@exactjs/dom:test:ComfortableRegistryIdentityEntry'
 );
 
-const IdentityView = createCompiledComponentRegistry('test:identity', 'IdentityView', () => ({
+const IdentityView = createCompiledComponentRegistry('test:identity', 'IdentityView', 'client', () => ({
 	compact: RegistryIdentityEntry,
 	comfortable: ComfortableRegistryIdentityEntry
 }));
@@ -98,6 +98,7 @@ describe('@exactjs/dom component registries', () => {
 		const View = createCompiledComponentRegistry(
 			'test:concurrent',
 			'ConcurrentView',
+			'client',
 			({ lazy }) => ({
 				lazy: lazy(load)
 			})
@@ -124,7 +125,7 @@ describe('@exactjs/dom component registries', () => {
 			return () => <p>{props.registryKey}</p>;
 		}
 		markExactComponent(Shared, '@exactjs/dom:test:SharedRegistryEntry');
-		const View = createCompiledComponentRegistry('test:shared', 'SharedView', () => ({
+		const View = createCompiledComponentRegistry('test:shared', 'SharedView', 'client', () => ({
 			first: Shared,
 			second: Shared
 		}));
@@ -165,7 +166,7 @@ describe('@exactjs/dom component registries', () => {
 			return () => <p>ready</p>;
 		}
 		markExactComponent(Ready, '@exactjs/dom:test:ReadyRegistryEntry');
-		const View = createCompiledComponentRegistry('test:stale', 'StaleView', ({ lazy }) => ({
+		const View = createCompiledComponentRegistry('test:stale', 'StaleView', 'client', ({ lazy }) => ({
 			lazy: lazy(load),
 			ready: Ready
 		}));

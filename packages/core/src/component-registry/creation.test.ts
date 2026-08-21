@@ -3,6 +3,10 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { AnyComponentFunction, Component, ComponentFunction } from '../component/contracts.js';
 import { createComponentInstance } from '../component/runtime.js';
 import { renderInstance } from '../component/render.js';
+import {
+	exactComponentIdentity,
+	readExactCompiledComponentContract
+} from '../component-contracts.js';
 import { isVNode } from '../vnode.js';
 import {
 	createComponentRegistry,
@@ -54,10 +58,19 @@ describe('component registries', () => {
 	});
 
 	it('exposes compiler-derived identity and load status without executable metadata', async () => {
-		const View = createCompiledComponentRegistry('registry-id', 'View', ({ lazy }) => ({
+		const View = createCompiledComponentRegistry('registry-id', 'View', 'client', ({ lazy }) => ({
 			primary: Primary,
 			secondary: lazy(async () => Secondary)
 		}));
+		expect(exactComponentIdentity(View.primary)).toBe('registry-id:primary');
+		expect(readExactCompiledComponentContract(View.primary)).toMatchObject({
+			placement: 'client',
+			role: 'client',
+			definition: {
+				instantiate: View.primary,
+				capabilities: ['registry', 'dynamic-components']
+			}
+		});
 
 		expect(inspectComponentRegistry(View)).toEqual({
 			id: 'registry-id',
@@ -77,6 +90,14 @@ describe('component registries', () => {
 	});
 
 	it('rejects empty, unsafe, and non-component definitions', () => {
+		expect(() =>
+			createCompiledComponentRegistry(
+				'registry-id',
+				'View',
+				'default' as 'client',
+				() => ({ primary: Primary })
+			)
+		).toThrow('target-local artifact target');
 		expect(() => createComponentRegistry(() => ({}))).toThrow('at least one');
 		expect(() =>
 			createComponentRegistry(

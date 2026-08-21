@@ -105,6 +105,10 @@ func (lowering *jsxLowering) lowerComponentRegistryCreation(
 		return nil
 	}
 	name := declaration.Name().Text()
+	registryTarget := "client"
+	if lowering.target == TargetServer {
+		registryTarget = "server"
+	}
 	return lowering.factory.NewCallExpression(
 		lowering.factory.NewIdentifier(lowering.names.componentRegistry),
 		call.QuestionDotToken,
@@ -119,6 +123,7 @@ func (lowering *jsxLowering) lowerComponentRegistryCreation(
 				ast.TokenFlagsNone,
 			),
 			lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
+			lowering.factory.NewStringLiteral(registryTarget, ast.TokenFlagsNone),
 			lowering.visitor.VisitNode(call.Arguments.Nodes[0]),
 		}),
 		call.Flags,
