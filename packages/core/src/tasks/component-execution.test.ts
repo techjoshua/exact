@@ -9,7 +9,7 @@ import {
 	type Component,
 	type TaskContext
 } from '../index.js';
-import { createComponentInstance, createExpression } from '../runtime/render.js';
+import { createFrameworkFixtureComponentInstance, createExpression } from '../runtime/render.js';
 import { exactComponentContract, exactComponentType } from '../framework/component-contracts.js';
 import { markComponentContinuationTask } from './component-continuation.js';
 import { createContinuationDependencySlot } from './dependency-source.js';
@@ -69,7 +69,7 @@ describe('compiler-planned component execution', () => {
 			}
 		});
 
-		const instance = createComponentInstance(CompiledEditor, {});
+		const instance = createFrameworkFixtureComponentInstance(CompiledEditor, {});
 		expect(initialStatus).toBe('available');
 		instance.unmount();
 	});
@@ -121,7 +121,7 @@ describe('compiler-planned component execution', () => {
 			}
 		});
 
-		const instance = createComponentInstance(CompiledProjection, {});
+		const instance = createFrameworkFixtureComponentInstance(CompiledProjection, {});
 		expect(projected.read().status).toBe('pending');
 		for (let pass = 0; pass < 50 && projected.read().status === 'pending'; pass++) {
 			flushSync();
@@ -187,7 +187,7 @@ describe('compiler-planned component execution', () => {
 			createExpression(() => ({ label: 'fallback' })),
 			source
 		);
-		const instance = createComponentInstance(CompiledConsumer, {
+		const instance = createFrameworkFixtureComponentInstance(CompiledConsumer, {
 			value: forwarded as unknown as { label: string }
 		});
 		expect(observedProps).toEqual(['fallback']);
@@ -258,7 +258,7 @@ describe('compiler-planned component execution', () => {
 			}
 		});
 
-		const instance = createComponentInstance(CompiledPipeline, {});
+		const instance = createFrameworkFixtureComponentInstance(CompiledPipeline, {});
 		flushSync();
 		await Promise.resolve();
 		expect(observed).toEqual([]);

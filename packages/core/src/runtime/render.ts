@@ -3,6 +3,7 @@ export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from '../ss
 export {
 	createCompiledComponentInstance,
 	createComponentInstance,
+	createFrameworkFixtureComponentInstance,
 	reparentComponentInstance
 } from '../component/runtime.js';
 export { renderInstance } from '../component/render.js';

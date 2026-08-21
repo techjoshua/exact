@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createContext } from './keys.js';
-import { markExactComponent } from './component-contracts.js';
+import { createExactFrameworkFixtureArtifact } from './component-contracts.js';
 import {
 	createEnhancementMarker,
 	markExactEnhancementContexts,
@@ -44,10 +44,10 @@ describe('renderer enhancement markers', () => {
 		expect(source['motion:apply']).toBe('fade');
 	});
 
-	it('carries compilerless context effects by token identity', () => {
+	it('carries explicit runtime context effects by token identity', () => {
 		const token = createContext<string>('enhancement-test', true);
 		const component = markExactEnhancementContexts(
-			markExactComponent(function Test() {
+			createExactFrameworkFixtureArtifact(function Test() {
 				return () => null;
 			}, 'test:enhancement-contexts'),
 			{ provides: [token] }

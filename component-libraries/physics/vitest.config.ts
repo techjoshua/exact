@@ -5,6 +5,5 @@ export default defineConfig({
 	plugins: [
 		exactVitest({ compiler: { include: /src[\\/]components\.ts$/, reactCompatibility: false } })
 	],
-	resolve: { conditions: ['browser'] },
-	test: { environment: 'node' }
+	resolve: { conditions: ['browser'] }
 });

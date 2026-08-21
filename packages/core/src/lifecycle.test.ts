@@ -7,7 +7,7 @@ import {
 	type Component,
 	type ErrorReport
 } from './index.js';
-import { createComponentInstance, renderInstance } from './runtime/render.js';
+import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
 
 describe('@exactjs/core lifecycle', () => {
 	it('constructs once and renders repeatedly from tracked state', () => {
@@ -25,7 +25,7 @@ describe('@exactjs/core lifecycle', () => {
 			};
 		}
 
-		const instance = createComponentInstance(Counter, {});
+		const instance = createFrameworkFixtureComponentInstance(Counter, {});
 		renderInstance(instance, () => renderInstance(instance, () => undefined));
 		instance.state.count = 1;
 		flushSync();
@@ -36,7 +36,7 @@ describe('@exactjs/core lifecycle', () => {
 
 	it('routes scheduled setup watcher failures through the component error context', () => {
 		let instance!: Component<{ count: number; errors: ErrorReport[] }>;
-		createComponentInstance(function Worker(
+		createFrameworkFixtureComponentInstance(function Worker(
 			this: Component<{ count: number; errors: ErrorReport[] }>
 		) {
 			instance = this;
@@ -59,7 +59,7 @@ describe('@exactjs/core lifecycle', () => {
 		const unmountCleanup = vi.fn();
 
 		expect(() =>
-			createComponentInstance(function Broken(this: Component<{}>) {
+			createFrameworkFixtureComponentInstance(function Broken(this: Component<{}>) {
 				this.onUnmount(unmountCleanup);
 				throw new Error('construct failed');
 			}, {})
@@ -69,10 +69,10 @@ describe('@exactjs/core lifecycle', () => {
 	});
 
 	it('shares stable methods and allocates lifecycle cancellation only when used', () => {
-		const first = createComponentInstance(function First() {
+		const first = createFrameworkFixtureComponentInstance(function First() {
 			return () => null;
 		}, {});
-		const second = createComponentInstance(function Second() {
+		const second = createFrameworkFixtureComponentInstance(function Second() {
 			return () => null;
 		}, {});
 
@@ -85,7 +85,9 @@ describe('@exactjs/core lifecycle', () => {
 
 		let mountSignal!: AbortSignal;
 		let activationSignal!: AbortSignal;
-		const observed = createComponentInstance(function Observed(this: Component<{}>) {
+		const observed = createFrameworkFixtureComponentInstance(function Observed(
+			this: Component<{}>
+		) {
 			this.onMount(({ signal }) => (mountSignal = signal));
 			this.onActivate(({ signal }) => (activationSignal = signal));
 			return () => null;

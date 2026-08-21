@@ -10,6 +10,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import type { SsrContext } from '../types.js';
 
 type RenderChildren = (
@@ -48,19 +49,23 @@ export function renderNativeSuspenseSync(
 	return { html: output, status: pending ? 'fallback' : 'content' };
 }
 
-function SsrReadinessOwner(
-	this: Component<Record<string, never>>,
-	props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
-) {
-	this.setContext(ReadinessContext, props.context);
-	this.setContext(SuspensionContext, {
-		suspend: (settlement) =>
-			props.context.register({
-				owner: this as unknown as AnyComponentInstance,
-				taskGeneration: 0,
-				settlement,
-				retry: true
-			})
-	});
-	return () => null;
-}
+const SsrReadinessOwner = createExactInternalOwnerArtifact(
+	function SsrReadinessOwner(
+		this: Component<Record<string, never>>,
+		props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
+	) {
+		this.setContext(ReadinessContext, props.context);
+		this.setContext(SuspensionContext, {
+			suspend: (settlement) =>
+				props.context.register({
+					owner: this as unknown as AnyComponentInstance,
+					taskGeneration: 0,
+					settlement,
+					retry: true
+				})
+		});
+		return () => null;
+	},
+	'@exactjs/ssr:SyncReadinessOwner',
+	'server'
+);

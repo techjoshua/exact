@@ -9,7 +9,7 @@ describe('@exactjs/core root API', () => {
 			'createCompiledVNode',
 			'createComponentInstance',
 			'exactComponentContract',
-			'markExactComponent',
+			'createExactFrameworkFixtureArtifact',
 			'renderInstance'
 		]) {
 			expect(core).not.toHaveProperty(name);

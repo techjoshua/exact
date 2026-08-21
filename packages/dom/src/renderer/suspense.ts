@@ -11,6 +11,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../types.js';
@@ -239,21 +240,25 @@ function releaseSuspenseTransition(mounted: Mounted): void {
 	release();
 }
 
-function ReadinessOwner(
-	this: Component<Record<string, never>>,
-	props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
-) {
-	this.setContext(ReadinessContext, props.context);
-	this.setContext(SuspensionContext, {
-		suspend: (settlement) => {
-			trackComponentAsync(this as unknown as AnyComponentInstance, settlement);
-			props.context.register({
-				owner: this as unknown as AnyComponentInstance,
-				taskGeneration: 0,
-				settlement,
-				retry: true
-			});
-		}
-	});
-	return () => null;
-}
+const ReadinessOwner = createExactInternalOwnerArtifact(
+	function ReadinessOwner(
+		this: Component<Record<string, never>>,
+		props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
+	) {
+		this.setContext(ReadinessContext, props.context);
+		this.setContext(SuspensionContext, {
+			suspend: (settlement) => {
+				trackComponentAsync(this as unknown as AnyComponentInstance, settlement);
+				props.context.register({
+					owner: this as unknown as AnyComponentInstance,
+					taskGeneration: 0,
+					settlement,
+					retry: true
+				});
+			}
+		});
+		return () => null;
+	},
+	'@exactjs/dom:SuspenseReadinessOwner',
+	'client'
+);

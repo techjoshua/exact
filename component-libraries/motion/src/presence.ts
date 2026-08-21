@@ -5,7 +5,7 @@ import {
 	watch,
 	type AnyComponentFunction,
 	type Child,
-	type ComponentInstance,
+	type Component,
 	type VNode
 } from '@exactjs/core';
 import type { PresenceProps } from './contracts.js';
@@ -34,7 +34,7 @@ export const PresenceEnterContext = createContext<{
 }>('motion.presence-enter');
 
 /** Conditionally projects children through generation-fenced renderer release and reversal. */
-export function Presence(this: ComponentInstance<{ revision: number }>, props: PresenceProps) {
+export function Presence(this: Component<{ revision: number }>, props: PresenceProps) {
 	this.state.revision = 0;
 	let displayed: PresenceItem[] | undefined;
 	let pending: PresenceItem[] = [];
@@ -188,7 +188,7 @@ function projectPresence(
 	);
 }
 
-function PresenceRange(this: ComponentInstance<{}>, props: PresenceRangeProps) {
+function PresenceRange(this: Component<{}>, props: PresenceRangeProps) {
 	const root = this.refs.root<Element>();
 	const parentEnter = this.hasContext(PresenceEnterContext)
 		? this.getContext(PresenceEnterContext)

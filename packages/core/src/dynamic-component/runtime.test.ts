@@ -3,7 +3,7 @@ import { createEffectScope, flushSync, reactive, unwrap, withEffectScope } from 
 import {
 	exactComponentContract,
 	exactComponentType,
-	markExactComponent
+	createExactFrameworkFixtureArtifact
 } from '../component-contracts.js';
 import { pageComponentDomain, withComponentDomain } from '../component/domain.js';
 import type { Component } from '../component/contracts.js';
@@ -17,7 +17,7 @@ import {
 function Panel(this: Component<{}>) {
 	return () => 'panel';
 }
-markExactComponent(Panel, 'fixture:panel');
+createExactFrameworkFixtureArtifact(Panel, 'fixture:panel');
 
 describe('dynamic component boundaries', () => {
 	it('requires an owning component setup domain', () => {

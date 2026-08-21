@@ -1,6 +1,6 @@
 import {
-	readExactCompiledComponentContract,
-	readExactComponentContract
+	createExactFrameworkFixtureArtifact,
+	readExactCompiledComponentContract
 } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import type {
@@ -12,7 +12,9 @@ import type {
 import { pageComponentDomain } from './domain.js';
 import { ComponentInstanceImpl } from './runtime.js';
 
-/** Creates a legacy instance while first-party compilerless components are being migrated. */
+let nextFrameworkFixtureId = 0;
+
+/** Creates a native instance through mandatory artifact-owned construction wiring. */
 export function createComponentInstance<
 	State extends object,
 	Props extends Record<string, unknown>
@@ -23,14 +25,10 @@ export function createComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
-	const contract = readExactComponentContract(type);
-	const instantiate = (contract?.definition?.instantiate ?? type) as ComponentFunction<
-		State,
-		Props
-	>;
+	const contract = readExactCompiledComponentContract(type);
 	return new ComponentInstanceImpl(
 		type,
-		instantiate,
+		contract.definition.instantiate as ComponentFunction<State, Props>,
 		rawProps,
 		parent,
 		ambientContexts,
@@ -64,6 +62,28 @@ export function createCompiledComponentInstance<
 	);
 }
 
+/** Creates an artifact-backed instance for low-level framework tests. */
+export function createFrameworkFixtureComponentInstance<
+	State extends object,
+	Props extends Record<string, unknown>
+>(
+	type: ComponentFunction<State, Props>,
+	rawProps: Props,
+	parent?: AnyComponentInstance,
+	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
+	domain = parent?.domain ?? pageComponentDomain
+): ComponentInstance<State> {
+	try {
+		readExactCompiledComponentContract(type);
+	} catch {
+		createExactFrameworkFixtureArtifact(
+			type,
+			`@exactjs/core:fixture:${type.name || 'anonymous'}:${++nextFrameworkFixtureId}`
+		);
+	}
+	return createComponentInstance(type, rawProps, parent, ambientContexts, domain);
+}
+
 /** Creates an instance using a previously validated and indexed compiler execution plan. */
 export function createPreparedComponentInstance<
 	State extends object,
@@ -76,14 +96,10 @@ export function createPreparedComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
-	const contract = readExactComponentContract(type);
-	const instantiate = (contract?.definition?.instantiate ?? type) as ComponentFunction<
-		State,
-		Props
-	>;
+	const contract = readExactCompiledComponentContract(type);
 	return new ComponentInstanceImpl(
 		type,
-		instantiate,
+		contract.definition.instantiate as ComponentFunction<State, Props>,
 		rawProps,
 		parent,
 		ambientContexts,

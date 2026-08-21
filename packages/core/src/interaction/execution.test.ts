@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Component } from '../component/contracts.js';
 import { LoggerContext } from '../component/contexts.js';
-import { createComponentInstance } from '../component/runtime.js';
+import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import type { LogEvent, Logger } from '../logging.js';
 import { TaskCancellation } from '../tasks/cancellation.js';
 import { joinTask } from '../tasks/frame-runtime.js';
@@ -17,7 +17,7 @@ import {
 
 describe('component interactions', () => {
 	it('aggregates work joined synchronously by an interaction host', async () => {
-		const owner = createComponentInstance(() => () => null, {});
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		let release!: () => void;
 		const joined = new Promise<void>((resolve) => {
 			release = resolve;
@@ -46,7 +46,7 @@ describe('component interactions', () => {
 	});
 
 	it('restores joined ownership after compiler-lowered awaits', async () => {
-		const owner = createComponentInstance(() => () => null, {});
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		const controller = new AbortController();
 		let releaseJoined!: () => void;
 		const joined = new Promise<void>((resolve) => {
@@ -80,7 +80,7 @@ describe('component interactions', () => {
 	});
 
 	it('cancels unsettled host work when its component is disposed', async () => {
-		const owner = createComponentInstance(() => () => null, {});
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		const never = new Promise<void>(() => undefined);
 		const interaction = runComponentInteraction(
 			owner,
@@ -96,7 +96,7 @@ describe('component interactions', () => {
 	});
 
 	it('attaches function-defined task descendants to an interaction root', async () => {
-		const owner = createComponentInstance(() => () => null, {});
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		let release!: () => void;
 		const gate = new Promise<void>((resolve) => {
 			release = resolve;
@@ -130,11 +130,11 @@ describe('component interactions', () => {
 			isEnabled: (level) => level === 'trace',
 			log: (event) => events.push(event)
 		};
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
-		const owner = createComponentInstance(() => () => null, {}, parent);
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {}, parent);
 		let scope: InteractionScope | undefined;
 
 		await runComponentInteraction(

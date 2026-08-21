@@ -40,7 +40,7 @@ import type {
 const defaultLaneKey = Symbol('exact.default-task-lane');
 
 /**
- * Defines one stable compilerless task using the same owner, lane, generation,
+ * Defines one stable runtime task using the same owner, lane, generation,
  * frame, cancellation, cleanup, and status runtime used by compiled tasks.
  */
 export function defineTask<Args extends unknown[], Result>(

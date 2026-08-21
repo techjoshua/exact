@@ -3,7 +3,7 @@
  */
 import { type Component } from '@exactjs/core';
 import { createCompiledVNode, createDynamicChild } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
@@ -206,7 +206,7 @@ describe('hydration-only root capability', () => {
 	});
 
 	it('adopts and owns SSR DOM without exposing optional request methods', () => {
-		const App = markExactComponent(function App(this: Component<{}>) {
+		const App = createExactFrameworkFixtureArtifact(function App(this: Component<{}>) {
 			return () => createVNode('p', { id: 'message' }, 'ready');
 		}, '@exactjs/hydrate:root-only-test');
 		const vnode = createVNode(App, null);

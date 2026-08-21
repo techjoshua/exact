@@ -11,6 +11,7 @@ import {
 	type ReadinessContextValue
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import {
 	flushSync,
@@ -202,10 +203,14 @@ function setDescendantActivity(mounted: Mounted, active: boolean): void {
 	}
 }
 
-function ActivityReadinessOwner(
-	this: Component<Record<string, never>>,
-	props: { context: ReadinessContextValue }
-) {
-	this.setContext(ReadinessContext, props.context);
-	return () => null;
-}
+const ActivityReadinessOwner = createExactInternalOwnerArtifact(
+	function ActivityReadinessOwner(
+		this: Component<Record<string, never>>,
+		props: { context: ReadinessContextValue }
+	) {
+		this.setContext(ReadinessContext, props.context);
+		return () => null;
+	},
+	'@exactjs/dom:ActivityReadinessOwner',
+	'client'
+);

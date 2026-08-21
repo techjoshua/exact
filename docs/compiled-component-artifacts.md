@@ -41,40 +41,40 @@ component's topology or interpret a universal component plan when the artifact a
 
 ## Migration inventory
 
-| Existing path                                     | Classification                     | Required replacement                                                          |
-| ------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
-| Compiler-attached component contract and identity | Compiled foundation                | Evolve into the mandatory target-local artifact; remove optional lookup       |
-| `markExactComponent()`                            | Compilerless native fallback       | Remove after first-party and testing migrations                               |
-| `contract?.definition?.instantiate ?? type`       | Compilerless construction          | Require artifact construction wiring                                          |
-| `ComponentInstanceImpl`                           | Universal native host              | Replace with artifact-selected compact storage and capability sidecars        |
-| `defineTask()` in compiler output                 | Generic task fallback              | Emit compiler-selected computation or task lanes                              |
-| `defineTask()` as an advanced runtime API         | Internal/advanced primitive        | Move out of the normal compiled runtime graph                                 |
-| Generic VNode component mounting and adoption     | Compilerless/dynamic fallback      | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
-| `createComponentRegistry()` callable entries      | Native dynamic selection           | Migrated to compiler-selected target-local facade artifacts                   |
-| Accessibility components                          | First-party native components      | Migrated to target-paired package artifacts                                   |
-| Internationalization components                   | First-party native components      | Migrated to target-paired package artifacts                                   |
-| Request provider                                  | First-party native component       | Migrated to target-paired package artifacts                                   |
-| Theme components and enhancements                 | First-party native components      | Migrated to target-paired package artifacts                                   |
-| Application theme preference components           | Repository application components  | Migrated to target-paired package artifacts                                   |
-| Form components                                   | First-party component library      | Migrated to target-paired package artifacts                                   |
-| Gesture components                                | First-party component library      | Migrated to target-paired package artifacts                                   |
-| Physics components                                | First-party component library      | Migrated to target-paired package artifacts                                   |
-| Gravity components                                | First-party component library      | Migrated to target-paired package artifacts                                   |
-| Motion components                                 | First-party component library      | Migrated to target-paired package artifacts                                   |
-| Router components                                 | First-party component library      | Migrated to target-paired package artifacts                                   |
-| Theme fixture components                          | First-party acceptance fixture     | Migrated to target-paired package artifacts                                   |
-| Testing mount host                                | Framework testing infrastructure   | Migrated to a target-paired package artifact                                  |
-| Microfrontend remote host                         | First-party native component       | Migrated to target-paired package artifacts                                   |
-| Native third-party state providers                | First-party native components      | Migrated to target-paired package artifacts                                   |
-| Time components                                   | First-party native components      | Migrated to target-paired package artifacts                                   |
-| DOM root support                                  | Opaque runtime VNode boundary       | Migrated to a narrow target-local dynamic-boundary artifact                   |
-| Testing mount host and fixtures                   | Test infrastructure                | Migrated to compiled hosts and explicit internal fixture artifacts            |
-| React compatibility boundaries                    | Foreign compatibility              | Migrated to explicit target-local compatibility artifacts                     |
-| Unsafe HTML, Activity, Suspense, opaque children  | Explicit dynamic operations        | Keep narrow region-local runtime capabilities                                 |
+| Existing path                                     | Classification                    | Required replacement                                                          |
+| ------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------- |
+| Compiler-attached component contract and identity | Compiled foundation               | Evolve into the mandatory target-local artifact; remove optional lookup       |
+| `markExactComponent()`                            | Compilerless native fallback      | Removed; compatibility and fixtures use complete scoped artifacts             |
+| `contract?.definition?.instantiate ?? type`       | Compilerless construction         | Removed; native construction requires artifact wiring                         |
+| `ComponentInstanceImpl`                           | Universal native host             | Replace with artifact-selected compact storage and capability sidecars        |
+| `defineTask()` in compiler output                 | Generic task fallback             | Emit compiler-selected computation or task lanes                              |
+| `defineTask()` as an advanced runtime API         | Internal/advanced primitive       | Move out of the normal compiled runtime graph                                 |
+| Generic VNode component mounting and adoption     | Compilerless/dynamic fallback     | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
+| `createComponentRegistry()` callable entries      | Native dynamic selection          | Migrated to compiler-selected target-local facade artifacts                   |
+| Accessibility components                          | First-party native components     | Migrated to target-paired package artifacts                                   |
+| Internationalization components                   | First-party native components     | Migrated to target-paired package artifacts                                   |
+| Request provider                                  | First-party native component      | Migrated to target-paired package artifacts                                   |
+| Theme components and enhancements                 | First-party native components     | Migrated to target-paired package artifacts                                   |
+| Application theme preference components           | Repository application components | Migrated to target-paired package artifacts                                   |
+| Form components                                   | First-party component library     | Migrated to target-paired package artifacts                                   |
+| Gesture components                                | First-party component library     | Migrated to target-paired package artifacts                                   |
+| Physics components                                | First-party component library     | Migrated to target-paired package artifacts                                   |
+| Gravity components                                | First-party component library     | Migrated to target-paired package artifacts                                   |
+| Motion components                                 | First-party component library     | Migrated to target-paired package artifacts                                   |
+| Router components                                 | First-party component library     | Migrated to target-paired package artifacts                                   |
+| Theme fixture components                          | First-party acceptance fixture    | Migrated to target-paired package artifacts                                   |
+| Testing mount host                                | Framework testing infrastructure  | Migrated to a target-paired package artifact                                  |
+| Microfrontend remote host                         | First-party native component      | Migrated to target-paired package artifacts                                   |
+| Native third-party state providers                | First-party native components     | Migrated to target-paired package artifacts                                   |
+| Time components                                   | First-party native components     | Migrated to target-paired package artifacts                                   |
+| DOM root support                                  | Opaque runtime VNode boundary     | Migrated to a narrow target-local dynamic-boundary artifact                   |
+| Testing mount host and fixtures                   | Test infrastructure               | Migrated to compiled hosts and explicit internal fixture artifacts            |
+| React compatibility boundaries                    | Foreign compatibility             | Migrated to explicit target-local compatibility artifacts                     |
+| Unsafe HTML, Activity, Suspense, opaque children  | Explicit dynamic operations       | Keep narrow region-local runtime capabilities                                 |
 
 ## Transitional rules
 
-1. New framework code must not add a `markExactComponent()` call.
+1. New framework code must not add an identity-only native component path.
 2. New compiler output must not introduce a generic runtime operation when its policy and topology
    are statically known.
 3. During dual-path migration, compiled execution and the legacy path must pass the same observable

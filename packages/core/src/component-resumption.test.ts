@@ -9,7 +9,7 @@ import {
 	type Component,
 	type TaskContext
 } from './index.js';
-import { createComponentInstance } from './runtime/render.js';
+import { createFrameworkFixtureComponentInstance } from './runtime/render.js';
 import { createFrameworkComponentDomain } from './component/domain.js';
 
 describe('@exactjs/core component resumption', () => {
@@ -41,13 +41,13 @@ describe('@exactjs/core component resumption', () => {
 			})
 		});
 
-		const fresh = createComponentInstance(Search, {}, undefined, undefined, domain);
+		const fresh = createFrameworkFixtureComponentInstance(Search, {}, undefined, undefined, domain);
 		expect(fresh.state.query).toBe('setup');
 		expect(fresh.state.result).toBe('waiting');
 		fresh.unmount();
 
 		const instance = withComponentResumption(domain, () =>
-			createComponentInstance(Search, {}, undefined, undefined, domain)
+			createFrameworkFixtureComponentInstance(Search, {}, undefined, undefined, domain)
 		);
 
 		expect(instance.state.query).toBe('server');
@@ -75,7 +75,7 @@ describe('@exactjs/core component resumption', () => {
 			return () => null;
 		}
 
-		const instance = createComponentInstance(Worker, {});
+		const instance = createFrameworkFixtureComponentInstance(Worker, {});
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(instance.state.ready).toBe(true);

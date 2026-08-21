@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 import { Activity, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import '@exactjs/core/runtime/refs';
 import { render, unmount } from '@exactjs/dom';
 import '@exactjs/dom/structural-boundaries';
@@ -19,8 +18,6 @@ import { createPhysicsWorld } from './world.js';
 
 // Source-level unit tests bypass the package compiler. The package build separately verifies the
 // public client and server exports as compiled artifacts.
-markExactComponent(PhysicsElement, '@exactjs/physics:test:PhysicsElement');
-markExactComponent(PhysicsWorldComponent, '@exactjs/physics:test:PhysicsWorld');
 
 const containers: Element[] = [];
 
