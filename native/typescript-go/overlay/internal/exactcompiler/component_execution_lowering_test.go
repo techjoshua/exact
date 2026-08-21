@@ -71,9 +71,13 @@ func TestTaskFreeExportCarriesCanonicalDefinitionWithoutTaskCapability(t *testin
 
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
+		import { TaskContext } from "@exactjs/core";
 		declare class Component<State> { state: State }
 		export function Counter(this: Component<{ count: number }>) {
 			this.state.count = 0;
+			function refresh(_task: TaskContext = TaskContext.client().latest()) {
+				this.state.count++;
+			}
 			return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
 		}
 	`
@@ -95,6 +99,10 @@ func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T)
 		if strings.Contains(hydrate.Code, omitted) {
 			t.Fatalf("hydrate projection retained build-only metadata %q:\n%s", omitted, hydrate.Code)
 		}
+	}
+	if !strings.Contains(hydrate.Code, "continuations: []") ||
+		!strings.Contains(hydrate.Code, "boundaries: []") {
+		t.Fatalf("hydrate projection retained composition-only catalogs:\n%s", hydrate.Code)
 	}
 
 	client := NewSession().Execute(Request{
