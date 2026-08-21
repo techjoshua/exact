@@ -3,6 +3,8 @@ import {
 	clearCompiledRenderPrograms,
 	compiledRenderProgramCacheSize,
 	createCompiledRenderProgram,
+	createPreparedRenderProgram,
+	prepareCompiledRenderProgram,
 	readRenderProgram,
 	readRenderProgramSlot
 } from './render-program.js';
@@ -58,5 +60,16 @@ describe('compiled render-program cache', () => {
 		const invocation = readRenderProgram(vnode)!;
 		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
 		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
+	});
+
+	it('joins instance readers to a module-hoisted immutable descriptor', () => {
+		const prepared = prepareCompiledRenderProgram('revision:prepared', program('prepared'));
+		const reused = prepareCompiledRenderProgram('revision:prepared', program('ignored'));
+		const vnode = createPreparedRenderProgram(prepared, [() => 'value']);
+		const invocation = readRenderProgram(vnode)!;
+		expect(reused).toBe(prepared);
+		expect(invocation.program).toBe(prepared);
+		expect(Object.isFrozen(invocation.program)).toBe(true);
+		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
 	});
 });

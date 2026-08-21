@@ -7,6 +7,8 @@ export {
 	clearCompiledRenderPrograms,
 	compiledRenderProgramCacheSize,
 	createCompiledRenderProgram,
+	createPreparedRenderProgram,
+	prepareCompiledRenderProgram,
 	readRenderProgram,
 	readRenderProgramSlot,
 	renderProgramFallback,

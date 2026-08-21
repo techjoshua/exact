@@ -133,7 +133,8 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		"createCompiledRenderProgram",
+		"createPreparedRenderProgram",
+		"prepareCompiledRenderProgram",
 		"version: 1",
 		"kind: \"text\"",
 		"ssrParts:",
@@ -160,7 +161,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "createCompiledRenderProgram") ||
+	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) {
@@ -181,7 +182,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		"createCompiledRenderProgram",
+		"createPreparedRenderProgram",
 		"kind: \"class\"",
 		"name: \"className\"",
 		"kind: \"property\"",
@@ -4951,7 +4952,7 @@ func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *test
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "rows.map((row) => __exactRenderProgram") ||
+	if !strings.Contains(response.Code, "rows.map((row) => __exactPreparedRenderProgram") ||
 		!strings.Contains(response.Code, "__exactSlot => __exactSlot === 0 ? row.id : row.id") ||
 		!strings.Contains(response.Code, "title: row.id }, row.id") {
 		t.Fatalf("declarative collection did not preserve direct values: %s", response.Code)

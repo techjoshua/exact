@@ -12,6 +12,8 @@ type jsxRuntimeNames struct {
 	element                string
 	componentElement       string
 	renderProgram          string
+	preparedRenderProgram  string
+	prepareRenderProgram   string
 	fragment               string
 	target                 string
 	expression             string
@@ -103,6 +105,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createCompiledVNode", lowering.names.element, 0},
 		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
 		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
+		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, 0},
+		{"prepareCompiledRenderProgram", lowering.names.prepareRenderProgram, 0},
 		{"createCompiledFragment", lowering.names.fragment, 0},
 		{"createCompiledTarget", lowering.names.target, 0},
 		{"createExpression", lowering.names.expression, 0},
@@ -179,6 +183,14 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	interactionUsed := containsInteractionRuntimeUse(root)
+	if !interactionUsed {
+		for _, component := range lowering.components {
+			if component.Interactions {
+				interactionUsed = true
+				break
+			}
+		}
+	}
 	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root)
 	source := lowering.sourceFile.Text()
 	listUsed := lowering.listCapabilityUsed ||
@@ -416,6 +428,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		element:                allocate("__exactVNode"),
 		componentElement:       allocate("__exactComponentVNode"),
 		renderProgram:          allocate("__exactRenderProgram"),
+		preparedRenderProgram:  allocate("__exactPreparedRenderProgram"),
+		prepareRenderProgram:   allocate("__exactPrepareRenderProgram"),
 		fragment:               allocate("__exactFragment"),
 		target:                 allocate("__exactTarget"),
 		expression:             allocate("__exactExpression"),
