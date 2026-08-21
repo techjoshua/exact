@@ -3,9 +3,10 @@ import { cpus, platform, release, totalmem } from 'node:os';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 import { chromium } from 'playwright';
-import { analyzeStartupTrace, startupPercentile } from './startup-cpu-analysis.mjs';
+import { analyzeStartupTrace } from './startup-cpu-analysis.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
 import { preciseExecutedBytes } from './precise-coverage.mjs';
+import { summarizeSampleMetric } from './percentile-summary.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error(
@@ -213,16 +214,7 @@ function selectPerformanceMetrics(metrics) {
 }
 
 function summarizeSamples(samples) {
-	const metric = (read) => {
-		const values = samples.map(read).filter(Number.isFinite);
-		return {
-			p50: startupPercentile(values, 0.5),
-			p90: startupPercentile(values, 0.9),
-			p95: startupPercentile(values, 0.95),
-			p99: startupPercentile(values, 0.99),
-			max: startupPercentile(values, 1)
-		};
-	};
+	const metric = (read) => summarizeSampleMetric(samples, read);
 	return {
 		firstContentfulPaintMs: metric((sample) => sample.firstContentfulPaintMs),
 		largestContentfulPaintMs: metric((sample) => sample.vitals.largestContentfulPaintMs),

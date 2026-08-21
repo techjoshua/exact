@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 import { measureRetainedHeap } from './browser-memory.mjs';
 import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
+import { summarizeSampleMetric } from './percentile-summary.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -366,42 +367,31 @@ async function allFiles(directory) {
 
 function summarizeBrowser(samples) {
 	return {
-		navigationP50Ms: percentile(
-			samples.map((sample) => sample.navigation.durationMs),
-			0.5
+		navigationMs: summarizeSampleMetric(samples, (sample) => sample.navigation.durationMs),
+		firstContentfulPaintMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.navigation.firstContentfulPaintMs
 		),
-		firstContentfulPaintP50Ms: percentile(
-			samples.map((sample) => sample.navigation.firstContentfulPaintMs),
-			0.5
+		largestContentfulPaintMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.vitals.largestContentfulPaintMs
 		),
-		largestContentfulPaintP50Ms: percentile(
-			samples.map((sample) => sample.vitals.largestContentfulPaintMs),
-			0.5
+		totalBlockingTimeMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.vitals.totalBlockingTimeMs
 		),
-		totalBlockingTimeP50Ms: percentile(
-			samples.map((sample) => sample.vitals.totalBlockingTimeMs),
-			0.5
+		longTaskCount: summarizeSampleMetric(samples, (sample) => sample.vitals.longTaskCount),
+		longTaskDurationMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.vitals.longTaskDurationMs
 		),
-		longTaskCountP50: percentile(
-			samples.map((sample) => sample.vitals.longTaskCount),
-			0.5
+		domElementCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domElementCount),
+		heapBytes: summarizeSampleMetric(samples, (sample) => sample.heapBytes),
+		optimisticFeedbackMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.optimisticFeedbackMs
 		),
-		domElementCountP50: percentile(
-			samples.map((sample) => sample.vitals.domElementCount),
-			0.5
-		),
-		heapP50Bytes: percentile(
-			samples.map((sample) => sample.heapBytes),
-			0.5
-		),
-		optimisticFeedbackP50Ms: percentile(
-			samples.map((sample) => sample.optimisticFeedbackMs),
-			0.5
-		),
-		settlementP50Ms: percentile(
-			samples.map((sample) => sample.settlementMs),
-			0.5
-		)
+		settlementMs: summarizeSampleMetric(samples, (sample) => sample.settlementMs)
 	};
 }
 
