@@ -23,14 +23,20 @@ export function createComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
+	const contract = readExactComponentContract(type);
+	const instantiate = (contract?.definition?.instantiate ?? type) as ComponentFunction<
+		State,
+		Props
+	>;
 	return new ComponentInstanceImpl(
 		type,
+		instantiate,
 		rawProps,
 		parent,
 		ambientContexts,
 		domain,
 		undefined,
-		readExactComponentContract(type)
+		contract
 	);
 }
 
@@ -48,6 +54,7 @@ export function createCompiledComponentInstance<
 	const contract = readExactCompiledComponentContract(type);
 	return new ComponentInstanceImpl(
 		type,
+		contract.definition.instantiate as ComponentFunction<State, Props>,
 		rawProps,
 		parent,
 		ambientContexts,
@@ -69,13 +76,19 @@ export function createPreparedComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
+	const contract = readExactComponentContract(type);
+	const instantiate = (contract?.definition?.instantiate ?? type) as ComponentFunction<
+		State,
+		Props
+	>;
 	return new ComponentInstanceImpl(
 		type,
+		instantiate,
 		rawProps,
 		parent,
 		ambientContexts,
 		domain,
 		execution,
-		readExactComponentContract(type)
+		contract
 	);
 }
