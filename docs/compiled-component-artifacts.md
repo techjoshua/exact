@@ -63,6 +63,7 @@ component's topology or interpret a universal component plan when the artifact a
 | Motion components                                 | First-party component library      | Migrated to target-paired package artifacts                                   |
 | Router components                                 | First-party component library      | Migrated to target-paired package artifacts                                   |
 | Theme fixture components                          | First-party acceptance fixture     | Migrated to target-paired package artifacts                                   |
+| Testing mount host                                | Framework testing infrastructure   | Migrated to a target-paired package artifact                                  |
 | Time components                                   | First-party native components      | Migrated to target-paired package artifacts                                   |
 | DOM root support                                  | Framework-owned internal component | Replace with an internal compiled artifact or direct root operation           |
 | Testing mount host and fixtures                   | Test infrastructure                | Compile fixtures or construct an explicitly internal artifact fixture         |
