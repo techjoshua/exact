@@ -30,31 +30,36 @@ A target-local artifact owns the component-specific decisions for:
 - cleanup and ownership transfer; and
 - explicit generic regions whose shape cannot be proven during compilation.
 
+Component discovery is independent of a module's JSX extension. `.ts`, `.tsx`, `.js`, and `.jsx`
+source modules can all define native components. Published packages emit separate client and server
+module trees and select them with package export conditions; they do not publish a manually branded
+universal function as a substitute for compilation.
+
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the
 component's topology or interpret a universal component plan when the artifact already knows it.
 
 ## Migration inventory
 
-| Existing path | Classification | Required replacement |
-|---|---|---|
-| Compiler-attached component contract and identity | Compiled foundation | Evolve into the mandatory target-local artifact; remove optional lookup |
-| `markExactComponent()` | Compilerless native fallback | Remove after first-party and testing migrations |
-| `contract?.definition?.instantiate ?? type` | Compilerless construction | Require artifact construction wiring |
-| `ComponentInstanceImpl` | Universal native host | Replace with artifact-selected compact storage and capability sidecars |
-| `defineTask()` in compiler output | Generic task fallback | Emit compiler-selected computation or task lanes |
-| `defineTask()` as an advanced runtime API | Internal/advanced primitive | Move out of the normal compiled runtime graph |
-| Generic VNode component mounting and adoption | Compilerless/dynamic fallback | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
-| `createComponentRegistry()` callable entries | Native dynamic selection | Store compiled artifacts keyed by the finite registry |
-| Accessibility components | First-party native components | Compile during the accessibility package build |
-| Internationalization components | First-party native components | Compile during the internationalization package build |
-| Request provider | First-party native component | Compile during the request package build |
-| Theme components and enhancements | First-party native components | Compile during the theme package build |
-| Time components | First-party native components | Compile during the time package build |
-| DOM root support | Framework-owned internal component | Replace with an internal compiled artifact or direct root operation |
-| Testing mount host and fixtures | Test infrastructure | Compile fixtures or construct an explicitly internal artifact fixture |
-| React compatibility boundaries | Foreign compatibility | Keep adapter-owned and isolated from the native component type |
-| Unsafe HTML, Activity, Suspense, opaque children | Explicit dynamic operations | Keep narrow region-local runtime capabilities |
+| Existing path                                     | Classification                     | Required replacement                                                          |
+| ------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
+| Compiler-attached component contract and identity | Compiled foundation                | Evolve into the mandatory target-local artifact; remove optional lookup       |
+| `markExactComponent()`                            | Compilerless native fallback       | Remove after first-party and testing migrations                               |
+| `contract?.definition?.instantiate ?? type`       | Compilerless construction          | Require artifact construction wiring                                          |
+| `ComponentInstanceImpl`                           | Universal native host              | Replace with artifact-selected compact storage and capability sidecars        |
+| `defineTask()` in compiler output                 | Generic task fallback              | Emit compiler-selected computation or task lanes                              |
+| `defineTask()` as an advanced runtime API         | Internal/advanced primitive        | Move out of the normal compiled runtime graph                                 |
+| Generic VNode component mounting and adoption     | Compilerless/dynamic fallback      | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
+| `createComponentRegistry()` callable entries      | Native dynamic selection           | Store compiled artifacts keyed by the finite registry                         |
+| Accessibility components                          | First-party native components      | Compile during the accessibility package build                                |
+| Internationalization components                   | First-party native components      | Compile during the internationalization package build                         |
+| Request provider                                  | First-party native component       | Migrated to target-paired package artifacts                                   |
+| Theme components and enhancements                 | First-party native components      | Compile during the theme package build                                        |
+| Time components                                   | First-party native components      | Compile during the time package build                                         |
+| DOM root support                                  | Framework-owned internal component | Replace with an internal compiled artifact or direct root operation           |
+| Testing mount host and fixtures                   | Test infrastructure                | Compile fixtures or construct an explicitly internal artifact fixture         |
+| React compatibility boundaries                    | Foreign compatibility              | Keep adapter-owned and isolated from the native component type                |
+| Unsafe HTML, Activity, Suspense, opaque children  | Explicit dynamic operations        | Keep narrow region-local runtime capabilities                                 |
 
 ## Transitional rules
 
