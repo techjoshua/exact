@@ -90,7 +90,8 @@ ranges retain their markers because those ranges still own independent reactive 
 Compiler render programs adopt their marked intrinsic nodes, scalar slots, and structural child
 ranges through stable compiler identities. A structural range can contain a variable number of SSR
 nodes, so later intrinsic claims use identities within the bounded program region rather than
-assuming a fixed physical sibling offset. They retain the SSR DOM and marker protocol without
+assuming a fixed physical sibling offset. One ephemeral region-local index serves all of those
+claims and is released before hydration completes. They retain the SSR DOM and marker protocol without
 rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses
