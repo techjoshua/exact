@@ -4,7 +4,7 @@ import { exactComponentContract, exactComponentType } from '../component-contrac
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
-import { createComponentInstance } from './runtime.js';
+import { createCompiledComponentInstance, createComponentInstance } from './runtime.js';
 
 describe('compiled component capability construction', () => {
 	it('does not allocate a task owner for a compiler-proven task-free component', () => {
@@ -45,6 +45,14 @@ describe('compiled component capability construction', () => {
 		instance.unmount();
 	});
 
+	it('rejects compilerless values at the compiled construction boundary', () => {
+		expect(() =>
+			createCompiledComponentInstance(function Compilerless(this: Component<{}>) {
+				return () => null;
+			}, {})
+		).toThrow('compiled component artifact');
+	});
+
 	it('allocates ownership when the canonical definition declares task capability', () => {
 		const implementation = function TaskPanel(this: Component<{}>) {
 			return () => null;
@@ -72,7 +80,7 @@ describe('compiled component capability construction', () => {
 			}
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
-		const instance = createComponentInstance(TaskPanel, {});
+		const instance = createCompiledComponentInstance(TaskPanel, {});
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
 	});

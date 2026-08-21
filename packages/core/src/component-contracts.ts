@@ -188,6 +188,10 @@ export type ExactComponentContract = Readonly<{
 	definition?: ExactCompiledComponentDefinitionContract;
 }>;
 
+/** Component contract whose executable definition is guaranteed by the compiler artifact ABI. */
+export type ExactCompiledComponentContract = ExactComponentContract &
+	Readonly<{ definition: ExactCompiledComponentDefinitionContract }>;
+
 /** Composed target-local contracts indexed for runtime use. */
 export type ExactComposedComponentContracts = Readonly<{
 	implementations: Record<string, AnyExactComponentCallable>;
@@ -235,6 +239,16 @@ export function readExactComponentContract(
 	if (!contract) return undefined;
 	const componentId = exactComponentIdentity(component);
 	return validatedComponentContract(component, contract, componentId);
+}
+
+/** Reads one executable compiler artifact and rejects identity-only native values. */
+export function readExactCompiledComponentContract(
+	component: AnyExactComponentCallable
+): ExactCompiledComponentContract {
+	const contract = readExactComponentContract(component);
+	if (!contract?.definition)
+		throw new TypeError('Native eXact component execution requires a compiled component artifact');
+	return contract as ExactCompiledComponentContract;
 }
 
 /** Returns the stable compiler identity used to pair SSR and client component boundaries. */

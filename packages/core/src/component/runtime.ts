@@ -29,7 +29,6 @@ import { ErrorContext } from './contexts.js';
 import {
 	componentDomainInspection,
 	isHydrationComponentDomain,
-	pageComponentDomain,
 	resolveComponentResumption,
 	withComponentDomain
 } from './domain.js';
@@ -52,13 +51,13 @@ import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
-import { readExactComponentContract } from '../component-contracts.js';
+import { type ExactComponentContract } from '../component-contracts.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
 
 /** Shared-prototype implementation of one durable component instance. */
-class ComponentInstanceImpl<State extends object, Props extends Record<string, unknown>>
+export class ComponentInstanceImpl<State extends object, Props extends Record<string, unknown>>
 	implements ComponentInstance<State>
 {
 	readonly type: ComponentFunction<State, Props>;
@@ -94,9 +93,9 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
-		execution?: PreparedComponentExecution
+		execution?: PreparedComponentExecution,
+		contract?: ExactComponentContract
 	) {
-		const contract = readExactComponentContract(type);
 		this.type = type;
 		this.parent = parent;
 		this.domain = domain;
@@ -317,7 +316,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	private initialize(
 		execution: PreparedComponentExecution | undefined,
 		rawProps: Props,
-		contract: ReturnType<typeof readExactComponentContract>
+		contract: ExactComponentContract | undefined
 	): void {
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
@@ -339,15 +338,15 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		if (resumption) prepareComponentContextResumption(this, resumption);
 
 		let result: RenderFunction;
-		const instantiate = contract?.definition?.instantiate ?? this.type;
+		const instantiate = contract?.definition?.instantiate;
 		try {
 			result = withEffectScope(this.scope, () =>
 				withComponentDomain(this.domain, () =>
 					this.taskCapability
 						? this.taskCapability.run(this.taskState, () =>
-								instantiate.call(this, this.props as Props)
+								(instantiate ?? this.type).call(this, this.props as Props)
 							)
-						: instantiate.call(this, this.props as Props)
+						: (instantiate ?? this.type).call(this, this.props as Props)
 				)
 			);
 		} catch (error) {
@@ -388,10 +387,7 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 				if (isPromiseLike(result))
 					observeLifecyclePromise(this, Promise.resolve(result), 'activate');
 			} catch (error) {
-				handleComponentError(
-					this,
-					createErrorReport(error, 'lifecycle', this, 'activate')
-				);
+				handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'activate'));
 			}
 		}
 	}
@@ -409,40 +405,14 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 				if (isPromiseLike(result))
 					observeLifecyclePromise(this, Promise.resolve(result), 'deactivate');
 			} catch (error) {
-				handleComponentError(
-					this,
-					createErrorReport(error, 'lifecycle', this, 'deactivate')
-				);
+				handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'deactivate'));
 			}
 		}
 	}
 }
 
-/** Creates a component instance, binds its component API, and runs the component constructor. */
-export function createComponentInstance<
-	State extends object,
-	Props extends Record<string, unknown>
->(
-	type: ComponentFunction<State, Props>,
-	rawProps: Props,
-	parent?: AnyComponentInstance,
-	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
-	domain = parent?.domain ?? pageComponentDomain
-): ComponentInstance<State> {
-	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain);
-}
-
-/** Creates an instance using a previously validated and indexed compiler execution plan. */
-export function createPreparedComponentInstance<
-	State extends object,
-	Props extends Record<string, unknown>
->(
-	type: ComponentFunction<State, Props>,
-	rawProps: Props,
-	execution: PreparedComponentExecution | undefined,
-	parent?: AnyComponentInstance,
-	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
-	domain = parent?.domain ?? pageComponentDomain
-): ComponentInstance<State> {
-	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain, execution);
-}
+export {
+	createCompiledComponentInstance,
+	createComponentInstance,
+	createPreparedComponentInstance
+} from './runtime-construction.js';
