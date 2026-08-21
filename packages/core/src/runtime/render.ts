@@ -1,7 +1,6 @@
 export { isFiniteClientBoundary, markFiniteClientBoundary } from '../hydration-boundary.js';
 export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from '../ssr-independence.js';
 export {
-	createCompiledComponentInstance,
 	createComponentInstance,
 	createFrameworkFixtureComponentInstance,
 	reparentComponentInstance
