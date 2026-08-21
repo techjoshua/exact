@@ -121,6 +121,9 @@ export function shouldCompileExactBuildModule(
 	if (!isExactBuildSourceModule(id)) return false;
 	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
 	if (!shouldTransformExactBuildModulePath(id, options)) return false;
+	// An explicit include is an ownership declaration, not merely a path prefilter. Compile matching
+	// TypeScript modules even when their component definitions use createVNode instead of JSX.
+	if (options.include) return true;
 	return (
 		containsExactBuildJsx(id, source) ||
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)

@@ -105,6 +105,11 @@ describe('build adapter support', () => {
 				include: '/vendor/'
 			})
 		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule('/src/components.ts', 'export function Component() {}', {
+				include: '/src/components.ts'
+			})
+		).toBe(true);
 	});
 
 	it('formats and keys diagnostics consistently', () => {
