@@ -36,7 +36,6 @@ const legacyArchitectureCeilings = new Map([
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
 const compilerlessComponentCeilings = new Map([
-	['component-libraries/app-theme-preference/src/components.ts', 2],
 	['component-libraries/forms/src/form/controls.ts', 1],
 	['component-libraries/forms/src/form/feedback.ts', 2],
 	['component-libraries/forms/src/form/field.ts', 1],
