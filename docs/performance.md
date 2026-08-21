@@ -57,6 +57,8 @@ Literal host attributes with identical template, DOM, and SSR semantics are writ
 the compiler-owned template. They do not become reader branches, binding records, reactions, or
 initial `updateProps` work. Values that require URL policy, form binding, event installation,
 object normalization, or custom-element property assignment remain explicit runtime operations.
+Programs whose binding table is empty bypass reactive binding setup entirely: they allocate no
+props map, retained watcher, refresh closure, or binding teardown state.
 
 ## Commands
 

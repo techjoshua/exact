@@ -30,6 +30,33 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 	expect(container.textContent).toBe('second');
 });
 
+it('mounts and patches a static compiler program without reactive bindings', () => {
+	const program = () =>
+		createCompiledRenderProgram(
+			'render-program:static',
+			() => ({
+				version: 1,
+				id: 'render-program:static',
+				namespace: 'html',
+				template: '<p data-exact-id="static" class="message">Ready</p>',
+				parts: ['<p data-exact-id="static" class="message">Ready</p>'],
+				slots: [],
+				bindings: [],
+				nodes: [['static', [], [], 'p']]
+			}),
+			[]
+		);
+	const container = document.createElement('div');
+	render(program(), container);
+	const paragraph = container.firstElementChild;
+	render(program(), container);
+	expect(container.firstElementChild).toBe(paragraph);
+	expect(paragraph?.className).toBe('message');
+	expect(paragraph?.textContent).toBe('Ready');
+	unmount(container);
+	expect(container.childNodes).toHaveLength(0);
+});
+
 it('uses ordinary host semantics for planned properties, styles, events, and refs', () => {
 	const state = reactive({ disabled: false, tone: 'red', clicks: 0 });
 	const refValues: unknown[] = [];
