@@ -35,11 +35,13 @@ mutable containers and dynamically introduced fields retain the general reactive
 Optimistic journals, SSR resumption, snapshots, and DevTools therefore observe the same state
 contract without allocating a property-keyed top-level container for compiled fields.
 
-Compiler render programs also carry a production hydration tape. The tape addresses intrinsic
-nodes and scalar marker ranges by their exact SSR child paths, so same-build adoption claims the
-expected DOM directly instead of building subtree-wide element and comment indexes. Every claimed
-tag, namespace, compiler identity, and dynamic marker pair is still checked. A stale or malformed
-tape therefore fails closed into the existing hydration recovery path, while markerless and generic
+Compiler render programs also carry a production hydration tape. Fixed-width regions address
+intrinsic nodes and scalar marker ranges by their exact SSR child paths. A program that owns a
+variable-width structural child range instead claims compiler identities inside that finite program
+region, because content inside the range makes later physical child indexes intentionally variable.
+This bounded claim does not build or retain a subtree-wide hydration index. Every claimed tag,
+namespace, compiler identity, and dynamic marker pair is still checked. A stale or malformed plan
+therefore fails closed into the existing hydration recovery path, while markerless and generic
 hydration remain available for inputs that do not carry the compiler plan.
 
 Render-program descriptors are emitted once as immutable module tables. Component instances join
@@ -76,6 +78,14 @@ Compiler-authored intrinsic form bindings enter planned hosts as their generated
 and event operations. Static option subtrees remain inside the same template, and the binding table
 keeps option initialization ahead of a controlled select value. Authored binding namespaces never
 escape into the runtime artifact.
+
+Client render programs may also own a structural child slot inside an otherwise finite intrinsic
+host. The slot reuses the server's ordinary dynamic marker identity, adopts the complete SSR-owned
+range, and mounts or patches only that range when its compiled reader changes. The server retains
+recursive structural rendering for the same source region, so streaming and async ownership do not
+become client runtime responsibilities. This lets conditional JSX, fragments, component calls, and
+other non-scalar child values stop forcing their surrounding intrinsic skeleton through the generic
+client host renderer.
 
 ## Commands
 

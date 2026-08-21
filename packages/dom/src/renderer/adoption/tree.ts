@@ -222,7 +222,17 @@ export function adoptStaticMountedInner(
 			parentScope,
 			scope,
 			rangeEnd,
-			adoptStaticMountedInner
+			adoptStaticMountedInner,
+			(rootChildren, childNodes, owner, childScope, childCursor, childEnd) =>
+				adoptStaticChildren(
+					root,
+					[...rootChildren],
+					childNodes,
+					owner,
+					childScope,
+					childCursor,
+					childEnd
+				)
 		);
 	}
 	if (vnode.type === UnsafeHtml) {

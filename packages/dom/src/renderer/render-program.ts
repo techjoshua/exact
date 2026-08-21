@@ -1,4 +1,4 @@
-import { type AnyComponentInstance, isVNode, unwrap, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, isVNode, unwrap, type Child, type VNode } from '@exactjs/core';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,
@@ -13,6 +13,14 @@ import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
 import { programTemplate } from './render-program-template.js';
+import { adoptProgramChildSlots, bindProgramChild } from './render-program-children.js';
+import {
+	claimProgramChildSlot,
+	claimProgramTextSlot,
+	findProgramElement,
+	markedProgramRange,
+	sameProgramPath
+} from './render-program-hydration.js';
 
 const elementNode = 1;
 const textNode = 3;
@@ -31,7 +39,7 @@ export function mountRenderProgram(
 	if (fragment.childNodes.length !== 1) return undefined;
 	const dom = fragment.firstChild!;
 	const slotNodes = invocation.program.slots.map((slot) =>
-		nodeAtPath(dom, slot[0] === 'text' ? slot[2] : slot[1])
+		nodeAtPath(dom, slot[0] === 'text' || slot[0] === 'child' ? slot[2] : slot[1])
 	);
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
@@ -39,7 +47,7 @@ export function mountRenderProgram(
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot: dom, slotNodes, root }
+		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
 	};
 	if (parentInstance) ownProgramNodes(invocation.program, dom, parentInstance);
 	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
@@ -80,7 +88,7 @@ export function adoptRenderProgram(
 			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) =>
-		nodeAtPath(dom, slot[0] === 'text' ? slot[2] : slot[1])
+		nodeAtPath(dom, slot[0] === 'text' || slot[0] === 'child' ? slot[2] : slot[1])
 	);
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
@@ -88,7 +96,7 @@ export function adoptRenderProgram(
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot: dom, slotNodes, root }
+		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
 	};
 	ownProgramNodes(invocation.program, dom, parentInstance);
 	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
@@ -138,9 +146,26 @@ export function adoptRenderProgramOrFallback(
 		parentInstance: AnyComponentInstance,
 		parentScope: EffectScope,
 		end?: number
-	) => { mounted: Mounted; next: number } | undefined
+	) => { mounted: Mounted; next: number } | undefined,
+	adoptChildren: (
+		children: readonly Child[],
+		nodes: readonly Node[],
+		parentInstance: AnyComponentInstance,
+		scope: EffectScope,
+		cursor: number,
+		end: number
+	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
-	const marked = adoptMarkedRenderProgram(root, vnode, nodes, cursor, end, scope, parentInstance);
+	const marked = adoptMarkedRenderProgram(
+		root,
+		vnode,
+		nodes,
+		cursor,
+		end,
+		scope,
+		parentInstance,
+		adoptChildren
+	);
 	if (marked) return marked;
 	const adopted = nodes[cursor]
 		? adoptRenderProgram(root, vnode, nodes[cursor]!, scope, parentInstance)
@@ -163,7 +188,15 @@ function adoptMarkedRenderProgram(
 	cursor: number,
 	end: number,
 	scope: EffectScope,
-	parentInstance: AnyComponentInstance
+	parentInstance: AnyComponentInstance,
+	adoptChildren: (
+		children: readonly Child[],
+		nodes: readonly Node[],
+		parentInstance: AnyComponentInstance,
+		scope: EffectScope,
+		cursor: number,
+		end: number
+	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
@@ -191,16 +224,17 @@ function adoptMarkedRenderProgram(
 	if (!programRoot) return undefined;
 	for (const planned of invocation.program.nodes) {
 		const plan = planned;
-		const element = nodeAtPath(programRoot, plan[2]);
+		const element = findProgramElement(programRoot, plan[0]);
 		if (!matchesProgramElement(element, plan[0], plan[3], plan[4] ?? invocation.program.namespace))
 			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) => {
 		const plan = slot;
-		const path = plan[0] === 'text' ? plan[3] : plan[2];
-		if (plan[0] === 'text' && plan[1]) return claimProgramTextSlot(programRoot, plan[1], path);
+		if (plan[0] === 'text' && plan[1]) return claimProgramTextSlot(programRoot, plan[1]);
+		if (plan[0] === 'child') return claimProgramChildSlot(programRoot, plan[1]);
 		if (plan[0] === 'text') return undefined;
-		return nodeAtPath(programRoot, path);
+		const owner = invocation.program.nodes.find((node) => sameProgramPath(node[1], plan[1]));
+		return owner ? findProgramElement(programRoot, owner[0]) : undefined;
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
@@ -209,60 +243,24 @@ function adoptMarkedRenderProgram(
 		...(range.start ? { end: nodes[range.endIndex]! } : {}),
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot, slotNodes, root }
+		renderProgram: { invocation, programRoot, slotNodes, root, parentInstance }
 	};
+	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
 	for (const planned of invocation.program.nodes) {
-		const element = nodeAtPath(programRoot, planned[2]) as Element;
+		const element = findProgramElement(programRoot, planned[0])!;
 		setNodeOwner(element, parentInstance);
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
 	}
 	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
 		for (const planned of invocation.program.nodes) {
-			const element = nodeAtPath(programRoot, planned[2]) as Element;
+			const element = findProgramElement(programRoot, planned[0])!;
 			clearNodeOwner(element);
 			clearElementOwner(element);
 		}
 		return undefined;
 	}
 	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
-}
-
-/** Resolves the optional outer cell range enclosing a marked render program. */
-function markedProgramRange(
-	nodes: readonly Node[],
-	cursor: number,
-	end: number
-): { start?: Comment; contentStart: number; endIndex: number } | undefined {
-	const start = nodes[cursor];
-	if (!(start instanceof Comment) || !start.data.startsWith('exact:cell:'))
-		return { contentStart: cursor, endIndex: cursor + 1 };
-	for (let index = cursor + 1; index < end; index++) {
-		const candidate = nodes[index];
-		if (candidate instanceof Comment && candidate.data === `/${start.data}`)
-			return { start, contentStart: cursor + 1, endIndex: index };
-	}
-	return undefined;
-}
-
-/** Claims one compiler-addressed SSR scalar range without scanning unrelated DOM. */
-function claimProgramTextSlot(
-	root: Element,
-	id: string,
-	path: readonly number[]
-): Text | undefined {
-	const marker = nodeAtPath(root, path);
-	const identity = id.startsWith('exact:') ? id.slice('exact:'.length) : id;
-	if (!(marker instanceof Comment) || marker.data !== `exact:dynamic:${identity}`) return undefined;
-	let text = marker.nextSibling instanceof Text ? marker.nextSibling : undefined;
-	const closing = text ? text.nextSibling : marker.nextSibling;
-	if (!(closing instanceof Comment) || closing.data !== `/exact:dynamic:${identity}`)
-		return undefined;
-	if (!text) {
-		text = root.ownerDocument.createTextNode('');
-		closing.parentNode?.insertBefore(text, closing);
-	}
-	return text;
 }
 
 /** Rebinds invocation-local readers when a component publishes the same program again. */
@@ -314,6 +312,10 @@ function bindRenderProgram(mounted: Mounted): boolean {
 		stopCurrentBindings();
 		valid = true;
 		for (const binding of state.invocation.program.bindings) {
+			if (binding[0] === 'child') {
+				if (!bindProgramChild(mounted, binding[1], initialBinding, stopBindings)) valid = false;
+				continue;
+			}
 			if (binding[0] === 'text') {
 				const index = binding[1];
 				const applyText = () => {
@@ -340,7 +342,7 @@ function bindRenderProgram(mounted: Mounted): boolean {
 				const next: Record<string, unknown> = {};
 				for (const index of indexes) {
 					const slot = state.invocation.program.slots[index]!;
-					if (slot[0] === 'text') continue;
+					if (slot[0] === 'text' || slot[0] === 'child') continue;
 					next[slot[3]] = unwrap(readRenderProgramSlot(state.invocation, index));
 				}
 				updateProps(
@@ -372,11 +374,14 @@ function validSlotNodes(
 	invocation: ExactRenderProgramInvocation,
 	nodes: readonly (Node | undefined)[]
 ): boolean {
-	return nodes.every((node, index) =>
-		invocation.program.slots[index] && invocation.program.slots[index]![0] === 'text'
+	return nodes.every((node, index) => {
+		const kind = invocation.program.slots[index]?.[0];
+		return kind === 'text'
 			? node?.nodeType === textNode
-			: node?.nodeType === elementNode
-	);
+			: kind === 'child'
+				? node instanceof Comment
+				: node?.nodeType === elementNode;
+	});
 }
 
 function nodeAtPath(root: Node, path: readonly number[]): Node | undefined {
