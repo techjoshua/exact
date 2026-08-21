@@ -2284,6 +2284,9 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 		strings.Contains(response.Code, `"className:disabled"`) {
 		t.Fatalf("conditional class namespace escaped into output:\n%s", response.Code)
 	}
+	if !strings.Contains(response.Code, `["class", [], [], "className"]`) {
+		t.Fatalf("conditional classes were not represented as one planned class operation:\n%s", response.Code)
+	}
 }
 
 func TestSessionFoldsStaticConditionalClassNames(t *testing.T) {
@@ -2314,7 +2317,7 @@ func TestSessionAllowsPossibleDynamicConditionalClassDuplicates(t *testing.T) {
 	if len(response.Diagnostics) != 0 {
 		t.Fatalf("possible dynamic collision was rejected: %#v", response.Diagnostics)
 	}
-	if strings.Count(response.Code, `"active":`) != 2 {
+	if !strings.Contains(response.Code, `[() => [{ "active": selected }, { "active": focused }]]`) {
 		t.Fatalf("dynamic class contributions were deduplicated:\n%s", response.Code)
 	}
 }
