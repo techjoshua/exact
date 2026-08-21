@@ -320,6 +320,11 @@ Reads connect the current compiler-owned expression, task, list, or derived
 value to the path it consumes. Writes transition the existing component state machine rather than
 calling the component again to redescribe its interface.
 
+The compiler assigns stable storage slots to known top-level fields, including fields reached
+through a state alias. This is transparent to application code and inspection: nested mutable
+values remain deeply reactive, dynamically indexed fields remain supported, and snapshots,
+DevTools, optimistic rollback, and server resumption continue to observe an ordinary state object.
+
 ### Supported writes
 
 The compiler preserves JavaScript evaluation order and expression results for:

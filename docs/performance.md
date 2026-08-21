@@ -29,6 +29,12 @@ capability, so enhancement-free clients omit chain construction, target selectio
 and hydration activation. Lazy components and microfrontends retain that host in their own loading
 graph and may register it after a root exists.
 
+Compiler-known top-level component state uses deterministic numeric storage slots behind the
+ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested
+mutable containers and dynamically introduced fields retain the general reactive proxy path.
+Optimistic journals, SSR resumption, snapshots, and DevTools therefore observe the same state
+contract without allocating a property-keyed top-level container for compiled fields.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:

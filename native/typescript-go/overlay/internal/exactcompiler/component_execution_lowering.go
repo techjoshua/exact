@@ -62,6 +62,7 @@ func componentDefinitionMetadata(
 	factory *printer.NodeFactory,
 	instantiate *ast.Node,
 	execution ComponentExecution,
+	stateSlots []string,
 	continuations []Continuation,
 	hasResumption bool,
 	hasInteractions bool,
@@ -69,14 +70,9 @@ func componentDefinitionMetadata(
 	dynamicComponents bool,
 	compact bool,
 ) *ast.Node {
-	state := []string{}
+	state := append([]string{}, stateSlots...)
 	tasks := []string{}
 	capabilities := []string{}
-	for _, port := range execution.Ports {
-		if port.Kind == "state" {
-			state = append(state, port.Path)
-		}
-	}
 	for _, transition := range execution.Transitions {
 		tasks = append(tasks, transition.ID)
 	}
@@ -111,10 +107,10 @@ func componentDefinitionMetadata(
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "instantiate", instantiate),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
+		contractProperty(factory, "state", stringMetadata(factory, state)),
 	}
 	if !compact {
 		properties = append(properties,
-			contractProperty(factory, "state", stringMetadata(factory, state)),
 			contractProperty(factory, "tasks", stringMetadata(factory, tasks)),
 			contractProperty(factory, "reactive", contractArray(factory, reactive...)),
 			contractProperty(factory, "render", contractString(factory, "returned-function")),

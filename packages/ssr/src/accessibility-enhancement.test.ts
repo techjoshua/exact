@@ -1,5 +1,6 @@
 import { Accessibility } from '@exactjs/accessibility';
 import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
+import '@exactjs/core/runtime/refs';
 import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './index.js';

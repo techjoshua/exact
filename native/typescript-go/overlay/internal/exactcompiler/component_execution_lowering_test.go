@@ -83,12 +83,14 @@ func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T)
 	if hydrate.Error != "" || len(hydrate.Diagnostics) != 0 {
 		t.Fatalf("hydrate projection failed: %s %#v", hydrate.Error, hydrate.Diagnostics)
 	}
-	for _, expected := range []string{"definition:", "instantiate:", "capabilities:", "resumption:"} {
+	for _, expected := range []string{
+		"definition:", "instantiate:", "capabilities:", "state:", "resumption:",
+	} {
 		if !strings.Contains(hydrate.Code, expected) {
 			t.Fatalf("hydrate projection is missing %q:\n%s", expected, hydrate.Code)
 		}
 	}
-	for _, omitted := range []string{"state: [", "tasks: [", "reactive: [", `render: "returned-function"`} {
+	for _, omitted := range []string{"tasks: [", "reactive: [", `render: "returned-function"`} {
 		if strings.Contains(hydrate.Code, omitted) {
 			t.Fatalf("hydrate projection retained build-only metadata %q:\n%s", omitted, hydrate.Code)
 		}

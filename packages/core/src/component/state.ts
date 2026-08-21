@@ -1,13 +1,14 @@
-import { reactive, type Reactive } from '@exactjs/reactive';
+import { indexedReactive, reactive, type Reactive, type ReactiveOptions } from '@exactjs/reactive';
 import type { ComponentDomain, ComponentInstance } from './contracts.js';
 import { componentDomainInspection } from './domain.js';
 
 /** Creates inspectable component state before the final instance reference is assigned. */
 export function createComponentState<State extends object>(
 	domain: ComponentDomain,
-	instance: () => ComponentInstance<State> | undefined
+	instance: () => ComponentInstance<State> | undefined,
+	indexedKeys?: readonly string[]
 ): Reactive<State> {
-	return reactive({} as State, {
+	const options: ReactiveOptions = {
 		onMutation(key, operation) {
 			const component = instance();
 			if (!component) return;
@@ -18,7 +19,10 @@ export function createComponentState<State extends object>(
 				attributes: Object.freeze({ operation })
 			});
 		}
-	});
+	};
+	return indexedKeys?.length
+		? indexedReactive<State>(indexedKeys, options)
+		: reactive({} as State, options);
 }
 
 /** Creates readonly reactive props while preserving compiler-owned children passthrough. */

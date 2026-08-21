@@ -701,6 +701,7 @@ func rootComponentContractAttachment(
 				factory,
 				implementation,
 				projectedExecution,
+				component.StateSlots,
 				componentContinuations,
 				componentHasResumption(component.ID, resumptions),
 				target == TargetClient && component.Interactions,

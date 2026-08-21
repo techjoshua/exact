@@ -1,4 +1,5 @@
 import { type Component } from '@exactjs/core';
+import '@exactjs/core/runtime/lists';
 import { describe, expect, it } from 'vitest';
 import {
 	diffKeyedListItems,
