@@ -34,7 +34,8 @@ export type ExactRenderProgram = Readonly<{
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
 	template: string;
-	parts: readonly string[];
+	/** Server/universal interpolation strings; closed client artifacts omit this SSR-only table. */
+	parts?: readonly string[];
 	slots: readonly ExactRenderProgramSlot[];
 	nodes: readonly ExactRenderProgramNode[];
 	ssrParts?: readonly string[];

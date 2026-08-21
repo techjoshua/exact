@@ -468,7 +468,10 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
-		property("parts", array(parts)), property("slots", array(slots)), property("nodes", array(nodes)),
+		property("slots", array(slots)), property("nodes", array(nodes)),
+	}
+	if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
+		members = append(members, property("parts", array(parts)))
 	}
 	if lowering.target == TargetServer {
 		ssrParts := make([]*ast.Node, len(build.ssrParts))
