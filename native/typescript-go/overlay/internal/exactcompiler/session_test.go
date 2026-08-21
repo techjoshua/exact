@@ -186,13 +186,17 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
-		`["class", [], [], "className"]`,
 		`["property", [], [], "disabled"]`,
-		`bindings: [["text", 2], ["properties", [0, 1]]]`,
+		`template: "<button data-exact-id=\"`,
+		`class=\"action\"`,
+		`bindings: [["text", 1], ["properties", [0]]]`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
 		}
+	}
+	if strings.Contains(response.Code, `["class", [], [], "className"]`) {
+		t.Fatalf("static class was retained as a runtime slot:\n%s", response.Code)
 	}
 }
 
@@ -200,8 +204,8 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,
 		Source: `
-			export function Planned(props: { value: string }) {
-				return () => <select value={props.value}><option value="a">A</option></select>;
+			export function Planned(props: { value: string; option: string }) {
+				return () => <select value={props.value}><option value={props.option}>A</option></select>;
 			}
 		`,
 	})

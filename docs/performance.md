@@ -53,6 +53,11 @@ rediscover topology with maps or runtime sorting. Replacement invocations also r
 readers rather than retaining dependencies from the previous invocation. This remains direct
 compiled DOM work, not a virtual-DOM or general bytecode interpreter.
 
+Literal host attributes with identical template, DOM, and SSR semantics are written directly into
+the compiler-owned template. They do not become reader branches, binding records, reactions, or
+initial `updateProps` work. Values that require URL policy, form binding, event installation,
+object normalization, or custom-element property assignment remain explicit runtime operations.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:
