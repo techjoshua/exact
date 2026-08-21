@@ -10,11 +10,24 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"Checkbox",
+		"Field",
+		"FieldError",
+		"FieldHelp",
+		"Form",
+		"Input",
+		"Label",
+		"Select",
+		"Submit",
+		"Textarea"
+	],
 	"exactComponentLibrary": {
 		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
@@ -30,7 +43,7 @@
 		"@exactjs/vitest": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

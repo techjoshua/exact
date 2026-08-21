@@ -19,7 +19,7 @@
 		"generate:component-library-build-facts": "node scripts/generate-all-component-library-build-facts.mjs",
 		"build": "npm run build:prerequisites && npm run build:native-compiler && npm run build:workspaces",
 		"build:prerequisites": "npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer",
-		"build:workspaces": "npm run generate:app-artifacts && tsc6 -b && node scripts/compile-exact-package.mjs packages/request && node scripts/compile-exact-package.mjs packages/accessibility && node scripts/compile-exact-package.mjs packages/intl && node scripts/compile-exact-package.mjs packages/time && node scripts/compile-exact-package.mjs packages/theme && node scripts/compile-exact-package.mjs component-libraries/app-theme-preference && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator",
+		"build:workspaces": "npm run generate:app-artifacts && tsc6 -b && node scripts/compile-exact-package.mjs packages/request && node scripts/compile-exact-package.mjs packages/accessibility && node scripts/compile-exact-package.mjs packages/intl && node scripts/compile-exact-package.mjs packages/time && node scripts/compile-exact-package.mjs packages/theme && node scripts/compile-exact-package.mjs component-libraries/app-theme-preference && node scripts/compile-exact-package.mjs component-libraries/forms && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator",
 		"build:typescript7": "npm run generate:app-artifacts && tsc -b && npm run build:chromium-devtools",
 		"build:chromium-devtools": "node packages/chromium-devtools/build.mjs",
 		"format": "prettier --write .",
