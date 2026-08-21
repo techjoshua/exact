@@ -1,5 +1,4 @@
 import { createContext, type Child, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createExternalSource, type ExternalSource } from '@exactjs/reactive';
 
 /** Defines the convex watch interface contract. */
@@ -41,7 +40,6 @@ export function ExactConvexProvider(
 	this.setContext(ConvexClientContext, props.client);
 	return () => props.children ?? null;
 }
-markExactComponent(ExactConvexProvider, '@exactjs/convex:ExactConvexProvider');
 
 /** Creates a lifecycle-independent reactive query watch. */
 export function createConvexQuery<Value>(

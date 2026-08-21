@@ -42,10 +42,6 @@ const compilerlessComponentCeilings = new Map([
 	['packages/react-dom-compat/src/client.ts', 1],
 	['packages/react-dom-compat/src/server-shared.ts', 1],
 	['packages/testing/src/internal/fixtures.ts', 1],
-	['react-adapters/convex/src/adapter.ts', 1],
-	['react-adapters/jotai/src/adapter.ts', 1],
-	['react-adapters/redux/src/adapter.ts', 1],
-	['react-adapters/tanstack-query/src/adapter.ts', 1]
 ]);
 
 for (const maintainedRoot of maintainedRoots) {
