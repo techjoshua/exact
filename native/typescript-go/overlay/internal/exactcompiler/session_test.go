@@ -229,6 +229,49 @@ func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 	}
 }
 
+func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
+	client := NewSession().Execute(Request{
+		ID: "planned-child-range.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Planned(props: { shown: boolean; label: string }) {
+				return () => <section>{props.shown ? <strong>{props.label}</strong> : null}<footer>After</footer></section>;
+			}
+		`,
+	})
+	if client.Error != "" {
+		t.Fatal(client.Error)
+	}
+	for _, expected := range []string{
+		`<!--exact:dynamic:`,
+		`["child",`,
+		`bindings: [["child", 0]]`,
+		`createPreparedRenderProgram`,
+	} {
+		if !strings.Contains(client.Code, expected) {
+			t.Fatalf("planned child range omitted %q:\n%s", expected, client.Code)
+		}
+	}
+	if strings.Contains(client.Code, `__exactVNode("section"`) {
+		t.Fatalf("planned child range retained a generic client host:\n%s", client.Code)
+	}
+
+	server := NewSession().Execute(Request{
+		ID: "planned-child-range.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function Planned(props: { shown: boolean; label: string }) {
+				return () => <section>{props.shown ? <strong>{props.label}</strong> : null}<footer>After</footer></section>;
+			}
+		`,
+	})
+	if server.Error != "" {
+		t.Fatal(server.Error)
+	}
+	if !strings.Contains(server.Code, `__exactVNode("section"`) {
+		t.Fatalf("server artifact did not retain recursive structural rendering:\n%s", server.Code)
+	}
+}
+
 func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,

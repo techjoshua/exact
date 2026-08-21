@@ -71,6 +71,15 @@ func (build *renderProgramBuild) textSlot(id string, path []int, hydrationPath [
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: mountPath, hydrationPath: append([]int(nil), hydrationPath...), reader: reader})
 }
 
+func (build *renderProgramBuild) childSlot(id string, path []int, hydrationPath []int, reader *ast.Node) {
+	index := len(build.slots)
+	build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
+	build.parts = append(build.parts, build.part.String())
+	build.part.Reset()
+	build.ssrOperation("slot", index)
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), hydrationPath: append([]int(nil), hydrationPath...), reader: reader})
+}
+
 func (build *renderProgramBuild) propertySlot(id string, path []int, hydrationPath []int, name string, reader *ast.Node) {
 	index := len(build.slots)
 	build.parts = append(build.parts, build.part.String())
@@ -285,9 +294,17 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 			if expression == nil {
 				continue
 			}
-			if expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 ||
-				!lowering.scalarRenderProgramExpression(expression) {
-				return false
+			if expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 || !lowering.scalarRenderProgramExpression(expression) {
+				// Server artifacts retain the generic tree for recursive streaming. The client
+				// claims its dynamic marker as a structural slot, avoiding a generic host tree
+				// while preserving the existing SSR/hydration protocol.
+				if lowering.target != TargetClient {
+					return false
+				}
+				build.childSlot(lowering.dynamicID(child), childPath, childHydrationPath, lowering.visitor.VisitNode(expression))
+				domIndex += 2
+				hydrationIndex += 3
+				continue
 			}
 			build.textSlot(lowering.dynamicID(child), childPath, childHydrationPath, lowering.visitor.VisitNode(expression))
 			domIndex += 3
@@ -503,7 +520,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	slots := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
 		members := []*ast.Node{lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)}
-		if slot.kind == "text" {
+		if slot.kind == "text" || slot.kind == "child" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone), path(slot.path), path(slot.hydrationPath))
 		} else {
 			members = append(members, path(slot.path), path(slot.hydrationPath), lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone))
@@ -523,9 +540,9 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		tagsByPath[fmt.Sprint(node.path)] = node.tag
 	}
 	for index, slot := range build.slots {
-		if slot.kind == "text" {
+		if slot.kind == "text" || slot.kind == "child" {
 			textBindings = append(textBindings, array([]*ast.Node{
-				lowering.factory.NewStringLiteral("text", ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone),
 				lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone),
 			}))
 			continue

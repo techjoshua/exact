@@ -429,6 +429,72 @@ it('claims marked SSR nodes from the compiler hydration tape without indexing th
 	expect(button.disabled).toBe(true);
 });
 
+it('mounts and updates compiler-owned structural child slots without replacing their host', () => {
+	const state = reactive({ shown: true, label: 'first' });
+	const vnode = createCompiledRenderProgram(
+		'render-program:child-slot',
+		() => ({
+			version: 1,
+			id: 'render-program:child-slot',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="child-root"><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section>',
+			parts: [],
+			slots: [['child', 'child', [0], [0]]],
+			bindings: [['child', 0]],
+			nodes: [
+				['child-root', [], [], 'section'],
+				['after', [2], [3], 'footer']
+			]
+		}),
+		[() => (state.shown ? createCompiledVNode('strong', {}, state.label) : null)]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	const host = container.firstElementChild;
+	expect(container.textContent).toBe('firstAfter');
+	state.label = 'second';
+	flushSync();
+	expect(container.textContent).toBe('secondAfter');
+	state.shown = false;
+	flushSync();
+	expect(container.textContent).toBe('After');
+	expect(container.firstElementChild).toBe(host);
+});
+
+it('claims a variable-width structural child range before later planned elements', () => {
+	const state = reactive({ label: 'server' });
+	const vnode = createCompiledRenderProgram(
+		'render-program:adopt-child-slot',
+		() => ({
+			version: 1,
+			id: 'render-program:adopt-child-slot',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="child-root"><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section>',
+			parts: [],
+			slots: [['child', 'child', [0], [0]]],
+			bindings: [['child', 0]],
+			nodes: [
+				['child-root', [], [], 'section'],
+				['after', [2], [99], 'footer']
+			]
+		}),
+		[() => createCompiledVNode('strong', { 'data-exact-id': 'nested' }, state.label)]
+	);
+	const container = document.createElement('div');
+	container.innerHTML =
+		'<!--exact:cell:root--><section data-exact-id="child-root"><!--exact:dynamic:child--><!--exact:cell:nested--><strong data-exact-id="nested">server</strong><!--/exact:cell:nested--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section><!--/exact:cell:root-->';
+	const host = container.querySelector('section');
+	const nested = container.querySelector('strong');
+	expect(adoptStatic(vnode, container)).toBe(true);
+	state.label = 'client';
+	flushSync();
+	expect(container.querySelector('section')).toBe(host);
+	expect(container.querySelector('strong')).toBe(nested);
+	expect(nested?.textContent).toBe('client');
+});
+
 it('rejects a marked SSR program when its hydration tape does not match the DOM', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:invalid-hydration-tape',
@@ -445,7 +511,7 @@ it('rejects a marked SSR program when its hydration tape does not match the DOM'
 			bindings: [],
 			nodes: [
 				['root', [], [], 'section'],
-				['button', [0], [2], 'button']
+				['missing-button', [0], [2], 'button']
 			]
 		}),
 		[],

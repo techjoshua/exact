@@ -49,8 +49,11 @@ form controls, events, and refs reuse the same host operations as generic render
 writes escaped parts directly, client mounting clones a cached inert template, and markerless
 hydration adopts with compiler paths. Nested conditional regions retain the namespace established
 by their intrinsic JSX ancestors, and standalone SVG or MathML programs mount through a
-namespace-correct template. Structural, marker-bearing, enhancement-routed,
-opaque-spread, raw-content, and otherwise unproven regions use the lazy region-local VNode fallback.
+namespace-correct template. A finite intrinsic client program may contain compiler-owned structural
+child slots: the server renders those children recursively through the ordinary dynamic-marker
+protocol, while hydration adopts and subsequently patches only the marked child range. Enhancement-
+routed, opaque-spread, raw-content, and otherwise unproven hosts use the lazy region-local VNode
+fallback.
 
 Async SSR uses a request-owned FIFO scheduler for compiler-proven local, neutral, context-free
 component sibling groups. `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial execution,
@@ -84,9 +87,11 @@ Compiler-cell roots adopt their existing cell range directly; they do not pass t
 repair or clear the root container. Compiler-proven native component calls use the component's own
 identity marker without an additional cell marker pair. Intrinsic cells and structural expression
 ranges retain their markers because those ranges still own independent reactive updates.
-Compiler render programs adopt their marked intrinsic nodes and scalar slots through the program's
-stable element and slot identities. They retain the SSR DOM and marker protocol without rebuilding
-an equivalent generic Cell/Dynamic mount graph. Initial adopted prop binding is covered by the
+Compiler render programs adopt their marked intrinsic nodes, scalar slots, and structural child
+ranges through stable compiler identities. A structural range can contain a variable number of SSR
+nodes, so later intrinsic claims use identities within the bounded program region rather than
+assuming a fixed physical sibling offset. They retain the SSR DOM and marker protocol without
+rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses
 those structural results instead of recursively rediscovering roots through nested components.
