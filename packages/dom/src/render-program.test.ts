@@ -2,8 +2,8 @@
 import { createCompiledVNode } from '@exactjs/core/runtime/render';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
-import { expect, it } from 'vitest';
-import { render, unmount } from './index.js';
+import { expect, it, vi } from 'vitest';
+import { adoptStatic, render, unmount } from './index.js';
 
 it('clones one compiler template and updates scalar slots without a generic vnode subtree', () => {
 	const state = reactive({ label: 'first' });
@@ -228,4 +228,83 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 	const container = document.createElement('div');
 	render(vnode, container);
 	expect(container.querySelector('[data-exact-id="fallback"]')?.textContent).toBe('fallback');
+});
+
+it('claims marked SSR nodes from the compiler hydration tape without indexing the subtree', () => {
+	const state = reactive({ label: '', disabled: false });
+	const vnode = createCompiledRenderProgram(
+		'render-program:hydration-tape',
+		() => ({
+			version: 1,
+			id: 'render-program:hydration-tape',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="root"><button data-exact-id="button">\ue000exact:0\ue001</button></section>',
+			parts: [
+				'<section data-exact-id="root"><button data-exact-id="button"',
+				'>',
+				'</button></section>'
+			],
+			slots: [
+				{
+					id: 'disabled',
+					kind: 'property',
+					path: [0],
+					hydrationPath: [1],
+					name: 'disabled'
+				},
+				{ id: 'label', kind: 'text', path: [0, 0], hydrationPath: [1, 0] }
+			],
+			nodes: [
+				{ id: 'root', path: [], hydrationPath: [], tag: 'section', namespace: 'html' },
+				{ id: 'button', path: [0], hydrationPath: [1], tag: 'button', namespace: 'html' }
+			]
+		}),
+		[() => state.disabled, () => state.label],
+		() => createCompiledVNode('section', {}, createCompiledVNode('button', {}, state.label))
+	);
+	const container = document.createElement('div');
+	container.innerHTML =
+		'<!--exact:cell:root--><section data-exact-id="root"><!--exact:cell:button--><button data-exact-id="button"><!--exact:dynamic:label--><!--/exact:dynamic:label--></button><!--/exact:cell:button--></section><!--/exact:cell:root-->';
+	const button = container.querySelector('button')!;
+	const querySelectorAll = vi.spyOn(button.parentElement!, 'querySelectorAll');
+	const createTreeWalker = vi.spyOn(document, 'createTreeWalker');
+
+	expect(adoptStatic(vnode, container)).toBe(true);
+	expect(querySelectorAll).not.toHaveBeenCalled();
+	expect(createTreeWalker).not.toHaveBeenCalled();
+	state.label = 'client';
+	state.disabled = true;
+	flushSync();
+	expect(container.querySelector('button')).toBe(button);
+	expect(button.textContent).toBe('client');
+	expect(button.disabled).toBe(true);
+});
+
+it('rejects a marked SSR program when its hydration tape does not match the DOM', () => {
+	const vnode = createCompiledRenderProgram(
+		'render-program:invalid-hydration-tape',
+		() => ({
+			version: 1,
+			id: 'render-program:invalid-hydration-tape',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="root"><button data-exact-id="button">Save</button></section>',
+			parts: [
+				'<section data-exact-id="root"><button data-exact-id="button">Save</button></section>'
+			],
+			slots: [],
+			nodes: [
+				{ id: 'root', path: [], hydrationPath: [], tag: 'section', namespace: 'html' },
+				{ id: 'button', path: [0], hydrationPath: [2], tag: 'button', namespace: 'html' }
+			]
+		}),
+		[],
+		() => createCompiledVNode('section', {}, createCompiledVNode('button', {}, 'Save'))
+	);
+	const container = document.createElement('div');
+	container.innerHTML =
+		'<!--exact:cell:root--><section data-exact-id="root"><!--exact:cell:button--><button data-exact-id="button">Save</button><!--/exact:cell:button--></section><!--/exact:cell:root-->';
+
+	expect(adoptStatic(vnode, container)).toBe(false);
 });

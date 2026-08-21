@@ -35,6 +35,13 @@ mutable containers and dynamically introduced fields retain the general reactive
 Optimistic journals, SSR resumption, snapshots, and DevTools therefore observe the same state
 contract without allocating a property-keyed top-level container for compiled fields.
 
+Compiler render programs also carry a production hydration tape. The tape addresses intrinsic
+nodes and scalar marker ranges by their exact SSR child paths, so same-build adoption claims the
+expected DOM directly instead of building subtree-wide element and comment indexes. Every claimed
+tag, namespace, compiler identity, and dynamic marker pair is still checked. A stale or malformed
+tape therefore fails closed into the existing hydration recovery path, while markerless and generic
+hydration remain available for inputs that do not carry the compiler plan.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:

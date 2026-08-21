@@ -15,18 +15,20 @@ type renderProgramContext struct {
 }
 
 type renderProgramSlot struct {
-	id     string
-	kind   string
-	path   []int
-	name   string
-	reader *ast.Node
+	id            string
+	kind          string
+	path          []int
+	hydrationPath []int
+	name          string
+	reader        *ast.Node
 }
 
 type renderProgramNode struct {
-	id        string
-	path      []int
-	tag       string
-	namespace string
+	id            string
+	path          []int
+	hydrationPath []int
+	tag           string
+	namespace     string
 }
 
 type renderProgramSsrOperation struct {
@@ -58,21 +60,21 @@ func (build *renderProgramBuild) ssrOperation(kind string, index int) {
 	build.ssrOperations = append(build.ssrOperations, renderProgramSsrOperation{kind: kind, index: index})
 }
 
-func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
+func (build *renderProgramBuild) textSlot(id string, path []int, hydrationPath []int, reader *ast.Node) {
 	index := len(build.slots)
 	build.template.WriteString(fmt.Sprintf("\ue000exact:%d\ue001", index))
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
 	build.ssrOperation("slot", index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: append([]int(nil), path...), reader: reader})
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: append([]int(nil), path...), hydrationPath: append([]int(nil), hydrationPath...), reader: reader})
 }
 
-func (build *renderProgramBuild) propertySlot(id string, path []int, name string, reader *ast.Node) {
+func (build *renderProgramBuild) propertySlot(id string, path []int, hydrationPath []int, name string, reader *ast.Node) {
 	index := len(build.slots)
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
 	build.ssrOperation("slot", index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), name: name, reader: reader})
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), hydrationPath: append([]int(nil), hydrationPath...), name: name, reader: reader})
 }
 
 func (lowering *jsxLowering) lowerRenderProgram(
@@ -85,7 +87,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		return nil
 	}
 	build := &renderProgramBuild{}
-	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil, parentNamespace) {
+	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil, nil, parentNamespace) {
 		return nil
 	}
 	build.parts = append(build.parts, build.part.String())
@@ -214,6 +216,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	opening *ast.Node,
 	children *ast.NodeList,
 	path []int,
+	hydrationPath []int,
 	parentNamespace string,
 ) bool {
 	tag := sourceText(lowering.sourceFile, openingTag(opening))
@@ -226,21 +229,23 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	}
 	nodeIndex := len(build.nodes)
 	build.nodes = append(build.nodes, renderProgramNode{
-		id: lowering.elementID(identityNode), path: append([]int(nil), path...), tag: tag, namespace: namespace,
+		id: lowering.elementID(identityNode), path: append([]int(nil), path...), hydrationPath: append([]int(nil), hydrationPath...), tag: tag, namespace: namespace,
 	})
 	build.ssrOperation("node-open", nodeIndex)
 	build.write("<" + tag + ` data-exact-id="` + html.EscapeString(lowering.elementID(identityNode)) + `"`)
-	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path) {
+	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, hydrationPath) {
 		return false
 	}
 	build.write(">")
 	domIndex := 0
+	hydrationIndex := 0
 	semantic := ast.GetSemanticJsxChildren(nil)
 	if children != nil {
 		semantic = ast.GetSemanticJsxChildren(children.Nodes)
 	}
 	for childIndex, child := range semantic {
 		childPath := append(append([]int(nil), path...), domIndex)
+		childHydrationPath := append(append([]int(nil), hydrationPath...), hydrationIndex)
 		switch {
 		case ast.IsJsxText(child):
 			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
@@ -249,6 +254,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 			}
 			build.write(html.EscapeString(text))
 			domIndex++
+			hydrationIndex++
 		case ast.IsJsxExpression(child):
 			expression := child.AsJsxExpression().Expression
 			if expression == nil {
@@ -261,19 +267,24 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				!lowering.scalarRenderProgramExpression(expression) {
 				return false
 			}
-			build.textSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression))
+			build.textSlot(lowering.dynamicID(child), childPath, childHydrationPath, lowering.visitor.VisitNode(expression))
 			domIndex++
+			hydrationIndex += 3
 		case ast.IsJsxElement(child):
 			element := child.AsJsxElement()
-			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace)) {
+			childHydrationPath[len(childHydrationPath)-1]++
+			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, childHydrationPath, renderProgramChildNamespace(tag, namespace)) {
 				return false
 			}
 			domIndex++
+			hydrationIndex += 3
 		case ast.IsJsxSelfClosingElement(child):
-			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace)) {
+			childHydrationPath[len(childHydrationPath)-1]++
+			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, childHydrationPath, renderProgramChildNamespace(tag, namespace)) {
 				return false
 			}
 			domIndex++
+			hydrationIndex += 3
 		default:
 			return false
 		}
@@ -313,6 +324,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 	attributes *ast.Node,
 	tag string,
 	path []int,
+	hydrationPath []int,
 ) bool {
 	if attributes == nil {
 		return true
@@ -341,7 +353,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		}
 		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
 		if reader != nil {
-			build.propertySlot(lowering.dynamicID(property), path, name, reader)
+			build.propertySlot(lowering.dynamicID(property), path, hydrationPath, name, reader)
 		}
 	}
 	return true
@@ -411,6 +423,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			property("id", lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone)),
 			property("kind", lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)),
 			property("path", path(slot.path)),
+			property("hydrationPath", path(slot.hydrationPath)),
 		}
 		if slot.name != "" {
 			members = append(members, property("name", lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone)))
@@ -422,6 +435,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		nodes[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
 			property("id", lowering.factory.NewStringLiteral(node.id, ast.TokenFlagsNone)),
 			property("path", path(node.path)),
+			property("hydrationPath", path(node.hydrationPath)),
 			property("tag", lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone)),
 			property("namespace", lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone)),
 		}), false)
