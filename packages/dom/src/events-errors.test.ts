@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/lists';
 import {
 	createErrorContext,
 	ErrorBoundary,

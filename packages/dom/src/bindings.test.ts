@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/refs';
 import { createRef, type Component } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { createCompiledVNode, createVNode, jsx } from './test-support/native-vnode.js';

@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import './framework/enhancements.js';
+import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
 import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
 import { markExactComponent } from '@exactjs/core/framework/component-contracts';
