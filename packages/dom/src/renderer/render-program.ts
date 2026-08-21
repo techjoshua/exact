@@ -12,7 +12,7 @@ import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
-import { programTemplate } from './render-program-template.js';
+import { materializeProgramTemplate } from './render-program-template.js';
 import { adoptProgramChildSlots, bindProgramChild } from './render-program-children.js';
 import {
 	claimProgramChildSlot,
@@ -34,8 +34,7 @@ export function mountRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
-	const template = programTemplate(invocation.program, root.container.ownerDocument);
-	const fragment = template.content.cloneNode(true) as DocumentFragment;
+	const fragment = materializeProgramTemplate(invocation.program, root.container.ownerDocument);
 	if (fragment.childNodes.length !== 1) return undefined;
 	const dom = fragment.firstChild!;
 	const slotNodes = invocation.program.slots.map((slot) =>
