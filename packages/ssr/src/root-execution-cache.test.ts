@@ -60,19 +60,8 @@ function executionContract(taskId: string): ExactComponentContract {
 		boundaries: [],
 		execution: {
 			version: 1,
-			ports: [{ index: 0, kind: 'state', path: 'value', direction: 'output' }],
-			transitions: [
-				{
-					id: taskId,
-					taskId,
-					activation: 'setup',
-					placement: 'server',
-					readiness: 'blocking',
-					concurrency: 'latest',
-					inputs: [],
-					outputs: [0]
-				}
-			],
+			ports: [['state', 'value', 'output']],
+			transitions: [[taskId, taskId, 'setup', 'server', 'blocking', 'latest', [], [0]]],
 			reactive: []
 		}
 	};

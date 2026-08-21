@@ -16,24 +16,23 @@ func componentExecutionMetadata(
 ) *ast.Node {
 	ports := make([]*ast.Node, 0, len(execution.Ports))
 	for _, port := range execution.Ports {
-		ports = append(ports, contractObject(factory, true,
-			contractProperty(factory, "index", contractNumber(factory, port.Index)),
-			contractProperty(factory, "kind", contractString(factory, port.Kind)),
-			contractProperty(factory, "path", contractString(factory, port.Path)),
-			contractProperty(factory, "direction", contractString(factory, port.Direction)),
+		ports = append(ports, contractArray(factory,
+			contractString(factory, port.Kind),
+			contractString(factory, port.Path),
+			contractString(factory, port.Direction),
 		))
 	}
 	transitions := make([]*ast.Node, 0, len(execution.Transitions))
 	for _, transition := range execution.Transitions {
-		transitions = append(transitions, contractObject(factory, true,
-			contractProperty(factory, "id", contractString(factory, transition.ID)),
-			contractProperty(factory, "taskId", contractString(factory, transition.TaskID)),
-			contractProperty(factory, "activation", contractString(factory, transition.Activation)),
-			contractProperty(factory, "placement", contractString(factory, transition.Placement)),
-			contractProperty(factory, "readiness", contractString(factory, transition.Readiness)),
-			contractProperty(factory, "concurrency", contractString(factory, transition.Concurrency)),
-			contractProperty(factory, "inputs", contractNumberArray(factory, transition.Inputs)),
-			contractProperty(factory, "outputs", contractNumberArray(factory, transition.Outputs)),
+		transitions = append(transitions, contractArray(factory,
+			contractString(factory, transition.ID),
+			contractString(factory, transition.TaskID),
+			contractString(factory, transition.Activation),
+			contractString(factory, transition.Placement),
+			contractString(factory, transition.Readiness),
+			contractString(factory, transition.Concurrency),
+			contractNumberArray(factory, transition.Inputs),
+			contractNumberArray(factory, transition.Outputs),
 		))
 	}
 	reactive := make([]*ast.Node, 0, len(execution.Reactive))
