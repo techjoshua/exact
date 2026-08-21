@@ -30,8 +30,12 @@ export type ComponentDomainCapabilities = Readonly<{
 /** Internal construction options used by framework render and hydration boundaries. */
 export type FrameworkComponentDomainOptions = ComponentDomainOptions & ComponentDomainCapabilities;
 
+const pageComponentDomainKey = Symbol.for('@exactjs/page-component-domain');
+const sharedDomains = globalThis as Record<PropertyKey, unknown>;
+
 /** The default execution namespace for ordinary page-authored component instances. */
-export const pageComponentDomain = createComponentDomain({ executionRoot: 'page' });
+export const pageComponentDomain = (sharedDomains[pageComponentDomainKey] ??=
+	constructComponentDomain({ executionRoot: 'page' })) as ComponentDomain;
 
 /** Creates immutable ownership metadata carried by VNodes and component instances. */
 export function createComponentDomain(options: ComponentDomainOptions): ComponentDomain {
