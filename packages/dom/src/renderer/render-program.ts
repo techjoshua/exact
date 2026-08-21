@@ -42,7 +42,7 @@ export function mountRenderProgram(
 		renderProgram: { invocation, programRoot: dom, slotNodes, root }
 	};
 	if (parentInstance) ownProgramNodes(invocation.program, dom, parentInstance);
-	if (!bindRenderProgram(mounted)) {
+	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
 		releaseProgramNodeOwners(invocation.program, dom);
 		return undefined;
 	}
@@ -91,7 +91,7 @@ export function adoptRenderProgram(
 		renderProgram: { invocation, programRoot: dom, slotNodes, root }
 	};
 	ownProgramNodes(invocation.program, dom, parentInstance);
-	if (!bindRenderProgram(mounted)) {
+	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
 		releaseProgramNodeOwners(invocation.program, dom);
 		return undefined;
 	}
@@ -217,7 +217,7 @@ function adoptMarkedRenderProgram(
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
 	}
-	if (!bindRenderProgram(mounted)) {
+	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
 		for (const planned of invocation.program.nodes) {
 			const element = nodeAtPath(programRoot, planned[2]) as Element;
 			clearNodeOwner(element);
