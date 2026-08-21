@@ -55,7 +55,6 @@ const compilerlessComponentCeilings = new Map([
 	['component-libraries/theme-fixture/src/specimen.ts', 2],
 	['packages/core/src/component-registry/creation.ts', 1],
 	['packages/dom/src/renderer/root-support.ts', 1],
-	['packages/intl/src/components.ts', 8],
 	['packages/react-compat/src/runtime/adapters.ts', 1],
 	['packages/react-compat/src/runtime/nodes.ts', 3],
 	['packages/react-dom-compat/src/client.ts', 1],
