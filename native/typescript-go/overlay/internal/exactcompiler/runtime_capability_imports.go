@@ -90,6 +90,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/time/internal"},
 		{module: "@exactjs/core/runtime/lists"},
 		{module: "@exactjs/core/runtime/refs"},
+		{module: "@exactjs/core/runtime/component-execution"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -111,7 +112,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createCompiledTarget", lowering.names.target, 0},
 		{"createExpression", lowering.names.expression, 0},
 		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
-		{"componentExecutionValueForHost", lowering.names.componentOutput, 2},
+		{"componentExecutionValueForHost", lowering.names.componentOutput, 15},
 		{"createDynamicChild", lowering.names.dynamic, 0},
 		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
 		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
@@ -199,6 +200,16 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	refsUsed := containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "ref", "readRef", "refs") ||
 		strings.Contains(source, "this.ref") || strings.Contains(source, "this.readRef") ||
 		strings.Contains(source, "this.refs")
+	executionUsed := lowering.contractProjection != ComponentContractProjectionHydrate
+	if executionUsed {
+		executionUsed = false
+		for _, component := range lowering.components {
+			if len(component.Execution.Transitions) != 0 {
+				executionUsed = true
+				break
+			}
+		}
+	}
 	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,
@@ -216,7 +227,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				(group.module == "@exactjs/core/runtime/refs" && refsUsed) ||
 				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
 				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
-				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) {
+				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) ||
+				(group.module == "@exactjs/core/runtime/component-execution" && executionUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,

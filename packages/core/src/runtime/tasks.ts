@@ -2,7 +2,6 @@ export { registerComponentContinuationContexts } from '../component/context-resu
 export { dispatchComponentContinuation } from '../component/domain.js';
 export { activateTaskForHost } from '../tasks/activation.js';
 export { markComponentContinuationTask } from '../tasks/component-continuation.js';
-export { componentExecutionValueForHost } from '../tasks/component-execution.js';
 export { taskMutation } from '../tasks/frame-runtime.js';
 export { bindTaskForHost, defineTask, invokeTask } from '../tasks/runtime.js';
 export {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flushSync } from '@exactjs/reactive';
+import '../runtime/component-execution.js';
 import {
 	activateTask,
 	activationInputDependency,

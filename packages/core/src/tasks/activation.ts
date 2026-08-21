@@ -10,9 +10,9 @@ import {
 import { taskOwnerForHost } from './owner-hosts.js';
 import { bindTask, invokeTaskForActivation } from './runtime.js';
 import {
-	beginComponentContinuationOutputs,
-	componentContinuationDependencies
-} from './component-execution.js';
+	componentExecutionDependencies,
+	componentExecutionOutputs
+} from './component-execution-capability.js';
 import {
 	activationInputDependency,
 	type ContinuationDependencySource
@@ -93,7 +93,7 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 	if (!componentExecutionSliceAllows(owner, task)) return inertActivation;
 	const bound = bindTask(task, { owner });
 	const activationSite = {};
-	dependencies = componentContinuationDependencies(owner, task, dependencies);
+	dependencies = componentExecutionDependencies(owner, task, dependencies);
 	let watcher: ContinuationDependencyWatcher | undefined;
 	let releaseDependencyWait: (() => void) | undefined;
 	const registration: TaskActivationRegistration = {
@@ -125,7 +125,7 @@ function activateOwnedTaskFromDependencies<Args extends unknown[], Result>(
 					initial = false;
 					const args = vector.values as Args;
 					registration.settled = false;
-					const outputs = beginComponentContinuationOutputs(owner, task);
+					const outputs = componentExecutionOutputs(owner, task);
 					const invocation = peek(() =>
 						invokeTaskForActivation(task, owner, activationSite, activation, args)
 					);
