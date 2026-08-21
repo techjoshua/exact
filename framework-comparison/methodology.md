@@ -26,6 +26,8 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
    every summary.
 8. Framework specialists should review meaningful participants. Review corrections are recorded rather than
    silently rewriting historical results.
+9. Every sampled metric is summarized at p50, p75, p95, and p99 with the same nearest-rank convention. Reports
+   must not substitute a smaller hand-picked metric or percentile set for an architectural comparison.
 
 ## Performance dimensions
 
@@ -76,7 +78,8 @@ Tracing begins before navigation and ends only after the shared `Live service` r
 events report JavaScript parsing, compilation, and evaluation, while the Performance domain reports total script
 and task duration. The trace also records navigation, first-contentful-paint, and readiness markers so work on the
 paint-critical path can be separated from later activation. Precise coverage reports emitted script extent and
-invoked-function counts by chunk URL.
+invoked-function counts by chunk URL. Raw samples remain authoritative; embedded summaries always carry the
+common p50/p75/p95/p99 set so consecutive runs can be compared without reconstructing omitted percentiles.
 
 Trace categories can contain nested work, so parse, compile, evaluation, and total script duration are independent
 signals and must not be added together. Parse and compile trace durations may also aggregate background-thread
