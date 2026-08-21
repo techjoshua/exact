@@ -107,20 +107,11 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 		const CompiledChild = compiledComponent(Child, 'component:Child', {
 			version: 1,
 			ports: [
-				{ index: 0, kind: 'props', path: 'value', direction: 'input' },
-				{ index: 1, kind: 'state', path: 'label', direction: 'output' }
+				['props', 'value', 'input'],
+				['state', 'label', 'output']
 			],
 			transitions: [
-				{
-					id: 'consume',
-					taskId: 'consume',
-					activation: 'setup',
-					placement: 'isomorphic',
-					readiness: 'blocking',
-					concurrency: 'parallel',
-					inputs: [0],
-					outputs: [1]
-				}
+				['consume', 'consume', 'setup', 'isomorphic', 'blocking', 'parallel', [0], [1]]
 			],
 			reactive: []
 		});
@@ -148,19 +139,8 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 		}
 		const CompiledParent = compiledComponent(Parent, 'component:Parent', {
 			version: 1,
-			ports: [{ index: 0, kind: 'state', path: 'result', direction: 'output' }],
-			transitions: [
-				{
-					id: 'load',
-					taskId: 'load',
-					activation: 'setup',
-					placement: 'server',
-					readiness: 'blocking',
-					concurrency: 'parallel',
-					inputs: [],
-					outputs: [0]
-				}
-			],
+			ports: [['state', 'result', 'output']],
+			transitions: [['load', 'load', 'setup', 'server', 'blocking', 'parallel', [], [0]]],
 			reactive: []
 		});
 
@@ -202,19 +182,8 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 		}
 		const CompiledParent = compiledComponent(Parent, 'component:SetupParent', {
 			version: 1,
-			ports: [{ index: 0, kind: 'state', path: 'result', direction: 'output' }],
-			transitions: [
-				{
-					id: 'load',
-					taskId: 'load',
-					activation: 'setup',
-					placement: 'server',
-					readiness: 'blocking',
-					concurrency: 'parallel',
-					inputs: [],
-					outputs: [0]
-				}
-			],
+			ports: [['state', 'result', 'output']],
+			transitions: [['load', 'load', 'setup', 'server', 'blocking', 'parallel', [], [0]]],
 			reactive: []
 		});
 

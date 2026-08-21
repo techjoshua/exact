@@ -15,8 +15,8 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="planned">', '</span>'],
-			slots: [{ id: 'label', kind: 'text', path: [0] }],
-			nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }]
+			slots: [['text', 'label', [0], [0]]],
+			nodes: [['planned', [], [], 'span']]
 		}),
 		[() => state.label],
 		() => createCompiledVNode('span', { 'data-exact-id': 'planned' }, state.label)
@@ -42,12 +42,12 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 			template: '<button data-exact-id="planned-button">Save</button>',
 			parts: ['<button data-exact-id="planned-button"', '', '', '', '>Save</button>'],
 			slots: [
-				{ id: 'disabled', kind: 'property', path: [], name: 'disabled' },
-				{ id: 'style', kind: 'style', path: [], name: 'style' },
-				{ id: 'click', kind: 'property', path: [], name: 'onClick' },
-				{ id: 'ref', kind: 'property', path: [], name: 'ref' }
+				['property', [], [], 'disabled'],
+				['style', [], [], 'style'],
+				['property', [], [], 'onClick'],
+				['property', [], [], 'ref']
 			],
-			nodes: [{ id: 'planned-button', path: [], tag: 'button', namespace: 'html' }]
+			nodes: [['planned-button', [], [], 'button']]
 		}),
 		[() => state.disabled, () => ({ color: state.tone }), () => () => state.clicks++, () => ref],
 		() => createCompiledVNode('button', {}, 'Save')
@@ -85,14 +85,14 @@ it('applies a controlled select value after slotted option values', () => {
 				'>A4</option></select>'
 			],
 			slots: [
-				{ id: 'selected', kind: 'property', path: [], name: 'value' },
-				{ id: 'letter-value', kind: 'property', path: [0], name: 'value' },
-				{ id: 'a4-value', kind: 'property', path: [1], name: 'value' }
+				['property', [], [], 'value'],
+				['property', [0], [0], 'value'],
+				['property', [1], [1], 'value']
 			],
 			nodes: [
-				{ id: 'page', path: [], tag: 'select', namespace: 'html' },
-				{ id: 'letter', path: [0], tag: 'option', namespace: 'html' },
-				{ id: 'a4', path: [1], tag: 'option', namespace: 'html' }
+				['page', [], [], 'select'],
+				['letter', [0], [0], 'option'],
+				['a4', [1], [1], 'option']
 			]
 		}),
 		[() => state.value, () => 'letter', () => 'a4'],
@@ -120,10 +120,10 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 			namespace: 'svg',
 			template: '<svg data-exact-id="svg"><circle data-exact-id="circle"></circle></svg>',
 			parts: ['<svg data-exact-id="svg"><circle data-exact-id="circle"', '></circle></svg>'],
-			slots: [{ id: 'ref', kind: 'property', path: [0], name: 'ref' }],
+			slots: [['property', [0], [0], 'ref']],
 			nodes: [
-				{ id: 'svg', path: [], tag: 'svg', namespace: 'svg' },
-				{ id: 'circle', path: [0], tag: 'circle', namespace: 'svg' }
+				['svg', [], [], 'svg'],
+				['circle', [0], [0], 'circle']
 			]
 		}),
 		[() => ref],
@@ -145,8 +145,8 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 			namespace: 'svg',
 			template: '<path data-exact-id="route"></path>',
 			parts: ['<path data-exact-id="route"', '></path>'],
-			slots: [{ id: 'path', kind: 'property', path: [], name: 'd' }],
-			nodes: [{ id: 'route', path: [], tag: 'path', namespace: 'svg' }]
+			slots: [['property', [], [], 'd']],
+			nodes: [['route', [], [], 'path']]
 		}),
 		[() => 'M 0 0 L 10 10'],
 		() => createCompiledVNode('path', { 'data-exact-id': 'route' })
@@ -169,8 +169,8 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 				namespace: 'html',
 				template: '<button data-exact-id="patched">Run</button>',
 				parts: ['<button data-exact-id="patched"', '>Run</button>'],
-				slots: [{ id: 'click', kind: 'property', path: [], name: 'onClick' }],
-				nodes: [{ id: 'patched', path: [], tag: 'button', namespace: 'html' }]
+				slots: [['property', [], [], 'onClick']],
+				nodes: [['patched', [], [], 'button']]
 			}),
 			[() => () => calls.push(label)],
 			() => createCompiledVNode('button', {}, 'Run')
@@ -193,8 +193,8 @@ it('evaluates an initial planned slot exactly once', () => {
 			namespace: 'html',
 			template: '<span data-exact-id="single-read">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="single-read">', '</span>'],
-			slots: [{ id: 'value', kind: 'text', path: [0] }],
-			nodes: [{ id: 'single-read', path: [], tag: 'span', namespace: 'html' }]
+			slots: [['text', 'value', [0], [0]]],
+			nodes: [['single-read', [], [], 'span']]
 		}),
 		[
 			() => {
@@ -219,8 +219,8 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="planned">', '</span>'],
-			slots: [{ id: 'value', kind: 'text', path: [0] }],
-			nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }]
+			slots: [['text', 'value', [0], [0]]],
+			nodes: [['planned', [], [], 'span']]
 		}),
 		[() => createCompiledVNode('strong', {}, 'generic')],
 		() => createCompiledVNode('span', { 'data-exact-id': 'fallback' }, 'fallback')
@@ -246,18 +246,12 @@ it('claims marked SSR nodes from the compiler hydration tape without indexing th
 				'</button></section>'
 			],
 			slots: [
-				{
-					id: 'disabled',
-					kind: 'property',
-					path: [0],
-					hydrationPath: [1],
-					name: 'disabled'
-				},
-				{ id: 'label', kind: 'text', path: [0, 0], hydrationPath: [1, 0] }
+				['property', [0], [1], 'disabled'],
+				['text', 'label', [0, 0], [1, 0]]
 			],
 			nodes: [
-				{ id: 'root', path: [], hydrationPath: [], tag: 'section', namespace: 'html' },
-				{ id: 'button', path: [0], hydrationPath: [1], tag: 'button', namespace: 'html' }
+				['root', [], [], 'section'],
+				['button', [0], [1], 'button']
 			]
 		}),
 		[() => state.disabled, () => state.label],
@@ -295,8 +289,8 @@ it('rejects a marked SSR program when its hydration tape does not match the DOM'
 			],
 			slots: [],
 			nodes: [
-				{ id: 'root', path: [], hydrationPath: [], tag: 'section', namespace: 'html' },
-				{ id: 'button', path: [0], hydrationPath: [2], tag: 'button', namespace: 'html' }
+				['root', [], [], 'section'],
+				['button', [0], [2], 'button']
 			]
 		}),
 		[],
