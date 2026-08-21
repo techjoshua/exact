@@ -46,19 +46,33 @@ try {
 }
 
 async function verifyCompiledExports(target) {
-	const expected = manifest.exactCompiledComponents ?? [];
-	if (!Array.isArray(expected)) throw new TypeError('exactCompiledComponents must be an array');
-	const entry = path.join(outputRoot, target, 'index.js');
-	const exports = await import(`${pathToFileURL(entry).href}?exact-build=${Date.now()}`);
-	for (const name of expected) {
-		const component = exports[name];
-		const contract = component?.[Symbol.for('@exactjs/component-contract')];
-		if (typeof component !== 'function' || !contract?.definition) {
-			throw new Error(
-				`${manifest.name} ${target} export ${name} is not a compiled component artifact`
-			);
+	const expected = normalizedCompiledComponents();
+	for (const [subpath, names] of Object.entries(expected)) {
+		const relative = subpath === '.' ? 'index.js' : `${subpath.replace(/^\.\//, '')}.js`;
+		const entry = path.join(outputRoot, target, relative);
+		const exports = await import(`${pathToFileURL(entry).href}?exact-build=${Date.now()}`);
+		for (const name of names) {
+			const component = exports[name];
+			const contract = component?.[Symbol.for('@exactjs/component-contract')];
+			if (typeof component !== 'function' || !contract?.definition) {
+				throw new Error(
+					`${manifest.name} ${target} export ${subpath}:${name} is not a compiled component artifact`
+				);
+			}
 		}
 	}
+}
+
+function normalizedCompiledComponents() {
+	const declaration = manifest.exactCompiledComponents ?? [];
+	if (Array.isArray(declaration)) return { '.': declaration };
+	if (
+		declaration &&
+		typeof declaration === 'object' &&
+		Object.values(declaration).every(Array.isArray)
+	)
+		return declaration;
+	throw new TypeError('exactCompiledComponents must be an array or subpath-to-array map');
 }
 
 async function productionSources(directory) {

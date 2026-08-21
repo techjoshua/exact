@@ -14,16 +14,30 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./enhancements": {
 			"types": "./capability.d.ts",
-			"default": "./dist/enhancements.js"
+			"browser": "./dist/client/enhancements.js",
+			"default": "./dist/server/enhancements.js"
 		},
 		"./styles.css": "./styles.css"
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": {
+		"./enhancements": [
+			"scope",
+			"surface",
+			"action",
+			"field",
+			"text",
+			"status",
+			"separator",
+			"selection"
+		]
+	},
 	"sideEffects": [
 		"./styles.css"
 	],
@@ -43,7 +57,7 @@
 		"@exactjs/ssr": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc -b && node scripts/generate-styles.mjs && prettier --write styles.css && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node scripts/generate-styles.mjs && prettier --write styles.css && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"check:performance": "npm run build && node scripts/check-performance.mjs",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"

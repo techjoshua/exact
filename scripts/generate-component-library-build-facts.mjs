@@ -12,7 +12,7 @@ const declaration = manifest.exactComponentLibrary;
 if (declaration?.protocol !== 1 || typeof declaration.build !== 'string')
 	throw new Error(`${manifest.name} must declare protocol-1 exactComponentLibrary.build`);
 
-if (Array.isArray(manifest.exactCompiledComponents)) {
+if (manifest.exactCompiledComponents) {
 	await writeCompiledBuildFacts();
 	process.exit(0);
 }
@@ -130,7 +130,14 @@ await writeExactPublishedComponentBuildFacts(packageRoot, declaration.build, {
 });
 
 async function writeCompiledBuildFacts() {
-	const expected = new Set(manifest.exactCompiledComponents);
+	const expectedBySubpath = Array.isArray(manifest.exactCompiledComponents)
+		? { '.': manifest.exactCompiledComponents }
+		: manifest.exactCompiledComponents;
+	const expected = new Set(
+		Object.entries(expectedBySubpath).flatMap(([subpath, names]) =>
+			names.map((name) => `${subpath}:${name}`)
+		)
+	);
 	const modules = new Map();
 	const exports = [];
 	const discovered = new Set();
@@ -143,11 +150,12 @@ async function writeCompiledBuildFacts() {
 			);
 			const components = [];
 			for (const [exportName, value] of Object.entries(namespace)) {
-				if (!expected.has(exportName) || typeof value !== 'function') continue;
+				const expectedKey = `${subpath}:${exportName}`;
+				if (!expected.has(expectedKey) || typeof value !== 'function') continue;
 				const id = value[Symbol.for('@exactjs/component')];
 				const contract = value[Symbol.for('@exactjs/component-contract')];
 				if (typeof id !== 'string' || !contract?.definition) continue;
-				discovered.add(exportName);
+				discovered.add(expectedKey);
 				components.push({
 					id,
 					placement: contract.placement,
