@@ -688,15 +688,6 @@ func rootComponentContractAttachment(
 		contractProperty(factory, "boundaries", projectedBoundaries),
 		contractProperty(
 			factory,
-			"execution",
-			componentExecutionMetadata(
-				factory,
-				projectedExecution,
-				projection != ComponentContractProjectionComplete,
-			),
-		),
-		contractProperty(
-			factory,
 			"definition",
 			componentDefinitionMetadata(
 				factory,
@@ -711,6 +702,17 @@ func rootComponentContractAttachment(
 				projection != ComponentContractProjectionComplete,
 			),
 		),
+	}
+	if projection != ComponentContractProjectionHydrate {
+		contractProperties = append(contractProperties, contractProperty(
+			factory,
+			"execution",
+			componentExecutionMetadata(
+				factory,
+				projectedExecution,
+				projection != ComponentContractProjectionComplete,
+			),
+		))
 	}
 	if component.Placement != "server" && projection != ComponentContractProjectionClient {
 		contractProperties = append(contractProperties, contractProperty(
