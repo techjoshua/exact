@@ -78,12 +78,11 @@ describe('compiled render-program cache', () => {
 		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
 	});
 
-	it('rejects an unregistered structural copy of a prepared descriptor', () => {
+	it('rejects ordinary VNodes without interpreting their props as a render program', () => {
 		const prepared = prepareCompiledRenderProgram(program('prepared'));
-		const lookalike = { ...prepared };
 		const vnode = {
-			type: createPreparedRenderProgram(prepared, [() => 'value']).type,
-			props: { program: lookalike, readers: [() => 'value'] },
+			type: 'span',
+			props: { program: prepared, readers: [() => 'value'] },
 			children: []
 		};
 		expect(readRenderProgram(vnode)).toBeUndefined();

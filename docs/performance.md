@@ -60,6 +60,11 @@ object normalization, or custom-element property assignment remain explicit runt
 Programs whose binding table is empty bypass reactive binding setup entirely: they allocate no
 props map, retained watcher, refresh closure, or binding teardown state.
 
+Compiler-emitted descriptors are trusted module-local executable artifacts. The client does not
+register them in an authority set or repeatedly validate their internal tables during mount and
+patch. Only the private render-program VNode kind selects this executor. Server responses, plugin
+payloads, and other external values remain validated at their actual ingress boundaries.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:
