@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	composeExactComponentContracts,
 	createExactCompatibilityArtifact,
+	createExactDynamicBoundaryArtifact,
 	exactComponentContract,
 	exactComponentIdentity,
 	exactComponentType,
@@ -21,6 +22,19 @@ describe('@exactjs/core component contracts', () => {
 		expect(() => readExactCompiledComponentContract(Component)).toThrow(
 			'compiled component artifact'
 		);
+	});
+
+	it('limits an opaque framework boundary to dynamic rendering and interactions', () => {
+		const Boundary = createExactDynamicBoundaryArtifact(
+			function Boundary() {},
+			'@exactjs/core:test-dynamic-boundary',
+			'client'
+		);
+
+		expect(readExactCompiledComponentContract(Boundary).definition.capabilities).toEqual([
+			'dynamic-components',
+			'interactions'
+		]);
 	});
 
 	it('constructs a complete artifact only for an explicit foreign compatibility boundary', () => {

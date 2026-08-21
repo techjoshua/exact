@@ -36,8 +36,6 @@ const legacyArchitectureCeilings = new Map([
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
 const compilerlessComponentCeilings = new Map([
-	['packages/dom/src/renderer/root-support.ts', 1],
-	['packages/testing/src/internal/fixtures.ts', 1],
 ]);
 
 for (const maintainedRoot of maintainedRoots) {
