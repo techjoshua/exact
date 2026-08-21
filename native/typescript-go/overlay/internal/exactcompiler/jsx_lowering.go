@@ -7,56 +7,63 @@ import (
 )
 
 type jsxLowering struct {
-	sourceFile             *ast.SourceFile
-	factory                *printer.NodeFactory
-	visitor                *ast.NodeVisitor
-	names                  jsxRuntimeNames
-	nodeIDs                map[*ast.Node]string
-	writes                 map[string]StateWrite
-	tasks                  map[string]Task
-	invokedTasks           map[int]Task
-	functionTasks          map[int]Task
-	taskDefinitions        map[ast.SymbolId]Task
-	taskDefinitionNames    map[string]Task
-	operations             map[string]InvokedTaskOperation
-	stateReads             []StateRead
-	bindings               []ReactiveBinding
-	formBindings           map[int]formBinding
-	componentBindings      map[int]componentBinding
-	checker                *checker.Checker
-	taskHelpers            map[string]string
-	derived                map[int]ReactiveBinding
-	elidedDerived          map[int]ReactiveBinding
-	target                 Target
-	contractProjection     ComponentContractProjection
-	serverComponents       bool
-	instrumentInspection   bool
-	components             map[string]Component
-	microComponents        map[ast.SymbolId]struct{}
-	renderEdges            map[string]RenderEdge
-	clientIslands          map[*ast.Node]clientElementIsland
-	clientDefinitions      []*ast.Node
-	captureValues          map[ast.SymbolId]string
-	interop                *JSXInterop
-	materializedNames      map[int]string
-	cachedDerivedNames     map[int]string
-	contextWrites          map[string][]string
-	collectionMaps         map[string]collectionMapPlan
-	enhancementImports     enhancementImports
-	partitionPlan          PartitionPlan
-	dynamicComponents      map[int]dynamicComponentUseKind
-	componentLocalization  bool
-	listCapabilityUsed     bool
-	renderProgramFallback  bool
-	renderProgramContexts  map[int]renderProgramContext
-	declarativeRenderDepth int
-	timeActivation         string
-	timeActivationAdopted  bool
-	timePlanNode           *ast.Node
-	timePlanInputs         []*ast.Node
-	timePlanInputIndexes   map[*ast.Node]int
-	timeAdoptedRanges      []timeAdoptedRange
-	timeAdoptedSelection   *timeAdoptedRange
+	sourceFile                   *ast.SourceFile
+	factory                      *printer.NodeFactory
+	visitor                      *ast.NodeVisitor
+	names                        jsxRuntimeNames
+	nodeIDs                      map[*ast.Node]string
+	writes                       map[string]StateWrite
+	tasks                        map[string]Task
+	invokedTasks                 map[int]Task
+	functionTasks                map[int]Task
+	taskDefinitions              map[ast.SymbolId]Task
+	taskDefinitionNames          map[string]Task
+	operations                   map[string]InvokedTaskOperation
+	stateReads                   []StateRead
+	bindings                     []ReactiveBinding
+	formBindings                 map[int]formBinding
+	componentBindings            map[int]componentBinding
+	checker                      *checker.Checker
+	taskHelpers                  map[string]string
+	derived                      map[int]ReactiveBinding
+	elidedDerived                map[int]ReactiveBinding
+	target                       Target
+	contractProjection           ComponentContractProjection
+	serverComponents             bool
+	instrumentInspection         bool
+	components                   map[string]Component
+	microComponents              map[ast.SymbolId]struct{}
+	renderEdges                  map[string]RenderEdge
+	clientIslands                map[*ast.Node]clientElementIsland
+	clientDefinitions            []*ast.Node
+	captureValues                map[ast.SymbolId]string
+	interop                      *JSXInterop
+	materializedNames            map[int]string
+	cachedDerivedNames           map[int]string
+	contextWrites                map[string][]string
+	collectionMaps               map[string]collectionMapPlan
+	enhancementImports           enhancementImports
+	partitionPlan                PartitionPlan
+	dynamicComponents            map[int]dynamicComponentUseKind
+	componentLocalization        bool
+	listCapabilityUsed           bool
+	renderProgramFallback        bool
+	renderProgramContexts        map[int]renderProgramContext
+	renderProgramDefinitions     map[int]string
+	renderProgramDefinitionNodes []namedRenderProgramDefinition
+	declarativeRenderDepth       int
+	timeActivation               string
+	timeActivationAdopted        bool
+	timePlanNode                 *ast.Node
+	timePlanInputs               []*ast.Node
+	timePlanInputIndexes         map[*ast.Node]int
+	timeAdoptedRanges            []timeAdoptedRange
+	timeAdoptedSelection         *timeAdoptedRange
+}
+
+type namedRenderProgramDefinition struct {
+	name string
+	node *ast.Node
 }
 
 type timeAdoptedRange struct {
@@ -84,6 +91,11 @@ func lowerExactJSX(
 	)
 	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
 	transformed = lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
+	for _, definition := range lowering.renderProgramDefinitionNodes {
+		if containsIdentifier(transformed.AsNode(), definition.name) {
+			lowering.clientDefinitions = append(lowering.clientDefinitions, definition.node)
+		}
+	}
 	if len(lowering.clientDefinitions) != 0 {
 		statements := append(
 			[]*ast.Node(nil),

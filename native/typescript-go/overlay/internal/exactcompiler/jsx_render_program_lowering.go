@@ -99,6 +99,32 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	)
 	programCacheKey := exactStableID(programID, sourceText(lowering.sourceFile, identityNode))
 	program := lowering.renderProgramLiteral(programID, build)
+	programName, defined := lowering.renderProgramDefinitions[identityNode.Pos()]
+	if !defined {
+		programName = lowering.materializedName("render_program", identityNode.Pos())
+		lowering.renderProgramDefinitions[identityNode.Pos()] = programName
+		prepared := lowering.call(lowering.names.prepareRenderProgram, []*ast.Node{
+			lowering.factory.NewStringLiteral(programCacheKey, ast.TokenFlagsNone),
+			program,
+		})
+		lowering.renderProgramDefinitionNodes = append(
+			lowering.renderProgramDefinitionNodes,
+			namedRenderProgramDefinition{
+				name: programName,
+				node: lowering.factory.NewVariableStatement(
+					nil,
+					lowering.factory.NewVariableDeclarationList(
+						lowering.factory.NewNodeList([]*ast.Node{
+							lowering.factory.NewVariableDeclaration(
+								lowering.factory.NewIdentifier(programName), nil, nil, prepared,
+							),
+						}),
+						ast.NodeFlagsConst,
+					),
+				),
+			},
+		)
+	}
 	readers := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
 		readers[index] = lowering.reactiveClosure(slot.reader)
@@ -107,8 +133,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		}
 	}
 	arguments := []*ast.Node{
-		lowering.factory.NewStringLiteral(programCacheKey, ast.TokenFlagsNone),
-		lowering.arrow(program),
+		lowering.factory.NewIdentifier(programName),
 		lowering.renderProgramReaders(readers),
 	}
 	if lowering.target != TargetClient ||
@@ -122,7 +147,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		lowering.renderProgramFallback = false
 		arguments = append(arguments, lowering.arrow(fallback))
 	}
-	return lowering.call(lowering.names.renderProgram, arguments)
+	return lowering.call(lowering.names.preparedRenderProgram, arguments)
 }
 
 // renderProgramReaders combines multi-slot readers into one component-local dispatcher. Each slot

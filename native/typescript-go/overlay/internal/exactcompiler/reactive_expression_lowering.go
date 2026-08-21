@@ -420,7 +420,18 @@ func (lowering *jsxLowering) materializedName(
 	base := "__exact_" + name + "_"
 	index := 1
 	candidate := base + strconv.Itoa(index)
-	for strings.Contains(lowering.sourceFile.Text(), candidate) {
+	used := func(name string) bool {
+		if strings.Contains(lowering.sourceFile.Text(), name) {
+			return true
+		}
+		for _, existing := range lowering.materializedNames {
+			if existing == name {
+				return true
+			}
+		}
+		return false
+	}
+	for used(candidate) {
 		index++
 		candidate = base + strconv.Itoa(index)
 	}

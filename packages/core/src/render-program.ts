@@ -76,9 +76,18 @@ export function createCompiledRenderProgram(
 	readers: readonly (() => unknown)[] | ((index: number) => unknown),
 	fallback?: () => VNode
 ): VNode {
+	const prepared =
+		programs.get(cacheKey) ?? prepareCompiledRenderProgram(cacheKey, createProgram());
+	return createPreparedRenderProgram(prepared, readers, fallback);
+}
+
+/** Hoists and brands one compiler descriptor during module initialization. */
+export function prepareCompiledRenderProgram(
+	cacheKey: string,
+	program: ExactRenderProgram
+): BrandedRenderProgram {
 	let branded = programs.get(cacheKey);
 	if (!branded) {
-		const program = createProgram();
 		branded = Object.freeze({
 			...program,
 			parts: Object.freeze([...program.parts]),
@@ -113,6 +122,15 @@ export function createCompiledRenderProgram(
 		programs.set(cacheKey, branded);
 		if (programs.size > maximumCachedPrograms) programs.delete(programs.keys().next().value!);
 	}
+	return branded;
+}
+
+/** Joins invocation-local readers to one compiler-hoisted immutable descriptor. */
+export function createPreparedRenderProgram(
+	branded: BrandedRenderProgram,
+	readers: readonly (() => unknown)[] | ((index: number) => unknown),
+	fallback?: () => VNode
+): VNode {
 	const domain = currentComponentDomain();
 	return {
 		type: RenderProgram,
