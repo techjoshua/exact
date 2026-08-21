@@ -60,11 +60,27 @@ export function adoptRenderProgram(
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
 	const rootNode = invocation.program.nodes[0];
-	if (!rootNode || !matchesProgramElement(dom, rootNode.id, rootNode.tag, rootNode.namespace))
+	if (
+		!rootNode ||
+		!matchesProgramElement(
+			dom,
+			rootNode.id,
+			rootNode.tag,
+			rootNode.namespace ?? invocation.program.namespace
+		)
+	)
 		return undefined;
 	for (const node of invocation.program.nodes) {
 		const target = nodeAtPath(dom, node.path);
-		if (!matchesProgramElement(target, node.id, node.tag, node.namespace)) return undefined;
+		if (
+			!matchesProgramElement(
+				target,
+				node.id,
+				node.tag,
+				node.namespace ?? invocation.program.namespace
+			)
+		)
+			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) => nodeAtPath(dom, slot.path));
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
@@ -161,7 +177,12 @@ function adoptMarkedRenderProgram(
 		if (
 			node instanceof Element &&
 			rootPlan &&
-			matchesProgramElement(node, rootPlan.id, rootPlan.tag, rootPlan.namespace)
+			matchesProgramElement(
+				node,
+				rootPlan.id,
+				rootPlan.tag,
+				rootPlan.namespace ?? invocation.program.namespace
+			)
 		) {
 			programRoot = node;
 			break;
@@ -170,12 +191,20 @@ function adoptMarkedRenderProgram(
 	if (!programRoot) return undefined;
 	for (const planned of invocation.program.nodes) {
 		const element = nodeAtPath(programRoot, planned.hydrationPath ?? planned.path);
-		if (!matchesProgramElement(element, planned.id, planned.tag, planned.namespace))
+		if (
+			!matchesProgramElement(
+				element,
+				planned.id,
+				planned.tag,
+				planned.namespace ?? invocation.program.namespace
+			)
+		)
 			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) => {
 		const path = slot.hydrationPath ?? slot.path;
-		if (slot.kind === 'text') return claimProgramTextSlot(programRoot, slot.id, path);
+		if (slot.kind === 'text' && slot.id) return claimProgramTextSlot(programRoot, slot.id, path);
+		if (slot.kind === 'text') return undefined;
 		return nodeAtPath(programRoot, path);
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;

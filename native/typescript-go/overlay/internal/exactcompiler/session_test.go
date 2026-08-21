@@ -209,8 +209,29 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `namespace: "svg", template: "<path`) ||
-		!strings.Contains(response.Code, `tag: "path", namespace: "svg"`) {
+		!strings.Contains(response.Code, `tag: "path"`) ||
+		strings.Contains(response.Code, `tag: "path", namespace: "svg"`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
+	}
+}
+
+func TestSessionEmitsOnlyRenderProgramNamespaceTransitions(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-foreign-object.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Diagram(props: { label: string }) {
+				return () => <svg><foreignObject><div>{props.label}</div></foreignObject></svg>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `tag: "div", namespace: "html"`) ||
+		strings.Contains(response.Code, `tag: "svg", namespace: "svg"`) ||
+		strings.Contains(response.Code, `tag: "foreignObject", namespace: "svg"`) {
+		t.Fatalf("render program did not compact inherited namespaces:\n%s", response.Code)
 	}
 }
 
