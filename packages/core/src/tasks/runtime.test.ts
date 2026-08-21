@@ -7,7 +7,7 @@ import { LoggerContext } from '../component/contexts.js';
 import { createComponentInstance } from '../component/runtime.js';
 import { runTaskFrame } from '../framework/task-frames.js';
 import type { LogEvent, Logger } from '../logging.js';
-import { activateTask } from './activation.js';
+import { activateComputationForHost, activateTask } from './activation.js';
 import {
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
@@ -15,6 +15,7 @@ import {
 	withTaskOwnerRecord
 } from './frame-runtime.js';
 import { createTaskOwner } from './owners.js';
+import { registerTaskOwnerHost } from './owner-hosts.js';
 import { bindTask, bindTaskForHost, defineTask, invokeTask, taskStatus } from './runtime.js';
 
 function deferred<T>() {
@@ -28,6 +29,30 @@ function deferred<T>() {
 }
 
 describe('unified task runtime', () => {
+	it('runs compiler-owned computations without creating task generations', () => {
+		const owner = createTaskOwnerRecord('computation');
+		const host = {};
+		registerTaskOwnerHost(host, owner);
+		const state = reactive({ value: 1 });
+		const values: number[] = [];
+		const activation = activateComputationForHost(
+			host,
+			(value: number, context) => {
+				expect(context.signal.aborted).toBe(false);
+				values.push(value);
+			},
+			computed(() => state.value)
+		);
+
+		expect(values).toEqual([1]);
+		expect(owner.frames.size).toBe(0);
+		state.value = 2;
+		flushSync();
+		expect(values).toEqual([1, 2]);
+		expect(owner.frames.size).toBe(0);
+		activation[Symbol.dispose]();
+	});
+
 	it('defines thenable tasks and settles attached descendants before the parent', async () => {
 		const order: string[] = [];
 		const childGate = deferred<void>();
