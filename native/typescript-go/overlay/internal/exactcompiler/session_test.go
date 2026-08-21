@@ -361,6 +361,30 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 }
 
+func TestSessionGroupsPlannedKeyedListsIntoOneRenderLane(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-list-lane.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			declare class Component<State> {
+				map<T>(items: Iterable<T>, key: (item: T) => string, render: (item: T) => unknown): unknown;
+			}
+			export function List(this: Component<{}>, props: { items: Array<{ id: string; label: string }> }) {
+				return () => <ul>{this.map(props.items, (item) => item.id, (item) => <li>{item.label}</li>)}</ul>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `bindings: [["lists", [0]]]`) {
+		t.Fatalf("planned keyed list did not emit one list lane:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `bindings: [["child", 0]]`) {
+		t.Fatalf("planned keyed list retained the generic child binding:\n%s", response.Code)
+	}
+}
+
 func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,

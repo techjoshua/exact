@@ -25,29 +25,35 @@ export function adoptProgramChildSlots(
 	) => Mounted[] | undefined
 ): boolean {
 	const state = mounted.renderProgram!;
-	for (let index = 0; index < state.invocation.program.slots.length; index++) {
-		const slot = state.invocation.program.slots[index]!;
-		if (slot[0] !== 'child') continue;
-		const start = state.slotNodes[index];
-		const end = findProgramChildEnd(start, slot[1]);
-		const parent = start?.parentNode;
-		if (!(start instanceof Comment) || !end || !parent) return false;
-		const nodes = [...parent.childNodes];
-		const cursor = nodes.indexOf(start);
-		const endIndex = nodes.indexOf(end);
-		if (cursor < 0 || endIndex < cursor) return false;
-		const value = readProgramChildren(state.invocation, index, parentInstance);
-		const children = adoptChildren(
-			value,
-			nodes,
-			parentInstance,
-			mounted.scope,
-			cursor + 1,
-			endIndex
-		);
-		if (!children) return false;
-		const childSlots = (state.childSlots ??= []);
-		childSlots.push({ slot: index, end, children, value });
+	const ownsLists = state.invocation.program.bindings.some((binding) => binding[0] === 'lists');
+	if (ownsLists) parentInstance.beginRender();
+	try {
+		for (let index = 0; index < state.invocation.program.slots.length; index++) {
+			const slot = state.invocation.program.slots[index]!;
+			if (slot[0] !== 'child') continue;
+			const start = state.slotNodes[index];
+			const end = findProgramChildEnd(start, slot[1]);
+			const parent = start?.parentNode;
+			if (!(start instanceof Comment) || !end || !parent) return false;
+			const nodes = [...parent.childNodes];
+			const cursor = nodes.indexOf(start);
+			const endIndex = nodes.indexOf(end);
+			if (cursor < 0 || endIndex < cursor) return false;
+			const value = readProgramChildren(state.invocation, index, parentInstance);
+			const children = adoptChildren(
+				value,
+				nodes,
+				parentInstance,
+				mounted.scope,
+				cursor + 1,
+				endIndex
+			);
+			if (!children) return false;
+			const childSlots = (state.childSlots ??= []);
+			childSlots.push({ slot: index, end, children, value });
+		}
+	} finally {
+		if (ownsLists) parentInstance.endRender();
 	}
 	refreshMountedChildren(mounted);
 	return true;
@@ -60,19 +66,54 @@ export function bindProgramChild(
 	initialBinding: boolean,
 	stopBindings: Array<() => void>
 ): boolean {
+	const applyChildren = prepareProgramChildBinding(mounted, index, initialBinding);
+	if (!applyChildren) return false;
+	const stop = watchRetained(applyChildren, undefined, { scope: mounted.scope });
+	if (stop) stopBindings.push(stop);
+	return true;
+}
+
+/** Refreshes every compiler-owned list lane in one component render transaction. */
+export function bindProgramLists(
+	mounted: Mounted,
+	indexes: readonly number[],
+	initialBinding: boolean,
+	stopBindings: Array<() => void>
+): boolean {
+	const apply = indexes.map((index) => prepareProgramChildBinding(mounted, index, initialBinding));
+	if (apply.some((binding) => !binding)) return false;
+	const refresh = () => {
+		const owner = mounted.renderProgram!.parentInstance;
+		owner?.beginRender();
+		try {
+			for (const binding of apply) binding!();
+		} finally {
+			owner?.endRender();
+		}
+	};
+	const stop = watchRetained(refresh, undefined, { scope: mounted.scope });
+	if (stop) stopBindings.push(stop);
+	return true;
+}
+
+function prepareProgramChildBinding(
+	mounted: Mounted,
+	index: number,
+	initialBinding: boolean
+): (() => void) | undefined {
 	const state = mounted.renderProgram!;
 	const start = state.slotNodes[index];
 	const slot = state.invocation.program.slots[index];
 	const identity = slot?.[0] === 'child' ? slot[1] : undefined;
 	const end = findProgramChildEnd(start, identity);
-	if (!(start instanceof Comment) || !end || !start.parentNode) return false;
+	if (!(start instanceof Comment) || !end || !start.parentNode) return undefined;
 	const childSlots = (state.childSlots ??= []);
 	let childState = childSlots.find((candidate) => candidate.slot === index);
 	if (!childState) {
 		childState = { slot: index, end, children: [] };
 		childSlots.push(childState);
 	}
-	const applyChildren = () => {
+	return () => {
 		const next = readProgramChildren(state.invocation, index, state.parentInstance);
 		if (sameProgramChildren(childState.value, next)) return;
 		const parent = start.parentNode;
@@ -101,9 +142,6 @@ export function bindProgramChild(
 		childState.value = next;
 		refreshMountedChildren(mounted);
 	};
-	const stop = watchRetained(applyChildren, undefined, { scope: mounted.scope });
-	if (stop) stopBindings.push(stop);
-	return true;
 }
 
 /** Finds the closing marker for one compiler-owned structural child slot. */

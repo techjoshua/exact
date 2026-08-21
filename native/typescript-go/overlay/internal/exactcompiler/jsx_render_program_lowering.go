@@ -20,6 +20,7 @@ type renderProgramSlot struct {
 	path   []int
 	node   int
 	name   string
+	list   bool
 	reader *ast.Node
 }
 
@@ -70,13 +71,13 @@ func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Nod
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: mountPath, reader: reader})
 }
 
-func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.Node) {
+func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.Node, list bool) {
 	index := len(build.slots)
 	build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
 	build.ssrOperation("slot", index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), reader: reader})
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), list: list, reader: reader})
 }
 
 func (build *renderProgramBuild) propertySlot(id string, path []int, node int, name string, reader *ast.Node) {
@@ -296,7 +297,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if lowering.target != TargetClient {
 					return false
 				}
-				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression))
+				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression), lowering.renderProgramListExpression(expression))
 				domIndex += 2
 				continue
 			}
@@ -312,7 +313,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 					return false
 				}
-				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
+				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), false)
 				domIndex += 2
 				continue
 			}
@@ -329,7 +330,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 					return false
 				}
-				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
+				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), false)
 				domIndex += 2
 				continue
 			}
@@ -373,6 +374,19 @@ func componentChildInsideMap(node *ast.Node) bool {
 		}
 	}
 	return false
+}
+
+func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
+	if !ast.IsCallExpression(node) {
+		return false
+	}
+	call := node.AsCallExpression()
+	if ast.IsPropertyAccessExpression(call.Expression) &&
+		call.Expression.AsPropertyAccessExpression().Name().Text() == "map" {
+		return true
+	}
+	plan, exists := lowering.collectionMaps[nodeSpanKey(node)]
+	return exists && plan.keyed
 }
 
 
@@ -576,9 +590,14 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		selectTarget bool
 	}
 	textBindings := make([]*ast.Node, 0, len(build.slots))
+	listSlots := make([]int, 0, len(build.slots))
 	propertyBindings := make([]propertyBinding, 0, len(build.slots))
 	propertyBindingIndexes := make(map[string]int)
 	for index, slot := range build.slots {
+		if slot.kind == "child" && slot.list {
+			listSlots = append(listSlots, index)
+			continue
+		}
 		if slot.kind == "text" || slot.kind == "child" {
 			textBindings = append(textBindings, array([]*ast.Node{
 				lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone),
@@ -599,6 +618,16 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		propertyBindings[bindingIndex].slots = append(propertyBindings[bindingIndex].slots, index)
 	}
 	bindings := append([]*ast.Node(nil), textBindings...)
+	if len(listSlots) != 0 {
+		indexes := make([]*ast.Node, len(listSlots))
+		for index, slot := range listSlots {
+			indexes[index] = lowering.factory.NewNumericLiteral(strconv.Itoa(slot), ast.TokenFlagsNone)
+		}
+		bindings = append(bindings, array([]*ast.Node{
+			lowering.factory.NewStringLiteral("lists", ast.TokenFlagsNone),
+			array(indexes),
+		}))
+	}
 	for _, selectTarget := range []bool{false, true} {
 		for _, binding := range propertyBindings {
 			if binding.selectTarget != selectTarget {

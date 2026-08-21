@@ -13,15 +13,19 @@ import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
 import { materializeProgramTemplate } from './render-program-template.js';
-import { adoptProgramChildSlots, bindProgramChild } from './render-program-children.js';
+import {
+	adoptProgramChildSlots,
+	bindProgramChild,
+	bindProgramLists
+} from './render-program-children.js';
 import {
 	claimProgramChildSlot,
 	claimProgramTextSlot,
 	indexProgramHydration,
 	markedProgramRange,
-	programNodeAtPath,
-	type ProgramHydrationIndex
+	programNodeAtPath
 } from './render-program-hydration.js';
+import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
 
 const elementNode = 1;
 const textNode = 3;
@@ -79,10 +83,10 @@ export function adoptRenderProgram(
 	if (
 		!rootPlan ||
 		!matchesProgramElement(
-				dom,
-				rootPlan[0],
-				rootPlan[1],
-				rootPlan[2] ?? invocation.program.namespace
+			dom,
+			rootPlan[0],
+			rootPlan[1],
+			rootPlan[2] ?? invocation.program.namespace
 		)
 	)
 		return undefined;
@@ -220,10 +224,10 @@ function adoptMarkedRenderProgram(
 			node instanceof Element &&
 			rootNodePlan &&
 			matchesProgramElement(
-					node,
-					rootNodePlan[0],
-					rootNodePlan[1],
-					rootNodePlan[2] ?? invocation.program.namespace
+				node,
+				rootNodePlan[0],
+				rootNodePlan[1],
+				rootNodePlan[2] ?? invocation.program.namespace
 			)
 		) {
 			programRoot = node;
@@ -323,6 +327,10 @@ function bindRenderProgram(mounted: Mounted): boolean {
 		stopCurrentBindings();
 		valid = true;
 		for (const binding of state.invocation.program.bindings) {
+			if (binding[0] === 'lists') {
+				if (!bindProgramLists(mounted, binding[1], initialBinding, stopBindings)) valid = false;
+				continue;
+			}
 			if (binding[0] === 'child') {
 				if (!bindProgramChild(mounted, binding[1], initialBinding, stopBindings)) valid = false;
 				continue;
@@ -393,26 +401,4 @@ function validSlotNodes(
 				? node instanceof Comment
 				: node?.nodeType === elementNode;
 	});
-}
-
-function ownProgramNodes(
-	program: ExactRenderProgram,
-	index: ProgramHydrationIndex,
-	owner: AnyComponentInstance
-): void {
-	for (const planned of program.nodes) {
-		const node = index.elements.get(planned[0]);
-		if (!node) continue;
-		setNodeOwner(node, owner);
-		if (node.nodeType === elementNode) setElementOwner(node as Element, owner);
-	}
-}
-
-function releaseProgramNodeOwners(program: ExactRenderProgram, index: ProgramHydrationIndex): void {
-	for (const planned of program.nodes) {
-		const node = index.elements.get(planned[0]);
-		if (!node) continue;
-		clearNodeOwner(node);
-		if (node.nodeType === elementNode) clearElementOwner(node as Element);
-	}
 }

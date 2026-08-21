@@ -30,10 +30,7 @@ export type ExactRenderProgramPropertySlot = readonly [
 ];
 
 /** Compact structural child slot: kind and marker identity. */
-export type ExactRenderProgramChildSlot = readonly [
-	kind: 'child',
-	id: string
-];
+export type ExactRenderProgramChildSlot = readonly [kind: 'child', id: string];
 
 /** One compiler-owned slot. The reader remains invocation-local. */
 export type ExactRenderProgramSlot =
@@ -45,6 +42,7 @@ export type ExactRenderProgramSlot =
 export type ExactRenderProgramBinding =
 	| readonly ['text', slot: number]
 	| readonly ['child', slot: number]
+	| readonly ['lists', slots: readonly number[]]
 	| readonly ['properties', slots: readonly number[]];
 
 /** Immutable shape emitted by the compiler for a finite intrinsic region. */

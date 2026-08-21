@@ -100,6 +100,12 @@ become client runtime responsibilities. This lets conditional JSX, fragments, co
 other non-scalar child values stop forcing their surrounding intrinsic skeleton through the generic
 client host renderer.
 
+Compiler-known keyed-list expressions in those slots are grouped into one render lane. Mounting,
+hydration, and refresh bracket the complete group with one component render transaction, so list
+registrations are reconciled together instead of leaving one retained reaction and lifecycle pass
+per structural expression. Dynamically indexed or otherwise unproven list expressions retain the
+generic structural path.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:
