@@ -43,7 +43,6 @@ const compilerlessComponentCeilings = new Map([
 	['component-libraries/motion/src/motion-list.ts', 1],
 	['component-libraries/motion/src/motion.ts', 1],
 	['component-libraries/motion/src/presence.ts', 2],
-	['component-libraries/physics/src/components.ts', 2],
 	['component-libraries/router/src/components.tsx', 1],
 	['component-libraries/theme-fixture/src/specimen.ts', 2],
 	['packages/core/src/component-registry/creation.ts', 1],
