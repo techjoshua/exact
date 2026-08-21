@@ -9,7 +9,6 @@ import {
 	type ComponentDomain,
 	type VNode
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createExactClient, type ExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
 import type { ExactRemoteModule } from './artifacts.js';
@@ -246,17 +245,23 @@ export function RemoteComponent(
 		return nextClient;
 	};
 
-	return () => {
-		// The module generation can change while the public phase remains ready.
-		void this.state.generation;
-		// Cross-root structural patches rotate only the remote component descriptor.
-		void this.state.reconcile;
-		const children =
-			this.state.phase === 'ready' && remote && client
+	return () => (
+		// These reads keep module-generation and cross-root reconciliation changes observable
+		// even when the public phase does not change.
+		void this.state.generation,
+		void this.state.reconcile,
+		createVNode(
+			'div',
+			{
+				ref: this.ref(containerRef),
+				'data-exact-remote': props.binding,
+				'data-exact-remote-state': this.state.phase
+			},
+			...(this.state.phase === 'ready' && remote && client
 				? [
 						createExactRoot(
 							client,
-							remote!.component as import('@exactjs/core').AnyStateComponentFunction<
+							remote.component as import('@exactjs/core').AnyStateComponentFunction<
 								Record<string, unknown>
 							>,
 							props.props,
@@ -266,20 +271,11 @@ export function RemoteComponent(
 					]
 				: this.state.phase === 'failed'
 					? normalizeFallback(props.fallback)
-					: [];
-		return createVNode(
-			'div',
-			{
-				ref: this.ref(containerRef),
-				'data-exact-remote': props.binding,
-				'data-exact-remote-state': this.state.phase
-			},
-			...children
-		);
-	};
+					: [])
+		)
+	);
 }
 
-markExactComponent(RemoteComponent, '@exactjs/microfrontends:RemoteComponent');
 
 async function importExactRemoteModule(url: string): Promise<{ default: unknown }> {
 	return import(/* @vite-ignore */ url) as Promise<{ default: unknown }>;
@@ -435,4 +431,3 @@ function validateRemoteModule(value: unknown): ExactRemoteModule {
 function normalizeFallback(value: Child | Child[] | undefined): Child[] {
 	return value === undefined ? [] : Array.isArray(value) ? value : [value];
 }
-import '@exactjs/core/runtime/refs';
