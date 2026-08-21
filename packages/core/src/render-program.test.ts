@@ -13,7 +13,7 @@ import { createVNode } from './vnode.js';
 const fallback = () => createVNode('span', null);
 
 const program = (id: string) => ({
-	version: 2 as const,
+	version: 3 as const,
 	id,
 	namespace: 'html' as const,
 	template: '<p></p>',

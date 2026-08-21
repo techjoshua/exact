@@ -2,10 +2,9 @@ import type { VNode } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { RenderProgram } from './symbols.js';
 
-/** Compact compiler-emitted DOM-node tuple: identity, mount path, tag, namespace. */
+/** Compact compiler-emitted DOM-node tuple: identity, tag, namespace. */
 export type ExactRenderProgramNode = readonly [
 	id: string,
-	path: readonly number[],
 	tag: string,
 	namespace?: 'html' | 'svg' | 'mathml'
 ];
@@ -16,25 +15,24 @@ export type ExactRenderProgramSsrOperation = Readonly<{
 	index: number;
 }>;
 
-/** Compact text slot: kind, marker identity, mount path. */
+/** Compact text slot: kind, marker identity, and the markerless-template path. */
 export type ExactRenderProgramTextSlot = readonly [
 	kind: 'text',
 	id: string,
 	path: readonly number[]
 ];
 
-/** Compact property slot: kind, mount path, property name. */
+/** Compact property slot: kind, target node index, property name. */
 export type ExactRenderProgramPropertySlot = readonly [
 	kind: 'property' | 'attribute' | 'style' | 'class' | 'url',
-	path: readonly number[],
+	node: number,
 	name: string
 ];
 
-/** Compact structural child slot: kind, marker identity, mount path. */
+/** Compact structural child slot: kind and marker identity. */
 export type ExactRenderProgramChildSlot = readonly [
 	kind: 'child',
-	id: string,
-	path: readonly number[]
+	id: string
 ];
 
 /** One compiler-owned slot. The reader remains invocation-local. */
@@ -51,7 +49,7 @@ export type ExactRenderProgramBinding =
 
 /** Immutable shape emitted by the compiler for a finite intrinsic region. */
 export type ExactRenderProgram = Readonly<{
-	version: 2;
+	version: 3;
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
 	template: string;

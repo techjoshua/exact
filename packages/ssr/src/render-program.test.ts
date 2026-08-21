@@ -19,14 +19,14 @@ it('writes compiler-owned scalar programs directly with hydration markers', () =
 		() => {
 			constructions++;
 			return {
-				version: 2,
+				version: 3,
 				id: 'render-program:ssr',
 				namespace: 'html',
 				template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 				parts: ['<span data-exact-id="planned">', '</span>'],
 				slots: [['text', 'value', [0]]],
 				bindings: [['text', 0]],
-				nodes: [['planned', [], 'span']],
+				nodes: [['planned', 'span']],
 				ssrParts: ['', '<span data-exact-id="planned">', '', '</span>', ''],
 				ssrOperations: [
 					{ kind: 'node-open', index: 0 },
@@ -64,18 +64,18 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-props',
 		() => ({
-			version: 2,
+			version: 3,
 			id: 'render-program:ssr-props',
 			namespace: 'html',
 			template: '<button data-exact-id="planned">Save</button>',
 			parts: ['<button data-exact-id="planned"', '', '', '>Save</button>'],
 			slots: [
-				['class', [], 'className'],
-				['property', [], 'disabled'],
-				['property', [], 'onClick']
+				['class', 0, 'className'],
+				['property', 0, 'disabled'],
+				['property', 0, 'onClick']
 			],
 			bindings: [['properties', [0, 1, 2]]],
-			nodes: [['planned', [], 'button']]
+			nodes: [['planned', 'button']]
 		}),
 		[() => ['primary', { active: true }], () => true, () => () => undefined],
 		() => createCompiledVNode('button', { className: 'primary active', disabled: true }, 'Save')
@@ -92,14 +92,14 @@ it('materializes marker-mode program fallbacks inside their component scope', as
 			createCompiledRenderProgram(
 				'render-program:ssr-owned-fallback',
 				() => ({
-					version: 2,
+					version: 3,
 					id: 'render-program:ssr-owned-fallback',
 					namespace: 'html',
 					template: '<span>owned</span>',
 					parts: ['<span>owned</span>'],
 					slots: [],
 					bindings: [],
-					nodes: [['owned', [], 'span']]
+					nodes: [['owned', 'span']]
 				}),
 				[],
 				() => {

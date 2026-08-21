@@ -18,6 +18,7 @@ type renderProgramSlot struct {
 	id     string
 	kind   string
 	path   []int
+	node   int
 	name   string
 	reader *ast.Node
 }
@@ -78,12 +79,12 @@ func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.No
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), reader: reader})
 }
 
-func (build *renderProgramBuild) propertySlot(id string, path []int, name string, reader *ast.Node) {
+func (build *renderProgramBuild) propertySlot(id string, path []int, node int, name string, reader *ast.Node) {
 	index := len(build.slots)
 	build.parts = append(build.parts, build.part.String())
 	build.part.Reset()
 	build.ssrOperation("slot", index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), name: name, reader: reader})
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), node: node, name: name, reader: reader})
 }
 
 func (lowering *jsxLowering) lowerRenderProgram(
@@ -264,7 +265,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	})
 	build.ssrOperation("node-open", nodeIndex)
 	build.write("<" + tag + ` data-exact-id="` + html.EscapeString(lowering.elementID(identityNode)) + `"`)
-	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path) {
+	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
 		return false
 	}
 	build.write(">")
@@ -351,6 +352,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 	attributes *ast.Node,
 	tag string,
 	path []int,
+	node int,
 ) bool {
 	if attributes == nil {
 		return true
@@ -367,6 +369,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 				build.propertySlot(
 					lowering.dynamicID(property),
 					path,
+					node,
 					"className",
 					lowering.lowerClassNameValue(attributes, false),
 				)
@@ -397,6 +400,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 				build.propertySlot(
 					lowering.dynamicID(property),
 					path,
+					node,
 					assignment.Name().Text(),
 					assignment.Initializer,
 				)
@@ -412,7 +416,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		}
 		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
 		if reader != nil {
-			build.propertySlot(lowering.dynamicID(property), path, name, reader)
+			build.propertySlot(lowering.dynamicID(property), path, node, name, reader)
 		}
 	}
 	return true
@@ -505,25 +509,23 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	slots := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
 		members := []*ast.Node{lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)}
-		if slot.kind == "text" || slot.kind == "child" {
+		if slot.kind == "text" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone), path(slot.path))
+		} else if slot.kind == "child" {
+			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone))
 		} else {
-			members = append(members, path(slot.path), lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone))
+			members = append(members, lowering.factory.NewNumericLiteral(strconv.Itoa(slot.node), ast.TokenFlagsNone), lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone))
 		}
 		slots[index] = array(members)
 	}
 	type propertyBinding struct {
-		path         string
+		node         int
 		slots        []int
 		selectTarget bool
 	}
 	textBindings := make([]*ast.Node, 0, len(build.slots))
 	propertyBindings := make([]propertyBinding, 0, len(build.slots))
 	propertyBindingIndexes := make(map[string]int)
-	tagsByPath := make(map[string]string, len(build.nodes))
-	for _, node := range build.nodes {
-		tagsByPath[fmt.Sprint(node.path)] = node.tag
-	}
 	for index, slot := range build.slots {
 		if slot.kind == "text" || slot.kind == "child" {
 			textBindings = append(textBindings, array([]*ast.Node{
@@ -532,14 +534,14 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			}))
 			continue
 		}
-		key := fmt.Sprint(slot.path)
+		key := strconv.Itoa(slot.node)
 		bindingIndex, exists := propertyBindingIndexes[key]
 		if !exists {
 			bindingIndex = len(propertyBindings)
 			propertyBindingIndexes[key] = bindingIndex
 			propertyBindings = append(propertyBindings, propertyBinding{
-				path:         key,
-				selectTarget: tagsByPath[key] == "select",
+				node:         slot.node,
+				selectTarget: build.nodes[slot.node].tag == "select",
 			})
 		}
 		propertyBindings[bindingIndex].slots = append(propertyBindings[bindingIndex].slots, index)
@@ -564,7 +566,6 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	for index, node := range build.nodes {
 		members := []*ast.Node{
 			lowering.factory.NewStringLiteral(node.id, ast.TokenFlagsNone),
-			path(node.path),
 			lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone),
 		}
 		if node.namespace != build.namespace {
@@ -573,7 +574,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		nodes[index] = array(members)
 	}
 	members := []*ast.Node{
-		property("version", lowering.factory.NewNumericLiteral("2", ast.TokenFlagsNone)),
+		property("version", lowering.factory.NewNumericLiteral("3", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),

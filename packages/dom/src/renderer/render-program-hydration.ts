@@ -55,9 +55,11 @@ export function claimProgramTextSlot(
 	return text;
 }
 
-/** Compares two compiler paths without allocating a string key. */
-export function sameProgramPath(left: readonly number[], right: readonly number[]): boolean {
-	return left.length === right.length && left.every((value, index) => value === right[index]);
+/** Resolves the sole retained path form: a scalar node in markerless template topology. */
+export function programNodeAtPath(root: Node, path: readonly number[]): Node | undefined {
+	let node: Node | undefined = root;
+	for (const index of path) node = node?.childNodes[index];
+	return node;
 }
 
 /** Resolves the optional outer cell range enclosing a marked render program. */
