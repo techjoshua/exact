@@ -61,6 +61,12 @@ so hydration claims the component without rediscovering the surrounding host tre
 own state, interactions, contexts, split boundaries, transitions, or keyed-list render callbacks
 remain explicit component lifecycle boundaries.
 
+When structural slots contain compiler-known keyed-list expressions, hydration adopts every slot
+inside one component render transaction. Later refreshes use the same grouped lane, preserving
+keyed instance identity and disposing removed registrations once after the complete list group has
+published. The stable server marker ranges remain the ownership boundary for each resulting DOM
+range.
+
 Async SSR uses a request-owned FIFO scheduler for compiler-proven local, neutral, context-free
 component sibling groups. `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial execution,
 and is capped at 32. Child frames isolate renderer state and merge in authored order. Nested proven
