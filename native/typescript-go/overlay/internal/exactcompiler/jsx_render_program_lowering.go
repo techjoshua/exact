@@ -97,14 +97,12 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		"render-program",
 		lowering.nodeIDs[identityNode],
 	)
-	programCacheKey := exactStableID(programID, sourceText(lowering.sourceFile, identityNode))
 	program := lowering.renderProgramLiteral(programID, build)
 	programName, defined := lowering.renderProgramDefinitions[identityNode.Pos()]
 	if !defined {
 		programName = lowering.materializedName("render_program", identityNode.Pos())
 		lowering.renderProgramDefinitions[identityNode.Pos()] = programName
 		prepared := lowering.call(lowering.names.prepareRenderProgram, []*ast.Node{
-			lowering.factory.NewStringLiteral(programCacheKey, ast.TokenFlagsNone),
 			program,
 		})
 		lowering.renderProgramDefinitionNodes = append(
