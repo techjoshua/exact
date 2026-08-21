@@ -8,6 +8,7 @@ const renderProgramBrand = Symbol('exact.render-program.brand');
 export type ExactRenderProgramNode = Readonly<{
 	id: string;
 	path: readonly number[];
+	hydrationPath?: readonly number[];
 	tag?: string;
 	namespace: 'html' | 'svg' | 'mathml';
 }>;
@@ -23,6 +24,7 @@ export type ExactRenderProgramSlot = Readonly<{
 	id: string;
 	kind: 'text' | 'property' | 'attribute' | 'style' | 'class' | 'url';
 	path: readonly number[];
+	hydrationPath?: readonly number[];
 	name?: string;
 }>;
 
@@ -81,10 +83,22 @@ export function createCompiledRenderProgram(
 			...program,
 			parts: Object.freeze([...program.parts]),
 			slots: Object.freeze(
-				program.slots.map((slot) => Object.freeze({ ...slot, path: Object.freeze([...slot.path]) }))
+				program.slots.map((slot) =>
+					Object.freeze({
+						...slot,
+						path: Object.freeze([...slot.path]),
+						...(slot.hydrationPath ? { hydrationPath: Object.freeze([...slot.hydrationPath]) } : {})
+					})
+				)
 			),
 			nodes: Object.freeze(
-				program.nodes.map((node) => Object.freeze({ ...node, path: Object.freeze([...node.path]) }))
+				program.nodes.map((node) =>
+					Object.freeze({
+						...node,
+						path: Object.freeze([...node.path]),
+						...(node.hydrationPath ? { hydrationPath: Object.freeze([...node.hydrationPath]) } : {})
+					})
+				)
 			),
 			...(program.ssrParts ? { ssrParts: Object.freeze([...program.ssrParts]) } : {}),
 			...(program.ssrOperations

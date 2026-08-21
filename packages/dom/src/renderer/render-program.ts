@@ -168,18 +168,15 @@ function adoptMarkedRenderProgram(
 		}
 	}
 	if (!programRoot) return undefined;
-	const indexedElements = indexProgramElements(programRoot);
 	for (const planned of invocation.program.nodes) {
-		const element = indexedElements.get(planned.id);
+		const element = nodeAtPath(programRoot, planned.hydrationPath ?? planned.path);
 		if (!matchesProgramElement(element, planned.id, planned.tag, planned.namespace))
 			return undefined;
 	}
-	const textSlots = indexProgramTextSlots(programRoot);
 	const slotNodes = invocation.program.slots.map((slot) => {
-		if (slot.kind === 'text')
-			return textSlots.get(slot.id.startsWith('exact:') ? slot.id.slice('exact:'.length) : slot.id);
-		const planned = invocation.program.nodes.find((node) => samePath(node.path, slot.path));
-		return planned ? indexedElements.get(planned.id) : undefined;
+		const path = slot.hydrationPath ?? slot.path;
+		if (slot.kind === 'text') return claimProgramTextSlot(programRoot, slot.id, path);
+		return nodeAtPath(programRoot, path);
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
@@ -191,14 +188,14 @@ function adoptMarkedRenderProgram(
 		renderProgram: { invocation, programRoot, slotNodes, root }
 	};
 	for (const planned of invocation.program.nodes) {
-		const element = indexedElements.get(planned.id)!;
+		const element = nodeAtPath(programRoot, planned.hydrationPath ?? planned.path) as Element;
 		setNodeOwner(element, parentInstance);
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
 	}
 	if (!bindRenderProgram(mounted)) {
 		for (const planned of invocation.program.nodes) {
-			const element = indexedElements.get(planned.id)!;
+			const element = nodeAtPath(programRoot, planned.hydrationPath ?? planned.path) as Element;
 			clearNodeOwner(element);
 			clearElementOwner(element);
 		}
@@ -224,39 +221,24 @@ function markedProgramRange(
 	return undefined;
 }
 
-/** Indexes compiler-owned intrinsic identities inside one program root. */
-function indexProgramElements(root: Element): Map<string, Element> {
-	const elements = new Map<string, Element>();
-	const rootId = root.getAttribute('data-exact-id');
-	if (rootId) elements.set(rootId, root);
-	for (const element of root.querySelectorAll('[data-exact-id]')) {
-		const id = element.getAttribute('data-exact-id');
-		if (id) elements.set(id, element);
+/** Claims one compiler-addressed SSR scalar range without scanning unrelated DOM. */
+function claimProgramTextSlot(
+	root: Element,
+	id: string,
+	path: readonly number[]
+): Text | undefined {
+	const marker = nodeAtPath(root, path);
+	const identity = id.startsWith('exact:') ? id.slice('exact:'.length) : id;
+	if (!(marker instanceof Comment) || marker.data !== `exact:dynamic:${identity}`) return undefined;
+	let text = marker.nextSibling instanceof Text ? marker.nextSibling : undefined;
+	const closing = text ? text.nextSibling : marker.nextSibling;
+	if (!(closing instanceof Comment) || closing.data !== `/exact:dynamic:${identity}`)
+		return undefined;
+	if (!text) {
+		text = root.ownerDocument.createTextNode('');
+		closing.parentNode?.insertBefore(text, closing);
 	}
-	return elements;
-}
-
-/** Resolves marked scalar slots and supplies the empty text node omitted by HTML parsing. */
-function indexProgramTextSlots(root: Element): Map<string, Text> {
-	const slots = new Map<string, Text>();
-	const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
-	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-		const marker = node as Comment;
-		if (!marker.data.startsWith('exact:dynamic:')) continue;
-		const id = marker.data.slice('exact:dynamic:'.length);
-		const closing =
-			marker.nextSibling?.nodeType === Node.TEXT_NODE
-				? marker.nextSibling.nextSibling
-				: marker.nextSibling;
-		if (!(closing instanceof Comment) || closing.data !== `/exact:dynamic:${id}`) continue;
-		let text = marker.nextSibling instanceof Text ? marker.nextSibling : undefined;
-		if (!text) {
-			text = root.ownerDocument.createTextNode('');
-			closing.parentNode?.insertBefore(text, closing);
-		}
-		slots.set(id, text);
-	}
-	return slots;
+	return text;
 }
 
 /** Rebinds invocation-local readers when a component publishes the same program again. */
@@ -377,11 +359,6 @@ function nodeAtPath(root: Node, path: readonly number[]): Node | undefined {
 	let node: Node | undefined = root;
 	for (const index of path) node = node?.childNodes[index];
 	return node;
-}
-
-/** Compares compiler-owned node paths without allocating a serialized key. */
-function samePath(left: readonly number[], right: readonly number[]): boolean {
-	return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function ownProgramNodes(
