@@ -38,6 +38,11 @@ export type ExactRenderProgramPropertySlot = readonly [
 /** One compiler-owned scalar slot. The reader remains invocation-local. */
 export type ExactRenderProgramSlot = ExactRenderProgramTextSlot | ExactRenderProgramPropertySlot;
 
+/** Compiler-ordered reactive binding: one text slot or every property slot for one element. */
+export type ExactRenderProgramBinding =
+	| readonly ['text', slot: number]
+	| readonly ['properties', slots: readonly number[]];
+
 /** Immutable shape emitted by the compiler for a finite intrinsic region. */
 export type ExactRenderProgram = Readonly<{
 	version: 1;
@@ -47,6 +52,8 @@ export type ExactRenderProgram = Readonly<{
 	/** Server/universal interpolation strings; closed client artifacts omit this SSR-only table. */
 	parts?: readonly string[];
 	slots: readonly ExactRenderProgramSlot[];
+	/** Direct binding topology and browser-safe application order emitted by the compiler. */
+	bindings: readonly ExactRenderProgramBinding[];
 	nodes: readonly ExactRenderProgramNode[];
 	ssrParts?: readonly string[];
 	ssrOperations?: readonly ExactRenderProgramSsrOperation[];

@@ -47,9 +47,11 @@ only their local expression readers and optional recovery function to that share
 not allocate a descriptor factory or repeat cache lookup and freezing. The DOM executor retains
 independent reactions for text slots and for the compiler-known property group on each target
 element. A change therefore evaluates only the affected target group instead of rebuilding props
-for every element in the program. Replacement invocations also retrack their new readers rather
-than retaining dependencies from the previous invocation. This remains direct compiled DOM work,
-not a virtual-DOM or general bytecode interpreter.
+for every element in the program. The descriptor carries those binding groups in browser-safe
+application order, including option values before a controlled select, so mounting does not
+rediscover topology with maps or runtime sorting. Replacement invocations also retrack their new
+readers rather than retaining dependencies from the previous invocation. This remains direct
+compiled DOM work, not a virtual-DOM or general bytecode interpreter.
 
 ## Commands
 

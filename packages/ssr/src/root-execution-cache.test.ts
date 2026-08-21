@@ -31,7 +31,10 @@ describe('SSR root execution blueprint cache', () => {
 		expect(cache.resolve(compiledDynamic)).toBe(dynamic);
 		expect(dynamic.execution?.transitionsById.has('dynamic-task')).toBe(true);
 
-		compiledDynamic[exactComponentContract] = executionContract('replacement-task');
+		compiledDynamic[exactComponentContract] = {
+			...executionContract('replacement-task'),
+			definition: fixtureDefinition(compiledDynamic)
+		};
 		const replacement = cache.resolve(compiledDynamic);
 		expect(replacement).not.toBe(dynamic);
 		expect(replacement.execution?.transitionsById.has('replacement-task')).toBe(true);
@@ -45,8 +48,20 @@ function attachContract<T extends (...args: any[]) => any>(
 ): T & Record<typeof exactComponentContract | typeof exactComponentType, any> {
 	return Object.assign(component, {
 		[exactComponentType]: id,
-		[exactComponentContract]: contract
+		[exactComponentContract]: { ...contract, definition: fixtureDefinition(component) }
 	});
+}
+
+function fixtureDefinition(component: (...args: any[]) => any) {
+	return {
+		version: 1 as const,
+		instantiate: component,
+		state: [],
+		tasks: [],
+		reactive: [],
+		render: 'returned-function' as const,
+		capabilities: ['tasks'] as const
+	};
 }
 
 function executionContract(taskId: string): ExactComponentContract {

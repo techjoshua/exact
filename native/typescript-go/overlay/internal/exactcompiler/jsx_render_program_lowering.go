@@ -450,6 +450,54 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		}
 		slots[index] = array(members)
 	}
+	type propertyBinding struct {
+		path         string
+		slots        []int
+		selectTarget bool
+	}
+	textBindings := make([]*ast.Node, 0, len(build.slots))
+	propertyBindings := make([]propertyBinding, 0, len(build.slots))
+	propertyBindingIndexes := make(map[string]int)
+	tagsByPath := make(map[string]string, len(build.nodes))
+	for _, node := range build.nodes {
+		tagsByPath[fmt.Sprint(node.path)] = node.tag
+	}
+	for index, slot := range build.slots {
+		if slot.kind == "text" {
+			textBindings = append(textBindings, array([]*ast.Node{
+				lowering.factory.NewStringLiteral("text", ast.TokenFlagsNone),
+				lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone),
+			}))
+			continue
+		}
+		key := fmt.Sprint(slot.path)
+		bindingIndex, exists := propertyBindingIndexes[key]
+		if !exists {
+			bindingIndex = len(propertyBindings)
+			propertyBindingIndexes[key] = bindingIndex
+			propertyBindings = append(propertyBindings, propertyBinding{
+				path:         key,
+				selectTarget: tagsByPath[key] == "select",
+			})
+		}
+		propertyBindings[bindingIndex].slots = append(propertyBindings[bindingIndex].slots, index)
+	}
+	bindings := append([]*ast.Node(nil), textBindings...)
+	for _, selectTarget := range []bool{false, true} {
+		for _, binding := range propertyBindings {
+			if binding.selectTarget != selectTarget {
+				continue
+			}
+			indexes := make([]*ast.Node, len(binding.slots))
+			for index, slot := range binding.slots {
+				indexes[index] = lowering.factory.NewNumericLiteral(strconv.Itoa(slot), ast.TokenFlagsNone)
+			}
+			bindings = append(bindings, array([]*ast.Node{
+				lowering.factory.NewStringLiteral("properties", ast.TokenFlagsNone),
+				array(indexes),
+			}))
+		}
+	}
 	nodes := make([]*ast.Node, len(build.nodes))
 	for index, node := range build.nodes {
 		members := []*ast.Node{
@@ -468,7 +516,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
-		property("slots", array(slots)), property("nodes", array(nodes)),
+		property("slots", array(slots)), property("bindings", array(bindings)), property("nodes", array(nodes)),
 	}
 	if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 		members = append(members, property("parts", array(parts)))

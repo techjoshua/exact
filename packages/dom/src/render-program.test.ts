@@ -16,6 +16,7 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="planned">', '</span>'],
 			slots: [['text', 'label', [0], [0]]],
+			bindings: [['text', 0]],
 			nodes: [['planned', [], [], 'span']]
 		}),
 		[() => state.label],
@@ -47,6 +48,7 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 				['property', [], [], 'onClick'],
 				['property', [], [], 'ref']
 			],
+			bindings: [['properties', [0, 1, 2, 3]]],
 			nodes: [['planned-button', [], [], 'button']]
 		}),
 		[() => state.disabled, () => ({ color: state.tone }), () => () => state.clicks++, () => ref],
@@ -89,6 +91,11 @@ it('applies a controlled select value after slotted option values', () => {
 				['property', [0], [0], 'value'],
 				['property', [1], [1], 'value']
 			],
+			bindings: [
+				['properties', [1]],
+				['properties', [2]],
+				['properties', [0]]
+			],
 			nodes: [
 				['page', [], [], 'select'],
 				['letter', [0], [0], 'option'],
@@ -121,6 +128,7 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 			template: '<svg data-exact-id="svg"><circle data-exact-id="circle"></circle></svg>',
 			parts: ['<svg data-exact-id="svg"><circle data-exact-id="circle"', '></circle></svg>'],
 			slots: [['property', [0], [0], 'ref']],
+			bindings: [['properties', [0]]],
 			nodes: [
 				['svg', [], [], 'svg'],
 				['circle', [0], [0], 'circle']
@@ -146,6 +154,7 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 			template: '<path data-exact-id="route"></path>',
 			parts: ['<path data-exact-id="route"', '></path>'],
 			slots: [['property', [], [], 'd']],
+			bindings: [['properties', [0]]],
 			nodes: [['route', [], [], 'path']]
 		}),
 		[() => 'M 0 0 L 10 10'],
@@ -170,6 +179,7 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 				template: '<button data-exact-id="patched">Run</button>',
 				parts: ['<button data-exact-id="patched"', '>Run</button>'],
 				slots: [['property', [], [], 'onClick']],
+				bindings: [['properties', [0]]],
 				nodes: [['patched', [], [], 'button']]
 			}),
 			[() => () => calls.push(label)],
@@ -194,6 +204,7 @@ it('evaluates an initial planned slot exactly once', () => {
 			template: '<span data-exact-id="single-read">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="single-read">', '</span>'],
 			slots: [['text', 'value', [0], [0]]],
+			bindings: [['text', 0]],
 			nodes: [['single-read', [], [], 'span']]
 		}),
 		[
@@ -225,6 +236,10 @@ it('refreshes only the compiled slot group whose dependency changed', () => {
 			slots: [
 				['text', 'first', [0, 0], [0, 0]],
 				['text', 'second', [1, 0], [1, 0]]
+			],
+			bindings: [
+				['text', 0],
+				['text', 1]
 			],
 			nodes: [
 				['slots', [], [], 'section'],
@@ -264,6 +279,7 @@ it('retracks replacement readers when a compiled program invocation is patched',
 				template: '<span data-exact-id="replacement">\ue000exact:0\ue001</span>',
 				parts: [],
 				slots: [['text', 'replacement', [0], [0]]],
+				bindings: [['text', 0]],
 				nodes: [['replacement', [], [], 'span']]
 			}),
 			[reader]
@@ -295,6 +311,7 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			parts: ['<span data-exact-id="planned">', '</span>'],
 			slots: [['text', 'value', [0], [0]]],
+			bindings: [['text', 0]],
 			nodes: [['planned', [], [], 'span']]
 		}),
 		[() => createCompiledVNode('strong', {}, 'generic')],
@@ -323,6 +340,10 @@ it('claims marked SSR nodes from the compiler hydration tape without indexing th
 			slots: [
 				['property', [0], [1], 'disabled'],
 				['text', 'label', [0, 0], [1, 0]]
+			],
+			bindings: [
+				['text', 1],
+				['properties', [0]]
 			],
 			nodes: [
 				['root', [], [], 'section'],
@@ -363,6 +384,7 @@ it('rejects a marked SSR program when its hydration tape does not match the DOM'
 				'<section data-exact-id="root"><button data-exact-id="button">Save</button></section>'
 			],
 			slots: [],
+			bindings: [],
 			nodes: [
 				['root', [], [], 'section'],
 				['button', [0], [2], 'button']
