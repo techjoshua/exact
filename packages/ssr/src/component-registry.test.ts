@@ -19,7 +19,7 @@ markExactComponent(Lazy, '@exactjs/ssr:test:Lazy');
 
 describe('@exactjs/ssr component registries', () => {
 	it('renders eager registry members through their stable selection facade', () => {
-		const View = createCompiledComponentRegistry('test:ssr:eager', 'EagerView', () => ({
+		const View = createCompiledComponentRegistry('test:ssr:eager', 'EagerView', 'server', () => ({
 			eager: Eager
 		}));
 		const output = renderToString(createVNode(View.eager, { label: 'ready' }));
@@ -30,7 +30,7 @@ describe('@exactjs/ssr component registries', () => {
 
 	it('loads a lazy selected server entry through Suspense readiness', async () => {
 		const load = vi.fn(async () => Lazy);
-		const View = createCompiledComponentRegistry('test:ssr:lazy', 'LazyView', ({ lazy }) => ({
+		const View = createCompiledComponentRegistry('test:ssr:lazy', 'LazyView', 'server', ({ lazy }) => ({
 			lazy: lazy(load)
 		}));
 		const output = await renderToStringAsync(

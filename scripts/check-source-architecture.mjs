@@ -36,7 +36,6 @@ const legacyArchitectureCeilings = new Map([
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
 const compilerlessComponentCeilings = new Map([
-	['packages/core/src/component-registry/creation.ts', 1],
 	['packages/dom/src/renderer/root-support.ts', 1],
 	['packages/react-compat/src/runtime/adapters.ts', 1],
 	['packages/react-compat/src/runtime/nodes.ts', 3],

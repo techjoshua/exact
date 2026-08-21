@@ -602,7 +602,7 @@ describe('@exactjs/hydrate adoption', () => {
 		}
 		markExactComponent(First, '@exactjs/hydrate:test:FirstRegistryEntry');
 		markExactComponent(Second, '@exactjs/hydrate:test:SecondRegistryEntry');
-		const View = createCompiledComponentRegistry('test:adoption', 'AdoptionView', () => ({
+		const View = createCompiledComponentRegistry('test:adoption', 'AdoptionView', 'client', () => ({
 			first: First,
 			second: Second
 		}));

@@ -1,5 +1,9 @@
 import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
-import { markExactComponent } from '../component-contracts.js';
+import {
+	exactComponentContract,
+	exactComponentType,
+	type ExactComponentContract
+} from '../component-contracts.js';
 import { createVNode } from '../vnode.js';
 import type {
 	AnyComponentRegistry,
@@ -51,17 +55,21 @@ export function createCompiledComponentRegistry<
 >(
 	id: string,
 	name: string,
+	target: 'client' | 'server',
 	define: (builder: ComponentRegistryBuilder) => Definition
 ): ComponentRegistry<Definition> {
 	if (!id || !name)
 		throw new TypeError('Compiled component registries require non-empty identity metadata');
-	return createRegistry(id, name, define);
+	if (target !== 'client' && target !== 'server')
+		throw new TypeError('Compiled component registries require a target-local artifact target');
+	return createRegistry(id, name, define, target);
 }
 
 function createRegistry<const Definition extends ComponentRegistryDefinition>(
 	id: string | undefined,
 	name: string | undefined,
-	define: (builder: ComponentRegistryBuilder) => Definition
+	define: (builder: ComponentRegistryBuilder) => Definition,
+	target?: 'client' | 'server'
 ): ComponentRegistry<Definition> {
 	if (typeof define !== 'function')
 		throw new TypeError('createComponentRegistry() requires a definition callback');
@@ -122,7 +130,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			configurable: true,
 			value: `${name ?? 'ComponentRegistry'}.${key}${id ? `#${id}` : ''}`
 		});
-		if (id) markExactComponent(facade, `${id}:${key}`);
+		if (id && target) attachRegistryFacadeArtifact(facade, id, key, target);
 		const entry: ComponentRegistryEntryRuntime = {
 			registry: runtime,
 			key,
@@ -142,6 +150,47 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 	Object.freeze(value);
 	registryValues.set(value, runtime);
 	return value as ComponentRegistry<Definition>;
+}
+
+/** Attaches the complete compiler-selected runtime contract for one finite registry key. */
+function attachRegistryFacadeArtifact(
+	facade: AnyComponentFunction,
+	registryId: string,
+	key: string,
+	target: 'client' | 'server'
+): void {
+	const identity = `${registryId}:${key}`;
+	const implementationId = `${identity}:implementation`;
+	const contract: ExactComponentContract = Object.freeze({
+		version: 2,
+		placement: target,
+		role: target === 'client' ? 'client' : 'executor',
+		implementations: Object.freeze([
+			Object.freeze({
+				id: implementationId,
+				name: facade.name,
+				role: 'root',
+				implementation: facade
+			})
+		]),
+		continuations: Object.freeze([]),
+		executors: Object.freeze([]),
+		boundaries: Object.freeze([]),
+		execution: Object.freeze({ version: 1, ports: [], transitions: [], reactive: [] }),
+		definition: Object.freeze({
+			version: 1,
+			instantiate: facade,
+			state: Object.freeze([]),
+			tasks: Object.freeze([]),
+			reactive: Object.freeze([]),
+			render: 'returned-function',
+			capabilities: Object.freeze(['registry', 'dynamic-components'] as const)
+		})
+	});
+	Object.defineProperties(facade, {
+		[exactComponentType]: { configurable: false, enumerable: false, value: identity },
+		[exactComponentContract]: { configurable: false, enumerable: false, value: contract }
+	});
 }
 
 /** Returns a frozen diagnostic snapshot without exposing loaders or component functions. */
