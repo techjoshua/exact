@@ -1,5 +1,10 @@
-import { isTaskCancellation, unwrap, watch, type Component, type RootRelease } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import {
+	isTaskCancellation,
+	unwrap,
+	watch,
+	type ComponentInstance,
+	type RootRelease
+} from '@exactjs/core';
 import { defaultMotionSettings, MotionContext } from './context.js';
 import { LayoutContext } from './layout.js';
 import { ExitLayoutContext, PresenceEnterContext } from './presence.js';
@@ -19,10 +24,7 @@ import {
 } from './playback.js';
 
 /** Transparent ordinary component activated for one resolved motion target. */
-export const MotionElement = markExactComponent(function MotionElement(
-	this: Component<{}>,
-	props: MotionElementProps
-) {
+export function MotionElement(this: ComponentInstance<{}>, props: MotionElementProps) {
 	const root = this.refs.root<Element>();
 	const settings = this.hasContext(MotionContext)
 		? this.getContext(MotionContext)
@@ -38,6 +40,10 @@ export const MotionElement = markExactComponent(function MotionElement(
 	let semanticTarget: Element | undefined;
 	const layoutIdentity = Symbol('motion.layout-participant');
 	let unregisterLayout: (() => void) | undefined;
+	let active = true;
+	this.onActivate(() => {
+		active = true;
+	});
 
 	watch(() => {
 		unregisterLayout?.();
@@ -86,6 +92,16 @@ export const MotionElement = markExactComponent(function MotionElement(
 		}
 		changePlayback?.cancel('motion-root-released');
 		changePlayback = undefined;
+		if (
+			!active ||
+			release.reason === 'activity-parked' ||
+			release.reason === 'activity-background'
+		) {
+			leavePlayback?.cancel('motion-owner-deactivated');
+			leavePlayback = undefined;
+			releasedGeneration = undefined;
+			return;
+		}
 		releasedGeneration = release.generation;
 		semanticTarget = release.target;
 		const exitLayout = this.hasContext(ExitLayoutContext)
@@ -98,6 +114,7 @@ export const MotionElement = markExactComponent(function MotionElement(
 	}, undefined);
 
 	this.onDeactivate(() => {
+		active = false;
 		changePlayback?.cancel('motion-owner-deactivated');
 		changePlayback = undefined;
 		if (!root.release) {
@@ -113,7 +130,7 @@ export const MotionElement = markExactComponent(function MotionElement(
 		leavePlayback?.cancel('motion-owner-disposed');
 	});
 	return () => props.children;
-}, '@exactjs/motion:MotionElement');
+}
 
 function resolvePhase(
 	props: MotionElementProps,

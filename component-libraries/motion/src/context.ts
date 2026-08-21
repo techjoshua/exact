@@ -1,5 +1,4 @@
 import { createContext, createVNode, type Child, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { MotionConfigProps, MotionSettings } from './contracts.js';
 
 /** Package defaults used outside a `MotionConfig` boundary. */
@@ -17,10 +16,7 @@ export const MotionContext = createContext<MotionSettings>('motion.settings', {
 });
 
 /** Publishes inherited motion policy for one component subtree. */
-export const MotionConfig = markExactComponent(function MotionConfig(
-	this: Component<{}>,
-	props: MotionConfigProps
-) {
+export function MotionConfig(this: Component<{}>, props: MotionConfigProps) {
 	const parent = this.hasContext(MotionContext)
 		? this.getContext(MotionContext)
 		: defaultMotionSettings;
@@ -40,9 +36,9 @@ export const MotionConfig = markExactComponent(function MotionConfig(
 	} satisfies MotionSettings;
 	this.setContext(MotionContext, settings);
 	return () => props.children as Child;
-}, '@exactjs/motion:MotionConfig');
+}
 
-/** Wraps children in a `MotionConfig` VNode for compilerless callers. */
+/** Wraps children in a `MotionConfig` VNode for programmatic callers. */
 export function createMotionConfig(props: MotionConfigProps) {
 	return createVNode(MotionConfig, props as Record<string, unknown>, props.children);
 }

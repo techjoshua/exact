@@ -36,12 +36,6 @@ const legacyArchitectureCeilings = new Map([
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
 const compilerlessComponentCeilings = new Map([
-	['component-libraries/motion/src/context.ts', 1],
-	['component-libraries/motion/src/layout.ts', 1],
-	['component-libraries/motion/src/motion-element.ts', 1],
-	['component-libraries/motion/src/motion-list.ts', 1],
-	['component-libraries/motion/src/motion.ts', 1],
-	['component-libraries/motion/src/presence.ts', 2],
 	['component-libraries/router/src/components.tsx', 1],
 	['component-libraries/theme-fixture/src/specimen.ts', 2],
 	['packages/core/src/component-registry/creation.ts', 1],
