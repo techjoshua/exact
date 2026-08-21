@@ -2,8 +2,6 @@ import type { VNode } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { RenderProgram } from './symbols.js';
 
-const preparedRenderPrograms = new WeakSet<ExactRenderProgram>();
-
 /** Compact compiler-emitted DOM-node tuple: identity, mount path, hydration path, tag, namespace. */
 export type ExactRenderProgramNode = readonly [
 	id: string,
@@ -113,7 +111,6 @@ export function createCompiledRenderProgram(
  * can reach this compiler-only operation.
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
-	preparedRenderPrograms.add(program);
 	return program as BrandedRenderProgram;
 }
 
@@ -132,21 +129,10 @@ export function createPreparedRenderProgram(
 	};
 }
 
-/** Reads a compiler-owned invocation, failing closed for authored lookalikes. */
+/** Reads the invocation carried by the compiler-only render-program VNode kind. */
 export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
-	const invocation = vnode.props as Partial<ExactRenderProgramInvocation>;
-	if (
-		!invocation.program ||
-		!preparedRenderPrograms.has(invocation.program) ||
-		invocation.program.version !== 1 ||
-		(!Array.isArray(invocation.readers) && typeof invocation.readers !== 'function') ||
-		(invocation.fallback !== undefined && typeof invocation.fallback !== 'function') ||
-		(Array.isArray(invocation.readers) &&
-			invocation.readers.length !== invocation.program.slots.length)
-	)
-		return undefined;
-	return invocation as ExactRenderProgramInvocation;
+	return vnode.props as ExactRenderProgramInvocation;
 }
 
 /** Evaluates one invocation-local slot through either legacy readers or a combined dispatcher. */
