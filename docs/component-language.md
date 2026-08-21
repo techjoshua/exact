@@ -1563,6 +1563,11 @@ this.onRender(({ duration, dependencies }) => {
 Mount and activation handlers receive an `AbortSignal`. Lifecycle return values
 are observed when promise-like; ordinary return values are ignored.
 Task cleanup remains the preferred owner for resources acquired by a task.
+Use `this.own(resource)` for a disposable value created during component setup
+that must live until the durable component instance is unmounted. It returns
+the same value and accepts `dispose()`, `Symbol.dispose`, or
+`Symbol.asyncDispose`; the compiler records component ownership instead of
+forcing the resource into a shorter task lifetime.
 
 `this.log` is the component-scoped logger. It follows the nearest logger
 context and adds component identity to structured log records. Write ordinary

@@ -51,7 +51,7 @@ component's topology or interpret a universal component plan when the artifact a
 | `defineTask()` as an advanced runtime API         | Internal/advanced primitive        | Move out of the normal compiled runtime graph                                 |
 | Generic VNode component mounting and adoption     | Compilerless/dynamic fallback      | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
 | `createComponentRegistry()` callable entries      | Native dynamic selection           | Store compiled artifacts keyed by the finite registry                         |
-| Accessibility components                          | First-party native components      | Compile during the accessibility package build                                |
+| Accessibility components                          | First-party native components      | Migrated to target-paired package artifacts                                   |
 | Internationalization components                   | First-party native components      | Compile during the internationalization package build                         |
 | Request provider                                  | First-party native component       | Migrated to target-paired package artifacts                                   |
 | Theme components and enhancements                 | First-party native components      | Compile during the theme package build                                        |

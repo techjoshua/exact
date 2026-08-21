@@ -393,6 +393,8 @@ export interface Component<State extends object> {
 	onDeactivate(handler: LifecycleHandler): void;
 	onUnmount(handler: LifecycleHandler): void;
 	onRender(handler: RenderEventHandler): void;
+	/** Owns a disposable resource until this durable component instance is released. */
+	own<T extends Disposable | AsyncDisposable | { dispose(): unknown }>(resource: T): T;
 }
 
 /** Existential component capability used before a full runtime instance has been constructed. */

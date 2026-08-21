@@ -53,7 +53,6 @@ const compilerlessComponentCeilings = new Map([
 	['component-libraries/physics/src/components.ts', 2],
 	['component-libraries/router/src/components.tsx', 1],
 	['component-libraries/theme-fixture/src/specimen.ts', 2],
-	['packages/accessibility/src/components.ts', 1],
 	['packages/core/src/component-registry/creation.ts', 1],
 	['packages/dom/src/renderer/root-support.ts', 1],
 	['packages/intl/src/components.ts', 8],
