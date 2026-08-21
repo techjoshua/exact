@@ -18,8 +18,8 @@ export function prepareClientIslandExecutionSlice(
 	assertAcyclic(contract.execution);
 	const transitions = new Set(
 		contract.execution.transitions
-			.filter((transition) => transition[2] === 'setup')
-			.map((transition) => transition[0])
+			.filter((transition) => transition.activation === 'setup')
+			.map((transition) => transition.id)
 	);
 	const slice: ComponentExecutionSlice = new Map([
 		[exactComponentIdentity(component), transitions]
@@ -36,18 +36,18 @@ function assertAcyclic(
 	if (!plan) return;
 	const producers = new Map<number, string[]>();
 	for (const transition of plan.transitions)
-		for (const output of transition[7]) {
+		for (const output of transition.outputs) {
 			const values = producers.get(output) ?? [];
-			values.push(transition[0]);
+			values.push(transition.id);
 			producers.set(output, values);
 		}
 	const edges = new Map<string, Set<string>>();
 	for (const transition of plan.transitions) {
-		const dependencies = edges.get(transition[0]) ?? new Set<string>();
-		for (const input of transition[6])
+		const dependencies = edges.get(transition.id) ?? new Set<string>();
+		for (const input of transition.inputs)
 			for (const producer of producers.get(input) ?? [])
-				if (producer !== transition[0]) dependencies.add(producer);
-		edges.set(transition[0], dependencies);
+				if (producer !== transition.id) dependencies.add(producer);
+		edges.set(transition.id, dependencies);
 	}
 	const visiting = new Set<string>();
 	const visited = new Set<string>();

@@ -125,23 +125,22 @@ export type ExactComponentResumptionContract = Readonly<{
 /** Compact target-local execution wiring emitted for one semantic component. */
 export type ExactComponentExecutionContract = Readonly<{
 	version: 1;
-	/** Port tuple: kind, authored path, direction. Its array position is its index. */
-	ports: readonly (readonly [
-		kind: 'state' | 'props' | 'context' | 'derived' | 'argument',
-		path: string,
-		direction: 'input' | 'output' | 'inout'
-	])[];
-	/** Transition tuple: identity, task, activation, placement, readiness, concurrency, inputs, outputs. */
-	transitions: readonly (readonly [
-		id: string,
-		taskId: string,
-		activation: 'setup' | 'interaction',
-		placement: 'client' | 'server' | 'isomorphic',
-		readiness: 'blocking' | 'nonblocking',
-		concurrency: 'parallel' | 'latest' | 'queue',
-		inputs: readonly number[],
-		outputs: readonly number[]
-	])[];
+	ports: readonly Readonly<{
+		index: number;
+		kind: 'state' | 'props' | 'context' | 'derived' | 'argument';
+		path: string;
+		direction: 'input' | 'output' | 'inout';
+	}>[];
+	transitions: readonly Readonly<{
+		id: string;
+		taskId: string;
+		activation: 'setup' | 'interaction';
+		placement: 'client' | 'server' | 'isomorphic';
+		readiness: 'blocking' | 'nonblocking';
+		concurrency: 'parallel' | 'latest' | 'queue';
+		inputs: readonly number[];
+		outputs: readonly number[];
+	}>[];
 	/** Build-inspection inventory omitted from render-mode-projected runtime bundles. */
 	reactive?: readonly Readonly<{
 		name: string;

@@ -30,9 +30,7 @@ export function mountRenderProgram(
 	const fragment = template.content.cloneNode(true) as DocumentFragment;
 	if (fragment.childNodes.length !== 1) return undefined;
 	const dom = fragment.firstChild!;
-	const slotNodes = invocation.program.slots.map((slot) =>
-		nodeAtPath(dom, slot[0] === 'text' ? slot[2] : slot[1])
-	);
+	const slotNodes = invocation.program.slots.map((slot) => nodeAtPath(dom, slot.path));
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
@@ -62,26 +60,29 @@ export function adoptRenderProgram(
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
 	const rootNode = invocation.program.nodes[0];
-	const rootPlan = rootNode;
 	if (
-		!rootPlan ||
+		!rootNode ||
 		!matchesProgramElement(
 			dom,
-			rootPlan[0],
-			rootPlan[3],
-			rootPlan[4] ?? invocation.program.namespace
+			rootNode.id,
+			rootNode.tag,
+			rootNode.namespace ?? invocation.program.namespace
 		)
 	)
 		return undefined;
 	for (const node of invocation.program.nodes) {
-		const plan = node;
-		const target = nodeAtPath(dom, plan[1]);
-		if (!matchesProgramElement(target, plan[0], plan[3], plan[4] ?? invocation.program.namespace))
+		const target = nodeAtPath(dom, node.path);
+		if (
+			!matchesProgramElement(
+				target,
+				node.id,
+				node.tag,
+				node.namespace ?? invocation.program.namespace
+			)
+		)
 			return undefined;
 	}
-	const slotNodes = invocation.program.slots.map((slot) =>
-		nodeAtPath(dom, slot[0] === 'text' ? slot[2] : slot[1])
-	);
+	const slotNodes = invocation.program.slots.map((slot) => nodeAtPath(dom, slot.path));
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
@@ -170,18 +171,17 @@ function adoptMarkedRenderProgram(
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
 	const rootPlan = invocation.program.nodes[0];
-	const rootNodePlan = rootPlan;
 	let programRoot: Element | undefined;
 	for (let index = range.contentStart; index < range.endIndex; index++) {
 		const node = nodes[index];
 		if (
 			node instanceof Element &&
-			rootNodePlan &&
+			rootPlan &&
 			matchesProgramElement(
 				node,
-				rootNodePlan[0],
-				rootNodePlan[3],
-				rootNodePlan[4] ?? invocation.program.namespace
+				rootPlan.id,
+				rootPlan.tag,
+				rootPlan.namespace ?? invocation.program.namespace
 			)
 		) {
 			programRoot = node;
@@ -190,16 +190,21 @@ function adoptMarkedRenderProgram(
 	}
 	if (!programRoot) return undefined;
 	for (const planned of invocation.program.nodes) {
-		const plan = planned;
-		const element = nodeAtPath(programRoot, plan[2]);
-		if (!matchesProgramElement(element, plan[0], plan[3], plan[4] ?? invocation.program.namespace))
+		const element = nodeAtPath(programRoot, planned.hydrationPath ?? planned.path);
+		if (
+			!matchesProgramElement(
+				element,
+				planned.id,
+				planned.tag,
+				planned.namespace ?? invocation.program.namespace
+			)
+		)
 			return undefined;
 	}
 	const slotNodes = invocation.program.slots.map((slot) => {
-		const plan = slot;
-		const path = plan[0] === 'text' ? plan[3] : plan[2];
-		if (plan[0] === 'text' && plan[1]) return claimProgramTextSlot(programRoot, plan[1], path);
-		if (plan[0] === 'text') return undefined;
+		const path = slot.hydrationPath ?? slot.path;
+		if (slot.kind === 'text' && slot.id) return claimProgramTextSlot(programRoot, slot.id, path);
+		if (slot.kind === 'text') return undefined;
 		return nodeAtPath(programRoot, path);
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
@@ -212,14 +217,14 @@ function adoptMarkedRenderProgram(
 		renderProgram: { invocation, programRoot, slotNodes, root }
 	};
 	for (const planned of invocation.program.nodes) {
-		const element = nodeAtPath(programRoot, planned[2]) as Element;
+		const element = nodeAtPath(programRoot, planned.hydrationPath ?? planned.path) as Element;
 		setNodeOwner(element, parentInstance);
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
 	}
 	if (!bindRenderProgram(mounted)) {
 		for (const planned of invocation.program.nodes) {
-			const element = nodeAtPath(programRoot, planned[2]) as Element;
+			const element = nodeAtPath(programRoot, planned.hydrationPath ?? planned.path) as Element;
 			clearNodeOwner(element);
 			clearElementOwner(element);
 		}
@@ -311,11 +316,11 @@ function bindRenderProgram(mounted: Mounted): boolean {
 			const value = unwrap(readRenderProgramSlot(state.invocation, index));
 			const slot = state.invocation.program.slots[index]!;
 			const target = state.slotNodes[index];
-			if (slot[0] !== 'text') {
+			if (slot.kind !== 'text') {
 				const element = target as Element;
 				let props = nextProps.get(element);
 				if (!props) nextProps.set(element, (props = {}));
-				props[slot[3]] = value;
+				props[slot.name!] = value;
 				continue;
 			}
 			if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
@@ -373,7 +378,7 @@ function validSlotNodes(
 	nodes: readonly (Node | undefined)[]
 ): boolean {
 	return nodes.every((node, index) =>
-		invocation.program.slots[index] && invocation.program.slots[index]![0] === 'text'
+		invocation.program.slots[index]?.kind === 'text'
 			? node?.nodeType === textNode
 			: node?.nodeType === elementNode
 	);
@@ -391,7 +396,7 @@ function ownProgramNodes(
 	owner: AnyComponentInstance
 ): void {
 	for (const planned of program.nodes) {
-		const node = nodeAtPath(root, planned[1]);
+		const node = nodeAtPath(root, planned.path);
 		if (!node) continue;
 		setNodeOwner(node, owner);
 		if (node.nodeType === elementNode) setElementOwner(node as Element, owner);
@@ -400,7 +405,7 @@ function ownProgramNodes(
 
 function releaseProgramNodeOwners(program: ExactRenderProgram, root: Node): void {
 	for (const planned of program.nodes) {
-		const node = nodeAtPath(root, planned[1]);
+		const node = nodeAtPath(root, planned.path);
 		if (!node) continue;
 		clearNodeOwner(node);
 		if (node.nodeType === elementNode) clearElementOwner(node as Element);

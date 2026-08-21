@@ -19,8 +19,22 @@ describe('compiler-planned component execution', () => {
 	it('prepares immutable lookup indexes once for every compiled plan', () => {
 		const plan = {
 			version: 1 as const,
-			ports: [['props', 'props.query', 'input'] as const, ['state', 'result', 'output'] as const],
-			transitions: [['load', 'load', 'setup', 'server', 'blocking', 'latest', [0], [1]] as const],
+			ports: [
+				{ index: 0, kind: 'props' as const, path: 'props.query', direction: 'input' as const },
+				{ index: 1, kind: 'state' as const, path: 'result', direction: 'output' as const }
+			],
+			transitions: [
+				{
+					id: 'load',
+					taskId: 'load',
+					activation: 'setup' as const,
+					placement: 'server' as const,
+					readiness: 'blocking' as const,
+					concurrency: 'latest' as const,
+					inputs: [0],
+					outputs: [1]
+				}
+			],
 			reactive: []
 		};
 
@@ -59,9 +73,20 @@ describe('compiler-planned component execution', () => {
 				boundaries: [],
 				execution: {
 					version: 1 as const,
-					ports: [['state', 'result', 'output']] as const,
+					ports: [
+						{ index: 0, kind: 'state' as const, path: 'result', direction: 'output' as const }
+					],
 					transitions: [
-						['save', 'save', 'interaction', 'isomorphic', 'nonblocking', 'latest', [], [0]] as const
+						{
+							id: 'save',
+							taskId: 'save',
+							activation: 'interaction' as const,
+							placement: 'isomorphic' as const,
+							readiness: 'nonblocking' as const,
+							concurrency: 'latest' as const,
+							inputs: [],
+							outputs: [0]
+						}
 					],
 					reactive: []
 				}
@@ -109,11 +134,20 @@ describe('compiler-planned component execution', () => {
 				execution: {
 					version: 1 as const,
 					ports: [
-						['state', 'name', 'output'],
-						['state', 'accent', 'output']
+						{ index: 0, kind: 'state' as const, path: 'name', direction: 'output' as const },
+						{ index: 1, kind: 'state' as const, path: 'accent', direction: 'output' as const }
 					],
 					transitions: [
-						['project', 'project', 'setup', 'server', 'nonblocking', 'latest', [], [0, 1]]
+						{
+							id: 'project',
+							taskId: 'project',
+							activation: 'setup' as const,
+							placement: 'server' as const,
+							readiness: 'nonblocking' as const,
+							concurrency: 'latest' as const,
+							inputs: [],
+							outputs: [0, 1]
+						}
 					],
 					reactive: []
 				}
@@ -164,18 +198,20 @@ describe('compiler-planned component execution', () => {
 				boundaries: [],
 				execution: {
 					version: 1 as const,
-					ports: [['props', 'value.label', 'input']] as const,
+					ports: [
+						{ index: 0, kind: 'props' as const, path: 'value.label', direction: 'input' as const }
+					],
 					transitions: [
-						[
-							'consume-prop',
-							'consume-prop',
-							'setup',
-							'isomorphic',
-							'blocking',
-							'parallel',
-							[0],
-							[]
-						] as const
+						{
+							id: 'consume-prop',
+							taskId: 'consume-prop',
+							activation: 'setup' as const,
+							placement: 'isomorphic' as const,
+							readiness: 'blocking' as const,
+							concurrency: 'parallel' as const,
+							inputs: [0],
+							outputs: []
+						}
 					],
 					reactive: []
 				}
@@ -244,13 +280,31 @@ describe('compiler-planned component execution', () => {
 				execution: {
 					version: 1 as const,
 					ports: [
-						['state', 'input', 'input'],
-						['state', 'middle', 'inout'],
-						['state', 'result', 'output']
+						{ index: 0, kind: 'state' as const, path: 'input', direction: 'input' as const },
+						{ index: 1, kind: 'state' as const, path: 'middle', direction: 'inout' as const },
+						{ index: 2, kind: 'state' as const, path: 'result', direction: 'output' as const }
 					],
 					transitions: [
-						['load', 'load', 'setup', 'isomorphic', 'blocking', 'latest', [0], [1]],
-						['consume', 'consume', 'setup', 'isomorphic', 'blocking', 'parallel', [1], [2]]
+						{
+							id: 'load',
+							taskId: 'load',
+							activation: 'setup' as const,
+							placement: 'isomorphic' as const,
+							readiness: 'blocking' as const,
+							concurrency: 'latest' as const,
+							inputs: [0],
+							outputs: [1]
+						},
+						{
+							id: 'consume',
+							taskId: 'consume',
+							activation: 'setup' as const,
+							placement: 'isomorphic' as const,
+							readiness: 'blocking' as const,
+							concurrency: 'parallel' as const,
+							inputs: [1],
+							outputs: [2]
+						}
 					],
 					reactive: []
 				}

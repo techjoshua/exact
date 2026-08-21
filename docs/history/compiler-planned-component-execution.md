@@ -120,12 +120,6 @@ for the opposite environment, compacts the remaining port indexes, and attaches 
 projection to the matching generated component export. It is never emitted as a combined
 server/client runtime object.
 
-The attached runtime projection uses positional tuples rather than repeating the analysis field
-names. A port is `[kind, path, direction]`, with its array position serving as its index. A
-transition is `[id, taskId, activation, placement, readiness, concurrency, inputs, outputs]`.
-These tuples are a private, versioned compiler/runtime ABI; build-inspection output retains the
-named analysis form above so tooling does not need to interpret the optimized representation.
-
 ## Physical artifacts and minimal exports
 
 Component plans are semantic units; physical files remain module or bundler-chunk units. One source

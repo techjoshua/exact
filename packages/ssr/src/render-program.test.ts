@@ -24,8 +24,8 @@ it('writes compiler-owned scalar programs directly with hydration markers', () =
 				namespace: 'html',
 				template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 				parts: ['<span data-exact-id="planned">', '</span>'],
-				slots: [['text', 'value', [0], [0]]],
-				nodes: [['planned', [], [], 'span']],
+				slots: [{ id: 'value', kind: 'text', path: [0] }],
+				nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }],
 				ssrParts: ['', '<span data-exact-id="planned">', '', '</span>', ''],
 				ssrOperations: [
 					{ kind: 'node-open', index: 0 },
@@ -69,11 +69,11 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 			template: '<button data-exact-id="planned">Save</button>',
 			parts: ['<button data-exact-id="planned"', '', '', '>Save</button>'],
 			slots: [
-				['class', [], [], 'className'],
-				['property', [], [], 'disabled'],
-				['property', [], [], 'onClick']
+				{ id: 'class', kind: 'class', path: [], name: 'className' },
+				{ id: 'disabled', kind: 'property', path: [], name: 'disabled' },
+				{ id: 'click', kind: 'property', path: [], name: 'onClick' }
 			],
-			nodes: [['planned', [], [], 'button']]
+			nodes: [{ id: 'planned', path: [], tag: 'button', namespace: 'html' }]
 		}),
 		[() => ['primary', { active: true }], () => true, () => () => undefined],
 		() => createCompiledVNode('button', { className: 'primary active', disabled: true }, 'Save')
@@ -96,7 +96,7 @@ it('materializes marker-mode program fallbacks inside their component scope', as
 					template: '<span>owned</span>',
 					parts: ['<span>owned</span>'],
 					slots: [],
-					nodes: [['owned', [], [], 'span']]
+					nodes: [{ id: 'owned', path: [], tag: 'span', namespace: 'html' }]
 				}),
 				[],
 				() => {

@@ -46,34 +46,33 @@ export function prepareComponentExecution(
 	const setupOutputs = Array<boolean>(plan.ports.length).fill(false);
 	const statePortsByPath = new Map<string, number>();
 	const setupInputPorts = new Set<number>();
-	for (let portIndex = 0; portIndex < plan.ports.length; portIndex++) {
-		const port = plan.ports[portIndex]!;
-		if (port[0] === 'state') statePortsByPath.set(port[1], portIndex);
-		if (port[0] === 'props') {
-			const path = port[1].startsWith('props.') ? port[1].slice(6) : port[1];
-			propPorts.push({ portIndex, path: Object.freeze(path.split('.')) });
+	for (const port of plan.ports) {
+		if (port.kind === 'state') statePortsByPath.set(port.path, port.index);
+		if (port.kind === 'props') {
+			const path = port.path.startsWith('props.') ? port.path.slice(6) : port.path;
+			propPorts.push({ portIndex: port.index, path: Object.freeze(path.split('.')) });
 		}
-		if (producers[portIndex]?.size) outputPortIndexes.push(portIndex);
+		if (producers[port.index]?.size) outputPortIndexes.push(port.index);
 	}
 	for (const transition of plan.transitions) {
-		if (transition[2] !== 'setup') continue;
-		for (const input of transition[6]) setupInputPorts.add(input);
-		for (const output of transition[7]) setupOutputs[output] = true;
+		if (transition.activation !== 'setup') continue;
+		for (const input of transition.inputs) setupInputPorts.add(input);
+		for (const output of transition.outputs) setupOutputs[output] = true;
 	}
 	const transitionsById = new Map<string, PreparedComponentTransition>();
 	for (const transition of plan.transitions) {
-		transitionsById.set(transition[0], {
+		transitionsById.set(transition.id, {
 			contract: transition,
-			dependencyPorts: transition[6].map((portIndex) =>
-				hasPredecessor(producers[portIndex], transition[0]) ||
-				plan.ports[portIndex]?.[0] === 'props'
+			dependencyPorts: transition.inputs.map((portIndex) =>
+				hasPredecessor(producers[portIndex], transition.id) ||
+				plan.ports[portIndex]?.kind === 'props'
 					? portIndex
 					: -1
 			),
-			outputs: transition[7].flatMap((portIndex) => {
+			outputs: transition.outputs.flatMap((portIndex) => {
 				const port = plan.ports[portIndex];
-				return port?.[0] === 'state'
-					? [{ portIndex, path: Object.freeze(port[1].split('.')) }]
+				return port?.kind === 'state'
+					? [{ portIndex, path: Object.freeze(port.path.split('.')) }]
 					: [];
 			})
 		});
@@ -81,8 +80,8 @@ export function prepareComponentExecution(
 	const setupPropNames = new Set<string>();
 	for (const portIndex of setupInputPorts) {
 		const port = plan.ports[portIndex];
-		if (port?.[0] !== 'props') continue;
-		const path = port[1].startsWith('props.') ? port[1].slice(6) : port[1];
+		if (port?.kind !== 'props') continue;
+		const path = port.path.startsWith('props.') ? port.path.slice(6) : port.path;
 		const separator = path.indexOf('.');
 		setupPropNames.add(separator < 0 ? path : path.slice(0, separator));
 	}
@@ -102,10 +101,10 @@ export function prepareComponentExecution(
 function producerIdsByPort(plan: ExactComponentExecutionContract): Array<Set<string> | undefined> {
 	const producers = new Array<Set<string> | undefined>(plan.ports.length);
 	for (const transition of plan.transitions) {
-		for (const output of transition[7]) {
+		for (const output of transition.outputs) {
 			let ids = producers[output];
 			if (!ids) producers[output] = ids = new Set();
-			ids.add(transition[0]);
+			ids.add(transition.id);
 		}
 	}
 	return producers;
