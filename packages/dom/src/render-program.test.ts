@@ -210,6 +210,81 @@ it('evaluates an initial planned slot exactly once', () => {
 	expect(reads).toBe(1);
 });
 
+it('refreshes only the compiled slot group whose dependency changed', () => {
+	const state = reactive({ first: 'a', second: 'b' });
+	const reads = { first: 0, second: 0 };
+	const vnode = createCompiledRenderProgram(
+		'render-program:independent-slots',
+		() => ({
+			version: 1,
+			id: 'render-program:independent-slots',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="slots"><span data-exact-id="first">\ue000exact:0\ue001</span><span data-exact-id="second">\ue000exact:1\ue001</span></section>',
+			parts: [],
+			slots: [
+				['text', 'first', [0, 0], [0, 0]],
+				['text', 'second', [1, 0], [1, 0]]
+			],
+			nodes: [
+				['slots', [], [], 'section'],
+				['first', [0], [0], 'span'],
+				['second', [1], [1], 'span']
+			]
+		}),
+		[
+			() => {
+				reads.first++;
+				return state.first;
+			},
+			() => {
+				reads.second++;
+				return state.second;
+			}
+		]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(reads).toEqual({ first: 1, second: 1 });
+	state.first = 'changed';
+	flushSync();
+	expect(reads).toEqual({ first: 2, second: 1 });
+	expect(container.textContent).toBe('changedb');
+});
+
+it('retracks replacement readers when a compiled program invocation is patched', () => {
+	const state = reactive({ first: 'a', second: 'b' });
+	const program = (reader: () => string) =>
+		createCompiledRenderProgram(
+			'render-program:replacement-dependency',
+			() => ({
+				version: 1,
+				id: 'render-program:replacement-dependency',
+				namespace: 'html',
+				template: '<span data-exact-id="replacement">\ue000exact:0\ue001</span>',
+				parts: [],
+				slots: [['text', 'replacement', [0], [0]]],
+				nodes: [['replacement', [], [], 'span']]
+			}),
+			[reader]
+		);
+	const container = document.createElement('div');
+	render(
+		program(() => state.first),
+		container
+	);
+	render(
+		program(() => state.second),
+		container
+	);
+	state.first = 'ignored';
+	flushSync();
+	expect(container.textContent).toBe('b');
+	state.second = 'tracked';
+	flushSync();
+	expect(container.textContent).toBe('tracked');
+});
+
 it('falls back locally when an initial text slot violates its scalar contract', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:shape-fallback',
