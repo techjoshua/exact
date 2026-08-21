@@ -79,9 +79,11 @@ function renderMarkedProgram(
 			html = appendBoundedHtml(
 				context,
 				html,
-				slot.kind === 'text'
+				slot.kind === 'text' && slot.id
 					? `<!--exact:dynamic:${exactMarkerId(slot.id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(slot.id)}-->`
-					: rendered
+					: slot.kind === 'text'
+						? ''
+						: rendered
 			);
 		} else {
 			const id = `cell:${markerBase + operation.index}`;
@@ -114,6 +116,8 @@ function hasValidSsrOperations(
 		if (!Number.isSafeInteger(operation.index) || operation.index < 0) return false;
 		if (operation.kind === 'slot') {
 			if (operation.index >= program.slots.length) return false;
+			const slot = program.slots[operation.index]!;
+			if (slot.kind === 'text' && !slot.id) return false;
 		} else if (
 			(operation.kind === 'node-open' || operation.kind === 'node-close') &&
 			operation.index < program.nodes.length

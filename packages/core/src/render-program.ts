@@ -10,7 +10,8 @@ export type ExactRenderProgramNode = Readonly<{
 	path: readonly number[];
 	hydrationPath?: readonly number[];
 	tag?: string;
-	namespace: 'html' | 'svg' | 'mathml';
+	/** Omitted when the node inherits its containing program's namespace. */
+	namespace?: 'html' | 'svg' | 'mathml';
 }>;
 
 /** One server-only marker or slot operation between immutable program strings. */
@@ -21,7 +22,8 @@ export type ExactRenderProgramSsrOperation = Readonly<{
 
 /** One compiler-owned scalar slot. The reader remains invocation-local. */
 export type ExactRenderProgramSlot = Readonly<{
-	id: string;
+	/** Required only for text slots whose SSR marker is claimed by identity. */
+	id?: string;
 	kind: 'text' | 'property' | 'attribute' | 'style' | 'class' | 'url';
 	path: readonly number[];
 	hydrationPath?: readonly number[];
