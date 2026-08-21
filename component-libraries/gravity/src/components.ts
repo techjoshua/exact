@@ -1,5 +1,4 @@
-import { markExactEnhancementContexts, unwrap, watch, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { unwrap, watch, type ComponentInstance } from '@exactjs/core';
 import { PhysicsBodyContext, PhysicsWorldContext, type PhysicsWorld } from '@exactjs/physics';
 import { applyGravity } from './application.js';
 import type {
@@ -13,10 +12,7 @@ import type {
 import { BodyGravityRegistration } from './registration.js';
 
 /** Transparent subtree component that owns one world field registration. */
-export const GravityFieldComponent = markExactComponent(function GravityField(
-	this: Component<{}>,
-	props: GravityFieldProps
-) {
+export function GravityFieldComponent(this: ComponentInstance<{}>, props: GravityFieldProps) {
 	if (!this.hasContext(PhysicsWorldContext)) {
 		throw new Error('GravityField requires a PhysicsWorld context');
 	}
@@ -54,13 +50,10 @@ export const GravityFieldComponent = markExactComponent(function GravityField(
 	});
 	this.onUnmount(() => application?.[Symbol.dispose]());
 	return () => props.children;
-}, '@exactjs/gravity:GravityField');
+}
 
 /** Transparent same-target component that consumes the current physics body. */
-export const GravityElement = markExactComponent(function GravityElement(
-	this: Component<{}>,
-	props: GravityElementProps
-) {
+export function GravityElement(this: ComponentInstance<{}>, props: GravityElementProps) {
 	if (!this.hasContext(PhysicsBodyContext)) {
 		this.log.error('Gravity enhancement requires a physics body', undefined, {
 			enhancement: '@exactjs/gravity#default',
@@ -93,6 +86,4 @@ export const GravityElement = markExactComponent(function GravityElement(
 	});
 	this.onUnmount(() => registration[Symbol.dispose]());
 	return () => props.children;
-}, '@exactjs/gravity:GravityElement');
-
-markExactEnhancementContexts(GravityElement, { optionallyConsumes: [PhysicsBodyContext] });
+}
