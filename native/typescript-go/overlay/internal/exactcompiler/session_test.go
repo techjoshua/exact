@@ -711,7 +711,7 @@ func TestNormalizeFileNameRecognizesWindowsPathsOnEveryHost(t *testing.T) {
 	}
 }
 
-func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
+func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 	source := `
 		function Panel() {
 			return () => <main />;
@@ -731,10 +731,12 @@ func TestSessionAttachesTargetLocalComponentBrands(t *testing.T) {
 		panel := findComponent(t, response.Analysis.Components, "Panel")
 		inline := findComponent(t, response.Analysis.Components, "Inline")
 		for _, expected := range []string{
-			`const Panel = /* @__PURE__ */ Object.assign(function Panel()`,
+			`const __exactImplementation_Panel_1 = function Panel()`,
 			`[Symbol.for("@exactjs/component")]: "` + panel.ID + `"`,
-			`const Inline = /* @__PURE__ */ Object.assign(() =>`,
 			`[Symbol.for("@exactjs/component")]: "` + inline.ID + `"`,
+			`[__exactComponentContract_1]: {`,
+			`definition: {`,
+			`instantiate:`,
 		} {
 			if !strings.Contains(response.Code, expected) {
 				t.Fatalf(
@@ -778,7 +780,8 @@ func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *te
 	for _, expected := range []string{
 		`const entries = { ready: Ready }`,
 		`function Ready()`,
-		`Object.assign(Ready, { [Symbol.for("@exactjs/component")]: "` + ready.ID + `" })`,
+		`[Symbol.for("@exactjs/component")]: "` + ready.ID + `"`,
+		`instantiate: Ready`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("hoisted component output is missing %q:\n%s", expected, response.Code)
@@ -786,7 +789,7 @@ func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *te
 	}
 }
 
-func TestSessionBrandsPrivateComponentsInsideClientRoots(t *testing.T) {
+func TestSessionEmitsArtifactsForPrivateComponentsInsideClientRoots(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "grid.tsx",
 		Kind:   "compile",
@@ -804,9 +807,13 @@ func TestSessionBrandsPrivateComponentsInsideClientRoots(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	cell := findComponent(t, response.Analysis.Components, "Cell")
-	expected := `Object.assign(Cell, { [Symbol.for("@exactjs/component")]: "` + cell.ID + `" })`
-	if !strings.Contains(response.Code, expected) {
-		t.Fatalf("private client component brand output is missing %q:\n%s", expected, response.Code)
+	for _, expected := range []string{
+		`[Symbol.for("@exactjs/component")]: "` + cell.ID + `"`,
+		`instantiate: Cell`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("private client component artifact is missing %q:\n%s", expected, response.Code)
+		}
 	}
 }
 
@@ -832,7 +839,7 @@ func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
 		if card.Placement != "unknown" {
 			t.Fatalf("expected project-resolved placement fixture, got %#v", card)
 		}
-		expected := `export const Card = /* @__PURE__ */ Object.assign(function Card(`
+		expected := `const __exactImplementation_Card_1 = function Card(`
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("%s component brand output is missing %q:\n%s", target, expected, response.Code)
 		}

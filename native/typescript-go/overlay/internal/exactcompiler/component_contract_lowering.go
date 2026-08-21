@@ -7,10 +7,10 @@ import (
 	"github.com/microsoft/typescript-go/internal/printer"
 )
 
-// lowerComponentContracts attaches the target-local ownership brand for
-// components whose complete descriptor contains no generated implementations
-// or distributed continuations. Rich contracts are added by the continuation
-// and artifact passes as those records become available.
+// lowerComponentContracts attaches a target-local executable artifact to every
+// native component. Exported roots may additionally own continuations,
+// resumption, and boundary records, but private children are not reduced to a
+// compilerless identity-only callable.
 func lowerComponentContracts(
 	sourceFile *ast.SourceFile,
 	emitContext *printer.EmitContext,
@@ -28,22 +28,13 @@ func lowerComponentContracts(
 		return sourceFile
 	}
 	factory := emitContext.Factory
-	eligible := make(map[string]Component)
 	rootContracts := make(map[string]Component)
 	for _, component := range components {
-		if componentRootContract(
-			component,
-			target,
-			continuations,
-			resumptions,
-			boundaries,
-		) {
+		if componentHasTargetArtifact(component, target) {
 			rootContracts[component.Name] = component
-		} else {
-			eligible[component.Name] = component
 		}
 	}
-	if len(eligible) == 0 && len(rootContracts) == 0 {
+	if len(rootContracts) == 0 {
 		return sourceFile
 	}
 
@@ -52,13 +43,15 @@ func lowerComponentContracts(
 	statements := make(
 		[]*ast.Node,
 		0,
-		len(sourceFile.Statements.Nodes)+len(eligible)+len(rootContracts)+1,
+		len(sourceFile.Statements.Nodes)+len(rootContracts)+1,
 	)
 	for _, statement := range sourceFile.Statements.Nodes {
 		if ast.IsFunctionDeclaration(statement) {
 			name := statement.Name()
 			if name != nil {
 				if component, wrap := rootContracts[name.Text()]; wrap {
+					preserveHoisting := preserveComponentHoisting ||
+						componentFunctionReferencedEarlier(sourceFile, statement, name.Text())
 					statements = append(
 						statements,
 						wrapRootComponentFunction(
@@ -72,28 +65,10 @@ func lowerComponentContracts(
 							boundaries,
 							target,
 							used,
-							preserveComponentHoisting,
+							preserveHoisting,
 							compatibility,
 							projection,
 						)...,
-					)
-					continue
-				}
-				if component, attach := eligible[name.Text()]; attach {
-					if !preserveComponentHoisting &&
-						!componentFunctionReferencedEarlier(sourceFile, statement, name.Text()) {
-						statements = append(
-							statements,
-							brandComponentFunctionValue(emitContext, statement.AsFunctionDeclaration(), component)...,
-						)
-						continue
-					}
-					statements = append(
-						statements,
-						statement,
-						factory.NewExpressionStatement(
-							componentBrandAttachment(factory, name, component.ID),
-						),
 					)
 					continue
 				}
@@ -118,15 +93,6 @@ func lowerComponentContracts(
 				statements = append(statements, updatedRoot)
 				continue
 			}
-			updated, changed := brandComponentVariables(
-				emitContext,
-				statement,
-				eligible,
-			)
-			if changed {
-				statements = append(statements, updated)
-				continue
-			}
 		}
 		statements = append(statements, statement)
 	}
@@ -136,6 +102,9 @@ func lowerComponentContracts(
 				continue
 			}
 			if component.ClientIslandCount == 0 {
+				continue
+			}
+			if component.Placement == "client" {
 				continue
 			}
 			generatedName := generatedComponentName(
@@ -289,28 +258,11 @@ func brandComponentFunctionValue(
 	return result
 }
 
-func componentRootContract(
-	component Component,
-	target Target,
-	_ []Continuation,
-	_ []ComponentResumption,
-	_ []Boundary,
-) bool {
-	if !component.Exported {
-		return false
-	}
-	if target == TargetClient && component.Placement == "client" {
-		return true
-	}
-	if target == TargetServer && component.Placement == "server" {
-		return true
-	}
-	if component.Placement != "isomorphic" {
-		return false
-	}
-	// Every exported isomorphic component carries the same canonical definition,
-	// including task-free components whose target-local execution graph is empty.
-	return true
+func componentHasTargetArtifact(_ Component, target Target) bool {
+	// Partition lowering has already replaced opposite-target implementations
+	// with target-local boundary callables. Those stubs are compiled artifacts
+	// too; placement does not authorize an identity-only native value.
+	return target != TargetDefault
 }
 
 func brandComponentVariables(
@@ -614,7 +566,7 @@ func rootComponentContractAttachment(
 		"root",
 		component.Name,
 	)
-	if target == TargetServer && component.ClientIslandCount != 0 {
+	if target == TargetServer && component.Placement != "client" && component.ClientIslandCount != 0 {
 		implementationName = generatedComponentName(
 			component.Name,
 			"server-part",
@@ -714,7 +666,9 @@ func rootComponentContractAttachment(
 			),
 		))
 	}
-	if component.Placement != "server" && projection != ComponentContractProjectionClient {
+	if component.Placement != "server" &&
+		projection != ComponentContractProjectionClient &&
+		(component.Exported || componentHasResumption(component.ID, resumptions)) {
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"resumption",

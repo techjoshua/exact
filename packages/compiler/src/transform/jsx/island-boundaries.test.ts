@@ -71,8 +71,10 @@ describe('@exactjs/compiler: island boundaries', () => {
 		);
 
 		expect(server).toContain(
-			'export const ClientWidget = /* @__PURE__ */ Object.assign(function ClientWidget(props = {})'
+			'const __exactImplementation_ClientWidget_1 = function ClientWidget(props = {})'
 		);
+		expect(server).toContain('definition:');
+		expect(server).toContain('instantiate: __exactImplementation_ClientWidget_1');
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('"ClientWidget"');
 		expect(server).not.toContain('window.innerWidth');
