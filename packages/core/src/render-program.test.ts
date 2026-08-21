@@ -62,13 +62,25 @@ describe('compiled render-program cache', () => {
 		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
 	});
 
-	it('joins instance readers to a module-hoisted immutable descriptor', () => {
-		const prepared = prepareCompiledRenderProgram(program('prepared'));
+	it('joins readers to the exact compiler-registered descriptor without cloning it', () => {
+		const descriptor = program('prepared');
+		const prepared = prepareCompiledRenderProgram(descriptor);
 		const vnode = createPreparedRenderProgram(prepared, [() => 'value']);
 		const invocation = readRenderProgram(vnode)!;
+		expect(prepared).toBe(descriptor);
 		expect(invocation.program).toBe(prepared);
 		expect(compiledRenderProgramCacheSize()).toBe(0);
-		expect(Object.isFrozen(invocation.program)).toBe(true);
 		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
+	});
+
+	it('rejects an unregistered structural copy of a prepared descriptor', () => {
+		const prepared = prepareCompiledRenderProgram(program('prepared'));
+		const lookalike = { ...prepared };
+		const vnode = {
+			type: createPreparedRenderProgram(prepared, [() => 'value']).type,
+			props: { program: lookalike, readers: [() => 'value'] },
+			children: []
+		};
+		expect(readRenderProgram(vnode)).toBeUndefined();
 	});
 });

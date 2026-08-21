@@ -2,7 +2,7 @@ import type { VNode } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { RenderProgram } from './symbols.js';
 
-const renderProgramBrand = Symbol('exact.render-program.brand');
+const preparedRenderPrograms = new WeakSet<ExactRenderProgram>();
 
 /** One immutable compiler-owned DOM node in a render program. */
 export type ExactRenderProgramNode = Readonly<{
@@ -41,7 +41,7 @@ export type ExactRenderProgram = Readonly<{
 	ssrOperations?: readonly ExactRenderProgramSsrOperation[];
 }>;
 
-type BrandedRenderProgram = ExactRenderProgram & { readonly [renderProgramBrand]: true };
+type BrandedRenderProgram = ExactRenderProgram & { readonly __exactPreparedRenderProgram: never };
 
 /** Per-instance readers and generic fallback joined to one cached compiled program. */
 export type ExactRenderProgramInvocation = Readonly<{
@@ -85,39 +85,18 @@ export function createCompiledRenderProgram(
 	return createPreparedRenderProgram(prepared, readers, fallback);
 }
 
-/** Hoists and brands one compiler descriptor during module initialization. */
+/**
+ * Registers one compiler-emitted descriptor without copying its trusted executable data.
+ *
+ * The module-private weak identity is the renderer's authority boundary. Descriptors are emitted
+ * as module-local constants by the compiler, so recursively cloning and freezing their nested
+ * tables during browser startup adds allocation and traversal without validating an external
+ * input. Network and plugin payloads remain subject to their own boundary validation before they
+ * can reach this compiler-only operation.
+ */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
-	return Object.freeze({
-		...program,
-		parts: Object.freeze([...program.parts]),
-		slots: Object.freeze(
-			program.slots.map((slot) =>
-				Object.freeze({
-					...slot,
-					path: Object.freeze([...slot.path]),
-					...(slot.hydrationPath ? { hydrationPath: Object.freeze([...slot.hydrationPath]) } : {})
-				})
-			)
-		),
-		nodes: Object.freeze(
-			program.nodes.map((node) =>
-				Object.freeze({
-					...node,
-					path: Object.freeze([...node.path]),
-					...(node.hydrationPath ? { hydrationPath: Object.freeze([...node.hydrationPath]) } : {})
-				})
-			)
-		),
-		...(program.ssrParts ? { ssrParts: Object.freeze([...program.ssrParts]) } : {}),
-		...(program.ssrOperations
-			? {
-					ssrOperations: Object.freeze(
-						program.ssrOperations.map((operation) => Object.freeze({ ...operation }))
-					)
-				}
-			: {}),
-		[renderProgramBrand]: true as const
-	});
+	preparedRenderPrograms.add(program);
+	return program as BrandedRenderProgram;
 }
 
 /** Joins invocation-local readers to one compiler-hoisted immutable descriptor. */
@@ -141,7 +120,7 @@ export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | 
 	const invocation = vnode.props as Partial<ExactRenderProgramInvocation>;
 	if (
 		!invocation.program ||
-		invocation.program[renderProgramBrand] !== true ||
+		!preparedRenderPrograms.has(invocation.program) ||
 		invocation.program.version !== 1 ||
 		(!Array.isArray(invocation.readers) && typeof invocation.readers !== 'function') ||
 		(invocation.fallback !== undefined && typeof invocation.fallback !== 'function') ||
