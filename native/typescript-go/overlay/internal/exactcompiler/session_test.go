@@ -1761,6 +1761,40 @@ __fixtureTask1();
 	}
 }
 
+func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-form.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Form(this: Component<{ severity: string }>) {
+				return () => <select value:onChange={this.state.severity}>
+					<option value="all">All</option>
+					<option value="high">High</option>
+				</select>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`template: "<select`,
+		`<option data-exact-id=\"`,
+		`value=\"all\"`,
+		`value=\"high\"`,
+		`["property", [], [], "value"]`,
+		`["property", [], [], "__exactBindChange"]`,
+		`bindings: [["properties", [0, 1]]]`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("planned form binding omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `createCompiledVNode("select"`) {
+		t.Fatalf("planned form binding retained a generic select host:\n%s", response.Code)
+	}
+}
+
 func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "invalid-form.tsx",

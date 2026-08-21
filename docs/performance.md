@@ -72,6 +72,10 @@ continues to use request-owned dynamic markers and the hydration tape addresses 
 Compiler-owned `className:name` contributions are likewise combined into one planned class
 operation in authored order. Conditional class hosts no longer require a generic VNode merely to
 preserve class normalization and reactive updates.
+Compiler-authored intrinsic form bindings enter planned hosts as their generated controlled-value
+and event operations. Static option subtrees remain inside the same template, and the binding table
+keeps option initialization ahead of a controlled select value. Authored binding namespaces never
+escape into the runtime artifact.
 
 ## Commands
 
