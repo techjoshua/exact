@@ -88,6 +88,10 @@
 			"types": "./dist/runtime/tasks.d.ts",
 			"default": "./dist/runtime/tasks.js"
 		},
+		"./runtime/component-execution": {
+			"types": "./dist/runtime/component-execution.d.ts",
+			"default": "./dist/runtime/component-execution.js"
+		},
 		"./runtime/inspection": {
 			"types": "./dist/runtime/inspection.d.ts",
 			"default": "./dist/runtime/inspection.js"
