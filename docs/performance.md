@@ -56,6 +56,11 @@ rediscover topology with maps or runtime sorting. Replacement invocations also r
 readers rather than retaining dependencies from the previous invocation. This remains direct
 compiled DOM work, not a virtual-DOM or general bytecode interpreter.
 
+The first mount of a descriptor consumes its parsed template fragment directly. An inert template
+is retained only after a second mount proves that the descriptor is repeated, such as a compiled
+keyed-list item. One-off page and component skeletons therefore do not retain a duplicate DOM tree
+merely to support a clone that never occurs.
+
 Literal host attributes with identical template, DOM, and SSR semantics are written directly into
 the compiler-owned template. They do not become reader branches, binding records, reactions, or
 initial `updateProps` work. Values that require URL policy, form binding, event installation,

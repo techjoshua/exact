@@ -57,6 +57,35 @@ it('mounts and patches a static compiler program without reactive bindings', () 
 	expect(container.childNodes).toHaveLength(0);
 });
 
+it('materializes repeated program templates without sharing live DOM', () => {
+	const program = () =>
+		createCompiledRenderProgram(
+			'render-program:repeated-template',
+			() => ({
+				version: 1,
+				id: 'render-program:repeated-template',
+				namespace: 'html',
+				template: '<p data-exact-id="repeated">Repeated</p>',
+				parts: [],
+				slots: [],
+				bindings: [],
+				nodes: [['repeated', [], [], 'p']]
+			}),
+			[]
+		);
+	const first = document.createElement('div');
+	const second = document.createElement('div');
+	const third = document.createElement('div');
+	render(program(), first);
+	render(program(), second);
+	render(program(), third);
+	expect(first.textContent).toBe('Repeated');
+	expect(second.textContent).toBe('Repeated');
+	expect(third.textContent).toBe('Repeated');
+	expect(first.firstElementChild).not.toBe(second.firstElementChild);
+	expect(second.firstElementChild).not.toBe(third.firstElementChild);
+});
+
 it('uses ordinary host semantics for planned properties, styles, events, and refs', () => {
 	const state = reactive({ disabled: false, tone: 'red', clicks: 0 });
 	const refValues: unknown[] = [];
