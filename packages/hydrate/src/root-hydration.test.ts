@@ -174,8 +174,8 @@ describe('hydration-only root capability', () => {
 				namespace: 'html',
 				template: '<span data-exact-id="program-root">\ue000exact:0\ue001</span>',
 				parts: ['<span data-exact-id="program-root">', '</span>'],
-				slots: [['text', 'program-text', [0], [0]]],
-				nodes: [['program-root', [], [], 'span', 'html']],
+				slots: [{ id: 'program-text', kind: 'text', path: [0] }],
+				nodes: [{ id: 'program-root', path: [], tag: 'span', namespace: 'html' }],
 				ssrParts: ['', '<span data-exact-id="program-root">', '', '</span>', ''],
 				ssrOperations: [
 					{ kind: 'node-open', index: 0 },

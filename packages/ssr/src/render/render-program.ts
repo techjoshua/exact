@@ -37,7 +37,7 @@ export function renderSsrProgram(
 		const value = unwrap(readRenderProgramSlot(invocation, index));
 		if (
 			value instanceof Promise ||
-			(slot[0] === 'text' && (isVNode(value) || Array.isArray(value)))
+			(slot.kind === 'text' && (isVNode(value) || Array.isArray(value)))
 		)
 			return { fallback: materializeProgramFallback(vnode, owner) };
 		values[index] = value;
@@ -79,9 +79,9 @@ function renderMarkedProgram(
 			html = appendBoundedHtml(
 				context,
 				html,
-				slot[0] === 'text' && slot[1]
-					? `<!--exact:dynamic:${exactMarkerId(slot[1])}-->${rendered}<!--/exact:dynamic:${exactMarkerId(slot[1])}-->`
-					: slot[0] === 'text'
+				slot.kind === 'text' && slot.id
+					? `<!--exact:dynamic:${exactMarkerId(slot.id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(slot.id)}-->`
+					: slot.kind === 'text'
 						? ''
 						: rendered
 			);
@@ -117,7 +117,7 @@ function hasValidSsrOperations(
 		if (operation.kind === 'slot') {
 			if (operation.index >= program.slots.length) return false;
 			const slot = program.slots[operation.index]!;
-			if (slot[0] === 'text' && !slot[1]) return false;
+			if (slot.kind === 'text' && !slot.id) return false;
 		} else if (
 			(operation.kind === 'node-open' || operation.kind === 'node-close') &&
 			operation.index < program.nodes.length
@@ -135,13 +135,13 @@ function renderProgramSlot(
 	value: unknown
 ): string {
 	const slot = program.slots[index]!;
-	if (slot[0] === 'text')
+	if (slot.kind === 'text')
 		return value === null || value === undefined || value === false || value === true
 			? ''
 			: escapeText(String(value));
-	if (!slot[3]) return '';
-	const node = program.nodes.find((candidate) => samePath(candidate[1], slot[1]));
-	return renderAttrs({ [slot[3]]: value }, false, node?.[3], context);
+	if (!slot.name) return '';
+	const node = program.nodes.find((candidate) => samePath(candidate.path, slot.path));
+	return renderAttrs({ [slot.name]: value }, false, node?.tag, context);
 }
 
 function samePath(left: readonly number[], right: readonly number[]): boolean {

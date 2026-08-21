@@ -210,7 +210,7 @@ function validateCandidate(candidate: AnyDynamicComponentCandidate): void {
 		contract.placement === 'server' ||
 		contract.executors.length !== 0 ||
 		contract.continuations.length !== 0 ||
-		contract.execution?.transitions.some((transition) => transition[3] === 'server')
+		contract.execution?.transitions.some((transition) => transition.placement === 'server')
 	) {
 		throw new Error(
 			`Dynamic component ${exactComponentIdentity(candidate)} declares server execution capability`

@@ -24,12 +24,12 @@ describe('lazy island execution slices', () => {
 		const component = compiledIsland({
 			version: 1,
 			ports: [
-				['derived', 'a', 'inout'],
-				['derived', 'b', 'inout']
+				{ index: 0, kind: 'derived', path: 'a', direction: 'inout' },
+				{ index: 1, kind: 'derived', path: 'b', direction: 'inout' }
 			],
 			transitions: [
-				['a', 'a', 'setup', 'client', 'nonblocking', 'latest', [1], [0]],
-				['b', 'b', 'setup', 'client', 'nonblocking', 'latest', [0], [1]]
+				{ ...transition('a', 'setup'), inputs: [1], outputs: [0] },
+				{ ...transition('b', 'setup'), inputs: [0], outputs: [1] }
 			],
 			reactive: []
 		});
@@ -43,7 +43,16 @@ function transition(
 	id: string,
 	activation: 'setup' | 'interaction'
 ): ExactComponentExecutionContract['transitions'][number] {
-	return [id, id, activation, 'client', 'nonblocking', 'latest', [], []];
+	return {
+		id,
+		taskId: id,
+		activation,
+		placement: 'client',
+		readiness: 'nonblocking',
+		concurrency: 'latest',
+		inputs: [],
+		outputs: []
+	};
 }
 
 function compiledIsland(execution: ExactComponentExecutionContract): AnyComponentFunction {

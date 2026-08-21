@@ -442,26 +442,31 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	}
 	slots := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
-		members := []*ast.Node{lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)}
-		if slot.kind == "text" {
-			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone), path(slot.path), path(slot.hydrationPath))
-		} else {
-			members = append(members, path(slot.path), path(slot.hydrationPath), lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone))
+		members := []*ast.Node{
+			property("kind", lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)),
+			property("path", path(slot.path)),
+			property("hydrationPath", path(slot.hydrationPath)),
 		}
-		slots[index] = array(members)
+		if slot.kind == "text" {
+			members = append([]*ast.Node{property("id", lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone))}, members...)
+		}
+		if slot.name != "" {
+			members = append(members, property("name", lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone)))
+		}
+		slots[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
 	}
 	nodes := make([]*ast.Node, len(build.nodes))
 	for index, node := range build.nodes {
 		members := []*ast.Node{
-			lowering.factory.NewStringLiteral(node.id, ast.TokenFlagsNone),
-			path(node.path),
-			path(node.hydrationPath),
-			lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone),
+			property("id", lowering.factory.NewStringLiteral(node.id, ast.TokenFlagsNone)),
+			property("path", path(node.path)),
+			property("hydrationPath", path(node.hydrationPath)),
+			property("tag", lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone)),
 		}
 		if node.namespace != build.namespace {
-			members = append(members, lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone))
+			members = append(members, property("namespace", lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone)))
 		}
-		nodes[index] = array(members)
+		nodes[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
 	}
 	members := []*ast.Node{
 		property("version", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),

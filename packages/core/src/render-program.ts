@@ -4,14 +4,15 @@ import { RenderProgram } from './symbols.js';
 
 const preparedRenderPrograms = new WeakSet<ExactRenderProgram>();
 
-/** Compact compiler-emitted DOM-node tuple: identity, mount path, hydration path, tag, namespace. */
-export type ExactRenderProgramNode = readonly [
-	id: string,
-	path: readonly number[],
-	hydrationPath: readonly number[],
-	tag: string,
-	namespace?: 'html' | 'svg' | 'mathml'
-];
+/** One immutable compiler-owned DOM node in a render program. */
+export type ExactRenderProgramNode = Readonly<{
+	id: string;
+	path: readonly number[];
+	hydrationPath?: readonly number[];
+	tag?: string;
+	/** Omitted when the node inherits its containing program's namespace. */
+	namespace?: 'html' | 'svg' | 'mathml';
+}>;
 
 /** One server-only marker or slot operation between immutable program strings. */
 export type ExactRenderProgramSsrOperation = Readonly<{
@@ -19,24 +20,15 @@ export type ExactRenderProgramSsrOperation = Readonly<{
 	index: number;
 }>;
 
-/** Compact text slot: kind, marker identity, mount path, hydration path. */
-export type ExactRenderProgramTextSlot = readonly [
-	kind: 'text',
-	id: string,
-	path: readonly number[],
-	hydrationPath: readonly number[]
-];
-
-/** Compact property slot: kind, mount path, hydration path, property name. */
-export type ExactRenderProgramPropertySlot = readonly [
-	kind: 'property' | 'attribute' | 'style' | 'class' | 'url',
-	path: readonly number[],
-	hydrationPath: readonly number[],
-	name: string
-];
-
 /** One compiler-owned scalar slot. The reader remains invocation-local. */
-export type ExactRenderProgramSlot = ExactRenderProgramTextSlot | ExactRenderProgramPropertySlot;
+export type ExactRenderProgramSlot = Readonly<{
+	/** Required only for text slots whose SSR marker is claimed by identity. */
+	id?: string;
+	kind: 'text' | 'property' | 'attribute' | 'style' | 'class' | 'url';
+	path: readonly number[];
+	hydrationPath?: readonly number[];
+	name?: string;
+}>;
 
 /** Immutable shape emitted by the compiler for a finite intrinsic region. */
 export type ExactRenderProgram = Readonly<{

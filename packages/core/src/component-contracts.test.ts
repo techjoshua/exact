@@ -73,10 +73,19 @@ describe('@exactjs/core component contracts', () => {
 				},
 				execution: {
 					version: 1 as const,
-					ports: [['state', 'count', 'inout']] as const,
+					ports: [{ index: 0, kind: 'state' as const, path: 'count', direction: 'inout' as const }],
 					transitions: [
-						['task:Page:1', 'task:Page:1', 'setup', 'server', 'blocking', 'latest', [0], [0]]
-					] as const,
+						{
+							id: 'task:Page:1',
+							taskId: 'task:Page:1',
+							activation: 'setup' as const,
+							placement: 'server' as const,
+							readiness: 'blocking' as const,
+							concurrency: 'latest' as const,
+							inputs: [0],
+							outputs: [0]
+						}
+					],
 					reactive: [
 						{
 							name: 'count',
