@@ -63,12 +63,11 @@ describe('compiled render-program cache', () => {
 	});
 
 	it('joins instance readers to a module-hoisted immutable descriptor', () => {
-		const prepared = prepareCompiledRenderProgram('revision:prepared', program('prepared'));
-		const reused = prepareCompiledRenderProgram('revision:prepared', program('ignored'));
+		const prepared = prepareCompiledRenderProgram(program('prepared'));
 		const vnode = createPreparedRenderProgram(prepared, [() => 'value']);
 		const invocation = readRenderProgram(vnode)!;
-		expect(reused).toBe(prepared);
 		expect(invocation.program).toBe(prepared);
+		expect(compiledRenderProgramCacheSize()).toBe(0);
 		expect(Object.isFrozen(invocation.program)).toBe(true);
 		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
 	});

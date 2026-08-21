@@ -76,53 +76,48 @@ export function createCompiledRenderProgram(
 	readers: readonly (() => unknown)[] | ((index: number) => unknown),
 	fallback?: () => VNode
 ): VNode {
-	const prepared =
-		programs.get(cacheKey) ?? prepareCompiledRenderProgram(cacheKey, createProgram());
+	let prepared = programs.get(cacheKey);
+	if (!prepared) {
+		prepared = prepareCompiledRenderProgram(createProgram());
+		programs.set(cacheKey, prepared);
+		if (programs.size > maximumCachedPrograms) programs.delete(programs.keys().next().value!);
+	}
 	return createPreparedRenderProgram(prepared, readers, fallback);
 }
 
 /** Hoists and brands one compiler descriptor during module initialization. */
-export function prepareCompiledRenderProgram(
-	cacheKey: string,
-	program: ExactRenderProgram
-): BrandedRenderProgram {
-	let branded = programs.get(cacheKey);
-	if (!branded) {
-		branded = Object.freeze({
-			...program,
-			parts: Object.freeze([...program.parts]),
-			slots: Object.freeze(
-				program.slots.map((slot) =>
-					Object.freeze({
-						...slot,
-						path: Object.freeze([...slot.path]),
-						...(slot.hydrationPath ? { hydrationPath: Object.freeze([...slot.hydrationPath]) } : {})
-					})
-				)
-			),
-			nodes: Object.freeze(
-				program.nodes.map((node) =>
-					Object.freeze({
-						...node,
-						path: Object.freeze([...node.path]),
-						...(node.hydrationPath ? { hydrationPath: Object.freeze([...node.hydrationPath]) } : {})
-					})
-				)
-			),
-			...(program.ssrParts ? { ssrParts: Object.freeze([...program.ssrParts]) } : {}),
-			...(program.ssrOperations
-				? {
-						ssrOperations: Object.freeze(
-							program.ssrOperations.map((operation) => Object.freeze({ ...operation }))
-						)
-					}
-				: {}),
-			[renderProgramBrand]: true as const
-		});
-		programs.set(cacheKey, branded);
-		if (programs.size > maximumCachedPrograms) programs.delete(programs.keys().next().value!);
-	}
-	return branded;
+export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
+	return Object.freeze({
+		...program,
+		parts: Object.freeze([...program.parts]),
+		slots: Object.freeze(
+			program.slots.map((slot) =>
+				Object.freeze({
+					...slot,
+					path: Object.freeze([...slot.path]),
+					...(slot.hydrationPath ? { hydrationPath: Object.freeze([...slot.hydrationPath]) } : {})
+				})
+			)
+		),
+		nodes: Object.freeze(
+			program.nodes.map((node) =>
+				Object.freeze({
+					...node,
+					path: Object.freeze([...node.path]),
+					...(node.hydrationPath ? { hydrationPath: Object.freeze([...node.hydrationPath]) } : {})
+				})
+			)
+		),
+		...(program.ssrParts ? { ssrParts: Object.freeze([...program.ssrParts]) } : {}),
+		...(program.ssrOperations
+			? {
+					ssrOperations: Object.freeze(
+						program.ssrOperations.map((operation) => Object.freeze({ ...operation }))
+					)
+				}
+			: {}),
+		[renderProgramBrand]: true as const
+	});
 }
 
 /** Joins invocation-local readers to one compiler-hoisted immutable descriptor. */
