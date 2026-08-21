@@ -7,17 +7,10 @@ import {
 	type AnyComponentFunction,
 	Activity,
 	createEnhancementMarker,
-	markExactEnhancementContexts,
 	type Component
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import '@exactjs/core/runtime/component-execution';
-import {
-	PhysicsBodyContext,
-	PhysicsElement,
-	PhysicsWorld,
-	createPhysicsWorld
-} from '@exactjs/physics';
+import { PhysicsElement, PhysicsWorld, createPhysicsWorld } from '@exactjs/physics';
 import { flushSync } from '@exactjs/reactive';
 import {
 	createTestVNode as createVNode,
@@ -27,12 +20,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GravityElement, GravityFieldComponent } from './components.js';
 import type { GravityField } from './contracts.js';
 import { uniformGravity } from './fields.js';
-
-// Source-level unit tests bypass the package compiler. The package build separately verifies the
-// public client and server exports as compiled artifacts.
-markExactComponent(GravityElement, '@exactjs/gravity:test:GravityElement');
-markExactComponent(GravityFieldComponent, '@exactjs/gravity:test:GravityField');
-markExactEnhancementContexts(GravityElement, { optionallyConsumes: [PhysicsBodyContext] });
 
 const containers: Element[] = [];
 

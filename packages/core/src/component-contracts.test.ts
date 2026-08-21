@@ -7,23 +7,11 @@ import {
 	exactComponentIdentity,
 	exactComponentType,
 	isExactComponent,
-	markExactComponent,
 	readExactCompiledComponentContract,
 	readExactComponentContract
 } from './component-contracts.js';
 
 describe('@exactjs/core component contracts', () => {
-	it('brands native library components without inventing an executable contract', () => {
-		const Component = markExactComponent(function Component() {}, '@exactjs/core:test-component');
-
-		expect(isExactComponent(Component)).toBe(true);
-		expect(readExactComponentContract(Component)).toBeUndefined();
-		expect(exactComponentIdentity(Component)).toBe('@exactjs/core:test-component');
-		expect(() => readExactCompiledComponentContract(Component)).toThrow(
-			'compiled component artifact'
-		);
-	});
-
 	it('limits an opaque framework boundary to dynamic rendering and interactions', () => {
 		const Boundary = createExactDynamicBoundaryArtifact(
 			function Boundary() {},

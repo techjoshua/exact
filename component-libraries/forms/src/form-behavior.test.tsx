@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { createErrorContext, ErrorContext } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import '@exactjs/core/runtime/refs';
 import { render } from '@exactjs/dom';
 import { testComponent } from '@exactjs/testing';
@@ -42,7 +42,7 @@ for (const [name, component] of Object.entries({
 	Submit,
 	Textarea
 }))
-	markExactComponent(component, `@exactjs/forms:test:${name}`);
+	createExactFrameworkFixtureArtifact(component, `@exactjs/forms:test:${name}`);
 
 describe('forms', () => {
 	it('wires accessible fields and validates submission', async () => {

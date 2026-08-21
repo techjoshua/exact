@@ -10,7 +10,7 @@ import {
 	type Component,
 	type ErrorReport
 } from './index.js';
-import { createComponentInstance, renderInstance } from './runtime/render.js';
+import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
 import { defaultErrorContext } from './component/errors.js';
 
 describe('@exactjs/core errors', () => {
@@ -33,7 +33,7 @@ describe('@exactjs/core errors', () => {
 	it('routes render failures to the nearest error context', () => {
 		let instance!: Component<{ errors: ErrorReport[] }>;
 
-		const component = createComponentInstance(function Broken(
+		const component = createFrameworkFixtureComponentInstance(function Broken(
 			this: Component<{ errors: ErrorReport[] }>
 		) {
 			instance = this;
@@ -59,7 +59,7 @@ describe('@exactjs/core errors', () => {
 		let instance!: Component<{ errors: ErrorReport[] }>;
 		let report!: ErrorReport;
 
-		const parent = createComponentInstance(function Boundary(
+		const parent = createFrameworkFixtureComponentInstance(function Boundary(
 			this: Component<{ errors: ErrorReport[] }>
 		) {
 			instance = this;
@@ -68,7 +68,7 @@ describe('@exactjs/core errors', () => {
 			return () => null;
 		}, {});
 
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Reporter(this: Component<{}>) {
 				const errors = this.getContext(ErrorContext);
 				report = errors.report(new Error('manual failure'), {
@@ -111,7 +111,7 @@ describe('@exactjs/core errors', () => {
 		let instance!: Component<{ errors: ErrorReport[] }>;
 		const cleanup = vi.fn();
 
-		const component = createComponentInstance(function Worker(
+		const component = createFrameworkFixtureComponentInstance(function Worker(
 			this: Component<{ errors: ErrorReport[] }>
 		) {
 			instance = this;
@@ -135,7 +135,7 @@ describe('@exactjs/core errors', () => {
 
 	it('finishes component teardown before rethrowing a synchronous ownership failure', () => {
 		const cleanup = vi.fn();
-		const component = createComponentInstance(function Worker(this: Component<{}>) {
+		const component = createFrameworkFixtureComponentInstance(function Worker(this: Component<{}>) {
 			this.onUnmount(cleanup);
 			return () => null;
 		}, {}) as any;
@@ -160,23 +160,23 @@ describe('@exactjs/core errors', () => {
 
 	it('isolates the framework error context between application roots', () => {
 		const failing = () =>
-			createComponentInstance(function Root(this: Component<{}>) {
+			createFrameworkFixtureComponentInstance(function Root(this: Component<{}>) {
 				return () => {
 					throw new Error('root failure');
 				};
 			}, {});
 		const first = failing();
-		const second = createComponentInstance(function Root(this: Component<{}>) {
+		const second = createFrameworkFixtureComponentInstance(function Root(this: Component<{}>) {
 			return () => null;
 		}, {});
-		const firstChild = createComponentInstance(
+		const firstChild = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				return () => null;
 			},
 			{},
 			first
 		);
-		const secondChild = createComponentInstance(
+		const secondChild = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				return () => null;
 			},

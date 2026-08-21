@@ -16,10 +16,10 @@ import { fade } from '@exactjs/motion/presets';
 </MotionConfig>;
 ```
 
-## Runtime boundary
+## Component and runtime APIs
 
-The package also exports compilerless `Motion`, `Presence`, `MotionList`, `animate()`, and
-`defineMotion()` APIs. Use `Presence` for conditional leave, focus return, and keyed replacement
+The package also exports precompiled `Motion`, `Presence`, and `MotionList` components alongside
+the `animate()` and `defineMotion()` runtime helpers. Use `Presence` for conditional leave, focus return, and keyed replacement
 ordering through `mode="sync" | "out-in" | "in-out"`; use `MotionList` for stable keyed projection
 of reactive application collections. In-out sequencing waits for descendant enter playback before
 releasing the previous range, while skipped reduced motion advances immediately. Wrap layout participants in

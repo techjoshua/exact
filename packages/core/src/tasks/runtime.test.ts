@@ -4,7 +4,7 @@ import { computed, currentWorkPriority, flushSync, reactive, watch } from '@exac
 import type { TaskContext } from './contracts.js';
 import type { Component } from '../component/contracts.js';
 import { LoggerContext } from '../component/contexts.js';
-import { createComponentInstance } from '../component/runtime.js';
+import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import { runTaskFrame } from '../framework/task-frames.js';
 import type { LogEvent, Logger } from '../logging.js';
 import { activateComputationForHost, activateTask } from './activation.js';
@@ -556,11 +556,11 @@ describe('unified task runtime', () => {
 			isEnabled: (level) => level === 'trace',
 			log: (event) => events.push(event)
 		};
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
-		const owner = createComponentInstance(() => () => null, {}, parent);
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {}, parent);
 		const state = reactive({ value: 0 });
 		const task = bindTaskForHost(
 			owner,

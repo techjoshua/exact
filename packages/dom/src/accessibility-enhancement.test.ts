@@ -5,7 +5,7 @@ import './framework/enhancements.js';
 import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
 import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render } from './index.js';
@@ -16,7 +16,7 @@ const identity = '@exactjs/accessibility/enhancements#describedBy';
 
 describe('@exactjs/dom accessibility enhancement integration', () => {
 	it('publishes a ref relationship without wrapper markup and keeps generated identity', () => {
-		const Page = markExactComponent(function Page(this: Component<{}>) {
+		const Page = createExactFrameworkFixtureArtifact(function Page(this: Component<{}>) {
 			const help = this.ref(helpKey);
 			return () => [
 				createVNode(

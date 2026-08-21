@@ -10,7 +10,7 @@ import {
 	withComponentDomain,
 	type Component
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { describe, expect, it, vi } from 'vitest';
@@ -238,8 +238,8 @@ describe('component domain rendering', () => {
 			});
 			return () => boundary;
 		}
-		markExactComponent(Panel, 'fixture:inspection-panel');
-		markExactComponent(Host, 'fixture:inspection-host');
+		createExactFrameworkFixtureArtifact(Panel, 'fixture:inspection-panel');
+		createExactFrameworkFixtureArtifact(Host, 'fixture:inspection-host');
 
 		const restoreInspection = setExactDomInspectionOwner(inspection);
 		render(createCompiledVNode(Host, null), container);

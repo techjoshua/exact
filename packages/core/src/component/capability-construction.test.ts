@@ -4,12 +4,15 @@ import { exactComponentContract, exactComponentType } from '../component-contrac
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
-import { createCompiledComponentInstance, createComponentInstance } from './runtime.js';
+import {
+	createCompiledComponentInstance,
+	createFrameworkFixtureComponentInstance
+} from './runtime.js';
 
 describe('compiled component capability construction', () => {
 	it('releases component-owned resources with the durable instance', () => {
 		let disposed = false;
-		const instance = createComponentInstance(function Owner(this: Component<{}>) {
+		const instance = createFrameworkFixtureComponentInstance(function Owner(this: Component<{}>) {
 			const resource = this.own({
 				dispose() {
 					disposed = true;
@@ -45,24 +48,35 @@ describe('compiled component capability construction', () => {
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] }
+				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					state: [],
+					tasks: [],
+					reactive: [],
+					render: 'returned-function' as const,
+					capabilities: []
+				}
 			}
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
-		const instance = createComponentInstance(StaticPanel, {});
+		const instance = createCompiledComponentInstance(StaticPanel, {});
 		expect(taskOwnerForHost(instance)).toBeUndefined();
 		instance.unmount();
 	});
 
-	it('retains the generic task-owner fallback for uncompiled components', () => {
-		const instance = createComponentInstance(function Compilerless(this: Component<{}>) {
+	it('gives explicit framework fixtures the task owner needed by low-level tests', () => {
+		const instance = createFrameworkFixtureComponentInstance(function Compilerless(
+			this: Component<{}>
+		) {
 			return () => null;
 		}, {});
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
 	});
 
-	it('rejects compilerless values at the compiled construction boundary', () => {
+	it('rejects raw functions at the compiled construction boundary', () => {
 		expect(() =>
 			createCompiledComponentInstance(function Compilerless(this: Component<{}>) {
 				return () => null;

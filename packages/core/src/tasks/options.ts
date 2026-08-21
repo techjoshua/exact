@@ -1,6 +1,6 @@
 import type { RuntimeTaskOptions } from './contracts.js';
 
-/** Validates policy values supplied by compilerless task definitions. */
+/** Validates policy values supplied by explicit runtime task definitions. */
 export function validateTaskOptions<Args extends unknown[]>(
 	options: RuntimeTaskOptions<Args>
 ): void {

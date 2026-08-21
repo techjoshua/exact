@@ -4,7 +4,7 @@
 import './structural-boundaries.js';
 import { Suspense, type Component } from '@exactjs/core';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -29,16 +29,24 @@ function ComfortableRegistryIdentityEntry(
 	return () => <p>comfortable:{props.label}</p>;
 }
 
-markExactComponent(RegistryIdentityEntry, '@exactjs/dom:test:RegistryIdentityEntry');
-markExactComponent(
+createExactFrameworkFixtureArtifact(
+	RegistryIdentityEntry,
+	'@exactjs/dom:test:RegistryIdentityEntry'
+);
+createExactFrameworkFixtureArtifact(
 	ComfortableRegistryIdentityEntry,
 	'@exactjs/dom:test:ComfortableRegistryIdentityEntry'
 );
 
-const IdentityView = createCompiledComponentRegistry('test:identity', 'IdentityView', 'client', () => ({
-	compact: RegistryIdentityEntry,
-	comfortable: ComfortableRegistryIdentityEntry
-}));
+const IdentityView = createCompiledComponentRegistry(
+	'test:identity',
+	'IdentityView',
+	'client',
+	() => ({
+		compact: RegistryIdentityEntry,
+		comfortable: ComfortableRegistryIdentityEntry
+	})
+);
 
 let identityApp!: Component<{
 	selected: 'compact' | 'comfortable';
@@ -91,7 +99,9 @@ describe('@exactjs/dom component registries', () => {
 		});
 		const load = vi.fn(async () => {
 			await gate;
-			return markExactComponent(function Lazy(this: Component<Record<string, never>>) {
+			return createExactFrameworkFixtureArtifact(function Lazy(
+				this: Component<Record<string, never>>
+			) {
 				return () => <p>loaded</p>;
 			}, '@exactjs/dom:test:ConcurrentLazy');
 		});
@@ -124,7 +134,7 @@ describe('@exactjs/dom component registries', () => {
 			this.onUnmount(() => disposals.push(props.registryKey));
 			return () => <p>{props.registryKey}</p>;
 		}
-		markExactComponent(Shared, '@exactjs/dom:test:SharedRegistryEntry');
+		createExactFrameworkFixtureArtifact(Shared, '@exactjs/dom:test:SharedRegistryEntry');
 		const View = createCompiledComponentRegistry('test:shared', 'SharedView', 'client', () => ({
 			first: Shared,
 			second: Shared
@@ -157,7 +167,7 @@ describe('@exactjs/dom component registries', () => {
 		const lazySetups = vi.fn();
 		const load = vi.fn(async () => {
 			await gate;
-			return markExactComponent(function Lazy() {
+			return createExactFrameworkFixtureArtifact(function Lazy() {
 				lazySetups();
 				return () => <p>lazy</p>;
 			}, '@exactjs/dom:test:StaleLazy');
@@ -165,11 +175,16 @@ describe('@exactjs/dom component registries', () => {
 		function Ready() {
 			return () => <p>ready</p>;
 		}
-		markExactComponent(Ready, '@exactjs/dom:test:ReadyRegistryEntry');
-		const View = createCompiledComponentRegistry('test:stale', 'StaleView', 'client', ({ lazy }) => ({
-			lazy: lazy(load),
-			ready: Ready
-		}));
+		createExactFrameworkFixtureArtifact(Ready, '@exactjs/dom:test:ReadyRegistryEntry');
+		const View = createCompiledComponentRegistry(
+			'test:stale',
+			'StaleView',
+			'client',
+			({ lazy }) => ({
+				lazy: lazy(load),
+				ready: Ready
+			})
+		);
 		let app!: Component<{ selected: 'lazy' | 'ready' }>;
 		function App(this: Component<{ selected: 'lazy' | 'ready' }>) {
 			app = this;

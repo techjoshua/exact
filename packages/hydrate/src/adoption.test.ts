@@ -17,7 +17,7 @@ import {
 } from '@exactjs/core';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import '@exactjs/dom/unsafe-html';
 import {
 	createCompiledDynamicComponent,
@@ -108,7 +108,7 @@ describe('@exactjs/hydrate adoption', () => {
 	it('activates bundle-local enhancements after adopting their authored target', () => {
 		const identity = '@exactjs/hydrate:test-enhancement#default';
 		const roots: RootLifecycle<HTMLElement>[] = [];
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
@@ -406,8 +406,8 @@ describe('@exactjs/hydrate adoption', () => {
 					createVNode('span', null, 'after')
 				);
 		}
-		markExactComponent(ClientPanel, 'fixture:hydrated-dynamic-panel');
-		markExactComponent(Page, 'fixture:hydrated-dynamic-page');
+		createExactFrameworkFixtureArtifact(ClientPanel, 'fixture:hydrated-dynamic-panel');
+		createExactFrameworkFixtureArtifact(Page, 'fixture:hydrated-dynamic-page');
 		root.innerHTML = renderToString(createVNode(Page, null)).html;
 		const siblings = root.querySelectorAll('span');
 		const before = siblings[0];
@@ -600,8 +600,8 @@ describe('@exactjs/hydrate adoption', () => {
 		function Second() {
 			return () => createVNode('p', null, 'second');
 		}
-		markExactComponent(First, '@exactjs/hydrate:test:FirstRegistryEntry');
-		markExactComponent(Second, '@exactjs/hydrate:test:SecondRegistryEntry');
+		createExactFrameworkFixtureArtifact(First, '@exactjs/hydrate:test:FirstRegistryEntry');
+		createExactFrameworkFixtureArtifact(Second, '@exactjs/hydrate:test:SecondRegistryEntry');
 		const View = createCompiledComponentRegistry('test:adoption', 'AdoptionView', 'client', () => ({
 			first: First,
 			second: Second

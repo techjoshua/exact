@@ -1,6 +1,6 @@
 import { Suspense, type Component } from '@exactjs/core';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderToString, renderToStringAsync } from './index.js';
@@ -14,8 +14,8 @@ function Lazy(this: Component<Record<string, never>>, props: { label: string }) 
 	return () => createVNode('p', null, `lazy:${props.label}`);
 }
 
-markExactComponent(Eager, '@exactjs/ssr:test:Eager');
-markExactComponent(Lazy, '@exactjs/ssr:test:Lazy');
+createExactFrameworkFixtureArtifact(Eager, '@exactjs/ssr:test:Eager');
+createExactFrameworkFixtureArtifact(Lazy, '@exactjs/ssr:test:Lazy');
 
 describe('@exactjs/ssr component registries', () => {
 	it('renders eager registry members through their stable selection facade', () => {
@@ -30,9 +30,14 @@ describe('@exactjs/ssr component registries', () => {
 
 	it('loads a lazy selected server entry through Suspense readiness', async () => {
 		const load = vi.fn(async () => Lazy);
-		const View = createCompiledComponentRegistry('test:ssr:lazy', 'LazyView', 'server', ({ lazy }) => ({
-			lazy: lazy(load)
-		}));
+		const View = createCompiledComponentRegistry(
+			'test:ssr:lazy',
+			'LazyView',
+			'server',
+			({ lazy }) => ({
+				lazy: lazy(load)
+			})
+		);
 		const output = await renderToStringAsync(
 			createVNode(
 				Suspense,

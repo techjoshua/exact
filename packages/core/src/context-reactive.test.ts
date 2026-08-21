@@ -12,7 +12,7 @@ import {
 } from './index.js';
 import './component/ref-capability-integration.js';
 import './component/list-capability-integration.js';
-import { createComponentInstance, renderInstance } from './runtime/render.js';
+import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
 
 describe('@exactjs/core context-reactive', () => {
 	it('scopes contexts to descendants and stores refs', () => {
@@ -24,8 +24,8 @@ describe('@exactjs/core context-reactive', () => {
 			return () => null;
 		}
 
-		const parent = createComponentInstance(Parent, {});
-		const child = createComponentInstance(
+		const parent = createFrameworkFixtureComponentInstance(Parent, {});
+		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				const binding = this.ref(input);
 				binding.fulfill({ focus() {} });
@@ -57,11 +57,11 @@ describe('@exactjs/core context-reactive', () => {
 		}
 		const token = createContext<Service>('service', { reactive: false });
 		const service = new Service();
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(token, service);
 			return () => null;
 		}, {});
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				const received = this.getContext(token);
 				expect(received).toBe(service);
@@ -76,11 +76,11 @@ describe('@exactjs/core context-reactive', () => {
 	it('checks optional context presence without masking lookup failures', () => {
 		const provided = createContext<string>('provided', { reactive: false });
 		const missing = createContext<string>('missing', { reactive: false });
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(provided, 'ready');
 			return () => null;
 		}, {});
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				expect(this.hasContext(provided)).toBe(true);
 				expect(this.hasContext(missing)).toBe(false);
@@ -101,8 +101,8 @@ describe('@exactjs/core context-reactive', () => {
 			return () => null;
 		}
 
-		const parent = createComponentInstance(Parent, {});
-		createComponentInstance(
+		const parent = createFrameworkFixtureComponentInstance(Parent, {});
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				expect(unwrap(this.getContext(consumerToken).name)).toBe('Ada');
 				return () => null;
@@ -125,7 +125,7 @@ describe('@exactjs/core context-reactive', () => {
 	});
 
 	it('creates a keyed list fragment through this.map', () => {
-		const instance = createComponentInstance(function List(this: Component<{}>) {
+		const instance = createFrameworkFixtureComponentInstance(function List(this: Component<{}>) {
 			return () =>
 				this.map(
 					[{ id: 'a' }, { id: 'b' }],
@@ -142,7 +142,7 @@ describe('@exactjs/core context-reactive', () => {
 
 	it('preserves compiler-identified list caches across recreated render closures', () => {
 		const items = [{ id: 'a' }];
-		const instance = createComponentInstance(function List(this: Component<{}>) {
+		const instance = createFrameworkFixtureComponentInstance(function List(this: Component<{}>) {
 			return () =>
 				this.map(
 					items,
@@ -170,7 +170,7 @@ describe('@exactjs/core context-reactive', () => {
 			};
 		}
 
-		const instance = createComponentInstance(Child, { text: 'original' });
+		const instance = createFrameworkFixtureComponentInstance(Child, { text: 'original' });
 		const nodes = renderInstance(instance, () => undefined);
 
 		expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe('original');
@@ -193,7 +193,7 @@ describe('@exactjs/core context-reactive', () => {
 			return () => createVNode('span', null, label);
 		}
 
-		const component = createComponentInstance(Person, {});
+		const component = createFrameworkFixtureComponentInstance(Person, {});
 		const nodes = renderInstance(component, () => undefined);
 
 		expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe('Ada Lovelace');

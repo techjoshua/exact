@@ -9,7 +9,7 @@ import {
 	type Component
 } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { renderToString } from '@exactjs/ssr';
 import { TimeUpdate } from '@exactjs/time';
@@ -59,7 +59,7 @@ describe('enhanced hydration facade', () => {
 				},
 				createDynamicChild(() => String(activation.readEpochMilliseconds()), 'time-sample', false)
 			);
-		const ClockView = markExactComponent(function ClockView() {
+		const ClockView = createExactFrameworkFixtureArtifact(function ClockView() {
 			const activation = createTimeActivation('second', plan);
 			return () => timeVNode(activation);
 		}, '@test/time-hydration');
@@ -92,7 +92,7 @@ describe('enhanced hydration facade', () => {
 
 	it('supplies the application-bundle catalog after adoption', () => {
 		const identity = '@exactjs/hydrate:enhanced-facade';
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {

@@ -424,5 +424,6 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 export {
 	createCompiledComponentInstance,
 	createComponentInstance,
+	createFrameworkFixtureComponentInstance,
 	createPreparedComponentInstance
 } from './runtime-construction.js';

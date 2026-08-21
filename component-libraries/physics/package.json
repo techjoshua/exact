@@ -47,7 +47,7 @@
 	},
 	"scripts": {
 		"build": "tsc6 -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
-		"test": "vitest run",
+		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

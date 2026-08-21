@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRef } from '../keys.js';
 import './ref-capability-integration.js';
 import type { Component, RefBinding } from './contracts.js';
-import { createComponentInstance } from './runtime.js';
+import { createFrameworkFixtureComponentInstance } from './runtime.js';
 
 describe('component ref bindings', () => {
 	it('returns one stable binding for each component and ref key', () => {
@@ -17,7 +17,7 @@ describe('component ref bindings', () => {
 			return () => null;
 		}
 
-		const instance = createComponentInstance(Owner, {});
+		const instance = createFrameworkFixtureComponentInstance(Owner, {});
 		expect(first).toBe(second);
 		expect(first.owner).toBe(instance);
 	});
@@ -40,7 +40,7 @@ describe('component ref bindings', () => {
 			return () => null;
 		}
 
-		createComponentInstance(Owner, {});
+		createFrameworkFixtureComponentInstance(Owner, {});
 		expect(observed).toHaveBeenLastCalledWith(undefined, undefined);
 
 		binding.fulfill(resource);

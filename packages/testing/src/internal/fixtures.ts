@@ -10,10 +10,7 @@ import {
 	type VNodeType
 } from '@exactjs/core';
 import { createCompiledVNode } from '@exactjs/core/runtime/render';
-import {
-	createExactFrameworkFixtureArtifact,
-	isExactComponent
-} from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import type { AnyExactComponentCallable } from '@exactjs/core/framework/component-contracts';
 import { jsx, jsxs } from '@exactjs/jsx';
 
@@ -29,7 +26,7 @@ type TestJsxType = VNodeType | AnyAuthoredComponentFunction;
 /** Gives a raw renderer-test function the identity application components receive from the compiler. */
 function testType<T extends TestJsxType>(type: T): T {
 	const authoredName = typeof type === 'function' ? type.name : '';
-	if (typeof type === 'function' && !isExactComponent(type))
+	if (typeof type === 'function')
 		createExactFrameworkFixtureArtifact(
 			type,
 			`@exactjs/testing:fixture:${authoredName || 'anonymous'}:${++nextFixtureId}`

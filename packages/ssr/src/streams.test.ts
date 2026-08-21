@@ -5,7 +5,7 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,
@@ -74,20 +74,20 @@ describe('@exactjs/ssr streams', () => {
 	it('streams a routed enhancement without reconstructing its logical target', async () => {
 		const identity = '@exactjs/ssr:stream-enhancement#default';
 		let targetSetups = 0;
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
 			return () => createVNode('aside', null, props.children);
 		}, '@exactjs/ssr:stream-enhancement');
-		const Target = markExactComponent(function Target(this: Component<{}>) {
+		const Target = createExactFrameworkFixtureArtifact(function Target(this: Component<{}>) {
 			targetSetups++;
 			return () =>
 				createVNode('main', {
 					__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
 				});
 		}, '@exactjs/ssr:stream-target');
-		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+		const Boundary = createExactFrameworkFixtureArtifact(function Boundary(this: Component<{}>) {
 			return () => [createVNode('header', null), createVNode(Target, null)];
 		}, '@exactjs/ssr:stream-boundary');
 		const reader = renderToStream(

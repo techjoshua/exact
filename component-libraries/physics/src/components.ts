@@ -4,7 +4,7 @@ import {
 	taskAnimationFrame,
 	unwrap,
 	watch,
-	type ComponentInstance
+	type Component
 } from '@exactjs/core';
 import { PhysicsBodyContext, PhysicsWorldContext } from './context.js';
 import type {
@@ -17,7 +17,7 @@ import { positionAndRotation } from './projections.js';
 import { createPhysicsWorld } from './world.js';
 
 /** Context-producing component that owns one Activity-aware physics frame loop. */
-export function PhysicsWorldComponent(this: ComponentInstance<{}>, props: PhysicsWorldProps) {
+export function PhysicsWorldComponent(this: Component<{}>, props: PhysicsWorldProps) {
 	const supplied = unwrap(props.world);
 	const world = supplied ?? createPhysicsWorld(unwrap(props.options));
 	this.setContext(PhysicsWorldContext, world);
@@ -62,7 +62,7 @@ export function PhysicsWorldComponent(this: ComponentInstance<{}>, props: Physic
 }
 
 /** Transparent ordinary component activated for one resolved physics target. */
-export function PhysicsElement(this: ComponentInstance<{}>, props: PhysicsElementProps) {
+export function PhysicsElement(this: Component<{}>, props: PhysicsElementProps) {
 	const root = this.refs.root<HTMLElement | SVGElement>();
 	if (!this.hasContext(PhysicsWorldContext)) {
 		throw new Error('PhysicsElement requires a PhysicsWorld context');

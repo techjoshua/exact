@@ -17,4 +17,4 @@ component, state, context, task, interaction, and registry examples.
   component selection.
 - Use `createDynamicComponent()` only for intentionally open client-only providers. It cannot own
   eXact server continuations, actions, refreshes, executors, or server-homed dependencies.
-- Use `this.intl` inside compiled components and the exported `intl` facade in ordinary helpers for explicitly cache-backed native formatting. Import `@exactjs/core/localization` when a compilerless component needs `this.intl`.
+- Use `this.intl` inside compiled components and the exported `intl` facade in ordinary helpers for explicitly cache-backed native formatting.

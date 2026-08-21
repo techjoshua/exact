@@ -7,7 +7,7 @@ import {
 	type LogEvent,
 	type Logger
 } from './index.js';
-import { createComponentInstance } from './runtime/render.js';
+import { createFrameworkFixtureComponentInstance } from './runtime/render.js';
 import { componentLogMethod } from './runtime/logging.js';
 
 describe('@exactjs/core logging', () => {
@@ -15,7 +15,7 @@ describe('@exactjs/core logging', () => {
 		const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
 
 		try {
-			createComponentInstance(function Logged(this: Component<{}>) {
+			createFrameworkFixtureComponentInstance(function Logged(this: Component<{}>) {
 				this.log.info('hello', { answer: 42 });
 				return () => null;
 			}, {});
@@ -36,12 +36,12 @@ describe('@exactjs/core logging', () => {
 			log
 		};
 
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
 
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				this.log.debug(
 					() => {
@@ -65,7 +65,7 @@ describe('@exactjs/core logging', () => {
 		const error = new Error('boom');
 
 		try {
-			createComponentInstance(function Broken(this: Component<{}>) {
+			createFrameworkFixtureComponentInstance(function Broken(this: Component<{}>) {
 				this.log.error('failed', error, { taskId: 'task-1' });
 				return () => null;
 			}, {});
@@ -91,12 +91,12 @@ describe('@exactjs/core logging', () => {
 		};
 		let callback!: () => void;
 
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, firstLogger);
 			return () => null;
 		}, {});
 
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				callback = () => this.log.info('later');
 				return () => null;
@@ -120,11 +120,11 @@ describe('@exactjs/core logging', () => {
 			isEnabled: (level) => level !== 'debug' || debugEnabled,
 			log: (event) => events.push(event)
 		};
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
-		const child = createComponentInstance(
+		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				return () => null;
 			},
@@ -157,11 +157,11 @@ describe('@exactjs/core logging', () => {
 	it('peeks compiler log arguments without subscribing the caller', () => {
 		const events: LogEvent[] = [];
 		const logger: Logger = { log: (event) => events.push(event) };
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
-		const child = createComponentInstance(
+		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				return () => null;
 			},
@@ -209,13 +209,13 @@ describe('@exactjs/core logging', () => {
 		};
 
 		try {
-			const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 				this.setContext(LoggerContext, logger);
 				return () => null;
 			}, {});
 
 			expect(() =>
-				createComponentInstance(
+				createFrameworkFixtureComponentInstance(
 					function Child(this: Component<{}>) {
 						this.log.info('hello');
 						return () => null;
