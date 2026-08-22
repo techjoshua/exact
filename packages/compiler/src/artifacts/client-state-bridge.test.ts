@@ -59,6 +59,6 @@ describe('@exactjs/compiler: client state bridges', () => {
 
 		expect(output).toContain('function ClientWidget()');
 		expect(output).toMatch(/export const Page = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
-		expect(output).toContain('onClick: () => save()');
+		expect(output).toContain('"__exactClosedInteraction:onClick": () => save()');
 	});
 });
