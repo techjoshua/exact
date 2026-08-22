@@ -1088,10 +1088,14 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 				arguments := []*ast.Node{
 					claimIndex,
 					skip,
-					lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone),
 				}
 				if build.markerlessTextSlot(claim.index) {
 					arguments = append(arguments, lowering.factory.NewTrueExpression())
+				} else {
+					arguments = append(
+						arguments,
+						lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone),
+					)
 				}
 				emitCall(
 					lowering.names.claimProgramText,

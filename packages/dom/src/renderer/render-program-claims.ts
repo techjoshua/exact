@@ -13,7 +13,6 @@ type ProgramClaimTarget = {
 	componentSlots: number | Set<number>;
 	work: readonly [nodes: number, slots: number];
 	readonly parents: Array<Node | null>;
-	readonly containers: Node[];
 	container: Node;
 	current: Node | null;
 	valid: boolean;
@@ -50,7 +49,6 @@ export function claimCompiledRenderProgram(
 		componentSlots: 0,
 		work: [0, 0],
 		parents: [],
-		containers: [],
 		container: root,
 		current: null,
 		valid: true,
@@ -132,8 +130,7 @@ export function enterCompiledProgramElement(
 		target.valid = false;
 		return;
 	}
-	target.parents.push(target.current);
-	target.containers.push(target.container);
+	target.parents.push(target.current, target.container);
 	target.container = element;
 	target.current = element.firstChild;
 }
@@ -141,8 +138,8 @@ export function enterCompiledProgramElement(
 /** Restores the parent cursor after a compiler-known intrinsic subtree. */
 export function leaveCompiledProgramElement(target: ExactRenderProgramBindingTarget): void {
 	if (!isClaimTarget(target) || !target.valid) return;
+	const container = target.parents.pop();
 	const parent = target.parents.pop();
-	const container = target.containers.pop();
 	if (parent === undefined || !container) {
 		target.valid = false;
 		return;
@@ -156,11 +153,10 @@ export function claimCompiledProgramText(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
 	skip: number,
-	id: string,
-	markerlessSsr = false
+	id: string | true
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
-	if (target.source === 'ssr' && markerlessSsr) {
+	if (target.source === 'ssr' && id === true) {
 		let marker = target.current;
 		for (let offset = 0; offset < skip; offset++) {
 			if (!marker) {
@@ -183,7 +179,7 @@ export function claimCompiledProgramText(
 		return;
 	}
 	const marker = advance(target.current, skip);
-	const identity = markerIdentity(id);
+	const identity = id === true ? '' : markerIdentity(id);
 	const expectedOpen = target.source === 'template' ? '' : `exact:dynamic:${identity}`;
 	const expectedClose = target.source === 'template' ? '' : `/exact:dynamic:${identity}`;
 	if (!(marker instanceof Comment) || marker.data !== expectedOpen) {

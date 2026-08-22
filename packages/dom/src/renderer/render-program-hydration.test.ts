@@ -96,13 +96,18 @@ describe('compiler-wired render-program claims', () => {
 			...scalarProgram,
 			bind(target) {
 				if (!beginCompiledProgramClaims(target, 'p', 'html', 1, 1)) return;
-				claimCompiledProgramText(target, 0, 0, 'label', true);
+				claimCompiledProgramText(target, 0, 0, true);
 			}
 		};
+		const template = document.createElement('template');
+		template.innerHTML = program.template;
+		const mountedRoot = template.content.firstElementChild as Element;
 
 		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+		const mounted = claimCompiledRenderProgram(program, mountedRoot, 'template');
 
 		expect((claimed?.slotNodes[0] as Text).data).toBe('Ready');
+		expect((mounted?.slotNodes[0] as Text).data).toBe('\ue000exact:0\ue001');
 		expect(root.childNodes).toHaveLength(1);
 		expect(root.querySelectorAll('*')).toHaveLength(0);
 	});
@@ -114,7 +119,7 @@ describe('compiler-wired render-program claims', () => {
 			...scalarProgram,
 			bind(target) {
 				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
-				claimCompiledProgramText(target, 0, 0, 'label', true);
+				claimCompiledProgramText(target, 0, 0, true);
 			}
 		};
 
@@ -131,7 +136,7 @@ describe('compiler-wired render-program claims', () => {
 			...scalarProgram,
 			bind(target) {
 				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
-				claimCompiledProgramText(target, 0, 1, 'label', true);
+				claimCompiledProgramText(target, 0, 1, true);
 			}
 		};
 
