@@ -161,7 +161,9 @@ describe('@exactjs/core logging', () => {
 			mounted: true,
 			parent: undefined,
 			ambientContexts: undefined,
-			contexts: new Map<symbol, unknown>(),
+			get contexts() {
+				return new Map<symbol, unknown>();
+			},
 			get log(): never {
 				throw new Error('compiled logging read the dynamic facade');
 			}
