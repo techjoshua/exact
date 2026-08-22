@@ -315,3 +315,4 @@ describe('@exactjs/core logging', () => {
 		}
 	});
 });
+import './runtime/contexts.js';

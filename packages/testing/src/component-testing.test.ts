@@ -12,6 +12,7 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
+import '@exactjs/dom/runtime/target';
 import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';

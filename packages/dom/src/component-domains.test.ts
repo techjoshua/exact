@@ -262,3 +262,4 @@ describe('component domain rendering', () => {
 	});
 });
 import './runtime/target.js';
+import '@exactjs/core/runtime/contexts';

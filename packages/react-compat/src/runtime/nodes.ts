@@ -11,6 +11,7 @@ import {
 	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
+import '@exactjs/core/runtime/contexts';
 import {
 	createExactCompatibilityArtifact,
 	isExactComponent

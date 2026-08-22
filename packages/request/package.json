@@ -20,6 +20,7 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"sideEffects": false,
 	"exactCompiledComponents": [
 		"RequestProvider"
 	],

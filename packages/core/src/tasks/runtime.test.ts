@@ -611,3 +611,4 @@ describe('unified task runtime', () => {
 		expect(owner.signal.reason).toBe('task-owner-disposed');
 	});
 });
+import '../runtime/contexts.js';

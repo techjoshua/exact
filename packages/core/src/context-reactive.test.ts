@@ -204,3 +204,4 @@ describe('@exactjs/core context-reactive', () => {
 		);
 	});
 });
+import './runtime/contexts.js';

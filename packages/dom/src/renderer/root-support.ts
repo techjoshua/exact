@@ -1,6 +1,7 @@
 import {
 	createErrorContext,
 	ErrorContext,
+	type AnyComponentInstance,
 	type Component,
 	type ComponentFunction,
 	type ErrorContextValue,
@@ -16,7 +17,7 @@ import type { RenderOptions, Root } from '../types.js';
 export function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
 	return createExactDynamicBoundaryArtifact(
 		function RootBoundary(this: Component<{}>, props: { version: number }) {
-			this.setContext(ErrorContext, root.errors);
+			(this as AnyComponentInstance).contexts.set(ErrorContext.id, root.errors);
 
 			return () => {
 				void props.version;

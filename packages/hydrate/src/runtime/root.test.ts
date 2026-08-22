@@ -93,3 +93,4 @@ describe('hidden exact roots', () => {
 		replacement.dispose();
 	});
 });
+import '@exactjs/core/runtime/contexts';

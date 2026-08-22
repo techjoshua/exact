@@ -116,6 +116,10 @@
 			"types": "./dist/runtime/collections.d.ts",
 			"default": "./dist/runtime/collections.js"
 		},
+		"./runtime/contexts": {
+			"types": "./dist/runtime/contexts.d.ts",
+			"default": "./dist/runtime/contexts.js"
+		},
 		"./runtime/localization": {
 			"types": "./dist/runtime/localization.d.ts",
 			"default": "./dist/runtime/localization.js"

@@ -215,3 +215,4 @@ describe('component runtime inspection', () => {
 		});
 	});
 });
+import '../runtime/contexts.js';

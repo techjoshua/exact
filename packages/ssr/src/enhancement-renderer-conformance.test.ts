@@ -3,6 +3,7 @@
  */
 import { Target, createVNode } from '@exactjs/core';
 import { render } from '@exactjs/dom';
+import '@exactjs/dom/runtime/target';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './index.js';
 

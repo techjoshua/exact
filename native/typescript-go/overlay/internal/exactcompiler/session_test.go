@@ -1282,6 +1282,55 @@ func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
 	}
 }
 
+func TestSessionImportsComponentContextsOnlyWhenUsed(t *testing.T) {
+	contextual := NewSession().Execute(Request{
+		ID:     "contextual.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `declare const Theme: { id: symbol };
+		export function Provider() {
+			this.setContext(Theme, "dark");
+			return () => <main />;
+		}`,
+	})
+	if contextual.Error != "" {
+		t.Fatal(contextual.Error)
+	}
+	if !strings.Contains(contextual.Code, `import "@exactjs/core/runtime/contexts"`) {
+		t.Fatalf("component context use did not import its runtime capability:\n%s", contextual.Code)
+	}
+	boundary := NewSession().Execute(Request{
+		ID:     "error-boundary.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `import { ErrorBoundary as Boundary } from "@exactjs/core";
+		export function Page() {
+			return () => <Boundary><main /></Boundary>;
+		}`,
+	})
+	if boundary.Error != "" {
+		t.Fatal(boundary.Error)
+	}
+	if !strings.Contains(boundary.Code, `import "@exactjs/core/runtime/contexts"`) {
+		t.Fatalf("built-in ErrorBoundary did not import its context capability:\n%s", boundary.Code)
+	}
+
+	plain := NewSession().Execute(Request{
+		ID:     "context-free.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `export function Plain() {
+			return () => <main />;
+		}`,
+	})
+	if plain.Error != "" {
+		t.Fatal(plain.Error)
+	}
+	if strings.Contains(plain.Code, "runtime/contexts") {
+		t.Fatalf("component without context use retained the context capability:\n%s", plain.Code)
+	}
+}
+
 func TestSessionEmitsCompatibilityCapabilityOnlyForAdaptedComponentRoots(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "button.tsx",

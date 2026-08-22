@@ -1,9 +1,12 @@
 import { createContext, createVNode, type Component } from '@exactjs/core';
 import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
 import {
+	createExactFrameworkFixtureArtifact,
 	exactComponentContract,
-	exactComponentType
+	exactComponentType,
+	type AnyExactComponentCallable
 } from '@exactjs/core/framework/component-contracts';
+import '@exactjs/core/runtime/contexts';
 import { describe, expect, it } from 'vitest';
 import { adaptReactComponent } from './exact.js';
 import {
@@ -23,12 +26,19 @@ import {
 	useExactContext
 } from './interop.js';
 
+let nextFixture = 0;
+const fixture = <T extends AnyExactComponentCallable>(component: T): T =>
+	createExactFrameworkFixtureArtifact(component, `@exactjs/react-compat:test:${++nextFixture}`);
+
 describe('eXact and React context interop', () => {
 	it('profiles render and commit work through an explicit compatibility scope', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
-		const component = createComponentInstance(function Profiled(this: Component<{}>) {
-			return () => null;
-		}, {});
+		const component = createComponentInstance(
+			fixture(function Profiled(this: Component<{}>) {
+				return () => null;
+			}),
+			{}
+		);
 
 		withReactProfile(
 			(event) => events.push(event),
@@ -51,10 +61,13 @@ describe('eXact and React context interop', () => {
 	it('lets React compatibility hooks consume a native ancestor context', () => {
 		const Service = createContext<string>('fixture.service');
 		let observed: string | undefined;
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
-			this.setContext(Service, 'native-value');
-			return () => null;
-		}, {});
+		const parent = createComponentInstance(
+			fixture(function Parent(this: Component<{}>) {
+				this.setContext(Service, 'native-value');
+				return () => null;
+			}),
+			{}
+		);
 		const Reader = adaptReactComponent(function Reader() {
 			observed = useExactContext(Service);
 			return null;
@@ -68,16 +81,19 @@ describe('eXact and React context interop', () => {
 		const Service = createContext<string>('fixture.provider');
 		const ReactService = bridgeReactContext(Service, 'default');
 		let providerComponent!: Component<{}>;
-		const provider = createComponentInstance(function Provider(this: Component<{}>) {
-			providerComponent = this;
-			return () => null;
-		}, {});
+		const provider = createComponentInstance(
+			fixture(function Provider(this: Component<{}>) {
+				providerComponent = this;
+				return () => null;
+			}),
+			{}
+		);
 		new HookHost(providerComponent).provide(ReactService, 'react-value');
 		const child = createComponentInstance(
-			function Child(this: Component<{}>) {
+			fixture(function Child(this: Component<{}>) {
 				expect(this.getContext(Service)).toBe('react-value');
 				return () => null;
-			},
+			}),
 			{},
 			provider
 		);
@@ -193,14 +209,17 @@ describe('eXact and React context interop', () => {
 
 	it('keeps nearest-provider semantics through alternating ownership layers', () => {
 		const paired = defineInteropContext('fixture.alternating', 'default');
-		const root = createComponentInstance(function Root(this: Component<{}>) {
-			this.setContext(paired.exact, 'native-root');
-			return () => null;
-		}, {});
-		const reactLayer = createComponentInstance(
-			function Layer() {
+		const root = createComponentInstance(
+			fixture(function Root(this: Component<{}>) {
+				this.setContext(paired.exact, 'native-root');
 				return () => null;
-			},
+			}),
+			{}
+		);
+		const reactLayer = createComponentInstance(
+			fixture(function Layer() {
+				return () => null;
+			}),
 			{},
 			root
 		);
@@ -208,17 +227,17 @@ describe('eXact and React context interop', () => {
 		expect(reactHost.exactContext(paired.exact)).toBe('native-root');
 		reactHost.provide(paired.react, 'react-override');
 		const nativeLayer = createComponentInstance(
-			function Native(this: Component<{}>) {
+			fixture(function Native(this: Component<{}>) {
 				expect(this.getContext(paired.exact)).toBe('react-override');
 				return () => null;
-			},
+			}),
 			{},
 			reactLayer
 		);
 		const finalReactLayer = createComponentInstance(
-			function Layer() {
+			fixture(function Layer() {
 				return () => null;
-			},
+			}),
 			{},
 			nativeLayer
 		);
@@ -232,21 +251,24 @@ describe('eXact and React context interop', () => {
 		const leftValue = {};
 		const rightValue = {};
 		const makeRoot = (value: object) =>
-			createComponentInstance(function Root(this: Component<{}>) {
-				this.setContext(token, value);
-				return () => null;
-			}, {});
+			createComponentInstance(
+				fixture(function Root(this: Component<{}>) {
+					this.setContext(token, value);
+					return () => null;
+				}),
+				{}
+			);
 		const left = createComponentInstance(
-			function Child(this: Component<{}>) {
+			fixture(function Child(this: Component<{}>) {
 				return () => null;
-			},
+			}),
 			{},
 			makeRoot(leftValue)
 		);
 		const right = createComponentInstance(
-			function Child(this: Component<{}>) {
+			fixture(function Child(this: Component<{}>) {
 				return () => null;
-			},
+			}),
 			{},
 			makeRoot(rightValue)
 		);

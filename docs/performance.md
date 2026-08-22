@@ -87,6 +87,16 @@ lane for that root so authored overrides continue to apply at call time. Compile
 receive a root-proven disabled trace lane directly, avoiding logger discovery altogether when the
 shared logger excludes trace events.
 
+Component context lookup, publication, inspection, and SSR context resumption are likewise a
+compiler-selected capability. A component module that calls `hasContext`, `getContext`, or
+`setContext` imports that implementation beside its artifact; a context-free component runtime
+retains only the fail-closed operation boundary. The renderer's private root error context is
+installed directly on its opaque root artifact, while DOM and SSR readiness owners directly install
+their compiler-known private tokens. Neither path makes authored context traversal reachable in
+every application. Compiled-component packages declare import-time purity so an unused provider
+re-export does not activate its capability; retaining the provider export still retains the emitted
+capability import.
+
 Compiler render programs also carry production hydration identities. Elements and host-property
 slots use dense program-local indexes rather than repeating stable IDs in templates and node
 tables; structural child ranges use their emitted identities. The bounded adopter skips the

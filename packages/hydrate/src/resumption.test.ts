@@ -308,3 +308,4 @@ describe('@exactjs/hydrate component resumption', () => {
 		client.dispose();
 	});
 });
+import '@exactjs/core/runtime/contexts';
