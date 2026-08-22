@@ -34,6 +34,11 @@ fail-closed bridge and direct ordinary-prop application; a component that emits 
 the target implementation beside its compiled output. Runtime construction of compiler-internal
 target VNodes is intentionally not a second component mode.
 
+Component logging is also allocation-lazy. The durable instance materializes its log facade only
+when authored logging, error reporting, or inspection first reads it; ordinary components do not
+allocate an unused facade during construction. Default logger and error contexts remain available
+through the same context resolution contract.
+
 Compiler-known top-level component state uses deterministic numeric storage slots behind the
 ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested
 mutable containers and dynamically introduced fields retain the general reactive proxy path.

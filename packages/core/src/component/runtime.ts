@@ -41,11 +41,11 @@ import {
 } from './lifecycle-handlers.js';
 import { componentListCapability, optionalComponentListCapability } from './list-capability.js';
 import { componentLocalizationCapability } from './localization-capability.js';
-import { createNoopComponentLog } from './log.js';
-import { applyInternalPlugins } from './plugins.js';
+import { createComponentLog } from './log.js';
 import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
 import { reactiveValue } from './reactive-value.js';
 import type { IntlFacade } from '../localization/contracts.js';
+import type { ComponentLog } from '../logging.js';
 import { componentRefCapability } from './ref-capability.js';
 import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
@@ -68,7 +68,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 	readonly state: Reactive<State>;
 	readonly props: Reactive<Record<string, unknown>>;
 	readonly ambientContexts?: ComponentContextValues;
-	log = createNoopComponentLog();
+	private logValue?: ComponentLog;
 	renderStop?: ComponentInstance<State>['renderStop'];
 	mountController?: AbortController;
 	activationController?: AbortController;
@@ -113,6 +113,10 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 
 	get contexts(): Map<symbol, unknown> {
 		return (this.contextsValue ??= new Map());
+	}
+
+	get log(): ComponentLog {
+		return (this.logValue ??= createComponentLog(this));
 	}
 
 	get contextTokens(): Map<symbol, ContextToken<unknown>> {
@@ -345,7 +349,6 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
 		if (!this.parent) this.contexts.set(ErrorContext.id, reactiveValue(createErrorContext()));
-		applyInternalPlugins(this);
 		if (resumption) prepareComponentContextResumption(this, resumption);
 
 		let result: RenderFunction;
