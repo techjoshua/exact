@@ -7,6 +7,7 @@ import type {
 	ReactContext
 } from '../types.js';
 import { contextToken, readComponentReactContext } from './class-support.js';
+import '@exactjs/core/runtime/contexts';
 import {
 	assertHookKind,
 	cloneDependencies,

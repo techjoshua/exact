@@ -612,3 +612,4 @@ describe('renderer enhancements', () => {
 	});
 });
 import './runtime/target.js';
+import '@exactjs/core/runtime/contexts';

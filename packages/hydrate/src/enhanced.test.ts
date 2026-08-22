@@ -115,3 +115,4 @@ describe('enhanced hydration facade', () => {
 		expect(root.innerHTML).toContain('<aside data-enhanced="true"><button>Save</button></aside>');
 	});
 });
+import '@exactjs/core/runtime/contexts';

@@ -64,7 +64,7 @@ describe('compiled component capability construction', () => {
 	});
 
 	it('gives explicit framework fixtures the task owner needed by low-level tests', () => {
-		const instance = createFrameworkFixtureComponentInstance(function Compilerless(
+		const instance = createFrameworkFixtureComponentInstance(function FrameworkFixture(
 			this: Component<{}>
 		) {
 			return () => null;

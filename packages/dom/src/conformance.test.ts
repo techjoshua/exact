@@ -198,3 +198,4 @@ describe('eXact conformance', () => {
 		expect(container.textContent).toBe('gone');
 	});
 });
+import '@exactjs/core/runtime/contexts';

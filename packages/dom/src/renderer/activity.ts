@@ -208,7 +208,7 @@ const ActivityReadinessOwner = createExactInternalOwnerArtifact(
 		this: Component<Record<string, never>>,
 		props: { context: ReadinessContextValue }
 	) {
-		this.setContext(ReadinessContext, props.context);
+		(this as AnyComponentInstance).contexts.set(ReadinessContext.id, props.context);
 		return () => null;
 	},
 	'@exactjs/dom:ActivityReadinessOwner',

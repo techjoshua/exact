@@ -100,6 +100,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/component-execution"},
 		{module: "@exactjs/core/runtime/collections"},
 		{module: "@exactjs/dom/runtime/render-program"},
+		{module: "@exactjs/core/runtime/contexts"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -214,6 +215,17 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	refsUsed := containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "ref", "readRef", "refs") ||
 		strings.Contains(source, "this.ref") || strings.Contains(source, "this.readRef") ||
 		strings.Contains(source, "this.refs")
+	contextsUsed := containsComponentSurfaceUse(
+		lowering.sourceFile.AsNode(),
+		"hasContext",
+		"getContext",
+		"setContext",
+	) || containsCoreContextComponentImport(
+		lowering.sourceFile.AsNode(),
+		lowering.sourceFile,
+		lowering.checker,
+	) || strings.Contains(source, "this.hasContext") || strings.Contains(source, "this.getContext") ||
+		strings.Contains(source, "this.setContext")
 	executionUsed := lowering.contractProjection != ComponentContractProjectionHydrate
 	if executionUsed {
 		executionUsed = false
@@ -257,7 +269,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) ||
 				(group.module == "@exactjs/dom/runtime/target" && targetUsed) ||
 				(group.module == "@exactjs/core/runtime/component-execution" && executionUsed) ||
-				(group.module == "@exactjs/core/runtime/collections" && collectionsUsed) {
+				(group.module == "@exactjs/core/runtime/collections" && collectionsUsed) ||
+				(group.module == "@exactjs/core/runtime/contexts" && contextsUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,
@@ -336,6 +349,32 @@ func containsCoreStructuralBoundaryImport(
 		reference, exists := externalImportForExpression(node, bindings, typeChecker)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			(reference.exportName == "Activity" || reference.exportName == "Suspense")
+		return !found
+	})
+	return found
+}
+
+func containsCoreContextComponentImport(
+	root *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	for local, reference := range bindings.byName {
+		if reference.moduleSpecifier == "@exactjs/core" &&
+			reference.exportName == "ErrorBoundary" &&
+			containsIdentifier(root, local) {
+			return true
+		}
+	}
+	found := false
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			reference.exportName == "ErrorBoundary"
 		return !found
 	})
 	return found

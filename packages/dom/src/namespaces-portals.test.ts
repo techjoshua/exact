@@ -92,3 +92,4 @@ describe('@exactjs/dom namespaces-portals', () => {
 		);
 	});
 });
+import '@exactjs/core/runtime/contexts';

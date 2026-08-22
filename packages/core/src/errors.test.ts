@@ -188,3 +188,4 @@ describe('@exactjs/core errors', () => {
 		expect(secondChild.getContext(ErrorContext).errors).toHaveLength(0);
 	});
 });
+import './runtime/contexts.js';

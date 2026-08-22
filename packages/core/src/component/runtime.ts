@@ -7,9 +7,10 @@ import {
 } from '@exactjs/reactive/framework/runtime';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
-import { getComponentContext, hasComponentContext, setComponentContext } from './context-api.js';
-import { publishContextAccess } from './context-inspection.js';
-import { prepareComponentContextResumption } from './context-resumption.js';
+import {
+	componentContextCapability,
+	optionalComponentContextCapability
+} from './context-capability.js';
 import type {
 	AnyComponentInstance,
 	ComponentContextValues,
@@ -43,7 +44,6 @@ import { componentListCapability, optionalComponentListCapability } from './list
 import { componentLocalizationCapability } from './localization-capability.js';
 import { createComponentLog } from './log.js';
 import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
-import { reactiveValue } from './reactive-value.js';
 import type { IntlFacade } from '../localization/contracts.js';
 import type { ComponentLog } from '../logging.js';
 import { componentRefCapability } from './ref-capability.js';
@@ -191,20 +191,23 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 
 	hasContext(token: ContextToken<unknown>): boolean {
 		this.contextTokens.set(token.id, token);
-		publishContextAccess(this, token, 'read');
-		return hasComponentContext(this, this.ambientContexts, token);
+		const capability = componentContextCapability();
+		capability.publish(this, token, 'read');
+		return capability.has(this, this.ambientContexts, token);
 	}
 
 	getContext<T>(token: ContextToken<T>): Reactive<T> {
 		this.contextTokens.set(token.id, token);
-		publishContextAccess(this, token, 'read');
-		return getComponentContext(this, this.ambientContexts, token);
+		const capability = componentContextCapability();
+		capability.publish(this, token, 'read');
+		return capability.get(this, this.ambientContexts, token);
 	}
 
 	setContext<T>(token: ContextToken<T>, value: T): void {
 		this.contextTokens.set(token.id, token);
-		setComponentContext(this, token, value);
-		publishContextAccess(this, token, 'write');
+		const capability = componentContextCapability();
+		capability.set(this, token, value);
+		capability.publish(this, token, 'write');
 	}
 
 	reactive<T>(
@@ -356,8 +359,15 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
-		if (!this.parent) this.contexts.set(ErrorContext.id, reactiveValue(createErrorContext()));
-		if (resumption) prepareComponentContextResumption(this, resumption);
+		if (!this.parent) this.contexts.set(ErrorContext.id, createErrorContext());
+		if (resumption) {
+			const contextCapability = optionalComponentContextCapability();
+			if (Object.keys(resumption.contexts).length !== 0 && !contextCapability)
+				throw new Error(
+					'Component context resumption requires the compiler-selected context capability'
+				);
+			contextCapability?.prepare(this, resumption);
+		}
 
 		let result: RenderFunction;
 		try {

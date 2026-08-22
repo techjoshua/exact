@@ -245,12 +245,13 @@ const ReadinessOwner = createExactInternalOwnerArtifact(
 		this: Component<Record<string, never>>,
 		props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
 	) {
-		this.setContext(ReadinessContext, props.context);
-		this.setContext(SuspensionContext, {
-			suspend: (settlement) => {
-				trackComponentAsync(this as unknown as AnyComponentInstance, settlement);
+		const owner = this as AnyComponentInstance;
+		owner.contexts.set(ReadinessContext.id, props.context);
+		owner.contexts.set(SuspensionContext.id, {
+			suspend: (settlement: PromiseLike<unknown>) => {
+				trackComponentAsync(owner, settlement);
 				props.context.register({
-					owner: this as unknown as AnyComponentInstance,
+					owner,
 					taskGeneration: 0,
 					settlement,
 					retry: true

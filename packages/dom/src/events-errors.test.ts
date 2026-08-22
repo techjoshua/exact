@@ -763,3 +763,4 @@ describe('@exactjs/dom events-errors', () => {
 		expect(select.value).toBe('high');
 	});
 });
+import '@exactjs/core/runtime/contexts';

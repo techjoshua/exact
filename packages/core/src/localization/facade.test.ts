@@ -68,3 +68,4 @@ describe('realm Intl formatter facade', () => {
 		expect(intl.formatDate(new Date(Number.NaN), 'date-time', 'en-US')).toBe('Invalid Date');
 	});
 });
+import '../runtime/contexts.js';

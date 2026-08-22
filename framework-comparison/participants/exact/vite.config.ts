@@ -53,6 +53,15 @@ function rejectUnusedReactCompatibility(): Plugin {
 				throw new Error(
 					`Ref-free eXact bundle retained the optional component ref capability: ${unusedRefCapability}`
 				);
+			const unusedContextCapability = modules.find((id) =>
+				/[\\/]packages[\\/]core[\\/](?:src|dist)[\\/]component[\\/]context-(?:api|capability-integration|inspection|resumption)\.(?:ts|js)$/.test(
+					id
+				)
+			);
+			if (unusedContextCapability)
+				throw new Error(
+					`Context-free eXact bundle retained the optional component context capability: ${unusedContextCapability}`
+				);
 			const unusedTargetCapability = modules.find((id) =>
 				/[\\/]packages[\\/]dom[\\/](?:src|dist)[\\/](?:target-integration|renderer[\\/](?:target-contributions|target-routing))\.(?:ts|js)$/.test(
 					id

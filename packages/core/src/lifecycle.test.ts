@@ -100,3 +100,4 @@ describe('@exactjs/core lifecycle', () => {
 		expect(activationSignal.aborted).toBe(true);
 	});
 });
+import './runtime/contexts.js';

@@ -322,3 +322,4 @@ describe('component interactions', () => {
 		parent.unmount();
 	});
 });
+import '../runtime/contexts.js';

@@ -1,4 +1,6 @@
 import { type Component } from '@exactjs/core';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import '@exactjs/core/runtime/contexts';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { describe, expect, it } from 'vitest';
 import {
@@ -11,6 +13,8 @@ import {
 	runWithRequestContext
 } from './index.js';
 import { createNodeRequestScope } from './node.js';
+
+createExactFrameworkFixtureArtifact(RequestProvider, '@exactjs/request:test:provider');
 
 const request = (path: string) =>
 	createRequestContextValue({
@@ -69,6 +73,7 @@ describe('request context', () => {
 		function Consumer(this: Component<{}>) {
 			return () => null;
 		}
+		createExactFrameworkFixtureArtifact(Consumer, '@exactjs/request:test:consumer');
 		const consumer = createComponentInstance(Consumer, {}, provider);
 		expect(consumer.getContext(RequestContext).url.pathname).toBe('/component');
 	});
@@ -163,6 +168,7 @@ describe('request context', () => {
 			expect(this.getContext(RequestContext)).toBe(value);
 			return () => null;
 		}
+		createExactFrameworkFixtureArtifact(Consumer, '@exactjs/request:test:ambient-consumer');
 		const consumer = createComponentInstance(
 			Consumer,
 			{},

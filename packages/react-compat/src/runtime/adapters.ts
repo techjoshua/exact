@@ -8,6 +8,7 @@ import {
 	type ComponentFunction,
 	type ComponentInstance
 } from '@exactjs/core';
+import '@exactjs/core/runtime/contexts';
 import {
 	createExactCompatibilityArtifact,
 	isExactComponent
