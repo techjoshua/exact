@@ -20,6 +20,9 @@ export type InteractionSource = 'event' | 'form' | 'invoked' | 'navigation';
 /** Scheduling class inherited by work attached to an interaction task. */
 export type InteractionPriority = 'interactive' | 'normal' | 'deferred';
 
+/** Supplies a generation only when a direct compiled interaction needs a structural frame. */
+export type DeferredInteractionGeneration = (owner: AnyComponentInstance) => number;
+
 /** Diagnostic metadata associated with an interaction-root task frame. */
 export type InteractionScope = {
 	readonly id: number;
@@ -102,7 +105,7 @@ export function runCompiledComponentInteraction<Result>(
 export function runDirectCompiledComponentInteraction<Result>(
 	owner: AnyComponentInstance,
 	source: InteractionSource,
-	generation: number,
+	generation: number | DeferredInteractionGeneration,
 	priority: InteractionPriority,
 	work: () => Result | PromiseLike<Result>,
 	onTraceScope?: (scope: InteractionScope) => void
@@ -111,21 +114,21 @@ export function runDirectCompiledComponentInteraction<Result>(
 		return runCompiledComponentInteraction(
 			owner,
 			source,
-			generation,
+			interactionGeneration(generation, owner),
 			priority,
 			new AbortController(),
 			work,
 			onTraceScope
 		);
 
-	const taskOwner = taskOwnerForHost(owner);
-	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
 	let frame: TaskFrameRecord | undefined;
 	let execution: Promise<Result> | undefined;
 	let resolveForeground: ((value: Result | PromiseLike<Result>) => void) | undefined;
 	let rejectForeground: ((error: unknown) => void) | undefined;
 	const materialize = (): TaskFrameRecord => {
 		if (frame) return frame;
+		const taskOwner = taskOwnerForHost(owner);
+		if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
 		const foreground = new Promise<Result>((resolve, reject) => {
 			resolveForeground = resolve;
 			rejectForeground = reject;
@@ -133,7 +136,7 @@ export function runDirectCompiledComponentInteraction<Result>(
 		execution = executeTaskFrame(
 			{
 				owner: taskOwner,
-				generation,
+				generation: interactionGeneration(generation, owner),
 				activation: 'interaction',
 				label: `${source} interaction`,
 				concurrency: 'latest',
@@ -163,6 +166,13 @@ export function runDirectCompiledComponentInteraction<Result>(
 	if (!execution) return directResult;
 	resolveForeground!(directResult);
 	return execution;
+}
+
+function interactionGeneration(
+	generation: number | DeferredInteractionGeneration,
+	owner: AnyComponentInstance
+): number {
+	return typeof generation === 'function' ? generation(owner) : generation;
 }
 
 function executeComponentInteraction<Result>(

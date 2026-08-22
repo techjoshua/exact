@@ -44,7 +44,8 @@ Compiler-owned DOM interactions enter through a compiler-marked native event lan
 logging disabled, an ordinary callback executes and publishes its synchronous reactive feedback
 without constructing an abort controller, task frame, settlement promise, interaction scope, or
 trace arguments. DOM traversal and reconciliation counters are created only after an enabled trace
-has materialized its interaction scope. If the callback synchronously starts a task or explicitly joins work, that
+has materialized its interaction scope. Event generations and task-owner lookup are deferred by the
+same boundary. If the callback synchronously starts a task or explicitly joins work, that
 operation materializes the canonical interaction frame on demand and retains cancellation,
 descendant joining, and structural settlement. An enabled trace logger constructs that same frame
 at entry so every phase remains observable. Public and runtime-authored event hosts retain the

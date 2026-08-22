@@ -20,13 +20,36 @@ import {
 describe('component interactions', () => {
 	it('runs compiled interactions without a task frame when tracing is disabled', () => {
 		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
-		const result = runDirectCompiledComponentInteraction(owner, 'event', 1, 'interactive', () => {
-			expect(currentInteraction()).toBeUndefined();
-			return 42;
-		});
+		let generationReads = 0;
+		const result = runDirectCompiledComponentInteraction(
+			owner,
+			'event',
+			() => ++generationReads,
+			'interactive',
+			() => {
+				expect(currentInteraction()).toBeUndefined();
+				return 42;
+			}
+		);
 
 		expect(result).toBe(42);
+		expect(generationReads).toBe(0);
 		owner.unmount();
+	});
+
+	it('does not require a task owner for a closed untraced compiled interaction', () => {
+		const owner = {
+			id: 'closed-compiled-owner',
+			type: function ClosedCompiledOwner() {},
+			mounted: true,
+			parent: undefined,
+			ambientContexts: undefined,
+			contexts: new Map<symbol, unknown>()
+		};
+
+		expect(
+			runDirectCompiledComponentInteraction(owner as never, 'event', 1, 'interactive', () => 42)
+		).toBe(42);
 	});
 
 	it('retains observable interaction semantics for trace-enabled closed handlers', async () => {
@@ -65,6 +88,7 @@ describe('component interactions', () => {
 
 	it('materializes a structural frame when a compiled handler starts a task', async () => {
 		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
+		let generationReads = 0;
 		let release!: () => void;
 		const gate = new Promise<void>((resolve) => {
 			release = resolve;
@@ -74,7 +98,7 @@ describe('component interactions', () => {
 		const interaction = runDirectCompiledComponentInteraction(
 			owner,
 			'event',
-			1,
+			() => ++generationReads,
 			'interactive',
 			() => {
 				void child();
@@ -82,6 +106,7 @@ describe('component interactions', () => {
 		);
 
 		expect(interaction).toBeInstanceOf(Promise);
+		expect(generationReads).toBe(1);
 		void Promise.resolve(interaction).then(() => {
 			settled = true;
 		});
