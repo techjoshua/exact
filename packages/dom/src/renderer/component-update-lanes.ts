@@ -1,11 +1,13 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
+import type { OwnedRetainedWatch } from '@exactjs/reactive/framework/watch';
 import {
 	reactiveOwnDependencies,
 	readMutationVersion,
 	subscribeKeys,
 	type StopHandle
 } from '@exactjs/reactive/framework/runtime';
+import type { Mounted } from '../types.js';
 
 /** One compiler-generated region updater registered beneath its durable component owner. */
 type ComponentUpdateLane = {
@@ -36,7 +38,34 @@ type ComponentUpdateState = {
 	stop?: StopHandle;
 };
 
-const componentUpdates = new WeakMap<AnyComponentInstance, ComponentUpdateState>();
+let componentUpdates: WeakMap<AnyComponentInstance, ComponentUpdateState> | undefined;
+
+type ProgramBindingTarget = {
+	readonly mounted: Mounted;
+	readonly stopBindings: OwnedRetainedWatch[];
+	valid: boolean;
+};
+
+/** Registers a pre-component-ABI program updater with its durable component reaction. */
+export function bindCompiledProgramState(
+	target: ExactRenderProgramBindingTarget,
+	bindings: readonly (readonly [key: string, dirtyLow: number, dirtyHigh: number])[]
+): void {
+	const context = target as ProgramBindingTarget;
+	const state = context.mounted.renderProgram!;
+	const owner = state.parentInstance;
+	const updater = state.invocation.program.update;
+	if (!owner || !updater) {
+		context.valid = false;
+		return;
+	}
+	const stop = registerComponentUpdateLane(owner, target, bindings, updater);
+	if (!stop) {
+		context.valid = false;
+		return;
+	}
+	context.stopBindings.push({ stop });
+}
 
 /**
  * Registers one generated region updater with its component-owned dirty-state reaction.
@@ -57,7 +86,8 @@ export function registerComponentUpdateLane(
 	);
 	if (!dependencies) return undefined;
 
-	let state = componentUpdates.get(owner);
+	const updates = (componentUpdates ??= new WeakMap());
+	let state = updates.get(owner);
 	if (!state) {
 		state = {
 			owner,
@@ -66,7 +96,7 @@ export function registerComponentUpdateLane(
 			keys: [],
 			versions: []
 		};
-		componentUpdates.set(owner, state);
+		updates.set(owner, state);
 	} else if (state.target !== dependencies.target) {
 		return undefined;
 	}
@@ -93,7 +123,7 @@ export function registerComponentUpdateLane(
 		if (index !== -1) state!.lanes.splice(index, 1);
 		if (state!.lanes.length === 0) {
 			state!.stop?.();
-			componentUpdates.delete(owner);
+			updates.delete(owner);
 			return;
 		}
 		restartComponentUpdateReaction(state!);

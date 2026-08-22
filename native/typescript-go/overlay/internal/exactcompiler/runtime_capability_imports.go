@@ -19,6 +19,7 @@ type jsxRuntimeNames struct {
 	bindProgramLists       string
 	bindProgramProperties  string
 	bindProgramState       string
+	bindComponentUpdate    string
 	applyProgramText       string
 	applyProgramProperties string
 	beginProgramClaims     string
@@ -162,6 +163,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"bindCompiledProgramLists", lowering.names.bindProgramLists, 18},
 		{"bindCompiledProgramProperties", lowering.names.bindProgramProperties, 18},
 		{"bindCompiledProgramState", lowering.names.bindProgramState, 18},
+		{"bindCompiledComponentUpdate", lowering.names.bindComponentUpdate, 18},
 		{"applyCompiledProgramText", lowering.names.applyProgramText, 18},
 		{"applyCompiledProgramProperties", lowering.names.applyProgramProperties, 18},
 		{"beginCompiledProgramClaims", lowering.names.beginProgramClaims, 18},
@@ -540,6 +542,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		bindProgramLists:       allocate("__exactBindProgramLists"),
 		bindProgramProperties:  allocate("__exactBindProgramProperties"),
 		bindProgramState:       allocate("__exactBindProgramState"),
+		bindComponentUpdate:    allocate("__exactBindComponentUpdate"),
 		applyProgramText:       allocate("__exactApplyProgramText"),
 		applyProgramProperties: allocate("__exactApplyProgramProperties"),
 		beginProgramClaims:     allocate("__exactBeginProgramClaims"),

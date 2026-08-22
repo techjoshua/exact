@@ -5,7 +5,6 @@ import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framew
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted } from '../types.js';
-import { registerComponentUpdateLane } from './component-update-lanes.js';
 import { bindProgramChild, bindProgramLists } from './render-program-children.js';
 
 type ProgramBindingTarget = {
@@ -145,28 +144,6 @@ export function applyCompiledProgramProperties(
 		return;
 	}
 	applyCompiledProps(context.mounted, element, group, false);
-}
-
-/** Registers compiler-known state fields with the durable component's shared update reaction. */
-export function bindCompiledProgramState(
-	target: ExactRenderProgramBindingTarget,
-	bindings: readonly (readonly [key: string, dirtyLow: number, dirtyHigh: number])[]
-): void {
-	const context = target as ProgramBindingTarget;
-	const mounted = context.mounted;
-	const state = mounted.renderProgram!;
-	const owner = state.parentInstance;
-	const updater = state.invocation.program.update;
-	if (!owner || !updater) {
-		context.valid = false;
-		return;
-	}
-	const stop = registerComponentUpdateLane(owner, context, bindings, updater);
-	if (!stop) {
-		context.valid = false;
-		return;
-	}
-	context.stopBindings.push({ stop });
 }
 
 function applyProgramText(mounted: Mounted, index: number): boolean {

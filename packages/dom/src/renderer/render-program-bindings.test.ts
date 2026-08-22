@@ -9,11 +9,8 @@ import { batch, createEffectScope, flushSync } from '@exactjs/reactive/framework
 import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-objects';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mounted } from '../types.js';
-import {
-	applyCompiledProgramText,
-	bindCompiledProgramState,
-	bindCompiledProgramText
-} from './render-program-bindings.js';
+import { applyCompiledProgramText, bindCompiledProgramText } from './render-program-bindings.js';
+import { bindCompiledProgramState } from './component-update-lanes.js';
 
 describe('compiler-generated dirty updates', () => {
 	it('coalesces changed state fields and applies only their generated operations', () => {

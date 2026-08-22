@@ -151,7 +151,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		"render-program",
 		lowering.nodeIDs[identityNode],
 	)
-	program := lowering.renderProgramLiteral(programID, build)
+	program := lowering.renderProgramLiteral(programID, identityNode, build)
 	programName, defined := lowering.renderProgramDefinitions[identityNode.Pos()]
 	if !defined {
 		programName = lowering.materializedName("render_program", identityNode.Pos())
@@ -791,7 +791,11 @@ func unsupportedPlannedHost(tag string) bool {
 	return false
 }
 
-func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgramBuild) *ast.Node {
+func (lowering *jsxLowering) renderProgramLiteral(
+	id string,
+	identityNode *ast.Node,
+	build *renderProgramBuild,
+) *ast.Node {
 	property := func(name string, value *ast.Node) *ast.Node {
 		return lowering.property(lowering.factory.NewIdentifier(name), value)
 	}
@@ -873,9 +877,13 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}
 	directUpdates := []renderProgramDirectUpdate{}
+	var componentTarget *int
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
 		directUpdates = lowering.directRenderProgramUpdates(build)
+		if target, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
+			componentTarget = &target
+		}
 	}
 	if lowering.target != TargetServer {
 		members = append(members, property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)))
@@ -883,7 +891,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
 		if len(bindings) != 0 || len(build.nodes) > 1 {
-			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates)))
+			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget)))
 		} else {
 			members = append(
 				members,
@@ -900,7 +908,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		if len(listSlots) != 0 {
 			members = append(members, property("listBindings", lowering.factory.NewTrueExpression()))
 		}
-		if len(directUpdates) != 0 {
+		if len(directUpdates) != 0 && componentTarget == nil {
 			members = append(members, property("update", lowering.directRenderProgramUpdater(directUpdates)))
 		}
 	} else if lowering.target == TargetServer {

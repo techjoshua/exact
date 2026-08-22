@@ -1,0 +1,199 @@
+package exactcompiler
+
+import (
+	"sort"
+	"strconv"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+)
+
+type componentUpdateOperation struct {
+	target int
+	bit    int
+	update renderProgramDirectUpdate
+}
+
+type componentUpdateBuild struct {
+	component  Component
+	bindings   map[string]renderProgramDirtyMask
+	targets    int
+	operations []componentUpdateOperation
+}
+
+// registerComponentUpdates assigns component-wide target and dirty-bit identities to one region.
+func (lowering *jsxLowering) registerComponentUpdates(
+	identityNode *ast.Node,
+	updates []renderProgramDirectUpdate,
+) (int, bool) {
+	if len(updates) == 0 {
+		return 0, false
+	}
+	component, exists := lowering.componentContaining(identityNode)
+	if !exists {
+		return 0, false
+	}
+	build := lowering.componentUpdates[component.Name]
+	if build == nil {
+		build = &componentUpdateBuild{
+			component: component,
+			bindings:  make(map[string]renderProgramDirtyMask),
+		}
+		lowering.componentUpdates[component.Name] = build
+	}
+	if len(build.operations)+len(updates) > 64 {
+		return 0, false
+	}
+	target := build.targets
+	build.targets++
+	for _, update := range updates {
+		bit := len(build.operations)
+		build.operations = append(build.operations, componentUpdateOperation{
+			target: target,
+			bit:    bit,
+			update: update,
+		})
+		for _, key := range update.keys {
+			mask := build.bindings[key]
+			if bit < 32 {
+				mask.low |= uint32(1) << bit
+			} else {
+				mask.high |= uint32(1) << (bit - 32)
+			}
+			build.bindings[key] = mask
+		}
+	}
+	return target, true
+}
+
+// componentContaining returns the narrowest durable component span that owns a JSX region.
+func (lowering *jsxLowering) componentContaining(node *ast.Node) (Component, bool) {
+	var selected Component
+	found := false
+	for _, component := range lowering.components {
+		if node.Pos() < component.Start || node.End() > component.Start+component.Length {
+			continue
+		}
+		if !found || component.Length < selected.Length {
+			selected = component
+			found = true
+		}
+	}
+	return selected, found
+}
+
+// emitComponentUpdateDefinitions appends one immutable generated update program per component.
+func (lowering *jsxLowering) emitComponentUpdateDefinitions() map[string]string {
+	components := make([]string, 0, len(lowering.componentUpdates))
+	for component, build := range lowering.componentUpdates {
+		if len(build.operations) != 0 {
+			components = append(components, component)
+		}
+	}
+	sort.Strings(components)
+	if len(components) == 0 {
+		return nil
+	}
+	names := make(map[string]string, len(components))
+	for _, component := range components {
+		build := lowering.componentUpdates[component]
+		name := lowering.materializedName("component_updates", build.component.Start)
+		names[component] = name
+		lowering.clientDefinitions = append(lowering.clientDefinitions,
+			lowering.factory.NewVariableStatement(
+				nil,
+				lowering.factory.NewVariableDeclarationList(
+					lowering.factory.NewNodeList([]*ast.Node{
+						lowering.factory.NewVariableDeclaration(
+							lowering.factory.NewIdentifier(name), nil, nil,
+							lowering.componentUpdateDefinition(build),
+						),
+					}),
+					ast.NodeFlagsConst,
+				),
+			),
+		)
+	}
+	return names
+}
+
+// componentUpdateDefinition emits fixed dependency masks and direct target operations.
+func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBuild) *ast.Node {
+	array := func(values []*ast.Node) *ast.Node {
+		return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
+	}
+	keys := make([]string, 0, len(build.bindings))
+	for key := range build.bindings {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	bindings := make([]*ast.Node, 0, len(keys))
+	for _, key := range keys {
+		mask := build.bindings[key]
+		bindings = append(bindings, array([]*ast.Node{
+			lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask.low), 10), ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask.high), 10), ast.TokenFlagsNone),
+		}))
+	}
+	return lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.property(lowering.factory.NewIdentifier("bindings"), array(bindings)),
+			lowering.property(lowering.factory.NewIdentifier("apply"), lowering.componentUpdateApply(build)),
+		}),
+		false,
+	)
+}
+
+// componentUpdateApply emits one target guard followed by direct dirty operations for that region.
+func (lowering *jsxLowering) componentUpdateApply(build *componentUpdateBuild) *ast.Node {
+	targets := lowering.factory.NewIdentifier("__exactTargets")
+	dirtyLow := lowering.factory.NewIdentifier("__exactDirtyLow")
+	dirtyHigh := lowering.factory.NewIdentifier("__exactDirtyHigh")
+	statements := make([]*ast.Node, 0, build.targets)
+	for targetIndex := 0; targetIndex < build.targets; targetIndex++ {
+		target := lowering.factory.NewIdentifier("__exactTarget" + strconv.Itoa(targetIndex))
+		body := []*ast.Node{
+			lowering.factory.NewVariableStatement(nil,
+				lowering.factory.NewVariableDeclarationList(
+					lowering.factory.NewNodeList([]*ast.Node{
+						lowering.factory.NewVariableDeclaration(
+							target, nil, nil,
+							lowering.factory.NewElementAccessExpression(
+								targets,
+								nil,
+								lowering.factory.NewNumericLiteral(strconv.Itoa(targetIndex), ast.TokenFlagsNone),
+								ast.NodeFlagsNone,
+							),
+						),
+					}),
+					ast.NodeFlagsConst,
+				),
+			),
+		}
+		operations := make([]*ast.Node, 0)
+		for _, operation := range build.operations {
+			if operation.target != targetIndex {
+				continue
+			}
+			operations = append(operations,
+				lowering.directUpdateStatement(target, dirtyLow, dirtyHigh, operation.bit, operation.update),
+			)
+		}
+		body = append(body, lowering.factory.NewIfStatement(
+			target,
+			lowering.factory.NewBlock(lowering.factory.NewNodeList(operations), true),
+			nil,
+		))
+		statements = append(statements, body...)
+	}
+	parameters := []*ast.Node{targets, dirtyLow, dirtyHigh}
+	declarations := make([]*ast.Node, len(parameters))
+	for index, name := range parameters {
+		declarations[index] = lowering.factory.NewParameterDeclaration(nil, nil, name, nil, nil, nil)
+	}
+	return lowering.factory.NewArrowFunction(
+		nil, nil, lowering.factory.NewNodeList(declarations), nil, nil,
+		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
+	)
+}

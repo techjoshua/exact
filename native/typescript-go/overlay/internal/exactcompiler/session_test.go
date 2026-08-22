@@ -214,14 +214,53 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 	for _, expected := range []string{
 		`__exactBindProgramText(__exactBindingTarget, 2, true)`,
 		`__exactBindProgramProperties(__exactBindingTarget, 0, 0, true)`,
-		`__exactBindProgramState(__exactBindingTarget, [["count", 1, 0], ["disabled", 2, 0]])`,
-		`update: (__exactBindingTarget, __exactDirtyLow, __exactDirtyHigh) =>`,
-		`__exactApplyProgramText(__exactBindingTarget, 2)`,
-		`__exactApplyProgramProperties(__exactBindingTarget, 0, 0)`,
+		`__exactBindComponentUpdate(__exactBindingTarget, 0)`,
+		`updates: __exact_component_updates_1`,
+		`bindings: [["count", 1, 0], ["disabled", 2, 0]]`,
+		`apply: (__exactTargets, __exactDirtyLow, __exactDirtyHigh) =>`,
+		`__exactApplyProgramText(__exactTarget0, 2)`,
+		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("generated direct state update omitted %q:\n%s", expected, response.Code)
 		}
+	}
+	definition := strings.Index(response.Code, "const __exact_component_updates_1")
+	attachment := strings.Index(response.Code, "updates: __exact_component_updates_1")
+	if definition == -1 || attachment == -1 || definition > attachment {
+		t.Fatalf("component update definition does not precede its contract attachment:\n%s", response.Code)
+	}
+}
+
+func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "component-state-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type State = { first: number; second: number };
+			export function Planned(this: { state: State }) {
+				this.state.first = 1;
+				this.state.second = 2;
+				return () => [<p>{this.state.first}</p>, <p>{this.state.second}</p>];
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`__exactBindComponentUpdate(__exactBindingTarget, 0)`,
+		`__exactBindComponentUpdate(__exactBindingTarget, 1)`,
+		`bindings: [["first", 1, 0], ["second", 2, 0]]`,
+		`const __exactTarget0 = __exactTargets[0]`,
+		`const __exactTarget1 = __exactTargets[1]`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("component update program omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Count(response.Code, "updates: __exact_component_updates_1") != 1 {
+		t.Fatalf("finite regions did not share one component update definition:\n%s", response.Code)
 	}
 }
 

@@ -17,11 +17,14 @@ type renderProgramDirectUpdate struct {
 	keys      []string
 }
 
+type renderProgramDirtyMask struct{ low, high uint32 }
+
 // directRenderProgramBinder emits the exact client binding calls in browser-safe application order.
 // Shared DOM operations retain the mechanics; the compiled component owns all topology and wiring.
 func (lowering *jsxLowering) directRenderProgramBinder(
 	build *renderProgramBuild,
 	directUpdates []renderProgramDirectUpdate,
+	componentTarget *int,
 ) *ast.Node {
 	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
 	statements := make([]*ast.Node, 0, len(build.slots)+2)
@@ -86,8 +89,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 		}
 		call(lowering.names.bindProgramProperties, arguments...)
 	}
-	type dirtyMask struct{ low, high uint32 }
-	masks := make(map[string]dirtyMask)
+	masks := make(map[string]renderProgramDirtyMask)
 	for bit, update := range directUpdates {
 		for _, key := range update.keys {
 			mask := masks[key]
@@ -116,7 +118,12 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 			false,
 		))
 	}
-	if len(stateBindings) != 0 {
+	if componentTarget != nil {
+		call(
+			lowering.names.bindComponentUpdate,
+			lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
+		)
+	} else if len(stateBindings) != 0 {
 		call(
 			lowering.names.bindProgramState,
 			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(stateBindings), false),
@@ -226,39 +233,9 @@ func (lowering *jsxLowering) directRenderProgramUpdater(
 	dirtyHigh := lowering.factory.NewIdentifier("__exactDirtyHigh")
 	statements := make([]*ast.Node, 0, len(updates))
 	for bit, update := range updates {
-		dirty := dirtyLow
-		mask := uint32(1) << bit
-		if bit >= 32 {
-			dirty = dirtyHigh
-			mask = uint32(1) << (bit - 32)
-		}
-		condition := lowering.binary(
-			lowering.binary(
-				dirty,
-				ast.KindAmpersandToken,
-				lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask), 10), ast.TokenFlagsNone),
-			),
-			ast.KindExclamationEqualsEqualsToken,
-			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+		statements = append(statements,
+			lowering.directUpdateStatement(target, dirtyLow, dirtyHigh, bit, update),
 		)
-		helper := lowering.names.applyProgramText
-		arguments := []*ast.Node{
-			target,
-			lowering.factory.NewNumericLiteral(strconv.Itoa(update.index), ast.TokenFlagsNone),
-		}
-		if update.kind == "properties" {
-			helper = lowering.names.applyProgramProperties
-			arguments = []*ast.Node{
-				target,
-				lowering.factory.NewNumericLiteral(strconv.Itoa(update.group), ast.TokenFlagsNone),
-				lowering.factory.NewNumericLiteral(strconv.Itoa(update.firstSlot), ast.TokenFlagsNone),
-			}
-		}
-		statements = append(statements, lowering.factory.NewIfStatement(
-			condition,
-			lowering.factory.NewExpressionStatement(lowering.call(helper, arguments)),
-			nil,
-		))
 	}
 	parameters := []*ast.Node{target, dirtyLow, dirtyHigh}
 	declarations := make([]*ast.Node, len(parameters))
@@ -273,5 +250,47 @@ func (lowering *jsxLowering) directRenderProgramUpdater(
 		nil,
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
+	)
+}
+
+func (lowering *jsxLowering) directUpdateStatement(
+	target *ast.Node,
+	dirtyLow *ast.Node,
+	dirtyHigh *ast.Node,
+	bit int,
+	update renderProgramDirectUpdate,
+) *ast.Node {
+	dirty := dirtyLow
+	mask := uint32(1) << bit
+	if bit >= 32 {
+		dirty = dirtyHigh
+		mask = uint32(1) << (bit - 32)
+	}
+	condition := lowering.binary(
+		lowering.binary(
+			dirty,
+			ast.KindAmpersandToken,
+			lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask), 10), ast.TokenFlagsNone),
+		),
+		ast.KindExclamationEqualsEqualsToken,
+		lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+	)
+	helper := lowering.names.applyProgramText
+	arguments := []*ast.Node{
+		target,
+		lowering.factory.NewNumericLiteral(strconv.Itoa(update.index), ast.TokenFlagsNone),
+	}
+	if update.kind == "properties" {
+		helper = lowering.names.applyProgramProperties
+		arguments = []*ast.Node{
+			target,
+			lowering.factory.NewNumericLiteral(strconv.Itoa(update.group), ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(update.firstSlot), ast.TokenFlagsNone),
+		}
+	}
+	return lowering.factory.NewIfStatement(
+		condition,
+		lowering.factory.NewExpressionStatement(lowering.call(helper, arguments)),
+		nil,
 	)
 }
