@@ -152,7 +152,6 @@ function runInteractiveEvent<Result>(
 	direct = false
 ): Result | PromiseLike<Result> {
 	let interaction: InteractionScope | undefined;
-	root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
 	try {
 		const result = runWithPriority('interactive', () =>
 			batch(() =>
@@ -166,6 +165,7 @@ function runInteractiveEvent<Result>(
 								work,
 								(scope) => {
 									interaction = scope;
+									root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
 								}
 							)
 						: runCompiledComponentInteraction(
@@ -177,6 +177,7 @@ function runInteractiveEvent<Result>(
 								work,
 								(scope) => {
 									interaction = scope;
+									root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
 								}
 							)
 					: work()
@@ -187,8 +188,8 @@ function runInteractiveEvent<Result>(
 		// normal and deferred consequences queued for their ordinary host turns.
 		flushSync('interactive');
 		traceInteractionPhase(interaction, 'feedback-committed', () => ({
-			reconciliations: root.interactionWork!.reconciliations,
-			traversedNodes: root.interactionWork!.traversedNodes
+			reconciliations: root.interactionWork?.reconciliations ?? 0,
+			traversedNodes: root.interactionWork?.traversedNodes ?? 0
 		}));
 		return result;
 	} finally {
