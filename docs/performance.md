@@ -122,13 +122,17 @@ only their local expression readers and optional recovery function to that share
 not allocate a descriptor factory or repeat cache lookup and freezing. For compiler-proven direct
 top-level state reads, closed client output assigns dirty bits to the affected text and property
 operations. Each finite region registers its generated operation function with the durable
-component instance; every registered region in that component shares one dependency subscription
-and mutation-version table. Numeric mutation versions identify the fields that actually changed,
-and only affected region functions receive their dirty masks. Region replacement unregisters its
-lane, while final component teardown releases the shared reaction. This avoids both
+component definition. The artifact carries one fixed dependency/mask table and one generated
+component updater; each mounted region contributes only its compiler-assigned target index. Every
+region in that component therefore shares one dependency subscription and mutation-version table.
+Numeric mutation versions identify the fields that actually changed, and the generated updater
+calls only operations whose region target is currently mounted. Region replacement clears its
+indexed target, while final component teardown releases the shared reaction. This avoids both
 dependency-collection passes and one retained reaction per binding without adding another scheduler
 turn. Expressions with nested, dynamically indexed, or otherwise incomplete dependencies retain
-their independent tracked reaction. Closed
+their independent tracked reaction. This is generated component control flow, not an opcode tape:
+the runtime supplies focused claim, subscription, and DOM mutation operations but does not interpret
+a general update plan. Closed
 client output emits each property group as one direct writer operation: one
 invocation applies its known keys in browser-safe order without allocating and enumerating a
 temporary props record or redispatching through the generic slot reader for every property. Those

@@ -254,6 +254,58 @@ describe('@exactjs/core component contracts', () => {
 		});
 	});
 
+	it('validates compiler-generated component update programs and their masks', () => {
+		const instantiate = () => undefined;
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:Updates',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1 as const,
+					instantiate,
+					capabilities: [],
+					updates: { bindings: [['count', 1, 0]], apply() {} }
+				}
+			}
+		});
+
+		expect(readExactCompiledComponentContract(component).definition.updates?.bindings).toEqual([
+			['count', 1, 0]
+		]);
+	});
+
+	it('rejects an invalid component update mask before adopting its artifact', () => {
+		const instantiate = () => undefined;
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:InvalidUpdates',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1 as const,
+					instantiate,
+					capabilities: [],
+					updates: { bindings: [['count', -1, 0]], apply() {} }
+				}
+			}
+		});
+
+		expect(() => readExactCompiledComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
+	});
+
 	it('rejects contract records owned by a different branded component', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',

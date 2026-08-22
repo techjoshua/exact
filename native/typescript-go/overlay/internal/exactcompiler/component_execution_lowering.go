@@ -55,8 +55,8 @@ func componentExecutionMetadata(
 	return contractObject(factory, true, properties...)
 }
 
-// componentDefinitionMetadata emits the single compiler-owned description
-// interpreted to create each durable state-machine instance.
+// componentDefinitionMetadata emits the single compiler-owned executable description consumed
+// while creating each durable state-machine instance.
 func componentDefinitionMetadata(
 	factory *printer.NodeFactory,
 	instantiate *ast.Node,
@@ -69,6 +69,7 @@ func componentDefinitionMetadata(
 	dynamicComponents bool,
 	collections bool,
 	compact bool,
+	updates *ast.Node,
 ) *ast.Node {
 	state := append([]string{}, stateSlots...)
 	tasks := []string{}
@@ -111,6 +112,9 @@ func componentDefinitionMetadata(
 		contractProperty(factory, "instantiate", instantiate),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		contractProperty(factory, "state", stringMetadata(factory, state)),
+	}
+	if updates != nil {
+		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
 	if !compact {
 		properties = append(properties,

@@ -69,6 +69,7 @@ func (plan jsxLoweringPlan) prepare(
 		taskHelpers:              make(map[string]string),
 		materializedNames:        make(map[int]string),
 		renderProgramDefinitions: make(map[int]string),
+		componentUpdates:         make(map[string]*componentUpdateBuild),
 		cachedDerivedNames:       make(map[int]string),
 		derived:                  derived,
 		elidedDerived:            elidedDerived,

@@ -583,7 +583,7 @@ func (s *Session) Execute(request Request) Response {
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
 	intlPlan := planIntlOperations(sourceFile, generation.checker)
-	transformed := lowerExactJSX(
+	transformed, componentUpdates := lowerExactJSX(
 		sourceFile,
 		emitContext.Factory,
 		jsxLoweringPlan{
@@ -631,6 +631,7 @@ func (s *Session) Execute(request Request) Response {
 		request.PreserveComponentHoisting,
 		request.JSXInterop != nil,
 		request.ComponentContractProjection,
+		componentUpdates,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

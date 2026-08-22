@@ -71,6 +71,7 @@ function isDefinition(value: unknown): boolean {
 		hasOnlyContractKeys(value, [
 			'version',
 			'instantiate',
+			'updates',
 			'state',
 			'tasks',
 			'reactive',
@@ -79,6 +80,7 @@ function isDefinition(value: unknown): boolean {
 		]) &&
 		value.version === 1 &&
 		typeof value.instantiate === 'function' &&
+		(value.updates === undefined || isComponentUpdates(value.updates)) &&
 		(value.state === undefined || isSafeContractStringList(value.state)) &&
 		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&
 		(value.reactive === undefined ||
@@ -99,6 +101,25 @@ function isDefinition(value: unknown): boolean {
 				'collections'
 			].includes(capability)
 		)
+	);
+}
+
+function isComponentUpdates(value: unknown): boolean {
+	return (
+		isContractRecord(value) &&
+		hasOnlyContractKeys(value, ['bindings', 'apply']) &&
+		Array.isArray(value.bindings) &&
+		value.bindings.every(
+			(binding) =>
+				Array.isArray(binding) &&
+				binding.length === 3 &&
+				isContractString(binding[0]) &&
+				Number.isSafeInteger(binding[1]) &&
+				binding[1] >= 0 &&
+				Number.isSafeInteger(binding[2]) &&
+				binding[2] >= 0
+		) &&
+		typeof value.apply === 'function'
 	);
 }
 

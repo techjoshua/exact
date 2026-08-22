@@ -23,6 +23,7 @@ func lowerComponentContracts(
 	preserveComponentHoisting bool,
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -68,6 +69,7 @@ func lowerComponentContracts(
 							preserveHoisting,
 							compatibility,
 							projection,
+							componentUpdates,
 						)...,
 					)
 					continue
@@ -88,6 +90,7 @@ func lowerComponentContracts(
 				used,
 				compatibility,
 				projection,
+				componentUpdates,
 			)
 			if rootChanged {
 				statements = append(statements, updatedRoot)
@@ -133,6 +136,8 @@ func lowerComponentContracts(
 		}
 	}
 	if len(rootContracts) != 0 {
+		updateDefinitions, retained := extractComponentUpdateDefinitions(statements, componentUpdates)
+		statements = retained
 		insertionIndex := 0
 		for insertionIndex < len(statements) {
 			statement := statements[insertionIndex]
@@ -147,9 +152,12 @@ func lowerComponentContracts(
 			emitContext,
 			descriptorName,
 		)
-		statements = append(statements, nil)
-		copy(statements[insertionIndex+1:], statements[insertionIndex:])
-		statements[insertionIndex] = descriptor
+		ordered := make([]*ast.Node, 0, len(statements)+len(updateDefinitions)+1)
+		ordered = append(ordered, statements[:insertionIndex]...)
+		ordered = append(ordered, descriptor)
+		ordered = append(ordered, updateDefinitions...)
+		ordered = append(ordered, statements[insertionIndex:]...)
+		statements = ordered
 	}
 	result := factory.UpdateSourceFile(
 		sourceFile,
@@ -158,6 +166,35 @@ func lowerComponentContracts(
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
 	return result
+}
+
+func extractComponentUpdateDefinitions(
+	statements []*ast.Node,
+	componentUpdates map[string]string,
+) ([]*ast.Node, []*ast.Node) {
+	names := make(map[string]struct{}, len(componentUpdates))
+	for _, name := range componentUpdates {
+		names[name] = struct{}{}
+	}
+	definitions := make([]*ast.Node, 0, len(names))
+	retained := make([]*ast.Node, 0, len(statements))
+	for _, statement := range statements {
+		if ast.IsVariableStatement(statement) {
+			declarations := statement.AsVariableStatement().DeclarationList.
+				AsVariableDeclarationList().Declarations.Nodes
+			if len(declarations) == 1 {
+				name := declarations[0].AsVariableDeclaration().Name()
+				if name != nil && ast.IsIdentifier(name) {
+					if _, generated := names[name.Text()]; generated {
+						definitions = append(definitions, statement)
+						continue
+					}
+				}
+			}
+		}
+		retained = append(retained, statement)
+	}
+	return definitions, retained
 }
 
 func componentFunctionReferencedEarlier(
@@ -205,6 +242,7 @@ func wrapRootComponentFunction(
 	preserveComponentHoisting bool,
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) []*ast.Node {
 	if !preserveComponentHoisting {
 		return wrapRootComponentFunctionValue(
@@ -220,6 +258,7 @@ func wrapRootComponentFunction(
 			used,
 			compatibility,
 			projection,
+			componentUpdates,
 		)
 	}
 	factory := emitContext.Factory
@@ -240,6 +279,7 @@ func wrapRootComponentFunction(
 		false,
 		compatibility,
 		projection,
+		componentUpdates,
 	)
 	attachmentStatement := factory.NewExpressionStatement(attachment)
 	return []*ast.Node{declaration.AsNode(), attachmentStatement}
@@ -258,6 +298,7 @@ func wrapRootComponentFunctionValue(
 	used map[string]struct{},
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) []*ast.Node {
 	factory := emitContext.Factory
 	name := declaration.Name()
@@ -302,6 +343,7 @@ func wrapRootComponentFunctionValue(
 		true,
 		compatibility,
 		projection,
+		componentUpdates,
 	)
 	implementationDeclaration := factory.NewVariableStatement(
 		nil,
@@ -372,6 +414,7 @@ func rootComponentContractAttachment(
 	wrapIIFE bool,
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) *ast.Node {
 	factory := emitContext.Factory
 	implementationName := component.Name
@@ -431,6 +474,10 @@ func rootComponentContractAttachment(
 		projectedBoundaries = contractArray(factory)
 	}
 	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
+	var updates *ast.Node
+	if name, exists := componentUpdates[component.Name]; exists {
+		updates = factory.NewIdentifier(name)
+	}
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -470,6 +517,7 @@ func rootComponentContractAttachment(
 				component.DynamicComponents,
 				component.Collections,
 				projection != ComponentContractProjectionComplete,
+				updates,
 			),
 		),
 	}
@@ -615,6 +663,7 @@ func wrapRootComponentVariables(
 	used map[string]struct{},
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
@@ -668,6 +717,7 @@ func wrapRootComponentVariables(
 			false,
 			compatibility,
 			projection,
+			componentUpdates,
 		)
 		body := factory.NewBlock(
 			factory.NewNodeList([]*ast.Node{

@@ -1,4 +1,8 @@
 import type { ContextToken } from './component/contracts.js';
+import type {
+	ExactCompiledComponentCapability,
+	ExactCompiledComponentUpdateContract
+} from './component-definition-contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
 import { validatedComponentContract } from './component-contract/contract-cache.js';
 
@@ -155,24 +159,21 @@ export type ExactComponentExecutionContract = Readonly<{
 export type ExactCompiledComponentDefinitionContract = Readonly<{
 	version: 1;
 	instantiate: AnyExactComponentCallable;
+	/** Component-wide dirty-state routing emitted only for compiler-proven direct DOM updates. */
+	updates?: ExactCompiledComponentUpdateContract;
 	/** Stable top-level state slots used by the compiled component-state facade. */
 	state?: readonly string[];
 	tasks?: readonly string[];
 	reactive?: ExactComponentExecutionContract['reactive'];
 	render?: 'returned-function';
-	capabilities: readonly (
-		| 'tasks'
-		| 'continuations'
-		| 'resumption'
-		| 'inspection'
-		| 'registry'
-		| 'enhancements'
-		| 'interactions'
-		| 'compatibility'
-		| 'dynamic-components'
-		| 'collections'
-	)[];
+	capabilities: readonly ExactCompiledComponentCapability[];
 }>;
+
+/** One component-owned direct DOM update program shared by every instance of its definition. */
+export type {
+	ExactCompiledComponentCapability,
+	ExactCompiledComponentUpdateContract
+} from './component-definition-contracts.js';
 
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{

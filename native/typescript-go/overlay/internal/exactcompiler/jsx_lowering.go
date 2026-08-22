@@ -51,6 +51,7 @@ type jsxLowering struct {
 	renderProgramContexts        map[int]renderProgramContext
 	renderProgramDefinitions     map[int]string
 	renderProgramDefinitionNodes []namedRenderProgramDefinition
+	componentUpdates             map[string]*componentUpdateBuild
 	declarativeRenderDepth       int
 	timeActivation               string
 	timeActivationAdopted        bool
@@ -79,10 +80,10 @@ func lowerExactJSX(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
 	plan jsxLoweringPlan,
-) *ast.SourceFile {
+) (*ast.SourceFile, map[string]string) {
 	lowering, required := plan.prepare(sourceFile, factory)
 	if !required {
-		return sourceFile
+		return sourceFile, nil
 	}
 	lowering.visitor = ast.NewNodeVisitor(
 		lowering.visit,
@@ -96,6 +97,7 @@ func lowerExactJSX(
 			lowering.clientDefinitions = append(lowering.clientDefinitions, definition.node)
 		}
 	}
+	componentUpdateNames := lowering.emitComponentUpdateDefinitions()
 	if len(lowering.clientDefinitions) != 0 {
 		statements := append(
 			[]*ast.Node(nil),
@@ -129,7 +131,7 @@ func lowerExactJSX(
 		transformed.EndOfFileToken,
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
-	return result
+	return result, componentUpdateNames
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
