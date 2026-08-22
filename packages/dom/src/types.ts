@@ -46,6 +46,8 @@ export type Mounted = {
 		readonly parentInstance?: AnyComponentInstance;
 		/** Last effective planned props, grouped by their target element. */
 		props?: Map<Element, Record<string, unknown>>;
+		/** Compact previous values for compiler-written property groups. */
+		compiledProps?: Array<Record<string, unknown> | undefined>;
 		/** Mounted structural ranges keyed by their compiler slot index. */
 		childSlots?: Array<{
 			readonly slot: number;
