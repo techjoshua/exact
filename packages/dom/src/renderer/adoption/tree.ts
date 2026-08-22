@@ -10,7 +10,11 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { RenderProgram, isCellVNode, renderInstance } from '@exactjs/core/runtime/render';
-import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import {
+	createEffectScope,
+	withEffectScope,
+	type EffectScope
+} from '@exactjs/reactive/framework/runtime';
 import { getOwnedCellVNode } from '../../cells.js';
 import {
 	getListBinding,

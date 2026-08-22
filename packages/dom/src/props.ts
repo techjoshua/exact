@@ -12,7 +12,7 @@ import {
 	type StopHandle,
 	unwrap
 } from '@exactjs/core';
-import { isReactiveValue, type EffectScope } from '@exactjs/reactive';
+import { isReactiveValue, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {

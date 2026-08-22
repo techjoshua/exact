@@ -1,4 +1,4 @@
-import { peek, type ReactiveValue } from '@exactjs/reactive';
+import { peek, type ReactiveValue } from '@exactjs/reactive/framework/runtime';
 
 import type { AnyTaskFunction, TaskContext, TaskFunction } from './contracts.js';
 import {
@@ -37,7 +37,8 @@ export function activateComputationForHost<Args extends unknown[]>(
 	...inputs: { [Index in keyof Args]: ActivationInput<Args[Index]> }
 ): Disposable {
 	const owner = taskOwnerForHost(host);
-	if (!owner) throw new Error('activateComputationForHost() requires a registered durable task host');
+	if (!owner)
+		throw new Error('activateComputationForHost() requires a registered durable task host');
 	const dependencies = inputs.map(activationInputDependency) as {
 		[Index in keyof Args]: ContinuationDependencySource<Args[Index]>;
 	};

@@ -22,12 +22,15 @@ test('uses nearest-rank percentiles without mutating the samples', () => {
 });
 
 test('filters unavailable measurements consistently', () => {
-	assert.deepEqual(summarizeSampleMetric([{ value: 1 }, { value: null }], (sample) => sample.value), {
-		p50: 1,
-		p75: 1,
-		p95: 1,
-		p99: 1
-	});
+	assert.deepEqual(
+		summarizeSampleMetric([{ value: 1 }, { value: null }], (sample) => sample.value),
+		{
+			p50: 1,
+			p75: 1,
+			p95: 1,
+			p99: 1
+		}
+	);
 	assert.deepEqual(summarizePercentiles([null, Number.NaN]), {
 		p50: null,
 		p75: null,

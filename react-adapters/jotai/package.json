@@ -21,8 +21,12 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": ["ExactJotaiProvider"],
-	"exactCompileModules": ["src/adapter.ts"],
+	"exactCompiledComponents": [
+		"ExactJotaiProvider"
+	],
+	"exactCompileModules": [
+		"src/adapter.ts"
+	],
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",

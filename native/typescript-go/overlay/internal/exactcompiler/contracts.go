@@ -201,6 +201,7 @@ type Component struct {
 	Interactions        bool                      `json:"-"`
 	DynamicComponents   bool                      `json:"-"`
 	StateSlots          []string                  `json:"-"`
+	Collections         bool                      `json:"-"`
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.

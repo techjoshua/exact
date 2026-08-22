@@ -95,7 +95,8 @@ function isDefinition(value: unknown): boolean {
 				'enhancements',
 				'interactions',
 				'compatibility',
-				'dynamic-components'
+				'dynamic-components',
+				'collections'
 			].includes(capability)
 		)
 	);

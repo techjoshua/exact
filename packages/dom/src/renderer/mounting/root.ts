@@ -30,7 +30,7 @@ import {
 	transferEffectScope,
 	withEffectScope,
 	type EffectScope
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 import { getOwnedCellVNode } from '../../cells.js';
 import {
 	getComponentProps,

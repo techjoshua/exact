@@ -117,7 +117,7 @@ export function ThemeSpecimen(this: Component<{}>, props: { label: string }) {
 						)
 					)
 				),
-					createVNode(DepthControls, {}),
+				createVNode(DepthControls, {}),
 				createVNode(
 					'div',
 					{
@@ -224,91 +224,90 @@ function themeAreaChartView(
 	surface: ThemeSurfaceBundle
 ): VNode {
 	const palette = deriveDataColors(theme, {
-			kind: 'categorical',
-			count: values.length,
-			surface
-		});
+		kind: 'categorical',
+		count: values.length,
+		surface
+	});
 	return createVNode(
-			'figure',
-			{ className: 'theme-lab-chart' },
+		'figure',
+		{ className: 'theme-lab-chart' },
+		createVNode(
+			'svg',
+			{ viewBox: '0 0 600 260', role: 'img', 'aria-label': label },
+			createVNode('title', null, label),
+			...[20, 80, 140, 200].map((y) =>
+				createVNode('line', {
+					x1: 30,
+					y1: y,
+					x2: 580,
+					y2: y,
+					stroke: 'var(--exact-theme-surface-border)',
+					'stroke-width': 1
+				})
+			),
+			...values.map((series, index) =>
+				createVNode('path', {
+					d: areaPath(series.points),
+					fill: translucent(palette.colors[index]!, 0.24),
+					stroke: palette.strokes[index],
+					'stroke-width': 4,
+					'stroke-linejoin': 'round'
+				})
+			)
+		),
+		createVNode(
+			'figcaption',
+			null,
+			createVNode('strong', null, 'Quarterly activity'),
 			createVNode(
-				'svg',
-				{ viewBox: '0 0 600 260', role: 'img', 'aria-label': label },
-				createVNode('title', null, label),
-				...[20, 80, 140, 200].map((y) =>
-					createVNode('line', {
-						x1: 30,
-						y1: y,
-						x2: 580,
-						y2: y,
-						stroke: 'var(--exact-theme-surface-border)',
-						'stroke-width': 1
-					})
-				),
+				'ul',
+				{ className: 'theme-lab-legend' },
 				...values.map((series, index) =>
-					createVNode('path', {
-						d: areaPath(series.points),
-						fill: translucent(palette.colors[index]!, 0.24),
-						stroke: palette.strokes[index],
-						'stroke-width': 4,
-						'stroke-linejoin': 'round'
-					})
+					createVNode(
+						'li',
+						null,
+						createVNode(
+							'span',
+							{
+								className: `theme-lab-pattern pattern-${palette.recommendedPatterns[index]}`,
+								style: `--series:${palette.colors[index]}`
+							},
+							'◆'
+						),
+						`${series.label}: ${series.points.at(-1)}`
+					)
 				)
 			),
 			createVNode(
-				'figcaption',
+				'details',
 				null,
-				createVNode('strong', null, 'Quarterly activity'),
+				createVNode('summary', null, 'View chart data'),
 				createVNode(
-					'ul',
-					{ className: 'theme-lab-legend' },
-					...values.map((series, index) =>
-						createVNode(
-							'li',
-							null,
-							createVNode(
-								'span',
-								{
-								className: `theme-lab-pattern pattern-${palette.recommendedPatterns[index]}`,
-								style: `--series:${palette.colors[index]}`
-								},
-								'◆'
-							),
-							`${series.label}: ${series.points.at(-1)}`
-						)
-					)
-				),
-				createVNode(
-					'details',
-					null,
-					createVNode('summary', null, 'View chart data'),
+					'table',
+					{ style: dataTableStyle },
 					createVNode(
-						'table',
-						{ style: dataTableStyle },
+						'thead',
+						null,
 						createVNode(
-							'thead',
+							'tr',
 							null,
+							themeTableHeader('Series'),
+							...seriesColumns().map(themeTableHeader)
+						)
+					),
+					createVNode(
+						'tbody',
+						null,
+						...values.map((series) =>
 							createVNode(
 								'tr',
 								null,
-								themeTableHeader('Series'),
-								...seriesColumns().map(themeTableHeader)
-							)
-						),
-						createVNode(
-							'tbody',
-							null,
-							...values.map((series) =>
-								createVNode(
-									'tr',
-									null,
-									themeTableHeader(series.label),
-									...series.points.map((point) =>
-										enhance(
-											'text',
-											{ text: 'body' },
-											createVNode('td', { style: dataCellStyle }, point)
-										)
+								themeTableHeader(series.label),
+								...series.points.map((point) =>
+									enhance(
+										'text',
+										{ text: 'body' },
+										createVNode('td', { style: dataCellStyle }, point)
 									)
 								)
 							)
@@ -316,7 +315,8 @@ function themeAreaChartView(
 					)
 				)
 			)
-			);
+		)
+	);
 }
 
 function themeTableHeader(label: string): VNode {

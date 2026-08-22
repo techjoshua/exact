@@ -13,7 +13,7 @@ import {
 import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
-import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { placeMountedBefore } from '../placement.js';
 import { mountDetachedChildren } from './mounting/children.js';

@@ -1,4 +1,4 @@
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/runtime';
 import { ReadinessContext } from './contexts.js';
 import type {
 	AnyComponentInstance,

@@ -1,4 +1,4 @@
-import type { ReactiveValue } from '@exactjs/reactive';
+import type { ReactiveValue } from '@exactjs/reactive/framework/runtime';
 import type { VNode } from './contracts.js';
 
 /** Runtime bridge for optional compiler-owned keyed list controllers. */

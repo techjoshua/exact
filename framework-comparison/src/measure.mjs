@@ -387,10 +387,7 @@ function summarizeBrowser(samples) {
 		),
 		domElementCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domElementCount),
 		heapBytes: summarizeSampleMetric(samples, (sample) => sample.heapBytes),
-		optimisticFeedbackMs: summarizeSampleMetric(
-			samples,
-			(sample) => sample.optimisticFeedbackMs
-		),
+		optimisticFeedbackMs: summarizeSampleMetric(samples, (sample) => sample.optimisticFeedbackMs),
 		settlementMs: summarizeSampleMetric(samples, (sample) => sample.settlementMs)
 	};
 }

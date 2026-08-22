@@ -8,7 +8,8 @@ import {
 
 import type { ReactiveValue, StopHandle } from './internal/types.js';
 
-import { computed, reactive } from './observation.js';
+import { computed } from './observation.js';
+import { reactiveObjects } from './framework/objects.js';
 
 /** Configures external source. */
 export interface ExternalSourceOptions<T> {
@@ -34,7 +35,7 @@ export interface ExternalSource<T> {
 export function createExternalSource<T>(options: ExternalSourceOptions<T>): ExternalSource<T> {
 	const serverSnapshot = !('window' in globalThis) && options.getServerSnapshot !== undefined;
 	let current = serverSnapshot ? options.getServerSnapshot() : options.getSnapshot();
-	const state = reactive({ revision: 0 });
+	const state = reactiveObjects({ revision: 0 });
 	let stop: StopHandle | undefined;
 	let disposed = false;
 	const ownerScope = currentEffectScope();

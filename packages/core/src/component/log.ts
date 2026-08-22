@@ -1,4 +1,4 @@
-import { peek, unwrap } from '@exactjs/reactive';
+import { peek, unwrap } from '@exactjs/reactive/framework/runtime';
 import type { AnyComponent, AnyComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';

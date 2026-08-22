@@ -35,8 +35,7 @@ const legacyArchitectureCeilings = new Map([
 	['packages/core/src/component/runtime.ts', 404],
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
-const compilerlessComponentCeilings = new Map([
-]);
+const compilerlessComponentCeilings = new Map([]);
 
 for (const maintainedRoot of maintainedRoots) {
 	for (const file of await sourceFiles(path.join(root, maintainedRoot))) inspectSource(file);

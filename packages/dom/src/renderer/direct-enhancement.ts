@@ -5,7 +5,7 @@ import {
 	readExactEnhancementContexts,
 	type VNode
 } from '@exactjs/core';
-import { createEffectScope, type EffectScope } from '@exactjs/reactive';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../placement.js';
 import type { Mounted, Root } from '../types.js';
 import { createEnhancementChain, withoutEnhancements } from './enhancement-chain.js';

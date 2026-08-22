@@ -32,7 +32,9 @@ export function refreshTargetBoundary(
 	owner: AnyComponentInstance | undefined
 ): void {
 	if (!targetDomCapability)
-		throw new Error('Target rendering is unavailable because this artifact did not include the DOM capability');
+		throw new Error(
+			'Target rendering is unavailable because this artifact did not include the DOM capability'
+		);
 	targetDomCapability.refreshBoundary(root, boundary, owner);
 }
 
@@ -58,7 +60,8 @@ export function updateTargetedIntrinsicProps(
 	next: Record<string, unknown>
 ): void {
 	if (targetDomCapability) targetDomCapability.updateIntrinsic(root, mounted, previous, next);
-	else if (mounted.dom instanceof Element) updateProps(root, mounted.dom, previous, next, mounted.scope);
+	else if (mounted.dom instanceof Element)
+		updateProps(root, mounted.dom, previous, next, mounted.scope);
 }
 
 /** Releases optional Target-owned intrinsic resources. */

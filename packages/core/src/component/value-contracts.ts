@@ -1,4 +1,4 @@
-import type { ReactiveValue } from '@exactjs/reactive';
+import type { ReactiveValue } from '@exactjs/reactive/framework/runtime';
 
 /** Defines the task resource disposal type contract. */
 export type TaskResourceDisposal = string;

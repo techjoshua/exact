@@ -6,11 +6,8 @@ import {
 	type ExactRenderProgram,
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/runtime/render';
-import {
-	type OwnedRetainedWatch,
-	watchRetained
-} from '@exactjs/reactive/framework/watch';
-import type { EffectScope } from '@exactjs/reactive';
+import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
 import { clearElementProps, updateProps } from '../props.js';

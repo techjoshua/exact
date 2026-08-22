@@ -1,4 +1,7 @@
-import { setScheduledWorkContextCapture, type ScheduledWorkContext } from '@exactjs/reactive';
+import {
+	setScheduledWorkContextCapture,
+	type ScheduledWorkContext
+} from '@exactjs/reactive/framework/runtime';
 import type { TaskContext, TaskOwner } from './contracts.js';
 import { raceTaskCancellation, TaskCancellation } from './cancellation.js';
 import {

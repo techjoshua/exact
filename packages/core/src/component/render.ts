@@ -1,4 +1,4 @@
-import { watch, withEffectScope } from '@exactjs/reactive';
+import { watch, withEffectScope } from '@exactjs/reactive/framework/runtime';
 
 import type { AnyComponentInstance, Child, RenderResult } from './contracts.js';
 

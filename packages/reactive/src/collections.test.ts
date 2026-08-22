@@ -14,8 +14,27 @@ import {
 	watch,
 	writeReactive
 } from './index.js';
+import { reactiveObjects } from './framework/objects.js';
 
 describe('@exactjs/reactive collections', () => {
+	it('keeps compiler-narrow and collection-aware proxy caches independent', () => {
+		const narrowFirstRaw = { values: new Map([['answer', 42]]) };
+		const narrowFirst = reactiveObjects(narrowFirstRaw);
+		const generalSecond = reactive(narrowFirstRaw);
+
+		expect(Object.is(generalSecond, narrowFirst)).toBe(false);
+		expect(generalSecond.values.get('answer')).toBe(42);
+		expect(() => narrowFirst.values.get('answer')).toThrow(/Map or Set/);
+
+		const generalFirstRaw = { values: new Set(['ready']) };
+		const generalFirst = reactive(generalFirstRaw);
+		const narrowSecond = reactiveObjects(generalFirstRaw);
+
+		expect(Object.is(narrowSecond, generalFirst)).toBe(false);
+		expect(generalFirst.values.has('ready')).toBe(true);
+		expect(() => narrowSecond.values.has('ready')).toThrow(/Map or Set/);
+	});
+
 	it('notifies array growth and preserves reused identities during an unregistered prepend', () => {
 		const state = reactive({ activity: [] as Array<{ id: string; message: string }> });
 		const lengths: number[] = [];

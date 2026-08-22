@@ -18,7 +18,7 @@ import {
 	setEffectScopeWorkPriority,
 	withEffectScope,
 	type EffectScope
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { detachMountedRanges, restoreMountedRanges } from './retained-range.js';
 import { ownMountedInstance } from './root-lifecycle.js';

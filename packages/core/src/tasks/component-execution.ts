@@ -1,4 +1,4 @@
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/runtime';
 import type { ExactComponentExecutionContract } from '../component-contracts.js';
 import { isTaskCancellation } from './cancellation.js';
 import { componentContinuationTaskId } from './component-continuation.js';

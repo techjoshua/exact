@@ -1,4 +1,10 @@
-import { computed, isReactiveValue, peek, unwrap, type ReactiveValue } from '@exactjs/reactive';
+import {
+	computed,
+	isReactiveValue,
+	peek,
+	unwrap,
+	type ReactiveValue
+} from '@exactjs/reactive/framework/runtime';
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { encodeExactMarkerPart } from './protocol.js';

@@ -1,4 +1,5 @@
-import { peek, reactive, unwrap } from '@exactjs/reactive';
+import { peek, unwrap } from '@exactjs/reactive/framework/runtime';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import {
 	exactComponentIdentity,
@@ -56,8 +57,8 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 	if (typeof resolver !== 'function')
 		throw new TypeError('Compiled dynamic components require a resolver or authored facade');
 
-	const lifetime = reactive({ retained: true });
-	const state = reactive<DynamicState<Props>>({
+	const lifetime = reactiveObjects({ retained: true });
+	const state = reactiveObjects<DynamicState<Props>>({
 		revision: 0,
 		status: 'unassigned',
 		generation: 0

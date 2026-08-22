@@ -1,4 +1,4 @@
-import { updateReactive, type Reactive } from '@exactjs/reactive';
+import { updateReactive, type Reactive } from '@exactjs/reactive/framework/runtime';
 
 import type { AnyComponentInstance, ComponentContextValues, ContextToken } from './contracts.js';
 import { defaultContexts } from './plugins.js';

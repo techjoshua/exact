@@ -84,7 +84,10 @@ export function componentDomainLogging(
 }
 
 /** Updates the shared root logger without rebuilding component instances. */
-export function setComponentDomainLogger(domain: ComponentDomain, logger: Logger | undefined): void {
+export function setComponentDomainLogger(
+	domain: ComponentDomain,
+	logger: Logger | undefined
+): void {
 	const logging = domainCapabilities.get(domain)?.logging;
 	if (logging) logging.logger = logger;
 }

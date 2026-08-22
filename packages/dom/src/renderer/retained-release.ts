@@ -17,7 +17,7 @@ import {
 	runTaskFrame,
 	type TaskFrameExecution
 } from '@exactjs/core/framework/task-frames';
-import { flushSync } from '@exactjs/reactive';
+import { flushSync } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { setMountedSubtreeActivity } from './component-roots.js';
 import { removeMountedNodes, unmountMounted } from './teardown.js';

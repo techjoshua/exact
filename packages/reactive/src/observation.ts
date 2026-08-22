@@ -24,19 +24,15 @@ import type {
 	Dep,
 	EffectScopeImpl,
 	Reaction,
-	Reactive,
-	ReactiveOptions,
 	ReactiveRef,
 	ReactiveValue,
 	StopHandle,
 	WatchOptions
 } from './internal/types.js';
 
-import { createReactive } from './proxy/create.js';
+import { proxyRefs } from './proxy/state.js';
 
-import { defaultReactiveOptions, proxyRefs } from './proxy/state.js';
-
-import { hasChanged, isReactiveContainer } from './change-detection.js';
+import { hasChanged } from './change-detection.js';
 
 const inactiveWatch: StopHandle = () => undefined;
 const collectionRefs = new WeakMap<object, ReactiveRef<object>>();
@@ -53,15 +49,6 @@ export type RetainedWatchOptions = WatchOptions & {
 export type OwnedRetainedWatch = Readonly<{
 	stop(): void;
 }>;
-
-/** Creates a reactive proxy that tracks reads and notifies watchers when writable state changes. */
-export function reactive<T extends object>(
-	value: T,
-	options: ReactiveOptions = defaultReactiveOptions
-): Reactive<T> {
-	if (!isReactiveContainer(unwrap(value))) return value as Reactive<T>;
-	return createReactive(value, options) as Reactive<T>;
-}
 
 /** Creates a lazy derived reactive value that recomputes when one of its tracked dependencies changes. */
 export function computed<T>(compute: () => T): ReactiveValue<T> {

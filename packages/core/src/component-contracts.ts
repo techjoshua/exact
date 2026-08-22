@@ -170,6 +170,7 @@ export type ExactCompiledComponentDefinitionContract = Readonly<{
 		| 'interactions'
 		| 'compatibility'
 		| 'dynamic-components'
+		| 'collections'
 	)[];
 }>;
 
