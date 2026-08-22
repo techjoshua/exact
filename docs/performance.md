@@ -404,6 +404,12 @@ separate activity object or the closure set that would otherwise capture its lif
 activity blockers, lifecycle registrations, controllers, task state, refs, lists, and localization
 remain allocation-on-demand sidecars.
 
+Compiler-indexed component state uses one proxy handler and numeric dependency identities per
+state object. Initialized fields are ordinary data properties on the inspectable backing record;
+they do not allocate getter and setter closures for every declared field. A compact indexed bitmap
+tracks field presence for deletion, snapshots, and optimistic rollback, while fields introduced
+dynamically retain the same reactive fallback semantics and receive stable indexes on first write.
+
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
 representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed

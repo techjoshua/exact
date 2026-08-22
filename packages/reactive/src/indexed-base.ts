@@ -6,8 +6,8 @@ import { unwrap } from './internal/values.js';
 
 type IndexedRecord = {
 	readonly indexes: Map<PropertyKey, number>;
-	readonly initialized: Set<PropertyKey>;
-	readonly values: unknown[];
+	readonly initialized: boolean[];
+	readonly target: Record<PropertyKey, unknown>;
 };
 
 const indexedRecords = new WeakMap<object, IndexedRecord>();
@@ -24,38 +24,41 @@ export function createIndexedReactive<T extends object>(
 ): Reactive<T> {
 	const indexes = new Map<PropertyKey, number>();
 	for (const key of keys) if (!indexes.has(key)) indexes.set(key, indexes.size);
-	const names = [...indexes.keys()];
-	const values = new Array<unknown>(indexes.size);
-	const view: Record<PropertyKey, unknown> = {};
-	const initialized = new Set<PropertyKey>();
-	const read = (index: number) => {
-		track(values, index);
-		return values[index];
+	const target: Record<PropertyKey, unknown> = {};
+	const initialized = new Array<boolean>(indexes.size).fill(false);
+	const read = (key: PropertyKey, index: number) => {
+		track(target, index);
+		return target[key];
 	};
 	const write = (key: PropertyKey, index: number, next: unknown) => {
-		const previous = values[index];
+		const previous = target[key];
 		const raw = unwrap(next);
 		const value =
 			raw && typeof raw === 'object' && isReactiveContainer(raw)
 				? wrap(raw as object, options)
 				: raw;
-		const wasInitialized = initialized.has(key);
+		const wasInitialized = initialized[index] === true;
 		if (wasInitialized && !hasChanged(previous, value)) return true;
 		if (hasActiveTransaction())
 			recordTransactionUndo(
 				() => {
-					values[index] = previous;
+					if (wasInitialized) target[key] = previous;
 					if (!wasInitialized) {
-						initialized.delete(key);
-						Reflect.deleteProperty(view, key);
+						initialized[index] = false;
+						Reflect.deleteProperty(target, key);
 					}
 				},
-				values,
+				target,
 				index
 			);
-		values[index] = value;
-		initialized.add(key);
-		trigger(values, index);
+		Reflect.defineProperty(target, key, {
+			configurable: true,
+			enumerable: true,
+			value,
+			writable: true
+		});
+		initialized[index] = true;
+		trigger(target, index);
 		try {
 			options.onMutation?.(key, 'set');
 		} catch {
@@ -64,58 +67,51 @@ export function createIndexedReactive<T extends object>(
 		return true;
 	};
 
-	const install = (key: PropertyKey, index: number) => {
-		if (Object.prototype.hasOwnProperty.call(view, key)) return;
-		Object.defineProperty(view, key, {
-			configurable: true,
-			enumerable: true,
-			get: () => read(index),
-			set: (next) => write(key, index, next)
-		});
-	};
-
-	const facade = new Proxy(view, {
+	const facade = new Proxy(target, {
 		get(target, key, receiver) {
 			if (key === proxyMarker) return true;
 			if (key === rawTarget) return target;
 			const index = indexes.get(key);
-			return index === undefined ? Reflect.get(target, key, receiver) : read(index);
+			return index === undefined ? Reflect.get(target, key, receiver) : read(key, index);
 		},
-		set(target, key, next, receiver) {
+		set(_target, key, next) {
 			let index = indexes.get(key);
 			if (index === undefined) {
 				index = indexes.size;
 				indexes.set(key, index);
-				names.push(key);
+				initialized.push(false);
 			}
-			install(key, index);
-			return Reflect.set(target, key, next, receiver);
+			return write(key, index, next);
 		},
-		deleteProperty(target, key) {
+		deleteProperty(_target, key) {
 			const index = indexes.get(key);
-			if (index !== undefined && initialized.has(key)) {
-				const previous = values[index];
+			if (index !== undefined && initialized[index]) {
+				const previous = target[key];
 				if (hasActiveTransaction())
 					recordTransactionUndo(
 						() => {
-							values[index] = previous;
-							install(key, index);
-							initialized.add(key);
+							Reflect.defineProperty(target, key, {
+								configurable: true,
+								enumerable: true,
+								value: previous,
+								writable: true
+							});
+							initialized[index] = true;
 						},
-						values,
+						target,
 						index
 					);
-				values[index] = undefined;
-				trigger(values, index);
+				trigger(target, index);
 			}
-			initialized.delete(key);
+			if (index !== undefined) initialized[index] = false;
 			return Reflect.deleteProperty(target, key);
 		},
 		has(target, key) {
-			return initialized.has(key) || Reflect.has(target, key);
+			const index = indexes.get(key);
+			return (index !== undefined && initialized[index] === true) || Reflect.has(target, key);
 		}
 	});
-	indexedRecords.set(facade, { indexes, initialized, values });
+	indexedRecords.set(facade, { indexes, initialized, target });
 	return facade as Reactive<T>;
 }
 
@@ -127,8 +123,8 @@ export function readReactiveOwnProperty(
 	const indexed = indexedRecords.get(value);
 	if (indexed) {
 		const index = indexed.indexes.get(key);
-		return index !== undefined && indexed.initialized.has(key)
-			? { present: true, value: indexed.values[index] }
+		return index !== undefined && indexed.initialized[index]
+			? { present: true, value: indexed.target[key] }
 			: { present: false };
 	}
 	const descriptor = Object.getOwnPropertyDescriptor(value, key);
