@@ -6,7 +6,7 @@ import {
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactCompiledComponentContract
+	readPreparedExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
 
@@ -25,7 +25,7 @@ export function createComponentResumptionResolver(
 	const consumed = new Set<number>();
 	const history: number[] = [];
 	const resolve = ((type: AnyComponentFunction) => {
-		const contract = readExactCompiledComponentContract(type);
+		const contract = readPreparedExactCompiledComponentContract(type);
 		if (!contract.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
 		const available = records();

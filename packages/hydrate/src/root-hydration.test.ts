@@ -169,13 +169,14 @@ describe('hydration-only root capability', () => {
 		const program = createCompiledRenderProgram(
 			'root-marked-program',
 			() => ({
-				version: 1,
+				version: 3,
 				id: 'root-marked-program',
 				namespace: 'html',
 				template: '<span data-exact-id="program-root">\ue000exact:0\ue001</span>',
 				parts: ['<span data-exact-id="program-root">', '</span>'],
-				slots: [['text', 'program-text', [0], [0]]],
-				nodes: [['program-root', [], [], 'span', 'html']],
+				slots: [['text', 'program-text', [0]]],
+				bindings: [['text', 0]],
+				nodes: [['program-root', 'span', 'html']],
 				ssrParts: ['', '<span data-exact-id="program-root">', '', '</span>', ''],
 				ssrOperations: [
 					{ kind: 'node-open', index: 0 },

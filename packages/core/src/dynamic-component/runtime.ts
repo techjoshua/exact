@@ -3,7 +3,7 @@ import { watchRetained } from '@exactjs/reactive/framework/watch';
 import {
 	exactComponentIdentity,
 	isExactComponent,
-	readExactCompiledComponentContract
+	readPreparedExactCompiledComponentContract
 } from '../component-contracts.js';
 import type {
 	AuthoredComponentFunction,
@@ -203,7 +203,7 @@ function validateCandidate(candidate: AnyDynamicComponentCandidate): void {
 		throw new TypeError(
 			'Dynamic component resolution requires a native or explicitly adapted component'
 		);
-	const contract = readExactCompiledComponentContract(candidate);
+	const contract = readPreparedExactCompiledComponentContract(candidate);
 	if (
 		contract.role === 'executor' ||
 		contract.placement === 'server' ||
