@@ -1,16 +1,32 @@
 /** @vitest-environment jsdom */
 import { Fragment, createVNode, type Component } from '@exactjs/core';
 import {
-	createCompiledRenderProgram,
+	createCompiledRenderProgram as createCoreRenderProgram,
 	createCompiledVNode,
 	createExpression,
 	createPreparedRenderProgram,
-	prepareCompiledRenderProgram
+	prepareCompiledRenderProgram as prepareCoreRenderProgram
 } from '@exactjs/core/runtime/render';
 import { collectionRef, flushSync, indexedReactive, reactive, ref } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 import { jsx } from './test-support/native-vnode.js';
+import { withGenericRenderProgramBindings } from './testing.js';
+
+const createCompiledRenderProgram: typeof createCoreRenderProgram = (
+	cacheKey,
+	createProgram,
+	readers,
+	fallback
+) =>
+	createCoreRenderProgram(
+		cacheKey,
+		() => withGenericRenderProgramBindings(createProgram()),
+		readers,
+		fallback
+	);
+const prepareCompiledRenderProgram: typeof prepareCoreRenderProgram = (program) =>
+	prepareCoreRenderProgram(withGenericRenderProgramBindings(program));
 
 it('observes in-place collection mutations through a compiler-owned list lane', () => {
 	const state = reactive({ items: [{ id: 'a' }] });

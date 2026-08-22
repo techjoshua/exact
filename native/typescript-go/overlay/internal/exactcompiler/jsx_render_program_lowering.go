@@ -876,7 +876,18 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
-		property("slots", array(slots)), property("bindings", array(bindings)), property("nodes", array(nodes)),
+		property("slots", array(slots)), property("nodes", array(nodes)),
+	}
+	if lowering.target == TargetClient &&
+		lowering.contractProjection != ComponentContractProjectionComplete {
+		if len(bindings) != 0 {
+			members = append(members, property("bind", lowering.directRenderProgramBinder(build)))
+		}
+		if len(listSlots) != 0 {
+			members = append(members, property("listBindings", lowering.factory.NewTrueExpression()))
+		}
+	} else {
+		members = append(members, property("bindings", array(bindings)))
 	}
 	if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 		members = append(members, property("parts", array(parts)))
@@ -896,4 +907,53 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		members = append(members, property("ssrParts", array(ssrParts)), property("ssrOperations", array(ssrOperations)))
 	}
 	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
+}
+
+// directRenderProgramBinder emits the exact client binding calls in browser-safe application order.
+// Shared DOM operations retain the mechanics; the compiled component owns all topology and wiring.
+func (lowering *jsxLowering) directRenderProgramBinder(build *renderProgramBuild) *ast.Node {
+	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
+	statements := make([]*ast.Node, 0, len(build.slots)+1)
+	call := func(helper string, arguments ...*ast.Node) {
+		statements = append(statements, lowering.factory.NewExpressionStatement(
+			lowering.call(helper, append([]*ast.Node{target}, arguments...)),
+		))
+	}
+	listSlots := make([]*ast.Node, 0, len(build.slots))
+	for index, slot := range build.slots {
+		slotIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone)
+		if slot.kind == "child" && slot.list {
+			listSlots = append(listSlots, slotIndex)
+			continue
+		}
+		switch slot.kind {
+		case "text":
+			call(lowering.names.bindProgramText, slotIndex)
+		case "child", "component":
+			call(lowering.names.bindProgramChild, slotIndex)
+		}
+	}
+	if len(listSlots) != 0 {
+		call(
+			lowering.names.bindProgramLists,
+			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(listSlots), false),
+		)
+	}
+	for group, binding := range build.propertyBindings() {
+		call(
+			lowering.names.bindProgramProperties,
+			lowering.factory.NewNumericLiteral(strconv.Itoa(group), ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.slots[0]), ast.TokenFlagsNone),
+		)
+	}
+	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)
+	return lowering.factory.NewArrowFunction(
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{parameter}),
+		nil,
+		nil,
+		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
+	)
 }

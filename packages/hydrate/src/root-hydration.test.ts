@@ -4,11 +4,25 @@
 import { type Component } from '@exactjs/core';
 import { createCompiledVNode, createDynamicChild } from '@exactjs/core/runtime/render';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
-import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
+import { createCompiledRenderProgram as createCoreRenderProgram } from '@exactjs/core/runtime/render';
+import { withGenericRenderProgramBindings } from '@exactjs/dom/testing';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate, hydrateAfterNavigation } from './root.js';
 import { createVNode } from './test-support/native-vnode.js';
+
+const createCompiledRenderProgram: typeof createCoreRenderProgram = (
+	cacheKey,
+	createProgram,
+	readers,
+	fallback
+) =>
+	createCoreRenderProgram(
+		cacheKey,
+		() => withGenericRenderProgramBindings(createProgram()),
+		readers,
+		fallback
+	);
 
 describe('hydration-only root capability', () => {
 	it('gives visible SSR content a rendering opportunity before passive hydration', async () => {

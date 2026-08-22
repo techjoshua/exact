@@ -12,11 +12,12 @@ export function applyCompiledProps(
 ): void {
 	const state = mounted.renderProgram!;
 	const groups = (state.compiledProps ??= []);
-	let previous = groups[group];
-	if (!previous) {
-		previous = {};
-		groups[group] = previous;
+	let retained = groups[group];
+	if (!retained) {
+		retained = { element, values: {} };
+		groups[group] = retained;
 	}
+	const previous = retained.values;
 	const write = () =>
 		state.invocation.propertyWriter!(group, (key, source) => {
 			const value = unwrap(source);
@@ -32,13 +33,10 @@ export function applyCompiledProps(
 export function releaseCompiledProps(mounted: Mounted): void {
 	const state = mounted.renderProgram!;
 	if (!state.compiledProps) return;
-	let group = 0;
-	for (const binding of state.invocation.program.bindings) {
-		if (binding[0] !== 'properties') continue;
-		const props = state.compiledProps[group++];
-		const element = state.slotNodes[binding[1][0]!] as Element;
-		(props?.ref as { fulfill(value: unknown): void } | undefined)?.fulfill(undefined);
-		clearElementProps(element);
+	for (const retained of state.compiledProps) {
+		if (!retained) continue;
+		(retained.values.ref as { fulfill(value: unknown): void } | undefined)?.fulfill(undefined);
+		clearElementProps(retained.element);
 	}
 	state.compiledProps = undefined;
 }

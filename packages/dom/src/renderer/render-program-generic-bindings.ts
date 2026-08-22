@@ -1,0 +1,34 @@
+import type {
+	ExactRenderProgramBinder,
+	ExactRenderProgramBinding
+} from '@exactjs/core/runtime/render';
+import {
+	bindCompiledProgramChild,
+	bindCompiledProgramLists,
+	bindCompiledProgramText,
+	bindCompatibleProgramProperties
+} from './render-program-bindings.js';
+
+/** Builds the table-driven compatibility binder used only by explicit testing/support artifacts. */
+export function createGenericRenderProgramBinder(
+	bindings: readonly ExactRenderProgramBinding[]
+): ExactRenderProgramBinder {
+	return (target) => {
+		let propertyGroup = 0;
+		for (const binding of bindings) {
+			if (binding[0] === 'lists') {
+				bindCompiledProgramLists(target, binding[1]);
+				continue;
+			}
+			if (binding[0] === 'child' || binding[0] === 'component') {
+				bindCompiledProgramChild(target, binding[1]);
+				continue;
+			}
+			if (binding[0] === 'text') {
+				bindCompiledProgramText(target, binding[1]);
+				continue;
+			}
+			bindCompatibleProgramProperties(target, propertyGroup++, binding[1]);
+		}
+	};
+}

@@ -14,6 +14,11 @@ type jsxRuntimeNames struct {
 	renderProgram          string
 	preparedRenderProgram  string
 	prepareRenderProgram   string
+	bindProgramText        string
+	bindProgramChild       string
+	bindProgramLists       string
+	bindProgramProperties  string
+	bindingTarget          string
 	fragment               string
 	target                 string
 	expression             string
@@ -94,6 +99,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/refs"},
 		{module: "@exactjs/core/runtime/component-execution"},
 		{module: "@exactjs/core/runtime/collections"},
+		{module: "@exactjs/dom/runtime/render-program"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -138,6 +144,10 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
 		{"componentLogMethod", lowering.names.componentLog, 7},
 		{"createTimeActivation", lowering.names.createTimeActivation, 13},
+		{"bindCompiledProgramText", lowering.names.bindProgramText, 18},
+		{"bindCompiledProgramChild", lowering.names.bindProgramChild, 18},
+		{"bindCompiledProgramLists", lowering.names.bindProgramLists, 18},
+		{"bindCompiledProgramProperties", lowering.names.bindProgramProperties, 18},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -461,6 +471,11 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		renderProgram:          allocate("__exactRenderProgram"),
 		preparedRenderProgram:  allocate("__exactPreparedRenderProgram"),
 		prepareRenderProgram:   allocate("__exactPrepareRenderProgram"),
+		bindProgramText:        allocate("__exactBindProgramText"),
+		bindProgramChild:       allocate("__exactBindProgramChild"),
+		bindProgramLists:       allocate("__exactBindProgramLists"),
+		bindProgramProperties:  allocate("__exactBindProgramProperties"),
+		bindingTarget:          allocate("__exactBindingTarget"),
 		fragment:               allocate("__exactFragment"),
 		target:                 allocate("__exactTarget"),
 		expression:             allocate("__exactExpression"),

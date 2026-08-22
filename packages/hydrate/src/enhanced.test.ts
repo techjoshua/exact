@@ -11,6 +11,7 @@ import {
 import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
+import '@exactjs/dom/runtime/target';
 import { renderToString } from '@exactjs/ssr';
 import { TimeUpdate } from '@exactjs/time';
 import { createTimeActivation } from '@exactjs/time/internal';
