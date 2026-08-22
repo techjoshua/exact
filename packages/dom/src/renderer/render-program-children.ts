@@ -54,7 +54,13 @@ export function adoptProgramChildSlots(
 			);
 			if (!children) return false;
 			const childSlots = (state.childSlots ??= []);
-			childSlots.push({ slot: index, end, children, value });
+			const componentValue = slot[0] === 'component' ? soleVNode(value) : undefined;
+			childSlots.push({
+				slot: index,
+				end,
+				children,
+				...(componentValue ? { componentValue } : { value })
+			});
 		}
 	} finally {
 		if (ownsLists) parentInstance.endRender();
@@ -123,10 +129,15 @@ function prepareProgramChildBinding(
 			readProgramChildren(state.invocation, index, state.parentInstance)
 		);
 		peek(() => {
-			if (sameProgramChildren(childState.value, next)) return;
+			const component = slot?.[0] === 'component' ? soleVNode(next) : undefined;
+			if (
+				component
+					? Object.is(childState.componentValue, component)
+					: sameProgramChildren(childState.value, next)
+			)
+				return;
 			const parent = start.parentNode;
 			if (!parent) return;
-			const component = slot?.[0] === 'component' ? soleVNode(next) : undefined;
 			if (component && childState.children.length === 1) {
 				childState.children[0] = patchSingleChild(
 					state.root,
@@ -168,7 +179,13 @@ function prepareProgramChildBinding(
 					mounted
 				);
 			}
-			childState.value = next;
+			if (component) {
+				childState.componentValue = component;
+				childState.value = undefined;
+			} else {
+				childState.componentValue = undefined;
+				childState.value = next;
+			}
 			refreshMountedChildren(mounted);
 		});
 	};

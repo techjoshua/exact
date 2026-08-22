@@ -65,7 +65,9 @@ Statically resolved native component calls occupy explicit compiler-owned compon
 intrinsic program. The client retains the parent host template and delegates only that child range
 to a fixed-cardinality component lifecycle operation. The normal path mounts or patches the one
 compiler-proven component directly, without normalizing a child array or entering keyed sibling
-reconciliation; error and suspension fallbacks retain the general structural path. Complete and
+reconciliation. Its retained slot state stores the scalar component VNode directly rather than a
+duplicate one-element normalized result; error and suspension fallbacks retain the general
+structural path. Complete and
 server artifacts publish the matching dynamic
 boundary while keeping recursive SSR execution. Stateful, interactive, contextual, split-boundary,
 transition-owning, and keyed-list components keep their durable instances and ordinary ownership

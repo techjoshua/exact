@@ -52,6 +52,8 @@ export type Mounted = {
 			readonly end: Comment;
 			children: Mounted[];
 			value?: readonly Child[];
+			/** Last scalar VNode for a compiler-proven fixed-cardinality component slot. */
+			componentValue?: VNode;
 		}>;
 		/** Applies replacement readers without recreating the retained slot watcher. */
 		refresh?: () => void;
