@@ -254,3 +254,99 @@ func TestComponentExecutorPreservesAuthoredStateContextualTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestClientLatestTasksUseCompilerSelectedCompactLane(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compact-latest.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			export function Queue(this: Component<{ value: string }>) {
+				async function load(task: TaskContext = TaskContext.client().latest()) {
+					this.state.value = await fetchValue(task.signal);
+				}
+				const refresh = () => void load();
+				load();
+				return () => <button onClick={refresh}>{this.state.value}</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		"bindCompiledClientLatestTaskForHost as __exactBindClientLatestTask",
+		"activateCompiledClientLatestTaskForHost as __exactActivateClientLatestTask",
+		`const load = __exactBindClientLatestTask(this, "load", async`,
+		`__exactActivateClientLatestTask(this, "load", async`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("compact client/latest output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, universal := range []string{"defineTask as", "bindTaskForHost as", "activateTaskForHost as"} {
+		if strings.Contains(response.Code, universal) {
+			t.Fatalf("compact client/latest output retained %q:\n%s", universal, response.Code)
+		}
+	}
+}
+
+func TestClientLatestTaskFallsBackForUniversalPolicies(t *testing.T) {
+	for name, policy := range map[string]string{
+		"blocking":   "TaskContext.client().latest().blocking()",
+		"optimistic": "TaskContext.client().latest()",
+	} {
+		t.Run(name, func(t *testing.T) {
+			optimistic := ""
+			if name == "optimistic" {
+				optimistic = `task.optimistic(() => { this.state.value = "pending"; });`
+			}
+			response := NewSession().Execute(Request{
+				ID: "universal-" + name + ".tsx", Kind: "compile", Target: TargetClient,
+				Source: `
+					import { TaskContext } from "@exactjs/core";
+					declare class Component<State> { state: State }
+					export function Queue(this: Component<{ value: string }>) {
+						async function load(task: TaskContext = ` + policy + `) {
+							` + optimistic + `
+							this.state.value = await fetchValue(task.signal);
+						}
+						return () => <button onClick={() => void load()} />;
+					}
+				`,
+			})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			if !strings.Contains(response.Code, "defineTask as __exactDefineTask") ||
+				strings.Contains(response.Code, "bindCompiledClientLatestTaskForHost") {
+				t.Fatalf("%s task did not retain the universal task lane:\n%s", name, response.Code)
+			}
+		})
+	}
+}
+
+func TestClientLatestTaskFallsBackWhenCallableIdentityEscapes(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "observable-latest.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			import { TaskContext, taskStatus } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			export function Queue(this: Component<{ value: string }>) {
+				async function load(task: TaskContext = TaskContext.client().latest()) {
+					this.state.value = await fetchValue(task.signal);
+				}
+				const status = taskStatus(load);
+				return () => <button onClick={() => void load()}>{status.pending}</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "defineTask as __exactDefineTask") ||
+		strings.Contains(response.Code, "bindCompiledClientLatestTaskForHost") {
+		t.Fatalf("observable task identity did not retain the universal task lane:\n%s", response.Code)
+	}
+}

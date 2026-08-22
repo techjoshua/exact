@@ -97,6 +97,17 @@ every application. Compiled-component packages declare import-time purity so an 
 re-export does not activate its capability; retaining the provider export still retains the emitted
 capability import.
 
+Closed client and hydrate artifacts give compiler-proven call-only
+`TaskContext.client().latest()` functions with the default normal, nonblocking policy a compact task
+lane. The lane retains durable owner cancellation, structural interaction settlement, task frames,
+cleanup, inspection events, component performance logging, and reactive setup activation, but it
+does not allocate general status objects, keyed lane maps, queues, option validators, or generic
+generation records. A task that escapes as a value, uses optimism, captures authored parameter
+defaults, changes readiness or priority, selects another concurrency policy, belongs to a
+rendering-mode-neutral artifact, or crosses the server boundary retains the universal task ABI.
+Synchronous compiler-owned computations and resumption deferral also live in focused modules so
+importing them does not make the universal activation implementation reachable.
+
 Compiler render programs also carry production hydration identities. Elements and host-property
 slots use dense program-local indexes rather than repeating stable IDs in templates and node
 tables; structural child ranges use their emitted identities. The bounded adopter skips the

@@ -215,6 +215,23 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 				),
 			)
 		}
+		if lowering.usesCompiledClientLatestLane(task, work, captureArguments) {
+			return lowering.taskHelperCall(
+				"activateCompiledClientLatestTaskForHost",
+				lowering.names.activateCompiledLatest,
+				append(
+					[]*ast.Node{
+						lowering.factory.NewThisExpression(),
+						lowering.factory.NewStringLiteral(
+							lowering.functionTaskLabel(task),
+							ast.TokenFlagsNone,
+						),
+						rewrittenWork,
+					},
+					nextArguments...,
+				),
+			)
+		}
 		defined := lowering.setupTaskDefinition(
 			lowering.functionTaskLabel(task),
 			rewrittenWork,
@@ -668,11 +685,23 @@ func (lowering *jsxLowering) boundTaskDefinition(
 			dependencyCount,
 		)
 	}
+	useCompiledLatest := lowering.usesCompiledClientLatestLane(task, work, captureArguments)
 	if operation != nil &&
 		(operation.Placement == "server" || operation.Placement == "isomorphic") {
 		work = lowering.lowerInvokedTaskOperationWork(work, *operation)
 	} else {
 		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount)
+	}
+	if (operation == nil || operation.Placement == "client") && useCompiledLatest {
+		return lowering.taskHelperCall(
+			"bindCompiledClientLatestTaskForHost",
+			lowering.names.bindCompiledLatest,
+			[]*ast.Node{
+				lowering.factory.NewThisExpression(),
+				lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
+				work,
+			},
+		)
 	}
 	properties := []*ast.Node{
 		lowering.property(
@@ -746,6 +775,88 @@ func (lowering *jsxLowering) boundTaskDefinition(
 		[]*ast.Node{lowering.factory.NewThisExpression(), defined},
 	)
 	return bound
+}
+
+// usesCompiledClientLatestLane selects the fixed runtime only when the compiler has proved the
+// complete policy and the task body cannot request the universal optimistic transaction surface.
+// Callers also exclude default-argument capture and transport operations before using this path.
+func (lowering *jsxLowering) usesCompiledClientLatestLane(
+	task Task,
+	work *ast.Node,
+	captureArguments *ast.Node,
+) bool {
+	if lowering.target != TargetClient ||
+		lowering.contractProjection == ComponentContractProjectionComplete ||
+		task.RequestedPlacement != "client" ||
+		task.Concurrency != "latest" ||
+		task.Priority != "normal" ||
+		task.Readiness != "nonblocking" ||
+		task.Detached || task.KeyLength != 0 || captureArguments != nil ||
+		len(task.ResultWritePath) != 0 {
+		return false
+	}
+	if !lowering.functionTaskHasCallOnlyReferences(task) {
+		return false
+	}
+	optimistic := false
+	walkNode(work, func(node *ast.Node) bool {
+		if ast.IsPropertyAccessExpression(node) &&
+			node.AsPropertyAccessExpression().Name().Text() == "optimistic" {
+			optimistic = true
+			return false
+		}
+		return !optimistic
+	})
+	return !optimistic
+}
+
+// functionTaskHasCallOnlyReferences keeps callable identity and status observation on the
+// universal ABI. The compact lane is valid only when every reference invokes the local function.
+func (lowering *jsxLowering) functionTaskHasCallOnlyReferences(task Task) bool {
+	var declarationName *ast.Node
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if node.Pos() != task.WorkStart || node.End()-node.Pos() != task.WorkLength {
+			return declarationName == nil
+		}
+		if ast.IsFunctionDeclaration(node) {
+			declarationName = node.Name()
+		} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
+			declarationName = node.Parent.AsVariableDeclaration().Name()
+		}
+		return false
+	})
+	if declarationName == nil || !ast.IsIdentifier(declarationName) {
+		return false
+	}
+	symbol := resolvedCallableSymbol(
+		lowering.checker.GetSymbolAtLocation(declarationName),
+		lowering.checker,
+	)
+	if symbol == nil {
+		return false
+	}
+	symbolID := ast.GetSymbolId(symbol)
+	callOnly := true
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !callOnly || node == declarationName || !ast.IsIdentifier(node) {
+			return callOnly
+		}
+		candidate := resolvedCallableSymbol(
+			lowering.checker.GetSymbolAtLocation(node),
+			lowering.checker,
+		)
+		if candidate == nil || ast.GetSymbolId(candidate) != symbolID {
+			return true
+		}
+		parent := node.Parent
+		if parent == nil || !ast.IsCallExpression(parent) ||
+			parent.AsCallExpression().Expression != node {
+			callOnly = false
+			return false
+		}
+		return true
+	})
+	return callOnly
 }
 
 func (lowering *jsxLowering) taskConcurrencyKey(

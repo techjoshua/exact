@@ -1,4 +1,7 @@
-import { deferTaskOwnerActivations, releaseTaskOwnerActivations } from '../tasks/activation.js';
+import {
+	deferTaskOwnerActivations,
+	releaseTaskOwnerActivations
+} from '../tasks/owner-activations.js';
 import { componentContinuationTaskId } from '../tasks/component-continuation.js';
 import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
 import { releaseTaskObserver, retainTaskObserver } from '../tasks/observers.js';
