@@ -7,6 +7,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { RenderProgram } from '@exactjs/core/runtime/render';
+import type { ExactTableRenderProgram } from '@exactjs/core/runtime/render';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,
@@ -29,6 +30,7 @@ export function renderSsrProgram(
 	if (!invocation || context.reactMarkup)
 		return { fallback: materializeProgramFallback(vnode, owner) };
 	const { program } = invocation;
+	if (program.directClaims) return { fallback: materializeProgramFallback(vnode, owner) };
 	if (!program.parts || program.parts.length !== program.slots.length + 1)
 		return { fallback: materializeProgramFallback(vnode, owner) };
 	if (context.markers && !hasValidSsrOperations(program))
@@ -66,7 +68,7 @@ export function renderSsrProgram(
 
 function renderMarkedProgram(
 	context: SsrContext,
-	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
+	program: ExactTableRenderProgram,
 	values: readonly unknown[],
 	renderChildren?: (children: readonly Child[]) => string
 ): { readonly html: string } {
@@ -114,9 +116,7 @@ function renderMarkedProgram(
 	return { html };
 }
 
-function hasValidSsrOperations(
-	program: NonNullable<ReturnType<typeof readRenderProgram>>['program']
-): boolean {
+function hasValidSsrOperations(program: ExactTableRenderProgram): boolean {
 	if (
 		!program.ssrParts ||
 		!program.ssrOperations ||
@@ -141,7 +141,7 @@ function hasValidSsrOperations(
 
 function renderProgramSlot(
 	context: SsrContext,
-	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
+	program: ExactTableRenderProgram,
 	index: number,
 	value: unknown,
 	renderChildren?: (children: readonly Child[]) => string

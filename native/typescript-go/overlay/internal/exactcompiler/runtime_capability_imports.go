@@ -22,6 +22,7 @@ type jsxRuntimeNames struct {
 	claimProgramElement    string
 	claimProgramText       string
 	claimProgramChild      string
+	claimProgramProperty   string
 	enterProgramElement    string
 	leaveProgramElement    string
 	bindingTarget          string
@@ -161,6 +162,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"claimCompiledProgramElement", lowering.names.claimProgramElement, 18},
 		{"claimCompiledProgramText", lowering.names.claimProgramText, 18},
 		{"claimCompiledProgramChild", lowering.names.claimProgramChild, 18},
+		{"claimCompiledProgramProperty", lowering.names.claimProgramProperty, 18},
 		{"enterCompiledProgramElement", lowering.names.enterProgramElement, 18},
 		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, 18},
 	}
@@ -534,6 +536,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		claimProgramElement:    allocate("__exactClaimProgramElement"),
 		claimProgramText:       allocate("__exactClaimProgramText"),
 		claimProgramChild:      allocate("__exactClaimProgramChild"),
+		claimProgramProperty:   allocate("__exactClaimProgramProperty"),
 		enterProgramElement:    allocate("__exactEnterProgramElement"),
 		leaveProgramElement:    allocate("__exactLeaveProgramElement"),
 		bindingTarget:          allocate("__exactBindingTarget"),

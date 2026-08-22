@@ -7,8 +7,11 @@ type ProgramClaimTarget = {
 	readonly claiming: true;
 	readonly root: Element;
 	readonly source: 'template' | 'ssr';
+	namespace: ExactRenderProgram['namespace'];
 	readonly elements: Array<Element | undefined>;
 	readonly slotNodes: Array<Node | undefined>;
+	componentSlots: number | Set<number>;
+	work: readonly [nodes: number, slots: number];
 	readonly parents: Array<Node | null>;
 	current: Node | null;
 	valid: boolean;
@@ -19,6 +22,8 @@ type ProgramClaimTarget = {
 export type ClaimedRenderProgram = Readonly<{
 	elements: readonly (Element | undefined)[];
 	slotNodes: readonly (Node | undefined)[];
+	componentSlots: number | ReadonlySet<number>;
+	work: readonly [nodes: number, slots: number];
 }>;
 
 /** Runs the descriptor's generated claim lane without interpreting its node or slot tables. */
@@ -27,13 +32,21 @@ export function claimCompiledRenderProgram(
 	root: Element,
 	source: 'template' | 'ssr'
 ): ClaimedRenderProgram | undefined {
-	if (!program.directClaims || !program.bind) return undefined;
+	if (!program.directClaims) return undefined;
+	if (!program.bind) {
+		if (!matchesElement(root, program.root[0], program.root[1] ?? program.namespace))
+			return undefined;
+		return { elements: [root], slotNodes: [], componentSlots: 0, work: program.work };
+	}
 	const target: ProgramClaimTarget = {
 		claiming: true,
 		root,
 		source,
+		namespace: program.namespace,
 		elements: [],
 		slotNodes: [],
+		componentSlots: 0,
+		work: [0, 0],
 		parents: [],
 		current: null,
 		valid: true,
@@ -41,18 +54,42 @@ export function claimCompiledRenderProgram(
 	};
 	program.bind(target);
 	if (target.valid && target.began && target.parents.length === 0)
-		return { elements: target.elements, slotNodes: target.slotNodes };
+		return {
+			elements: target.elements,
+			slotNodes: target.slotNodes,
+			componentSlots: target.componentSlots,
+			work: target.work
+		};
 	return undefined;
+}
+
+/** Copies one claimed element into the slot lane consumed by a compiled property group. */
+export function claimCompiledProgramProperty(
+	target: ExactRenderProgramBindingTarget,
+	slot: number,
+	element: number
+): void {
+	if (!isClaimTarget(target) || !target.valid) return;
+	const claimed = target.elements[element];
+	if (!claimed) {
+		target.valid = false;
+		return;
+	}
+	target.slotNodes[slot] = claimed;
 }
 
 /** Selects the generated claim lane and validates its intrinsic root. */
 export function beginCompiledProgramClaims(
 	target: ExactRenderProgramBindingTarget,
 	tag: string,
-	namespace: ExactRenderProgram['namespace']
+	namespace: ExactRenderProgram['namespace'],
+	nodes: number,
+	slots: number
 ): boolean {
 	if (!isClaimTarget(target)) return false;
 	target.began = true;
+	target.namespace = namespace;
+	target.work = [nodes, slots];
 	if (!matchesElement(target.root, tag, namespace)) {
 		target.valid = false;
 		return true;
@@ -68,11 +105,11 @@ export function claimCompiledProgramElement(
 	index: number,
 	skip: number,
 	tag: string,
-	namespace: ExactRenderProgram['namespace']
+	namespace?: ExactRenderProgram['namespace']
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
 	const node = advance(target.current, skip);
-	if (!(node instanceof Element) || !matchesElement(node, tag, namespace)) {
+	if (!(node instanceof Element) || !matchesElement(node, tag, namespace ?? target.namespace)) {
 		target.valid = false;
 		return;
 	}
@@ -149,7 +186,8 @@ export function claimCompiledProgramChild(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
 	skip: number,
-	id: string
+	id: string,
+	component = false
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
 	const marker = advance(target.current, skip);
@@ -167,6 +205,7 @@ export function claimCompiledProgramChild(
 		return;
 	}
 	target.slotNodes[index] = marker;
+	if (component) markComponentSlot(target, index);
 	target.current = closing.nextSibling;
 }
 
@@ -195,4 +234,19 @@ function matchesElement(
 
 function markerIdentity(id: string): string {
 	return id.startsWith('exact:') ? id.slice('exact:'.length) : id;
+}
+
+function markComponentSlot(target: ProgramClaimTarget, index: number): void {
+	if (index < 31 && typeof target.componentSlots === 'number') {
+		target.componentSlots |= 1 << index;
+		return;
+	}
+	if (typeof target.componentSlots === 'number') {
+		const slots = new Set<number>();
+		for (let bit = 0; bit < 31; bit++) {
+			if ((target.componentSlots & (1 << bit)) !== 0) slots.add(bit);
+		}
+		target.componentSlots = slots;
+	}
+	target.componentSlots.add(index);
 }

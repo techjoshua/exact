@@ -9,6 +9,7 @@ import {
 import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
 import {
 	beginCompiledProgramClaims,
+	claimCompiledProgramChild,
 	claimCompiledProgramText,
 	claimCompiledRenderProgram
 } from './render-program-claims.js';
@@ -60,11 +61,9 @@ describe('compiler-wired render-program claims', () => {
 		id: 'direct-scalar',
 		namespace: 'html',
 		template: '<p><!---->\ue000exact:0\ue001<!----></p>',
-		slots: [['text', 'label', [1]]],
-		nodes: [[0, 'p']],
 		directClaims: true,
 		bind(target) {
-			if (!beginCompiledProgramClaims(target, 'p', 'html')) return;
+			if (!beginCompiledProgramClaims(target, 'p', 'html', 1, 1)) return;
 			claimCompiledProgramText(target, 0, 0, 'label');
 		}
 	};
@@ -88,5 +87,26 @@ describe('compiler-wired render-program claims', () => {
 
 		expect((claimed?.slotNodes[0] as Text).data).toBe('Ready');
 		expect(root.childNodes).toHaveLength(1);
+	});
+
+	it('promotes unusually high component-slot indexes without truncating identity', () => {
+		const root = document.createElement('main');
+		root.innerHTML = '<!--exact:dynamic:detail--><!--/exact:dynamic:detail-->';
+		const program: ExactRenderProgram = {
+			version: 3,
+			id: 'direct-high-component-slot',
+			namespace: 'html',
+			template: '<main><!--exact:dynamic:detail--><!--/exact:dynamic:detail--></main>',
+			directClaims: true,
+			bind(target) {
+				if (!beginCompiledProgramClaims(target, 'main', 'html', 1, 33)) return;
+				claimCompiledProgramChild(target, 32, 0, 'detail', true);
+			}
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect(claimed?.componentSlots).toBeInstanceOf(Set);
+		expect((claimed?.componentSlots as ReadonlySet<number>).has(32)).toBe(true);
 	});
 });

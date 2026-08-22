@@ -11,6 +11,7 @@ export {
 	beginCompiledProgramClaims,
 	claimCompiledProgramChild,
 	claimCompiledProgramElement,
+	claimCompiledProgramProperty,
 	claimCompiledProgramText,
 	enterCompiledProgramElement,
 	leaveCompiledProgramElement
