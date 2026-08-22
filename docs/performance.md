@@ -425,10 +425,10 @@ ownership to the claimed `Text` node. Structural child and component markers rem
 own variable-width DOM ranges; scalar bindings already retain their exact node and do not need a
 second permanent range representation.
 
-Marker-mode SSR gives each compiled render program one outer cell range. Nested intrinsic nodes do
-not receive generic VNode cell pairs: the client validates and owns them through the program's
-dense compiler-numbered topology. Component, list, fragment, and other variable-width boundaries
-retain their explicit ranges.
+Marker-mode SSR does not give finite compiled render programs generic cell ranges. The client
+validates and owns their roots and nested intrinsics through the program's dense compiler-numbered
+topology. Component, cell, list, fragment, and other variable-width boundaries retain explicit
+ranges because their update lifetime may replace the currently rendered root shape.
 
 Complete isomorphic component artifacts retain the same compact SSR program tape as server-only
 artifacts. During synchronous SSR, structural child and component operations delegate only their
