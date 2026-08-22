@@ -12,14 +12,10 @@ import type {
 
 import { ErrorContext, SuspensionContext } from './contexts.js';
 
-import { batch, reactive, unwrap } from '@exactjs/reactive';
+import { batch, unwrap } from '@exactjs/reactive/framework/runtime';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import { normalizeChildren } from '../vnode.js';
-import {
-	componentLogMethod,
-	componentLogScope,
-	isErrorReport,
-	logFrameworkEvent
-} from './log.js';
+import { componentLogMethod, componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
 import { createDefaultErrorView } from './error-view.js';
 
 let nextErrorId = 1;
@@ -33,7 +29,7 @@ function createErrorContextWithLimit(
 	errors: ErrorReport[],
 	maxReports?: number
 ): ErrorContextValue {
-	const reactiveErrors = reactive(errors);
+	const reactiveErrors = reactiveObjects(errors);
 
 	return {
 		errors: reactiveErrors,
@@ -113,7 +109,10 @@ export function handleComponentError(
 	if (instance) {
 		instance.errorFallback = fallback;
 		instance.invalidate?.();
-		componentLogMethod(instance, 'error')?.(() => [
+		componentLogMethod(
+			instance,
+			'error'
+		)?.(() => [
 			'root error context handled failure',
 			event.error,
 			{

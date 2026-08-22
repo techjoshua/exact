@@ -6,7 +6,6 @@ import {
 	exactComponentContract,
 	exactComponentIdentity,
 	exactComponentType,
-	isExactComponent,
 	readExactCompiledComponentContract,
 	readExactComponentContract
 } from './component-contracts.js';

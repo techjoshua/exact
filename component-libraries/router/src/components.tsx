@@ -348,9 +348,7 @@ export function NavLink(this: Component<{}>, props: NavLinkProps) {
 			href={route.href(to)}
 			onClick={click}
 			className={
-				typeof props.className === 'function'
-					? props.className(active.get())
-					: props.className
+				typeof props.className === 'function' ? props.className(active.get()) : props.className
 			}
 			aria-current={active.get() ? 'page' : undefined}
 		>

@@ -1,5 +1,5 @@
 import { type AnyComponentInstance, Text, type VNode } from '@exactjs/core';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import { setElementOwner } from '../../ownership.js';
 import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';

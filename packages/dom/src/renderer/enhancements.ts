@@ -11,7 +11,7 @@ import {
 	transferEffectScope,
 	watch,
 	type EffectScope
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 import { lastMountedNode, placeMountedBefore } from '../placement.js';
 import type { Mounted, Root } from '../types.js';
 import { createMarker } from './root-support.js';

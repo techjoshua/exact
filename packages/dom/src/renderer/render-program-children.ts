@@ -3,11 +3,8 @@ import {
 	readRenderProgramSlot,
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/runtime/render';
-import {
-	type OwnedRetainedWatch,
-	watchRetained
-} from '@exactjs/reactive/framework/watch';
-import { peek, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
+import { peek, withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../placement.js';
 import { getListBinding } from '../children.js';
 import type { Mounted } from '../types.js';
@@ -117,8 +114,7 @@ function prepareProgramChildBinding(
 	const state = mounted.renderProgram!;
 	const start = state.slotNodes[index];
 	const slot = state.invocation.program.slots[index];
-	const identity =
-		slot?.[0] === 'child' || slot?.[0] === 'component' ? slot[1] : undefined;
+	const identity = slot?.[0] === 'child' || slot?.[0] === 'component' ? slot[1] : undefined;
 	const end = findProgramChildEnd(start, identity);
 	if (!(start instanceof Comment) || !end || !start.parentNode) return undefined;
 	const childSlots = (state.childSlots ??= []);

@@ -1,5 +1,5 @@
 import { type AnyComponentInstance, encodeExactMarkerPart, type VNode } from '@exactjs/core';
-import { createEffectScope, type EffectScope } from '@exactjs/reactive';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { takeMaterializedListScope } from '../../children.js';
 import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';

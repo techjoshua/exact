@@ -468,6 +468,7 @@ func rootComponentContractAttachment(
 				target == TargetClient && component.Interactions,
 				usesCompatibility,
 				component.DynamicComponents,
+				component.Collections,
 				projection != ComponentContractProjectionComplete,
 			),
 		),

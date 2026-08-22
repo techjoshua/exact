@@ -8,7 +8,10 @@ import {
 	type ComponentFunction,
 	type ComponentInstance
 } from '@exactjs/core';
-import { createExactCompatibilityArtifact, isExactComponent } from '@exactjs/core/framework/component-contracts';
+import {
+	createExactCompatibilityArtifact,
+	isExactComponent
+} from '@exactjs/core/framework/component-contracts';
 import type {
 	AnyReactComponentType,
 	ReactClassInstance,

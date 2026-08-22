@@ -1,5 +1,5 @@
 import { type AnyComponentInstance, type Child, type VNode } from '@exactjs/core';
-import { type EffectScope } from '@exactjs/reactive';
+import { type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { childToVNode } from '../../children.js';
 import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';

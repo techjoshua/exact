@@ -19,7 +19,7 @@ import type {
 import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render';
 import type { ReadinessCoordinator } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { DomWorkBudget } from './work.js';
 import type { RetainedMountedRanges } from './renderer/retained-range.js';
 import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';

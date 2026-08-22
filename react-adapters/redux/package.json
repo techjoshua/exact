@@ -21,8 +21,12 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": ["ExactReduxProvider"],
-	"exactCompileModules": ["src/adapter.ts"],
+	"exactCompiledComponents": [
+		"ExactReduxProvider"
+	],
+	"exactCompileModules": [
+		"src/adapter.ts"
+	],
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",

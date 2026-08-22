@@ -245,37 +245,37 @@ export function RemoteComponent(
 		return nextClient;
 	};
 
-	return () => (
+	return () =>
 		// These reads keep module-generation and cross-root reconciliation changes observable
 		// even when the public phase does not change.
-		void this.state.generation,
-		void this.state.reconcile,
-		createVNode(
-			'div',
-			{
-				ref: this.ref(containerRef),
-				'data-exact-remote': props.binding,
-				'data-exact-remote-state': this.state.phase
-			},
-			...(this.state.phase === 'ready' && remote && client
-				? [
-						createExactRoot(
-							client,
-							remote.component as import('@exactjs/core').AnyStateComponentFunction<
-								Record<string, unknown>
-							>,
-							props.props,
-							props.children,
-							renderDomain
-						)
-					]
-				: this.state.phase === 'failed'
-					? normalizeFallback(props.fallback)
-					: [])
-		)
-	);
+		(
+			void this.state.generation,
+			void this.state.reconcile,
+			createVNode(
+				'div',
+				{
+					ref: this.ref(containerRef),
+					'data-exact-remote': props.binding,
+					'data-exact-remote-state': this.state.phase
+				},
+				...(this.state.phase === 'ready' && remote && client
+					? [
+							createExactRoot(
+								client,
+								remote.component as import('@exactjs/core').AnyStateComponentFunction<
+									Record<string, unknown>
+								>,
+								props.props,
+								props.children,
+								renderDomain
+							)
+						]
+					: this.state.phase === 'failed'
+						? normalizeFallback(props.fallback)
+						: [])
+			)
+		);
 }
-
 
 async function importExactRemoteModule(url: string): Promise<{ default: unknown }> {
 	return import(/* @vite-ignore */ url) as Promise<{ default: unknown }>;

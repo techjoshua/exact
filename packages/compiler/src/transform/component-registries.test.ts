@@ -20,9 +20,7 @@ describe('@exactjs/compiler: component registries', () => {
 		expect(output).toContain('__exactVNode(Widget.grid, {})');
 		expect(output).toContain('__exactVNode(GridAlias, {})');
 		expect(output).toContain('createCompiledComponentRegistry as __exactComponentRegistry');
-		expect(output).toMatch(
-			/__exactComponentRegistry\("x[^"]+", "Widget", "client", \(\) => \(\{/
-		);
+		expect(output).toMatch(/__exactComponentRegistry\("x[^"]+", "Widget", "client", \(\) => \(\{/);
 	});
 
 	it('selects a target-local registry facade artifact', () => {

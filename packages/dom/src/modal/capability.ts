@@ -1,5 +1,5 @@
 import type { StopHandle } from '@exactjs/core';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 
 /** Optional native-dialog binding installed only when compiled modal bindings are reachable. */
 export type ModalBindingCapability = Readonly<{

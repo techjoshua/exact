@@ -7,7 +7,7 @@ import {
 } from '@exactjs/core';
 import { renderInstance, ServerSlot } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
-import { withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { childToVNode, childrenToVNodes, planChildReconciliation } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { preserveFocus } from '../../focus.js';

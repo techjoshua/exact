@@ -67,6 +67,7 @@ func componentDefinitionMetadata(
 	hasInteractions bool,
 	compatibility bool,
 	dynamicComponents bool,
+	collections bool,
 	compact bool,
 ) *ast.Node {
 	state := append([]string{}, stateSlots...)
@@ -92,6 +93,9 @@ func componentDefinitionMetadata(
 	}
 	if dynamicComponents {
 		capabilities = append(capabilities, "dynamic-components")
+	}
+	if collections {
+		capabilities = append(capabilities, "collections")
 	}
 	reactive := make([]*ast.Node, 0, len(execution.Reactive))
 	for _, binding := range execution.Reactive {

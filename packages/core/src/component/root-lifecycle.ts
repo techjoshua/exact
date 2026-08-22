@@ -1,4 +1,4 @@
-import { reactive } from '@exactjs/reactive';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import type {
 	AnyComponentInstance,
 	RefBinding,
@@ -152,7 +152,7 @@ export function disposeComponentRoot(instance: AnyComponentInstance): void {
 function rootRecord(instance: AnyComponentInstance): ComponentRootRecord {
 	const existing = componentRoots.get(instance);
 	if (existing) return existing;
-	const state = reactive(
+	const state = reactiveObjects(
 		{
 			current: undefined,
 			generation: 0,

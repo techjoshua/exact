@@ -188,6 +188,15 @@ reference, including collections stored in indexed component state, so in-place 
 that lane directly instead of depending on incidental reads during DOM binding. Dynamically indexed
 or otherwise unproven list expressions retain the generic structural path.
 
+Compiled component contracts also select nested collection interception from their complete state
+and props types. Components proven to contain only scalars, functions, plain objects, and arrays use
+the object/array proxy entry; `Map`, `Set`, open index signatures, `any`, `unknown`, dynamic
+components, and context boundaries retain the general entry. Framework-owned task lanes keep their
+Map, Set, and queue as passthrough ownership structures and publish lane creation through a scalar
+version, so merely using tasks does not pull collection proxy interception into an otherwise narrow
+application. The narrow lane rejects an unexpected Map or Set rather than silently returning an
+unobserved collection.
+
 Planned scalar and property slots expose their computation directly to the render program's owned
 watcher. They do not allocate an intermediate computed value each time the watcher reads a slot.
 Scope-owned watchers also execute callbacks and scheduling hooks with that scope current, so any

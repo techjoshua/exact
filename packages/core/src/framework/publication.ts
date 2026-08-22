@@ -1,4 +1,4 @@
-import { flushSync } from '@exactjs/reactive';
+import { flushSync } from '@exactjs/reactive/framework/runtime';
 
 /** Receipt returned by one authoritative synchronous framework publication. */
 export interface FrameworkPublicationCommit {

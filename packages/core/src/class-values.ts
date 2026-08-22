@@ -1,4 +1,4 @@
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/runtime';
 
 /**
  * Normalizes one compiler-authored class value into its DOM attribute representation.

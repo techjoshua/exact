@@ -61,7 +61,13 @@ export function trigger(target: object, key: PropertyKey): void {
 		}
 		keys.add(key);
 		if (transaction.versionRanges)
-			recordMutationVersionRange(transaction.versionRanges, target, key, previousVersion, nextVersion);
+			recordMutationVersionRange(
+				transaction.versionRanges,
+				target,
+				key,
+				previousVersion,
+				nextVersion
+			);
 		return;
 	}
 	triggerNow(target, key);
@@ -102,10 +108,7 @@ export function batch<T>(fn: () => T): T {
  */
 export function publishBatch<T>(fn: () => T): T {
 	const parent = transactions[transactions.length - 1];
-	const transaction = createTransaction(
-		Boolean(parent?.undos),
-		Boolean(parent?.versionRanges)
-	);
+	const transaction = createTransaction(Boolean(parent?.undos), Boolean(parent?.versionRanges));
 	transactions.push(transaction);
 	let result: T;
 	try {

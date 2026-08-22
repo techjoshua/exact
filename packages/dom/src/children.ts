@@ -1,6 +1,11 @@
 import { createTextVNode, isVNode, type Child, type ListBinding, type VNode } from '@exactjs/core';
 import { isCellVNode } from '@exactjs/core/runtime/render';
-import { createEffectScope, peek, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import {
+	createEffectScope,
+	peek,
+	withEffectScope,
+	type EffectScope
+} from '@exactjs/reactive/framework/runtime';
 import { getOwnedCellVNode } from './cells.js';
 import type { Mounted } from './types.js';
 

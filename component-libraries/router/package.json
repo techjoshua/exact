@@ -31,7 +31,14 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": ["Link", "Navigate", "NavLink", "Outlet", "Route", "Router"],
+	"exactCompiledComponents": [
+		"Link",
+		"Navigate",
+		"NavLink",
+		"Outlet",
+		"Route",
+		"Router"
+	],
 	"sideEffects": false,
 	"exactComponentLibrary": {
 		"protocol": 1,

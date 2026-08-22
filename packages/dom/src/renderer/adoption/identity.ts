@@ -1,6 +1,6 @@
 import { type AnyComponentInstance, decodeExactMarkerPart, type VNode } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 
 import { describeVNodeType } from '../../debug.js';
 import { placeMountedBefore } from '../../placement.js';

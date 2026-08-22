@@ -11,7 +11,7 @@ import {
 	createFrameworkComponentDomain,
 	setComponentDomainLogger
 } from '@exactjs/core/framework/component-domains';
-import { flushSync } from '@exactjs/reactive';
+import { flushSync } from '@exactjs/reactive/framework/runtime';
 import { clearDelegated } from '../events.js';
 import {
 	componentMounts,
@@ -94,8 +94,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
-	if (previousCurrent.domain)
-		setComponentDomainLogger(previousCurrent.domain, options.logger);
+	if (previousCurrent.domain) setComponentDomainLogger(previousCurrent.domain, options.logger);
 	if (root.current.domain) setComponentDomainLogger(root.current.domain, options.logger);
 	root.componentLogging = root.current.domain
 		? componentDomainLogging(root.current.domain)

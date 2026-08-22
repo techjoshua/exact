@@ -4,7 +4,7 @@ export {
 	type ExternalSource,
 	type ExternalSourceOptions,
 	type SelectedExternalSourceOptions
-} from './external-source.js';
+} from '../external-source.js';
 export {
 	batch,
 	captureReactiveMutations,
@@ -12,7 +12,7 @@ export {
 	rollbackReactiveMutationJournals,
 	peek,
 	type ReactiveMutationJournal
-} from './internal/deps.js';
+} from '../internal/deps.js';
 export {
 	currentWorkPriority,
 	flushSync,
@@ -21,7 +21,7 @@ export {
 	scheduleWork,
 	setScheduledWorkContextCapture,
 	type ScheduledWorkContext
-} from './internal/scheduler.js';
+} from '../internal/scheduler.js';
 export {
 	createEffectScope,
 	createProfiledEffectScope,
@@ -30,7 +30,7 @@ export {
 	transferEffectScope,
 	whenEffectScopeResumed,
 	withEffectScope
-} from './internal/scopes.js';
+} from '../internal/scopes.js';
 export type {
 	EffectScope,
 	Reactive,
@@ -41,15 +41,14 @@ export type {
 	StopHandle,
 	WorkPriority,
 	WatchOptions
-} from './internal/types.js';
-export { isReactive, isReactiveValue, unwrap } from './internal/values.js';
-export { collectionRef, computed, ref, subscribe, watch } from './observation.js';
-export { reactive } from './reactive.js';
-export { indexedReactive, readReactiveOwnProperty } from './indexed.js';
-export { snapshot } from './snapshot.js';
-export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from './protocol.js';
-export { isTransportableReactiveMapKey } from './internal/keyed/protocol.js';
-export { updateReactive } from './reconciliation.js';
+} from '../internal/types.js';
+export { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
+export { collectionRef, computed, ref, subscribe, watch } from '../observation.js';
+export { readReactiveOwnProperty } from '../indexed-base.js';
+export { snapshot } from '../snapshot.js';
+export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
+export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';
+export { updateReactive } from '../reconciliation.js';
 export {
 	deleteReactiveValue,
 	mutateReactiveArray,
@@ -59,4 +58,4 @@ export {
 	updateReactiveValueWithResult,
 	writeReactive,
 	writeReactiveLazy
-} from './writes.js';
+} from '../writes.js';

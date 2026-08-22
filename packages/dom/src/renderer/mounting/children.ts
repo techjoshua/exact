@@ -5,7 +5,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { ServerSlot } from '@exactjs/core/runtime/render';
-import { type EffectScope } from '@exactjs/reactive';
+import { type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { childToVNode } from '../../children.js';
 import { placeMountedBefore } from '../../placement.js';
 import { adoptServerSlot } from '../../server-slots.js';
@@ -31,9 +31,7 @@ export function mountDetachedChildren(
 				countDomWork(root);
 				continue;
 			}
-			mounted.push(
-				mountDetachedChild(root, vnode, parentInstance, parentScope, parentNode)
-			);
+			mounted.push(mountDetachedChild(root, vnode, parentInstance, parentScope, parentNode));
 		}
 		return mounted;
 	} catch (error) {

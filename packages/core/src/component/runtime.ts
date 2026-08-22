@@ -4,7 +4,7 @@ import {
 	withEffectScope,
 	type Reactive,
 	type ReactiveValue
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
 import { getComponentContext, hasComponentContext, setComponentContext } from './context-api.js';
@@ -106,8 +106,16 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.scope = createEffectScope(undefined, (error) => {
 			handleComponentError(this, createErrorReport(error, 'reactive', this, 'watch'));
 		});
-		this.state = createComponentState<State>(domain, () => this, contract?.definition?.state);
-		this.props = createComponentProps(rawProps);
+		this.state = createComponentState<State>(
+			domain,
+			() => this,
+			contract?.definition?.state,
+			contract?.definition?.capabilities.includes('collections') === true
+		);
+		this.props = createComponentProps(
+			rawProps,
+			contract?.definition?.capabilities.includes('collections') === true
+		);
 		this.initialize(instantiate, execution, rawProps, contract);
 	}
 

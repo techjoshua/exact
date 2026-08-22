@@ -177,9 +177,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 				expect(
 					container.querySelector('[data-result="billing"]')?.textContent,
 					container.innerHTML
-				).toBe(
-					'BILLING-READY'
-				);
+				).toBe('BILLING-READY');
 				expect(container.querySelector('[data-result="branding"]')?.textContent).toBe(
 					'BRANDING-READY'
 				);

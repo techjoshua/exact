@@ -1,5 +1,5 @@
 import type { AnyComponentInstance, Child, VNode } from '@exactjs/core';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 
 /** Adopts one compiler-owned structural child range without rebuilding matched DOM. */

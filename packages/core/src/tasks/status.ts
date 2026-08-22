@@ -8,9 +8,14 @@ export function createTaskStatus<Result>(
 	cancel: (lane: InternalTaskLane<Result>, reason: unknown) => void
 ): TaskStatus<Result> {
 	const aggregate = key === undefined;
-	const lane = () => (aggregate ? undefined : state.lanes.get(key));
-	const lanes = () =>
-		aggregate ? [...state.lanes.values()] : [state.lanes.get(key)].filter(Boolean);
+	const lane = () => {
+		void state.lanesVersion;
+		return aggregate ? undefined : state.lanes.get(key);
+	};
+	const lanes = () => {
+		void state.lanesVersion;
+		return aggregate ? [...state.lanes.values()] : [state.lanes.get(key)].filter(Boolean);
+	};
 	return {
 		get pending() {
 			return (aggregate ? state.pendingCount : (lane()?.pendingCount ?? 0)) > 0;

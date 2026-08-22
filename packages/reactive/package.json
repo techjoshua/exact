@@ -2,6 +2,7 @@
 	"name": "@exactjs/reactive",
 	"version": "0.1.0",
 	"type": "module",
+	"sideEffects": false,
 	"files": [
 		"AGENTS.md",
 		"dist",
@@ -15,6 +16,18 @@
 		"./framework/watch": {
 			"types": "./dist/framework/watch.d.ts",
 			"default": "./dist/framework/watch.js"
+		},
+		"./framework/objects": {
+			"types": "./dist/framework/objects.d.ts",
+			"default": "./dist/framework/objects.js"
+		},
+		"./framework/indexed-objects": {
+			"types": "./dist/framework/indexed-objects.d.ts",
+			"default": "./dist/framework/indexed-objects.js"
+		},
+		"./framework/runtime": {
+			"types": "./dist/framework/runtime.d.ts",
+			"default": "./dist/framework/runtime.js"
 		},
 		"./framework/settlement": {
 			"types": "./dist/framework/settlement.d.ts",

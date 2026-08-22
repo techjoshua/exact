@@ -1,4 +1,4 @@
-import { peek } from '@exactjs/reactive';
+import { peek } from '@exactjs/reactive/framework/runtime';
 import type { TaskContext } from './contracts.js';
 import type { InternalTaskFrameOptions, TaskFrameRecord } from './frame-contracts.js';
 

@@ -23,9 +23,14 @@ export {
 	watch,
 	writeReactive,
 	writeReactiveLazy
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 export { normalizeClassValue } from './class-values.js';
-export type { Reactive, ReactiveValue, StopHandle, WorkPriority } from '@exactjs/reactive';
+export type {
+	Reactive,
+	ReactiveValue,
+	StopHandle,
+	WorkPriority
+} from '@exactjs/reactive/framework/runtime';
 export {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,

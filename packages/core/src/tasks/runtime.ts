@@ -1,4 +1,9 @@
-import { peek, reactive, rollbackReactiveMutationJournals, scheduleWork } from '@exactjs/reactive';
+import {
+	peek,
+	rollbackReactiveMutationJournals,
+	scheduleWork
+} from '@exactjs/reactive/framework/runtime';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 
 import { TaskCancellation } from './cancellation.js';
 import { inheritComponentContinuationIdentity } from './component-continuation.js';
@@ -350,14 +355,18 @@ function ownerState<Args extends unknown[], Result>(
 ): InternalTaskOwnerState<Result> {
 	let state = definition.owners.get(owner);
 	if (!state) {
-		state = reactive<InternalTaskOwnerState<Result>>({
-			nextGeneration: 0,
-			generation: 0,
-			pendingCount: 0,
-			result: undefined,
-			error: undefined,
-			lanes: new Map()
-		});
+		state = reactiveObjects<InternalTaskOwnerState<Result>>(
+			{
+				nextGeneration: 0,
+				generation: 0,
+				pendingCount: 0,
+				result: undefined,
+				error: undefined,
+				lanes: new Map(),
+				lanesVersion: 0
+			},
+			{ passthroughKeys: ['lanes'] }
+		);
 		definition.owners.set(owner, state);
 	}
 	return state;
@@ -369,16 +378,20 @@ function taskLane<Result>(
 ): InternalTaskLane<Result> {
 	let lane = state.lanes.get(key);
 	if (!lane) {
-		lane = {
-			key,
-			active: new Set(),
-			queue: [],
-			pendingCount: 0,
-			generation: 0,
-			result: undefined,
-			error: undefined
-		};
+		lane = reactiveObjects<InternalTaskLane<Result>>(
+			{
+				key,
+				active: new Set<InternalTaskGeneration<Result>>(),
+				queue: [] as InternalTaskGeneration<Result>[],
+				pendingCount: 0,
+				generation: 0,
+				result: undefined,
+				error: undefined
+			},
+			{ passthroughKeys: ['active', 'queue'] }
+		);
 		state.lanes.set(key, lane);
+		state.lanesVersion++;
 	}
 	return lane;
 }

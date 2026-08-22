@@ -13,7 +13,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { isCellVNode, RenderProgram, ServerSlot } from '@exactjs/core/runtime/render';
-import { type EffectScope } from '@exactjs/reactive';
+import { type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { getOwnedCellVNode } from '../../cells.js';
 import {
 	getComponentProps,

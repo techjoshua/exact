@@ -9,7 +9,7 @@ import {
 	type Child,
 	type VNode
 } from '@exactjs/core';
-import { peek, type EffectScope } from '@exactjs/reactive';
+import { peek, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { stopReplacedChildren } from '../children.js';
 import { afterMountedChildren } from '../placement.js';
 import type { Mounted, Root } from '../types.js';

@@ -93,6 +93,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/lists"},
 		{module: "@exactjs/core/runtime/refs"},
 		{module: "@exactjs/core/runtime/component-execution"},
+		{module: "@exactjs/core/runtime/collections"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -227,6 +228,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			containsIdentifier(root, lowering.names.serverSlot) ||
 			containsIdentifier(root, lowering.names.keyedServerSlot))
 	targetUsed := lowering.target != TargetServer && containsIdentifier(root, lowering.names.target)
+	collectionsUsed := false
+	for _, component := range lowering.components {
+		if component.Collections {
+			collectionsUsed = true
+			break
+		}
+	}
 	result := make([]*ast.Node, 0, len(groups))
 	for index, group := range groups {
 		if len(group.specifiers) == 0 {
@@ -238,7 +246,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
 				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) ||
 				(group.module == "@exactjs/dom/runtime/target" && targetUsed) ||
-				(group.module == "@exactjs/core/runtime/component-execution" && executionUsed) {
+				(group.module == "@exactjs/core/runtime/component-execution" && executionUsed) ||
+				(group.module == "@exactjs/core/runtime/collections" && collectionsUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,

@@ -1,4 +1,4 @@
-import { scheduleWork } from '@exactjs/reactive';
+import { scheduleWork } from '@exactjs/reactive/framework/runtime';
 
 import type {
 	ContinuationDependencySnapshot,

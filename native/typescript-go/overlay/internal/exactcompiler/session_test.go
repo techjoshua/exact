@@ -7445,6 +7445,51 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	}
 }
 
+func TestSessionSelectsCollectionCapabilityFromComponentTypes(t *testing.T) {
+	narrow := NewSession().Execute(Request{
+		ID: "narrow-state.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			type State = { count: number; rows: { id: string; label: string }[] };
+			export function Narrow(this: { state: State }, props: { title: string }) {
+				this.state.count = 0;
+				this.state.rows = [];
+				return () => <p>{props.title}: {this.state.count}</p>;
+			}
+		`,
+	})
+	if narrow.Error != "" {
+		t.Fatal(narrow.Error)
+	}
+	if strings.Contains(narrow.Code, `@exactjs/core/runtime/collections`) ||
+		strings.Contains(narrow.Code, `"collections"`) {
+		t.Fatalf("object/array-only component selected collection interception:\n%s", narrow.Code)
+	}
+
+	for name, source := range map[string]string{
+		"map-state.tsx": `
+			export function WithMap(this: { state: { lookup: Map<string, number> } }) {
+				this.state.lookup = new Map();
+				return () => <p>{this.state.lookup.get("answer")}</p>;
+			}
+		`,
+		"opaque-props.tsx": `
+			export function Opaque(this: { state: { ready: boolean } }, props: unknown) {
+				this.state.ready = true;
+				return () => <p>{this.state.ready ? String(props) : "waiting"}</p>;
+			}
+		`,
+	} {
+		response := NewSession().Execute(Request{ID: name, Kind: "compile", Target: TargetClient, Source: source})
+		if response.Error != "" {
+			t.Fatal(response.Error)
+		}
+		if !strings.Contains(response.Code, `import "@exactjs/core/runtime/collections"`) ||
+			!strings.Contains(response.Code, `"collections"`) {
+			t.Fatalf("%s did not select collection interception:\n%s", name, response.Code)
+		}
+	}
+}
+
 func TestSessionValidatesAttributedEnhancementComponentSchemas(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")

@@ -4,7 +4,7 @@ import type {
 	ReactiveRef,
 	ReactiveValue,
 	StopHandle
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 
 import type { ComponentLog } from '../logging.js';
 import type { ComponentReactiveValue, IterableItem } from './value-contracts.js';
