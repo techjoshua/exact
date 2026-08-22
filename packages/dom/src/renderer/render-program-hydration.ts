@@ -8,17 +8,21 @@ export type ProgramHydrationIndex = Readonly<{
 export function indexProgramHydration(root: Element): ProgramHydrationIndex {
 	const elements = new Map<string, Element>();
 	const markers = new Map<string, Comment>();
-	const pending = [root as Node];
-	while (pending.length) {
-		const node = pending.pop()!;
+	let node: Node | undefined = root;
+	while (node) {
 		if (node instanceof Element) {
 			const id = node.getAttribute('data-exact-id');
 			if (id) elements.set(id, node);
 		} else if (node instanceof Comment && node.data.startsWith('exact:dynamic:')) {
 			markers.set(node.data, node);
 		}
-		for (let index = node.childNodes.length - 1; index >= 0; index--)
-			pending.push(node.childNodes[index]!);
+		if (node.firstChild) {
+			node = node.firstChild;
+			continue;
+		}
+		while (node && node !== root && !node.nextSibling) node = node.parentNode ?? undefined;
+		if (node === root) break;
+		node = node?.nextSibling ?? undefined;
 	}
 	return { elements, markers };
 }
@@ -58,7 +62,10 @@ export function claimProgramTextSlot(
 /** Resolves the sole retained path form: a scalar node in markerless template topology. */
 export function programNodeAtPath(root: Node, path: readonly number[]): Node | undefined {
 	let node: Node | undefined = root;
-	for (const index of path) node = node?.childNodes[index];
+	for (const index of path) {
+		node = node?.firstChild ?? undefined;
+		for (let offset = 0; node && offset < index; offset++) node = node.nextSibling ?? undefined;
+	}
 	return node;
 }
 

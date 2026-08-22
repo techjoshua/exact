@@ -20,6 +20,29 @@ import {
 import { watchRetained } from './framework/watch.js';
 
 describe('@exactjs/reactive observation', () => {
+	it('owns reactive work created while a scoped watcher is running', () => {
+		const state = reactive({ generation: 0, value: 1 });
+		const scope = createEffectScope();
+		let latest!: { get(): number };
+		watch(
+			() => {
+				void state.generation;
+				latest = computed(() => state.value * 2);
+				void latest.get();
+			},
+			undefined,
+			{ scope }
+		);
+
+		state.generation++;
+		flushSync();
+		expect(latest.get()).toBe(2);
+		scope.stop();
+		state.value = 2;
+		flushSync();
+		expect(latest.get()).toBe(2);
+	});
+
 	it('returns ownership only while a watcher observes reactive dependencies', () => {
 		const state = reactive({ value: 1 });
 		const staticScope = createEffectScope();

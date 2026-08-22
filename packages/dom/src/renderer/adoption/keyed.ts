@@ -1,5 +1,6 @@
 import { type AnyComponentInstance, encodeExactMarkerPart, type VNode } from '@exactjs/core';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
+import { takeMaterializedListScope } from '../../children.js';
 import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';
 import { adoptStaticMounted } from './entry.js';
@@ -17,9 +18,11 @@ export function adoptKeyedListChildren(
 	const mounts: Mounted[] = [];
 	let cursor = startIndex;
 	for (const vnode of vnodes) {
+		const itemScope = takeMaterializedListScope(vnode) ?? createEffectScope(parentScope);
 		const start = nodes[cursor];
 		const key = vnode.key;
 		if (key === undefined || !(start instanceof Comment) || !isItemMarkerForKey(start.data, key)) {
+			itemScope.stop();
 			unmountMany(mounts);
 			return undefined;
 		}
@@ -32,6 +35,7 @@ export function adoptKeyedListChildren(
 			}
 		}
 		if (endIndex < 0) {
+			itemScope.stop();
 			unmountMany(mounts);
 			return undefined;
 		}
@@ -41,10 +45,11 @@ export function adoptKeyedListChildren(
 			nodes,
 			cursor + 1,
 			parentInstance,
-			parentScope,
+			itemScope,
 			endIndex
 		);
 		if (!adopted || adopted.next !== endIndex) {
+			itemScope.stop();
 			unmountMany(adopted ? [adopted.mounted, ...mounts] : mounts);
 			return undefined;
 		}
@@ -53,7 +58,7 @@ export function adoptKeyedListChildren(
 			dom: start,
 			end: nodes[endIndex]!,
 			range: 'item',
-			scope: createEffectScope(parentScope),
+			scope: itemScope,
 			children: [adopted.mounted]
 		});
 		cursor = endIndex + 1;

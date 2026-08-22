@@ -39,7 +39,7 @@ function createProgramTemplate(
 			program.namespace === 'svg' ? 'svg' : 'math'
 		);
 		wrapper.innerHTML = program.template;
-		template.content.append(...wrapper.childNodes);
+		while (wrapper.firstChild) template.content.append(wrapper.firstChild);
 	}
 	return template;
 }

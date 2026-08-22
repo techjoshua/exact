@@ -4,7 +4,8 @@ import {
 	currentEffectScope,
 	effectScopeWorkPriority,
 	registerEffectScopeReaction,
-	releaseEffectScopeReaction
+	releaseEffectScopeReaction,
+	withEffectScope
 } from './internal/scopes.js';
 
 import {
@@ -191,7 +192,7 @@ export function watchRetained(
 			reaction.scheduled = false;
 			reaction.pendingPriority = undefined;
 			try {
-				runTracked(reaction, fn);
+				withEffectScope(reaction.scope, () => runTracked(reaction, fn));
 				if (reaction.deps.size === 0) reaction.stop();
 			} catch (error) {
 				handleError(error);
@@ -218,7 +219,7 @@ export function watchRetained(
 			reaction.scheduled = true;
 			reaction.pendingPriority = priority;
 			try {
-				options.onSchedule?.();
+				withEffectScope(reaction.scope, () => options.onSchedule?.());
 				if (scheduler) {
 					scheduler();
 					return;
@@ -282,7 +283,7 @@ export function subscribe<T>(
 				return;
 			}
 			try {
-				callback();
+				withEffectScope(scope, callback);
 			} catch (error) {
 				handleError(error);
 			}

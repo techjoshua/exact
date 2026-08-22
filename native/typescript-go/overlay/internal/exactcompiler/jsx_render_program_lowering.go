@@ -136,9 +136,24 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	}
 	readers := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
-		readers[index] = lowering.reactiveClosure(slot.reader)
+		reader := slot.reader
+		// Planned slots execute inside runtime-owned reactions. A generic JSX expression wrapper
+		// would allocate a second computed value every time the slot reader runs and retain it until
+		// the whole component scope is disposed. Feed the wrapper's computation directly to the
+		// render program instead.
+		if ast.IsCallExpression(reader) {
+			call := reader.AsCallExpression()
+			if ast.IsIdentifier(call.Expression) &&
+				call.Expression.Text() == lowering.names.expression &&
+				call.Arguments != nil && len(call.Arguments.Nodes) == 1 &&
+				ast.IsArrowFunction(call.Arguments.Nodes[0]) {
+				readers[index] = call.Arguments.Nodes[0]
+				continue
+			}
+		}
+		readers[index] = lowering.reactiveClosure(reader)
 		if readers[index] == nil {
-			readers[index] = lowering.arrow(slot.reader)
+			readers[index] = lowering.arrow(reader)
 		}
 	}
 	arguments := []*ast.Node{

@@ -1,6 +1,9 @@
 import { batch } from './internal/deps.js';
 
-import { seedKeyedCollectionMetadata } from './internal/keyed-collections.js';
+import {
+	releaseKeyedCollectionMetadata,
+	seedKeyedCollectionMetadata
+} from './internal/keyed-collections.js';
 
 import { unwrap } from './internal/values.js';
 
@@ -180,6 +183,9 @@ export function registerReactiveListKey(
 		active = false;
 		const registration = listKeyExtractors.get(raw);
 		if (!registration || registration.signature !== signature) return;
-		if (--registration.references === 0) listKeyExtractors.delete(raw);
+		if (--registration.references === 0) {
+			listKeyExtractors.delete(raw);
+			releaseKeyedCollectionMetadata(raw);
+		}
 	};
 }

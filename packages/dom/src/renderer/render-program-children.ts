@@ -1,11 +1,12 @@
-import { type AnyComponentInstance, type Child } from '@exactjs/core';
+import { isVNode, type AnyComponentInstance, type Child, type VNode } from '@exactjs/core';
 import {
 	readRenderProgramSlot,
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
-import type { EffectScope } from '@exactjs/reactive';
+import { peek, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { placeMountedBefore } from '../placement.js';
+import { getListBinding } from '../children.js';
 import type { Mounted } from '../types.js';
 import { mountDetachedChildren } from './mounting/children.js';
 import { patchChildren } from './patching/children.js';
@@ -35,11 +36,14 @@ export function adoptProgramChildSlots(
 			const end = findProgramChildEnd(start, slot[1]);
 			const parent = start?.parentNode;
 			if (!(start instanceof Comment) || !end || !parent) return false;
-			const nodes = [...parent.childNodes];
+			const nodes: Node[] = [];
+			for (let node = parent.firstChild; node; node = node.nextSibling) nodes.push(node);
 			const cursor = nodes.indexOf(start);
 			const endIndex = nodes.indexOf(end);
 			if (cursor < 0 || endIndex < cursor) return false;
-			const value = readProgramChildren(state.invocation, index, parentInstance);
+			const value = withEffectScope(mounted.scope, () =>
+				readProgramChildren(state.invocation, index, parentInstance)
+			);
 			const children = adoptChildren(
 				value,
 				nodes,
@@ -114,33 +118,37 @@ function prepareProgramChildBinding(
 		childSlots.push(childState);
 	}
 	return () => {
-		const next = readProgramChildren(state.invocation, index, state.parentInstance);
-		if (sameProgramChildren(childState.value, next)) return;
-		const parent = start.parentNode;
-		if (!parent) return;
-		if (initialBinding && childState.children.length === 0) {
-			childState.children = mountDetachedChildren(
-				state.root,
-				next,
-				state.parentInstance,
-				mounted.scope,
-				parent
-			);
-			for (const child of childState.children) placeMountedBefore(state.root, parent, child, end);
-		} else {
-			childState.children = patchChildren(
-				state.root,
-				parent,
-				childState.children,
-				next,
-				state.parentInstance,
-				mounted.scope,
-				end,
-				mounted
-			);
-		}
-		childState.value = next;
-		refreshMountedChildren(mounted);
+		const next = withEffectScope(mounted.scope, () =>
+			readProgramChildren(state.invocation, index, state.parentInstance)
+		);
+		peek(() => {
+			if (sameProgramChildren(childState.value, next)) return;
+			const parent = start.parentNode;
+			if (!parent) return;
+			if (initialBinding && childState.children.length === 0) {
+				childState.children = mountDetachedChildren(
+					state.root,
+					next,
+					state.parentInstance,
+					mounted.scope,
+					parent
+				);
+				for (const child of childState.children) placeMountedBefore(state.root, parent, child, end);
+			} else {
+				childState.children = patchChildren(
+					state.root,
+					parent,
+					childState.children,
+					next,
+					state.parentInstance,
+					mounted.scope,
+					end,
+					mounted
+				);
+			}
+			childState.value = next;
+			refreshMountedChildren(mounted);
+		});
 	};
 }
 
@@ -162,11 +170,29 @@ function readProgramChildren(
 	index: number,
 	parentInstance: AnyComponentInstance | undefined
 ): Child[] {
-	return readDynamicChildren(
+	const children = readDynamicChildren(
 		() => readRenderProgramSlot(invocation, index),
 		parentInstance,
 		'compiled-child-slot'
 	);
+	const owned: Child[] = [];
+	for (const child of children) {
+		const vnode = isVNode(child) ? (child as VNode) : undefined;
+		const list = vnode ? getListBinding(vnode) : undefined;
+		if (list) {
+			// The compiler-owned lane replaces the Fragment's generic list watcher. Observe the
+			// collection reference here so in-place reactive mutations schedule this grouped lane.
+			const collection = list.source?.get() ?? list.collection;
+			for (const _item of collection) {
+				// Iteration records the collection's structural dependency without allocating a copy.
+			}
+			owned.push({
+				...vnode!,
+				props: { ...vnode!.props, __exactProgramList: true }
+			});
+		} else owned.push(child);
+	}
+	return owned;
 }
 
 function sameProgramChildren(

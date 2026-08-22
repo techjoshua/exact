@@ -10,7 +10,7 @@ import {
 	unsafeHtml,
 	type Component
 } from '@exactjs/core';
-import { createDynamicChild } from '@exactjs/core/runtime/render';
+import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
 import { jsx, jsxs } from './test-support/native-vnode.js';
 import { flushSync } from '@exactjs/reactive';
@@ -345,6 +345,37 @@ describe('@exactjs/dom child-cleanup', () => {
 
 		expect(container.querySelector('li')).toBeNull();
 		expect(list.refs.get(itemRef)).toBeUndefined();
+	});
+
+	it('stops compiler-created keyed item expressions when their row is removed', () => {
+		let list!: Component<{ items: { id: string }[]; suffix: string }>;
+		let itemLabel!: { get(): string };
+
+		function List(this: Component<{ items: { id: string }[]; suffix: string }>) {
+			list = this;
+			this.state.items = [{ id: 'a' }];
+			this.state.suffix = 'first';
+			return () =>
+				jsx('ul', {
+					children: this.map(
+						this.state.items,
+						(item) => item.id,
+						(item) => {
+							itemLabel = createExpression(() => `${item.id}:${this.state.suffix}`);
+							return jsx('li', { children: itemLabel });
+						}
+					)
+				});
+		}
+
+		const container = document.createElement('div');
+		render(jsx(List, {}), container);
+		expect(container.textContent).toBe('a:first');
+		list.state.items = [];
+		flushSync();
+		list.state.suffix = 'second';
+		flushSync();
+		expect(itemLabel.get()).toBe('a:first');
 	});
 
 	it('unmounts and removes the previous root when rendering a new root', () => {

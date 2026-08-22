@@ -32,7 +32,12 @@ import {
 	type EffectScope
 } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import { getComponentProps, getListBinding, materializeList } from '../../children.js';
+import {
+	getComponentProps,
+	getListBinding,
+	materializeList,
+	takeMaterializedListScope
+} from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
 import { setElementOwner, setNodeOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
@@ -91,7 +96,7 @@ export function mount(
 			);
 			if (direct) return direct;
 		}
-		const scope = createEffectScope(parentScope);
+		const scope = takeMaterializedListScope(vnode) ?? createEffectScope(parentScope);
 		if (hasEnhancements) root.enhancementNesting = nesting + 1;
 		try {
 			let mounted = mountInner(root, vnode, scope, parentInstance, parentNode);
@@ -233,16 +238,16 @@ export function mountInner(
 		mounted.children = list
 			? mountDetachedChildren(
 					root,
-					materializeList(list),
+					materializeList(list, mounted.scope),
 					parentInstance,
 					mounted.scope,
 					parentNode
 				)
 			: mountDetachedChildren(root, vnode.children, parentInstance, mounted.scope, parentNode);
-		if (list) {
+		if (list && vnode.props.__exactProgramList !== true) {
 			mounted.stop = watch(
 				() => {
-					const nextChildren = materializeList(list);
+					const nextChildren = materializeList(list, mounted.scope);
 					const parent = marker.parentNode;
 					if (!parent) return;
 					mounted.children = patchChildren(

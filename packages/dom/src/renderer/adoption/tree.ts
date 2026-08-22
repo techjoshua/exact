@@ -12,7 +12,13 @@ import {
 import { RenderProgram, isCellVNode, renderInstance } from '@exactjs/core/runtime/render';
 import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import { getListBinding, materializeList, stopReplacedChildren } from '../../children.js';
+import {
+	getListBinding,
+	materializeList,
+	releaseRetiredListScopes,
+	stopReplacedChildren,
+	takeMaterializedListScope
+} from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
 import { afterMountedChildren } from '../../placement.js';
 import type { Mounted, Root } from '../../types.js';
@@ -52,7 +58,7 @@ export function adoptStaticMountedInner(
 	rangeEnd = nodes.length
 ): { mounted: Mounted; next: number } | undefined {
 	vnode = normalizeAdoptionVNode(root, vnode);
-	const scope = createEffectScope(parentScope);
+	const scope = takeMaterializedListScope(vnode) ?? createEffectScope(parentScope);
 	if (typeof vnode.type === 'function') {
 		if (root.markerlessHydration) {
 			const mounted: Mounted = { vnode, dom: undefined as never, scope, children: [] };
@@ -329,7 +335,7 @@ export function adoptStaticMountedInner(
 		const children = list
 			? adoptKeyedListChildren(
 					root,
-					materializeList(list),
+					materializeList(list, scope),
 					nodes,
 					parentInstance,
 					scope,
@@ -358,7 +364,7 @@ export function adoptStaticMountedInner(
 			...(vnode.type === Target ? { targetBoundary: {} } : {})
 		};
 		if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
-		if (list) {
+		if (list && vnode.props.__exactProgramList !== true) {
 			mounted.stop = watch(
 				() => {
 					const parent = start.parentNode;
@@ -367,12 +373,13 @@ export function adoptStaticMountedInner(
 						root,
 						parent,
 						mounted.children,
-						materializeList(list),
+						materializeList(list, scope),
 						parentInstance,
 						scope,
 						afterMountedChildren(mounted),
 						mounted
 					);
+					releaseRetiredListScopes(list);
 				},
 				undefined,
 				{ scope }

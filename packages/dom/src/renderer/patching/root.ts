@@ -15,7 +15,12 @@ import {
 import { isCellVNode, RenderProgram, ServerSlot } from '@exactjs/core/runtime/render';
 import { type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from '../../cells.js';
-import { getComponentProps, getListBinding, materializeList } from '../../children.js';
+import {
+	getComponentProps,
+	getListBinding,
+	materializeList,
+	releaseRetiredListScopes
+} from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
 import { mountServerSlot } from '../../server-slots.js';
@@ -262,25 +267,27 @@ export function patchInner(
 				root,
 				parent,
 				mounted.children,
-				nextList ? materializeList(nextList) : next.children,
+				nextList ? materializeList(nextList, mounted.scope) : next.children,
 				parentInstance,
 				mounted.scope,
 				afterMountedChildren(mounted),
 				mounted
 			);
-			if (nextList) {
+			if (nextList) releaseRetiredListScopes(nextList);
+			if (nextList && next.props.__exactProgramList !== true) {
 				mounted.stop = watch(
 					() => {
 						mounted.children = patchChildren(
 							root,
 							mounted.dom.parentNode ?? parent,
 							mounted.children,
-							materializeList(nextList),
+							materializeList(nextList, mounted.scope),
 							parentInstance,
 							mounted.scope,
 							afterMountedChildren(mounted),
 							mounted
 						);
+						releaseRetiredListScopes(nextList);
 					},
 					undefined,
 					{ scope: mounted.scope }

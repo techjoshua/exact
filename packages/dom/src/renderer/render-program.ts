@@ -40,7 +40,7 @@ export function mountRenderProgram(
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
 	const fragment = materializeProgramTemplate(invocation.program, root.container.ownerDocument);
-	if (fragment.childNodes.length !== 1) return undefined;
+	if (!fragment.firstChild || fragment.firstChild !== fragment.lastChild) return undefined;
 	const dom = fragment.firstChild!;
 	if (!(dom instanceof Element)) return undefined;
 	const programIndex = indexProgramHydration(dom);
