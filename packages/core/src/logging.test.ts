@@ -154,6 +154,24 @@ describe('@exactjs/core logging', () => {
 		});
 	});
 
+	it('does not materialize the public log facade for disabled compiled trace checks', () => {
+		const instance = {
+			id: 'compiled-log-owner',
+			type: function CompiledLogOwner() {},
+			mounted: true,
+			parent: undefined,
+			ambientContexts: undefined,
+			get contexts() {
+				return new Map<symbol, unknown>();
+			},
+			get log(): never {
+				throw new Error('compiled logging read the dynamic facade');
+			}
+		};
+
+		expect(componentLogMethod(instance as never, 'trace')).toBeUndefined();
+	});
+
 	it('peeks compiler log arguments without subscribing the caller', () => {
 		const events: LogEvent[] = [];
 		const logger: Logger = { log: (event) => events.push(event) };
