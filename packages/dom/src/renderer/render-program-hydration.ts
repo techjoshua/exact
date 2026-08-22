@@ -1,23 +1,27 @@
 /** Ephemeral identity index for one bounded variable-width program region. */
 export type ProgramHydrationIndex = Readonly<{
-	elements: ReadonlyMap<string, Element>;
-	markers: ReadonlyMap<string, Comment>;
+	/** Dense compiler indexes resolve without allocating string keys or map entries. */
+	elements: readonly Element[];
+	/** Legacy authored identities are indexed only when the DOM actually carries one. */
+	legacyElements?: ReadonlyMap<string, Element>;
+	/** Structural marker lookup is allocation-on-demand for programs which contain ranges. */
+	markers?: ReadonlyMap<string, Comment>;
 }>;
 
-/** Indexes compiler identities in one traversal; callers release the map after adoption. */
+/** Indexes compiler identities in one traversal; callers release the ephemeral index after use. */
 export function indexProgramHydration(root: Element): ProgramHydrationIndex {
-	const elements = new Map<string, Element>();
-	const markers = new Map<string, Comment>();
-	let elementIndex = 0;
+	const elements: Element[] = [];
+	let legacyElements: Map<string, Element> | undefined;
+	let markers: Map<string, Comment> | undefined;
 	let node: Node | undefined = root;
 	while (node) {
 		let current: Node = node;
 		if (current instanceof Element) {
-			elements.set(`#${elementIndex++}`, current);
+			elements.push(current);
 			const legacyId = current.getAttribute('data-exact-id');
-			if (legacyId) elements.set(legacyId, current);
+			if (legacyId) (legacyElements ??= new Map()).set(legacyId, current);
 		} else if (current instanceof Comment && current.data.startsWith('exact:dynamic:')) {
-			markers.set(current.data, current);
+			(markers ??= new Map()).set(current.data, current);
 			const closing = `/${current.data}`;
 			let boundary: Node | null = current.nextSibling;
 			while (boundary && (!(boundary instanceof Comment) || boundary.data !== closing))
@@ -33,7 +37,11 @@ export function indexProgramHydration(root: Element): ProgramHydrationIndex {
 		if (node === root) break;
 		node = node?.nextSibling ?? undefined;
 	}
-	return { elements, markers };
+	return {
+		elements,
+		...(legacyElements ? { legacyElements } : {}),
+		...(markers ? { markers } : {})
+	};
 }
 
 /** Resolves either a dense compiled node index or a legacy stable element identity. */
@@ -41,7 +49,7 @@ export function programElement(
 	index: ProgramHydrationIndex,
 	id: string | number
 ): Element | undefined {
-	return index.elements.get(typeof id === 'number' ? `#${id}` : id);
+	return typeof id === 'number' ? index.elements[id] : index.legacyElements?.get(id);
 }
 
 /** Checks the current dense or legacy element identity representation. */
@@ -55,7 +63,7 @@ export function claimProgramChildSlot(
 	id: string
 ): Comment | undefined {
 	const identity = markerIdentity(id);
-	const marker = index.markers.get(`exact:dynamic:${identity}`);
+	const marker = index.markers?.get(`exact:dynamic:${identity}`);
 	return marker instanceof Comment && marker.data === `exact:dynamic:${identity}`
 		? marker
 		: undefined;
@@ -68,7 +76,7 @@ export function claimProgramTextSlot(
 	id: string
 ): Text | undefined {
 	const identity = markerIdentity(id);
-	const marker = index.markers.get(`exact:dynamic:${identity}`);
+	const marker = index.markers?.get(`exact:dynamic:${identity}`);
 	if (!(marker instanceof Comment) || marker.data !== `exact:dynamic:${identity}`) return undefined;
 	let text = marker.nextSibling instanceof Text ? marker.nextSibling : undefined;
 	const closing = text ? text.nextSibling : marker.nextSibling;

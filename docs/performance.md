@@ -410,6 +410,12 @@ they do not allocate getter and setter closures for every declared field. A comp
 tracks field presence for deletion, snapshots, and optimistic rollback, while fields introduced
 dynamically retain the same reactive fallback semantics and receive stable indexes on first write.
 
+Render-program hydration stores compiler-numbered elements in a dense ephemeral array. Legacy
+authored element identities and structural marker maps are created only when those representations
+occur in the adopted DOM. The ordinary closed client path therefore does not allocate a string key
+and `Map` entry for every compiler-known element merely to recover the numeric topology the
+compiler already emitted.
+
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
 representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed
