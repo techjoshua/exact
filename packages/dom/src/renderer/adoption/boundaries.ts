@@ -24,34 +24,6 @@ export function contentNodesBetween(start: Node, end: Node): Node[] {
 	return nodes;
 }
 
-/**
- * Transfers a successfully adopted single-element SSR range to its real DOM owner.
- *
- * Only an immediately enclosed, marker-free child can be collapsed. Variable-width, portal, and
- * independently anchored children retain their explicit boundaries.
- */
-export function compactAdoptedElementRange(
-	mounted: Mounted,
-	start: Comment,
-	end: Comment
-): boolean {
-	const child = mounted.children.length === 1 ? mounted.children[0] : undefined;
-	if (
-		!(child?.dom instanceof Element) ||
-		child.end ||
-		start.parentNode !== end.parentNode ||
-		start.nextSibling !== child.dom ||
-		child.dom.nextSibling !== end
-	)
-		return false;
-	mounted.dom = child.dom;
-	mounted.end = undefined;
-	mounted.directDom = true;
-	start.remove();
-	end.remove();
-	return true;
-}
-
 /** Creates a range anchor. */
 export function createRangeAnchor(parent: Node): Node {
 	return parent.nodeType === Node.DOCUMENT_NODE

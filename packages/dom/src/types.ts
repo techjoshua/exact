@@ -31,8 +31,6 @@ export type Mounted = {
 	dom: Node;
 	/** Optional closing boundary marker when this subtree was adopted from SSR. */
 	end?: Node;
-	/** The element in `dom` physically contains this mounted subtree's descendant DOM. */
-	directDom?: true;
 	/** Marker range that wraps an ordinary keyed list item vnode. */
 	range?: 'item';
 	scope: EffectScope;

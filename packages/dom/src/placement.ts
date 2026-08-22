@@ -70,14 +70,13 @@ export function lastMountedNode(mounted: Mounted): Node {
 
 function ownsChildDom(mounted: Mounted): boolean {
 	return (
-		!mounted.directDom &&
-		(!!mounted.end ||
-			mounted.vnode.type === Cell ||
-			mounted.vnode.type === Fragment ||
-			mounted.vnode.type === Target ||
-			mounted.vnode.type === Dynamic ||
-			mounted.vnode.type === UnsafeHtml ||
-			typeof mounted.vnode.type === 'function')
+		!!mounted.end ||
+		mounted.vnode.type === Cell ||
+		mounted.vnode.type === Fragment ||
+		mounted.vnode.type === Target ||
+		mounted.vnode.type === Dynamic ||
+		mounted.vnode.type === UnsafeHtml ||
+		typeof mounted.vnode.type === 'function'
 	);
 }
 

@@ -100,20 +100,17 @@ preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
 Compiler-cell roots adopt their existing cell range directly; they do not pass through static-tree
-repair or clear the root container. After a complete single-element range adopts successfully, its
-cell and component owners transfer placement and teardown ownership to that element and release the
-SSR-only discovery markers. Variable-width cells and structural expression ranges retain explicit
-boundaries because those ranges still own independent reactive updates.
+repair or clear the root container. Compiler-proven native component calls use the component's own
+identity marker without an additional cell marker pair. Intrinsic cells and structural expression
+ranges retain their markers because those ranges still own independent reactive updates.
 Compiler render programs adopt their marked intrinsic nodes, scalar slots, and structural child
 ranges through stable compiler identities. A structural range can contain a variable number of SSR
 nodes, so later intrinsic claims use identities within the bounded program region rather than
 assuming a fixed physical sibling offset. One ephemeral region-local index serves all of those
 claims and is released before hydration completes. Element and property records use compiler table
-indexes rather than retained paths; only markerless scalar text needs a local template path. Programs
-retain the SSR DOM without rebuilding an equivalent generic host tree, then release cell envelopes
-around compiler-claimed elements after all validation, child adoption, ownership, and binding work
-succeeds. Initial adopted prop binding is covered by the root-level focus/form snapshot, so it does
-not repeat focus inspection for every intrinsic.
+indexes rather than retained paths; only markerless scalar text needs a local template path. Programs retain the SSR DOM
+and marker protocol without rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
+root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses
 those structural results instead of recursively rediscovering roots through nested components.
 
