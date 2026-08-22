@@ -79,7 +79,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		expect(result.code).toContain('open: __exactExpression(() => this.state.open ?? false)');
 		expect(result.code).toContain('__exactBindToggle:');
 		expect(result.code).toContain('event.currentTarget.open');
-		expect(result.code).toContain('onToggle: () => { }');
+		expect(result.code).toContain('"__exactClosedInteraction:onToggle": () => { }');
 	});
 
 	it('lowers modal dialog state through native method ownership without serializing open', () => {
