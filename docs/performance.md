@@ -45,6 +45,10 @@ structural settlement guarantees as public interaction hosts. When trace logging
 hot path omits the otherwise diagnostic-only interaction scope and frame-to-scope correlation; an
 enabled trace logger restores that metadata without changing application behavior.
 
+Root task frames also retain settlement state without eagerly allocating a second observable
+promise. The promise is materialized only when a structural parent or concurrent owner disposal
+must wait for it; ordinary root completion resolves the compact state directly.
+
 Compiler-known top-level component state uses deterministic numeric storage slots behind the
 ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested
 mutable containers and dynamically introduced fields retain the general reactive proxy path.

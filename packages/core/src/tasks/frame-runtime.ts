@@ -13,8 +13,11 @@ import {
 } from './frame-inspection-capability.js';
 import {
 	registerTaskFrameSettlement,
+	rejectTaskFrameSettlement,
+	resolveTaskFrameSettlement,
 	runTaskFrameCleanups,
-	settleTaskFrameChildren
+	settleTaskFrameChildren,
+	waitForTaskFrameSettlement
 } from './frame-settlement.js';
 import { createLazyTaskOwnerRecord } from './owner-record.js';
 import { acquireScheduledReactionBatch } from './scheduled-reactions.js';
@@ -113,12 +116,6 @@ export function executeTaskFrame<T>(
 	// frame to its durable signal would retain settled controllers until the owner itself is released.
 	if (structuralParent) linkAbort(structuralParent.controller.signal, controller);
 
-	let resolveSettlement!: () => void;
-	let rejectSettlement!: (error: unknown) => void;
-	const settlement = new Promise<void>((resolve, reject) => {
-		resolveSettlement = resolve;
-		rejectSettlement = reject;
-	});
 	const frame: TaskFrameRecord = {
 		[taskFrameTokenBrand]: true as const,
 		id: nextFrameId++,
@@ -145,7 +142,7 @@ export function executeTaskFrame<T>(
 	if (options.publicContext !== false)
 		(frame as { context: TaskContext }).context = createTaskFrameContext(frame, options);
 	registerTaskFrameSignal(controller.signal, frame);
-	registerTaskFrameSettlement(frame, settlement);
+	registerTaskFrameSettlement(frame);
 	owner.frames.add(frame);
 	const inspectedAtStart = taskFrameInspectionAttached(frame);
 	if (inspectedAtStart) {
@@ -156,14 +153,11 @@ export function executeTaskFrame<T>(
 		});
 	} else uninspectedSynchronousFrames.add(frame);
 	if (structuralParent) {
-		(structuralParent.children ??= new Set()).add(settlement);
-		void settlement
-			.finally(() => structuralParent.children?.delete(settlement))
+		const observableSettlement = waitForTaskFrameSettlement(frame);
+		(structuralParent.children ??= new Set()).add(observableSettlement);
+		void observableSettlement
+			.finally(() => structuralParent.children?.delete(observableSettlement))
 			.catch(() => undefined);
-	} else {
-		// Root settlement is observed through executeTaskFrame's returned
-		// promise; the internal structural signal has no parent consumer.
-		void settlement.catch(() => undefined);
 	}
 
 	let directResult: T | PromiseLike<T>;
@@ -239,7 +233,7 @@ export function executeTaskFrame<T>(
 			frame.settled = true;
 			releaseTaskFrameSignal(controller.signal);
 			owner.frames.delete(frame);
-			resolveSettlement();
+			resolveTaskFrameSettlement(frame);
 			publishTaskFrameEvent(frame, 'task.frame.exit');
 			publishTaskFrameEvent(frame, 'task.structural-settle');
 			publishTaskFrameEvent(frame, 'task.settle', undefined, {
@@ -253,8 +247,8 @@ export function executeTaskFrame<T>(
 			frame.settled = true;
 			releaseTaskFrameSignal(controller.signal);
 			owner.frames.delete(frame);
-			if (options.propagateFailure?.() === false) resolveSettlement();
-			else rejectSettlement(error);
+			if (options.propagateFailure?.() === false) resolveTaskFrameSettlement(frame);
+			else rejectTaskFrameSettlement(frame, error);
 			publishTaskFrameEvent(frame, 'task.frame.exit');
 			const cancelled = error instanceof TaskCancellation;
 			publishTaskFrameEvent(frame, cancelled ? 'task.cancel' : 'task.fail', error, {
