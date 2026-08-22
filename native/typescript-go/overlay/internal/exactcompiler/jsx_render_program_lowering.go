@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"fmt"
 	"html"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -878,9 +879,11 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	}
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
-		if len(bindings) != 0 {
-			members = append(members, property("bind", lowering.directRenderProgramBinder(build)))
-		}
+		members = append(
+			members,
+			property("bind", lowering.directRenderProgramBinder(build)),
+			property("directClaims", lowering.factory.NewTrueExpression()),
+		)
 		if len(listSlots) != 0 {
 			members = append(members, property("listBindings", lowering.factory.NewTrueExpression()))
 		}
@@ -912,12 +915,23 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 // Shared DOM operations retain the mechanics; the compiled component owns all topology and wiring.
 func (lowering *jsxLowering) directRenderProgramBinder(build *renderProgramBuild) *ast.Node {
 	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
-	statements := make([]*ast.Node, 0, len(build.slots)+1)
+	statements := make([]*ast.Node, 0, len(build.slots)+2)
 	call := func(helper string, arguments ...*ast.Node) {
 		statements = append(statements, lowering.factory.NewExpressionStatement(
 			lowering.call(helper, append([]*ast.Node{target}, arguments...)),
 		))
 	}
+	claimStatements := lowering.directRenderProgramClaims(build, target)
+	claimStatements = append(claimStatements, lowering.factory.NewReturnStatement(nil))
+	statements = append(statements, lowering.factory.NewIfStatement(
+		lowering.call(lowering.names.beginProgramClaims, []*ast.Node{
+			target,
+			lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone),
+			lowering.factory.NewStringLiteral(build.nodes[0].namespace, ast.TokenFlagsNone),
+		}),
+		lowering.factory.NewBlock(lowering.factory.NewNodeList(claimStatements), true),
+		nil,
+	))
 	listSlots := make([]*ast.Node, 0, len(build.slots))
 	for index, slot := range build.slots {
 		slotIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone)
@@ -942,7 +956,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(build *renderProgramBuild
 		call(
 			lowering.names.bindProgramProperties,
 			lowering.factory.NewNumericLiteral(strconv.Itoa(group), ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.slots[0]), ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.node), ast.TokenFlagsNone),
 		)
 	}
 	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)
@@ -955,4 +969,134 @@ func (lowering *jsxLowering) directRenderProgramBinder(build *renderProgramBuild
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
 	)
+}
+
+type renderProgramClaim struct {
+	kind      string
+	index     int
+	path      []int
+	tag       string
+	namespace string
+	id        string
+	width     int
+}
+
+// directRenderProgramClaims turns the compiler's intrinsic tree into executable cursor movement.
+// Dynamic ranges advance themselves to their matching close marker, so later static siblings never
+// depend on the number of server-rendered nodes inside those ranges.
+func (lowering *jsxLowering) directRenderProgramClaims(
+	build *renderProgramBuild,
+	target *ast.Node,
+) []*ast.Node {
+	statements := make([]*ast.Node, 0, len(build.nodes)+len(build.slots))
+	var emitChildren func([]int)
+	emitCall := func(helper string, arguments ...*ast.Node) {
+		statements = append(statements, lowering.factory.NewExpressionStatement(
+			lowering.call(helper, append([]*ast.Node{target}, arguments...)),
+		))
+	}
+	emitChildren = func(parentPath []int) {
+		claims := make([]renderProgramClaim, 0)
+		for index, node := range build.nodes {
+			if index == 0 || !directChildPath(node.path, parentPath) {
+				continue
+			}
+			claims = append(claims, renderProgramClaim{
+				kind: "element", index: index, path: node.path, tag: node.tag,
+				namespace: node.namespace, width: 1,
+			})
+		}
+		for index, slot := range build.slots {
+			if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
+				continue
+			}
+			path := append([]int(nil), slot.path...)
+			width := 2
+			if slot.kind == "text" {
+				path[len(path)-1]--
+				width = 3
+			}
+			if !directChildPath(path, parentPath) {
+				continue
+			}
+			claims = append(claims, renderProgramClaim{
+				kind: slot.kind, index: index, path: path, id: slot.id, width: width,
+			})
+		}
+		sort.SliceStable(claims, func(left int, right int) bool {
+			return claims[left].path[len(claims[left].path)-1] < claims[right].path[len(claims[right].path)-1]
+		})
+		position := 0
+		for _, claim := range claims {
+			childIndex := claim.path[len(claim.path)-1]
+			skip := lowering.factory.NewNumericLiteral(strconv.Itoa(childIndex-position), ast.TokenFlagsNone)
+			claimIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(claim.index), ast.TokenFlagsNone)
+			switch claim.kind {
+			case "element":
+				emitCall(
+					lowering.names.claimProgramElement,
+					claimIndex,
+					skip,
+					lowering.factory.NewStringLiteral(claim.tag, ast.TokenFlagsNone),
+					lowering.factory.NewStringLiteral(claim.namespace, ast.TokenFlagsNone),
+				)
+				if directProgramHasChildren(build, claim.path) {
+					emitCall(lowering.names.enterProgramElement, claimIndex)
+					emitChildren(claim.path)
+					emitCall(lowering.names.leaveProgramElement)
+				}
+			case "text":
+				emitCall(
+					lowering.names.claimProgramText,
+					claimIndex,
+					skip,
+					lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone),
+				)
+			default:
+				emitCall(
+					lowering.names.claimProgramChild,
+					claimIndex,
+					skip,
+					lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone),
+				)
+			}
+			position = childIndex + claim.width
+		}
+	}
+	emitChildren(nil)
+	return statements
+}
+
+func directChildPath(path []int, parent []int) bool {
+	if len(path) != len(parent)+1 {
+		return false
+	}
+	for index := range parent {
+		if path[index] != parent[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func directProgramHasChildren(build *renderProgramBuild, parent []int) bool {
+	for index, node := range build.nodes {
+		if index != 0 && directChildPath(node.path, parent) {
+			return true
+		}
+	}
+	for _, slot := range build.slots {
+		if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
+			continue
+		}
+		path := slot.path
+		if slot.kind == "text" {
+			path = append([]int(nil), path...)
+			path[len(path)-1]--
+		}
+		if directChildPath(path, parent) {
+			return true
+		}
+	}
+	return false
 }

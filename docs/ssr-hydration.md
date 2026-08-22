@@ -103,13 +103,14 @@ Compiler-cell roots adopt their existing cell range directly; they do not pass t
 repair or clear the root container. Compiler-proven native component calls use the component's own
 identity marker without an additional cell marker pair. Intrinsic cells and structural expression
 ranges retain their markers because those ranges still own independent reactive updates.
-Compiler render programs adopt their marked intrinsic nodes, scalar slots, and structural child
-ranges through stable compiler identities. A structural range can contain a variable number of SSR
-nodes, so later intrinsic claims use identities within the bounded program region rather than
-assuming a fixed physical sibling offset. One ephemeral region-local index serves all of those
-claims and is released before hydration completes. Element and property records use compiler table
-indexes rather than retained paths; only markerless scalar text needs a local template path. Programs retain the SSR DOM
-and marker protocol without rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
+Closed client render programs adopt their intrinsic nodes, scalar slots, and structural child
+ranges through compiler-generated claim calls. Those calls walk the known static topology in DOM
+order. A structural call advances directly to its matching close marker, so a variable number of
+SSR nodes cannot perturb later static siblings. The successful path therefore creates neither a
+region-local identity map nor a second interpreted node/slot plan. The same generated executor
+selects the template-sentinel representation for client-created regions and the identity-sentinel
+representation for SSR hydration. Programs retain the SSR DOM and marker protocol without
+rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses
 those structural results instead of recursively rediscovering roots through nested components.

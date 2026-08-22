@@ -6,6 +6,12 @@ import {
 	indexProgramHydration,
 	programElement
 } from './render-program-hydration.js';
+import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
+import {
+	beginCompiledProgramClaims,
+	claimCompiledProgramText,
+	claimCompiledRenderProgram
+} from './render-program-claims.js';
 
 describe('compiled render-program hydration index', () => {
 	it('addresses dense compiler nodes without materializing legacy identity maps', () => {
@@ -45,5 +51,42 @@ describe('compiled render-program hydration index', () => {
 		expect(text?.data).toBe('Ready');
 		expect(root.childNodes).toHaveLength(1);
 		expect(root.firstChild).toBe(text);
+	});
+});
+
+describe('compiler-wired render-program claims', () => {
+	const scalarProgram: ExactRenderProgram = {
+		version: 3,
+		id: 'direct-scalar',
+		namespace: 'html',
+		template: '<p><!---->\ue000exact:0\ue001<!----></p>',
+		slots: [['text', 'label', [1]]],
+		nodes: [[0, 'p']],
+		directClaims: true,
+		bind(target) {
+			if (!beginCompiledProgramClaims(target, 'p', 'html')) return;
+			claimCompiledProgramText(target, 0, 0, 'label');
+		}
+	};
+
+	it('claims compiler template sentinels for later client-created regions', () => {
+		const template = document.createElement('template');
+		template.innerHTML = scalarProgram.template;
+		const root = template.content.firstElementChild as Element;
+
+		const claimed = claimCompiledRenderProgram(scalarProgram, root, 'template');
+
+		expect((claimed?.slotNodes[0] as Text).data).toBe('\ue000exact:0\ue001');
+		expect(root.childNodes).toHaveLength(1);
+	});
+
+	it('claims identity sentinels from server-rendered regions', () => {
+		const root = document.createElement('p');
+		root.innerHTML = '<!--exact:dynamic:label-->Ready<!--/exact:dynamic:label-->';
+
+		const claimed = claimCompiledRenderProgram(scalarProgram, root, 'ssr');
+
+		expect((claimed?.slotNodes[0] as Text).data).toBe('Ready');
+		expect(root.childNodes).toHaveLength(1);
 	});
 });

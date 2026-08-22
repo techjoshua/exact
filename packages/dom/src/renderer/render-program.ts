@@ -18,10 +18,12 @@ import {
 	markedProgramRange,
 	matchesProgramIdentity,
 	programElement,
-	programNodeAtPath
+	programNodeAtPath,
+	type ProgramHydrationIndex
 } from './render-program-hydration.js';
 import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
 import { bindRenderProgram } from './render-program-bindings.js';
+import { claimCompiledRenderProgram } from './render-program-claims.js';
 
 const elementNode = 1;
 const textNode = 3;
@@ -39,28 +41,35 @@ export function mountRenderProgram(
 	if (!fragment.firstChild || fragment.firstChild !== fragment.lastChild) return undefined;
 	const dom = fragment.firstChild!;
 	if (!(dom instanceof Element)) return undefined;
-	const programIndex = indexProgramHydration(dom);
-	const slotNodes = invocation.program.slots.map((slot) => {
-		if (slot[0] === 'text') return programNodeAtPath(dom, slot[2]);
-		if (slot[0] === 'child' || slot[0] === 'component')
-			return claimProgramChildSlot(programIndex, slot[1]);
-		const owner = invocation.program.nodes[slot[1]];
-		return owner ? programElement(programIndex, owner[0]) : undefined;
-	});
-	if (!validSlotNodes(invocation, slotNodes)) return undefined;
+	const direct = claimCompiledRenderProgram(invocation.program, dom, 'template');
+	if (invocation.program.directClaims && !direct) return undefined;
+	const programIndex = direct ? undefined : indexProgramHydration(dom);
+	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(invocation, dom, programIndex!);
+	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
+		renderProgram: {
+			invocation,
+			programRoot: dom,
+			slotNodes,
+			...(direct ? { programElements: direct.elements } : {}),
+			root,
+			parentInstance
+		}
 	};
-	if (parentInstance) ownProgramNodes(invocation.program, programIndex, parentInstance);
+	if (parentInstance) {
+		if (programIndex) ownProgramNodes(invocation.program, programIndex, parentInstance);
+		else ownDirectProgramNodes(direct?.elements, parentInstance);
+	}
 	if (
 		(invocation.program.bind || invocation.program.bindings?.length) &&
 		!bindRenderProgram(mounted)
 	) {
-		releaseProgramNodeOwners(invocation.program, programIndex);
+		if (programIndex) releaseProgramNodeOwners(invocation.program, programIndex);
+		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
 	for (let index = 1; index < invocation.program.nodes.length; index++) countDomWork(root);
@@ -90,33 +99,34 @@ export function adoptRenderProgram(
 	)
 		return undefined;
 	if (!(dom instanceof Element)) return undefined;
-	const programIndex = indexProgramHydration(dom);
-	for (const plan of invocation.program.nodes) {
-		const target = programElement(programIndex, plan[0]);
-		if (!matchesProgramElement(target, plan[0], plan[1], plan[2] ?? invocation.program.namespace))
-			return undefined;
-	}
-	const slotNodes = invocation.program.slots.map((slot) => {
-		if (slot[0] === 'text') return programNodeAtPath(dom, slot[2]);
-		if (slot[0] === 'child' || slot[0] === 'component')
-			return claimProgramChildSlot(programIndex, slot[1]);
-		const owner = invocation.program.nodes[slot[1]];
-		return owner ? programElement(programIndex, owner[0]) : undefined;
-	});
-	if (!validSlotNodes(invocation, slotNodes)) return undefined;
+	const direct = claimCompiledRenderProgram(invocation.program, dom, 'ssr');
+	if (invocation.program.directClaims && !direct) return undefined;
+	const programIndex = direct ? undefined : indexProgramHydration(dom);
+	if (programIndex && !validateGenericProgramNodes(invocation, programIndex)) return undefined;
+	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(invocation, dom, programIndex!);
+	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
+		renderProgram: {
+			invocation,
+			programRoot: dom,
+			slotNodes,
+			...(direct ? { programElements: direct.elements } : {}),
+			root,
+			parentInstance
+		}
 	};
-	ownProgramNodes(invocation.program, programIndex, parentInstance);
+	if (programIndex) ownProgramNodes(invocation.program, programIndex, parentInstance);
+	else ownDirectProgramNodes(direct?.elements, parentInstance);
 	if (
 		(invocation.program.bind || invocation.program.bindings?.length) &&
 		!bindRenderProgram(mounted)
 	) {
-		releaseProgramNodeOwners(invocation.program, programIndex);
+		if (programIndex) releaseProgramNodeOwners(invocation.program, programIndex);
+		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
 	for (const _node of invocation.program.nodes) countDomWork(root);
@@ -241,35 +251,32 @@ function adoptMarkedRenderProgram(
 		}
 	}
 	if (!programRoot) return undefined;
-	const hydrationIndex = indexProgramHydration(programRoot);
-	for (const planned of invocation.program.nodes) {
-		const plan = planned;
-		const element = programElement(hydrationIndex, plan[0]);
-		if (!matchesProgramElement(element, plan[0], plan[1], plan[2] ?? invocation.program.namespace))
-			return undefined;
-	}
-	const slotNodes = invocation.program.slots.map((slot) => {
-		const plan = slot;
-		if (plan[0] === 'text' && plan[1])
-			return claimProgramTextSlot(programRoot, hydrationIndex, plan[1]);
-		if (plan[0] === 'child' || plan[0] === 'component')
-			return claimProgramChildSlot(hydrationIndex, plan[1]);
-		if (plan[0] === 'text') return undefined;
-		const owner = invocation.program.nodes[plan[1]];
-		return owner ? programElement(hydrationIndex, owner[0]) : undefined;
-	});
-	if (!validSlotNodes(invocation, slotNodes)) return undefined;
+	const direct = claimCompiledRenderProgram(invocation.program, programRoot, 'ssr');
+	if (invocation.program.directClaims && !direct) return undefined;
+	const hydrationIndex = direct ? undefined : indexProgramHydration(programRoot);
+	if (hydrationIndex && !validateGenericProgramNodes(invocation, hydrationIndex)) return undefined;
+	const slotNodes =
+		direct?.slotNodes ?? claimGenericHydrationSlots(invocation, programRoot, hydrationIndex!);
+	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom: range.start ?? programRoot,
 		...(range.start ? { end: nodes[range.endIndex]! } : {}),
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot, slotNodes, root, parentInstance }
+		renderProgram: {
+			invocation,
+			programRoot,
+			slotNodes,
+			...(direct ? { programElements: direct.elements } : {}),
+			root,
+			parentInstance
+		}
 	};
 	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
-	for (const planned of invocation.program.nodes) {
-		const element = programElement(hydrationIndex, planned[0])!;
+	for (const [nodeIndex, planned] of invocation.program.nodes.entries()) {
+		const element = direct?.elements[nodeIndex] ?? programElement(hydrationIndex!, planned[0]);
+		if (!element) return undefined;
 		setNodeOwner(element, parentInstance);
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
@@ -278,11 +285,10 @@ function adoptMarkedRenderProgram(
 		(invocation.program.bind || invocation.program.bindings?.length) &&
 		!bindRenderProgram(mounted)
 	) {
-		for (const planned of invocation.program.nodes) {
-			const element = programElement(hydrationIndex, planned[0])!;
-			clearNodeOwner(element);
-			clearElementOwner(element);
-		}
+		releaseDirectProgramNodeOwners(
+			direct?.elements ??
+				invocation.program.nodes.map((planned) => programElement(hydrationIndex!, planned[0]))
+		);
 		return undefined;
 	}
 	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
@@ -306,6 +312,71 @@ export function patchRenderProgram(mounted: Mounted, vnode: VNode): boolean {
 /** Returns the lazy fallback without exposing its compiler-owned brand. */
 export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 	return renderProgramFallback(vnode);
+}
+
+function validateGenericProgramNodes(
+	invocation: ExactRenderProgramInvocation,
+	index: ProgramHydrationIndex
+): boolean {
+	return invocation.program.nodes.every((plan) =>
+		matchesProgramElement(
+			programElement(index, plan[0]),
+			plan[0],
+			plan[1],
+			plan[2] ?? invocation.program.namespace
+		)
+	);
+}
+
+function claimGenericMountSlots(
+	invocation: ExactRenderProgramInvocation,
+	root: Element,
+	index: ProgramHydrationIndex
+): readonly (Node | undefined)[] {
+	return invocation.program.slots.map((slot) => {
+		if (slot[0] === 'text') return programNodeAtPath(root, slot[2]);
+		if (slot[0] === 'child' || slot[0] === 'component')
+			return claimProgramChildSlot(index, slot[1]);
+		const owner = invocation.program.nodes[slot[1]];
+		return owner ? programElement(index, owner[0]) : undefined;
+	});
+}
+
+function claimGenericHydrationSlots(
+	invocation: ExactRenderProgramInvocation,
+	root: Element,
+	index: ProgramHydrationIndex
+): readonly (Node | undefined)[] {
+	return invocation.program.slots.map((slot) => {
+		if (slot[0] === 'text') return claimProgramTextSlot(root, index, slot[1]);
+		if (slot[0] === 'child' || slot[0] === 'component')
+			return claimProgramChildSlot(index, slot[1]);
+		const owner = invocation.program.nodes[slot[1]];
+		return owner ? programElement(index, owner[0]) : undefined;
+	});
+}
+
+function releaseDirectProgramNodeOwners(
+	elements: readonly (Element | undefined)[] | undefined
+): void {
+	if (!elements) return;
+	for (const element of elements) {
+		if (!element) continue;
+		clearNodeOwner(element);
+		clearElementOwner(element);
+	}
+}
+
+function ownDirectProgramNodes(
+	elements: readonly (Element | undefined)[] | undefined,
+	owner: AnyComponentInstance
+): void {
+	if (!elements) return;
+	for (const element of elements) {
+		if (!element) continue;
+		setNodeOwner(element, owner);
+		setElementOwner(element, owner);
+	}
 }
 
 function validSlotNodes(

@@ -177,6 +177,9 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
+		!strings.Contains(response.Code, "directClaims: true") ||
+		!strings.Contains(response.Code, "__exactBeginProgramClaims") ||
+		!strings.Contains(response.Code, "__exactClaimProgramText") ||
 		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") ||
