@@ -34,8 +34,6 @@ export type ReactiveCollectionMember = (
 	wrap: (value: unknown, dependency?: PropertyKey) => unknown
 ) => unknown;
 
-let collectionOptionKeys: WeakMap<object, object> | undefined;
-
 /** Creates a reactive with an explicitly selected collection capability. */
 export function createReactiveBase(
 	value: object,
@@ -44,7 +42,7 @@ export function createReactiveBase(
 	collectionMember?: ReactiveCollectionMember
 ): object {
 	const reactiveTarget = isReactive(value) ? (value as { [rawTarget]: object })[rawTarget] : value;
-	const cached = getCachedProxy(reactiveTarget, options, parentSource, collectionMember);
+	const cached = getCachedProxy(reactiveTarget, options, parentSource);
 	if (cached) {
 		if (parentSource) registerProxySource(cached, parentSource);
 		return cached;
@@ -225,7 +223,7 @@ export function createReactiveBase(
 		}
 	});
 
-	cacheProxy(reactiveTarget, options, parentSource, proxy, collectionMember);
+	cacheProxy(reactiveTarget, options, parentSource, proxy);
 	if (parentSource) {
 		reactiveRawObjects.add(reactiveTarget);
 		registerProxySource(proxy, parentSource);
@@ -245,7 +243,7 @@ function createParentSource(
 	options: ReactiveOptions,
 	collectionMember?: ReactiveCollectionMember
 ): CachedParentSource {
-	const optionKey = reactiveOptionsKey(options, collectionMember);
+	const optionKey = reactiveOptionsKey(options);
 	let byKey = parentSourceCache.get(target);
 	if (!byKey) parentSourceCache.set(target, (byKey = new Map()));
 	let byOptions = byKey.get(key);
@@ -304,10 +302,9 @@ function sourcedReactive(
 function getCachedProxy(
 	raw: object,
 	options: ReactiveOptions,
-	source?: ReactiveRef,
-	collectionMember?: ReactiveCollectionMember
+	source?: ReactiveRef
 ): object | undefined {
-	const optionKey = reactiveOptionsKey(options, collectionMember);
+	const optionKey = reactiveOptionsKey(options);
 	if (!source) return rootProxyCache.get(raw)?.get(optionKey);
 	const bySource = sourcedProxyCache.get(raw)?.get(optionKey);
 	const exact = bySource?.get(source);
@@ -332,10 +329,9 @@ function cacheProxy(
 	raw: object,
 	options: ReactiveOptions,
 	source: ReactiveRef | undefined,
-	proxy: object,
-	collectionMember?: ReactiveCollectionMember
+	proxy: object
 ): void {
-	const optionKey = reactiveOptionsKey(options, collectionMember);
+	const optionKey = reactiveOptionsKey(options);
 	if (source) {
 		let byOptions = sourcedProxyCache.get(raw);
 		if (!byOptions) sourcedProxyCache.set(raw, (byOptions = new WeakMap()));
@@ -379,19 +375,8 @@ function samePropertyDescriptor(
 	return left.get === right.get && left.set === right.set;
 }
 
-function reactiveOptionsKey(
-	options: ReactiveOptions,
-	collectionMember?: ReactiveCollectionMember
-): object {
-	const base = baseReactiveOptionsKey(options);
-	if (!collectionMember) return base;
-	collectionOptionKeys ??= new WeakMap();
-	let collectionKey = collectionOptionKeys.get(base);
-	if (!collectionKey) collectionOptionKeys.set(base, (collectionKey = {}));
-	return collectionKey;
-}
-
-function baseReactiveOptionsKey(options: ReactiveOptions): object {
+function reactiveOptionsKey(options: ReactiveOptions): object {
+	if ('__exactCollectionCacheMode' in options) return options as object;
 	if (
 		!options.readonly &&
 		!options.onReadonlyWrite &&
