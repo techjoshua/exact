@@ -21,6 +21,7 @@ import { iterateKey, reactiveValueMarker, reactiveValueRef } from './internal/sy
 import { isReactive, isReactiveValue, unwrap } from './internal/values.js';
 
 import type {
+	Dep,
 	EffectScopeImpl,
 	Reaction,
 	Reactive,
@@ -173,77 +174,7 @@ export function watchRetained(
 	options: RetainedWatchOptions = {}
 ): StopHandle | undefined {
 	const scope = resolveObservationScope(options);
-	const handleError = (error: unknown): void => {
-		const onError = options.onError ?? scope?.onError;
-		if (!onError) throw error;
-		onError(error);
-	};
-	const reaction: Reaction = {
-		active: true,
-		scheduled: false,
-		pendingPriority: undefined,
-		scope,
-		deps: new Set(),
-		run() {
-			if (!reaction.active) return;
-			if (reaction.scope && !reaction.scope.active) {
-				reaction.stop();
-				return;
-			}
-			reaction.scheduled = false;
-			reaction.pendingPriority = undefined;
-			try {
-				withEffectScope(reaction.scope, () => runTracked(reaction, fn));
-				if (reaction.deps.size === 0) reaction.stop();
-			} catch (error) {
-				handleError(error);
-			}
-		},
-		schedule() {
-			if (!reaction.active) return;
-			if (reaction.scope && !reaction.scope.active) {
-				reaction.stop();
-				return;
-			}
-			const priority = effectScopeWorkPriority(reaction.scope, currentWorkPriority());
-			if (reaction.scheduled) {
-				if (
-					reaction.pendingPriority !== undefined &&
-					isHigherWorkPriority(priority, reaction.pendingPriority)
-				) {
-					reaction.pendingPriority = priority;
-					if (scheduler) scheduler();
-					else queueReaction(reaction, priority);
-				}
-				return;
-			}
-			reaction.scheduled = true;
-			reaction.pendingPriority = priority;
-			try {
-				withEffectScope(reaction.scope, () => options.onSchedule?.());
-				if (scheduler) {
-					scheduler();
-					return;
-				}
-				queueReaction(reaction);
-			} catch (error) {
-				// A failed scheduler did not arrange for run() to clear this bit. Reset it
-				// so a later dependency change can retry rather than wedging the watcher.
-				reaction.scheduled = false;
-				reaction.pendingPriority = undefined;
-				handleError(error);
-			}
-		},
-		stop() {
-			if (!reaction.active) return;
-			reaction.active = false;
-			reaction.scheduled = false;
-			reaction.pendingPriority = undefined;
-			cleanupReaction(reaction);
-			if (reaction.scope) releaseEffectScopeReaction(reaction.scope, reaction);
-			options.onRelease?.();
-		}
-	};
+	const reaction = new RetainedReaction(fn, scheduler, options, scope);
 
 	if (scope) registerEffectScopeReaction(scope, reaction);
 	try {
@@ -255,7 +186,96 @@ export function watchRetained(
 		reaction.stop();
 		throw error;
 	}
-	return reaction.active ? reaction.stop : undefined;
+	return reaction.active ? reaction.stopHandle : undefined;
+}
+
+/** Shared executor for retained watchers; instances store data rather than method closures. */
+class RetainedReaction implements Reaction {
+	active = true;
+	scheduled = false;
+	pendingPriority: Reaction['pendingPriority'];
+	readonly deps = new Set<Dep>();
+	readonly stopHandle = () => this.stop();
+
+	constructor(
+		private readonly fn: () => void,
+		private readonly scheduler: (() => void) | undefined,
+		options: RetainedWatchOptions,
+		readonly scope: EffectScopeImpl | undefined
+	) {
+		this.onSchedule = options.onSchedule;
+		this.onError = options.onError;
+		this.onRelease = options.onRelease;
+	}
+
+	private readonly onSchedule: (() => void) | undefined;
+	private readonly onError: ((error: unknown) => void) | undefined;
+	private readonly onRelease: (() => void) | undefined;
+
+	run(): void {
+		if (!this.active) return;
+		if (this.scope && !this.scope.active) {
+			this.stop();
+			return;
+		}
+		this.scheduled = false;
+		this.pendingPriority = undefined;
+		try {
+			withEffectScope(this.scope, () => runTracked(this, this.fn));
+			if (this.deps.size === 0) this.stop();
+		} catch (error) {
+			this.handleError(error);
+		}
+	}
+
+	schedule(): void {
+		if (!this.active) return;
+		if (this.scope && !this.scope.active) {
+			this.stop();
+			return;
+		}
+		const priority = effectScopeWorkPriority(this.scope, currentWorkPriority());
+		if (this.scheduled) {
+			if (
+				this.pendingPriority !== undefined &&
+				isHigherWorkPriority(priority, this.pendingPriority)
+			) {
+				this.pendingPriority = priority;
+				if (this.scheduler) this.scheduler();
+				else queueReaction(this, priority);
+			}
+			return;
+		}
+		this.scheduled = true;
+		this.pendingPriority = priority;
+		try {
+			if (this.onSchedule) withEffectScope(this.scope, this.onSchedule);
+			if (this.scheduler) this.scheduler();
+			else queueReaction(this);
+		} catch (error) {
+			// A failed scheduler did not arrange for run() to clear this bit. Reset it
+			// so a later dependency change can retry rather than wedging the watcher.
+			this.scheduled = false;
+			this.pendingPriority = undefined;
+			this.handleError(error);
+		}
+	}
+
+	stop(): void {
+		if (!this.active) return;
+		this.active = false;
+		this.scheduled = false;
+		this.pendingPriority = undefined;
+		cleanupReaction(this);
+		if (this.scope) releaseEffectScopeReaction(this.scope, this);
+		this.onRelease?.();
+	}
+
+	private handleError(error: unknown): void {
+		const onError = this.onError ?? this.scope?.onError;
+		if (!onError) throw error;
+		onError(error);
+	}
 }
 
 /** Subscribes directly to a reactive reference without running a dependency collection pass. */
