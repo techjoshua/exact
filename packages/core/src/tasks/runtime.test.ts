@@ -7,7 +7,8 @@ import { LoggerContext } from '../component/contexts.js';
 import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import { runTaskFrame } from '../framework/task-frames.js';
 import type { LogEvent, Logger } from '../logging.js';
-import { activateComputationForHost, activateTask } from './activation.js';
+import { activateTask } from './activation.js';
+import { activateComputationForHost } from './computation-activation.js';
 import {
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
