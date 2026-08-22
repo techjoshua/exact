@@ -470,6 +470,8 @@ it('claims marked SSR nodes from the compiler hydration tape without indexing th
 	expect(container.querySelector('button')).toBe(button);
 	expect(button.textContent).toBe('client');
 	expect(button.disabled).toBe(true);
+	expect(container.innerHTML).toContain('exact:cell:root');
+	expect(container.innerHTML).not.toContain('exact:cell:button');
 });
 
 it('mounts and updates compiler-owned structural child slots without replacing their host', () => {
@@ -536,6 +538,10 @@ it('claims a variable-width structural child range before later planned elements
 	expect(container.querySelector('section')).toBe(host);
 	expect(container.querySelector('strong')).toBe(nested);
 	expect(nested?.textContent).toBe('client');
+	// The compatibility program keeps its own recovery envelope, while the adopted single-element
+	// child transfers ownership away from its now-redundant nested cell markers.
+	expect(container.innerHTML).toContain('exact:cell:root');
+	expect(container.innerHTML).not.toContain('exact:cell:nested');
 });
 
 it('rejects a marked SSR program when its hydration tape does not match the DOM', () => {

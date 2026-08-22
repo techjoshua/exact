@@ -18,7 +18,8 @@ import {
 	markedProgramRange,
 	matchesProgramIdentity,
 	programElement,
-	programNodeAtPath
+	programNodeAtPath,
+	releaseClaimedProgramCells
 } from './render-program-hydration.js';
 import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
 import { bindRenderProgram } from './render-program-bindings.js';
@@ -261,8 +262,7 @@ function adoptMarkedRenderProgram(
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
-		dom: range.start ?? programRoot,
-		...(range.start ? { end: nodes[range.endIndex]! } : {}),
+		dom: programRoot,
 		scope,
 		children: [],
 		renderProgram: { invocation, programRoot, slotNodes, root, parentInstance }
@@ -284,6 +284,17 @@ function adoptMarkedRenderProgram(
 			clearElementOwner(element);
 		}
 		return undefined;
+	}
+	// Successful compiled adoption transfers ownership from the SSR discovery envelopes to the
+	// claimed elements. Perform this last so every failure path leaves the original range intact.
+	releaseClaimedProgramCells(
+		invocation.program.nodes
+			.slice(range.start ? 0 : 1)
+			.map((planned) => programElement(hydrationIndex, planned[0])!)
+	);
+	if (range.start) {
+		range.start.remove();
+		(nodes[range.endIndex] as Comment).remove();
 	}
 	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
 }
