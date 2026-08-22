@@ -177,7 +177,11 @@ func (lowering *jsxLowering) propsWithReactivity(
 					)
 				}
 				if directInteraction {
-					name = "__exactDirectInteraction:" + name
+					if jsxEventOmitsArgument(expression, lowering.checker) {
+						name = "__exactClosedInteraction:" + name
+					} else {
+						name = "__exactDirectInteraction:" + name
+					}
 				}
 			default:
 				initializer = lowering.visitor.VisitNode(attribute.Initializer)
@@ -753,4 +757,39 @@ func validIdentifier(value string) bool {
 
 func jsxCallbackExpression(node *ast.Node) bool {
 	return ast.IsArrowFunction(node) || ast.IsFunctionExpression(node)
+}
+
+// jsxEventOmitsArgument proves that a locally declared handler cannot observe the DOM event.
+func jsxEventOmitsArgument(expression *ast.Node, typeChecker *checker.Checker) bool {
+	callable := expression
+	if ast.IsIdentifier(expression) && typeChecker != nil {
+		symbol := typeChecker.GetResolvedSymbol(expression)
+		if symbol == nil {
+			symbol = typeChecker.GetSymbolAtLocation(expression)
+		}
+		if symbol != nil {
+			declaration := symbol.ValueDeclaration
+			switch {
+			case declaration != nil && ast.IsFunctionDeclaration(declaration):
+				callable = declaration
+			case declaration != nil && ast.IsVariableDeclaration(declaration):
+				callable = declaration.AsVariableDeclaration().Initializer
+			}
+		}
+	}
+	if callable == nil || (!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable) && !ast.IsFunctionDeclaration(callable)) || len(callable.Parameters()) != 0 {
+		return false
+	}
+	if ast.IsArrowFunction(callable) {
+		return true
+	}
+	usesArguments := false
+	walkNode(callable.Body(), func(node *ast.Node) bool {
+		if ast.IsIdentifier(node) && node.Text() == "arguments" {
+			usesArguments = true
+			return false
+		}
+		return !usesArguments
+	})
+	return !usesArguments
 }
