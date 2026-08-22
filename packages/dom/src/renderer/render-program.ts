@@ -276,11 +276,18 @@ function adoptMarkedRenderProgram(
 	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
 	const elements =
 		direct?.elements ?? table!.nodes.map((planned) => programElement(hydrationIndex!, planned[0]));
-	for (const element of elements) {
-		if (!element) return undefined;
-		setNodeOwner(element, parentInstance);
-		setElementOwner(element, parentInstance);
-		countDomWork(root);
+	if (direct) {
+		// Compiler-generated claims deliberately omit inert static intrinsics. They remain owned by
+		// the enclosing DOM range and need no per-element bookkeeping of their own.
+		ownDirectProgramNodes(elements, parentInstance);
+		countProgramWork(root, program, direct, true);
+	} else {
+		for (const element of elements) {
+			if (!element) return undefined;
+			setNodeOwner(element, parentInstance);
+			setElementOwner(element, parentInstance);
+			countDomWork(root);
+		}
 	}
 	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
 		releaseDirectProgramNodeOwners(elements);

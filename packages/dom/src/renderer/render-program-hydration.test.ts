@@ -10,6 +10,7 @@ import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
 import {
 	beginCompiledProgramClaims,
 	claimCompiledProgramChild,
+	claimCompiledProgramElementPath,
 	claimCompiledProgramText,
 	claimCompiledRenderProgram
 } from './render-program-claims.js';
@@ -110,6 +111,50 @@ describe('compiler-wired render-program claims', () => {
 		expect((mounted?.slotNodes[0] as Text).data).toBe('\ue000exact:0\ue001');
 		expect(root.childNodes).toHaveLength(1);
 		expect(root.querySelectorAll('*')).toHaveLength(0);
+	});
+
+	it('claims only a compiler-addressed element target through element-child ordinals', () => {
+		const root = document.createElement('main');
+		root.innerHTML = '<section><!--variable--><span>Static</span><button>Save</button></section>';
+		const program: ExactRenderProgram = {
+			version: 3,
+			id: 'direct-element-path',
+			namespace: 'html',
+			template: '<main><section><span>Static</span><button>Save</button></section></main>',
+			directClaims: true,
+			bind(target) {
+				if (!beginCompiledProgramClaims(target, 'main', 'html', 4, 0)) return;
+				// depth 2, followed by element-child ordinals 0 and 1 in base 128.
+				claimCompiledProgramElementPath(target, 3, 2 + 1 * 16 * 128, 'button');
+			}
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect(claimed?.elements[3]).toBe(root.querySelector('button'));
+		expect(claimed?.elements[1]).toBeUndefined();
+		expect(claimed?.elements[2]).toBeUndefined();
+	});
+
+	it('claims from a compiler-selected trailing edge after variable structural content', () => {
+		const root = document.createElement('section');
+		root.innerHTML = '<article>Variable</article><form><textarea></textarea></form>';
+		const program: ExactRenderProgram = {
+			version: 3,
+			id: 'direct-element-reverse-path',
+			namespace: 'html',
+			template: '<section><form><textarea></textarea></form></section>',
+			directClaims: true,
+			bind(target) {
+				if (!beginCompiledProgramClaims(target, 'section', 'html', 3, 0)) return;
+				// The high bit selects the final element child; textarea is then child zero.
+				claimCompiledProgramElementPath(target, 2, 1 + 64 * 16, 'form');
+			}
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect(claimed?.elements[2]).toBe(root.querySelector('form'));
 	});
 
 	it('materializes an empty text node at a compiler-proven marker-free boundary', () => {

@@ -119,6 +119,37 @@ export function claimCompiledProgramElement(
 	target.current = node.nextSibling;
 }
 
+/** Claims one required intrinsic through its compiler-encoded element-child path. */
+export function claimCompiledProgramElementPath(
+	target: ExactRenderProgramBindingTarget,
+	index: number,
+	path: number,
+	tag: string,
+	namespace?: ExactRenderProgram['namespace']
+): void {
+	if (!isClaimTarget(target) || !target.valid) return;
+	let remaining = Math.floor(path);
+	let depth = remaining % 16;
+	remaining = Math.floor(remaining / 16);
+	let element: Element = target.root;
+	while (depth-- > 0) {
+		const step = remaining % 128;
+		const ordinal = step % 64;
+		const child = element.children.item(step < 64 ? ordinal : element.children.length - ordinal - 1);
+		if (!child) {
+			target.valid = false;
+			return;
+		}
+		element = child;
+		remaining = Math.floor(remaining / 128);
+	}
+	if (!matchesElement(element, tag, namespace ?? target.namespace)) {
+		target.valid = false;
+		return;
+	}
+	target.elements[index] = element;
+}
+
 /** Enters the children of the last compiler-claimed intrinsic. */
 export function enterCompiledProgramElement(
 	target: ExactRenderProgramBindingTarget,
