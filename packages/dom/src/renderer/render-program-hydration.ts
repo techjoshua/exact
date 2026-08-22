@@ -27,14 +27,6 @@ export function indexProgramHydration(root: Element): ProgramHydrationIndex {
 	return { elements, markers };
 }
 
-/** Removes compiler-only element identities after a program has claimed all of its nodes. */
-export function releaseProgramIdentities(
-	index: ProgramHydrationIndex,
-	program: ExactRenderProgram
-): void {
-	for (const node of program.nodes) index.elements.get(node[0])?.removeAttribute('data-exact-id');
-}
-
 /** Claims one compiler-identified structural child marker. */
 export function claimProgramChildSlot(
 	index: ProgramHydrationIndex,
@@ -97,4 +89,3 @@ export function markedProgramRange(
 function markerIdentity(id: string): string {
 	return id.startsWith('exact:') ? id.slice('exact:'.length) : id;
 }
-import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
