@@ -349,6 +349,21 @@ export function readExactCompiledComponentContract(
 	return contract as ExactCompiledComponentContract;
 }
 
+/** Reads build-validated compiler metadata without repeating recursive runtime validation. */
+export const readPreparedExactComponentContract = (
+	component: AnyExactComponentCallable
+): ExactComponentContract | undefined => (component as ContractComponent)[exactComponentContract];
+
+/** Reads a build-validated executable compiler artifact. */
+export function readPreparedExactCompiledComponentContract(
+	component: AnyExactComponentCallable
+): ExactCompiledComponentContract {
+	const contract = readPreparedExactComponentContract(component);
+	if (!contract?.definition)
+		throw new TypeError('Native eXact component execution requires a compiled component artifact');
+	return contract as ExactCompiledComponentContract;
+}
+
 /** Returns the stable compiler identity used to pair SSR and client component boundaries. */
 export function exactComponentIdentity(component: AnyExactComponentCallable): string {
 	const identity = (component as ContractComponent)[exactComponentType];
@@ -366,6 +381,22 @@ export function composeExactComponentContracts(
 	components: readonly AnyExactComponentCallable[],
 	role: ExactComponentContract['role']
 ): ExactComposedComponentContracts {
+	return composeComponentContracts(components, role, readExactComponentContract);
+}
+
+/** Composes build-validated compiler metadata without repeating recursive validation. */
+export function composePreparedExactComponentContracts(
+	components: readonly AnyExactComponentCallable[],
+	role: ExactComponentContract['role']
+): ExactComposedComponentContracts {
+	return composeComponentContracts(components, role, readPreparedExactComponentContract);
+}
+
+function composeComponentContracts(
+	components: readonly AnyExactComponentCallable[],
+	role: ExactComponentContract['role'],
+	readContract: (component: AnyExactComponentCallable) => ExactComponentContract | undefined
+): ExactComposedComponentContracts {
 	const implementations: Record<string, AnyExactComponentCallable> = {};
 	const implementationsById: Record<string, AnyExactComponentCallable> = {};
 	const continuations: Record<string, ExactComponentContinuationContract> = {};
@@ -376,7 +407,7 @@ export function composeExactComponentContracts(
 	const definitions: Record<string, ExactCompiledComponentDefinitionContract> = {};
 
 	for (const component of components) {
-		const contract = readExactComponentContract(component);
+		const contract = readContract(component);
 		if (!contract) continue;
 		const componentId = exactComponentIdentity(component);
 		if (contract.role !== role)

@@ -1,6 +1,7 @@
 import {
 	createExactFrameworkFixtureArtifact,
-	readExactCompiledComponentContract
+	readExactCompiledComponentContract,
+	readPreparedExactCompiledComponentContract
 } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import type {
@@ -25,7 +26,7 @@ export function createComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
-	const contract = readExactCompiledComponentContract(type);
+	const contract = readPreparedExactCompiledComponentContract(type);
 	return new ComponentInstanceImpl(
 		type,
 		contract.definition.instantiate as ComponentFunction<State, Props>,
@@ -72,7 +73,7 @@ export function createPreparedComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
-	const contract = readExactCompiledComponentContract(type);
+	const contract = readPreparedExactCompiledComponentContract(type);
 	return new ComponentInstanceImpl(
 		type,
 		contract.definition.instantiate as ComponentFunction<State, Props>,

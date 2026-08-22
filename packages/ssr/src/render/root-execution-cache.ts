@@ -2,7 +2,7 @@ import { type AnyComponentFunction, type VNode } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentIdentity,
-	readExactCompiledComponentContract,
+	readPreparedExactCompiledComponentContract,
 	type ExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import {
@@ -97,7 +97,7 @@ type CachedBlueprint = Readonly<{
 function prepareComponentBlueprint(
 	component: AnyComponentFunction
 ): SsrComponentExecutionBlueprint {
-	const contract = readExactCompiledComponentContract(component);
+	const contract = readPreparedExactCompiledComponentContract(component);
 	const componentId = exactComponentIdentity(component);
 	return Object.freeze({
 		componentId,

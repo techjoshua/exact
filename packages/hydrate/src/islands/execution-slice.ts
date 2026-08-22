@@ -1,7 +1,7 @@
 import { type AnyComponentFunction } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactCompiledComponentContract,
+	readPreparedExactComponentContract,
 	type ExactComponentExecutionContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
@@ -14,8 +14,8 @@ export function prepareClientIslandExecutionSlice(
 ): ComponentExecutionSlice {
 	const cached = slices.get(component);
 	if (cached) return cached;
-	const contract = readExactCompiledComponentContract(component);
-	if (!contract.execution) return emptySlice;
+	const contract = readPreparedExactComponentContract(component);
+	if (!contract?.execution) return emptySlice;
 	assertAcyclic(contract.execution);
 	const transitions = new Set(
 		contract.execution.transitions

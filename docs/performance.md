@@ -100,6 +100,10 @@ Compiler-emitted descriptors are trusted module-local executable artifacts. The 
 register them in an authority set or repeatedly validate their internal tables during mount and
 patch. Only the private render-program VNode kind selects this executor. Server responses, plugin
 payloads, and other external values remain validated at their actual ingress boundaries.
+Component definitions follow the same split. Compiler-prepared imports take a shallow executable
+artifact check when construction or lazy-island registration reads their contracts; they do not
+repeat recursive shape and identity validation already performed by the build. Public contract
+readers and framework-fixture entry points retain full validation for manually supplied values.
 
 Scalar text slots may sit beside static text or other scalar slots in one planned host. The
 compiler inserts anonymous template-only comment separators so HTML parsing cannot coalesce their
