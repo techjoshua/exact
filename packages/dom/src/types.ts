@@ -23,6 +23,7 @@ import type { EffectScope } from '@exactjs/reactive';
 import type { DomWorkBudget } from './work.js';
 import type { RetainedMountedRanges } from './renderer/retained-range.js';
 import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
+import type { ComponentDomainLogging } from '@exactjs/core/framework/component-domains';
 
 /** Defines the mounted type contract. */
 export type Mounted = {
@@ -141,6 +142,8 @@ export type Root = {
 	version: number;
 	boundary: ComponentFunction<{}, { version: number }>;
 	logger?: Logger;
+	/** Shared component-logger lane for this framework-owned root. */
+	componentLogging?: ComponentDomainLogging;
 	/** Root-provided contexts inherited by components without a logical parent. */
 	ambientContexts?: ComponentContextValues;
 	debugMarkers: boolean;

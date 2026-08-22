@@ -80,7 +80,9 @@ method closures.
 Framework-owned component roots also retain one shared logger lane. Disabled component diagnostics
 perform the configured level check directly against that logger rather than walking component
 contexts. Defining a component-level `LoggerContext` override selects the dynamic context lookup
-lane for that root so authored overrides continue to apply at call time.
+lane for that root so authored overrides continue to apply at call time. Compiled DOM interactions
+receive a root-proven disabled trace lane directly, avoiding logger discovery altogether when the
+shared logger excludes trace events.
 
 Compiler render programs also carry production hydration identities. Elements and host-property
 slots use dense program-local indexes rather than repeating stable IDs in templates and node

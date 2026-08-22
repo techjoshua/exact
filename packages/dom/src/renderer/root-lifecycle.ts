@@ -7,6 +7,7 @@ import {
 } from '@exactjs/core';
 import {
 	componentDomainInspection,
+	componentDomainLogging,
 	createFrameworkComponentDomain,
 	setComponentDomainLogger
 } from '@exactjs/core/framework/component-domains';
@@ -96,6 +97,9 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (previousCurrent.domain)
 		setComponentDomainLogger(previousCurrent.domain, options.logger);
 	if (root.current.domain) setComponentDomainLogger(root.current.domain, options.logger);
+	root.componentLogging = root.current.domain
+		? componentDomainLogging(root.current.domain)
+		: undefined;
 	if (options.logger) {
 		const contexts = root.ambientContexts as Map<symbol, unknown> | undefined;
 		if (contexts) contexts.set(LoggerContext.id, options.logger);

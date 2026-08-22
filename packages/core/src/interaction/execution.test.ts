@@ -52,6 +52,31 @@ describe('component interactions', () => {
 		).toBe(42);
 	});
 
+	it('accepts a root-proven disabled trace lane without resolving component logging', () => {
+		const owner = {
+			id: 'root-untraced-owner',
+			type: function RootUntracedOwner() {},
+			mounted: true,
+			parent: undefined,
+			ambientContexts: undefined,
+			get contexts(): never {
+				throw new Error('disabled root lane resolved component logging');
+			}
+		};
+
+		expect(
+			runDirectCompiledComponentInteraction(
+				owner as never,
+				'event',
+				1,
+				'interactive',
+				() => 42,
+				undefined,
+				false
+			)
+		).toBe(42);
+	});
+
 	it('retains observable interaction semantics for trace-enabled closed handlers', async () => {
 		const events: LogEvent[] = [];
 		const logger: Logger = {

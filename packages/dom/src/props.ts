@@ -268,7 +268,7 @@ function setDirectEventHandler(
 				const invoke = () =>
 					(handler as (this: Element, event: Event) => unknown).call(element, event);
 				const result = batch(() =>
-					runEventInteraction(owner, invoke, undefined, directInteraction)
+					runEventInteraction(root, owner, invoke, undefined, directInteraction)
 				);
 				observeComponentAsync(owner, result, 'event', type);
 			} catch (error) {
