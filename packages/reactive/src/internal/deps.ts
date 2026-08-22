@@ -75,7 +75,8 @@ export function trigger(target: object, key: PropertyKey): void {
  * settles; use separate batches after awaits.
  */
 export function batch<T>(fn: () => T): T {
-	const transaction = createTransaction(true);
+	const parent = transactions[transactions.length - 1];
+	const transaction = createTransaction(true, Boolean(parent?.versionRanges));
 	transactions.push(transaction);
 	let result: T;
 	try {
@@ -86,9 +87,7 @@ export function batch<T>(fn: () => T): T {
 		throw error;
 	}
 	transactions.pop();
-	const parent = transactions[transactions.length - 1];
-	if (parent) mergeTransaction(parent, transaction);
-	else flushTriggers(transaction.triggers);
+	publishTransaction(parent, transaction);
 	return result;
 }
 
@@ -103,7 +102,10 @@ export function batch<T>(fn: () => T): T {
  */
 export function publishBatch<T>(fn: () => T): T {
 	const parent = transactions[transactions.length - 1];
-	const transaction = createTransaction(Boolean(parent?.undos));
+	const transaction = createTransaction(
+		Boolean(parent?.undos),
+		Boolean(parent?.versionRanges)
+	);
 	transactions.push(transaction);
 	let result: T;
 	try {
@@ -126,7 +128,7 @@ export function publishBatch<T>(fn: () => T): T {
  * batch contributes its notifications to that batch but retains independent rollback ownership.
  */
 export function captureReactiveMutations(fn: () => void): ReactiveMutationJournal {
-	const transaction = createTransaction(true);
+	const transaction = createTransaction(true, true);
 	transactions.push(transaction);
 	try {
 		fn();
@@ -278,10 +280,12 @@ function mutationVersion(target: object, key: PropertyKey): number {
 	return mutationVersions.get(target)?.get(key) ?? 0;
 }
 
-function createTransaction(rollback: boolean): Transaction {
-	return rollback
-		? { undos: [], triggers: new Map(), versionRanges: new Map() }
-		: { triggers: new Map() };
+function createTransaction(rollback: boolean, retainVersions = false): Transaction {
+	return {
+		...(rollback ? { undos: [] } : {}),
+		triggers: new Map(),
+		...(retainVersions ? { versionRanges: new Map() } : {})
+	};
 }
 
 function recordMutationVersionRange(

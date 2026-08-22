@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+	batch,
 	captureReactiveMutations,
 	flushSync,
 	reactive,
@@ -9,6 +10,20 @@ import {
 } from './index.js';
 
 describe('reactive mutation journals', () => {
+	it('retains version fencing for an atomic batch nested in a journal', () => {
+		const state = reactive({ value: 'base' });
+		const journal = captureReactiveMutations(() => {
+			batch(() => {
+				state.value = 'optimistic';
+			});
+		});
+
+		state.value = 'authoritative';
+		journal.rollback();
+
+		expect(state.value).toBe('authoritative');
+	});
+
 	it('publishes optimistic writes and restores deep collection state on rollback', () => {
 		const state = reactive({
 			count: 1,
