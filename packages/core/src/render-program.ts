@@ -50,6 +50,12 @@ export type ExactRenderProgramBinding =
 	| readonly ['lists', slots: readonly number[]]
 	| readonly ['properties', slots: readonly number[]];
 
+/** Opaque DOM-owned binding context consumed only by compiler-emitted binding calls. */
+export type ExactRenderProgramBindingTarget = object;
+
+/** Direct client binding topology emitted as executable compiler wiring. */
+export type ExactRenderProgramBinder = (target: ExactRenderProgramBindingTarget) => void;
+
 /** Immutable shape emitted by the compiler for a finite intrinsic region. */
 export type ExactRenderProgram = Readonly<{
 	version: 3;
@@ -59,8 +65,12 @@ export type ExactRenderProgram = Readonly<{
 	/** Server/universal interpolation strings; closed client artifacts omit this SSR-only table. */
 	parts?: readonly string[];
 	slots: readonly ExactRenderProgramSlot[];
-	/** Direct binding topology and browser-safe application order emitted by the compiler. */
-	bindings: readonly ExactRenderProgramBinding[];
+	/** Generic binding topology retained only by non-client and explicit fallback artifacts. */
+	bindings?: readonly ExactRenderProgramBinding[];
+	/** Direct browser-safe binding wiring emitted for compiled client artifacts. */
+	bind?: ExactRenderProgramBinder;
+	/** Marks a direct binder that owns one grouped keyed-list render lane. */
+	listBindings?: true;
 	nodes: readonly ExactRenderProgramNode[];
 	ssrParts?: readonly string[];
 	ssrOperations?: readonly ExactRenderProgramSsrOperation[];

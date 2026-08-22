@@ -1,24 +1,16 @@
-import { type AnyComponentInstance, isVNode, unwrap, type Child, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, type Child, type VNode } from '@exactjs/core';
 import {
 	readRenderProgram,
-	readRenderProgramSlot,
 	renderProgramFallback,
 	type ExactRenderProgram,
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/runtime/render';
-import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
-import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
-import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
 import { materializeProgramTemplate } from './render-program-template.js';
-import {
-	adoptProgramChildSlots,
-	bindProgramChild,
-	bindProgramLists
-} from './render-program-children.js';
+import { adoptProgramChildSlots } from './render-program-children.js';
 import {
 	claimProgramChildSlot,
 	claimProgramTextSlot,
@@ -29,6 +21,7 @@ import {
 	programNodeAtPath
 } from './render-program-hydration.js';
 import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
+import { bindRenderProgram } from './render-program-bindings.js';
 
 const elementNode = 1;
 const textNode = 3;
@@ -63,7 +56,10 @@ export function mountRenderProgram(
 		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
 	};
 	if (parentInstance) ownProgramNodes(invocation.program, programIndex, parentInstance);
-	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
+	if (
+		(invocation.program.bind || invocation.program.bindings?.length) &&
+		!bindRenderProgram(mounted)
+	) {
 		releaseProgramNodeOwners(invocation.program, programIndex);
 		return undefined;
 	}
@@ -116,7 +112,10 @@ export function adoptRenderProgram(
 		renderProgram: { invocation, programRoot: dom, slotNodes, root, parentInstance }
 	};
 	ownProgramNodes(invocation.program, programIndex, parentInstance);
-	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
+	if (
+		(invocation.program.bind || invocation.program.bindings?.length) &&
+		!bindRenderProgram(mounted)
+	) {
 		releaseProgramNodeOwners(invocation.program, programIndex);
 		return undefined;
 	}
@@ -271,7 +270,10 @@ function adoptMarkedRenderProgram(
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
 	}
-	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
+	if (
+		(invocation.program.bind || invocation.program.bindings?.length) &&
+		!bindRenderProgram(mounted)
+	) {
 		for (const planned of invocation.program.nodes) {
 			const element = programElement(hydrationIndex, planned[0])!;
 			clearNodeOwner(element);
@@ -300,108 +302,6 @@ export function patchRenderProgram(mounted: Mounted, vnode: VNode): boolean {
 /** Returns the lazy fallback without exposing its compiler-owned brand. */
 export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 	return renderProgramFallback(vnode);
-}
-
-function bindRenderProgram(mounted: Mounted): boolean {
-	const state = mounted.renderProgram!;
-	let previousProps = state.props;
-	let released = false;
-	let valid = true;
-	let initialBinding = true;
-	let stopBindings: OwnedRetainedWatch[] = [];
-	const stopCurrentBindings = () => {
-		for (const binding of stopBindings) binding.stop();
-		stopBindings = [];
-	};
-	const release = () => {
-		if (released) return;
-		released = true;
-		stopCurrentBindings();
-		if (previousProps) {
-			for (const [element, props] of previousProps) {
-				const ref = props.ref as { fulfill(value: unknown): void } | undefined;
-				ref?.fulfill(undefined);
-				clearElementProps(element);
-			}
-			previousProps.clear();
-			state.props = undefined;
-		}
-		releaseCompiledProps(mounted);
-		mounted.stop = undefined;
-		state.refresh = undefined;
-	};
-	const bind = () => {
-		stopCurrentBindings();
-		valid = true;
-		let propertyGroup = 0;
-		for (const binding of state.invocation.program.bindings) {
-			if (binding[0] === 'lists') {
-				if (!bindProgramLists(mounted, binding[1], initialBinding, stopBindings)) valid = false;
-				continue;
-			}
-			if (binding[0] === 'child' || binding[0] === 'component') {
-				if (!bindProgramChild(mounted, binding[1], initialBinding, stopBindings)) valid = false;
-				continue;
-			}
-			if (binding[0] === 'text') {
-				const index = binding[1];
-				const applyText = () => {
-					const value = unwrap(readRenderProgramSlot(state.invocation, index));
-					const target = state.slotNodes[index];
-					if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
-						valid = false;
-						return;
-					}
-					const text =
-						value === null || value === undefined || value === false || value === true
-							? ''
-							: String(value);
-					const node = target as Text;
-					if (node.data !== text) node.data = text;
-				};
-				const watcher = watchRetained(applyText, undefined, { scope: mounted.scope, owned: true });
-				if (watcher) stopBindings.push(watcher);
-				continue;
-			}
-			const indexes = binding[1];
-			const writer = state.invocation.propertyWriter ? propertyGroup : undefined;
-			propertyGroup++;
-			const element = state.slotNodes[indexes[0]!] as Element;
-			const applyProps = () => {
-				if (writer !== undefined && state.invocation.propertyWriter) {
-					applyCompiledProps(mounted, element, writer, initialBinding);
-					return;
-				}
-				state.props = previousProps ??= new Map<Element, Record<string, unknown>>();
-				const next: Record<string, unknown> = {};
-				for (const index of indexes) {
-					const slot = state.invocation.program.slots[index]!;
-					if (slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') continue;
-					next[slot[2]] = unwrap(readRenderProgramSlot(state.invocation, index));
-				}
-				updateProps(
-					state.root,
-					element,
-					previousProps.get(element) ?? {},
-					next,
-					mounted.scope,
-					!initialBinding
-				);
-				previousProps.set(element, next);
-			};
-			const watcher = watchRetained(applyProps, undefined, { scope: mounted.scope, owned: true });
-			if (watcher) stopBindings.push(watcher);
-		}
-		initialBinding = false;
-	};
-	state.refresh = bind;
-	mounted.stop = release;
-	bind();
-	if (!valid) {
-		release();
-		return false;
-	}
-	return true;
 }
 
 function validSlotNodes(

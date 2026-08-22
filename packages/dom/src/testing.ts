@@ -1,6 +1,19 @@
 import { type AnyComponentInstance, unwrap, type VNode } from '@exactjs/core';
 import { elementOwners, roots } from './state.js';
 import type { Mounted } from './types.js';
+import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
+import { createGenericRenderProgramBinder } from './renderer/render-program-generic-bindings.js';
+
+/** Adds the table-driven binder used by manually constructed render programs in tests. */
+export function withGenericRenderProgramBindings(program: ExactRenderProgram): ExactRenderProgram {
+	const bindings = program.bindings ?? [];
+	if (bindings.length === 0) return program;
+	return {
+		...program,
+		bind: createGenericRenderProgramBinder(bindings),
+		...(bindings.some((binding) => binding[0] === 'lists') ? { listBindings: true } : {})
+	};
+}
 
 /** Defines the dom inspection node type contract. */
 export type DomInspectionNode = {

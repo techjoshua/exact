@@ -1,9 +1,23 @@
 /** @vitest-environment jsdom */
 import { createCompiledVNode } from '@exactjs/core/runtime/render';
-import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
+import { createCompiledRenderProgram as createCoreRenderProgram } from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { adoptStatic, render, unmount } from './index.js';
+import { withGenericRenderProgramBindings } from './testing.js';
+
+const createCompiledRenderProgram: typeof createCoreRenderProgram = (
+	cacheKey,
+	createProgram,
+	readers,
+	fallback
+) =>
+	createCoreRenderProgram(
+		cacheKey,
+		() => withGenericRenderProgramBindings(createProgram()),
+		readers,
+		fallback
+	);
 
 it('clones one compiler template and updates scalar slots without a generic vnode subtree', () => {
 	const state = reactive({ label: 'first' });

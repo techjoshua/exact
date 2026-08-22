@@ -109,6 +109,13 @@ invocation applies its known keys in browser-safe order without allocating and e
 temporary props record or redispatching through the generic slot reader for every property. Those
 properties are omitted from the client slot dispatcher. Their previous values occupy a compact
 group-indexed array; programs with only text or structural work allocate no property map at all.
+Closed hydrate and client artifacts also emit the complete binding topology as direct calls to
+text, structural-child, grouped-list, and property operations. Their DOM executor invokes that
+compiler-authored binder without walking or branching over a general binding table. Complete and
+server artifacts retain the table because they are rendering-mode-neutral or need it for SSR;
+manually constructed programs use the explicit DOM testing compatibility helper. Temporary binder
+contexts are released after synchronous installation and are not captured by the retained slot
+watchers.
 Server and universal artifacts retain individual readers for SSR,
 while older precompiled clients continue through the runtime fallback. A change therefore
 evaluates only the affected target group instead of rebuilding props

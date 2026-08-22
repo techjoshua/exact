@@ -215,6 +215,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-adjacent-text.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			export function Planned(props: { owner: string; status: string }) {
 				return () => <small>{props.owner} · {props.status}</small>;
@@ -230,7 +231,8 @@ func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 		`["text",`,
 		`[1]`,
 		`[5]`,
-		`bindings: [["text", 0], ["text", 1]]`,
+		`__exactBindProgramText(__exactBindingTarget, 0)`,
+		`__exactBindProgramText(__exactBindingTarget, 1)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("adjacent scalar program omitted %q:\n%s", expected, response.Code)
@@ -257,7 +259,7 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 	for _, expected := range []string{
 		`<!--exact:dynamic:`,
 		`["child",`,
-		`bindings: [["child", 0]]`,
+		`__exactBindProgramChild(__exactBindingTarget, 0)`,
 		`createPreparedRenderProgram`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -302,7 +304,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	for _, expected := range []string{
 		`["component",`,
-		`bindings: [["component", 0]]`,
+		`__exactBindProgramChild(__exactBindingTarget, 0)`,
 		`__exactComponentVNode(Detail`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -369,7 +371,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		t.Fatal(stateful.Error)
 	}
 	if !strings.Contains(stateful.Code, `["component",`) ||
-		!strings.Contains(stateful.Code, `bindings: [["component", 0]]`) ||
+		!strings.Contains(stateful.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
 		strings.Contains(stateful.Code, `__exactVNode("main"`) {
 		t.Fatalf("stateful component child did not enter its compiler-owned lifecycle slot:\n%s", stateful.Code)
 	}
@@ -391,10 +393,11 @@ func TestSessionGroupsPlannedKeyedListsIntoOneRenderLane(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `bindings: [["lists", [0]]]`) {
+	if !strings.Contains(response.Code, `__exactBindProgramLists(__exactBindingTarget, [0])`) ||
+		!strings.Contains(response.Code, `listBindings: true`) {
 		t.Fatalf("planned keyed list did not emit one list lane:\n%s", response.Code)
 	}
-	if strings.Contains(response.Code, `bindings: [["child", 0]]`) {
+	if strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) {
 		t.Fatalf("planned keyed list retained the generic child binding:\n%s", response.Code)
 	}
 }
@@ -412,7 +415,8 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `bindings: [["properties", [1]], ["properties", [0]]]`) {
+	if !strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 0, 1)`) ||
+		!strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 1, 0)`) {
 		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
@@ -1943,6 +1947,7 @@ __fixtureTask1();
 func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-form.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			declare class Component<State> { state: State }
 			export function Form(this: Component<{ severity: string }>) {
@@ -1963,7 +1968,7 @@ func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
 		`value=\"high\"`,
 		`["property", 0, "value"]`,
 		`["property", 0, "__exactBindChange"]`,
-		`bindings: [["properties", [0, 1]]]`,
+		`__exactBindProgramProperties(__exactBindingTarget, 0, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned form binding omitted %q:\n%s", expected, response.Code)

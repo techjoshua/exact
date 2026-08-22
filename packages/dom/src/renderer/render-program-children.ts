@@ -26,7 +26,9 @@ export function adoptProgramChildSlots(
 	) => Mounted[] | undefined
 ): boolean {
 	const state = mounted.renderProgram!;
-	const ownsLists = state.invocation.program.bindings.some((binding) => binding[0] === 'lists');
+	const ownsLists =
+		state.invocation.program.listBindings === true ||
+		state.invocation.program.bindings?.some((binding) => binding[0] === 'lists') === true;
 	if (ownsLists) parentInstance.beginRender();
 	try {
 		for (let index = 0; index < state.invocation.program.slots.length; index++) {
