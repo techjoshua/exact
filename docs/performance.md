@@ -130,10 +130,11 @@ Closed hydrate and client artifacts emit their complete claim and binding topolo
 executor. Its claim lane wires intrinsic and slot identities; its binding lane calls text,
 structural-child, grouped-list, and property operations. The DOM executor invokes those
 compiler-authored calls without walking or branching over general node, slot, or binding tables.
-Complete rendering-mode-neutral artifacts retain the tables because they may execute through
-either renderer. Closed server artifacts instead emit one component-specific SSR function: a
+Complete rendering-mode-neutral artifacts retain the client tables because they may execute through
+either renderer, but their server lane is still a component-specific generated function rather
+than interpreted metadata. Closed server artifacts emit only that component-specific SSR function: a
 generated preparation prefix reads the known slots, then generated calls write static markup,
-nodes, text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
+text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
 tables. Manually constructed programs use the explicit DOM testing compatibility helper. Temporary binder
 contexts are released after synchronous installation and are not captured by the retained slot
@@ -434,7 +435,7 @@ topology. Component, cell, list, fragment, and other variable-width boundaries r
 ranges because their update lifetime may replace the currently rendered root shape.
 
 Closed server component artifacts carry generated SSR execution rather than a compact interpreted
-tape. The compiler emits slot preparation and the exact static, node, text, child, and attribute
+tape. The compiler emits slot preparation and the exact static, text, child, and attribute
 calls in source order; server-only descriptors omit the client template and all generic topology
 tables. Structural child and component calls delegate only their owned value to the ordinary child
 renderer. Asynchronous and streaming renderers retain the region-local generic structural fallback

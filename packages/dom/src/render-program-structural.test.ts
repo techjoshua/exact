@@ -40,7 +40,6 @@ it('observes in-place collection mutations through a compiler-owned list lane', 
 			namespace: 'html',
 			template:
 				'<ul data-exact-id="list-root"><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
-			parts: [],
 			slots: [['child', 'items']],
 			bindings: [['lists', [0]]],
 			nodes: [['list-root', 'ul']]
@@ -78,7 +77,6 @@ it('observes an indexed-state collection without a parent-path source', () => {
 			id: 'render-program:indexed-list-slot',
 			namespace: 'html',
 			template: '<ul><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
-			parts: [],
 			slots: [['child', 'items']],
 			bindings: [['lists', [0]]],
 			nodes: [[0, 'ul']]
@@ -123,7 +121,6 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 			namespace: 'html',
 			template:
 				'<main data-exact-id="component-root"><!--exact:dynamic:counter--><!--/exact:dynamic:counter--></main>',
-			parts: [],
 			slots: [['component', 'counter']],
 			bindings: [['component', 0]],
 			nodes: [['component-root', 'main']]

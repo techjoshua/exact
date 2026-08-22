@@ -225,8 +225,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			}
 		}
 	}
-	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root)
 	source := lowering.sourceFile.Text()
+	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root) ||
+		strings.Contains(source, "this.intl")
 	listUsed := lowering.listCapabilityUsed ||
 		containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "map") ||
 		strings.Contains(source, "this.map")

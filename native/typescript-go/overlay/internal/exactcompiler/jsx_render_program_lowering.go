@@ -32,21 +32,14 @@ type renderProgramNode struct {
 	namespace string
 }
 
-type renderProgramSsrOperation struct {
-	kind  string
-	index int
-}
-
 type renderProgramBuild struct {
-	template      strings.Builder
-	part          strings.Builder
-	parts         []string
-	ssrPart       strings.Builder
-	ssrParts      []string
-	ssrOperations []renderProgramSsrOperation
-	slots         []renderProgramSlot
-	nodes         []renderProgramNode
-	namespace     string
+	template       strings.Builder
+	serverSegment  strings.Builder
+	serverSegments []string
+	serverSlots    []int
+	slots          []renderProgramSlot
+	nodes          []renderProgramNode
+	namespace      string
 }
 
 type renderProgramPropertyBinding struct {
@@ -86,26 +79,25 @@ func (build *renderProgramBuild) propertyBindings() []renderProgramPropertyBindi
 
 func (build *renderProgramBuild) write(value string) {
 	build.template.WriteString(value)
-	build.part.WriteString(value)
-	build.ssrPart.WriteString(value)
+	build.serverSegment.WriteString(value)
 }
 
-func (build *renderProgramBuild) ssrOperation(kind string, index int) {
-	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
-	build.ssrPart.Reset()
-	build.ssrOperations = append(build.ssrOperations, renderProgramSsrOperation{kind: kind, index: index})
+func (build *renderProgramBuild) serverSlot(index int) {
+	build.serverSegments = append(build.serverSegments, build.serverSegment.String())
+	build.serverSegment.Reset()
+	build.serverSlots = append(build.serverSlots, index)
 }
 
 // markerlessTextSlot reports whether the serialized value is bounded by markup on both sides.
 // In that shape the HTML parser cannot merge it with authored or adjacent dynamic text, so the
 // client can claim the text directly at its compiled position without server comment delimiters.
 func (build *renderProgramBuild) markerlessTextSlot(index int) bool {
-	for position, operation := range build.ssrOperations {
-		if operation.kind != "slot" || operation.index != index {
+	for position, slot := range build.serverSlots {
+		if slot != index {
 			continue
 		}
-		before := build.ssrParts[position]
-		after := build.ssrParts[position+1]
+		before := build.serverSegments[position]
+		after := build.serverSegments[position+1]
 		return strings.HasSuffix(before, ">") && strings.HasPrefix(after, "<")
 	}
 	return false
@@ -114,9 +106,7 @@ func (build *renderProgramBuild) markerlessTextSlot(index int) bool {
 func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
 	index := len(build.slots)
 	build.template.WriteString(fmt.Sprintf("<!---->\ue000exact:%d\ue001<!---->", index))
-	build.parts = append(build.parts, build.part.String())
-	build.part.Reset()
-	build.ssrOperation("slot", index)
+	build.serverSlot(index)
 	mountPath := append([]int(nil), path...)
 	mountPath[len(mountPath)-1]++
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: mountPath, reader: reader})
@@ -125,26 +115,20 @@ func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Nod
 func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.Node, list bool) {
 	index := len(build.slots)
 	build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
-	build.parts = append(build.parts, build.part.String())
-	build.part.Reset()
-	build.ssrOperation("slot", index)
+	build.serverSlot(index)
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), list: list, reader: reader})
 }
 
 func (build *renderProgramBuild) componentSlot(id string, path []int, reader *ast.Node) {
 	index := len(build.slots)
 	build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
-	build.parts = append(build.parts, build.part.String())
-	build.part.Reset()
-	build.ssrOperation("slot", index)
+	build.serverSlot(index)
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "component", path: append([]int(nil), path...), reader: reader})
 }
 
 func (build *renderProgramBuild) propertySlot(id string, path []int, node int, name string, reader *ast.Node) {
 	index := len(build.slots)
-	build.parts = append(build.parts, build.part.String())
-	build.part.Reset()
-	build.ssrOperation("slot", index)
+	build.serverSlot(index)
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), node: node, name: name, reader: reader})
 }
 
@@ -161,8 +145,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil, parentNamespace) {
 		return nil
 	}
-	build.parts = append(build.parts, build.part.String())
-	build.ssrParts = append(build.ssrParts, build.ssrPart.String())
+	build.serverSegments = append(build.serverSegments, build.serverSegment.String())
 	programID := exactStableID(
 		lowering.sourceFile.FileName(),
 		"render-program",
@@ -822,10 +805,6 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		}
 		return array(items)
 	}
-	parts := make([]*ast.Node, len(build.parts))
-	for index, value := range build.parts {
-		parts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
-	}
 	slots := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
 		members := []*ast.Node{lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)}
@@ -924,26 +903,8 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			property("slots", array(slots)),
 			property("nodes", array(nodes)),
 			property("bindings", array(bindings)),
+			property("ssr", lowering.directRenderProgramSsrWriter(build)),
 		)
-	}
-	if lowering.target == TargetDefault ||
-		(lowering.target != TargetServer && lowering.contractProjection == ComponentContractProjectionComplete) {
-		members = append(members, property("parts", array(parts)))
-	}
-	if lowering.target != TargetServer &&
-		lowering.contractProjection == ComponentContractProjectionComplete {
-		ssrParts := make([]*ast.Node, len(build.ssrParts))
-		for index, value := range build.ssrParts {
-			ssrParts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
-		}
-		ssrOperations := make([]*ast.Node, len(build.ssrOperations))
-		for index, operation := range build.ssrOperations {
-			ssrOperations[index] = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
-				property("kind", lowering.factory.NewStringLiteral(operation.kind, ast.TokenFlagsNone)),
-				property("index", lowering.factory.NewNumericLiteral(strconv.Itoa(operation.index), ast.TokenFlagsNone)),
-			}), false)
-		}
-		members = append(members, property("ssrParts", array(ssrParts)), property("ssrOperations", array(ssrOperations)))
 	}
 	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
 }

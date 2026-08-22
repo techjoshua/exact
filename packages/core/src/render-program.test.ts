@@ -17,7 +17,6 @@ const program = (id: string) => ({
 	id,
 	namespace: 'html' as const,
 	template: '<p></p>',
-	parts: ['<p>', '</p>'],
 	slots: [['text', 'value', [0]]] as const,
 	bindings: [['text', 0]] as const,
 	nodes: []
@@ -50,7 +49,6 @@ describe('compiled render-program cache', () => {
 			'revision:combined',
 			() => ({
 				...program('combined'),
-				parts: ['<p>', ':', '</p>'],
 				slots: [
 					['text', 'first', [0]],
 					['text', 'second', [1]]

@@ -187,16 +187,9 @@ describe('hydration-only root capability', () => {
 				id: 'root-marked-program',
 				namespace: 'html',
 				template: '<span data-exact-id="program-root">\ue000exact:0\ue001</span>',
-				parts: ['<span data-exact-id="program-root">', '</span>'],
 				slots: [['text', 'program-text', [0]]],
 				bindings: [['text', 0]],
-				nodes: [['program-root', 'span', 'html']],
-				ssrParts: ['', '<span data-exact-id="program-root">', '', '</span>', ''],
-				ssrOperations: [
-					{ kind: 'node-open', index: 0 },
-					{ kind: 'slot', index: 0 },
-					{ kind: 'node-close', index: 0 }
-				]
+				nodes: [['program-root', 'span', 'html']]
 			}),
 			[() => 'ready'],
 			() => {

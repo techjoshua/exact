@@ -25,7 +25,6 @@ export {
 	type ExactRenderProgramInvocation,
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
-	type ExactRenderProgramSsrOperation,
 	type ExactRenderProgramSsrTarget,
 	type ExactRenderProgramSsrWriter,
 	type ExactSsrRenderProgram,
