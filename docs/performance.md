@@ -40,6 +40,11 @@ materialized only when dynamic code explicitly reads the public `instance.log` s
 default trace and debug checks also avoid constructing component scope records. Default logger and
 error contexts remain available through the same context resolution contract.
 
+Compiler-owned DOM interactions retain the same task frame, cancellation, descendant joining, and
+structural settlement guarantees as public interaction hosts. When trace logging is disabled, their
+hot path omits the otherwise diagnostic-only interaction scope and frame-to-scope correlation; an
+enabled trace logger restores that metadata without changing application behavior.
+
 Compiler-known top-level component state uses deterministic numeric storage slots behind the
 ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested
 mutable containers and dynamically introduced fields retain the general reactive proxy path.

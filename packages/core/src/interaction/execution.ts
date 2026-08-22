@@ -66,8 +66,57 @@ export function runComponentInteraction<Result>(
 	controller: AbortController,
 	work: (scope: InteractionScope) => Result | PromiseLike<Result>
 ): Promise<Result> {
+	return executeComponentInteraction(
+		owner,
+		source,
+		generation,
+		priority,
+		controller,
+		true,
+		work
+	);
+}
+
+/**
+ * Executes a compiler-owned DOM interaction without allocating diagnostic metadata when component
+ * tracing is disabled. Structural task parenting and settlement still use the canonical frame.
+ */
+export function runCompiledComponentInteraction<Result>(
+	owner: AnyComponentInstance,
+	source: InteractionSource,
+	generation: number,
+	priority: InteractionPriority,
+	controller: AbortController,
+	work: () => Result | PromiseLike<Result>,
+	onTraceScope?: (scope: InteractionScope) => void
+): Promise<Result> {
+	return executeComponentInteraction(
+		owner,
+		source,
+		generation,
+		priority,
+		controller,
+		false,
+		work,
+		onTraceScope
+	);
+}
+
+function executeComponentInteraction<Result>(
+	owner: AnyComponentInstance,
+	source: InteractionSource,
+	generation: number,
+	priority: InteractionPriority,
+	controller: AbortController,
+	exposeScope: boolean,
+	work:
+		| ((scope: InteractionScope) => Result | PromiseLike<Result>)
+		| (() => Result | PromiseLike<Result>),
+	onTraceScope?: (scope: InteractionScope) => void
+): Promise<Result> {
 	const taskOwner = taskOwnerForHost(owner);
 	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
+	const startTrace = componentTraceStarter(owner);
 	let interactionScope: InteractionScope | undefined;
 	const execution = executeTaskFrame(
 		{
@@ -83,23 +132,27 @@ export function runComponentInteraction<Result>(
 			publicContext: false
 		},
 		() => {
-			const frame = currentTaskFrameRecord()!;
-			const scope: InteractionScope = Object.freeze({
-				id: nextInteractionId++,
-				owner,
-				source,
-				priority,
-				generation
-			});
-			interactionScope = scope;
-			interactionsByFrame.set(frame, scope);
-			const trace = componentTraceStarter(owner)?.('interaction', `interaction:${scope.id}`, {
-				source,
-				priority,
-				generation
-			});
-			if (trace) (interactionTraces ??= new WeakMap()).set(scope, trace);
-			return work(scope);
+			if (exposeScope || startTrace) {
+				const frame = currentTaskFrameRecord()!;
+				const scope: InteractionScope = Object.freeze({
+					id: nextInteractionId++,
+					owner,
+					source,
+					priority,
+					generation
+				});
+				interactionScope = scope;
+				interactionsByFrame.set(frame, scope);
+				const trace = startTrace?.('interaction', `interaction:${scope.id}`, {
+					source,
+					priority,
+					generation
+				});
+				if (trace) (interactionTraces ??= new WeakMap()).set(scope, trace);
+				onTraceScope?.(scope);
+				return (work as (scope: InteractionScope) => Result | PromiseLike<Result>)(scope);
+			}
+			return (work as () => Result | PromiseLike<Result>)();
 		}
 	);
 	const synchronousError = taskFrameSynchronousError(execution);

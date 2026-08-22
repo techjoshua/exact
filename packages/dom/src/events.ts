@@ -4,6 +4,7 @@ import {
 	createErrorReport,
 	handleComponentError,
 	observeComponentAsync,
+	runCompiledComponentInteraction,
 	runComponentInteraction,
 	traceInteractionPhase,
 	unwrap,
@@ -134,9 +135,19 @@ function runInteractiveEvent<Result>(
 	try {
 		const result = runWithPriority('interactive', () =>
 			batch(() =>
-				runEventInteraction(owner, work, (scope) => {
-					interaction = scope;
-				})
+				owner
+					? runCompiledComponentInteraction(
+							owner,
+							'event',
+							nextEventGeneration(owner),
+							'interactive',
+							new AbortController(),
+							work,
+							(scope) => {
+								interaction = scope;
+							}
+						)
+					: work()
 			)
 		);
 		traceInteractionPhase(interaction, 'handler-complete');
