@@ -45,8 +45,10 @@ logging disabled, an ordinary callback executes and publishes its synchronous re
 without constructing an abort controller, task frame, settlement promise, interaction scope, or
 trace arguments. The event's publication batch deduplicates reactive work without constructing
 inverse mutations or version-range journals; explicit rollback-capable batches and optimistic task
-journals retain those records, and nesting inside either upgrades the event lane. DOM traversal and
-reconciliation counters are created only after an enabled trace
+journals retain inverse records, and nesting inside either upgrades the event lane. Durable
+mutation-version ranges are retained only by optimistic journals and work nested inside them; an
+ordinary synchronous `batch()` does not allocate fencing metadata it cannot expose. DOM traversal
+and reconciliation counters are created only after an enabled trace
 has materialized its interaction scope. Event generations and task-owner lookup are deferred by the
 same boundary. If the callback synchronously starts a task or explicitly joins work, that
 operation materializes the canonical interaction frame on demand and retains cancellation,
