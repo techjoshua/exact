@@ -38,10 +38,11 @@ contract without allocating a property-keyed top-level container for compiled fi
 Compiler render programs also carry production hydration identities. Elements and host-property
 slots use compact compiler indexes; structural child ranges use their emitted identities. Only
 scalar text slots retain a local path because markerless HTML has no identity marker for a text
-node. The adopter builds one ephemeral identity index for the bounded program region and releases
-it after the claim, so variable-width structural children do not invalidate later addresses and no
-hydration index remains in live component state. Every claimed tag, namespace, compiler identity,
-and dynamic marker pair is still checked. A stale or malformed plan
+node. The adopter builds one ephemeral identity index for the bounded program region, removes the
+claimed elements' compiler-only identity attributes, and releases the index after the claim. Thus,
+variable-width structural children do not invalidate later addresses, and neither the index nor
+hydration-only element attributes remain in live component state. Every claimed tag, namespace,
+compiler identity, and dynamic marker pair is still checked. A stale or malformed plan
 therefore fails closed into the existing hydration recovery path, while markerless and generic
 hydration remain available for inputs that do not carry the compiler plan.
 
