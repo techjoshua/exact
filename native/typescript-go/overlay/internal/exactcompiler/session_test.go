@@ -151,17 +151,15 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		`["text",`,
 		`bindings: [["text", 0]]`,
 		"ssrParts:",
-		"kind: \"node-open\"",
-		"kind: \"node-close\"",
 		"() => __exactVNode(\"span\"",
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Count(response.Code, `kind: "node-open"`) != 1 ||
-		strings.Count(response.Code, `kind: "node-close"`) != 1 {
-		t.Fatalf("nested planned intrinsics retained generic cell boundaries:\n%s", response.Code)
+	if strings.Contains(response.Code, `kind: "node-open"`) ||
+		strings.Contains(response.Code, `kind: "node-close"`) {
+		t.Fatalf("finite planned intrinsics retained generic cell boundaries:\n%s", response.Code)
 	}
 }
 
@@ -202,8 +200,8 @@ func TestSessionRetainsServerMarkerProgramsInCompleteIsomorphicArtifacts(t *test
 	}
 	if !strings.Contains(response.Code, "ssrParts:") ||
 		!strings.Contains(response.Code, "ssrOperations:") ||
-		strings.Count(response.Code, `kind: "node-open"`) != 1 ||
-		strings.Count(response.Code, `kind: "node-close"`) != 1 {
+		strings.Contains(response.Code, `kind: "node-open"`) ||
+		strings.Contains(response.Code, `kind: "node-close"`) {
 		t.Fatalf("complete isomorphic artifact omitted its compact SSR tape:\n%s", response.Code)
 	}
 }

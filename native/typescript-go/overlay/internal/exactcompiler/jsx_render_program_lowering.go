@@ -500,11 +500,6 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	build.nodes = append(build.nodes, renderProgramNode{
 		id: nodeIndex, path: append([]int(nil), path...), tag: tag, namespace: namespace,
 	})
-	// The compiled render program owns one DOM range. Nested intrinsic nodes are addressed by the
-	// dense topology and do not need the generic cell boundary emitted for independent VNodes.
-	if nodeIndex == 0 {
-		build.ssrOperation("node-open", nodeIndex)
-	}
 	build.write("<" + tag)
 	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
 		return false
@@ -584,9 +579,6 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	}
 	if !voidElement(tag) {
 		build.write("</" + tag + ">")
-	}
-	if nodeIndex == 0 {
-		build.ssrOperation("node-close", nodeIndex)
 	}
 	return true
 }
