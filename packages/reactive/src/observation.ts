@@ -16,9 +16,9 @@ import {
 	removeQueuedComputation
 } from './internal/scheduler.js';
 
-import { reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
+import { iterateKey, reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
 
-import { isReactiveValue, unwrap } from './internal/values.js';
+import { isReactive, isReactiveValue, unwrap } from './internal/values.js';
 
 import type {
 	EffectScopeImpl,
@@ -38,6 +38,7 @@ import { defaultReactiveOptions, proxyRefs } from './proxy/state.js';
 import { hasChanged, isReactiveContainer } from './change-detection.js';
 
 const inactiveWatch: StopHandle = () => undefined;
+const collectionRefs = new WeakMap<object, ReactiveRef<object>>();
 
 /** Configures framework ownership notification for a watcher that may retire after execution. */
 export type RetainedWatchOptions = WatchOptions & {
@@ -343,4 +344,27 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
 	}
 
 	return undefined;
+}
+
+/** Returns the structural dependency source for a reactive iterable collection. */
+export function collectionRef<T extends object>(value: T): ReactiveRef<T> | undefined {
+	const existing = ref(value);
+	if (existing) return existing;
+	if (!isReactive(value)) return undefined;
+	let source = collectionRefs.get(value) as ReactiveRef<T> | undefined;
+	if (source) return source;
+	const target = unwrap(value) as object;
+	source = {
+		target,
+		key: iterateKey,
+		get() {
+			track(target, iterateKey);
+			return value;
+		},
+		set() {
+			throw new TypeError('Cannot replace a collection through its structural reference');
+		}
+	};
+	collectionRefs.set(value, source as ReactiveRef<object>);
+	return source;
 }

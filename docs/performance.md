@@ -128,8 +128,10 @@ client host renderer.
 Compiler-known keyed-list expressions in those slots are grouped into one render lane. Mounting,
 hydration, and refresh bracket the complete group with one component render transaction, so list
 registrations are reconciled together instead of leaving one retained reaction and lifecycle pass
-per structural expression. Dynamically indexed or otherwise unproven list expressions retain the
-generic structural path.
+per structural expression. Each compiled list binding carries the collection's stable structural
+reference, including collections stored in indexed component state, so in-place mutations schedule
+that lane directly instead of depending on incidental reads during DOM binding. Dynamically indexed
+or otherwise unproven list expressions retain the generic structural path.
 
 Planned scalar and property slots expose their computation directly to the render program's owned
 watcher. They do not allocate an intermediate computed value each time the watcher reads a slot.

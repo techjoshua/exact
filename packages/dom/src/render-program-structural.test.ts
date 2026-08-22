@@ -7,7 +7,7 @@ import {
 	createPreparedRenderProgram,
 	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
-import { flushSync, reactive, ref } from '@exactjs/reactive';
+import { collectionRef, flushSync, indexedReactive, reactive, ref } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 import { jsx } from './test-support/native-vnode.js';
@@ -48,6 +48,43 @@ it('observes in-place collection mutations through a compiler-owned list lane', 
 	state.items.push({ id: 'b' });
 	flushSync();
 	expect(container.querySelectorAll('li')).toHaveLength(2);
+});
+
+it('observes an indexed-state collection without a parent-path source', () => {
+	const state = indexedReactive<{ items: Array<{ id: string }> }>(['items']);
+	state.items = [{ id: 'a' }, { id: 'b' }];
+	const cache = new Map();
+	const source = collectionRef(state.items)!;
+	const vnode = createCompiledRenderProgram(
+		'render-program:indexed-list-slot',
+		() => ({
+			version: 3,
+			id: 'render-program:indexed-list-slot',
+			namespace: 'html',
+			template: '<ul><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
+			parts: [],
+			slots: [['child', 'items']],
+			bindings: [['lists', [0]]],
+			nodes: [[0, 'ul']]
+		}),
+		[
+			() =>
+				createVNode(Fragment, {
+					list: {
+						collection: state.items,
+						source,
+						key: (item: { id: string }) => item.id,
+						render: (item: { id: string }) => createCompiledVNode('li', {}, item.id),
+						cache
+					}
+				})
+		]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	state.items.splice(0, 2, state.items[1]!, state.items[0]!);
+	flushSync();
+	expect([...container.querySelectorAll('li')].map((node) => node.textContent)).toEqual(['b', 'a']);
 });
 
 it('owns a stateful native component lifecycle in an explicit component slot', () => {
