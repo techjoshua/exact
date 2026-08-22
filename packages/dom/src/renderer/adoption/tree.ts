@@ -42,6 +42,7 @@ import {
 	adoptStaticChildren,
 	adoptStaticChildrenRange,
 	closingMarkerIndex,
+	compactAdoptedElementRange,
 	createRangeAnchor
 } from './boundaries.js';
 import { adoptKeyedListChildren } from './keyed.js';
@@ -156,6 +157,7 @@ export function adoptStaticMountedInner(
 			mounted.children = children;
 			refreshComponentRoot(instance);
 			instance.markMounted();
+			compactAdoptedElementRange(mounted, start, nodes[endIndex] as Comment);
 			return { mounted, next: endIndex + 1 };
 		} catch {
 			unmountMounted(mounted);
@@ -191,8 +193,7 @@ export function adoptStaticMountedInner(
 		}
 		mounted.children = children;
 		if (isCellVNode(vnode)) {
-			// Cells are patched by their owning component render; their marker range
-			// still provides stable DOM ownership during hydration.
+			compactAdoptedElementRange(mounted, start, end);
 			return { mounted, next: endIndex + 1 };
 		}
 		mounted.stop = watch(

@@ -57,6 +57,24 @@ export function matchesProgramIdentity(element: Element, id: string | number): b
 	return typeof id === 'number' || element.getAttribute('data-exact-id') === id;
 }
 
+/**
+ * Releases SSR cell envelopes whose sole owned value is a compiler-claimed element.
+ *
+ * This runs only after the complete render program has been adopted and bound. The element then
+ * carries runtime ownership directly, while nested component or structural ranges keep their own
+ * markers until their respective owners claim them.
+ */
+export function releaseClaimedProgramCells(elements: readonly Element[]): void {
+	for (const element of elements) {
+		const start = element.previousSibling;
+		const end = element.nextSibling;
+		if (!(start instanceof Comment) || !start.data.startsWith('exact:cell:')) continue;
+		if (!(end instanceof Comment) || end.data !== `/${start.data}`) continue;
+		start.remove();
+		end.remove();
+	}
+}
+
 /** Claims one compiler-identified structural child marker. */
 export function claimProgramChildSlot(
 	index: ProgramHydrationIndex,
