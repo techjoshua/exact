@@ -16,17 +16,18 @@ describe('compiler-generated component updates', () => {
 		state.count = 1;
 		state.label = 'first';
 		const apply = vi.fn();
+		const updates = {
+			bindings: [
+				['count', 1, 0],
+				['label', 2, 0]
+			] as const,
+			apply
+		};
 		const type = Object.assign(() => () => null, {
 			[exactComponentType]: 'test:component-updates',
 			[exactComponentContract]: {
 				definition: {
-					updates: {
-						bindings: [
-							['count', 1, 0],
-							['label', 2, 0]
-						],
-						apply
-					}
+					updates
 				}
 			}
 		});
@@ -38,7 +39,7 @@ describe('compiler-generated component updates', () => {
 				renderProgram: { parentInstance: owner }
 			} as unknown as Mounted;
 			const target = { mounted, stopBindings: releases, valid: true };
-			bindCompiledComponentUpdate(target, index);
+			bindCompiledComponentUpdate(target, index, updates);
 			return target;
 		});
 

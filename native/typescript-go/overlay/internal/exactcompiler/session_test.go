@@ -214,7 +214,7 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 	for _, expected := range []string{
 		`__exactBindProgramText(__exactBindingTarget, 2, true)`,
 		`__exactBindProgramProperties(__exactBindingTarget, 0, 0, true)`,
-		`__exactBindComponentUpdate(__exactBindingTarget, 0)`,
+		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`updates: __exact_component_updates_1`,
 		`bindings: [["count", 1, 0], ["disabled", 2, 0]]`,
 		`apply: (__exactTargets, __exactDirtyLow, __exactDirtyHigh) =>`,
@@ -249,8 +249,8 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`__exactBindComponentUpdate(__exactBindingTarget, 0)`,
-		`__exactBindComponentUpdate(__exactBindingTarget, 1)`,
+		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
+		`__exactBindComponentUpdate(__exactBindingTarget, 1, __exact_component_updates_1)`,
 		`bindings: [["first", 1, 0], ["second", 2, 0]]`,
 		`const __exactTarget0 = __exactTargets[0]`,
 		`const __exactTarget1 = __exactTargets[1]`,
