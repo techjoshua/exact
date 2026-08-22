@@ -54,7 +54,9 @@ general interaction contract.
 When the compiler proves a local intrinsic handler has no parameter and does not read implicit
 `arguments`, delegated dispatch calls it without redefining `Event.currentTarget`. Handlers with a
 parameter, implicit argument access, opaque identity, or runtime provenance retain the complete
-event adaptation path.
+event adaptation path. Compiler-owned handlers also rely on the focused preservation scopes around
+the DOM writes they trigger instead of capturing focus around the complete event. This avoids a
+redundant document focus read and preserves an authored handler's explicit focus or blur decision.
 
 Focus preservation is transaction state on the renderer root rather than a process-wide side table.
 Nested DOM work reuses the outer transaction, and an event releases its captured focus and selection

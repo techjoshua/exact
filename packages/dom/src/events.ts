@@ -82,24 +82,12 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 			if (handler) {
 				const current = cursor;
 				const closed = handlers!.has(closedInteractionKey(type));
-				preserveFocus(root, () => {
-					try {
-						const owner = findOwnerInstance(current);
-						const result = runInteractiveEvent(
-							root,
-							owner,
-							() =>
-								closed
-									? callClosedDelegatedHandler(handler, current, event)
-									: callDelegatedHandler(handler, current, event),
-							closed || handlers!.has(directInteractionKey(type))
-						);
-						observeComponentAsync(owner, result, 'event', type);
-					} catch (error) {
-						const owner = findOwnerInstance(current);
-						handleComponentError(owner, createErrorReport(error, 'event', owner, type));
-					}
-				});
+				const compiled = closed || handlers!.has(directInteractionKey(type));
+				if (compiled) dispatchDelegatedBinding(root, current, event, type, handler, closed, true);
+				else
+					preserveFocus(root, () =>
+						dispatchDelegatedBinding(root, current, event, type, handler, false, false)
+					);
 			}
 			return !event.cancelBubble;
 		});
@@ -107,6 +95,33 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 
 	container.addEventListener(type, listener);
 	listeners.set(type, listener);
+}
+
+/** Dispatches one matched delegated binding through its selected interaction lane. */
+function dispatchDelegatedBinding(
+	root: Root,
+	current: Element,
+	event: Event,
+	type: string,
+	handler: EventListener,
+	closed: boolean,
+	direct: boolean
+): void {
+	const owner = findOwnerInstance(current);
+	try {
+		const result = runInteractiveEvent(
+			root,
+			owner,
+			() =>
+				closed
+					? callClosedDelegatedHandler(handler, current, event)
+					: callDelegatedHandler(handler, current, event),
+			direct
+		);
+		observeComponentAsync(owner, result, 'event', type);
+	} catch (error) {
+		handleComponentError(owner, createErrorReport(error, 'event', owner, type));
+	}
 }
 
 /** Returns the colocated map key that marks one compiler-owned event binding. */
