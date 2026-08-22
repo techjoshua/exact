@@ -73,7 +73,7 @@ export type ExactRenderProgramInvocation = Readonly<{
 	program: BrandedRenderProgram;
 	readers: readonly (() => unknown)[] | ((index: number) => unknown);
 	/** Compiler-emitted direct property-group writers indexed by the binding descriptor. */
-	propertyWriter?: (group: number, target: Record<string, unknown>) => void;
+	propertyWriter?: (group: number, apply: (name: string, value: unknown) => void) => void;
 	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
 	fallback?: () => VNode;
 }>;
@@ -130,7 +130,7 @@ export function createPreparedRenderProgram(
 	branded: BrandedRenderProgram,
 	readers: readonly (() => unknown)[] | ((index: number) => unknown),
 	fallback?: () => VNode,
-	propertyWriter?: (group: number, target: Record<string, unknown>) => void
+	propertyWriter?: (group: number, apply: (name: string, value: unknown) => void) => void
 ): VNode {
 	const domain = currentComponentDomain();
 	return {

@@ -108,9 +108,9 @@ it('tracks and applies one compiler-owned property writer operation', () => {
 		program,
 		[() => undefined, () => undefined],
 		undefined,
-		(_group, target) => {
-			target.title = String(state.count);
-			target.onClick = () => state.count++;
+		(_group, apply) => {
+			apply('title', String(state.count));
+			apply('onClick', () => state.count++);
 		}
 	);
 	const container = document.createElement('div');

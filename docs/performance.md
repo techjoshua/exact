@@ -50,8 +50,9 @@ only their local expression readers and optional recovery function to that share
 not allocate a descriptor factory or repeat cache lookup and freezing. The DOM executor retains
 independent reactions for text slots and for the compiler-known property group on each target
 element. Closed client output emits each property group as one direct writer operation: one
-invocation fills the target record in browser-safe order without redispatching through the generic
-slot reader for every property, and those properties are omitted from the client slot dispatcher.
+invocation applies its known keys in browser-safe order without allocating and enumerating a
+temporary props record or redispatching through the generic slot reader for every property. Those
+properties are omitted from the client slot dispatcher.
 Server and universal artifacts retain individual readers for SSR,
 while older precompiled clients continue through the runtime fallback. A change therefore
 evaluates only the affected target group instead of rebuilding props

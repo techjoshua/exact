@@ -264,23 +264,22 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 		}
 	}
 	group := lowering.factory.NewIdentifier("__exactGroup")
-	target := lowering.factory.NewIdentifier("__exactTarget")
+	apply := lowering.factory.NewIdentifier("__exactApply")
 	statements := make([]*ast.Node, 0, len(bindings))
 	for groupIndex, binding := range bindings {
 		assignments := make([]*ast.Node, 0, len(binding.slots))
 		for _, slotIndex := range binding.slots {
 			slot := build.slots[slotIndex]
-			member := lowering.factory.NewElementAccessExpression(
-				target,
-				nil,
-				lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone),
-				ast.NodeFlagsNone,
-			)
 			assignments = append(assignments, lowering.factory.NewExpressionStatement(
-				lowering.binary(
-					member,
-					ast.KindEqualsToken,
-					readers[slotIndex].AsArrowFunction().Body,
+				lowering.factory.NewCallExpression(
+					apply,
+					nil,
+					nil,
+					lowering.factory.NewNodeList([]*ast.Node{
+						lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone),
+						readers[slotIndex].AsArrowFunction().Body,
+					}),
+					ast.NodeFlagsNone,
 				),
 			))
 		}
@@ -297,7 +296,7 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 	}
 	parameters := lowering.factory.NewNodeList([]*ast.Node{
 		lowering.factory.NewParameterDeclaration(nil, nil, group, nil, nil, nil),
-		lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil),
+		lowering.factory.NewParameterDeclaration(nil, nil, apply, nil, nil, nil),
 	})
 	return lowering.factory.NewArrowFunction(
 		nil,

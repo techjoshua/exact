@@ -415,8 +415,8 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	if !strings.Contains(response.Code, `bindings: [["properties", [1]], ["properties", [0]]]`) {
 		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `(__exactGroup, __exactTarget) =>`) ||
-		!strings.Contains(response.Code, `__exactTarget["value"] = props.option`) {
+	if !strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
+		!strings.Contains(response.Code, `__exactApply("value", props.option)`) {
 		t.Fatalf("closed client output omitted the direct property writer:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactSlot === 0 ? undefined`) ||
