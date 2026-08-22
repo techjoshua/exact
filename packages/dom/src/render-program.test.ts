@@ -405,7 +405,7 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 	expect(container.querySelector('[data-exact-id="fallback"]')?.textContent).toBe('fallback');
 });
 
-it('claims marked SSR nodes from the compiler hydration tape without indexing the subtree', () => {
+it('claims marked SSR nodes through compiler-generated hydration calls without indexing the subtree', () => {
 	const state = reactive({ label: '', disabled: false });
 	const vnode = createCompiledRenderProgram(
 		'render-program:hydration-plan',
@@ -513,7 +513,7 @@ it('claims a variable-width structural child range before later planned elements
 	expect(nested?.textContent).toBe('client');
 });
 
-it('rejects a marked SSR program when its hydration tape does not match the DOM', () => {
+it('rejects a marked SSR program when its generated hydration claims do not match the DOM', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:invalid-hydration-plan',
 		() => ({

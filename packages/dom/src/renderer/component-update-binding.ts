@@ -1,5 +1,5 @@
 import type { AnyComponentInstance } from '@exactjs/core';
-import { readPreparedExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
+import type { ExactCompiledComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
 import {
 	reactiveOwnDependencies,
@@ -37,16 +37,12 @@ type ProgramBindingTarget = {
  */
 export function bindCompiledComponentUpdate(
 	target: ExactRenderProgramBindingTarget,
-	index: number
+	index: number,
+	updates: ExactCompiledComponentUpdateContract
 ): void {
 	const context = target as ProgramBindingTarget;
 	const owner = context.mounted.renderProgram?.parentInstance;
 	if (!owner) {
-		context.valid = false;
-		return;
-	}
-	const updates = readPreparedExactCompiledComponentContract(owner.type).definition.updates;
-	if (!updates) {
 		context.valid = false;
 		return;
 	}
@@ -83,9 +79,7 @@ export function bindCompiledComponentUpdate(
 
 /** Converts one mutation-version snapshot into the component's generated dirty operation mask. */
 function publishCompiledComponentUpdate(
-	updates: NonNullable<
-		ReturnType<typeof readPreparedExactCompiledComponentContract>['definition']['updates']
-	>,
+	updates: ExactCompiledComponentUpdateContract,
 	state: CompiledComponentUpdateState
 ): void {
 	let dirtyLow = 0;

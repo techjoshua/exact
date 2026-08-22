@@ -878,11 +878,13 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	}
 	directUpdates := []renderProgramDirectUpdate{}
 	var componentTarget *int
+	componentUpdates := ""
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
 		directUpdates = lowering.directRenderProgramUpdates(build)
-		if target, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
+		if target, updates, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
 			componentTarget = &target
+			componentUpdates = updates
 		}
 	}
 	if lowering.target != TargetServer {
@@ -891,7 +893,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
 		if len(bindings) != 0 || len(build.nodes) > 1 {
-			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget)))
+			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget, componentUpdates)))
 		} else {
 			members = append(
 				members,

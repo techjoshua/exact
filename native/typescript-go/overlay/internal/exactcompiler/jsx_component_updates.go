@@ -15,6 +15,7 @@ type componentUpdateOperation struct {
 
 type componentUpdateBuild struct {
 	component  Component
+	name       string
 	bindings   map[string]renderProgramDirtyMask
 	targets    int
 	operations []componentUpdateOperation
@@ -24,24 +25,25 @@ type componentUpdateBuild struct {
 func (lowering *jsxLowering) registerComponentUpdates(
 	identityNode *ast.Node,
 	updates []renderProgramDirectUpdate,
-) (int, bool) {
+) (int, string, bool) {
 	if len(updates) == 0 {
-		return 0, false
+		return 0, "", false
 	}
 	component, exists := lowering.componentContaining(identityNode)
 	if !exists {
-		return 0, false
+		return 0, "", false
 	}
 	build := lowering.componentUpdates[component.Name]
 	if build == nil {
 		build = &componentUpdateBuild{
 			component: component,
+			name:      lowering.materializedName("component_updates", component.Start),
 			bindings:  make(map[string]renderProgramDirtyMask),
 		}
 		lowering.componentUpdates[component.Name] = build
 	}
 	if len(build.operations)+len(updates) > 64 {
-		return 0, false
+		return 0, "", false
 	}
 	target := build.targets
 	build.targets++
@@ -62,7 +64,7 @@ func (lowering *jsxLowering) registerComponentUpdates(
 			build.bindings[key] = mask
 		}
 	}
-	return target, true
+	return target, build.name, true
 }
 
 // componentContaining returns the narrowest durable component span that owns a JSX region.
@@ -96,7 +98,7 @@ func (lowering *jsxLowering) emitComponentUpdateDefinitions() map[string]string 
 	names := make(map[string]string, len(components))
 	for _, component := range components {
 		build := lowering.componentUpdates[component]
-		name := lowering.materializedName("component_updates", build.component.Start)
+		name := build.name
 		names[component] = name
 		lowering.clientDefinitions = append(lowering.clientDefinitions,
 			lowering.factory.NewVariableStatement(

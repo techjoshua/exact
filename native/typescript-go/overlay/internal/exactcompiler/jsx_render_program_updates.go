@@ -25,6 +25,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 	build *renderProgramBuild,
 	directUpdates []renderProgramDirectUpdate,
 	componentTarget *int,
+	componentUpdates string,
 ) *ast.Node {
 	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
 	statements := make([]*ast.Node, 0, len(build.slots)+2)
@@ -122,6 +123,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 		call(
 			lowering.names.bindComponentUpdate,
 			lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
+			lowering.factory.NewIdentifier(componentUpdates),
 		)
 	} else if len(stateBindings) != 0 {
 		call(
