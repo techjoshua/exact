@@ -9,6 +9,7 @@ import {
 	currentTaskFrameRecord,
 	executeTaskFrame,
 	taskFrameSynchronousError,
+	withDeferredTaskFrame,
 	type TaskFrameRecord
 } from '../tasks/frame-runtime.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
@@ -66,15 +67,7 @@ export function runComponentInteraction<Result>(
 	controller: AbortController,
 	work: (scope: InteractionScope) => Result | PromiseLike<Result>
 ): Promise<Result> {
-	return executeComponentInteraction(
-		owner,
-		source,
-		generation,
-		priority,
-		controller,
-		true,
-		work
-	);
+	return executeComponentInteraction(owner, source, generation, priority, controller, true, work);
 }
 
 /**
@@ -100,6 +93,76 @@ export function runCompiledComponentInteraction<Result>(
 		work,
 		onTraceScope
 	);
+}
+
+/**
+ * Executes a compiled interaction directly until task work requests a structural parent.
+ * Trace-enabled builds retain the complete observable interaction contract from the start.
+ */
+export function runDirectCompiledComponentInteraction<Result>(
+	owner: AnyComponentInstance,
+	source: InteractionSource,
+	generation: number,
+	priority: InteractionPriority,
+	work: () => Result | PromiseLike<Result>,
+	onTraceScope?: (scope: InteractionScope) => void
+): Result | PromiseLike<Result> {
+	if (componentTraceStarter(owner))
+		return runCompiledComponentInteraction(
+			owner,
+			source,
+			generation,
+			priority,
+			new AbortController(),
+			work,
+			onTraceScope
+		);
+
+	const taskOwner = taskOwnerForHost(owner);
+	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
+	let frame: TaskFrameRecord | undefined;
+	let execution: Promise<Result> | undefined;
+	let resolveForeground: ((value: Result | PromiseLike<Result>) => void) | undefined;
+	let rejectForeground: ((error: unknown) => void) | undefined;
+	const materialize = (): TaskFrameRecord => {
+		if (frame) return frame;
+		const foreground = new Promise<Result>((resolve, reject) => {
+			resolveForeground = resolve;
+			rejectForeground = reject;
+		});
+		execution = executeTaskFrame(
+			{
+				owner: taskOwner,
+				generation,
+				activation: 'interaction',
+				label: `${source} interaction`,
+				concurrency: 'latest',
+				priority: priority === 'interactive' ? 'immediate' : priority,
+				readiness: priority === 'deferred' ? 'nonblocking' : 'blocking',
+				publicContext: false,
+				detached: true
+			},
+			() => {
+				frame = currentTaskFrameRecord()!;
+				return foreground;
+			}
+		);
+		return frame!;
+	};
+
+	let directResult: Result | PromiseLike<Result>;
+	try {
+		directResult = withDeferredTaskFrame(materialize, work);
+	} catch (error) {
+		if (execution) {
+			rejectForeground!(error);
+			void execution.catch(() => undefined);
+		}
+		throw error;
+	}
+	if (!execution) return directResult;
+	resolveForeground!(directResult);
+	return execution;
 }
 
 function executeComponentInteraction<Result>(

@@ -19,6 +19,7 @@ import {
 	attachTaskFrameSettlement,
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
+	materializeDeferredTaskFrame,
 	currentTaskOwnerRecord,
 	frameForTaskContext,
 	taskOwnerRecord,
@@ -157,7 +158,9 @@ function invokeDefinition<Args extends unknown[], Result>(
 	// Dependency-driven activations are durable-owner roots. A dependency can publish while an
 	// earlier generation's continuation is temporarily restored; inheriting that ambient frame
 	// would make the replacement generation a child of the generation it is about to supersede.
-	const ambient = dependencyDriven ? explicitParent : (explicitParent ?? currentTaskFrameRecord());
+	const ambient = dependencyDriven
+		? explicitParent
+		: (explicitParent ?? currentTaskFrameRecord() ?? materializeDeferredTaskFrame());
 	const owner =
 		explicitOwner ??
 		ambient?.owner ??

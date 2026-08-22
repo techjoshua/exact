@@ -17,6 +17,7 @@ import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
 	ensureDelegated,
+	directInteractionKey,
 	eventTypeForProp,
 	requiresDirectListener,
 	runEventInteraction
@@ -142,10 +143,12 @@ export function setElementProp(
 		return;
 	}
 
-	if (/^on[A-Z]/.test(key)) {
-		const { type, capture } = eventTypeForProp(key);
+	const directInteraction = key.startsWith('__exactDirectInteraction:');
+	const eventKey = directInteraction ? key.slice('__exactDirectInteraction:'.length) : key;
+	if (/^on[A-Z]/.test(eventKey)) {
+		const { type, capture } = eventTypeForProp(eventKey);
 		if (capture || requiresDirectListener(type)) {
-			setDirectEventHandler(root, element, key, type, value, capture);
+			setDirectEventHandler(root, element, key, type, value, capture, directInteraction);
 			return;
 		}
 		let handlers = eventHandlers.get(element);
@@ -155,10 +158,14 @@ export function setElementProp(
 		}
 
 		if (typeof value === 'function') {
-			handlers.set(type, value as EventListener);
+			const handler = value as EventListener;
+			handlers.set(type, handler);
+			if (directInteraction) handlers.set(directInteractionKey(type), handler);
+			else handlers.delete(directInteractionKey(type));
 			ensureDelegated(root, type, eventContainerFor(root, element));
 		} else {
 			handlers.delete(type);
+			handlers.delete(directInteractionKey(type));
 		}
 		return;
 	}
@@ -232,7 +239,8 @@ function setDirectEventHandler(
 	key: string,
 	type: string,
 	value: unknown,
-	capture: boolean
+	capture: boolean,
+	directInteraction = false
 ): void {
 	const previous = directEventHandlers.get(element)?.get(key);
 	if (previous) {
@@ -247,10 +255,10 @@ function setDirectEventHandler(
 		preserveFocus(root, () => {
 			try {
 				const owner = findOwnerInstance(element);
+				const invoke = () =>
+					(handler as (this: Element, event: Event) => unknown).call(element, event);
 				const result = batch(() =>
-					runEventInteraction(owner, () =>
-						(handler as (this: Element, event: Event) => unknown).call(element, event)
-					)
+					runEventInteraction(owner, invoke, undefined, directInteraction)
 				);
 				observeComponentAsync(owner, result, 'event', type);
 			} catch (error) {

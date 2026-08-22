@@ -160,6 +160,7 @@ func (lowering *jsxLowering) propsWithReactivity(
 				if expression == nil {
 					continue
 				}
+				directInteraction := intrinsic && lowering.target != TargetServer && jsxEventAttribute(name)
 				expression = lowering.preserveContextualCallbackTypes(
 					expression,
 					tag,
@@ -174,6 +175,9 @@ func (lowering *jsxLowering) propsWithReactivity(
 						initializer,
 						!intrinsic,
 					)
+				}
+				if directInteraction {
+					name = "__exactDirectInteraction:" + name
 				}
 			default:
 				initializer = lowering.visitor.VisitNode(attribute.Initializer)

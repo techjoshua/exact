@@ -37,6 +37,42 @@ func TestJSXLoweringEmitsNativeRuntimeOperations(t *testing.T) {
 	}
 }
 
+func TestJSXLoweringSelectsLazyCompiledEventInteractions(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/direct-interaction.tsx",
+		Kind: "compile",
+		Source: `export function Counter(this: Component<{ count: number }>) {
+			return () => <button onClick={() => this.state.count++}>Count</button>;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `"__exactDirectInteraction:onClick"`) {
+		t.Fatalf("closed event handler did not select the direct interaction lane:\n%s", response.Code)
+	}
+}
+
+func TestJSXLoweringKeepsComponentCallbacksOutsideTheNativeEventLane(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/general-interaction.tsx",
+		Kind: "compile",
+		Source: `declare function Button(props: { onClick(): void }): unknown;
+		export function Link(this: Component<{}>, props: { navigate(): void }) {
+			return () => <Button onClick={props.navigate} />;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, `"__exactDirectInteraction:onClick"`) {
+		t.Fatalf("component callback prop incorrectly selected the native event lane:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `onClick:`) {
+		t.Fatalf("component callback prop was not preserved:\n%s", response.Code)
+	}
+}
+
 func TestModuleDeclarativeCollectionRetainsReactiveComponentProps(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "C:/tmp/declarative-component-props.tsx",
