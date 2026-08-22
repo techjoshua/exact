@@ -4,7 +4,7 @@ import type { AnyComponentFunction, AnyComponentInstance } from './contracts.js'
 
 /** Opaque task capability state retained only by components whose task runtime is reachable. */
 export type ComponentTaskCapabilityState = Readonly<{
-	owner: unknown;
+	owner?: unknown;
 	observer?: unknown;
 }>;
 

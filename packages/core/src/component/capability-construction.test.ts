@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { exactComponentContract, exactComponentType } from '../component-contracts.js';
-import { taskOwnerForHost } from '../tasks/owner-hosts.js';
+import { peekTaskOwnerForHost, taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
 import { createComponentInstance, createFrameworkFixtureComponentInstance } from './runtime.js';
@@ -71,6 +71,45 @@ describe('compiled component capability construction', () => {
 		}, {});
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
+	});
+
+	it('materializes an interaction-only task owner on first structural request', () => {
+		const implementation = function InteractivePanel(this: Component<{}>) {
+			return () => null;
+		};
+		const InteractivePanel = Object.assign(implementation, {
+			[exactComponentType]: 'component:InteractivePanel',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					state: [],
+					tasks: [],
+					reactive: [],
+					render: 'returned-function' as const,
+					capabilities: ['interactions'] as const
+				}
+			}
+		}) as ComponentFunction<{}, Record<string, unknown>>;
+
+		const materialized = createComponentInstance(InteractivePanel, {});
+		expect(peekTaskOwnerForHost(materialized)).toBeUndefined();
+		expect(taskOwnerForHost(materialized)).toBeDefined();
+		expect(peekTaskOwnerForHost(materialized)).toBeDefined();
+		materialized.unmount();
+
+		const neverUsed = createComponentInstance(InteractivePanel, {});
+		expect(peekTaskOwnerForHost(neverUsed)).toBeUndefined();
+		neverUsed.unmount();
+		expect(taskOwnerForHost(neverUsed)).toBeUndefined();
 	});
 
 	it('rejects raw functions at the compiled construction boundary', () => {

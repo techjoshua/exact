@@ -48,8 +48,10 @@ has materialized its interaction scope. Event generations and task-owner lookup 
 same boundary. If the callback synchronously starts a task or explicitly joins work, that
 operation materializes the canonical interaction frame on demand and retains cancellation,
 descendant joining, and structural settlement. An enabled trace logger constructs that same frame
-at entry so every phase remains observable. Public and runtime-authored event hosts retain the
-general interaction contract.
+at entry so every phase remains observable. Components whose compiled contract contains interactions
+but no task, continuation, compatibility, or resumption work also materialize their durable task
+owner only at that boundary. An unused provider is removed at unmount without constructing the
+owner. Public and runtime-authored event hosts retain the general interaction contract.
 
 Compiler-known top-level component state uses deterministic numeric storage slots behind the
 ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested

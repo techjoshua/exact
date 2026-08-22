@@ -22,6 +22,22 @@ export function configureComponentTaskOwner(
 		execution?.plan ?? readPreparedExactCompiledComponentContract(instance.type).execution,
 		props
 	);
+	return configureComponentTaskObservation(instance, owner);
+}
+
+/** Connects an interaction-only owner without initializing an empty execution plan. */
+export function configureInteractionTaskOwner(
+	instance: AnyComponentInstance,
+	owner: TaskOwnerRecord
+): TaskObserver | undefined {
+	registerTaskOwnerHost(instance, owner);
+	return configureComponentTaskObservation(instance, owner);
+}
+
+function configureComponentTaskObservation(
+	instance: AnyComponentInstance,
+	owner: TaskOwnerRecord
+): TaskObserver | undefined {
 	const readiness = componentReadinessContext(instance);
 	if (readiness)
 		owner.registerReadiness = (taskGeneration, settlement, commit, discard) =>
