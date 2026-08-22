@@ -52,11 +52,18 @@ export function patchChildren(
 		preserveFocus(root, () => {
 			if (oldChildren.length === 1 && nextChildren.length === 1) {
 				const next = childToVNode(nextChildren[0]!);
-				if (next) {
-					const patched = patch(root, parent, oldChildren[0], next, parentInstance, parentScope);
-					completeChildReconciliation(root, parentInstance, structuralOwner);
-					return [patched];
-				}
+				if (next)
+					return [
+						patchSingleChildInner(
+							root,
+							parent,
+							oldChildren[0]!,
+							next,
+							parentInstance,
+							parentScope,
+							structuralOwner
+						)
+					];
 			}
 			for (const child of nextChildren) if (!childToVNode(child)) countDomWork(root);
 			return patchChildrenInner(
@@ -85,8 +92,31 @@ export function patchSingleChild(
 ): Mounted {
 	if (root.interactionWork) root.interactionWork.reconciliations++;
 	const patched = withDomWork(root, () =>
-		preserveFocus(root, () => patch(root, parent, oldChild, next, parentInstance, parentScope))
+		preserveFocus(root, () =>
+			patchSingleChildInner(
+				root,
+				parent,
+				oldChild,
+				next,
+				parentInstance,
+				parentScope,
+				structuralOwner
+			)
+		)
 	);
+	return patched;
+}
+
+function patchSingleChildInner(
+	root: Root,
+	parent: Node,
+	oldChild: Mounted,
+	next: VNode,
+	parentInstance?: AnyComponentInstance,
+	parentScope?: EffectScope,
+	structuralOwner?: Mounted
+): Mounted {
+	const patched = patch(root, parent, oldChild, next, parentInstance, parentScope);
 	completeChildReconciliation(root, parentInstance, structuralOwner);
 	return patched;
 }
