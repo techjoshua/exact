@@ -1,2 +1,6 @@
-/** Framework-only watcher retention contract used by renderers to omit inert ownership. */
-export { watchRetained, type RetainedWatchOptions } from '../observation.js';
+/** Framework-only watcher retention contracts used by renderers to omit inert ownership. */
+export {
+	watchRetained,
+	type OwnedRetainedWatch,
+	type RetainedWatchOptions
+} from '../observation.js';

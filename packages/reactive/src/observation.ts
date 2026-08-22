@@ -45,7 +45,14 @@ const collectionRefs = new WeakMap<object, ReactiveRef<object>>();
 export type RetainedWatchOptions = WatchOptions & {
 	/** Runs once when the watcher releases its dependencies and scope registration. */
 	onRelease?(): void;
+	/** Returns the shared reaction object for framework owners instead of allocating a handle. */
+	owned?: boolean;
 };
+
+/** Framework-owned retained reaction whose shared stop method avoids a per-binding handle closure. */
+export type OwnedRetainedWatch = Readonly<{
+	stop(): void;
+}>;
 
 /** Creates a reactive proxy that tracks reads and notifies watchers when writable state changes. */
 export function reactive<T extends object>(
@@ -170,9 +177,19 @@ export function watch(
  */
 export function watchRetained(
 	fn: () => void,
+	scheduler: (() => void) | undefined,
+	options: RetainedWatchOptions & { owned: true }
+): OwnedRetainedWatch | undefined;
+export function watchRetained(
+	fn: () => void,
+	scheduler?: () => void,
+	options?: RetainedWatchOptions
+): StopHandle | undefined;
+export function watchRetained(
+	fn: () => void,
 	scheduler?: () => void,
 	options: RetainedWatchOptions = {}
-): StopHandle | undefined {
+): StopHandle | OwnedRetainedWatch | undefined {
 	const scope = resolveObservationScope(options);
 	const reaction = new RetainedReaction(fn, scheduler, options, scope);
 
@@ -186,7 +203,7 @@ export function watchRetained(
 		reaction.stop();
 		throw error;
 	}
-	return reaction.active ? reaction.stopHandle : undefined;
+	return reaction.active ? (options.owned ? reaction : () => reaction.stop()) : undefined;
 }
 
 /** Shared executor for retained watchers; instances store data rather than method closures. */
@@ -195,7 +212,6 @@ class RetainedReaction implements Reaction {
 	scheduled = false;
 	pendingPriority: Reaction['pendingPriority'];
 	readonly deps = new Set<Dep>();
-	readonly stopHandle = () => this.stop();
 
 	constructor(
 		private readonly fn: () => void,
