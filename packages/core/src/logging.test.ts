@@ -29,6 +29,19 @@ describe('@exactjs/core logging', () => {
 		}
 	});
 
+	it('does not traverse component contexts for disabled default trace logging', () => {
+		const instance = {
+			ambientContexts: undefined,
+			parent: {
+				get contexts(): never {
+					throw new Error('disabled tracing traversed component contexts');
+				}
+			}
+		};
+
+		expect(componentLogMethod(instance as never, 'trace')).toBeUndefined();
+	});
+
 	it('does not evaluate lazy log payloads for disabled levels', () => {
 		const log = vi.fn();
 		const logger: Logger = {
