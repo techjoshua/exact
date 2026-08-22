@@ -72,6 +72,11 @@ mutable containers and dynamically introduced fields retain the general reactive
 Optimistic journals, SSR resumption, snapshots, and DevTools therefore observe the same state
 contract without allocating a property-keyed top-level container for compiled fields.
 
+Retained DOM and computed bindings store their callback, dependencies, scheduling state, and scope
+on compact reaction records whose executor methods are shared. Each binding retains one callable
+stop handle for public ownership; it does not construct separate run, schedule, error, and release
+method closures.
+
 Compiler render programs also carry production hydration identities. Elements and host-property
 slots use dense program-local indexes rather than repeating stable IDs in templates and node
 tables; structural child ranges use their emitted identities. The bounded adopter skips the
