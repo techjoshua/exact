@@ -9,10 +9,7 @@ import {
 	type ComponentInstance
 } from '@exactjs/core';
 import '@exactjs/core/runtime/contexts';
-import {
-	createExactCompatibilityArtifact,
-	isExactComponent
-} from '@exactjs/core/framework/component-contracts';
+import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import type {
 	AnyReactComponentType,
 	ReactClassInstance,
@@ -69,17 +66,9 @@ export {
 export * from './shared.js';
 
 import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../internals.js';
+import { markCompatibilityAdapter } from './adapter-identity.js';
 
 const adapterCache = new WeakMap<object, AnyComponentFunction>();
-let nextCompatibilityAdapterId = 0;
-
-function markCompatibilityAdapter<T extends AnyComponentFunction>(adapter: T): T {
-	return createExactCompatibilityArtifact(
-		adapter,
-		`@exactjs/react-compat:adapter:${++nextCompatibilityAdapterId}`,
-		'client'
-	);
-}
 
 /**
  * Returns the stable eXact component adapter for a React type.

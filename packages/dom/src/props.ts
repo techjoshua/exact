@@ -9,7 +9,6 @@ import {
 	UnsafeHtml,
 	attachElementIdentity,
 	type RefBinding,
-	type StopHandle,
 	unwrap
 } from '@exactjs/core';
 import { isReactiveValue, type EffectScope } from '@exactjs/reactive/framework/runtime';
@@ -27,6 +26,7 @@ import { preserveFocus } from './focus.js';
 import { getModalBindingCapability } from './modal/capability.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
+import { clearPropBinding, releasePropBinding, setPropBinding } from './prop-binding-ownership.js';
 import { bindStyle } from './style.js';
 import type { Root } from './types.js';
 
@@ -421,27 +421,4 @@ function isFocusedTextControl(element: Element): boolean {
 		document.activeElement === element &&
 		(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
 	);
-}
-
-function clearPropBinding(element: Element, key: string): void {
-	const bindings = propBindings.get(element);
-	const stop = bindings?.get(key);
-	if (!stop) return;
-	stop();
-	bindings?.delete(key);
-}
-
-function releasePropBinding(element: Element, key: string): void {
-	const bindings = propBindings.get(element);
-	bindings?.delete(key);
-	if (bindings && bindings.size === 0) propBindings.delete(element);
-}
-
-function setPropBinding(element: Element, key: string, stop: StopHandle): void {
-	let bindings = propBindings.get(element);
-	if (!bindings) {
-		bindings = new Map();
-		propBindings.set(element, bindings);
-	}
-	bindings.set(key, stop);
 }
