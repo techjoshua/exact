@@ -53,7 +53,7 @@ export type ExactRenderProgramBinding =
 /** Opaque DOM-owned binding context consumed only by compiler-emitted binding calls. */
 export type ExactRenderProgramBindingTarget = object;
 
-/** Direct client binding topology emitted as executable compiler wiring. */
+/** Direct client claim and binding topology emitted as executable compiler wiring. */
 export type ExactRenderProgramBinder = (target: ExactRenderProgramBindingTarget) => void;
 
 /** Immutable shape emitted by the compiler for a finite intrinsic region. */
@@ -69,6 +69,8 @@ export type ExactRenderProgram = Readonly<{
 	bindings?: readonly ExactRenderProgramBinding[];
 	/** Direct browser-safe binding wiring emitted for compiled client artifacts. */
 	bind?: ExactRenderProgramBinder;
+	/** The direct executor also owns successful-path DOM claims. */
+	directClaims?: true;
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
 	listBindings?: true;
 	nodes: readonly ExactRenderProgramNode[];

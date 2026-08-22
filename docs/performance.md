@@ -108,18 +108,14 @@ rendering-mode-neutral artifact, or crosses the server boundary retains the univ
 Synchronous compiler-owned computations and resumption deferral also live in focused modules so
 importing them does not make the universal activation implementation reachable.
 
-Compiler render programs also carry production hydration identities. Elements and host-property
-slots use dense program-local indexes rather than repeating stable IDs in templates and node
-tables; structural child ranges use their emitted identities. The bounded adopter skips the
-contents of those ranges, so nested component elements cannot perturb or collide with a parent's
-local traversal indexes. Only
-scalar text slots retain a local path because markerless HTML has no identity marker for a text
-node. The adopter builds one ephemeral identity index for the bounded program region and releases
-it after the claim, so variable-width structural children do not invalidate later addresses and no
-hydration index remains in live component state. Every claimed tag, namespace, compiler identity,
-and dynamic marker pair is still checked. A stale or malformed plan
-therefore fails closed into the existing hydration recovery path, while markerless and generic
-hydration remain available for inputs that do not carry the compiler plan.
+Closed client render programs carry executable production claims. The compiler emits the exact
+intrinsic, scalar, structural-range, enter, and leave operations in DOM order; the runtime supplies
+only their focused mechanics. Each structural claim advances to its matching close marker, so
+nested or variable-width server output cannot perturb later static siblings. The successful path
+does not walk descriptor tables, build an identity map, or rediscover slots. Every claimed tag,
+namespace, scalar sentinel, and structural marker pair is still checked. A stale or malformed plan
+therefore fails closed into the existing hydration recovery path, while complete isomorphic,
+manually constructed, and generic compatibility programs retain the table-driven adopter.
 
 Render-program descriptors are emitted once as immutable module tables. Component instances join
 only their local expression readers and optional recovery function to that shared table; they do
@@ -130,10 +126,11 @@ invocation applies its known keys in browser-safe order without allocating and e
 temporary props record or redispatching through the generic slot reader for every property. Those
 properties are omitted from the client slot dispatcher. Their previous values occupy a compact
 group-indexed array; programs with only text or structural work allocate no property map at all.
-Closed hydrate and client artifacts also emit the complete binding topology as direct calls to
-text, structural-child, grouped-list, and property operations. Their DOM executor invokes that
-compiler-authored binder without walking or branching over a general binding table. Complete and
-server artifacts retain the table because they are rendering-mode-neutral or need it for SSR;
+Closed hydrate and client artifacts emit their complete claim and binding topology in one direct
+executor. Its claim lane wires intrinsic and slot identities; its binding lane calls text,
+structural-child, grouped-list, and property operations. The DOM executor invokes those
+compiler-authored calls without walking or branching over general node, slot, or binding tables.
+Complete and server artifacts retain the tables because they are rendering-mode-neutral or need them for SSR;
 manually constructed programs use the explicit DOM testing compatibility helper. Temporary binder
 contexts are released after synchronous installation and are not captured by the retained slot
 watchers.
@@ -414,11 +411,10 @@ they do not allocate getter and setter closures for every declared field. A comp
 tracks field presence for deletion, snapshots, and optimistic rollback, while fields introduced
 dynamically retain the same reactive fallback semantics and receive stable indexes on first write.
 
-Render-program hydration stores compiler-numbered elements in a dense ephemeral array. Legacy
-authored element identities and structural marker maps are created only when those representations
-occur in the adopted DOM. The ordinary closed client path therefore does not allocate a string key
-and `Map` entry for every compiler-known element merely to recover the numeric topology the
-compiler already emitted.
+Render-program hydration stores directly claimed compiler-numbered elements in a dense ephemeral
+array. It does not allocate string keys or marker maps for the closed client path. Legacy authored
+identities and compatibility programs retain the bounded indexing path because they do not carry a
+compiler-generated claim lane.
 
 Successful compiled scalar hydration releases its opening and closing sentinels after transferring
 ownership to the claimed `Text` node. Structural child and component markers remain because they

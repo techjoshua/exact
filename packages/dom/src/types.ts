@@ -43,6 +43,8 @@ export type Mounted = {
 		/** Intrinsic root used for compiler-path ownership when `dom` is an SSR range marker. */
 		readonly programRoot: Node;
 		readonly slotNodes: readonly (Node | undefined)[];
+		/** Dense elements populated directly by a compiler-generated claim lane. */
+		readonly programElements?: readonly (Element | undefined)[];
 		readonly root: Root;
 		readonly parentInstance?: AnyComponentInstance;
 		/** Last effective planned props, grouped by their target element. */

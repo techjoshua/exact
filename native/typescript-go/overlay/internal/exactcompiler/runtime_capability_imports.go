@@ -18,6 +18,12 @@ type jsxRuntimeNames struct {
 	bindProgramChild       string
 	bindProgramLists       string
 	bindProgramProperties  string
+	beginProgramClaims     string
+	claimProgramElement    string
+	claimProgramText       string
+	claimProgramChild      string
+	enterProgramElement    string
+	leaveProgramElement    string
 	bindingTarget          string
 	fragment               string
 	target                 string
@@ -151,6 +157,12 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"bindCompiledProgramChild", lowering.names.bindProgramChild, 18},
 		{"bindCompiledProgramLists", lowering.names.bindProgramLists, 18},
 		{"bindCompiledProgramProperties", lowering.names.bindProgramProperties, 18},
+		{"beginCompiledProgramClaims", lowering.names.beginProgramClaims, 18},
+		{"claimCompiledProgramElement", lowering.names.claimProgramElement, 18},
+		{"claimCompiledProgramText", lowering.names.claimProgramText, 18},
+		{"claimCompiledProgramChild", lowering.names.claimProgramChild, 18},
+		{"enterCompiledProgramElement", lowering.names.enterProgramElement, 18},
+		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, 18},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -518,6 +530,12 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		bindProgramChild:       allocate("__exactBindProgramChild"),
 		bindProgramLists:       allocate("__exactBindProgramLists"),
 		bindProgramProperties:  allocate("__exactBindProgramProperties"),
+		beginProgramClaims:     allocate("__exactBeginProgramClaims"),
+		claimProgramElement:    allocate("__exactClaimProgramElement"),
+		claimProgramText:       allocate("__exactClaimProgramText"),
+		claimProgramChild:      allocate("__exactClaimProgramChild"),
+		enterProgramElement:    allocate("__exactEnterProgramElement"),
+		leaveProgramElement:    allocate("__exactLeaveProgramElement"),
 		bindingTarget:          allocate("__exactBindingTarget"),
 		fragment:               allocate("__exactFragment"),
 		target:                 allocate("__exactTarget"),

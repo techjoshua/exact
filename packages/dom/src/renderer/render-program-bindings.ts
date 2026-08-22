@@ -113,11 +113,11 @@ export function bindCompiledProgramLists(
 export function bindCompiledProgramProperties(
 	target: ExactRenderProgramBindingTarget,
 	group: number,
-	firstSlot: number
+	targetIndex: number
 ): void {
 	const context = target as ProgramBindingTarget;
 	const state = context.mounted.renderProgram!;
-	const element = state.slotNodes[firstSlot] as Element;
+	const element = (state.programElements?.[targetIndex] ?? state.slotNodes[targetIndex]) as Element;
 	if (!state.invocation.propertyWriter || !element) {
 		context.valid = false;
 		return;
