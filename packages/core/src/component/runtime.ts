@@ -42,7 +42,6 @@ import {
 import { componentListCapability, optionalComponentListCapability } from './list-capability.js';
 import { componentLocalizationCapability } from './localization-capability.js';
 import { createComponentLog } from './log.js';
-import { releaseComponentLoggerProvider } from './logger-context-presence.js';
 import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
 import { reactiveValue } from './reactive-value.js';
 import type { IntlFacade } from '../localization/contracts.js';
@@ -325,7 +324,6 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 			}
 		}
 		clearComponentLifecycleHandlers(this);
-		releaseComponentLoggerProvider(this);
 		if (failed) throw firstError;
 	}
 

@@ -2,7 +2,6 @@ import { peek, unwrap } from '@exactjs/reactive';
 import type { AnyComponent, AnyComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';
-import { hasComponentLoggerProviders } from './logger-context-presence.js';
 
 import {
 	createConsoleLogger,
@@ -70,14 +69,7 @@ export function componentLogMethod(
 ): ComponentLogMethod | undefined {
 	// Compiler-generated component bodies receive the authored Component view, while execution
 	// always binds that view to the complete durable instance before this ABI can be called.
-	const runtimeInstance = instance as AnyComponentInstance;
-	if (
-		!hasComponentLoggerProviders() &&
-		!runtimeInstance.ambientContexts?.has(LoggerContext.id) &&
-		!isLogEnabled(defaultConsoleLogger, level, defaultComponentEnablementScope)
-	)
-		return undefined;
-	return prepareComponentLogMethod(runtimeInstance, level);
+	return prepareComponentLogMethod(instance as AnyComponentInstance, level);
 }
 
 class ComponentLogFacade implements ComponentLog {
