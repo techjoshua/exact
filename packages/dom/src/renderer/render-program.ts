@@ -8,6 +8,7 @@ import {
 } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import type { EffectScope } from '@exactjs/reactive';
+import { applyCompiledProps } from '../compiled-props.js';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
@@ -364,18 +365,15 @@ function bindRenderProgram(mounted: Mounted): boolean {
 			propertyGroup++;
 			const element = state.slotNodes[indexes[0]!] as Element;
 			const applyProps = () => {
-				const next: Record<string, unknown> = {};
 				if (writer !== undefined && state.invocation.propertyWriter) {
-					state.invocation.propertyWriter(writer, next);
+					applyCompiledProps(mounted, element, previousProps, writer, initialBinding);
+					return;
 				}
+				const next: Record<string, unknown> = {};
 				for (const index of indexes) {
 					const slot = state.invocation.program.slots[index]!;
 					if (slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') continue;
-					next[slot[2]] = unwrap(
-						writer !== undefined && state.invocation.propertyWriter
-							? next[slot[2]]
-							: readRenderProgramSlot(state.invocation, index)
-					);
+					next[slot[2]] = unwrap(readRenderProgramSlot(state.invocation, index));
 				}
 				updateProps(
 					state.root,

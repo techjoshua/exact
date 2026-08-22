@@ -88,10 +88,10 @@ describe('compiled render-program cache', () => {
 			bindings: [['properties', [0, 1]]],
 			nodes: [['node', 'button']]
 		});
-		const writer = (group: number, target: Record<string, unknown>) => {
+		const writer = (group: number, apply: (name: string, value: unknown) => void) => {
 			expect(group).toBe(0);
-			target.title = 'compiled';
-			target.tabIndex = 2;
+			apply('title', 'compiled');
+			apply('tabIndex', 2);
 		};
 		const vnode = createPreparedRenderProgram(
 			descriptor,
@@ -105,7 +105,7 @@ describe('compiled render-program cache', () => {
 		);
 		const invocation = readRenderProgram(vnode)!;
 		const target: Record<string, unknown> = {};
-		invocation.propertyWriter!(0, target);
+		invocation.propertyWriter!(0, (name, value) => (target[name] = value));
 		expect(target).toEqual({ title: 'compiled', tabIndex: 2 });
 	});
 

@@ -39,12 +39,12 @@ export function updateProps(
 ): void {
 	const apply = () => {
 		for (const key of Object.keys(previous)) {
-			if (!(key in next)) setProp(root, element, key, undefined, previous[key], scope);
+			if (!(key in next)) setElementProp(root, element, key, undefined, previous[key], scope);
 		}
 
 		for (const [key, value] of Object.entries(next)) {
 			if (!Object.is(previous[key], value))
-				setProp(root, element, key, value, previous[key], scope);
+				setElementProp(root, element, key, value, previous[key], scope);
 		}
 	};
 	if (preserveUserFocus) preserveFocus(root, apply);
@@ -85,7 +85,8 @@ export function synchronizeFormBinding(element: Element): boolean {
 	return true;
 }
 
-function setProp(
+/** Applies one already-diffed property for compiler-owned and generic DOM lanes. */
+export function setElementProp(
 	root: Root,
 	element: Element,
 	key: string,
