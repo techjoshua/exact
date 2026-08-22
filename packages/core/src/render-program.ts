@@ -32,16 +32,21 @@ export type ExactRenderProgramPropertySlot = readonly [
 /** Compact structural child slot: kind and marker identity. */
 export type ExactRenderProgramChildSlot = readonly [kind: 'child', id: string];
 
+/** Compact native-component lifecycle slot: kind and marker identity. */
+export type ExactRenderProgramComponentSlot = readonly [kind: 'component', id: string];
+
 /** One compiler-owned slot. The reader remains invocation-local. */
 export type ExactRenderProgramSlot =
 	| ExactRenderProgramTextSlot
 	| ExactRenderProgramPropertySlot
-	| ExactRenderProgramChildSlot;
+	| ExactRenderProgramChildSlot
+	| ExactRenderProgramComponentSlot;
 
 /** Compiler-ordered reactive binding: one text slot or every property slot for one element. */
 export type ExactRenderProgramBinding =
 	| readonly ['text', slot: number]
 	| readonly ['child', slot: number]
+	| readonly ['component', slot: number]
 	| readonly ['lists', slots: readonly number[]]
 	| readonly ['properties', slots: readonly number[]];
 

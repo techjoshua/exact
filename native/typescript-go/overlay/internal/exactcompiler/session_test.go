@@ -290,8 +290,8 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`["child",`,
-		`bindings: [["child", 0]]`,
+		`["component",`,
+		`bindings: [["component", 0]]`,
 		`__exactComponentVNode(Detail`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -357,8 +357,10 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if stateful.Error != "" {
 		t.Fatal(stateful.Error)
 	}
-	if !strings.Contains(stateful.Code, `__exactVNode("main"`) {
-		t.Fatalf("stateful component child escaped its component lifecycle path:\n%s", stateful.Code)
+	if !strings.Contains(stateful.Code, `["component",`) ||
+		!strings.Contains(stateful.Code, `bindings: [["component", 0]]`) ||
+		strings.Contains(stateful.Code, `__exactVNode("main"`) {
+		t.Fatalf("stateful component child did not enter its compiler-owned lifecycle slot:\n%s", stateful.Code)
 	}
 }
 

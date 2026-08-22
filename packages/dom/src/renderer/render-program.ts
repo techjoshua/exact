@@ -46,7 +46,8 @@ export function mountRenderProgram(
 	const programIndex = indexProgramHydration(dom);
 	const slotNodes = invocation.program.slots.map((slot) => {
 		if (slot[0] === 'text') return programNodeAtPath(dom, slot[2]);
-		if (slot[0] === 'child') return claimProgramChildSlot(programIndex, slot[1]);
+		if (slot[0] === 'child' || slot[0] === 'component')
+			return claimProgramChildSlot(programIndex, slot[1]);
 		const owner = invocation.program.nodes[slot[1]];
 		return owner ? programIndex.elements.get(owner[0]) : undefined;
 	});
@@ -99,7 +100,8 @@ export function adoptRenderProgram(
 	}
 	const slotNodes = invocation.program.slots.map((slot) => {
 		if (slot[0] === 'text') return programNodeAtPath(dom, slot[2]);
-		if (slot[0] === 'child') return claimProgramChildSlot(programIndex, slot[1]);
+		if (slot[0] === 'child' || slot[0] === 'component')
+			return claimProgramChildSlot(programIndex, slot[1]);
 		const owner = invocation.program.nodes[slot[1]];
 		return owner ? programIndex.elements.get(owner[0]) : undefined;
 	});
@@ -246,7 +248,8 @@ function adoptMarkedRenderProgram(
 		const plan = slot;
 		if (plan[0] === 'text' && plan[1])
 			return claimProgramTextSlot(programRoot, hydrationIndex, plan[1]);
-		if (plan[0] === 'child') return claimProgramChildSlot(hydrationIndex, plan[1]);
+		if (plan[0] === 'child' || plan[0] === 'component')
+			return claimProgramChildSlot(hydrationIndex, plan[1]);
 		if (plan[0] === 'text') return undefined;
 		const owner = invocation.program.nodes[plan[1]];
 		return owner ? hydrationIndex.elements.get(owner[0]) : undefined;
@@ -331,7 +334,7 @@ function bindRenderProgram(mounted: Mounted): boolean {
 				if (!bindProgramLists(mounted, binding[1], initialBinding, stopBindings)) valid = false;
 				continue;
 			}
-			if (binding[0] === 'child') {
+			if (binding[0] === 'child' || binding[0] === 'component') {
 				if (!bindProgramChild(mounted, binding[1], initialBinding, stopBindings)) valid = false;
 				continue;
 			}
@@ -361,7 +364,8 @@ function bindRenderProgram(mounted: Mounted): boolean {
 				const next: Record<string, unknown> = {};
 				for (const index of indexes) {
 					const slot = state.invocation.program.slots[index]!;
-					if (slot[0] === 'text' || slot[0] === 'child') continue;
+					if (slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component')
+						continue;
 					next[slot[2]] = unwrap(readRenderProgramSlot(state.invocation, index));
 				}
 				updateProps(
@@ -397,7 +401,7 @@ function validSlotNodes(
 		const kind = invocation.program.slots[index]?.[0];
 		return kind === 'text'
 			? node?.nodeType === textNode
-			: kind === 'child'
+			: kind === 'child' || kind === 'component'
 				? node instanceof Comment
 				: node?.nodeType === elementNode;
 	});

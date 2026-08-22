@@ -55,11 +55,11 @@ protocol, while hydration adopts and subsequently patches only the marked child 
 routed, opaque-spread, raw-content, and otherwise unproven hosts use the lazy region-local VNode
 fallback.
 
-A client program may place a finite leaf native component in one of those ranges. Server and
-complete artifacts retain the component's recursive execution and add the same stable range marker,
-so hydration claims the component without rediscovering the surrounding host tree. Components that
-own state, interactions, contexts, split boundaries, transitions, or keyed-list render callbacks
-remain explicit component lifecycle boundaries.
+A client program places a statically resolved native component in an explicit component lifecycle
+slot. Server and complete artifacts retain the component's recursive execution and add the same
+stable range marker, so hydration claims the component without rediscovering the surrounding host
+tree. State, interactions, contexts, split boundaries, transitions, and keyed-list render callbacks
+remain owned by the component's durable instance inside that slot.
 
 When structural slots contain compiler-known keyed-list expressions, hydration adopts every slot
 inside one component render transaction. Later refreshes use the same grouped lane, preserving
