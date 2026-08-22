@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	claimProgramChildSlot,
+	claimProgramTextSlot,
 	indexProgramHydration,
 	programElement
 } from './render-program-hydration.js';
@@ -32,5 +33,17 @@ describe('compiled render-program hydration index', () => {
 
 		expect(programElement(index, 'legacy')).toBe(root.firstElementChild);
 		expect(claimProgramChildSlot(index, 'slot')?.data).toBe('exact:dynamic:slot');
+	});
+
+	it('releases scalar marker pairs after transferring ownership to the text node', () => {
+		const root = document.createElement('main');
+		root.innerHTML = '<!--exact:dynamic:label-->Ready<!--/exact:dynamic:label-->';
+		const index = indexProgramHydration(root);
+
+		const text = claimProgramTextSlot(root, index, 'label');
+
+		expect(text?.data).toBe('Ready');
+		expect(root.childNodes).toHaveLength(1);
+		expect(root.firstChild).toBe(text);
 	});
 });

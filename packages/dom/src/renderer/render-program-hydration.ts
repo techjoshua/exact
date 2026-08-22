@@ -86,6 +86,11 @@ export function claimProgramTextSlot(
 		text = root.ownerDocument.createTextNode('');
 		closing.parentNode?.insertBefore(text, closing);
 	}
+	// The compiled binding retains the text node itself. Scalar sentinels have no range ownership
+	// after a successful claim, unlike structural child markers, so keeping them would permanently
+	// double the DOM-node overhead of every reactive text expression.
+	marker.remove();
+	closing.remove();
 	return text;
 }
 
