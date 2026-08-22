@@ -1,7 +1,7 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
-import type { ProgramHydrationIndex } from './render-program-hydration.js';
+import { programElement, type ProgramHydrationIndex } from './render-program-hydration.js';
 
 const elementNode = 1;
 
@@ -12,7 +12,7 @@ export function ownProgramNodes(
 	owner: AnyComponentInstance
 ): void {
 	for (const planned of program.nodes) {
-		const node = index.elements.get(planned[0]);
+		const node = programElement(index, planned[0]);
 		if (!node) continue;
 		setNodeOwner(node, owner);
 		if (node.nodeType === elementNode) setElementOwner(node as Element, owner);
@@ -25,7 +25,7 @@ export function releaseProgramNodeOwners(
 	index: ProgramHydrationIndex
 ): void {
 	for (const planned of program.nodes) {
-		const node = index.elements.get(planned[0]);
+		const node = programElement(index, planned[0]);
 		if (!node) continue;
 		clearNodeOwner(node);
 		if (node.nodeType === elementNode) clearElementOwner(node as Element);

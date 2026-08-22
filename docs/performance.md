@@ -36,7 +36,10 @@ Optimistic journals, SSR resumption, snapshots, and DevTools therefore observe t
 contract without allocating a property-keyed top-level container for compiled fields.
 
 Compiler render programs also carry production hydration identities. Elements and host-property
-slots use compact compiler indexes; structural child ranges use their emitted identities. Only
+slots use dense program-local indexes rather than repeating stable IDs in templates and node
+tables; structural child ranges use their emitted identities. The bounded adopter skips the
+contents of those ranges, so nested component elements cannot perturb or collide with a parent's
+local traversal indexes. Only
 scalar text slots retain a local path because markerless HTML has no identity marker for a text
 node. The adopter builds one ephemeral identity index for the bounded program region and releases
 it after the claim, so variable-width structural children do not invalidate later addresses and no

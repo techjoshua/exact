@@ -500,13 +500,13 @@ it('claims a variable-width structural child range before later planned elements
 			id: 'render-program:adopt-child-slot',
 			namespace: 'html',
 			template:
-				'<section data-exact-id="child-root"><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section>',
+				'<section><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer>After</footer></section>',
 			parts: [],
 			slots: [['child', 'child']],
 			bindings: [['child', 0]],
 			nodes: [
-				['child-root', 'section'],
-				['after', 'footer']
+				[0, 'section'],
+				[1, 'footer']
 			]
 		}),
 		[() => createCompiledVNode('strong', { 'data-exact-id': 'nested' }, state.label)]

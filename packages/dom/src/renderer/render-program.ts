@@ -24,6 +24,8 @@ import {
 	claimProgramTextSlot,
 	indexProgramHydration,
 	markedProgramRange,
+	matchesProgramIdentity,
+	programElement,
 	programNodeAtPath
 } from './render-program-hydration.js';
 import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
@@ -50,7 +52,7 @@ export function mountRenderProgram(
 		if (slot[0] === 'child' || slot[0] === 'component')
 			return claimProgramChildSlot(programIndex, slot[1]);
 		const owner = invocation.program.nodes[slot[1]];
-		return owner ? programIndex.elements.get(owner[0]) : undefined;
+		return owner ? programElement(programIndex, owner[0]) : undefined;
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
@@ -80,8 +82,7 @@ export function adoptRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
-	const rootNode = invocation.program.nodes[0];
-	const rootPlan = rootNode;
+	const rootPlan = invocation.program.nodes[0];
 	if (
 		!rootPlan ||
 		!matchesProgramElement(
@@ -95,7 +96,7 @@ export function adoptRenderProgram(
 	if (!(dom instanceof Element)) return undefined;
 	const programIndex = indexProgramHydration(dom);
 	for (const plan of invocation.program.nodes) {
-		const target = programIndex.elements.get(plan[0]);
+		const target = programElement(programIndex, plan[0]);
 		if (!matchesProgramElement(target, plan[0], plan[1], plan[2] ?? invocation.program.namespace))
 			return undefined;
 	}
@@ -104,7 +105,7 @@ export function adoptRenderProgram(
 		if (slot[0] === 'child' || slot[0] === 'component')
 			return claimProgramChildSlot(programIndex, slot[1]);
 		const owner = invocation.program.nodes[slot[1]];
-		return owner ? programIndex.elements.get(owner[0]) : undefined;
+		return owner ? programElement(programIndex, owner[0]) : undefined;
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
@@ -125,7 +126,7 @@ export function adoptRenderProgram(
 
 function matchesProgramElement(
 	node: Node | undefined,
-	id: string,
+	id: string | number,
 	tag: string | undefined,
 	namespace: ExactRenderProgram['namespace']
 ): boolean {
@@ -140,7 +141,7 @@ function matchesProgramElement(
 	return (
 		element.localName.toLowerCase() === tag.toLowerCase() &&
 		element.namespaceURI === uri &&
-		element.getAttribute('data-exact-id') === id
+		matchesProgramIdentity(element, id)
 	);
 }
 
@@ -218,8 +219,7 @@ function adoptMarkedRenderProgram(
 	if (!invocation) return undefined;
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
-	const rootPlan = invocation.program.nodes[0];
-	const rootNodePlan = rootPlan;
+	const rootNodePlan = invocation.program.nodes[0];
 	let programRoot: Element | undefined;
 	for (let index = range.contentStart; index < range.endIndex; index++) {
 		const node = nodes[index];
@@ -241,7 +241,7 @@ function adoptMarkedRenderProgram(
 	const hydrationIndex = indexProgramHydration(programRoot);
 	for (const planned of invocation.program.nodes) {
 		const plan = planned;
-		const element = hydrationIndex.elements.get(plan[0]);
+		const element = programElement(hydrationIndex, plan[0]);
 		if (!matchesProgramElement(element, plan[0], plan[1], plan[2] ?? invocation.program.namespace))
 			return undefined;
 	}
@@ -253,7 +253,7 @@ function adoptMarkedRenderProgram(
 			return claimProgramChildSlot(hydrationIndex, plan[1]);
 		if (plan[0] === 'text') return undefined;
 		const owner = invocation.program.nodes[plan[1]];
-		return owner ? hydrationIndex.elements.get(owner[0]) : undefined;
+		return owner ? programElement(hydrationIndex, owner[0]) : undefined;
 	});
 	if (!validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
@@ -266,14 +266,14 @@ function adoptMarkedRenderProgram(
 	};
 	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
 	for (const planned of invocation.program.nodes) {
-		const element = hydrationIndex.elements.get(planned[0])!;
+		const element = programElement(hydrationIndex, planned[0])!;
 		setNodeOwner(element, parentInstance);
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
 	}
 	if (invocation.program.bindings.length !== 0 && !bindRenderProgram(mounted)) {
 		for (const planned of invocation.program.nodes) {
-			const element = hydrationIndex.elements.get(planned[0])!;
+			const element = programElement(hydrationIndex, planned[0])!;
 			clearNodeOwner(element);
 			clearElementOwner(element);
 		}

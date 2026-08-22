@@ -198,7 +198,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
 		`["property", 0, "disabled"]`,
-		`template: "<button data-exact-id=\"`,
+		`template: "<button class=\"action\"`,
 		`class=\"action\"`,
 		`bindings: [["text", 1], ["properties", [0]]]`,
 		`__exactSlot === 0 ? props.disabled : props.label`,
@@ -1958,7 +1958,7 @@ func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`template: "<select`,
-		`<option data-exact-id=\"`,
+		`<option value=\"all\"`,
 		`value=\"all\"`,
 		`value=\"high\"`,
 		`["property", 0, "value"]`,
