@@ -43,7 +43,10 @@ error contexts remain available through the same context resolution contract.
 Compiler-owned DOM interactions enter through a compiler-marked native event lane. With trace
 logging disabled, an ordinary callback executes and publishes its synchronous reactive feedback
 without constructing an abort controller, task frame, settlement promise, interaction scope, or
-trace arguments. The event's publication batch deduplicates reactive work without constructing
+trace arguments. Interaction-capable component records carry their task owner directly under the
+framework's cross-bundle symbol, so the event does not perform a second owner-table lookup. The
+interaction materializes structural task state only if synchronously invoked work requests it. The
+event's publication batch deduplicates reactive work without constructing
 inverse mutations or version-range journals; explicit rollback-capable batches and optimistic task
 journals retain inverse records, and nesting inside either upgrades the event lane. Durable
 mutation-version ranges are retained only by optimistic journals and work nested inside them; an
