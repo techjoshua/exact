@@ -194,6 +194,37 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	}
 }
 
+func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-state-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type State = { count: number; disabled: boolean };
+			export function Planned(this: { state: State }) {
+				this.state.count = 0;
+				this.state.disabled = false;
+				const increment = () => this.state.count++;
+				return () => <button disabled={this.state.disabled} onClick={increment}>{this.state.count}</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`__exactBindProgramText(__exactBindingTarget, 2, true)`,
+		`__exactBindProgramProperties(__exactBindingTarget, 0, 0, true)`,
+		`__exactBindProgramState(__exactBindingTarget, [["count", 1, 0], ["disabled", 2, 0]])`,
+		`update: (__exactBindingTarget, __exactDirtyLow, __exactDirtyHigh) =>`,
+		`__exactApplyProgramText(__exactBindingTarget, 2)`,
+		`__exactApplyProgramProperties(__exactBindingTarget, 0, 0)`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("generated direct state update omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestSessionEmitsDirectServerExecutionForCompleteArtifacts(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-complete.tsx", Kind: "compile", Target: TargetClient,

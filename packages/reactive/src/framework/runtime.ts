@@ -11,6 +11,7 @@ export {
 	publishBatch,
 	rollbackReactiveMutationJournals,
 	peek,
+	readMutationVersion,
 	type ReactiveMutationJournal
 } from '../internal/deps.js';
 export {
@@ -43,8 +44,8 @@ export type {
 	WatchOptions
 } from '../internal/types.js';
 export { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
-export { collectionRef, computed, ref, subscribe, watch } from '../observation.js';
-export { readReactiveOwnProperty } from '../indexed-base.js';
+export { collectionRef, computed, ref, subscribe, subscribeKeys, watch } from '../observation.js';
+export { reactiveOwnDependencies, readReactiveOwnProperty } from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
 export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';

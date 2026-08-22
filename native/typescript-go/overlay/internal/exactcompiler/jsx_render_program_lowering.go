@@ -872,13 +872,18 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}
+	directUpdates := []renderProgramDirectUpdate{}
+	if lowering.target == TargetClient &&
+		lowering.contractProjection != ComponentContractProjectionComplete {
+		directUpdates = lowering.directRenderProgramUpdates(build)
+	}
 	if lowering.target != TargetServer {
 		members = append(members, property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)))
 	}
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
 		if len(bindings) != 0 || len(build.nodes) > 1 {
-			members = append(members, property("bind", lowering.directRenderProgramBinder(build)))
+			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates)))
 		} else {
 			members = append(
 				members,
@@ -895,6 +900,9 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		if len(listSlots) != 0 {
 			members = append(members, property("listBindings", lowering.factory.NewTrueExpression()))
 		}
+		if len(directUpdates) != 0 {
+			members = append(members, property("update", lowering.directRenderProgramUpdater(directUpdates)))
+		}
 	} else if lowering.target == TargetServer {
 		members = append(members, property("ssr", lowering.directRenderProgramSsrWriter(build)))
 	} else {
@@ -907,68 +915,6 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		)
 	}
 	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
-}
-
-// directRenderProgramBinder emits the exact client binding calls in browser-safe application order.
-// Shared DOM operations retain the mechanics; the compiled component owns all topology and wiring.
-func (lowering *jsxLowering) directRenderProgramBinder(build *renderProgramBuild) *ast.Node {
-	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
-	statements := make([]*ast.Node, 0, len(build.slots)+2)
-	call := func(helper string, arguments ...*ast.Node) {
-		statements = append(statements, lowering.factory.NewExpressionStatement(
-			lowering.call(helper, append([]*ast.Node{target}, arguments...)),
-		))
-	}
-	claimStatements := lowering.directRenderProgramClaims(build, target)
-	claimStatements = append(claimStatements, lowering.factory.NewReturnStatement(nil))
-	statements = append(statements, lowering.factory.NewIfStatement(
-		lowering.call(lowering.names.beginProgramClaims, []*ast.Node{
-			target,
-			lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone),
-			lowering.factory.NewStringLiteral(build.nodes[0].namespace, ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.nodes)), ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.slots)), ast.TokenFlagsNone),
-		}),
-		lowering.factory.NewBlock(lowering.factory.NewNodeList(claimStatements), true),
-		nil,
-	))
-	listSlots := make([]*ast.Node, 0, len(build.slots))
-	for index, slot := range build.slots {
-		slotIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone)
-		if slot.kind == "child" && slot.list {
-			listSlots = append(listSlots, slotIndex)
-			continue
-		}
-		switch slot.kind {
-		case "text":
-			call(lowering.names.bindProgramText, slotIndex)
-		case "child", "component":
-			call(lowering.names.bindProgramChild, slotIndex)
-		}
-	}
-	if len(listSlots) != 0 {
-		call(
-			lowering.names.bindProgramLists,
-			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(listSlots), false),
-		)
-	}
-	for group, binding := range build.propertyBindings() {
-		call(
-			lowering.names.bindProgramProperties,
-			lowering.factory.NewNumericLiteral(strconv.Itoa(group), ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.slots[0]), ast.TokenFlagsNone),
-		)
-	}
-	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)
-	return lowering.factory.NewArrowFunction(
-		nil,
-		nil,
-		lowering.factory.NewNodeList([]*ast.Node{parameter}),
-		nil,
-		nil,
-		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
-		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
-	)
 }
 
 type renderProgramClaim struct {

@@ -10,6 +10,12 @@ type IndexedRecord = {
 	readonly target: Record<PropertyKey, unknown>;
 };
 
+/** Stable dependency keys for compiler-known fields on one indexed reactive target. */
+export type ReactiveOwnDependencies = Readonly<{
+	target: object;
+	keys: readonly PropertyKey[];
+}>;
+
 const indexedRecords = new WeakMap<object, IndexedRecord>();
 
 /**
@@ -131,4 +137,23 @@ export function readReactiveOwnProperty(
 	return descriptor && 'value' in descriptor
 		? { present: true, value: descriptor.value }
 		: { present: false };
+}
+
+/** Resolves compiler-known own fields to compact stable dependencies without evaluating them. */
+export function reactiveOwnDependencies(
+	value: object,
+	keys: readonly PropertyKey[]
+): ReactiveOwnDependencies | undefined {
+	const indexed = indexedRecords.get(value);
+	if (!indexed) return undefined;
+	const indexes: PropertyKey[] = [];
+	for (const key of keys) {
+		const index = indexed.indexes.get(key);
+		if (index === undefined) return undefined;
+		indexes.push(index);
+	}
+	return {
+		target: indexed.target,
+		keys: indexes
+	};
 }

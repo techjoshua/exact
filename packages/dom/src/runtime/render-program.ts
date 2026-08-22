@@ -1,8 +1,11 @@
 /** Compiler-selected direct render-program binding operations. */
 export {
+	applyCompiledProgramProperties,
+	applyCompiledProgramText,
 	bindCompiledProgramChild,
 	bindCompiledProgramLists,
 	bindCompiledProgramProperties,
+	bindCompiledProgramState,
 	bindCompiledProgramText
 } from '../renderer/render-program-bindings.js';
 

@@ -2,6 +2,11 @@ import { isVNode, unwrap } from '@exactjs/core';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render';
 import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
+import {
+	reactiveOwnDependencies,
+	readMutationVersion,
+	subscribeKeys
+} from '@exactjs/reactive/framework/runtime';
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted } from '../types.js';
@@ -67,26 +72,28 @@ export function bindRenderProgram(mounted: Mounted): boolean {
 /** Binds one compiler-selected scalar text slot. */
 export function bindCompiledProgramText(
 	target: ExactRenderProgramBindingTarget,
+	index: number,
+	direct?: true
+): void {
+	const context = target as ProgramBindingTarget;
+	let initialTarget: ProgramBindingTarget | undefined = context;
+	const applyText = () => {
+		if (!applyProgramText(context.mounted, index)) {
+			if (initialTarget) initialTarget.valid = false;
+		}
+	};
+	if (direct) applyText();
+	else retainBinding(context, applyText);
+	initialTarget = undefined;
+}
+
+/** Applies one compiler-selected text operation without installing a dynamic watcher. */
+export function applyCompiledProgramText(
+	target: ExactRenderProgramBindingTarget,
 	index: number
 ): void {
 	const context = target as ProgramBindingTarget;
-	const state = context.mounted.renderProgram!;
-	let initialTarget: ProgramBindingTarget | undefined = context;
-	const applyText = () => {
-		const value = unwrap(readRenderProgramSlot(state.invocation, index));
-		const node = state.slotNodes[index] as Text;
-		if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
-			if (initialTarget) initialTarget.valid = false;
-			return;
-		}
-		const text =
-			value === null || value === undefined || value === false || value === true
-				? ''
-				: String(value);
-		if (node.data !== text) node.data = text;
-	};
-	retainBinding(context, applyText);
-	initialTarget = undefined;
+	if (!applyProgramText(context.mounted, index)) context.valid = false;
 }
 
 /** Binds one compiler-selected structural child slot. */
@@ -113,7 +120,8 @@ export function bindCompiledProgramLists(
 export function bindCompiledProgramProperties(
 	target: ExactRenderProgramBindingTarget,
 	group: number,
-	firstSlot: number
+	firstSlot: number,
+	direct?: true
 ): void {
 	const context = target as ProgramBindingTarget;
 	const state = context.mounted.renderProgram!;
@@ -122,9 +130,86 @@ export function bindCompiledProgramProperties(
 		context.valid = false;
 		return;
 	}
+	const apply = () => applyCompiledProps(context.mounted, element, group, context.initialBinding);
+	if (direct) apply();
+	else retainBinding(context, apply);
+}
+
+/** Applies one compiler-selected property group without installing a dynamic watcher. */
+export function applyCompiledProgramProperties(
+	target: ExactRenderProgramBindingTarget,
+	group: number,
+	firstSlot: number
+): void {
+	const context = target as ProgramBindingTarget;
+	const state = context.mounted.renderProgram!;
+	const element = state.slotNodes[firstSlot];
+	if (!(element instanceof Element) || !state.invocation.propertyWriter) {
+		context.valid = false;
+		return;
+	}
+	applyCompiledProps(context.mounted, element, group, false);
+}
+
+/** Subscribes compiler-known state fields as one versioned dirty-mask reaction. */
+export function bindCompiledProgramState(
+	target: ExactRenderProgramBindingTarget,
+	bindings: readonly (readonly [key: string, dirtyLow: number, dirtyHigh: number])[]
+): void {
+	const context = target as ProgramBindingTarget;
 	const mounted = context.mounted;
-	const initialBinding = context.initialBinding;
-	retainBinding(context, () => applyCompiledProps(mounted, element, group, initialBinding));
+	const state = mounted.renderProgram!;
+	const owner = state.parentInstance;
+	const updater = state.invocation.program.update;
+	if (!owner || !updater) {
+		context.valid = false;
+		return;
+	}
+	const dependencies = reactiveOwnDependencies(
+		owner.state,
+		bindings.map(([key]) => key)
+	);
+	if (!dependencies) {
+		context.valid = false;
+		return;
+	}
+	const versions = dependencies.keys.map((key) => readMutationVersion(dependencies.target, key));
+	const updateTarget: ProgramBindingTarget = {
+		mounted,
+		initialBinding: false,
+		stopBindings: [],
+		valid: true
+	};
+	const stop = subscribeKeys(
+		dependencies.target,
+		dependencies.keys,
+		() => {
+			let dirtyLow = 0;
+			let dirtyHigh = 0;
+			for (let index = 0; index < dependencies.keys.length; index++) {
+				const version = readMutationVersion(dependencies.target, dependencies.keys[index]!);
+				if (version === versions[index]) continue;
+				versions[index] = version;
+				dirtyLow |= bindings[index]![1];
+				dirtyHigh |= bindings[index]![2];
+			}
+			if (dirtyLow || dirtyHigh) updater(updateTarget, dirtyLow, dirtyHigh);
+		},
+		{ scope: mounted.scope }
+	);
+	context.stopBindings.push({ stop });
+}
+
+function applyProgramText(mounted: Mounted, index: number): boolean {
+	const state = mounted.renderProgram!;
+	const value = unwrap(readRenderProgramSlot(state.invocation, index));
+	const node = state.slotNodes[index];
+	if (!(node instanceof Text) || isVNode(value) || Array.isArray(value) || value instanceof Promise)
+		return false;
+	const text =
+		value === null || value === undefined || value === false || value === true ? '' : String(value);
+	if (node.data !== text) node.data = text;
+	return true;
 }
 
 function retainBinding(context: ProgramBindingTarget, apply: () => void): void {

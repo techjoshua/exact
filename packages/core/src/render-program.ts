@@ -75,12 +75,21 @@ export type ExactRenderProgramBindingTarget = object;
 /** Direct client claim and binding topology emitted as executable compiler wiring. */
 export type ExactRenderProgramBinder = (target: ExactRenderProgramBindingTarget) => void;
 
+/** Component-specific dirty update wiring emitted for compiler-proven direct dependencies. */
+export type ExactRenderProgramUpdater = (
+	target: ExactRenderProgramBindingTarget,
+	dirtyLow: number,
+	dirtyHigh: number
+) => void;
+
 type ExactRenderProgramBase = Readonly<{
 	version: 3;
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
 	listBindings?: true;
+	/** Applies only operations selected by compiler-assigned dirty bits. */
+	update?: ExactRenderProgramUpdater;
 }>;
 
 /** Closed client program whose executable lanes own topology instead of descriptor tables. */
