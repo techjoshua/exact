@@ -39,7 +39,7 @@ import { requireStructuralBoundaryCapability } from '../structural-capability.js
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
 import { requireDomEnhancementCapability } from '../enhancement-capability.js';
-import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
+import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-capability.js';
 import { parkForeignMounts } from './replacement-parking.js';
 import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
 import { patchDynamic } from '../dynamic.js';

@@ -1,5 +1,5 @@
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
-import { disposeOwnedSubtree, exactDomInspectionOwner, unmount } from '@exactjs/dom';
+import { disposeOwnedSubtree, exactDomInspectionOwner, unmount } from '@exactjs/dom/root';
 import type { CoreHydrationRoot, HydrateOptions } from '../types.js';
 import { createComponentResumptionResolver } from './resumption.js';
 import { roots } from './state.js';

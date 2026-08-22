@@ -44,3 +44,4 @@ describe('@exactjs/dom accessibility enhancement integration', () => {
 		expect(container.children).toHaveLength(2);
 	});
 });
+import './runtime/target.js';

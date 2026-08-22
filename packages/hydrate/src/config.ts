@@ -3,7 +3,7 @@ import {
 	sameExactComponentAuthorization,
 	sameJsonData
 } from '@exactjs/core';
-import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
+import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom/root';
 import type {
 	ClientIslandRegistry,
 	ExactEndpointRoutes,

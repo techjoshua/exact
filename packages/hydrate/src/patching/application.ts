@@ -1,5 +1,5 @@
 import { attemptCleanup, type CleanupFailure } from '@exactjs/core';
-import { applyDomProp, disposeOwnedSubtree, type DomWorkBudget } from '@exactjs/dom';
+import { applyDomProp, disposeOwnedSubtree, type DomWorkBudget } from '@exactjs/dom/root';
 import {
 	isSafeDomPatchProperty,
 	type ExactPatch

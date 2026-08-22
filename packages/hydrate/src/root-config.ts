@@ -2,7 +2,7 @@ import {
 	isExactComponentAuthorizationIdentity,
 	sameExactComponentAuthorization
 } from '@exactjs/core';
-import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom';
+import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom/root';
 import { isRecord, normalizeComponentResumptions, positiveLimit } from './config-validation.js';
 import { utf8ByteLength } from './limits.js';
 import { decodeBoundedReactiveProtocolValue } from './protocol-decoding.js';

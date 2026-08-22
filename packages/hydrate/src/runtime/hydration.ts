@@ -12,7 +12,7 @@ import {
 	synchronizeFormBinding,
 	type DomWorkBudget,
 	type RenderOptions
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import { captureHydrationDom, restoreFormState } from '../adoption/form-state.js';
 import { adoptStaticTree, createStaticAdoptionBudget } from '../adoption/static-tree.js';
 import { reportMismatch } from '../mismatch.js';

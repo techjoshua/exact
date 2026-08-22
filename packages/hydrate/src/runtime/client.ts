@@ -5,7 +5,7 @@ import {
 	exactDomInspectionOwner,
 	unmount,
 	type DomWorkBudget
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import {
 	cloneEndpointRoutes,
 	mergeClientIslands,

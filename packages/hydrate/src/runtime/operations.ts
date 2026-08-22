@@ -1,4 +1,4 @@
-import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
+import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom/root';
 import { type AnyComponentInstance, type AnyContextToken, stageTaskMutation } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { enqueueExactOperation } from '../batching.js';

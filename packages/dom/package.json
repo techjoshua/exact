@@ -16,6 +16,10 @@
 			"types": "./dist/testing.d.ts",
 			"default": "./dist/testing.js"
 		},
+		"./root": {
+			"types": "./dist/root.d.ts",
+			"default": "./dist/root.js"
+		},
 		"./enhanced": {
 			"types": "./dist/enhanced.d.ts",
 			"default": "./dist/enhanced.js"
@@ -31,6 +35,10 @@
 		"./runtime/modal": {
 			"types": "./dist/runtime/modal.d.ts",
 			"default": "./dist/runtime/modal.js"
+		},
+		"./runtime/target": {
+			"types": "./dist/runtime/target.d.ts",
+			"default": "./dist/runtime/target.js"
 		},
 		"./runtime/unsafe-html": {
 			"types": "./dist/runtime/unsafe-html.d.ts",

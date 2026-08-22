@@ -2,10 +2,14 @@
  * @vitest-environment jsdom
  */
 import { type AnyComponentFunction, createVNode, type Component } from '@exactjs/core';
+import '@exactjs/core/runtime/refs';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate, type FetchLike } from '@exactjs/hydrate';
-import { RemoteComponent, registerExactRemoteClientBindings } from '@exactjs/microfrontends/client';
+import {
+	RemoteComponent as RemoteComponentDefinition,
+	registerExactRemoteClientBindings
+} from '../../../../plugins/microfrontends/src/client.js';
 import {
 	composeExactExecutorContract,
 	handleExactRequest,
@@ -14,7 +18,7 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
-import { createTestVNode } from '@exactjs/testing/internal/fixtures';
+import { createTestVNode, markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -170,7 +174,10 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		try {
 			render(createTestVNode(HiddenRootTasks, null), container);
 			await vi.waitFor(() => {
-				expect(container.querySelector('[data-result="billing"]')?.textContent).toBe(
+				expect(
+					container.querySelector('[data-result="billing"]')?.textContent,
+					container.innerHTML
+				).toBe(
 					'BILLING-READY'
 				);
 				expect(container.querySelector('[data-result="branding"]')?.textContent).toBe(
@@ -220,6 +227,8 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		}
 	});
 });
+
+const RemoteComponent = markTestComponent(RemoteComponentDefinition);
 
 function HiddenRootTasks(this: Component<Record<string, never>>) {
 	return () =>

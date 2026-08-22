@@ -261,3 +261,4 @@ describe('component domain rendering', () => {
 		restoreInspection();
 	});
 });
+import './runtime/target.js';

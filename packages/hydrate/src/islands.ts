@@ -13,7 +13,7 @@ import {
 	render,
 	synchronizeFormBinding,
 	walkDomSubtree
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import { captureHydrationDom, restoreFormState } from './adoption/form-state.js';
 import { disposeInteractionHydration, ensureInteractionHydration } from './islands/interaction.js';
 import { isClientIslandLoader, loadClientIsland } from './islands/loading.js';

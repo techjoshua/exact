@@ -48,7 +48,7 @@ import { countDomWork, isDomRenderLimitError, withTreeDepth } from '../limits.js
 import { bindText, patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
-import { refreshTargetBoundary } from '../target-contributions.js';
+import { refreshTargetBoundary } from '../target-capability.js';
 import { createElement, createMarker } from '../root-support.js';
 import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { requireStructuralBoundaryCapability } from '../structural-capability.js';

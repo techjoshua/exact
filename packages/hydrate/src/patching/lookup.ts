@@ -1,5 +1,5 @@
 import { encodeExactMarkerPart } from '@exactjs/core';
-import { walkDomSubtree } from '@exactjs/dom';
+import { walkDomSubtree } from '@exactjs/dom/root';
 import { type ExactRange, type ProtocolIndex } from './planning.js';
 
 /** Resolves an exact target. */

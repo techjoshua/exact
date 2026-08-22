@@ -88,6 +88,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/dom/runtime/modal"},
 		{module: "@exactjs/dom/runtime/unsafe-html"},
 		{module: "@exactjs/dom/runtime/structural-boundaries"},
+		{module: "@exactjs/dom/runtime/target"},
 		{module: "@exactjs/time/internal"},
 		{module: "@exactjs/core/runtime/lists"},
 		{module: "@exactjs/core/runtime/refs"},
@@ -113,7 +114,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createCompiledTarget", lowering.names.target, 0},
 		{"createExpression", lowering.names.expression, 0},
 		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
-		{"componentExecutionValueForHost", lowering.names.componentOutput, 15},
+		{"componentExecutionValueForHost", lowering.names.componentOutput, 16},
 		{"createDynamicChild", lowering.names.dynamic, 0},
 		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
 		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
@@ -135,7 +136,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createEnhancementNode", lowering.names.enhancements, 5},
 		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
 		{"componentLogMethod", lowering.names.componentLog, 7},
-		{"createTimeActivation", lowering.names.createTimeActivation, 12},
+		{"createTimeActivation", lowering.names.createTimeActivation, 13},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -219,7 +220,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	)
 	structuralBoundariesUsed := lowering.target != TargetServer &&
 		(partitionUsesStructuralBoundaries(lowering.partitionPlan) ||
-			containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker))
+			containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker) ||
+			containsIdentifier(root, lowering.names.boundary) ||
+			containsIdentifier(root, lowering.names.finiteBoundary) ||
+			containsIdentifier(root, lowering.names.asyncSiblings) ||
+			containsIdentifier(root, lowering.names.serverSlot) ||
+			containsIdentifier(root, lowering.names.keyedServerSlot))
+	targetUsed := lowering.target != TargetServer && containsIdentifier(root, lowering.names.target)
 	result := make([]*ast.Node, 0, len(groups))
 	for index, group := range groups {
 		if len(group.specifiers) == 0 {
@@ -230,6 +237,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
 				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
 				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) ||
+				(group.module == "@exactjs/dom/runtime/target" && targetUsed) ||
 				(group.module == "@exactjs/core/runtime/component-execution" && executionUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
