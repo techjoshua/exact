@@ -77,7 +77,8 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 	if clientPage.Error != "" {
 		t.Fatal(clientPage.Error)
 	}
-	if !strings.Contains(clientPage.Code, `["component",`) ||
+	if !strings.Contains(clientPage.Code, `__exactClaimProgramChild(__exactBindingTarget, 0, 0,`) ||
+		!strings.Contains(clientPage.Code, `, true)`) ||
 		strings.Contains(clientPage.Code, `__exactVNode("main"`) {
 		t.Fatalf("imported native component did not enter the compiled host lifecycle slot:\n%s", clientPage.Code)
 	}
@@ -178,8 +179,10 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
 		!strings.Contains(response.Code, "directClaims: true") ||
-		!strings.Contains(response.Code, "__exactBeginProgramClaims") ||
+		!strings.Contains(response.Code, `__exactBeginProgramClaims(__exactBindingTarget, "span", "html", 1, 1)`) ||
 		!strings.Contains(response.Code, "__exactClaimProgramText") ||
+		strings.Contains(response.Code, "nodes:") ||
+		strings.Contains(response.Code, "slots:") ||
 		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") ||
@@ -274,9 +277,8 @@ func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 	for _, expected := range []string{
 		`<!---->\uE000exact:0\uE001<!---->`,
 		`<!---->\uE000exact:1\uE001<!---->`,
-		`["text",`,
-		`[1]`,
-		`[5]`,
+		`__exactClaimProgramText(__exactBindingTarget, 0, 0,`,
+		`__exactClaimProgramText(__exactBindingTarget, 1, 1,`,
 		`__exactBindProgramText(__exactBindingTarget, 0)`,
 		`__exactBindProgramText(__exactBindingTarget, 1)`,
 	} {
@@ -304,7 +306,7 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`<!--exact:dynamic:`,
-		`["child",`,
+		`__exactClaimProgramChild(__exactBindingTarget, 0, 0,`,
 		`__exactBindProgramChild(__exactBindingTarget, 0)`,
 		`createPreparedRenderProgram`,
 	} {
@@ -349,7 +351,8 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`["component",`,
+		`__exactClaimProgramChild(__exactBindingTarget, 0, 0,`,
+		`, true)`,
 		`__exactBindProgramChild(__exactBindingTarget, 0)`,
 		`__exactComponentVNode(Detail`,
 	} {
@@ -416,7 +419,8 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if stateful.Error != "" {
 		t.Fatal(stateful.Error)
 	}
-	if !strings.Contains(stateful.Code, `["component",`) ||
+	if !strings.Contains(stateful.Code, `__exactClaimProgramChild(__exactBindingTarget, 0, 0,`) ||
+		!strings.Contains(stateful.Code, `, true)`) ||
 		!strings.Contains(stateful.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
 		strings.Contains(stateful.Code, `__exactVNode("main"`) {
 		t.Fatalf("stateful component child did not enter its compiler-owned lifecycle slot:\n%s", stateful.Code)
@@ -507,9 +511,8 @@ func TestSessionEmitsOnlyRenderProgramNamespaceTransitions(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `"div", "html"]`) ||
-		strings.Contains(response.Code, `"svg", "svg"]`) ||
-		strings.Contains(response.Code, `"foreignObject", "svg"]`) {
+	if !strings.Contains(response.Code, `"div", "html")`) ||
+		strings.Contains(response.Code, `"foreignObject", "svg")`) {
 		t.Fatalf("render program did not compact inherited namespaces:\n%s", response.Code)
 	}
 }
@@ -2061,8 +2064,7 @@ func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
 		`<option value=\"all\"`,
 		`value=\"all\"`,
 		`value=\"high\"`,
-		`["property", 0, "value"]`,
-		`["property", 0, "__exactBindChange"]`,
+		`__exactClaimProgramProperty(__exactBindingTarget, 0, 0)`,
 		`__exactBindProgramProperties(__exactBindingTarget, 0, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {

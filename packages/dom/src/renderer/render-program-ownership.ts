@@ -1,5 +1,5 @@
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
+import type { ExactTableRenderProgram } from '@exactjs/core/runtime/render';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
 import { programElement, type ProgramHydrationIndex } from './render-program-hydration.js';
 
@@ -7,7 +7,7 @@ const elementNode = 1;
 
 /** Assigns every compiler-addressed element to its durable component instance. */
 export function ownProgramNodes(
-	program: ExactRenderProgram,
+	program: ExactTableRenderProgram,
 	index: ProgramHydrationIndex,
 	owner: AnyComponentInstance
 ): void {
@@ -21,7 +21,7 @@ export function ownProgramNodes(
 
 /** Releases ownership when a program cannot complete its binding contract. */
 export function releaseProgramNodeOwners(
-	program: ExactRenderProgram,
+	program: ExactTableRenderProgram,
 	index: ProgramHydrationIndex
 ): void {
 	for (const planned of program.nodes) {

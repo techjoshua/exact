@@ -3,7 +3,8 @@ import {
 	readRenderProgram,
 	renderProgramFallback,
 	type ExactRenderProgram,
-	type ExactRenderProgramInvocation
+	type ExactRenderProgramInvocation,
+	type ExactTableRenderProgram
 } from '@exactjs/core/runtime/render';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
@@ -43,8 +44,9 @@ export function mountRenderProgram(
 	if (!(dom instanceof Element)) return undefined;
 	const direct = claimCompiledRenderProgram(invocation.program, dom, 'template');
 	if (invocation.program.directClaims && !direct) return undefined;
+	const table = tableProgram(invocation);
 	const programIndex = direct ? undefined : indexProgramHydration(dom);
-	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(invocation, dom, programIndex!);
+	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
 	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
@@ -55,25 +57,24 @@ export function mountRenderProgram(
 			invocation,
 			programRoot: dom,
 			slotNodes,
-			...(direct ? { programElements: direct.elements } : {}),
+			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
 			parentInstance
 		}
 	};
 	if (parentInstance) {
-		if (programIndex) ownProgramNodes(invocation.program, programIndex, parentInstance);
+		if (programIndex) ownProgramNodes(table!, programIndex, parentInstance);
 		else ownDirectProgramNodes(direct?.elements, parentInstance);
 	}
 	if (
 		(invocation.program.bind || invocation.program.bindings?.length) &&
 		!bindRenderProgram(mounted)
 	) {
-		if (programIndex) releaseProgramNodeOwners(invocation.program, programIndex);
+		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
 		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
-	for (let index = 1; index < invocation.program.nodes.length; index++) countDomWork(root);
-	for (const _slot of invocation.program.slots) countDomWork(root);
+	countProgramWork(root, invocation.program, direct, false);
 	return mounted;
 }
 
@@ -87,23 +88,20 @@ export function adoptRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
-	const rootPlan = invocation.program.nodes[0];
-	if (
-		!rootPlan ||
-		!matchesProgramElement(
-			dom,
-			rootPlan[0],
-			rootPlan[1],
-			rootPlan[2] ?? invocation.program.namespace
-		)
-	)
-		return undefined;
 	if (!(dom instanceof Element)) return undefined;
 	const direct = claimCompiledRenderProgram(invocation.program, dom, 'ssr');
 	if (invocation.program.directClaims && !direct) return undefined;
+	const table = tableProgram(invocation);
+	const rootPlan = table?.nodes[0];
+	if (
+		!direct &&
+		(!rootPlan ||
+			!matchesProgramElement(dom, rootPlan[0], rootPlan[1], rootPlan[2] ?? table!.namespace))
+	)
+		return undefined;
 	const programIndex = direct ? undefined : indexProgramHydration(dom);
-	if (programIndex && !validateGenericProgramNodes(invocation, programIndex)) return undefined;
-	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(invocation, dom, programIndex!);
+	if (programIndex && !validateGenericProgramNodes(table!, programIndex)) return undefined;
+	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
 	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
@@ -114,22 +112,22 @@ export function adoptRenderProgram(
 			invocation,
 			programRoot: dom,
 			slotNodes,
-			...(direct ? { programElements: direct.elements } : {}),
+			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
 			parentInstance
 		}
 	};
-	if (programIndex) ownProgramNodes(invocation.program, programIndex, parentInstance);
+	if (programIndex) ownProgramNodes(table!, programIndex, parentInstance);
 	else ownDirectProgramNodes(direct?.elements, parentInstance);
 	if (
 		(invocation.program.bind || invocation.program.bindings?.length) &&
 		!bindRenderProgram(mounted)
 	) {
-		if (programIndex) releaseProgramNodeOwners(invocation.program, programIndex);
+		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
 		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
-	for (const _node of invocation.program.nodes) countDomWork(root);
+	countProgramWork(root, invocation.program, direct, true);
 	return mounted;
 }
 
@@ -232,19 +230,21 @@ function adoptMarkedRenderProgram(
 	if (!invocation.program.bind && invocation.program.bindings?.length) return undefined;
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
-	const rootNodePlan = invocation.program.nodes[0];
+	const table = tableProgram(invocation);
+	const rootNodePlan = table?.nodes[0];
 	let programRoot: Element | undefined;
 	for (let index = range.contentStart; index < range.endIndex; index++) {
 		const node = nodes[index];
 		if (
 			node instanceof Element &&
-			rootNodePlan &&
-			matchesProgramElement(
-				node,
-				rootNodePlan[0],
-				rootNodePlan[1],
-				rootNodePlan[2] ?? invocation.program.namespace
-			)
+			(invocation.program.directClaims ||
+				(rootNodePlan &&
+					matchesProgramElement(
+						node,
+						rootNodePlan[0],
+						rootNodePlan[1],
+						rootNodePlan[2] ?? table!.namespace
+					)))
 		) {
 			programRoot = node;
 			break;
@@ -254,9 +254,9 @@ function adoptMarkedRenderProgram(
 	const direct = claimCompiledRenderProgram(invocation.program, programRoot, 'ssr');
 	if (invocation.program.directClaims && !direct) return undefined;
 	const hydrationIndex = direct ? undefined : indexProgramHydration(programRoot);
-	if (hydrationIndex && !validateGenericProgramNodes(invocation, hydrationIndex)) return undefined;
+	if (hydrationIndex && !validateGenericProgramNodes(table!, hydrationIndex)) return undefined;
 	const slotNodes =
-		direct?.slotNodes ?? claimGenericHydrationSlots(invocation, programRoot, hydrationIndex!);
+		direct?.slotNodes ?? claimGenericHydrationSlots(table!, programRoot, hydrationIndex!);
 	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
@@ -268,14 +268,15 @@ function adoptMarkedRenderProgram(
 			invocation,
 			programRoot,
 			slotNodes,
-			...(direct ? { programElements: direct.elements } : {}),
+			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
 			parentInstance
 		}
 	};
 	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
-	for (const [nodeIndex, planned] of invocation.program.nodes.entries()) {
-		const element = direct?.elements[nodeIndex] ?? programElement(hydrationIndex!, planned[0]);
+	const elements =
+		direct?.elements ?? table!.nodes.map((planned) => programElement(hydrationIndex!, planned[0]));
+	for (const element of elements) {
 		if (!element) return undefined;
 		setNodeOwner(element, parentInstance);
 		setElementOwner(element, parentInstance);
@@ -285,10 +286,7 @@ function adoptMarkedRenderProgram(
 		(invocation.program.bind || invocation.program.bindings?.length) &&
 		!bindRenderProgram(mounted)
 	) {
-		releaseDirectProgramNodeOwners(
-			direct?.elements ??
-				invocation.program.nodes.map((planned) => programElement(hydrationIndex!, planned[0]))
-		);
+		releaseDirectProgramNodeOwners(elements);
 		return undefined;
 	}
 	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
@@ -315,43 +313,43 @@ export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 }
 
 function validateGenericProgramNodes(
-	invocation: ExactRenderProgramInvocation,
+	program: ExactTableRenderProgram,
 	index: ProgramHydrationIndex
 ): boolean {
-	return invocation.program.nodes.every((plan) =>
+	return program.nodes.every((plan) =>
 		matchesProgramElement(
 			programElement(index, plan[0]),
 			plan[0],
 			plan[1],
-			plan[2] ?? invocation.program.namespace
+			plan[2] ?? program.namespace
 		)
 	);
 }
 
 function claimGenericMountSlots(
-	invocation: ExactRenderProgramInvocation,
+	program: ExactTableRenderProgram,
 	root: Element,
 	index: ProgramHydrationIndex
 ): readonly (Node | undefined)[] {
-	return invocation.program.slots.map((slot) => {
+	return program.slots.map((slot) => {
 		if (slot[0] === 'text') return programNodeAtPath(root, slot[2]);
 		if (slot[0] === 'child' || slot[0] === 'component')
 			return claimProgramChildSlot(index, slot[1]);
-		const owner = invocation.program.nodes[slot[1]];
+		const owner = program.nodes[slot[1]];
 		return owner ? programElement(index, owner[0]) : undefined;
 	});
 }
 
 function claimGenericHydrationSlots(
-	invocation: ExactRenderProgramInvocation,
+	program: ExactTableRenderProgram,
 	root: Element,
 	index: ProgramHydrationIndex
 ): readonly (Node | undefined)[] {
-	return invocation.program.slots.map((slot) => {
+	return program.slots.map((slot) => {
 		if (slot[0] === 'text') return claimProgramTextSlot(root, index, slot[1]);
 		if (slot[0] === 'child' || slot[0] === 'component')
 			return claimProgramChildSlot(index, slot[1]);
-		const owner = invocation.program.nodes[slot[1]];
+		const owner = program.nodes[slot[1]];
 		return owner ? programElement(index, owner[0]) : undefined;
 	});
 }
@@ -384,11 +382,34 @@ function validSlotNodes(
 	nodes: readonly (Node | undefined)[]
 ): boolean {
 	return nodes.every((node, index) => {
-		const kind = invocation.program.slots[index]?.[0];
+		const kind = invocation.program.slots?.[index]?.[0];
 		return kind === 'text'
 			? node?.nodeType === textNode
 			: kind === 'child' || kind === 'component'
 				? node instanceof Comment
 				: node?.nodeType === elementNode;
 	});
+}
+
+function tableProgram(
+	invocation: ExactRenderProgramInvocation
+): ExactTableRenderProgram | undefined {
+	return invocation.program.directClaims ? undefined : invocation.program;
+}
+
+function countProgramWork(
+	root: Root,
+	program: ExactRenderProgram,
+	direct: ReturnType<typeof claimCompiledRenderProgram>,
+	includeRoot: boolean
+): void {
+	let work: readonly [number, number];
+	if (direct) work = direct.work;
+	else {
+		if (program.directClaims) return;
+		work = [program.nodes.length, program.slots.length];
+	}
+	const [nodes, slots] = work;
+	for (let index = includeRoot ? 0 : 1; index < nodes; index++) countDomWork(root);
+	if (!includeRoot) for (let index = 0; index < slots; index++) countDomWork(root);
 }

@@ -23,7 +23,8 @@ export {
 	type ExactRenderProgramInvocation,
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
-	type ExactRenderProgramSsrOperation
+	type ExactRenderProgramSsrOperation,
+	type ExactTableRenderProgram
 } from '../render-program.js';
 export {
 	createCompiledFragment,

@@ -31,8 +31,10 @@ export function adoptProgramChildSlots(
 		state.invocation.program.bindings?.some((binding) => binding[0] === 'lists') === true;
 	if (ownsLists) parentInstance.beginRender();
 	try {
-		for (let index = 0; index < state.invocation.program.slots.length; index++) {
-			const slot = state.invocation.program.slots[index]!;
+		const slotCount = state.invocation.program.slots?.length ?? state.slotNodes.length;
+		for (let index = 0; index < slotCount; index++) {
+			const slot = structuralProgramSlot(state, index);
+			if (!slot) continue;
 			if (slot[0] !== 'child' && slot[0] !== 'component') continue;
 			const start = state.slotNodes[index];
 			const end = findProgramChildEnd(start, slot[1]);
@@ -115,7 +117,7 @@ function prepareProgramChildBinding(
 ): (() => void) | undefined {
 	const state = mounted.renderProgram!;
 	const start = state.slotNodes[index];
-	const slot = state.invocation.program.slots[index];
+	const slot = structuralProgramSlot(state, index);
 	const identity = slot?.[0] === 'child' || slot?.[0] === 'component' ? slot[1] : undefined;
 	const end = findProgramChildEnd(start, identity);
 	if (!(start instanceof Comment) || !end || !start.parentNode) return undefined;
@@ -190,6 +192,27 @@ function prepareProgramChildBinding(
 			refreshMountedChildren(mounted);
 		});
 	};
+}
+
+function structuralProgramSlot(
+	state: NonNullable<Mounted['renderProgram']>,
+	index: number
+): readonly ['child' | 'component', string] | undefined {
+	const slot = state.invocation.program.slots?.[index];
+	if (slot?.[0] === 'child' || slot?.[0] === 'component') return slot;
+	const marker = state.slotNodes[index];
+	if (!(marker instanceof Comment) || !marker.data.startsWith('exact:dynamic:')) return undefined;
+	const kind = componentSlotIncludes(state.componentSlots, index) ? 'component' : 'child';
+	return [kind, marker.data.slice('exact:dynamic:'.length)];
+}
+
+function componentSlotIncludes(
+	slots: number | ReadonlySet<number> | undefined,
+	index: number
+): boolean {
+	return typeof slots === 'number'
+		? index < 31 && (slots & (1 << index)) !== 0
+		: slots?.has(index) === true;
 }
 
 function soleVNode(children: readonly Child[]): VNode | undefined {

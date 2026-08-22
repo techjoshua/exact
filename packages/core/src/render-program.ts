@@ -56,27 +56,60 @@ export type ExactRenderProgramBindingTarget = object;
 /** Direct client claim and binding topology emitted as executable compiler wiring. */
 export type ExactRenderProgramBinder = (target: ExactRenderProgramBindingTarget) => void;
 
-/** Immutable shape emitted by the compiler for a finite intrinsic region. */
-export type ExactRenderProgram = Readonly<{
+type ExactRenderProgramBase = Readonly<{
 	version: 3;
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
 	template: string;
-	/** Server/universal interpolation strings; closed client artifacts omit this SSR-only table. */
-	parts?: readonly string[];
-	slots: readonly ExactRenderProgramSlot[];
-	/** Generic binding topology retained only by non-client and explicit fallback artifacts. */
-	bindings?: readonly ExactRenderProgramBinding[];
-	/** Direct browser-safe binding wiring emitted for compiled client artifacts. */
-	bind?: ExactRenderProgramBinder;
-	/** The direct executor also owns successful-path DOM claims. */
-	directClaims?: true;
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
 	listBindings?: true;
-	nodes: readonly ExactRenderProgramNode[];
-	ssrParts?: readonly string[];
-	ssrOperations?: readonly ExactRenderProgramSsrOperation[];
 }>;
+
+/** Closed client program whose executable lanes own topology instead of descriptor tables. */
+export type ExactDirectRenderProgram = ExactRenderProgramBase &
+	(
+		| Readonly<{
+				directClaims: true;
+				bind: ExactRenderProgramBinder;
+				root?: never;
+				work?: never;
+		  }>
+		| Readonly<{
+				directClaims: true;
+				bind?: never;
+				root: readonly [tag: string, namespace?: 'html' | 'svg' | 'mathml'];
+				work: readonly [nodes: 1, slots: 0];
+		  }>
+	) &
+	Readonly<{
+		nodes?: never;
+		slots?: never;
+		bindings?: never;
+		parts?: never;
+		ssrParts?: never;
+		ssrOperations?: never;
+	}>;
+
+/** Table-backed program retained for SSR, complete artifacts, and explicit compatibility. */
+export type ExactTableRenderProgram = ExactRenderProgramBase &
+	Readonly<{
+		/** Server/universal interpolation strings; closed client artifacts omit this SSR-only table. */
+		parts?: readonly string[];
+		slots: readonly ExactRenderProgramSlot[];
+		/** Generic binding topology retained only by non-client and explicit fallback artifacts. */
+		bindings?: readonly ExactRenderProgramBinding[];
+		/** Direct browser-safe binding wiring emitted for compiled client artifacts. */
+		bind?: ExactRenderProgramBinder;
+		nodes: readonly ExactRenderProgramNode[];
+		ssrParts?: readonly string[];
+		ssrOperations?: readonly ExactRenderProgramSsrOperation[];
+		directClaims?: never;
+		root?: never;
+		work?: never;
+	}>;
+
+/** Immutable compiler output for one finite intrinsic region. */
+export type ExactRenderProgram = ExactDirectRenderProgram | ExactTableRenderProgram;
 
 type BrandedRenderProgram = ExactRenderProgram & { readonly __exactPreparedRenderProgram: never };
 

@@ -875,20 +875,34 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
-		property("slots", array(slots)), property("nodes", array(nodes)),
 	}
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
-		members = append(
-			members,
-			property("bind", lowering.directRenderProgramBinder(build)),
-			property("directClaims", lowering.factory.NewTrueExpression()),
-		)
+		if len(bindings) != 0 || len(build.nodes) > 1 {
+			members = append(members, property("bind", lowering.directRenderProgramBinder(build)))
+		} else {
+			members = append(
+				members,
+				property("root", array([]*ast.Node{
+					lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone),
+				})),
+				property("work", array([]*ast.Node{
+					lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone),
+					lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+				})),
+			)
+		}
+		members = append(members, property("directClaims", lowering.factory.NewTrueExpression()))
 		if len(listSlots) != 0 {
 			members = append(members, property("listBindings", lowering.factory.NewTrueExpression()))
 		}
 	} else {
-		members = append(members, property("bindings", array(bindings)))
+		members = append(
+			members,
+			property("slots", array(slots)),
+			property("nodes", array(nodes)),
+			property("bindings", array(bindings)),
+		)
 	}
 	if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 		members = append(members, property("parts", array(parts)))
@@ -928,6 +942,8 @@ func (lowering *jsxLowering) directRenderProgramBinder(build *renderProgramBuild
 			target,
 			lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone),
 			lowering.factory.NewStringLiteral(build.nodes[0].namespace, ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.nodes)), ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.slots)), ast.TokenFlagsNone),
 		}),
 		lowering.factory.NewBlock(lowering.factory.NewNodeList(claimStatements), true),
 		nil,
@@ -956,7 +972,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(build *renderProgramBuild
 		call(
 			lowering.names.bindProgramProperties,
 			lowering.factory.NewNumericLiteral(strconv.Itoa(group), ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.node), ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.slots[0]), ast.TokenFlagsNone),
 		)
 	}
 	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)
@@ -1033,13 +1049,18 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 			claimIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(claim.index), ast.TokenFlagsNone)
 			switch claim.kind {
 			case "element":
-				emitCall(
-					lowering.names.claimProgramElement,
+				arguments := []*ast.Node{
 					claimIndex,
 					skip,
 					lowering.factory.NewStringLiteral(claim.tag, ast.TokenFlagsNone),
-					lowering.factory.NewStringLiteral(claim.namespace, ast.TokenFlagsNone),
-				)
+				}
+				if claim.namespace != build.namespace {
+					arguments = append(
+						arguments,
+						lowering.factory.NewStringLiteral(claim.namespace, ast.TokenFlagsNone),
+					)
+				}
+				emitCall(lowering.names.claimProgramElement, arguments...)
 				if directProgramHasChildren(build, claim.path) {
 					emitCall(lowering.names.enterProgramElement, claimIndex)
 					emitChildren(claim.path)
@@ -1053,17 +1074,27 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 					lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone),
 				)
 			default:
-				emitCall(
-					lowering.names.claimProgramChild,
+				arguments := []*ast.Node{
 					claimIndex,
 					skip,
 					lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone),
-				)
+				}
+				if claim.kind == "component" {
+					arguments = append(arguments, lowering.factory.NewTrueExpression())
+				}
+				emitCall(lowering.names.claimProgramChild, arguments...)
 			}
 			position = childIndex + claim.width
 		}
 	}
 	emitChildren(nil)
+	for _, binding := range build.propertyBindings() {
+		emitCall(
+			lowering.names.claimProgramProperty,
+			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.slots[0]), ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.node), ast.TokenFlagsNone),
+		)
+	}
 	return statements
 }
 

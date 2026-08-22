@@ -113,11 +113,11 @@ export function bindCompiledProgramLists(
 export function bindCompiledProgramProperties(
 	target: ExactRenderProgramBindingTarget,
 	group: number,
-	targetIndex: number
+	firstSlot: number
 ): void {
 	const context = target as ProgramBindingTarget;
 	const state = context.mounted.renderProgram!;
-	const element = (state.programElements?.[targetIndex] ?? state.slotNodes[targetIndex]) as Element;
+	const element = state.slotNodes[firstSlot] as Element;
 	if (!state.invocation.propertyWriter || !element) {
 		context.valid = false;
 		return;
@@ -143,11 +143,16 @@ export function bindGenericProgramProperties(
 	const context = target as ProgramBindingTarget;
 	const state = context.mounted.renderProgram!;
 	const element = state.slotNodes[indexes[0]!] as Element;
+	const slots = state.invocation.program.slots;
+	if (!slots) {
+		context.valid = false;
+		return;
+	}
 	retainBinding(context, () => {
 		const previous = (state.props ??= new Map<Element, Record<string, unknown>>());
 		const next: Record<string, unknown> = {};
 		for (const index of indexes) {
-			const slot = state.invocation.program.slots[index]!;
+			const slot = slots[index]!;
 			if (slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') continue;
 			next[slot[2]] = unwrap(readRenderProgramSlot(state.invocation, index));
 		}
