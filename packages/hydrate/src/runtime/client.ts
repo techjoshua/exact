@@ -183,6 +183,7 @@ export function createExactClientFromResolvedOptions(
 		});
 	domain = createFrameworkComponentDomain({
 		executionRoot: runtimeOptions.executionRoot ?? 'page',
+		logger: runtimeOptions.logger,
 		dispatchContinuation: (request) =>
 			run(() =>
 				invokeAndApply(container, client, 'invoke', request.id, undefined, runtimeOptions, {

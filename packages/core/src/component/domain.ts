@@ -8,10 +8,12 @@ import type {
 	ComponentResumptionActivation
 } from './contracts.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
+import type { Logger } from '../logging.js';
 
 let activeDomain: ComponentDomain | undefined;
 const resumingDomains = new WeakMap<ComponentDomain, number>();
 const domainCapabilities = new WeakMap<ComponentDomain, ComponentDomainCapabilities>();
+const domainLogging = new WeakMap<ComponentDomain, ComponentDomainLogging>();
 const wallClockUsedDomains = new WeakSet<ComponentDomain>();
 
 /** Public options for creating an application-owned component domain. */
@@ -23,9 +25,17 @@ export type ComponentDomainCapabilities = Readonly<{
 	resumeComponent?: (type: AnyComponentFunction) => ComponentResumptionActivation | undefined;
 	inspection?: ExactRuntimeInspectionOwner;
 	inspectionActivation?: 'hydration';
+	/** Logger shared by the framework-owned component root. */
+	logger?: Logger;
 	/** Immutable wall-clock sample shared by one framework-owned render transaction. */
 	wallClockSnapshot?: number;
 }>;
+
+/** Shared logging state for one framework-owned component root. */
+export type ComponentDomainLogging = {
+	logger: Logger | undefined;
+	componentOverride: boolean;
+};
 
 /** Internal construction options used by framework render and hydration boundaries. */
 export type FrameworkComponentDomainOptions = ComponentDomainOptions & ComponentDomainCapabilities;
@@ -57,7 +67,31 @@ export function createFrameworkComponentDomain(
 			: {})
 	});
 	domainCapabilities.set(domain, capabilities);
+	if (Object.prototype.hasOwnProperty.call(options, 'logger'))
+		domainLogging.set(domain, {
+			logger: options.logger,
+			componentOverride: false
+		});
 	return domain;
+}
+
+/** Resolves the shared logger lane for a framework-owned root. */
+export function componentDomainLogging(
+	domain: ComponentDomain
+): ComponentDomainLogging | undefined {
+	return domainLogging.get(domain);
+}
+
+/** Updates the shared root logger without rebuilding component instances. */
+export function setComponentDomainLogger(domain: ComponentDomain, logger: Logger | undefined): void {
+	const logging = domainLogging.get(domain);
+	if (logging) logging.logger = logger;
+}
+
+/** Selects generic context lookup after a component introduces a logger override. */
+export function markComponentDomainLoggerOverride(domain: ComponentDomain): void {
+	const logging = domainLogging.get(domain);
+	if (logging) logging.componentOverride = true;
 }
 
 /** Returns the inspection owner attached by a framework rendering boundary. */

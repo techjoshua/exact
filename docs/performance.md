@@ -77,6 +77,11 @@ on compact reaction records whose executor methods are shared. Each binding reta
 stop handle for public ownership; it does not construct separate run, schedule, error, and release
 method closures.
 
+Framework-owned component roots also retain one shared logger lane. Disabled component diagnostics
+perform the configured level check directly against that logger rather than walking component
+contexts. Defining a component-level `LoggerContext` override selects the dynamic context lookup
+lane for that root so authored overrides continue to apply at call time.
+
 Compiler render programs also carry production hydration identities. Elements and host-property
 slots use dense program-local indexes rather than repeating stable IDs in templates and node
 tables; structural child ranges use their emitted identities. The bounded adopter skips the

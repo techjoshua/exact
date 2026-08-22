@@ -24,6 +24,7 @@ export function createHydrationOnlyClient(
 		);
 	const domain = createFrameworkComponentDomain({
 		executionRoot: resolvedOptions.executionRoot ?? 'page',
+		logger: resolvedOptions.logger,
 		dispatchContinuation: unsupportedDispatch,
 		resumeComponent: createComponentResumptionResolver(() => resumptions),
 		inspection:

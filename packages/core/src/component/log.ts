@@ -2,6 +2,7 @@ import { peek, unwrap } from '@exactjs/reactive';
 import type { AnyComponent, AnyComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';
+import { componentDomainLogging } from './domain.js';
 
 import {
 	createConsoleLogger,
@@ -210,6 +211,8 @@ function reportLoggerFailure(error: unknown): void {
 }
 
 function resolveLogger(instance: AnyComponentInstance): Logger {
+	const shared = componentDomainLogging(instance.domain);
+	if (shared && !shared.componentOverride) return shared.logger ?? defaultConsoleLogger;
 	let cursor: AnyComponentInstance | undefined = instance.parent;
 	while (cursor) {
 		if (cursor.contexts.has(LoggerContext.id)) {

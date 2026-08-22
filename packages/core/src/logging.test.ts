@@ -9,6 +9,7 @@ import {
 } from './index.js';
 import { createFrameworkFixtureComponentInstance } from './runtime/render.js';
 import { componentLogMethod } from './runtime/logging.js';
+import { createFrameworkComponentDomain } from './framework/component-domains.js';
 
 describe('@exactjs/core logging', () => {
 	it('provides a default component logger', () => {
@@ -170,6 +171,31 @@ describe('@exactjs/core logging', () => {
 		};
 
 		expect(componentLogMethod(instance as never, 'trace')).toBeUndefined();
+	});
+
+	it('uses one framework-root logger without walking component contexts', () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'debug',
+			log: (event) => events.push(event)
+		};
+		const domain = createFrameworkComponentDomain({ executionRoot: 'logging-test', logger });
+		const instance = {
+			id: 'shared-log-owner',
+			type: function SharedLogOwner() {},
+			mounted: true,
+			parent: undefined,
+			ambientContexts: undefined,
+			domain,
+			get contexts(): never {
+				throw new Error('shared logging walked component contexts');
+			}
+		};
+
+		componentLogMethod(instance as never, 'debug')?.(() => ['shared']);
+		expect(componentLogMethod(instance as never, 'trace')).toBeUndefined();
+		expect(events).toHaveLength(1);
+		expect(events[0]!.message).toBe('shared');
 	});
 
 	it('peeks compiler log arguments without subscribing the caller', () => {
