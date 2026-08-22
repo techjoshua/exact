@@ -56,6 +56,11 @@ rediscover topology with maps or runtime sorting. Replacement invocations also r
 readers rather than retaining dependencies from the previous invocation. This remains direct
 compiled DOM work, not a virtual-DOM or general bytecode interpreter.
 
+When a planned property reader is extracted from an authored null-checked branch, generated code
+retains that checker proof at the derived-cell read. A narrowed object is read once within an
+expression operation, and independently scheduled property readers preserve the non-null contract
+instead of emitting invalid optional-object access or adding runtime validation.
+
 Statically resolved native component calls occupy explicit compiler-owned component slots inside an
 intrinsic program. The client retains the parent host template and delegates only that child range
 to a fixed-cardinality component lifecycle operation. The normal path mounts or patches the one
