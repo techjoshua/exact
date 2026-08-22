@@ -329,6 +329,7 @@ function bindRenderProgram(mounted: Mounted): boolean {
 	const bind = () => {
 		stopCurrentBindings();
 		valid = true;
+		let propertyGroup = 0;
 		for (const binding of state.invocation.program.bindings) {
 			if (binding[0] === 'lists') {
 				if (!bindProgramLists(mounted, binding[1], initialBinding, stopBindings)) valid = false;
@@ -359,14 +360,22 @@ function bindRenderProgram(mounted: Mounted): boolean {
 				continue;
 			}
 			const indexes = binding[1];
+			const writer = state.invocation.propertyWriter ? propertyGroup : undefined;
+			propertyGroup++;
 			const element = state.slotNodes[indexes[0]!] as Element;
 			const applyProps = () => {
 				const next: Record<string, unknown> = {};
+				if (writer !== undefined && state.invocation.propertyWriter) {
+					state.invocation.propertyWriter(writer, next);
+				}
 				for (const index of indexes) {
 					const slot = state.invocation.program.slots[index]!;
-					if (slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component')
-						continue;
-					next[slot[2]] = unwrap(readRenderProgramSlot(state.invocation, index));
+					if (slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') continue;
+					next[slot[2]] = unwrap(
+						writer !== undefined && state.invocation.propertyWriter
+							? next[slot[2]]
+							: readRenderProgramSlot(state.invocation, index)
+					);
 				}
 				updateProps(
 					state.root,

@@ -49,7 +49,11 @@ Render-program descriptors are emitted once as immutable module tables. Componen
 only their local expression readers and optional recovery function to that shared table; they do
 not allocate a descriptor factory or repeat cache lookup and freezing. The DOM executor retains
 independent reactions for text slots and for the compiler-known property group on each target
-element. A change therefore evaluates only the affected target group instead of rebuilding props
+element. Closed client output emits each property group as one direct writer operation: one
+invocation fills the target record in browser-safe order without redispatching through the generic
+slot reader for every property. Server and universal artifacts retain individual readers for SSR,
+while older precompiled clients continue through the runtime fallback. A change therefore
+evaluates only the affected target group instead of rebuilding props
 for every element in the program. The descriptor carries those binding groups in browser-safe
 application order, including option values before a controlled select, so mounting does not
 rediscover topology with maps or runtime sorting. Replacement invocations also retrack their new

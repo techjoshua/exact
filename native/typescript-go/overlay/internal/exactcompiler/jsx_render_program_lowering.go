@@ -48,6 +48,41 @@ type renderProgramBuild struct {
 	namespace     string
 }
 
+type renderProgramPropertyBinding struct {
+	node         int
+	slots        []int
+	selectTarget bool
+}
+
+func (build *renderProgramBuild) propertyBindings() []renderProgramPropertyBinding {
+	bindings := make([]renderProgramPropertyBinding, 0, len(build.slots))
+	indexes := make(map[int]int)
+	for index, slot := range build.slots {
+		if slot.kind == "text" || slot.kind == "child" || slot.kind == "component" {
+			continue
+		}
+		bindingIndex, exists := indexes[slot.node]
+		if !exists {
+			bindingIndex = len(bindings)
+			indexes[slot.node] = bindingIndex
+			bindings = append(bindings, renderProgramPropertyBinding{
+				node:         slot.node,
+				selectTarget: build.nodes[slot.node].tag == "select",
+			})
+		}
+		bindings[bindingIndex].slots = append(bindings[bindingIndex].slots, index)
+	}
+	ordered := make([]renderProgramPropertyBinding, 0, len(bindings))
+	for _, selectTarget := range []bool{false, true} {
+		for _, binding := range bindings {
+			if binding.selectTarget == selectTarget {
+				ordered = append(ordered, binding)
+			}
+		}
+	}
+	return ordered
+}
+
 func (build *renderProgramBuild) write(value string) {
 	build.template.WriteString(value)
 	build.part.WriteString(value)
@@ -175,9 +210,25 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	for index, reader := range readers {
 		readers[index] = lowering.preservePlannedPropertyNarrowing(reader)
 	}
+	var propertyWriter *ast.Node
+	runtimeReaders := readers
+	if lowering.target == TargetClient &&
+		lowering.contractProjection != ComponentContractProjectionComplete {
+		propertyWriter = lowering.renderProgramPropertyWriter(build, readers)
+		if propertyWriter != nil {
+			runtimeReaders = append([]*ast.Node(nil), readers...)
+			for index, slot := range build.slots {
+				if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
+					runtimeReaders[index] = lowering.arrow(
+						lowering.factory.NewIdentifier("undefined"),
+					)
+				}
+			}
+		}
+	}
 	arguments := []*ast.Node{
 		lowering.factory.NewIdentifier(programName),
-		lowering.renderProgramReaders(readers),
+		lowering.renderProgramReaders(runtimeReaders),
 	}
 	if lowering.target != TargetClient ||
 		lowering.contractProjection == ComponentContractProjectionComplete {
@@ -190,7 +241,75 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		lowering.renderProgramFallback = false
 		arguments = append(arguments, lowering.arrow(fallback))
 	}
+	if propertyWriter != nil {
+		if len(arguments) == 2 {
+			arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
+		}
+		arguments = append(arguments, propertyWriter)
+	}
 	return lowering.call(lowering.names.preparedRenderProgram, arguments)
+}
+
+func (lowering *jsxLowering) renderProgramPropertyWriter(
+	build *renderProgramBuild,
+	readers []*ast.Node,
+) *ast.Node {
+	bindings := build.propertyBindings()
+	if len(bindings) == 0 {
+		return nil
+	}
+	for _, binding := range bindings {
+		for _, slot := range binding.slots {
+			if !ast.IsArrowFunction(readers[slot]) || ast.IsBlock(readers[slot].AsArrowFunction().Body) {
+				return nil
+			}
+		}
+	}
+	group := lowering.factory.NewIdentifier("__exactGroup")
+	target := lowering.factory.NewIdentifier("__exactTarget")
+	statements := make([]*ast.Node, 0, len(bindings))
+	for groupIndex, binding := range bindings {
+		assignments := make([]*ast.Node, 0, len(binding.slots))
+		for _, slotIndex := range binding.slots {
+			slot := build.slots[slotIndex]
+			member := lowering.factory.NewElementAccessExpression(
+				target,
+				nil,
+				lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone),
+				ast.NodeFlagsNone,
+			)
+			assignments = append(assignments, lowering.factory.NewExpressionStatement(
+				lowering.binary(
+					member,
+					ast.KindEqualsToken,
+					readers[slotIndex].AsArrowFunction().Body,
+				),
+			))
+		}
+		condition := lowering.binary(
+			group,
+			ast.KindEqualsEqualsEqualsToken,
+			lowering.factory.NewNumericLiteral(strconv.Itoa(groupIndex), ast.TokenFlagsNone),
+		)
+		statements = append(statements, lowering.factory.NewIfStatement(
+			condition,
+			lowering.factory.NewBlock(lowering.factory.NewNodeList(assignments), true),
+			nil,
+		))
+	}
+	parameters := lowering.factory.NewNodeList([]*ast.Node{
+		lowering.factory.NewParameterDeclaration(nil, nil, group, nil, nil, nil),
+		lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil),
+	})
+	return lowering.factory.NewArrowFunction(
+		nil,
+		nil,
+		parameters,
+		nil,
+		nil,
+		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
+	)
 }
 
 // preservePlannedPropertyNarrowing retains the source checker proof when a derived object read is
@@ -452,7 +571,6 @@ func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
 	return exists && plan.keyed
 }
 
-
 func renderProgramNamespace(tag string, parent string) string {
 	if tag == "svg" {
 		return "svg"
@@ -647,15 +765,8 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		}
 		slots[index] = array(members)
 	}
-	type propertyBinding struct {
-		node         int
-		slots        []int
-		selectTarget bool
-	}
 	textBindings := make([]*ast.Node, 0, len(build.slots))
 	listSlots := make([]int, 0, len(build.slots))
-	propertyBindings := make([]propertyBinding, 0, len(build.slots))
-	propertyBindingIndexes := make(map[string]int)
 	for index, slot := range build.slots {
 		if slot.kind == "child" && slot.list {
 			listSlots = append(listSlots, index)
@@ -668,17 +779,6 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			}))
 			continue
 		}
-		key := strconv.Itoa(slot.node)
-		bindingIndex, exists := propertyBindingIndexes[key]
-		if !exists {
-			bindingIndex = len(propertyBindings)
-			propertyBindingIndexes[key] = bindingIndex
-			propertyBindings = append(propertyBindings, propertyBinding{
-				node:         slot.node,
-				selectTarget: build.nodes[slot.node].tag == "select",
-			})
-		}
-		propertyBindings[bindingIndex].slots = append(propertyBindings[bindingIndex].slots, index)
 	}
 	bindings := append([]*ast.Node(nil), textBindings...)
 	if len(listSlots) != 0 {
@@ -691,20 +791,15 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			array(indexes),
 		}))
 	}
-	for _, selectTarget := range []bool{false, true} {
-		for _, binding := range propertyBindings {
-			if binding.selectTarget != selectTarget {
-				continue
-			}
-			indexes := make([]*ast.Node, len(binding.slots))
-			for index, slot := range binding.slots {
-				indexes[index] = lowering.factory.NewNumericLiteral(strconv.Itoa(slot), ast.TokenFlagsNone)
-			}
-			bindings = append(bindings, array([]*ast.Node{
-				lowering.factory.NewStringLiteral("properties", ast.TokenFlagsNone),
-				array(indexes),
-			}))
+	for _, binding := range build.propertyBindings() {
+		indexes := make([]*ast.Node, len(binding.slots))
+		for index, slot := range binding.slots {
+			indexes[index] = lowering.factory.NewNumericLiteral(strconv.Itoa(slot), ast.TokenFlagsNone)
 		}
+		bindings = append(bindings, array([]*ast.Node{
+			lowering.factory.NewStringLiteral("properties", ast.TokenFlagsNone),
+			array(indexes),
+		}))
 	}
 	nodes := make([]*ast.Node, len(build.nodes))
 	for index, node := range build.nodes {

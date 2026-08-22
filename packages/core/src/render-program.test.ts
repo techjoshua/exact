@@ -78,6 +78,37 @@ describe('compiled render-program cache', () => {
 		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
 	});
 
+	it('carries a compiler-emitted property-group writer without evaluating slot readers', () => {
+		const descriptor = prepareCompiledRenderProgram({
+			...program('writer'),
+			slots: [
+				['property', 0, 'title'],
+				['property', 0, 'tabIndex']
+			],
+			bindings: [['properties', [0, 1]]],
+			nodes: [['node', 'button']]
+		});
+		const writer = (group: number, target: Record<string, unknown>) => {
+			expect(group).toBe(0);
+			target.title = 'compiled';
+			target.tabIndex = 2;
+		};
+		const vnode = createPreparedRenderProgram(
+			descriptor,
+			[
+				() => {
+					throw new Error('slot reader should not run');
+				}
+			],
+			undefined,
+			writer
+		);
+		const invocation = readRenderProgram(vnode)!;
+		const target: Record<string, unknown> = {};
+		invocation.propertyWriter!(0, target);
+		expect(target).toEqual({ title: 'compiled', tabIndex: 2 });
+	});
+
 	it('rejects ordinary VNodes without interpreting their props as a render program', () => {
 		const prepared = prepareCompiledRenderProgram(program('prepared'));
 		const vnode = {

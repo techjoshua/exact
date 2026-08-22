@@ -402,6 +402,7 @@ func TestSessionGroupsPlannedKeyedListsIntoOneRenderLane(t *testing.T) {
 func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			export function Planned(props: { value: string; option: string }) {
 				return () => <select value={props.value}><option value={props.option}>A</option></select>;
@@ -413,6 +414,10 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, `bindings: [["properties", [1]], ["properties", [0]]]`) {
 		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `(__exactGroup, __exactTarget) =>`) ||
+		!strings.Contains(response.Code, `__exactTarget["value"] = props.option`) {
+		t.Fatalf("closed client output omitted the direct property writer:\n%s", response.Code)
 	}
 }
 
