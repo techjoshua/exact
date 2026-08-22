@@ -40,6 +40,17 @@ export function mountDetachedChildren(
 	}
 }
 
+/** Mounts one compiler-proven child without allocating or validating a sibling collection. */
+export function mountDetachedChild(
+	root: Root,
+	vnode: VNode,
+	parentInstance?: AnyComponentInstance,
+	parentScope?: EffectScope,
+	parentNode?: Node
+): Mounted {
+	return mount(root, vnode, parentInstance, parentScope, parentNode);
+}
+
 /** Performs the portal target domain operation. */
 export function portalTarget(vnode: VNode): Node {
 	const target = vnode.props.target;

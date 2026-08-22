@@ -58,7 +58,10 @@ compiled DOM work, not a virtual-DOM or general bytecode interpreter.
 
 Statically resolved native component calls occupy explicit compiler-owned component slots inside an
 intrinsic program. The client retains the parent host template and delegates only that child range
-to the component lifecycle operation; complete and server artifacts publish the matching dynamic
+to a fixed-cardinality component lifecycle operation. The normal path mounts or patches the one
+compiler-proven component directly, without normalizing a child array or entering keyed sibling
+reconciliation; error and suspension fallbacks retain the general structural path. Complete and
+server artifacts publish the matching dynamic
 boundary while keeping recursive SSR execution. Stateful, interactive, contextual, split-boundary,
 transition-owning, and keyed-list components keep their durable instances and ordinary ownership
 semantics inside that slot instead of forcing the surrounding intrinsic host through generic VNode

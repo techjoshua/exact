@@ -2,7 +2,8 @@ import {
 	type AnyComponentInstance,
 	normalizeRenderResult,
 	unwrap,
-	type Child
+	type Child,
+	type VNode
 } from '@exactjs/core';
 import { renderInstance, ServerSlot } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
@@ -70,6 +71,24 @@ export function patchChildren(
 			);
 		})
 	);
+}
+
+/** Patches one compiler-proven child without entering collection reconciliation. */
+export function patchSingleChild(
+	root: Root,
+	parent: Node,
+	oldChild: Mounted,
+	next: VNode,
+	parentInstance?: AnyComponentInstance,
+	parentScope?: EffectScope,
+	structuralOwner?: Mounted
+): Mounted {
+	if (root.interactionWork) root.interactionWork.reconciliations++;
+	const patched = withDomWork(root, () =>
+		preserveFocus(root, () => patch(root, parent, oldChild, next, parentInstance, parentScope))
+	);
+	completeChildReconciliation(root, parentInstance, structuralOwner);
+	return patched;
 }
 
 /** Performs the patch children inner domain operation. */

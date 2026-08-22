@@ -58,7 +58,9 @@ fallback.
 A client program places a statically resolved native component in an explicit component lifecycle
 slot. Server and complete artifacts retain the component's recursive execution and add the same
 stable range marker, so hydration claims the component without rediscovering the surrounding host
-tree. State, interactions, contexts, split boundaries, transitions, and keyed-list render callbacks
+tree. Once claimed, the compiler-proven single component mounts and patches through its direct
+lifecycle operation rather than general sibling reconciliation. State, interactions, contexts,
+split boundaries, transitions, and keyed-list render callbacks
 remain owned by the component's durable instance inside that slot.
 
 When structural slots contain compiler-known keyed-list expressions, hydration adopts every slot
