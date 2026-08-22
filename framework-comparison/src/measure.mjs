@@ -386,6 +386,9 @@ function summarizeBrowser(samples) {
 			(sample) => sample.vitals.longTaskDurationMs
 		),
 		domElementCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domElementCount),
+		domNodeCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domNodeCount),
+		domCommentCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domCommentCount),
+		domTextCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domTextCount),
 		heapBytes: summarizeSampleMetric(samples, (sample) => sample.heapBytes),
 		optimisticFeedbackMs: summarizeSampleMetric(samples, (sample) => sample.optimisticFeedbackMs),
 		settlementMs: summarizeSampleMetric(samples, (sample) => sample.settlementMs)

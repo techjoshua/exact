@@ -85,6 +85,48 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 	);
 });
 
+it('executes structural program slots without colliding with nested marker identities', () => {
+	function Child() {
+		return () => createVNode('strong', null, 'child');
+	}
+	const program = createCompiledRenderProgram(
+		'render-program:ssr-structural',
+		() => ({
+			version: 3,
+			id: 'render-program:ssr-structural',
+			namespace: 'html',
+			template: '<section><!---->\ue000exact:0\ue001<!----></section>',
+			parts: ['<section>', '</section>'],
+			slots: [['component', 'child']],
+			bindings: [['component', 0]],
+			nodes: [[0, 'section']],
+			ssrParts: ['', '<section>', '', '</section>', ''],
+			ssrOperations: [
+				{ kind: 'node-open', index: 0 },
+				{ kind: 'slot', index: 0 },
+				{ kind: 'node-close', index: 0 }
+			]
+		}),
+		[() => createVNode(Child, {})],
+		() =>
+			createCompiledVNode(
+				'section',
+				null,
+				createDynamicChild(() => createVNode(Child, {}), 'child')
+			)
+	);
+
+	const marked = renderToString(program).html;
+	expect(marked).toContain('<!--exact:cell:0--><section><!--exact:dynamic:child-->');
+	expect(marked).toContain('<!--exact:component:1:');
+	expect(marked).not.toContain('<!--exact:component:0:');
+	expect(marked).toContain('<strong>child</strong><!--/exact:component:1:');
+	expect(marked).toContain('<!--/exact:dynamic:child--></section><!--/exact:cell:0-->');
+	expect(renderToString(program, { markers: false }).html).toBe(
+		'<section><strong>child</strong></section>'
+	);
+});
+
 it('materializes marker-mode program fallbacks inside their component scope', async () => {
 	let fallbackScope: EffectScope | undefined;
 	function ProgramOwner() {
