@@ -16,15 +16,6 @@ import {
 /** Provides the canonical default console logger value. */
 export const defaultConsoleLogger = createConsoleLogger();
 
-const noopLogMethod = () => undefined;
-const noopComponentLog: ComponentLog = Object.freeze({
-	trace: noopLogMethod,
-	debug: noopLogMethod,
-	info: noopLogMethod,
-	warn: noopLogMethod,
-	error: noopLogMethod
-});
-
 /** Emits a framework-scoped log event through the supplied or default logger. */
 export function logFrameworkEvent(
 	level: LogLevel,
@@ -46,11 +37,6 @@ export function logFrameworkEvent(
 		data: data === undefined ? undefined : evaluateLogValue(data),
 		scope
 	});
-}
-
-/** Creates a noop component log. */
-export function createNoopComponentLog(): ComponentLog {
-	return noopComponentLog;
 }
 
 /** Creates a component log. */
