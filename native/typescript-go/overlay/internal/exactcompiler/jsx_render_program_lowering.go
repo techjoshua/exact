@@ -380,8 +380,7 @@ func (lowering *jsxLowering) plannedComponentChild(tag *ast.Node) bool {
 	if lowering.declarativeRenderDepth > 0 || componentChildInsideMap(tag) || !ast.IsIdentifier(tag) {
 		return false
 	}
-	_, exists := lowering.components[tag.Text()]
-	return exists
+	return lowering.localExactComponentTag(tag)
 }
 
 func componentChildInsideMap(node *ast.Node) bool {
