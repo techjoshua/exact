@@ -2,14 +2,10 @@ import { isVNode, unwrap } from '@exactjs/core';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render';
 import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
-import {
-	reactiveOwnDependencies,
-	readMutationVersion,
-	subscribeKeys
-} from '@exactjs/reactive/framework/runtime';
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted } from '../types.js';
+import { registerComponentUpdateLane } from './component-update-lanes.js';
 import { bindProgramChild, bindProgramLists } from './render-program-children.js';
 
 type ProgramBindingTarget = {
@@ -151,7 +147,7 @@ export function applyCompiledProgramProperties(
 	applyCompiledProps(context.mounted, element, group, false);
 }
 
-/** Subscribes compiler-known state fields as one versioned dirty-mask reaction. */
+/** Registers compiler-known state fields with the durable component's shared update reaction. */
 export function bindCompiledProgramState(
 	target: ExactRenderProgramBindingTarget,
 	bindings: readonly (readonly [key: string, dirtyLow: number, dirtyHigh: number])[]
@@ -165,38 +161,11 @@ export function bindCompiledProgramState(
 		context.valid = false;
 		return;
 	}
-	const dependencies = reactiveOwnDependencies(
-		owner.state,
-		bindings.map(([key]) => key)
-	);
-	if (!dependencies) {
+	const stop = registerComponentUpdateLane(owner, context, bindings, updater);
+	if (!stop) {
 		context.valid = false;
 		return;
 	}
-	const versions = dependencies.keys.map((key) => readMutationVersion(dependencies.target, key));
-	const updateTarget: ProgramBindingTarget = {
-		mounted,
-		initialBinding: false,
-		stopBindings: [],
-		valid: true
-	};
-	const stop = subscribeKeys(
-		dependencies.target,
-		dependencies.keys,
-		() => {
-			let dirtyLow = 0;
-			let dirtyHigh = 0;
-			for (let index = 0; index < dependencies.keys.length; index++) {
-				const version = readMutationVersion(dependencies.target, dependencies.keys[index]!);
-				if (version === versions[index]) continue;
-				versions[index] = version;
-				dirtyLow |= bindings[index]![1];
-				dirtyHigh |= bindings[index]![2];
-			}
-			if (dirtyLow || dirtyHigh) updater(updateTarget, dirtyLow, dirtyHigh);
-		},
-		{ scope: mounted.scope }
-	);
 	context.stopBindings.push({ stop });
 }
 

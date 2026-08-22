@@ -39,13 +39,15 @@ describe('compiler-generated dirty updates', () => {
 		const vnode = createPreparedRenderProgram(program, [() => state.count, () => state.label]);
 		const invocation = readRenderProgram(vnode)!;
 		const scope = createEffectScope();
+		const ownerScope = createEffectScope();
+		const owner = { state, scope: ownerScope } as unknown as AnyComponentInstance;
 		const mounted = {
 			scope,
 			renderProgram: {
 				invocation,
 				programRoot: document.createElement('p'),
 				slotNodes: [count, label],
-				parentInstance: { state } as unknown as AnyComponentInstance
+				parentInstance: owner
 			}
 		} as unknown as Mounted;
 		const stopBindings: Array<{ stop(): void }> = [];
@@ -75,5 +77,54 @@ describe('compiler-generated dirty updates', () => {
 
 		for (const binding of stopBindings) binding.stop();
 		scope.stop();
+		ownerScope.stop();
+	});
+
+	it('owns one dirty-state reaction across every generated region in a component', () => {
+		const state = indexedReactiveObjects<{ count: number; label: string }>(['count', 'label']);
+		state.count = 1;
+		state.label = 'first';
+		const ownerScope = createEffectScope();
+		const owner = { state, scope: ownerScope } as unknown as AnyComponentInstance;
+		const updates = [vi.fn(), vi.fn()];
+		const releases: Array<{ stop(): void }> = [];
+
+		for (let index = 0; index < 2; index++) {
+			const program = prepareCompiledRenderProgram({
+				version: 3,
+				id: `component-update-${index}`,
+				namespace: 'html',
+				template: '<p></p>',
+				directClaims: true,
+				bind() {},
+				update: updates[index]
+			});
+			const invocation = readRenderProgram(createPreparedRenderProgram(program, []))!;
+			const mounted = {
+				scope: createEffectScope(ownerScope),
+				renderProgram: {
+					invocation,
+					programRoot: document.createElement('p'),
+					slotNodes: [],
+					parentInstance: owner
+				}
+			} as unknown as Mounted;
+			const target = { mounted, initialBinding: true, stopBindings: releases, valid: true };
+			bindCompiledProgramState(target, [[index === 0 ? 'count' : 'label', 1, 0]]);
+		}
+
+		const reactions = (ownerScope as unknown as { reactions: Set<unknown> }).reactions;
+		expect(reactions.size).toBe(1);
+		batch(() => {
+			state.count = 2;
+			state.label = 'second';
+		});
+		flushSync();
+		expect(updates[0]).toHaveBeenCalledWith(expect.anything(), 1, 0);
+		expect(updates[1]).toHaveBeenCalledWith(expect.anything(), 1, 0);
+
+		for (const release of releases) release.stop();
+		expect(reactions.size).toBe(0);
+		ownerScope.stop();
 	});
 });
