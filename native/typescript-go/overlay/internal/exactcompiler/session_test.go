@@ -70,6 +70,17 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 			t.Fatalf("synchronized output for %s diverged from fresh compilation", request.ID)
 		}
 	}
+	clientPage := NewSession().Execute(Request{
+		ID: pageFile, Kind: "compile", Root: root, ConfigFile: configFile, Source: pageSource,
+		Target: TargetClient, ComponentContractProjection: ComponentContractProjectionHydrate,
+	})
+	if clientPage.Error != "" {
+		t.Fatal(clientPage.Error)
+	}
+	if !strings.Contains(clientPage.Code, `["component",`) ||
+		strings.Contains(clientPage.Code, `__exactVNode("main"`) {
+		t.Fatalf("imported native component did not enter the compiled host lifecycle slot:\n%s", clientPage.Code)
+	}
 
 	changedChildSource := `export function Child() { window.name = "child"; return () => <span>changed</span>; }`
 	if err := os.WriteFile(childFile, []byte(changedChildSource), 0o600); err != nil {
