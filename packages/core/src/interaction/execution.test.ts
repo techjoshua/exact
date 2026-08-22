@@ -12,11 +12,87 @@ import {
 	currentInteraction,
 	runCompiledComponentInteraction,
 	runComponentInteraction,
+	runDirectCompiledComponentInteraction,
 	traceInteractionPhase,
 	type InteractionScope
 } from './execution.js';
 
 describe('component interactions', () => {
+	it('runs compiled interactions without a task frame when tracing is disabled', () => {
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
+		const result = runDirectCompiledComponentInteraction(owner, 'event', 1, 'interactive', () => {
+			expect(currentInteraction()).toBeUndefined();
+			return 42;
+		});
+
+		expect(result).toBe(42);
+		owner.unmount();
+	});
+
+	it('retains observable interaction semantics for trace-enabled closed handlers', async () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'trace',
+			log: (event) => events.push(event)
+		};
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
+			this.setContext(LoggerContext, logger);
+			return () => null;
+		}, {});
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {}, parent);
+		let scope: InteractionScope | undefined;
+
+		await runDirectCompiledComponentInteraction(
+			owner,
+			'event',
+			1,
+			'interactive',
+			() => {
+				expect(currentInteraction()).toBeDefined();
+			},
+			(value) => {
+				scope = value;
+			}
+		);
+
+		expect(scope).toBeDefined();
+		expect(events.map((event) => (event.data as Record<string, unknown>).phase)).toEqual([
+			'started',
+			'settled'
+		]);
+		parent.unmount();
+	});
+
+	it('materializes a structural frame when a compiled handler starts a task', async () => {
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const child = defineTask({}, () => gate);
+		let settled = false;
+		const interaction = runDirectCompiledComponentInteraction(
+			owner,
+			'event',
+			1,
+			'interactive',
+			() => {
+				void child();
+			}
+		);
+
+		expect(interaction).toBeInstanceOf(Promise);
+		void Promise.resolve(interaction).then(() => {
+			settled = true;
+		});
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		release();
+		await interaction;
+		expect(settled).toBe(true);
+		owner.unmount();
+	});
+
 	it('keeps compiled interactions metadata-free when tracing is disabled', async () => {
 		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		let traceScopeObserved = false;

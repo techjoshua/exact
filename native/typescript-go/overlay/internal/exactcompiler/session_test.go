@@ -3783,8 +3783,10 @@ func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `onInput: handler("value")`) ||
-		strings.Contains(response.Code, `onInput: __exactExpression`) {
+	if !strings.Contains(
+		response.Code,
+		`"__exactDirectInteraction:onInput": handler("value")`,
+	) || strings.Contains(response.Code, `"__exactDirectInteraction:onInput": __exactExpression`) {
 		t.Fatalf("event handler factory was emitted as a reactive value:\n%s", response.Code)
 	}
 }

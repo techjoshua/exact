@@ -36,6 +36,7 @@ export type {
 let nextFrameId = 1;
 let currentFrame: TaskFrameRecord | undefined;
 let currentOwner: TaskOwnerRecord | undefined;
+let deferredFrameMaterializer: (() => TaskFrameRecord) | undefined;
 const synchronousFrameErrors = new WeakMap<Promise<unknown>, { readonly error: unknown }>();
 
 /** Creates a durable task owner and its cancellation lifetime. */
@@ -58,6 +59,22 @@ export function taskOwnerRecord(owner: TaskOwner): TaskOwnerRecord {
 /** Returns the frame active for the current synchronous execution segment. */
 export function currentTaskFrameRecord(): TaskFrameRecord | undefined {
 	return currentFrame;
+}
+
+/** Materializes an interaction frame only when synchronous work requests structural ownership. */
+export function materializeDeferredTaskFrame(): TaskFrameRecord | undefined {
+	return deferredFrameMaterializer?.();
+}
+
+/** Installs the lazy structural parent available to task and navigation operations during work. */
+export function withDeferredTaskFrame<T>(materialize: () => TaskFrameRecord, work: () => T): T {
+	const previous = deferredFrameMaterializer;
+	deferredFrameMaterializer = materialize;
+	try {
+		return work();
+	} finally {
+		deferredFrameMaterializer = previous;
+	}
 }
 
 /** Returns the durable owner supplied by the current framework host. */
@@ -295,7 +312,7 @@ export function attachTaskFrameSettlement(
 
 /** Adds structural work to the synchronously active task frame, when present. */
 export function joinTask(settlement: PromiseLike<unknown>): void {
-	const frame = currentTaskFrameRecord();
+	const frame = currentTaskFrameRecord() ?? materializeDeferredTaskFrame();
 	if (frame) attachTaskFrameSettlement(frame, settlement);
 }
 

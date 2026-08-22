@@ -4,6 +4,7 @@
 import '@exactjs/core/runtime/lists';
 import {
 	createErrorContext,
+	currentInteraction,
 	ErrorBoundary,
 	ErrorContext,
 	type Component,
@@ -15,8 +16,48 @@ import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
+import { directInteractionKey } from './events.js';
+import { eventHandlers } from './state.js';
 
 describe('@exactjs/dom events-errors', () => {
+	it('runs compiler-owned event handlers without materializing an interaction frame', () => {
+		const container = document.createElement('div');
+		let activeInteraction: unknown = 'not called';
+		function Button(this: Component<{}>) {
+			return () =>
+				jsx('button', {
+					'__exactDirectInteraction:onClick': () => {
+						activeInteraction = currentInteraction();
+					},
+					children: 'Click'
+				});
+		}
+		render(jsx(Button, {}), container);
+		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		expect(activeInteraction).toBeUndefined();
+	});
+
+	it('keeps compiled interaction selection local to one event binding', () => {
+		const container = document.createElement('div');
+		const handler = () => undefined;
+		function Buttons(this: Component<{}>) {
+			return () =>
+				jsx('div', {
+					children: [
+						jsx('button', {
+							'__exactDirectInteraction:onClick': handler,
+							children: 'Compiled'
+						}),
+						jsx('button', { onClick: handler, children: 'Runtime' })
+					]
+				});
+		}
+		render(jsx(Buttons, {}), container);
+		const buttons = container.querySelectorAll('button');
+		expect(eventHandlers.get(buttons[0]!)?.has(directInteractionKey('click'))).toBe(true);
+		expect(eventHandlers.get(buttons[1]!)?.has(directInteractionKey('click'))).toBe(false);
+	});
+
 	it('runs binding listeners before delegated user handlers and removes them on unmount', () => {
 		const container = document.createElement('div');
 		const calls: string[] = [];

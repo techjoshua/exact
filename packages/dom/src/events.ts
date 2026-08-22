@@ -5,6 +5,7 @@ import {
 	handleComponentError,
 	observeComponentAsync,
 	runCompiledComponentInteraction,
+	runDirectCompiledComponentInteraction,
 	runComponentInteraction,
 	traceInteractionPhase,
 	unwrap,
@@ -76,14 +77,18 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 
 	const listener = (event: Event) => {
 		dispatchEventPath(event, container, (cursor) => {
-			const handler = eventHandlers.get(cursor)?.get(type);
+			const handlers = eventHandlers.get(cursor);
+			const handler = handlers?.get(type);
 			if (handler) {
 				const current = cursor;
 				preserveFocus(root, () => {
 					try {
 						const owner = findOwnerInstance(current);
-						const result = runInteractiveEvent(root, owner, () =>
-							callDelegatedHandler(handler, current, event)
+						const result = runInteractiveEvent(
+							root,
+							owner,
+							() => callDelegatedHandler(handler, current, event),
+							handlers!.has(directInteractionKey(type))
 						);
 						observeComponentAsync(owner, result, 'event', type);
 					} catch (error) {
@@ -100,6 +105,11 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 	listeners.set(type, listener);
 }
 
+/** Returns the colocated map key that marks one compiler-owned event binding. */
+export function directInteractionKey(type: string): string {
+	return `__exactDirect:${type}`;
+}
+
 /**
  * Runs one direct or delegated DOM callback in the owning component interaction.
  *
@@ -108,9 +118,19 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 export function runEventInteraction<Result>(
 	owner: AnyComponentInstance | undefined,
 	work: () => Result | PromiseLike<Result>,
-	onScope?: (scope: InteractionScope) => void
+	onScope?: (scope: InteractionScope) => void,
+	direct = false
 ): Result | PromiseLike<Result> {
 	if (!owner) return work();
+	if (direct)
+		return runDirectCompiledComponentInteraction(
+			owner,
+			'event',
+			nextEventGeneration(owner),
+			'interactive',
+			work,
+			onScope
+		);
 	return runComponentInteraction(
 		owner,
 		'event',
@@ -128,7 +148,8 @@ export function runEventInteraction<Result>(
 function runInteractiveEvent<Result>(
 	root: Root,
 	owner: AnyComponentInstance | undefined,
-	work: () => Result | PromiseLike<Result>
+	work: () => Result | PromiseLike<Result>,
+	direct = false
 ): Result | PromiseLike<Result> {
 	let interaction: InteractionScope | undefined;
 	root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
@@ -136,17 +157,28 @@ function runInteractiveEvent<Result>(
 		const result = runWithPriority('interactive', () =>
 			batch(() =>
 				owner
-					? runCompiledComponentInteraction(
-							owner,
-							'event',
-							nextEventGeneration(owner),
-							'interactive',
-							new AbortController(),
-							work,
-							(scope) => {
-								interaction = scope;
-							}
-						)
+					? direct
+						? runDirectCompiledComponentInteraction(
+								owner,
+								'event',
+								nextEventGeneration(owner),
+								'interactive',
+								work,
+								(scope) => {
+									interaction = scope;
+								}
+							)
+						: runCompiledComponentInteraction(
+								owner,
+								'event',
+								nextEventGeneration(owner),
+								'interactive',
+								new AbortController(),
+								work,
+								(scope) => {
+									interaction = scope;
+								}
+							)
 					: work()
 			)
 		);

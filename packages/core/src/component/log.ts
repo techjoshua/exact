@@ -1,5 +1,5 @@
 import { peek, unwrap } from '@exactjs/reactive';
-import type { AnyComponentInstance, ErrorReport } from './contracts.js';
+import type { AnyComponent, AnyComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';
 
@@ -64,10 +64,12 @@ export type ComponentLogMethod = (
  * logger contexts or enabled levels without rebuilding its artifact.
  */
 export function componentLogMethod(
-	instance: AnyComponentInstance,
+	instance: AnyComponent,
 	level: LogLevel
 ): ComponentLogMethod | undefined {
-	return prepareComponentLogMethod(instance, level);
+	// Compiler-generated component bodies receive the authored Component view, while execution
+	// always binds that view to the complete durable instance before this ABI can be called.
+	return prepareComponentLogMethod(instance as AnyComponentInstance, level);
 }
 
 class ComponentLogFacade implements ComponentLog {
