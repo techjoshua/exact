@@ -89,6 +89,56 @@ describe('compiler-wired render-program claims', () => {
 		expect(root.childNodes).toHaveLength(1);
 	});
 
+	it('claims compiler-proven marker-free SSR text without creating delimiters', () => {
+		const root = document.createElement('p');
+		root.textContent = 'Ready';
+		const program: ExactRenderProgram = {
+			...scalarProgram,
+			bind(target) {
+				if (!beginCompiledProgramClaims(target, 'p', 'html', 1, 1)) return;
+				claimCompiledProgramText(target, 0, 0, 'label', true);
+			}
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect((claimed?.slotNodes[0] as Text).data).toBe('Ready');
+		expect(root.childNodes).toHaveLength(1);
+		expect(root.querySelectorAll('*')).toHaveLength(0);
+	});
+
+	it('materializes an empty text node at a compiler-proven marker-free boundary', () => {
+		const root = document.createElement('p');
+		root.innerHTML = '<strong>After</strong>';
+		const program: ExactRenderProgram = {
+			...scalarProgram,
+			bind(target) {
+				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
+				claimCompiledProgramText(target, 0, 0, 'label', true);
+			}
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect((claimed?.slotNodes[0] as Text).data).toBe('');
+		expect(root.childNodes[0]).toBe(claimed?.slotNodes[0]);
+		expect(root.childNodes[1]).toBe(root.firstElementChild);
+	});
+
+	it('rejects marker-free text when required preceding siblings are missing', () => {
+		const root = document.createElement('p');
+		const program: ExactRenderProgram = {
+			...scalarProgram,
+			bind(target) {
+				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
+				claimCompiledProgramText(target, 0, 1, 'label', true);
+			}
+		};
+
+		expect(claimCompiledRenderProgram(program, root, 'ssr')).toBeUndefined();
+		expect(root.childNodes).toHaveLength(0);
+	});
+
 	it('promotes unusually high component-slot indexes without truncating identity', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<!--exact:dynamic:detail--><!--/exact:dynamic:detail-->';

@@ -15,11 +15,13 @@ export type ExactRenderProgramSsrOperation = Readonly<{
 	index: number;
 }>;
 
-/** Compact text slot: kind, marker identity, and the markerless-template path. */
+/** Compact text slot: kind, fallback identity, template path, and marker-free SSR proof. */
 export type ExactRenderProgramTextSlot = readonly [
 	kind: 'text',
 	id: string,
-	path: readonly number[]
+	path: readonly number[],
+	/** The surrounding static markup prevents this value from merging with another text node. */
+	markerlessSsr?: true
 ];
 
 /** Compact property slot: kind, target node index, property name. */

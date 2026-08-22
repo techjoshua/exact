@@ -93,11 +93,11 @@ function renderMarkedProgram(
 			html = appendBoundedHtml(
 				context,
 				html,
-				(slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') && slot[1]
+				(slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') &&
+					slot[1] &&
+					!(slot[0] === 'text' && slot[3])
 					? `<!--exact:dynamic:${exactMarkerId(slot[1])}-->${rendered}<!--/exact:dynamic:${exactMarkerId(slot[1])}-->`
-					: slot[0] === 'text'
-						? ''
-						: rendered
+					: rendered
 			);
 		} else {
 			const id = `cell:${markerBase + operation.index}`;
@@ -129,6 +129,7 @@ function hasValidSsrOperations(program: ExactTableRenderProgram): boolean {
 			if (operation.index >= program.slots.length) return false;
 			const slot = program.slots[operation.index]!;
 			if (slot[0] === 'text' && !slot[1]) return false;
+			continue;
 		} else if (
 			(operation.kind === 'node-open' || operation.kind === 'node-close') &&
 			operation.index < program.nodes.length

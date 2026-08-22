@@ -185,10 +185,12 @@ Hydration entry points likewise pass their owned configuration resolver explicit
 adoption engine has no complete-runtime default import, so a hydration-only client does not retain
 endpoint, continuation, island, or patch configuration merely because the full client supports it.
 
-Scalar text slots may sit beside static text or other scalar slots in one planned host. The
-compiler inserts anonymous template-only comment separators so HTML parsing cannot coalesce their
-text nodes, then emits the exact resulting paths. The separators carry no protocol identity; SSR
-continues to use request-owned dynamic markers and the hydration tape addresses those separately.
+Scalar text slots may sit beside static text or other scalar slots in one planned host. When static
+markup bounds a slot on both sides, hydratable SSR writes the escaped value directly and the
+generated claim lane adopts it without emitting comment delimiters. An empty value receives an
+owned empty `Text` node at that compiled boundary. Adjacent text retains anonymous separators so
+HTML parsing cannot coalesce independently updated values; the compiler emits the exact resulting
+paths for that fallback.
 Compiler-owned `className:name` contributions are likewise combined into one planned class
 operation in authored order. Conditional class hosts no longer require a generic VNode merely to
 preserve class normalization and reactive updates.
@@ -416,7 +418,8 @@ array. It does not allocate string keys or marker maps for the closed client pat
 identities and compatibility programs retain the bounded indexing path because they do not carry a
 compiler-generated claim lane.
 
-Successful compiled scalar hydration releases its opening and closing sentinels after transferring
+Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
+the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
 ownership to the claimed `Text` node. Structural child and component markers remain because they
 own variable-width DOM ranges; scalar bindings already retain their exact node and do not need a
 second permanent range representation.

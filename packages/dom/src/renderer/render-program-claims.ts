@@ -13,6 +13,8 @@ type ProgramClaimTarget = {
 	componentSlots: number | Set<number>;
 	work: readonly [nodes: number, slots: number];
 	readonly parents: Array<Node | null>;
+	readonly containers: Node[];
+	container: Node;
 	current: Node | null;
 	valid: boolean;
 	began: boolean;
@@ -48,6 +50,8 @@ export function claimCompiledRenderProgram(
 		componentSlots: 0,
 		work: [0, 0],
 		parents: [],
+		containers: [],
+		container: root,
 		current: null,
 		valid: true,
 		began: false
@@ -129,6 +133,8 @@ export function enterCompiledProgramElement(
 		return;
 	}
 	target.parents.push(target.current);
+	target.containers.push(target.container);
+	target.container = element;
 	target.current = element.firstChild;
 }
 
@@ -136,10 +142,12 @@ export function enterCompiledProgramElement(
 export function leaveCompiledProgramElement(target: ExactRenderProgramBindingTarget): void {
 	if (!isClaimTarget(target) || !target.valid) return;
 	const parent = target.parents.pop();
-	if (parent === undefined) {
+	const container = target.containers.pop();
+	if (parent === undefined || !container) {
 		target.valid = false;
 		return;
 	}
+	target.container = container;
 	target.current = parent;
 }
 
@@ -148,9 +156,32 @@ export function claimCompiledProgramText(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
 	skip: number,
-	id: string
+	id: string,
+	markerlessSsr = false
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
+	if (target.source === 'ssr' && markerlessSsr) {
+		let marker = target.current;
+		for (let offset = 0; offset < skip; offset++) {
+			if (!marker) {
+				target.valid = false;
+				return;
+			}
+			marker = marker.nextSibling;
+		}
+		if (marker instanceof Comment && marker.data.startsWith('exact:')) {
+			target.valid = false;
+			return;
+		}
+		const text =
+			marker instanceof Text
+				? marker
+				: (marker?.ownerDocument ?? target.root.ownerDocument).createTextNode('');
+		if (!(marker instanceof Text)) target.container.insertBefore(text, marker);
+		target.slotNodes[index] = text;
+		target.current = marker instanceof Text ? marker.nextSibling : marker;
+		return;
+	}
 	const marker = advance(target.current, skip);
 	const identity = markerIdentity(id);
 	const expectedOpen = target.source === 'template' ? '' : `exact:dynamic:${identity}`;

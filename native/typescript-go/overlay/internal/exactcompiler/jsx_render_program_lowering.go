@@ -96,6 +96,21 @@ func (build *renderProgramBuild) ssrOperation(kind string, index int) {
 	build.ssrOperations = append(build.ssrOperations, renderProgramSsrOperation{kind: kind, index: index})
 }
 
+// markerlessTextSlot reports whether the serialized value is bounded by markup on both sides.
+// In that shape the HTML parser cannot merge it with authored or adjacent dynamic text, so the
+// client can claim the text directly at its compiled position without server comment delimiters.
+func (build *renderProgramBuild) markerlessTextSlot(index int) bool {
+	for position, operation := range build.ssrOperations {
+		if operation.kind != "slot" || operation.index != index {
+			continue
+		}
+		before := build.ssrParts[position]
+		after := build.ssrParts[position+1]
+		return strings.HasSuffix(before, ">") && strings.HasPrefix(after, "<")
+	}
+	return false
+}
+
 func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
 	index := len(build.slots)
 	build.template.WriteString(fmt.Sprintf("<!---->\ue000exact:%d\ue001<!---->", index))
@@ -816,6 +831,9 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		members := []*ast.Node{lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)}
 		if slot.kind == "text" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone), path(slot.path))
+			if build.markerlessTextSlot(index) {
+				members = append(members, lowering.factory.NewTrueExpression())
+			}
 		} else if slot.kind == "child" || slot.kind == "component" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone))
 		} else {
@@ -1067,11 +1085,17 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 					emitCall(lowering.names.leaveProgramElement)
 				}
 			case "text":
-				emitCall(
-					lowering.names.claimProgramText,
+				arguments := []*ast.Node{
 					claimIndex,
 					skip,
 					lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone),
+				}
+				if build.markerlessTextSlot(claim.index) {
+					arguments = append(arguments, lowering.factory.NewTrueExpression())
+				}
+				emitCall(
+					lowering.names.claimProgramText,
+					arguments...,
 				)
 			default:
 				arguments := []*ast.Node{
