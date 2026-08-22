@@ -216,6 +216,10 @@ function adoptMarkedRenderProgram(
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
+	// Universal artifacts retain table-driven bindings for server-safe serialization. The browser
+	// runtime intentionally does not activate that generic table. Select the untouched region
+	// fallback before claiming scalar sentinels so a failed optimized attempt remains atomic.
+	if (!invocation.program.bind && invocation.program.bindings?.length) return undefined;
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
 	const rootNodePlan = invocation.program.nodes[0];

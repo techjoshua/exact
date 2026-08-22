@@ -92,8 +92,12 @@ export function renderVNodeInner(
 			renderVNode(context, getCellVNode(vnode), parent)
 		);
 	}
-	const program = renderSsrProgramString(context, vnode, parent, (fallback) =>
-		renderVNode(context, fallback, parent)
+	const program = renderSsrProgramString(
+		context,
+		vnode,
+		parent,
+		(fallback) => renderVNode(context, fallback, parent),
+		(children) => renderChildren(context, children, parent)
 	);
 	if (program !== undefined) return program;
 

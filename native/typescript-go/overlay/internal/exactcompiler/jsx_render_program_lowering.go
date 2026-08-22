@@ -500,7 +500,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	build.nodes = append(build.nodes, renderProgramNode{
 		id: nodeIndex, path: append([]int(nil), path...), tag: tag, namespace: namespace,
 	})
-	build.ssrOperation("node-open", nodeIndex)
+	// The compiled render program owns one DOM range. Nested intrinsic nodes are addressed by the
+	// dense topology and do not need the generic cell boundary emitted for independent VNodes.
+	if nodeIndex == 0 {
+		build.ssrOperation("node-open", nodeIndex)
+	}
 	build.write("<" + tag)
 	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
 		return false
@@ -546,7 +550,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if !lowering.plannedComponentChild(childTag) {
 					return false
 				}
-				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
+				if lowering.target != TargetClient {
 					return false
 				}
 				build.componentSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
@@ -563,7 +567,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if !lowering.plannedComponentChild(childTag) {
 					return false
 				}
-				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
+				if lowering.target != TargetClient {
 					return false
 				}
 				build.componentSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
@@ -581,7 +585,9 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if !voidElement(tag) {
 		build.write("</" + tag + ">")
 	}
-	build.ssrOperation("node-close", nodeIndex)
+	if nodeIndex == 0 {
+		build.ssrOperation("node-close", nodeIndex)
+	}
 	return true
 }
 
@@ -892,7 +898,8 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 		members = append(members, property("parts", array(parts)))
 	}
-	if lowering.target == TargetServer {
+	if lowering.target == TargetServer ||
+		lowering.contractProjection == ComponentContractProjectionComplete {
 		ssrParts := make([]*ast.Node, len(build.ssrParts))
 		for index, value := range build.ssrParts {
 			ssrParts[index] = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)

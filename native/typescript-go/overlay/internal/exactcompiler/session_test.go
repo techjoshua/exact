@@ -136,7 +136,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		ID: "planned.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
 			export function Planned(props: { label: string }) {
-				return () => <span>{props.label}</span>;
+				return () => <span><strong>{props.label}</strong></span>;
 			}
 		`,
 	})
@@ -159,6 +159,10 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
 		}
 	}
+	if strings.Count(response.Code, `kind: "node-open"`) != 1 ||
+		strings.Count(response.Code, `kind: "node-close"`) != 1 {
+		t.Fatalf("nested planned intrinsics retained generic cell boundaries:\n%s", response.Code)
+	}
 }
 
 func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
@@ -180,6 +184,47 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		strings.Contains(response.Code, "ssrOperations:") ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) {
 		t.Fatalf("client render program retained server marker metadata:\n%s", response.Code)
+	}
+}
+
+func TestSessionRetainsServerMarkerProgramsInCompleteIsomorphicArtifacts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-complete.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionComplete,
+		Source: `
+			export function Planned(props: { label: string }) {
+				return () => <span><strong>{props.label}</strong></span>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "ssrParts:") ||
+		!strings.Contains(response.Code, "ssrOperations:") ||
+		strings.Count(response.Code, `kind: "node-open"`) != 1 ||
+		strings.Count(response.Code, `kind: "node-close"`) != 1 {
+		t.Fatalf("complete isomorphic artifact omitted its compact SSR tape:\n%s", response.Code)
+	}
+}
+
+func TestSessionRetainsStructuralSsrTapesInCompletePrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-complete-structural.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionComplete,
+		Source: `
+			function Child() { return () => <strong>child</strong>; }
+			export function Planned() { return () => <span><Child /></span>; }
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Count(response.Code, "ssrParts:") != 2 ||
+		strings.Count(response.Code, "ssrOperations:") != 2 ||
+		!strings.Contains(response.Code, `["component"`) ||
+		!strings.Contains(response.Code, `() => __exactVNode("span"`) {
+		t.Fatalf("structural complete program omitted its SSR operation tape:\n%s", response.Code)
 	}
 }
 

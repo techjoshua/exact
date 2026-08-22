@@ -26,6 +26,7 @@ export function readBrowserVitals() {
 		longTasks: []
 	};
 	const longTasks = state.longTasks.filter((entry) => entry.startTimeMs <= performance.now());
+	const domNodes = countDomNodes();
 	return {
 		largestContentfulPaintMs: state.largestContentfulPaintMs,
 		longTaskCount: longTasks.length,
@@ -34,6 +35,23 @@ export function readBrowserVitals() {
 			(sum, entry) => sum + Math.max(0, entry.durationMs - 50),
 			0
 		),
-		domElementCount: document.getElementsByTagName('*').length
+		domElementCount: document.getElementsByTagName('*').length,
+		domNodeCount: domNodes.total,
+		domCommentCount: domNodes.comments,
+		domTextCount: domNodes.text
 	};
+}
+
+/** Counts every retained document node so framework marker overhead remains visible. */
+function countDomNodes() {
+	let total = 0;
+	let comments = 0;
+	let text = 0;
+	const walker = document.createTreeWalker(document, NodeFilter.SHOW_ALL);
+	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+		total++;
+		if (node.nodeType === Node.COMMENT_NODE) comments++;
+		else if (node.nodeType === Node.TEXT_NODE) text++;
+	}
+	return { total, comments, text };
 }

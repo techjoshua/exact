@@ -1,6 +1,7 @@
 import {
 	type AnyComponentInstance,
 	isVNode,
+	normalizeRenderResult,
 	unwrap,
 	withComponentDomain,
 	type VNode
@@ -15,13 +16,14 @@ import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
 import { appendBoundedHtml, countSsrNode } from './limits.js';
-import type { SsrContext } from '../types.js';
+import type { Child, SsrContext } from '../types.js';
 
 /** Executes the compiler-native scalar subset or selects its lazy generic fallback. */
 export function renderSsrProgram(
 	context: SsrContext,
 	vnode: VNode,
-	owner?: AnyComponentInstance
+	owner?: AnyComponentInstance,
+	renderChildren?: (children: readonly Child[]) => string
 ): { readonly html?: string; readonly fallback?: VNode } {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation || context.reactMarkup)
@@ -43,14 +45,19 @@ export function renderSsrProgram(
 		values[index] = value;
 		countSsrNode(context);
 	}
+	if (
+		!renderChildren &&
+		program.slots.some((slot) => slot[0] === 'child' || slot[0] === 'component')
+	)
+		return { fallback: materializeProgramFallback(vnode, owner) };
 	for (let index = 1; index < program.nodes.length; index++) countSsrNode(context);
-	if (context.markers) return renderMarkedProgram(context, program, values);
+	if (context.markers) return renderMarkedProgram(context, program, values, renderChildren);
 	let html = program.parts[0] ?? '';
 	for (let index = 0; index < values.length; index++) {
 		html = appendBoundedHtml(
 			context,
 			html,
-			renderProgramSlot(context, program, index, values[index])
+			renderProgramSlot(context, program, index, values[index], renderChildren)
 		);
 		html = appendBoundedHtml(context, html, program.parts[index + 1] ?? '');
 	}
@@ -60,12 +67,16 @@ export function renderSsrProgram(
 function renderMarkedProgram(
 	context: SsrContext,
 	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
-	values: readonly unknown[]
+	values: readonly unknown[],
+	renderChildren?: (children: readonly Child[]) => string
 ): { readonly html: string } {
 	const parts = program.ssrParts!;
 	const operations = program.ssrOperations!;
 	let html = parts[0] ?? '';
 	const markerBase = context.nextId;
+	// Reserve compiler-owned node identities before nested structural slots allocate their own
+	// component, list, or fragment markers. This keeps every identity unique and monotonic.
+	context.nextId += program.nodes.length;
 	for (let position = 0; position < operations.length; position++) {
 		const operation = operations[position]!;
 		if (operation.kind === 'slot') {
@@ -74,12 +85,13 @@ function renderMarkedProgram(
 				context,
 				program,
 				operation.index,
-				values[operation.index]
+				values[operation.index],
+				renderChildren
 			);
 			html = appendBoundedHtml(
 				context,
 				html,
-				slot[0] === 'text' && slot[1]
+				(slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') && slot[1]
 					? `<!--exact:dynamic:${exactMarkerId(slot[1])}-->${rendered}<!--/exact:dynamic:${exactMarkerId(slot[1])}-->`
 					: slot[0] === 'text'
 						? ''
@@ -99,7 +111,6 @@ function renderMarkedProgram(
 		}
 		html = appendBoundedHtml(context, html, parts[position + 1] ?? '');
 	}
-	context.nextId += program.nodes.length;
 	return { html };
 }
 
@@ -132,14 +143,16 @@ function renderProgramSlot(
 	context: SsrContext,
 	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
 	index: number,
-	value: unknown
+	value: unknown,
+	renderChildren?: (children: readonly Child[]) => string
 ): string {
 	const slot = program.slots[index]!;
 	if (slot[0] === 'text')
 		return value === null || value === undefined || value === false || value === true
 			? ''
 			: escapeText(String(value));
-	if (slot[0] === 'child' || slot[0] === 'component') return '';
+	if (slot[0] === 'child' || slot[0] === 'component')
+		return renderChildren ? renderChildren(normalizeRenderResult(value as Child | Child[])) : '';
 	if (!slot[2]) return '';
 	const node = program.nodes[slot[1]];
 	return renderAttrs({ [slot[2]]: value }, false, node?.[1], context);
@@ -150,10 +163,11 @@ export function renderSsrProgramString(
 	context: SsrContext,
 	vnode: VNode,
 	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => string
+	renderFallback: (fallback: VNode) => string,
+	renderChildren: (children: readonly Child[]) => string
 ): string | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
-	const planned = renderSsrProgram(context, vnode, owner);
+	const planned = renderSsrProgram(context, vnode, owner, renderChildren);
 	return planned.fallback ? renderFallback(planned.fallback) : planned.html!;
 }
 

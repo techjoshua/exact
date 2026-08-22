@@ -356,10 +356,11 @@ compressed byte sizes must be deterministic before the suite reports a build bas
 | Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.                                                         |
 
 The framework comparison additionally records FCP, LCP, long-task count and duration, total
-blocking time, DOM size at semantic readiness, per-script decoded and executed bytes, function
-inventory and invocation counts, and parse/compile/evaluation trace attribution. Executed bytes use
-the most-specific V8 coverage range for each source interval, so an uncalled function body is not
-hidden by its executed top-level script range and nested ranges are not counted twice.
+blocking time, element/total/comment/text DOM size at semantic readiness, per-script decoded and
+executed bytes, function inventory and invocation counts, and parse/compile/evaluation trace
+attribution. Executed bytes use the most-specific V8 coverage range for each source interval, so an
+uncalled function body is not hidden by its executed top-level script range and nested ranges are
+not counted twice.
 
 The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
 size and generation cost have their own scenarios, which keeps the two costs attributable.
@@ -420,6 +421,19 @@ Successful compiled scalar hydration releases its opening and closing sentinels 
 ownership to the claimed `Text` node. Structural child and component markers remain because they
 own variable-width DOM ranges; scalar bindings already retain their exact node and do not need a
 second permanent range representation.
+
+Marker-mode SSR gives each compiled render program one outer cell range. Nested intrinsic nodes do
+not receive generic VNode cell pairs: the client validates and owns them through the program's
+dense compiler-numbered topology. Component, list, fragment, and other variable-width boundaries
+retain their explicit ranges.
+
+Complete isomorphic component artifacts retain the same compact SSR program tape as server-only
+artifacts. During synchronous SSR, structural child and component operations delegate only their
+owned value to the ordinary child renderer while the compiler tape writes the surrounding markup.
+Asynchronous and streaming renderers retain the generic structural fallback until they can preserve
+the same scheduling and chunk boundaries directly. Hydrate-only client artifacts omit server strings
+and operations. This lets the common synchronous isomorphic host execute compiler-planned markup
+without materializing a generic VNode for the complete intrinsic region.
 
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
