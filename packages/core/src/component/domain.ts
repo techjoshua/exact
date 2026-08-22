@@ -12,8 +12,7 @@ import type { Logger } from '../logging.js';
 
 let activeDomain: ComponentDomain | undefined;
 const resumingDomains = new WeakMap<ComponentDomain, number>();
-const domainCapabilities = new WeakMap<ComponentDomain, ComponentDomainCapabilities>();
-const domainLogging = new WeakMap<ComponentDomain, ComponentDomainLogging>();
+const domainCapabilities = new WeakMap<ComponentDomain, StoredComponentDomainCapabilities>();
 const wallClockUsedDomains = new WeakSet<ComponentDomain>();
 
 /** Public options for creating an application-owned component domain. */
@@ -25,8 +24,6 @@ export type ComponentDomainCapabilities = Readonly<{
 	resumeComponent?: (type: AnyComponentFunction) => ComponentResumptionActivation | undefined;
 	inspection?: ExactRuntimeInspectionOwner;
 	inspectionActivation?: 'hydration';
-	/** Logger shared by the framework-owned component root. */
-	logger?: Logger;
 	/** Immutable wall-clock sample shared by one framework-owned render transaction. */
 	wallClockSnapshot?: number;
 }>;
@@ -37,8 +34,13 @@ export type ComponentDomainLogging = {
 	componentOverride: boolean;
 };
 
+type StoredComponentDomainCapabilities = ComponentDomainCapabilities & {
+	logging?: ComponentDomainLogging;
+};
+
 /** Internal construction options used by framework render and hydration boundaries. */
-export type FrameworkComponentDomainOptions = ComponentDomainOptions & ComponentDomainCapabilities;
+export type FrameworkComponentDomainOptions = ComponentDomainOptions &
+	ComponentDomainCapabilities & { logger?: Logger };
 
 const pageComponentDomainKey = Symbol.for('@exactjs/page-component-domain');
 const sharedDomains = globalThis as Record<PropertyKey, unknown>;
@@ -57,21 +59,20 @@ export function createFrameworkComponentDomain(
 	options: FrameworkComponentDomainOptions
 ): ComponentDomain {
 	const domain = constructComponentDomain(options);
-	const capabilities: ComponentDomainCapabilities = Object.freeze({
+	const logging = Object.prototype.hasOwnProperty.call(options, 'logger')
+		? { logger: options.logger, componentOverride: false }
+		: undefined;
+	const capabilities: StoredComponentDomainCapabilities = Object.freeze({
 		...(options.dispatchContinuation ? { dispatchContinuation: options.dispatchContinuation } : {}),
 		...(options.resumeComponent ? { resumeComponent: options.resumeComponent } : {}),
 		...(options.inspection ? { inspection: options.inspection } : {}),
 		...(options.inspectionActivation ? { inspectionActivation: options.inspectionActivation } : {}),
 		...(options.wallClockSnapshot !== undefined
 			? { wallClockSnapshot: options.wallClockSnapshot }
-			: {})
+			: {}),
+		...(logging ? { logging } : {})
 	});
 	domainCapabilities.set(domain, capabilities);
-	if (Object.prototype.hasOwnProperty.call(options, 'logger'))
-		domainLogging.set(domain, {
-			logger: options.logger,
-			componentOverride: false
-		});
 	return domain;
 }
 
@@ -79,18 +80,18 @@ export function createFrameworkComponentDomain(
 export function componentDomainLogging(
 	domain: ComponentDomain
 ): ComponentDomainLogging | undefined {
-	return domainLogging.get(domain);
+	return domainCapabilities.get(domain)?.logging;
 }
 
 /** Updates the shared root logger without rebuilding component instances. */
 export function setComponentDomainLogger(domain: ComponentDomain, logger: Logger | undefined): void {
-	const logging = domainLogging.get(domain);
+	const logging = domainCapabilities.get(domain)?.logging;
 	if (logging) logging.logger = logger;
 }
 
 /** Selects generic context lookup after a component introduces a logger override. */
 export function markComponentDomainLoggerOverride(domain: ComponentDomain): void {
-	const logging = domainLogging.get(domain);
+	const logging = domainCapabilities.get(domain)?.logging;
 	if (logging) logging.componentOverride = true;
 }
 
