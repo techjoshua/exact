@@ -37,8 +37,10 @@ target VNodes is intentionally not a second component mode.
 Compiled logging and framework diagnostics call one shared logging operation with the durable
 component instance, so ordinary logging does not require a facade per component. A facade is
 materialized only when dynamic code explicitly reads the public `instance.log` surface. Disabled
-default trace and debug checks also avoid constructing component scope records. Default logger and
-error contexts remain available through the same context resolution contract.
+default trace and debug checks also avoid constructing component scope records or empty ancestor
+context maps. Components call the nearest shared logger only after checking that the requested
+level is enabled; component identity and payload records are then built for that enabled call.
+Default logger and error contexts remain available through the same context resolution contract.
 
 Compiler-owned DOM interactions enter through a compiler-marked native event lane. With trace
 logging disabled, an ordinary callback executes and publishes its synchronous reactive feedback

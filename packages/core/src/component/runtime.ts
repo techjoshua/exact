@@ -55,6 +55,7 @@ import { type ExactComponentContract } from '../component-contracts.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
+const emptyComponentContexts: ReadonlyMap<symbol, unknown> = new Map();
 
 /** Shared-prototype implementation of one durable component instance. */
 export class ComponentInstanceImpl<State extends object, Props extends Record<string, unknown>>
@@ -111,7 +112,11 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.initialize(instantiate, execution, rawProps, contract);
 	}
 
-	get contexts(): Map<symbol, unknown> {
+	get contexts(): ReadonlyMap<symbol, unknown> {
+		return this.contextsValue ?? emptyComponentContexts;
+	}
+
+	mutableContexts(): Map<symbol, unknown> {
 		return (this.contextsValue ??= new Map());
 	}
 
@@ -348,7 +353,8 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
-		if (!this.parent) this.contexts.set(ErrorContext.id, reactiveValue(createErrorContext()));
+		if (!this.parent)
+			this.mutableContexts().set(ErrorContext.id, reactiveValue(createErrorContext()));
 		if (resumption) prepareComponentContextResumption(this, resumption);
 
 		let result: RenderFunction;

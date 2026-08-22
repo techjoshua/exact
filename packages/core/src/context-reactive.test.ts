@@ -15,6 +15,33 @@ import './component/list-capability-integration.js';
 import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
 
 describe('@exactjs/core context-reactive', () => {
+	it('shares empty read storage until a component publishes a context', () => {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
+			return () => null;
+		}, {});
+		const first = createFrameworkFixtureComponentInstance(
+			function First(this: Component<{}>) {
+				return () => null;
+			},
+			{},
+			parent
+		);
+		const second = createFrameworkFixtureComponentInstance(
+			function Second(this: Component<{}>) {
+				return () => null;
+			},
+			{},
+			parent
+		);
+		const marker = createContext<string>('materialized context marker');
+
+		expect(first.contexts).toBe(second.contexts);
+		first.setContext(marker, 'first');
+		expect(first.contexts).not.toBe(second.contexts);
+		expect(first.contexts.has(marker.id)).toBe(true);
+		expect(second.contexts.has(marker.id)).toBe(false);
+	});
+
 	it('scopes contexts to descendants and stores refs', () => {
 		const token = createContext<{ name: string }>('user');
 		const input = createRef<{ focus(): void }>('input');

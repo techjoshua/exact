@@ -55,5 +55,7 @@ export function setComponentContext<T>(
 		updateReactive(existing as Reactive<object>, value as object);
 		return;
 	}
-	instance.contexts.set(token.id, token.reactive ? reactiveValue(value) : (value as Reactive<T>));
+	instance
+		.mutableContexts()
+		.set(token.id, token.reactive ? reactiveValue(value) : (value as Reactive<T>));
 }

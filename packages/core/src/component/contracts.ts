@@ -407,7 +407,9 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	parent?: AnyComponentInstance;
 	readonly domain: ComponentDomain;
 	readonly props: Reactive<Record<string, unknown>>;
-	readonly contexts: Map<symbol, unknown>;
+	readonly contexts: ReadonlyMap<symbol, unknown>;
+	/** Materializes writable context storage for framework-owned publication. */
+	mutableContexts(): Map<symbol, unknown>;
 	/** Context policy identities accessed by this instance; values remain with their original owner. */
 	readonly contextTokens: Map<symbol, ContextToken<unknown>>;
 	/** Server-owned values inherited by the whole component root. */
