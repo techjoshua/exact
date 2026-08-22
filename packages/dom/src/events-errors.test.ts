@@ -37,6 +37,28 @@ describe('@exactjs/dom events-errors', () => {
 		expect(activeInteraction).toBeUndefined();
 	});
 
+	it('does not redefine currentTarget for compiler-proven argument-free handlers', () => {
+		const container = document.createElement('div');
+		let calls = 0;
+		function Button(this: Component<{}>) {
+			return () =>
+				jsx('button', {
+					'__exactClosedInteraction:onClick': () => calls++,
+					children: 'Click'
+				});
+		}
+		render(jsx(Button, {}), container);
+		const event = new MouseEvent('click', { bubbles: true });
+		const defineProperty = vi.spyOn(Object, 'defineProperty');
+
+		container.querySelector('button')!.dispatchEvent(event);
+
+		expect(calls).toBe(1);
+		expect(
+			defineProperty.mock.calls.some(([target, key]) => target === event && key === 'currentTarget')
+		).toBe(false);
+	});
+
 	it('keeps compiled interaction selection local to one event binding', () => {
 		const container = document.createElement('div');
 		const handler = () => undefined;

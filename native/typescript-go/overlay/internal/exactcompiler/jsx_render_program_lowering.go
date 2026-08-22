@@ -715,7 +715,12 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
 		if reader != nil {
 			if lowering.target != TargetServer && jsxEventAttribute(name) {
-				name = "__exactDirectInteraction:" + name
+				expression := attribute.Initializer.AsJsxExpression().Expression
+				if jsxEventOmitsArgument(expression, lowering.checker) {
+					name = "__exactClosedInteraction:" + name
+				} else {
+					name = "__exactDirectInteraction:" + name
+				}
 			}
 			build.propertySlot(lowering.dynamicID(property), path, node, name, reader)
 		}

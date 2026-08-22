@@ -51,6 +51,11 @@ descendant joining, and structural settlement. An enabled trace logger construct
 at entry so every phase remains observable. Public and runtime-authored event hosts retain the
 general interaction contract.
 
+When the compiler proves a local intrinsic handler has no parameter and does not read implicit
+`arguments`, delegated dispatch calls it without redefining `Event.currentTarget`. Handlers with a
+parameter, implicit argument access, opaque identity, or runtime provenance retain the complete
+event adaptation path.
+
 Focus preservation is transaction state on the renderer root rather than a process-wide side table.
 Nested DOM work reuses the outer transaction, and an event releases its captured focus and selection
 state before returning. Ordinary interactions therefore do not allocate a separate transaction

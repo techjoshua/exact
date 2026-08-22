@@ -81,14 +81,18 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 			const handler = handlers?.get(type);
 			if (handler) {
 				const current = cursor;
+				const closed = handlers!.has(closedInteractionKey(type));
 				preserveFocus(root, () => {
 					try {
 						const owner = findOwnerInstance(current);
 						const result = runInteractiveEvent(
 							root,
 							owner,
-							() => callDelegatedHandler(handler, current, event),
-							handlers!.has(directInteractionKey(type))
+							() =>
+								closed
+									? callClosedDelegatedHandler(handler, current, event)
+									: callDelegatedHandler(handler, current, event),
+							closed || handlers!.has(directInteractionKey(type))
 						);
 						observeComponentAsync(owner, result, 'event', type);
 					} catch (error) {
@@ -108,6 +112,11 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 /** Returns the colocated map key that marks one compiler-owned event binding. */
 export function directInteractionKey(type: string): string {
 	return `__exactDirect:${type}`;
+}
+
+/** Returns the colocated marker for a compiler-proven event-argument-free binding. */
+export function closedInteractionKey(type: string): string {
+	return `__exactClosed:${type}`;
 }
 
 /**
@@ -302,6 +311,14 @@ function callDelegatedHandler(handler: EventListener, current: Element, event: E
 			delete (event as { currentTarget?: EventTarget | null }).currentTarget;
 		}
 	}
+}
+
+function callClosedDelegatedHandler(
+	handler: EventListener,
+	current: Element,
+	event: Event
+): unknown {
+	return (handler as (this: Element, event: Event) => unknown).call(current, event);
 }
 
 function eventTargetElement(target: EventTarget | null): Element | null {

@@ -17,6 +17,7 @@ import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
 	ensureDelegated,
+	closedInteractionKey,
 	directInteractionKey,
 	eventTypeForProp,
 	requiresDirectListener,
@@ -143,8 +144,13 @@ export function setElementProp(
 		return;
 	}
 
-	const directInteraction = key.startsWith('__exactDirectInteraction:');
-	const eventKey = directInteraction ? key.slice('__exactDirectInteraction:'.length) : key;
+	const closedInteraction = key.startsWith('__exactClosedInteraction:');
+	const directInteraction = closedInteraction || key.startsWith('__exactDirectInteraction:');
+	const eventKey = closedInteraction
+		? key.slice('__exactClosedInteraction:'.length)
+		: directInteraction
+			? key.slice('__exactDirectInteraction:'.length)
+			: key;
 	if (/^on[A-Z]/.test(eventKey)) {
 		const { type, capture } = eventTypeForProp(eventKey);
 		if (capture || requiresDirectListener(type)) {
@@ -160,12 +166,16 @@ export function setElementProp(
 		if (typeof value === 'function') {
 			const handler = value as EventListener;
 			handlers.set(type, handler);
-			if (directInteraction) handlers.set(directInteractionKey(type), handler);
+			if (closedInteraction) handlers.set(closedInteractionKey(type), handler);
+			else handlers.delete(closedInteractionKey(type));
+			if (directInteraction && !closedInteraction)
+				handlers.set(directInteractionKey(type), handler);
 			else handlers.delete(directInteractionKey(type));
 			ensureDelegated(root, type, eventContainerFor(root, element));
 		} else {
 			handlers.delete(type);
 			handlers.delete(directInteractionKey(type));
+			handlers.delete(closedInteractionKey(type));
 		}
 		return;
 	}
