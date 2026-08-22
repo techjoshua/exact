@@ -264,6 +264,21 @@ function dispatchEventPath(
 	container: Node,
 	visit: (element: Element) => boolean
 ): void {
+	const target = eventTargetElement(event.target);
+	if (
+		target &&
+		target.getRootNode() === container.getRootNode() &&
+		(target === container || container.contains(target))
+	) {
+		let cursor: Element | null = target;
+		while (cursor) {
+			// Capture the original parent before authored work can detach or reparent the current node.
+			const parent: Element | null = cursor.parentElement;
+			if (!visit(cursor) || cursor === container) return;
+			cursor = parent;
+		}
+		return;
+	}
 	const native = typeof event.composedPath === 'function' ? event.composedPath() : [];
 	const containerIndex = native.indexOf(container as EventTarget);
 	if (containerIndex >= 0) {
@@ -277,7 +292,7 @@ function dispatchEventPath(
 		return;
 	}
 	// Defensive fallback for synthetic Event implementations with incomplete composed paths.
-	let cursor = eventTargetElement(event.target);
+	let cursor = target;
 	while (cursor) {
 		if (!visit(cursor)) return;
 		if (cursor === container) break;

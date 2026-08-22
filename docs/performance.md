@@ -56,6 +56,11 @@ Nested DOM work reuses the outer transaction, and an event releases its captured
 state before returning. Ordinary interactions therefore do not allocate a separate transaction
 record or register the root in a `WeakMap`.
 
+Delegated events walk ordinary light-DOM ancestors directly and capture each next parent before
+calling authored code. This avoids allocating the browser's composed-path array while preserving
+the original path if a handler removes or reparents nodes. Shadow and retargeted events continue to
+use the browser-provided composed path.
+
 Compiler-known top-level component state uses deterministic numeric storage slots behind the
 ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested
 mutable containers and dynamically introduced fields retain the general reactive proxy path.

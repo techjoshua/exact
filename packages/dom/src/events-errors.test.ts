@@ -106,6 +106,19 @@ describe('@exactjs/dom events-errors', () => {
 		expect(calls).toEqual(['inner', 'outer']);
 	});
 
+	it('does not request a composed path for ordinary light-DOM events', () => {
+		const container = document.createElement('div');
+		let calls = 0;
+		render(jsx('button', { onClick: () => calls++, children: 'ordinary' }), container);
+		const event = new MouseEvent('click', { bubbles: true, composed: true });
+		const composedPath = vi.spyOn(event, 'composedPath');
+
+		container.querySelector('button')!.dispatchEvent(event);
+
+		expect(calls).toBe(1);
+		expect(composedPath).not.toHaveBeenCalled();
+	});
+
 	it('publishes all synchronous event writes as one reactive transition', () => {
 		const container = document.createElement('div');
 		const scheduled = vi.fn();
