@@ -4,7 +4,7 @@ import { RenderProgram } from './symbols.js';
 
 /** Compact compiler-emitted DOM-node tuple: identity, tag, namespace. */
 export type ExactRenderProgramNode = readonly [
-	id: string,
+	id: string | number,
 	tag: string,
 	namespace?: 'html' | 'svg' | 'mathml'
 ];

@@ -25,7 +25,7 @@ type renderProgramSlot struct {
 }
 
 type renderProgramNode struct {
-	id        string
+	id        int
 	path      []int
 	tag       string
 	namespace string
@@ -498,10 +498,10 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	}
 	nodeIndex := len(build.nodes)
 	build.nodes = append(build.nodes, renderProgramNode{
-		id: lowering.elementID(identityNode), path: append([]int(nil), path...), tag: tag, namespace: namespace,
+		id: nodeIndex, path: append([]int(nil), path...), tag: tag, namespace: namespace,
 	})
 	build.ssrOperation("node-open", nodeIndex)
-	build.write("<" + tag + ` data-exact-id="` + html.EscapeString(lowering.elementID(identityNode)) + `"`)
+	build.write("<" + tag)
 	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
 		return false
 	}
@@ -855,7 +855,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 	nodes := make([]*ast.Node, len(build.nodes))
 	for index, node := range build.nodes {
 		members := []*ast.Node{
-			lowering.factory.NewStringLiteral(node.id, ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(node.id), ast.TokenFlagsNone),
 			lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone),
 		}
 		if node.namespace != build.namespace {

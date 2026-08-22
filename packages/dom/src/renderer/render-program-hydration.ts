@@ -8,23 +8,45 @@ export type ProgramHydrationIndex = Readonly<{
 export function indexProgramHydration(root: Element): ProgramHydrationIndex {
 	const elements = new Map<string, Element>();
 	const markers = new Map<string, Comment>();
+	let elementIndex = 0;
 	let node: Node | undefined = root;
 	while (node) {
-		if (node instanceof Element) {
-			const id = node.getAttribute('data-exact-id');
-			if (id) elements.set(id, node);
-		} else if (node instanceof Comment && node.data.startsWith('exact:dynamic:')) {
-			markers.set(node.data, node);
+		let current: Node = node;
+		if (current instanceof Element) {
+			elements.set(`#${elementIndex++}`, current);
+			const legacyId = current.getAttribute('data-exact-id');
+			if (legacyId) elements.set(legacyId, current);
+		} else if (current instanceof Comment && current.data.startsWith('exact:dynamic:')) {
+			markers.set(current.data, current);
+			const closing = `/${current.data}`;
+			let boundary: Node | null = current.nextSibling;
+			while (boundary && (!(boundary instanceof Comment) || boundary.data !== closing))
+				boundary = boundary.nextSibling;
+			if (boundary) current = boundary;
 		}
-		if (node.firstChild) {
-			node = node.firstChild;
+		if (current.firstChild) {
+			node = current.firstChild;
 			continue;
 		}
+		node = current;
 		while (node && node !== root && !node.nextSibling) node = node.parentNode ?? undefined;
 		if (node === root) break;
 		node = node?.nextSibling ?? undefined;
 	}
 	return { elements, markers };
+}
+
+/** Resolves either a dense compiled node index or a legacy stable element identity. */
+export function programElement(
+	index: ProgramHydrationIndex,
+	id: string | number
+): Element | undefined {
+	return index.elements.get(typeof id === 'number' ? `#${id}` : id);
+}
+
+/** Checks the current dense or legacy element identity representation. */
+export function matchesProgramIdentity(element: Element, id: string | number): boolean {
+	return typeof id === 'number' || element.getAttribute('data-exact-id') === id;
 }
 
 /** Claims one compiler-identified structural child marker. */
