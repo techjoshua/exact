@@ -14,7 +14,12 @@ import { ErrorContext, SuspensionContext } from './contexts.js';
 
 import { batch, reactive, unwrap } from '@exactjs/reactive';
 import { normalizeChildren } from '../vnode.js';
-import { componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
+import {
+	componentLogMethod,
+	componentLogScope,
+	isErrorReport,
+	logFrameworkEvent
+} from './log.js';
 import { createDefaultErrorView } from './error-view.js';
 
 let nextErrorId = 1;
@@ -108,11 +113,15 @@ export function handleComponentError(
 	if (instance) {
 		instance.errorFallback = fallback;
 		instance.invalidate?.();
-		instance.log.error('root error context handled failure', event.error, {
-			source: event.source,
-			phase: event.phase,
-			component: event.component
-		});
+		componentLogMethod(instance, 'error')?.(() => [
+			'root error context handled failure',
+			event.error,
+			{
+				source: event.source,
+				phase: event.phase,
+				component: event.component
+			}
+		]);
 	} else {
 		logFrameworkEvent('error', 'core', event.source, 'root error context handled failure', {
 			phase: event.phase,
