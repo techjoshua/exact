@@ -24,7 +24,8 @@ import {
 	claimProgramTextSlot,
 	indexProgramHydration,
 	markedProgramRange,
-	programNodeAtPath
+	programNodeAtPath,
+	releaseProgramIdentities
 } from './render-program-hydration.js';
 import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
 
@@ -65,6 +66,7 @@ export function mountRenderProgram(
 		releaseProgramNodeOwners(invocation.program, programIndex);
 		return undefined;
 	}
+	releaseProgramIdentities(programIndex, invocation.program);
 	for (let index = 1; index < invocation.program.nodes.length; index++) countDomWork(root);
 	for (const _slot of invocation.program.slots) countDomWork(root);
 	return mounted;
@@ -119,6 +121,7 @@ export function adoptRenderProgram(
 		releaseProgramNodeOwners(invocation.program, programIndex);
 		return undefined;
 	}
+	releaseProgramIdentities(programIndex, invocation.program);
 	for (const _node of invocation.program.nodes) countDomWork(root);
 	return mounted;
 }
@@ -279,6 +282,7 @@ function adoptMarkedRenderProgram(
 		}
 		return undefined;
 	}
+	releaseProgramIdentities(hydrationIndex, invocation.program);
 	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
 }
 

@@ -116,6 +116,7 @@ it('tracks and applies one compiler-owned property writer operation', () => {
 	const container = document.createElement('div');
 	render(vnode, container);
 	const button = container.querySelector('button')!;
+	expect(button.hasAttribute('data-exact-id')).toBe(false);
 	expect(button.title).toBe('0');
 	button.click();
 	flushSync();
