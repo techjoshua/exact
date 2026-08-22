@@ -16,20 +16,10 @@ type MutationVersionRange = {
 	end: number;
 };
 
-type TransactionUndo = CallbackTransactionUndo | PropertyTransactionUndo;
-
-type CallbackTransactionUndo = {
+type TransactionUndo = {
 	readonly apply: () => void;
 	readonly target?: object;
 	readonly key?: PropertyKey;
-};
-
-/** Compact inverse for one ordinary object property mutation. */
-export type PropertyTransactionUndo = {
-	readonly target: object;
-	readonly key: PropertyKey;
-	readonly descriptor: PropertyDescriptor | undefined;
-	readonly arrayLength?: number;
 };
 
 const transactions: Transaction[] = [];
@@ -216,25 +206,6 @@ export function recordTransactionUndo(undo: () => void, target?: object, key?: P
 	transactions[transactions.length - 1]?.undos?.push({ apply: undo, target, key });
 }
 
-/** Captures a property inverse without allocating a mutation-specific closure. */
-export function createPropertyTransactionUndo(
-	target: object,
-	key: PropertyKey
-): PropertyTransactionUndo {
-	const arrayLength = Array.isArray(target) ? target.length : undefined;
-	return {
-		target,
-		key,
-		descriptor: Reflect.getOwnPropertyDescriptor(target, key),
-		...(arrayLength === undefined ? {} : { arrayLength })
-	};
-}
-
-/** Retains a previously captured compact property inverse in the active atomic transaction. */
-export function recordPropertyTransactionUndo(undo: PropertyTransactionUndo): void {
-	transactions[transactions.length - 1]?.undos?.push(undo);
-}
-
 /** Returns whether mutations currently need an inverse journal entry. */
 export function hasActiveTransaction(): boolean {
 	return Boolean(transactions[transactions.length - 1]?.undos);
@@ -281,23 +252,8 @@ function rollbackTransaction(
 			mutationVersion(undo.target, undo.key) !== protectedVersions.get(undo.target)?.get(undo.key)
 		)
 			continue;
-		applyTransactionUndo(undo);
-	}
-}
-
-function applyTransactionUndo(undo: TransactionUndo): void {
-	if ('apply' in undo) {
 		undo.apply();
-		return;
 	}
-	if (undo.descriptor) Reflect.defineProperty(undo.target, undo.key, undo.descriptor);
-	else Reflect.deleteProperty(undo.target, undo.key);
-	if (
-		undo.arrayLength !== undefined &&
-		Array.isArray(undo.target) &&
-		undo.target.length !== undo.arrayLength
-	)
-		undo.target.length = undo.arrayLength;
 }
 
 function transactionMutationVersions(
@@ -387,7 +343,7 @@ function rollbackOwnedTransaction(
 				continue;
 			}
 		}
-		applyTransactionUndo(undo);
+		undo.apply();
 	}
 }
 

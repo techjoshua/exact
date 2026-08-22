@@ -56,11 +56,6 @@ descendant joining, and structural settlement. An enabled trace logger construct
 at entry so every phase remains observable. Public and runtime-authored event hosts retain the
 general interaction contract.
 
-Ordinary property rollback entries retain descriptors and array-length metadata as compact records.
-Collection and indexed-storage mutations keep callback inverses where restoration requires custom
-operations. Both representations participate in the same nested rollback and optimistic fencing
-contracts.
-
 When the compiler proves a local intrinsic handler has no parameter and does not read implicit
 `arguments`, delegated dispatch calls it without redefining `Event.currentTarget`. Handlers with a
 parameter, implicit argument access, opaque identity, or runtime provenance retain the complete
