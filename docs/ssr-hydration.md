@@ -46,8 +46,11 @@ Rendering applies output-size, task-pass, and task-duration limits.
 The native compiler emits branded render programs for compiler-finite intrinsic regions. HTML,
 SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
 form controls, events, and refs reuse the same host operations as generic rendering. Markerless SSR
-writes escaped parts directly, client mounting clones a cached inert template, and markerless
-hydration adopts elements by compiler identity plus scalar text by its local template path. Nested conditional regions retain the namespace established
+writes escaped parts directly. Hydratable SSR also omits scalar delimiters when static markup bounds
+the value on both sides; the client claims that text, or creates an owned empty text node, at the
+compiled position. Adjacent text retains delimiters where browser parsing could merge independently
+updated values. Client mounting clones a cached inert template, and hydration adopts elements and
+scalar text through generated claim calls. Nested conditional regions retain the namespace established
 by their intrinsic JSX ancestors, and standalone SVG or MathML programs mount through a
 namespace-correct template. A finite intrinsic client program may contain compiler-owned structural
 child slots: the server renders those children recursively through the ordinary dynamic-marker
@@ -108,8 +111,8 @@ ranges through compiler-generated claim calls. Those calls walk the known static
 order. A structural call advances directly to its matching close marker, so a variable number of
 SSR nodes cannot perturb later static siblings. The successful path therefore creates neither a
 region-local identity map nor a second interpreted node/slot plan. The same generated executor
-selects the template-sentinel representation for client-created regions and the identity-sentinel
-representation for SSR hydration. Programs retain the SSR DOM and marker protocol without
+selects the template-sentinel representation for client-created regions, marker-free bounded SSR
+text, or the identity-sentinel fallback for ambiguous SSR text. Programs retain the SSR DOM without
 rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses

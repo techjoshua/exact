@@ -150,6 +150,7 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 		"version: 2",
 		"parts:",
 		`["text",`,
+		`, true]`,
 		`bindings: [["text", 0]]`,
 		"ssrParts:",
 		"() => __exactVNode(\"span\"",
@@ -181,6 +182,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		!strings.Contains(response.Code, "directClaims: true") ||
 		!strings.Contains(response.Code, `__exactBeginProgramClaims(__exactBindingTarget, "span", "html", 1, 1)`) ||
 		!strings.Contains(response.Code, "__exactClaimProgramText") ||
+		!strings.Contains(response.Code, ", true)") ||
 		strings.Contains(response.Code, "nodes:") ||
 		strings.Contains(response.Code, "slots:") ||
 		strings.Contains(response.Code, "parts:") ||

@@ -12,7 +12,7 @@ import { expect, it, vi } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
 
-it('writes compiler-owned scalar programs directly with hydration markers', () => {
+it('writes compiler-owned scalar programs without redundant hydration delimiters', () => {
 	let constructions = 0;
 	const program = createCompiledRenderProgram(
 		'render-program:ssr',
@@ -24,30 +24,23 @@ it('writes compiler-owned scalar programs directly with hydration markers', () =
 				namespace: 'html',
 				template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 				parts: ['<span data-exact-id="planned">', '</span>'],
-				slots: [['text', 'value', [0]]],
+				slots: [['text', 'value', [0], true]],
 				bindings: [['text', 0]],
 				nodes: [['planned', 'span']],
-				ssrParts: ['', '<span data-exact-id="planned">', '', '</span>', ''],
-				ssrOperations: [
-					{ kind: 'node-open', index: 0 },
-					{ kind: 'slot', index: 0 },
-					{ kind: 'node-close', index: 0 }
-				]
+				ssrParts: ['<span data-exact-id="planned">', '</span>'],
+				ssrOperations: [{ kind: 'slot', index: 0 }]
 			};
 		},
 		[() => '<safe>'],
-		() =>
-			createCompiledVNode(
-				'span',
-				{ 'data-exact-id': 'planned' },
-				createDynamicChild(() => '<safe>', 'value')
-			)
+		() => {
+			throw new Error('valid compiler SSR tape used its generic fallback');
+		}
 	);
 	expect(renderToString(program, { markers: false }).html).toBe(
 		'<span data-exact-id="planned">&lt;safe&gt;</span>'
 	);
 	expect(renderToString(program).html).toBe(
-		'<!--exact:cell:0--><span data-exact-id="planned"><!--exact:dynamic:value-->&lt;safe&gt;<!--/exact:dynamic:value--></span><!--/exact:cell:0-->'
+		'<span data-exact-id="planned">&lt;safe&gt;</span>'
 	);
 	createCompiledRenderProgram(
 		'render-program:ssr',
