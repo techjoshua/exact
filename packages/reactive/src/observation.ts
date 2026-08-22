@@ -287,18 +287,39 @@ export function subscribe<T>(
 	callback: () => void,
 	options: WatchOptions = {}
 ): StopHandle {
+	return subscribeToDependencies(new Set([getDep(source.target, source.key)]), callback, options);
+}
+
+/** Subscribes one coalesced reaction to compiler-selected keys on a shared target. */
+export function subscribeKeys(
+	target: object,
+	keys: readonly PropertyKey[],
+	callback: () => void,
+	options: WatchOptions = {}
+): StopHandle {
+	const dependencies = new Set<Dep>();
+	for (const key of keys) dependencies.add(getDep(target, key));
+	if (dependencies.size === 0) return inactiveWatch;
+	return subscribeToDependencies(dependencies, callback, options);
+}
+
+// One reaction belongs to every selected dep so a transaction schedules the callback exactly once.
+function subscribeToDependencies(
+	dependencies: Set<Dep>,
+	callback: () => void,
+	options: WatchOptions
+): StopHandle {
 	const scope = resolveObservationScope(options);
 	const handleError = (error: unknown): void => {
 		const onError = options.onError ?? scope?.onError;
 		if (!onError) throw error;
 		onError(error);
 	};
-	const dep = getDep(source.target, source.key);
 	const reaction: Reaction = {
 		active: true,
 		scheduled: false,
 		pendingPriority: undefined,
-		deps: new Set([dep]),
+		deps: dependencies,
 		run() {
 			reaction.scheduled = false;
 			reaction.pendingPriority = undefined;
@@ -341,7 +362,7 @@ export function subscribe<T>(
 		}
 	};
 
-	dep.add(reaction);
+	for (const dependency of dependencies) dependency.add(reaction);
 	if (scope) registerEffectScopeReaction(scope, reaction);
 	return reaction.stop;
 }

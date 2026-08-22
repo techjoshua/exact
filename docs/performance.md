@@ -119,9 +119,14 @@ manually constructed, and generic compatibility programs retain the table-driven
 
 Render-program descriptors are emitted once as immutable module tables. Component instances join
 only their local expression readers and optional recovery function to that shared table; they do
-not allocate a descriptor factory or repeat cache lookup and freezing. The DOM executor retains
-independent reactions for text slots and for the compiler-known property group on each target
-element. Closed client output emits each property group as one direct writer operation: one
+not allocate a descriptor factory or repeat cache lookup and freezing. For compiler-proven direct
+top-level state reads, closed client output assigns dirty bits to the affected text and property
+operations. All such fields in one program range share one scope-owned reaction. Numeric mutation
+versions identify the fields that actually changed, and the generated component updater invokes
+only the corresponding operations. This avoids both dependency-collection passes and one retained
+reaction per binding without adding another scheduler turn. Expressions with nested, dynamically
+indexed, or otherwise incomplete dependencies retain their independent tracked reaction. Closed
+client output emits each property group as one direct writer operation: one
 invocation applies its known keys in browser-safe order without allocating and enumerating a
 temporary props record or redispatching through the generic slot reader for every property. Those
 properties are omitted from the client slot dispatcher. Their previous values occupy a compact
@@ -229,13 +234,14 @@ version, so merely using tasks does not pull collection proxy interception into 
 application. The narrow lane rejects an unexpected Map or Set rather than silently returning an
 unobserved collection.
 
-Planned scalar and property slots expose their computation directly to the render program's owned
-watcher. They do not allocate an intermediate computed value each time the watcher reads a slot.
-Scope-owned watchers also execute callbacks and scheduling hooks with that scope current, so any
-reactive work materialized by a structural update inherits deterministic teardown ownership.
-The compiler-owned lane retains those watcher objects directly and invokes their shared stop method
-during rebinding or teardown. Callable stop handles remain part of the public reactive API, but the
-renderer does not allocate one additional handle closure for every live compiled binding.
+Planned scalar and property slots with dependencies that cannot be represented by the generated
+dirty updater expose their computation directly to a retained watcher. They do not allocate an
+intermediate computed value each time that watcher reads a slot. Scope-owned reactions execute
+callbacks with that scope current, so any reactive work materialized by an update inherits
+deterministic teardown ownership. The compiler-owned lanes retain reaction ownership directly and
+release it during rebinding or teardown. Callable stop handles remain part of the public reactive
+API, but the renderer does not allocate one additional handle closure for every live compiled
+binding.
 
 Compiler-known list sites carry a stable site identity, source provenance, and key identity even
 when authored `Array.map` syntax is lowered directly. Cached item factories run inside per-key item

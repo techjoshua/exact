@@ -3,6 +3,8 @@ import { batch, captureReactiveMutations } from './internal/deps.js';
 import { flushSync } from './internal/scheduler.js';
 import { collectionRef } from './observation.js';
 import { indexedReactive, readReactiveOwnProperty } from './indexed.js';
+import { reactiveOwnDependencies } from './indexed-base.js';
+import { subscribeKeys } from './observation.js';
 import { snapshot } from './snapshot.js';
 import { watch } from './observation.js';
 
@@ -70,5 +72,31 @@ describe('indexed reactive state', () => {
 		const untrusted = Object.defineProperty({}, 'value', { get: accessor });
 		expect(readReactiveOwnProperty(untrusted, 'value')).toEqual({ present: false });
 		expect(accessor).not.toHaveBeenCalled();
+	});
+
+	it('resolves compiler-known fields to compact dependency indexes', () => {
+		const state = indexedReactive<{ count: number }>(['count']);
+		state.count = 1;
+		expect(reactiveOwnDependencies(state, ['count'])?.keys).toEqual([0]);
+		expect(reactiveOwnDependencies(state, ['missing'])).toBeUndefined();
+	});
+
+	it('coalesces compiler-selected field dependencies into one reaction', () => {
+		const state = indexedReactive<{ count: number; label: string }>(['count', 'label']);
+		state.count = 0;
+		state.label = 'first';
+		const dependencies = reactiveOwnDependencies(state, ['count', 'label'])!;
+		const seen: Array<[number, string]> = [];
+		subscribeKeys(dependencies.target, dependencies.keys, () =>
+			seen.push([state.count, state.label])
+		);
+
+		batch(() => {
+			state.count = 1;
+			state.label = 'second';
+		});
+		flushSync();
+
+		expect(seen).toEqual([[1, 'second']]);
 	});
 });

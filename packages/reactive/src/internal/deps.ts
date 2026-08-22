@@ -50,7 +50,7 @@ export function track(target: object, key: PropertyKey): void {
 
 /** Schedules every reaction currently subscribed to a target/key pair. */
 export function trigger(target: object, key: PropertyKey): void {
-	const previousVersion = mutationVersion(target, key);
+	const previousVersion = readMutationVersion(target, key);
 	const nextVersion = incrementMutationVersion(target, key);
 	const transaction = transactions[transactions.length - 1];
 	if (transaction) {
@@ -252,7 +252,8 @@ function rollbackTransaction(
 			protectedVersions &&
 			undo.target &&
 			undo.key !== undefined &&
-			mutationVersion(undo.target, undo.key) !== protectedVersions.get(undo.target)?.get(undo.key)
+			readMutationVersion(undo.target, undo.key) !==
+				protectedVersions.get(undo.target)?.get(undo.key)
 		)
 			continue;
 		undo.apply();
@@ -279,7 +280,8 @@ function incrementMutationVersion(target: object, key: PropertyKey): number {
 	return next;
 }
 
-function mutationVersion(target: object, key: PropertyKey): number {
+/** Returns the current mutation generation for one dependency without tracking it. */
+export function readMutationVersion(target: object, key: PropertyKey): number {
 	return mutationVersions.get(target)?.get(key) ?? 0;
 }
 
@@ -336,7 +338,7 @@ function rollbackOwnedTransaction(
 				range &&
 				!versionsCovered(
 					range.end + 1,
-					mutationVersion(undo.target, undo.key),
+					readMutationVersion(undo.target, undo.key),
 					covered.get(undo.target)?.get(undo.key) ?? []
 				)
 			) {
