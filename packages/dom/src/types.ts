@@ -149,6 +149,10 @@ export type Root = {
 	maxTreeNodes: number;
 	traversedNodes: number;
 	workDepth: number;
+	/** Nested depth for the one focus-preservation transaction owned by this root. */
+	focusTransactionDepth: number;
+	/** Focus state captured by the outermost active DOM transaction. */
+	focusSnapshot?: DomFocusSnapshot;
 	/** Interaction-local reconciliation work collected only while an event is active. */
 	interactionWork?: { reconciliations: number; traversedNodes: number };
 	workBudget?: DomWorkBudget;
@@ -187,6 +191,22 @@ export type Root = {
 		readonly activityToken: symbol;
 		finalized: boolean;
 	}>;
+};
+
+/** Focus and selection state retained only for the duration of one root DOM transaction. */
+export type DomFocusSnapshot = {
+	active: HTMLElement;
+	inputSelection?: {
+		start: number | null;
+		end: number | null;
+		direction: HTMLInputElement['selectionDirection'];
+	};
+	documentSelection?: {
+		start: number[];
+		startOffset: number;
+		end: number[];
+		endOffset: number;
+	};
 };
 
 /** Configures render. */

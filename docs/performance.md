@@ -51,6 +51,11 @@ descendant joining, and structural settlement. An enabled trace logger construct
 at entry so every phase remains observable. Public and runtime-authored event hosts retain the
 general interaction contract.
 
+Focus preservation is transaction state on the renderer root rather than a process-wide side table.
+Nested DOM work reuses the outer transaction, and an event releases its captured focus and selection
+state before returning. Ordinary interactions therefore do not allocate a separate transaction
+record or register the root in a `WeakMap`.
+
 Compiler-known top-level component state uses deterministic numeric storage slots behind the
 ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested
 mutable containers and dynamically introduced fields retain the general reactive proxy path.
