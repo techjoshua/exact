@@ -49,6 +49,7 @@ import type { ComponentLog } from '../logging.js';
 import { componentRefCapability } from './ref-capability.js';
 import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
+import { disposeComponentResource } from './resource-ownership.js';
 import { createComponentProps, createComponentState } from './state.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import { type ExactComponentContract } from '../component-contracts.js';
@@ -119,30 +120,37 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.initialize(instantiate, execution, rawProps, contract);
 	}
 
+	/** Returns the lazily allocated local context value map owned by this instance. */
 	get contexts(): Map<symbol, unknown> {
 		return (this.contextsValue ??= new Map());
 	}
 
+	/** Returns the lazily allocated component logger shared by every call from this instance. */
 	get log(): ComponentLog {
 		return (this.logValue ??= createComponentLog(this));
 	}
 
+	/** Returns the lazily allocated token catalog used for inspection and resumption. */
 	get contextTokens(): Map<symbol, ContextToken<unknown>> {
 		return (this.contextTokensValue ??= new Map());
 	}
 
+	/** Reports whether mount publication has completed and unmount has not begun. */
 	get mounted(): boolean {
 		return this.mountedValue;
 	}
 
+	/** Returns the durable render function produced during component construction. */
 	get renderFunction(): RenderFunction {
 		return this.renderFunctionValue;
 	}
 
+	/** Returns the compiler-selected ref registry, allocating its capability state lazily. */
 	get refs(): RefRegistry {
 		return componentRefCapability().registry(this);
 	}
 
+	/** Returns the lazy localization facade or fails when the artifact omitted that capability. */
 	get intl(): IntlFacade {
 		const capability = componentLocalizationCapability();
 		if (!capability)
@@ -152,43 +160,48 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		return (this.intlFacade ??= capability.create(this));
 	}
 
+	/** Returns the mutable mount-handler lane retained by the lifecycle capability. */
 	get mountHandlers(): LifecycleHandler[] {
 		return mutableComponentLifecycleHandlers(this, 'mount');
 	}
 
+	/** Returns the mutable activation-handler lane retained by the lifecycle capability. */
 	get activateHandlers(): LifecycleHandler[] {
 		return mutableComponentLifecycleHandlers(this, 'activate');
 	}
 
+	/** Returns the mutable deactivation-handler lane retained by the lifecycle capability. */
 	get deactivateHandlers(): LifecycleHandler[] {
 		return mutableComponentLifecycleHandlers(this, 'deactivate');
 	}
 
+	/** Returns the mutable unmount-handler lane retained by the lifecycle capability. */
 	get unmountHandlers(): LifecycleHandler[] {
 		return mutableComponentLifecycleHandlers(this, 'unmount');
 	}
 
+	/** Returns the mutable post-render handler lane retained by the lifecycle capability. */
 	get renderHandlers(): RenderEventHandler[] {
 		return mutableComponentRenderHandlers(this);
 	}
 
+	/** Transfers a disposable resource to this component's unmount lifetime. */
 	own<T extends Disposable | AsyncDisposable | { dispose(): unknown }>(resource: T): T {
-		this.onUnmount(() => {
-			if ('dispose' in resource) resource.dispose();
-			else if (Symbol.dispose in resource) resource[Symbol.dispose]();
-			else return resource[Symbol.asyncDispose]();
-		});
+		this.onUnmount(() => disposeComponentResource(resource));
 		return resource;
 	}
 
+	/** Opens compiler-selected list bookkeeping for one render pass when lists are present. */
 	beginRender(): void {
 		optionalComponentListCapability()?.begin(this);
 	}
 
+	/** Closes compiler-selected list bookkeeping and releases entries absent from this pass. */
 	endRender(): void {
 		optionalComponentListCapability()?.end(this);
 	}
 
+	/** Reports whether a token is available while publishing its read for inspection. */
 	hasContext(token: ContextToken<unknown>): boolean {
 		this.contextTokens.set(token.id, token);
 		const capability = componentContextCapability();
@@ -196,6 +209,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		return capability.has(this, this.ambientContexts, token);
 	}
 
+	/** Reads one reactive context value and records the compiler-observable dependency. */
 	getContext<T>(token: ContextToken<T>): Reactive<T> {
 		this.contextTokens.set(token.id, token);
 		const capability = componentContextCapability();
@@ -203,6 +217,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		return capability.get(this, this.ambientContexts, token);
 	}
 
+	/** Publishes one descendant context value owned by this durable instance. */
 	setContext<T>(token: ContextToken<T>, value: T): void {
 		this.contextTokens.set(token.id, token);
 		const capability = componentContextCapability();
@@ -210,6 +225,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		capability.publish(this, token, 'write');
 	}
 
+	/** Creates an explicitly reactive value or tagged expression owned by the current scope. */
 	reactive<T>(
 		input: TemplateStringsArray | (() => T) | T,
 		...values: unknown[]
@@ -217,14 +233,17 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		return createComponentReactive(input, values);
 	}
 
+	/** Creates a typed ref binding in the compiler-selected ref capability. */
 	ref<T>(key: RefKey<T>): RefBinding<T> {
 		return componentRefCapability().ref(this, key);
 	}
 
+	/** Reads the current value of a typed ref without changing its ownership. */
 	readRef<T>(key: RefKey<T>): T | undefined {
 		return componentRefCapability().read(this, key);
 	}
 
+	/** Creates a keyed list VNode whose identity and cleanup belong to this component. */
 	map<T>(
 		collection: Iterable<T> | ReactiveValue<Iterable<T>>,
 		key: (item: T) => string,
@@ -244,26 +263,32 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		);
 	}
 
+	/** Registers work to run once after this instance first mounts. */
 	onMount(handler: LifecycleHandler): void {
 		mutableComponentLifecycleHandlers(this, 'mount').push(handler);
 	}
 
+	/** Registers work for each transition into the active component state. */
 	onActivate(handler: LifecycleHandler): void {
 		mutableComponentLifecycleHandlers(this, 'activate').push(handler);
 	}
 
+	/** Registers work for each transition out of the active component state. */
 	onDeactivate(handler: LifecycleHandler): void {
 		mutableComponentLifecycleHandlers(this, 'deactivate').push(handler);
 	}
 
+	/** Registers final cleanup that runs when the durable instance is disposed. */
 	onUnmount(handler: LifecycleHandler): void {
 		mutableComponentLifecycleHandlers(this, 'unmount').push(handler);
 	}
 
+	/** Registers work that runs after a committed render publication. */
 	onRender(handler: RenderEventHandler): void {
 		mutableComponentRenderHandlers(this).push(handler);
 	}
 
+	/** Publishes first mount, runs mount handlers, and derives initial activation. */
 	markMounted(): void {
 		if (this.mountedValue || this.disposedValue) return;
 		this.mountedValue = true;
@@ -282,6 +307,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.updateActivation();
 	}
 
+	/** Adds or removes one activity blocker and publishes the resulting active state. */
 	setActivity(token: symbol, active: boolean, reason = 'activity'): void {
 		if (active) {
 			this.activityBlockers?.delete(token);
@@ -297,11 +323,13 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.updateActivation(reason);
 	}
 
+	/** Applies parent-owned prop changes to the existing reactive prop identity. */
 	updateProps(nextProps: Record<string, unknown>): void {
 		updateReactive(this.props, nextProps);
 		this.inspection?.publish({ kind: 'props.change', component: this, path: 'props' });
 	}
 
+	/** Disposes every owned scope, task, list, handler, and controller exactly once. */
 	unmount(reason = 'unmount'): void {
 		if (this.disposedValue) return;
 		this.inspection?.publish({ kind: 'component.unmount', component: this, reason });
