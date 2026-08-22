@@ -1,4 +1,10 @@
-import { hasActiveTransaction, recordTransactionUndo, track, trigger } from '../internal/deps.js';
+import {
+	hasActiveTransaction,
+	recordPropertyTransactionUndo,
+	recordTransactionUndo,
+	track,
+	trigger
+} from '../internal/deps.js';
 
 import { markReactiveHashDirty } from '../internal/keyed-collections.js';
 
@@ -127,7 +133,7 @@ export function createReactive(
 				forwardingSet = false;
 			}
 			if (ok && undo && (!hadKey || !Object.is(previous, Reflect.get(target, key, receiver))))
-				recordTransactionUndo(undo, target, key);
+				recordCreatedPropertyUndo(undo, target, key);
 			if (ok && changed) {
 				markReactiveHashDirty(target);
 				trigger(target, key);
@@ -156,7 +162,7 @@ export function createReactive(
 			const oldLength = Array.isArray(target) ? target.length : undefined;
 			const ok = Reflect.defineProperty(target, key, normalizeDescriptor(descriptor));
 			if (!ok) return false;
-			if (undo) recordTransactionUndo(undo, target, key);
+			if (undo) recordCreatedPropertyUndo(undo, target, key);
 			markReactiveHashDirty(target);
 			trigger(target, key);
 			if (!previous || isArrayStructureKey(target, key)) trigger(target, iterateKey);
@@ -172,20 +178,13 @@ export function createReactive(
 			}
 
 			const hadKey = Object.prototype.hasOwnProperty.call(target, key);
-			const descriptor =
+			const undo =
 				hadKey && hasActiveTransaction()
-					? Reflect.getOwnPropertyDescriptor(target, key)
+					? createPropertyUndo(target, key)
 					: undefined;
 			const ok = Reflect.deleteProperty(target, key);
 			if (ok && hadKey) {
-				if (descriptor)
-					recordTransactionUndo(
-						() => {
-							Reflect.defineProperty(target, key, descriptor);
-						},
-						target,
-						key
-					);
+				if (undo) recordCreatedPropertyUndo(undo, target, key);
 				markReactiveHashDirty(target);
 				trigger(target, key);
 				trigger(target, iterateKey);
@@ -210,6 +209,15 @@ export function createReactive(
 		registerProxySource(proxy, parentSource);
 	}
 	return proxy;
+}
+
+function recordCreatedPropertyUndo(
+	undo: ReturnType<typeof createPropertyUndo>,
+	target: object,
+	key: PropertyKey
+): void {
+	if (typeof undo === 'function') recordTransactionUndo(undo, target, key);
+	else recordPropertyTransactionUndo(undo);
 }
 
 /** Preserves ECMAScript invariants for frozen object-valued data properties. */

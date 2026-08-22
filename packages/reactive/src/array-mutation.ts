@@ -1,4 +1,12 @@
-import { batch, hasActiveTransaction, recordTransactionUndo, trigger } from './internal/deps.js';
+import {
+	batch,
+	createPropertyTransactionUndo,
+	hasActiveTransaction,
+	recordPropertyTransactionUndo,
+	recordTransactionUndo,
+	trigger,
+	type PropertyTransactionUndo
+} from './internal/deps.js';
 
 import { markReactiveHashDirty } from './internal/keyed-collections.js';
 
@@ -203,21 +211,18 @@ function mutateArrayEnd(
 /** Performs the record property undo domain operation. */
 export function recordPropertyUndo(target: object, key: PropertyKey): void {
 	if (!hasActiveTransaction()) return;
-	recordTransactionUndo(createPropertyUndo(target, key), target, key);
+	const undo = createPropertyUndo(target, key);
+	if (typeof undo === 'function') recordTransactionUndo(undo, target, key);
+	else recordPropertyTransactionUndo(undo);
 }
 
 /** Creates a property undo. */
-export function createPropertyUndo(target: object, key: PropertyKey): () => void {
+export function createPropertyUndo(
+	target: object,
+	key: PropertyKey
+): PropertyTransactionUndo | (() => void) {
 	if (Array.isArray(target) && key === 'length') return createArrayUndo(target);
-	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
-	const arrayTarget = Array.isArray(target) ? target : undefined;
-	const oldLength = arrayTarget?.length;
-	return () => {
-		if (descriptor) Reflect.defineProperty(target, key, descriptor);
-		else Reflect.deleteProperty(target, key);
-		if (oldLength !== undefined && arrayTarget && arrayTarget.length !== oldLength)
-			arrayTarget.length = oldLength;
-	};
+	return createPropertyTransactionUndo(target, key);
 }
 
 /** Performs the record array undo domain operation. */
