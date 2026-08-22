@@ -51,7 +51,8 @@ not allocate a descriptor factory or repeat cache lookup and freezing. The DOM e
 independent reactions for text slots and for the compiler-known property group on each target
 element. Closed client output emits each property group as one direct writer operation: one
 invocation fills the target record in browser-safe order without redispatching through the generic
-slot reader for every property. Server and universal artifacts retain individual readers for SSR,
+slot reader for every property, and those properties are omitted from the client slot dispatcher.
+Server and universal artifacts retain individual readers for SSR,
 while older precompiled clients continue through the runtime fallback. A change therefore
 evaluates only the affected target group instead of rebuilding props
 for every element in the program. The descriptor carries those binding groups in browser-safe

@@ -419,6 +419,10 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 		!strings.Contains(response.Code, `__exactTarget["value"] = props.option`) {
 		t.Fatalf("closed client output omitted the direct property writer:\n%s", response.Code)
 	}
+	if strings.Contains(response.Code, `__exactSlot === 0 ? undefined`) ||
+		strings.Contains(response.Code, `__exactSlot === 1 ? undefined`) {
+		t.Fatalf("closed client output retained redundant property reader arms:\n%s", response.Code)
+	}
 }
 
 func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *testing.T) {
