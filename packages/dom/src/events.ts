@@ -11,7 +11,7 @@ import {
 	unwrap,
 	type InteractionScope
 } from '@exactjs/core';
-import { flushSync, runWithPriority } from '@exactjs/reactive';
+import { flushSync, publishBatch, runWithPriority } from '@exactjs/reactive';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';
@@ -163,7 +163,7 @@ function runInteractiveEvent<Result>(
 	let interaction: InteractionScope | undefined;
 	try {
 		const result = runWithPriority('interactive', () =>
-			batch(() =>
+			(direct ? publishBatch : batch)(() =>
 				owner
 					? direct
 						? runDirectCompiledComponentInteraction(

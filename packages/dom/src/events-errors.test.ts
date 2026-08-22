@@ -37,6 +37,34 @@ describe('@exactjs/dom events-errors', () => {
 		expect(activeInteraction).toBeUndefined();
 	});
 
+	it('retains published compiled-event mutations when a later statement fails', () => {
+		const container = document.createElement('div');
+		const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		let owner!: Component<{ count: number }>;
+		function Button(this: Component<{ count: number }>) {
+			owner = this;
+			this.state.count = 0;
+			return () =>
+				jsx('button', {
+					'__exactDirectInteraction:onClick': () => {
+						this.state.count = 1;
+						throw new Error('event failed');
+					},
+					children: 'Fail'
+				});
+		}
+		try {
+			render(jsx(Button, {}), container);
+			container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+			flushSync();
+
+			expect(owner.state.count).toBe(1);
+		} finally {
+			unmount(container);
+			errorLog.mockRestore();
+		}
+	});
+
 	it('does not redefine currentTarget for compiler-proven argument-free handlers', () => {
 		const container = document.createElement('div');
 		let calls = 0;

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	batch,
 	flushSync,
+	publishBatch,
 	reactive,
 	registerReactiveListKey,
 	unwrap,
@@ -10,6 +11,39 @@ import {
 } from './index.js';
 
 describe('@exactjs/reactive transactions', () => {
+	it('publishes a failed framework event batch without retaining inverse mutations', () => {
+		const state = reactive({ first: 0, second: 0 });
+		const seen: string[] = [];
+		watch(() => seen.push(`${state.first}:${state.second}`));
+
+		expect(() =>
+			publishBatch(() => {
+				state.first = 1;
+				state.second = 2;
+				throw new Error('event failed');
+			})
+		).toThrow('event failed');
+		flushSync();
+
+		expect(state).toMatchObject({ first: 1, second: 2 });
+		expect(seen).toEqual(['0:0', '1:2']);
+	});
+
+	it('inherits rollback when a framework event batch is nested in an atomic batch', () => {
+		const state = reactive({ value: 0 });
+
+		expect(() =>
+			batch(() => {
+				publishBatch(() => {
+					state.value = 1;
+				});
+				throw new Error('outer failed');
+			})
+		).toThrow('outer failed');
+
+		expect(state.value).toBe(0);
+	});
+
 	it('deduplicates scheduling across a compiler-owned transaction', () => {
 		const state = reactive({ first: 0, second: 0 });
 		const scheduled = vi.fn();

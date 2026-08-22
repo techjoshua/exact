@@ -829,6 +829,11 @@ element and are released when it is removed. The server artifact omits
 client-only handlers; the compiler emits the matching client activation
 boundary.
 
+State writes made by a native event handler are published as one reactive update group. If a later
+statement throws, writes already made remain observable, matching ordinary JavaScript event
+semantics. Wrap a region in `batch()` when that region specifically requires synchronous rollback
+on failure.
+
 ### Classes
 
 `className` is the authored property. The DOM and SSR render it as the HTML

@@ -143,7 +143,9 @@ export function ComponentsPage(this: Component<{}>) {
 					Each mounted <code>ProfileCard</code> gets its own state, task scope, context boundary,
 					refs, and lifecycle. Props remain parent-owned input. An event can assign state directly
 					because the compiler has already turned the component description into a reactive state
-					machine and connected every consumer of that field.
+					machine and connected every consumer of that field. Event writes publish together; writes
+					made before a later statement throws remain visible. Use <code>batch()</code> around a region
+					only when that region requires synchronous rollback on failure.
 				</p>
 				<p>
 					The returned function is synchronous and contains one view expression. Put declarations
