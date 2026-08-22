@@ -7,7 +7,11 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { RenderProgram } from '@exactjs/core/runtime/render';
-import type { ExactTableRenderProgram } from '@exactjs/core/runtime/render';
+import type {
+	ExactRenderProgramInvocation,
+	ExactRenderProgramSsrTarget,
+	ExactTableRenderProgram
+} from '@exactjs/core/runtime/render';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,
@@ -16,7 +20,7 @@ import {
 import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
-import { appendBoundedHtml, countSsrNode } from './limits.js';
+import { appendBoundedHtml, countSsrNode, countSsrNodes } from './limits.js';
 import type { Child, SsrContext } from '../types.js';
 
 /** Executes the compiler-native scalar subset or selects its lazy generic fallback. */
@@ -30,6 +34,12 @@ export function renderSsrProgram(
 	if (!invocation || context.reactMarkup)
 		return { fallback: materializeProgramFallback(vnode, owner) };
 	const { program } = invocation;
+	if (program.ssr) {
+		const target = new GeneratedSsrTarget(context, invocation, renderChildren);
+		program.ssr(target);
+		if (!target.prepared) return { fallback: materializeProgramFallback(vnode, owner) };
+		return { html: target.html };
+	}
 	if (program.directClaims) return { fallback: materializeProgramFallback(vnode, owner) };
 	if (!program.parts || program.parts.length !== program.slots.length + 1)
 		return { fallback: materializeProgramFallback(vnode, owner) };
@@ -64,6 +74,108 @@ export function renderSsrProgram(
 		html = appendBoundedHtml(context, html, program.parts[index + 1] ?? '');
 	}
 	return { html };
+}
+
+/**
+ * Supplies serialization mechanics to one compiler-generated server lane.
+ *
+ * A compiler-emitted preparation prefix reads and validates every slot before later generated
+ * calls can mutate the SSR context. This preserves local fallback semantics without making the
+ * runtime rediscover component topology from an operation table.
+ */
+class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
+	readonly #values: unknown[] = [];
+	#markerBase = 0;
+	prepared = true;
+	html = '';
+
+	constructor(
+		private readonly context: SsrContext,
+		private readonly invocation: ExactRenderProgramInvocation,
+		private readonly renderChildren?: (children: readonly Child[]) => string
+	) {}
+
+	prepareText(index: number): void {
+		if (!this.prepared) return;
+		const value = unwrap(readRenderProgramSlot(this.invocation, index));
+		if (value instanceof Promise || isVNode(value) || Array.isArray(value)) {
+			this.prepared = false;
+			return;
+		}
+		this.#values[index] = value;
+	}
+
+	prepareChild(index: number): void {
+		if (!this.prepared) return;
+		const value = unwrap(readRenderProgramSlot(this.invocation, index));
+		if (value instanceof Promise || !this.renderChildren) {
+			this.prepared = false;
+			return;
+		}
+		this.#values[index] = value;
+	}
+
+	prepareAttribute(index: number): void {
+		if (!this.prepared) return;
+		const value = unwrap(readRenderProgramSlot(this.invocation, index));
+		if (value instanceof Promise) {
+			this.prepared = false;
+			return;
+		}
+		this.#values[index] = value;
+	}
+
+	begin(nodeCount: number, slotCount: number): void {
+		if (!this.prepared) return;
+		this.#markerBase = this.context.nextId;
+		this.context.nextId += nodeCount;
+		countSsrNodes(this.context, nodeCount - 1 + slotCount);
+	}
+
+	static(value: string): void {
+		if (this.prepared) this.html = appendBoundedHtml(this.context, this.html, value);
+	}
+
+	openNode(index: number): void {
+		if (!this.prepared || !this.context.markers) return;
+		this.static(`<!--exact:cell:${this.#markerBase + index}-->`);
+	}
+
+	closeNode(index: number): void {
+		if (!this.prepared || !this.context.markers) return;
+		this.static(`<!--/exact:cell:${this.#markerBase + index}-->`);
+	}
+
+	text(index: number, id: string, markerless?: true): void {
+		if (!this.prepared) return;
+		const value = this.#values[index];
+		const rendered =
+			value === null || value === undefined || value === false || value === true
+				? ''
+				: escapeText(String(value));
+		this.static(
+			this.context.markers && !markerless
+				? `<!--exact:dynamic:${exactMarkerId(id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(id)}-->`
+				: rendered
+		);
+	}
+
+	child(index: number, id: string): void {
+		if (!this.prepared) return;
+		const rendered = this.renderChildren!(
+			normalizeRenderResult(this.#values[index] as Child | Child[])
+		);
+		this.static(
+			this.context.markers
+				? `<!--exact:dynamic:${exactMarkerId(id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(id)}-->`
+				: rendered
+		);
+	}
+
+	attribute(index: number, name: string, tag: string): void {
+		if (!this.prepared) return;
+		this.static(renderAttrs({ [name]: this.#values[index] }, false, tag, this.context));
+	}
 }
 
 function renderMarkedProgram(

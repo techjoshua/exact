@@ -45,8 +45,12 @@ Rendering applies output-size, task-pass, and task-duration limits.
 
 The native compiler emits branded render programs for compiler-finite intrinsic regions. HTML,
 SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
-form controls, events, and refs reuse the same host operations as generic rendering. Markerless SSR
-writes escaped parts directly. Hydratable SSR also omits scalar delimiters when static markup bounds
+form controls, events, and refs reuse focused renderer operations. Closed server artifacts emit a
+component-specific SSR function whose generated calls prepare known values and then write static
+markup, nodes, scalar text, structural children, and attributes in source order. The server runtime
+provides escaping, marker, resource-limit, and recursive-child mechanics; it does not interpret a
+generic render tape or retain client templates and topology tables. Markerless SSR writes escaped
+values directly. Hydratable SSR also omits scalar delimiters when static markup bounds
 the value on both sides; the client claims that text, or creates an owned empty text node, at the
 compiled position. Adjacent text retains delimiters where browser parsing could merge independently
 updated values. Client mounting clones a cached inert template, and hydration adopts elements and
@@ -84,8 +88,8 @@ callback-observed, and unproven groups remain serial.
 Components with compiler-attached execution subgraphs wire reachable child components before
 waiting for their own setup continuations. Ready root task generations enter that same request
 scheduler, while nested task frames retain the parent's permit. This removes the recursive async
-discovery waterfall without building or flattening a request-wide plan. Uncompiled components keep
-the ordinary drain-before-render path, and structural render reachability still prevents inactive
+discovery waterfall without building or flattening a request-wide plan. Explicit compatibility
+boundaries keep the ordinary drain-before-render path, and structural render reachability still prevents inactive
 branches or unselected dynamic components from starting work.
 
 After output extensions choose the rendered root, SSR reuses a root-keyed immutable execution

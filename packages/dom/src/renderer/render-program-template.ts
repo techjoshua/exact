@@ -1,12 +1,12 @@
-import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
+import type { ExactDomRenderProgram } from '@exactjs/core/runtime/render';
 
 type TemplateState = { uses: number; template?: HTMLTemplateElement };
 
-const templateCaches = new WeakMap<Document, WeakMap<ExactRenderProgram, TemplateState>>();
+const templateCaches = new WeakMap<Document, WeakMap<ExactDomRenderProgram, TemplateState>>();
 
 /** Materializes one program fragment, caching inert DOM only after demonstrated reuse. */
 export function materializeProgramTemplate(
-	program: ExactRenderProgram,
+	program: ExactDomRenderProgram,
 	ownerDocument: Document
 ): DocumentFragment {
 	let cache = templateCaches.get(ownerDocument);
@@ -24,7 +24,7 @@ export function materializeProgramTemplate(
 }
 
 function createProgramTemplate(
-	program: ExactRenderProgram,
+	program: ExactDomRenderProgram,
 	ownerDocument: Document
 ): HTMLTemplateElement {
 	const template = ownerDocument.createElement('template');

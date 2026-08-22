@@ -6,7 +6,7 @@ import { createGenericRenderProgramBinder } from './renderer/render-program-gene
 
 /** Adds the table-driven binder used by manually constructed render programs in tests. */
 export function withGenericRenderProgramBindings(program: ExactRenderProgram): ExactRenderProgram {
-	if (program.directClaims) return program;
+	if (program.directClaims || !program.template) return program;
 	const bindings = program.bindings ?? [];
 	if (bindings.length === 0) return program;
 	return {
