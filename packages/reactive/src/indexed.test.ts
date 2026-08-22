@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { batch, captureReactiveMutations } from './internal/deps.js';
 import { flushSync } from './internal/scheduler.js';
+import { collectionRef } from './observation.js';
 import { indexedReactive, readReactiveOwnProperty } from './indexed.js';
 import { snapshot } from './snapshot.js';
 import { watch } from './observation.js';
@@ -45,6 +46,19 @@ describe('indexed reactive state', () => {
 		expect(state.dynamic).toBe('present');
 		expect(delete state.dynamic).toBe(true);
 		expect('dynamic' in state).toBe(false);
+	});
+
+	it('exposes one stable structural source for an indexed collection', () => {
+		const state = indexedReactive<{ items: string[] }>(['items']);
+		state.items = ['a'];
+		const source = collectionRef(state.items);
+		expect(source).toBe(collectionRef(state.items));
+		const observed: number[] = [];
+		const stop = watch(() => observed.push(source!.get().length));
+		state.items.push('b');
+		flushSync();
+		expect(observed).toEqual([1, 2]);
+		stop();
 	});
 
 	it('reads indexed fields without granting arbitrary accessors execution', () => {

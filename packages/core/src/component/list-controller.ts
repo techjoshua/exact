@@ -1,7 +1,7 @@
 import {
 	isReactiveValue,
+	collectionRef,
 	peek,
-	ref as reactiveRef,
 	registerReactiveListKey,
 	unwrap,
 	type ReactiveRef,
@@ -51,7 +51,9 @@ export function createComponentListController() {
 			provenance?: Iterable<T>,
 			keyIdentity?: string
 		): VNode {
-			const source = peek(() => reactiveRef(collection)) as ReactiveRef<Iterable<T>> | undefined;
+			const source = peek(() => collectionRef(collection as object)) as
+				| ReactiveRef<Iterable<T>>
+				| undefined;
 			const current =
 				isReactiveValue(collection) && source
 					? peek(() => source.get())
