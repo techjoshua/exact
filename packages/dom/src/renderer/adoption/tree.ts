@@ -27,7 +27,7 @@ import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { unmountMany, unmountMounted } from '../teardown.js';
 import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
-import { refreshTargetBoundary } from '../target-contributions.js';
+import { refreshTargetBoundary } from '../target-capability.js';
 import { requireStructuralBoundaryCapability } from '../structural-capability.js';
 import {
 	componentMarkerBoundary,

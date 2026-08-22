@@ -1,4 +1,4 @@
-import { findNodeOwnerInstance, walkDomSubtree } from '@exactjs/dom';
+import { findNodeOwnerInstance, walkDomSubtree } from '@exactjs/dom/root';
 import { readExactPartitionDiscriminator } from '@exactjs/dom/framework/hydration';
 import type { ExactPartitionInstance } from './types.js';
 

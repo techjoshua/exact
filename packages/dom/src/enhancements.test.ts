@@ -611,3 +611,4 @@ describe('renderer enhancements', () => {
 		expect(container.querySelector('h2')?.className).toBe('inner outer');
 	});
 });
+import './runtime/target.js';

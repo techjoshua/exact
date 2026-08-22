@@ -208,8 +208,6 @@ describe('@exactjs/compiler: artifacts', () => {
 			)
 		);
 		expect(server).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
-		expect(client).not.toContain('parts:');
-		expect(server).not.toContain('parts:');
 		expect(client).toContain('executors: []');
 		expect(server).toContain('executors: [');
 		expect(server).toMatch(

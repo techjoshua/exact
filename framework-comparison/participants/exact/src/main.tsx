@@ -1,4 +1,4 @@
-import { render } from '@exactjs/dom';
+import { render } from '@exactjs/dom/root';
 import { hydrateAfterNavigation } from '@exactjs/hydrate/root';
 import { IncidentApp } from './IncidentApp.jsx';
 import type { InitialData } from './types.js';

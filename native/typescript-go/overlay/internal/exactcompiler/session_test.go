@@ -4363,6 +4363,7 @@ __fixtureTask7();
 	}
 	if !strings.Contains(client.Code, "export const Loader") ||
 		!strings.Contains(client.Code, "createServerBoundary") ||
+		!strings.Contains(client.Code, `import "@exactjs/dom/runtime/structural-boundaries"`) ||
 		strings.Contains(client.Code, "this.state.count++") {
 		t.Fatalf(
 			"server-only task implementation escaped into the client artifact:\n%s",
@@ -7413,6 +7414,19 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	}
 	if !strings.Contains(valid.Code, "createCompiledTarget") || strings.Contains(valid.Code, `"_target"`) {
 		t.Fatalf("_target was not lowered as a transparent target boundary:\n%s", valid.Code)
+	}
+	if !strings.Contains(valid.Code, `import "@exactjs/dom/runtime/target"`) {
+		t.Fatalf("_target did not select its DOM target capability:\n%s", valid.Code)
+	}
+	server := NewSession().Execute(Request{
+		ID: "target-server.tsx", Kind: "compile", Target: TargetServer,
+		Source: `export const view = <_target className="surface"><button>Save</button></_target>;`,
+	})
+	if server.Error != "" {
+		t.Fatal(server.Error)
+	}
+	if strings.Contains(server.Code, `@exactjs/dom/runtime/target`) {
+		t.Fatalf("server target output selected a client DOM capability:\n%s", server.Code)
 	}
 	missing := NewSession().Execute(Request{
 		ID: "missing-target.tsx", Kind: "compile", Source: `export const view = <_target />;`,

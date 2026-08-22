@@ -413,3 +413,4 @@ describe('renderer enhancement target routing', () => {
 		expect(container.querySelector('section')).not.toBeNull();
 	});
 });
+import './runtime/target.js';

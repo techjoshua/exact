@@ -26,7 +26,7 @@ import {
 import { patch } from './root.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { releaseMountedRange } from '../retained-release.js';
-import { refreshTargetDependents } from '../target-contributions.js';
+import { refreshTargetDependents } from '../target-capability.js';
 
 /** Performs the patch children domain operation. */
 export function patchChildren(

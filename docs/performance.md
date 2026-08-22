@@ -29,6 +29,11 @@ capability, so enhancement-free clients omit chain construction, target selectio
 and hydration activation. Lazy components and microfrontends retain that host in their own loading
 graph and may register it after a root exists.
 
+Target contributions use the same artifact-selected boundary. A DOM root retains only a
+fail-closed bridge and direct ordinary-prop application; a component that emits `_target` imports
+the target implementation beside its compiled output. Runtime construction of compiler-internal
+target VNodes is intentionally not a second component mode.
+
 Compiler-known top-level component state uses deterministic numeric storage slots behind the
 ordinary inspectable `this.state` object. Alias-resolved reads and writes share those slots; nested
 mutable containers and dynamically introduced fields retain the general reactive proxy path.

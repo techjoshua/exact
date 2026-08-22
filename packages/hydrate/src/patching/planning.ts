@@ -3,7 +3,7 @@ import {
 	isSafeDomPatchProperty,
 	type ExactPatch
 } from '@exactjs/core/framework/operation-protocol';
-import { reserveDomWork, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
+import { reserveDomWork, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom/root';
 import {
 	findClientBoundaryElement,
 	findExactElement,

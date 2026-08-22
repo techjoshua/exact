@@ -78,7 +78,7 @@ export type ComponentLogMethod = (
  * logger contexts or enabled levels without rebuilding its artifact.
  */
 export function componentLogMethod(
-	instance: AnyComponentInstance,
+	instance: Readonly<{ log: ComponentLog }>,
 	level: LogLevel
 ): ComponentLogMethod | undefined {
 	const log = instance.log;
