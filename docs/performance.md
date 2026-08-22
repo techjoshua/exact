@@ -121,11 +121,14 @@ Render-program descriptors are emitted once as immutable module tables. Componen
 only their local expression readers and optional recovery function to that shared table; they do
 not allocate a descriptor factory or repeat cache lookup and freezing. For compiler-proven direct
 top-level state reads, closed client output assigns dirty bits to the affected text and property
-operations. All such fields in one program range share one scope-owned reaction. Numeric mutation
-versions identify the fields that actually changed, and the generated component updater invokes
-only the corresponding operations. This avoids both dependency-collection passes and one retained
-reaction per binding without adding another scheduler turn. Expressions with nested, dynamically
-indexed, or otherwise incomplete dependencies retain their independent tracked reaction. Closed
+operations. Each finite region registers its generated operation function with the durable
+component instance; every registered region in that component shares one dependency subscription
+and mutation-version table. Numeric mutation versions identify the fields that actually changed,
+and only affected region functions receive their dirty masks. Region replacement unregisters its
+lane, while final component teardown releases the shared reaction. This avoids both
+dependency-collection passes and one retained reaction per binding without adding another scheduler
+turn. Expressions with nested, dynamically indexed, or otherwise incomplete dependencies retain
+their independent tracked reaction. Closed
 client output emits each property group as one direct writer operation: one
 invocation applies its known keys in browser-safe order without allocating and enumerating a
 temporary props record or redispatching through the generic slot reader for every property. Those
