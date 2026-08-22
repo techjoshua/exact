@@ -3,7 +3,9 @@ import { Fragment, createVNode, type Component } from '@exactjs/core';
 import {
 	createCompiledRenderProgram,
 	createCompiledVNode,
-	createExpression
+	createExpression,
+	createPreparedRenderProgram,
+	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
 import { flushSync, reactive, ref } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
@@ -86,4 +88,36 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 	expect(container.firstElementChild).toBe(host);
 	unmount(container);
 	expect(released).toHaveBeenCalledOnce();
+});
+
+it('tracks and applies one compiler-owned property writer operation', () => {
+	const state = reactive({ count: 0 });
+	const program = prepareCompiledRenderProgram({
+		version: 3,
+		id: 'render-program:property-writer',
+		namespace: 'html',
+		template: '<button data-exact-id="writer"></button>',
+		slots: [
+			['property', 0, 'title'],
+			['property', 0, 'onClick']
+		],
+		bindings: [['properties', [0, 1]]],
+		nodes: [['writer', 'button']]
+	});
+	const vnode = createPreparedRenderProgram(
+		program,
+		[() => undefined, () => undefined],
+		undefined,
+		(_group, target) => {
+			target.title = String(state.count);
+			target.onClick = () => state.count++;
+		}
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	const button = container.querySelector('button')!;
+	expect(button.title).toBe('0');
+	button.click();
+	flushSync();
+	expect(button.title).toBe('1');
 });
