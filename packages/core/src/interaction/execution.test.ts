@@ -10,12 +10,46 @@ import { defineTask } from '../tasks/runtime.js';
 import { taskAwait } from '../tasks/resources.js';
 import {
 	currentInteraction,
+	runCompiledComponentInteraction,
 	runComponentInteraction,
 	traceInteractionPhase,
 	type InteractionScope
 } from './execution.js';
 
 describe('component interactions', () => {
+	it('keeps compiled interactions metadata-free when tracing is disabled', async () => {
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
+		let traceScopeObserved = false;
+		let release!: () => void;
+		const joined = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let settled = false;
+		const interaction = runCompiledComponentInteraction(
+			owner,
+			'event',
+			1,
+			'interactive',
+			new AbortController(),
+			() => {
+				expect(currentInteraction()).toBeUndefined();
+				joinTask(joined);
+			},
+			() => {
+				traceScopeObserved = true;
+			}
+		).then(() => {
+			settled = true;
+		});
+
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		expect(traceScopeObserved).toBe(false);
+		release();
+		await interaction;
+		owner.unmount();
+	});
+
 	it('aggregates work joined synchronously by an interaction host', async () => {
 		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		let release!: () => void;
