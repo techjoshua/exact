@@ -416,6 +416,11 @@ occur in the adopted DOM. The ordinary closed client path therefore does not all
 and `Map` entry for every compiler-known element merely to recover the numeric topology the
 compiler already emitted.
 
+Successful compiled scalar hydration releases its opening and closing sentinels after transferring
+ownership to the claimed `Text` node. Structural child and component markers remain because they
+own variable-width DOM ranges; scalar bindings already retain their exact node and do not need a
+second permanent range representation.
+
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
 representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed
