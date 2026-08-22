@@ -6,7 +6,10 @@ import {
 	type ExactRenderProgram,
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/runtime/render';
-import { watchRetained } from '@exactjs/reactive/framework/watch';
+import {
+	type OwnedRetainedWatch,
+	watchRetained
+} from '@exactjs/reactive/framework/watch';
 import type { EffectScope } from '@exactjs/reactive';
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
@@ -308,9 +311,9 @@ function bindRenderProgram(mounted: Mounted): boolean {
 	let released = false;
 	let valid = true;
 	let initialBinding = true;
-	let stopBindings: Array<() => void> = [];
+	let stopBindings: OwnedRetainedWatch[] = [];
 	const stopCurrentBindings = () => {
-		for (const stop of stopBindings) stop();
+		for (const binding of stopBindings) binding.stop();
 		stopBindings = [];
 	};
 	const release = () => {
@@ -359,8 +362,8 @@ function bindRenderProgram(mounted: Mounted): boolean {
 					const node = target as Text;
 					if (node.data !== text) node.data = text;
 				};
-				const stop = watchRetained(applyText, undefined, { scope: mounted.scope });
-				if (stop) stopBindings.push(stop);
+				const watcher = watchRetained(applyText, undefined, { scope: mounted.scope, owned: true });
+				if (watcher) stopBindings.push(watcher);
 				continue;
 			}
 			const indexes = binding[1];
@@ -389,8 +392,8 @@ function bindRenderProgram(mounted: Mounted): boolean {
 				);
 				previousProps.set(element, next);
 			};
-			const stop = watchRetained(applyProps, undefined, { scope: mounted.scope });
-			if (stop) stopBindings.push(stop);
+			const watcher = watchRetained(applyProps, undefined, { scope: mounted.scope, owned: true });
+			if (watcher) stopBindings.push(watcher);
 		}
 		initialBinding = false;
 	};

@@ -3,7 +3,10 @@ import {
 	readRenderProgramSlot,
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/runtime/render';
-import { watchRetained } from '@exactjs/reactive/framework/watch';
+import {
+	type OwnedRetainedWatch,
+	watchRetained
+} from '@exactjs/reactive/framework/watch';
 import { peek, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { placeMountedBefore } from '../placement.js';
 import { getListBinding } from '../children.js';
@@ -74,12 +77,12 @@ export function bindProgramChild(
 	mounted: Mounted,
 	index: number,
 	initialBinding: boolean,
-	stopBindings: Array<() => void>
+	stopBindings: OwnedRetainedWatch[]
 ): boolean {
 	const applyChildren = prepareProgramChildBinding(mounted, index, initialBinding);
 	if (!applyChildren) return false;
-	const stop = watchRetained(applyChildren, undefined, { scope: mounted.scope });
-	if (stop) stopBindings.push(stop);
+	const watcher = watchRetained(applyChildren, undefined, { scope: mounted.scope, owned: true });
+	if (watcher) stopBindings.push(watcher);
 	return true;
 }
 
@@ -88,7 +91,7 @@ export function bindProgramLists(
 	mounted: Mounted,
 	indexes: readonly number[],
 	initialBinding: boolean,
-	stopBindings: Array<() => void>
+	stopBindings: OwnedRetainedWatch[]
 ): boolean {
 	const apply = indexes.map((index) => prepareProgramChildBinding(mounted, index, initialBinding));
 	if (apply.some((binding) => !binding)) return false;
@@ -101,8 +104,8 @@ export function bindProgramLists(
 			owner?.endRender();
 		}
 	};
-	const stop = watchRetained(refresh, undefined, { scope: mounted.scope });
-	if (stop) stopBindings.push(stop);
+	const watcher = watchRetained(refresh, undefined, { scope: mounted.scope, owned: true });
+	if (watcher) stopBindings.push(watcher);
 	return true;
 }
 

@@ -192,6 +192,9 @@ Planned scalar and property slots expose their computation directly to the rende
 watcher. They do not allocate an intermediate computed value each time the watcher reads a slot.
 Scope-owned watchers also execute callbacks and scheduling hooks with that scope current, so any
 reactive work materialized by a structural update inherits deterministic teardown ownership.
+The compiler-owned lane retains those watcher objects directly and invokes their shared stop method
+during rebinding or teardown. Callable stop handles remain part of the public reactive API, but the
+renderer does not allocate one additional handle closure for every live compiled binding.
 
 Compiler-known list sites carry a stable site identity, source provenance, and key identity even
 when authored `Array.map` syntax is lowered directly. Cached item factories run inside per-key item
