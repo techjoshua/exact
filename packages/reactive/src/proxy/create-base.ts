@@ -34,7 +34,7 @@ export type ReactiveCollectionMember = (
 	wrap: (value: unknown, dependency?: PropertyKey) => unknown
 ) => unknown;
 
-const collectionOptionKeys = new WeakMap<object, object>();
+let collectionOptionKeys: WeakMap<object, object> | undefined;
 
 /** Creates a reactive with an explicitly selected collection capability. */
 export function createReactiveBase(
@@ -385,6 +385,7 @@ function reactiveOptionsKey(
 ): object {
 	const base = baseReactiveOptionsKey(options);
 	if (!collectionMember) return base;
+	collectionOptionKeys ??= new WeakMap();
 	let collectionKey = collectionOptionKeys.get(base);
 	if (!collectionKey) collectionOptionKeys.set(base, (collectionKey = {}));
 	return collectionKey;
