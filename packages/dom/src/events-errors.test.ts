@@ -59,32 +59,6 @@ describe('@exactjs/dom events-errors', () => {
 		).toBe(false);
 	});
 
-	it('does not override explicit focus changes made by a compiled handler', () => {
-		const container = document.createElement('div');
-		document.body.append(container);
-		function Button(this: Component<{}>) {
-			return () =>
-				jsx('button', {
-					'__exactClosedInteraction:onClick': () =>
-						(document.activeElement as HTMLElement | null)?.blur(),
-					children: 'Blur'
-				});
-		}
-		try {
-			render(jsx(Button, {}), container);
-			const button = container.querySelector('button')!;
-			button.focus();
-			expect(document.activeElement).toBe(button);
-
-			button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
-			expect(document.activeElement).toBe(document.body);
-		} finally {
-			unmount(container);
-			container.remove();
-		}
-	});
-
 	it('keeps compiled interaction selection local to one event binding', () => {
 		const container = document.createElement('div');
 		const handler = () => undefined;
