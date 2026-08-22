@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "npm run build:exact && npm run build:react && npm run build:sveltekit && npm run build:nuxt",
-		"build:exact": "vite build --config participants/exact/vite.config.ts && vite build --config participants/exact/vite.server.config.ts",
+		"build:exact": "node src/build-exact.mjs",
 		"build:react": "vite build --config participants/react/vite.config.ts && vite build --config participants/react/vite.server.config.ts",
 		"build:sveltekit": "cd participants/sveltekit && vite build",
 		"build:nuxt": "nuxt build --cwd participants/nuxt",

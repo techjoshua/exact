@@ -24,6 +24,17 @@ describe('React compatibility build engine', () => {
 		});
 		expect(result.changed).toBe(false);
 		expect(result.registryHash).toBe(engine.registryHash);
+
+		// The lexical rejection path must still admit core React aliases, not only discovered
+		// ecosystem adapter sources.
+		const react = engine.transformModule({
+			id: '/react-value.js',
+			source: 'export { createElement } from "react";',
+			format: 'module',
+			target: 'client'
+		});
+		expect(react.changed).toBe(true);
+		expect(react.code).toContain('@exactjs/react-compat/react18');
 	});
 
 	it('provides complete fallback diagnostics and unused-adapter accounting', () => {

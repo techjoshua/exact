@@ -8,18 +8,23 @@ Vite integration for compiling and serving eXact applications.
 import { exact } from '@exactjs/vite-plugin';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-	plugins: [exact()]
-});
+export default defineConfig({ plugins: [exact()] });
+```
+
+Applications with separate client and server configs can build both in one process and reuse one
+native compiler project generation:
+
+```ts
+import { buildExactViteApplication } from '@exactjs/vite-plugin/build';
+
+await buildExactViteApplication(['vite.config.ts', 'vite.server.config.ts']);
 ```
 
 Use `target: 'server'` for server artifacts, `serverComponents: true` for split server-component
 builds, and `reactCompatibility` only when the application consumes React-owned packages.
 Set `renderMode: 'hydrate'` for a browser bundle that adopts SSR HTML, or `renderMode: 'client'`
-for a fresh-mount-only browser bundle. These modes keep the compiler's complete analysis result
-available to the build while omitting analysis-only component inventories from emitted JavaScript;
-client-only bundles also omit resumption metadata. The default `universal` behavior preserves the
-complete contract when one artifact may serve more than one mode.
+for a fresh-mount-only browser bundle. These modes prune unused emitted contract fields; the
+default `universal` behavior preserves the complete contract.
 
 ## What the plugin handles
 
@@ -69,7 +74,6 @@ are left to the runner by default; imported application components are still com
 
 Optional `debug` settings control private server inspection catalogs and compact browser
 instrumentation. Production client and server builds should share a stable build identity.
-Disable both controls for hardened output.
 
 See [eXact DevTools](../../docs/devtools.md) and
 [component registries](../../docs/component-registries.md). Component authorization permits

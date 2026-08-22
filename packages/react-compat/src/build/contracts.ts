@@ -86,6 +86,10 @@ export interface ReactCompatibilityBuildEngine {
 	/** Positive native classifier and runtime adapter for native eXact JSX. */
 	readonly jsxInterop: ReactCompatibilityJsxInterop;
 	transformModule(input: ReactCompatibilityBuildInput): ReactCompatibilityTransformResult;
+	/**
+	 * Invalidates the active package-discovery generation when a reported watch file changes.
+	 * Build adapters must forward changes for `watchFiles`; ordinary source changes are ignored.
+	 */
 	invalidate(file: string): void;
 	report(): ReactCompatibilityReport;
 }
