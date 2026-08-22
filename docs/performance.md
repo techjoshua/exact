@@ -104,6 +104,9 @@ Component definitions follow the same split. Compiler-prepared imports take a sh
 artifact check when construction or lazy-island registration reads their contracts; they do not
 repeat recursive shape and identity validation already performed by the build. Public contract
 readers and framework-fixture entry points retain full validation for manually supplied values.
+Hydration entry points likewise pass their owned configuration resolver explicitly. The shared DOM
+adoption engine has no complete-runtime default import, so a hydration-only client does not retain
+endpoint, continuation, island, or patch configuration merely because the full client supports it.
 
 Scalar text slots may sit beside static text or other scalar slots in one planned host. The
 compiler inserts anonymous template-only comment separators so HTML parsing cannot coalesce their

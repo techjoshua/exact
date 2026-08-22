@@ -27,7 +27,7 @@ function rejectUnusedReactCompatibility(): Plugin {
 			if (retained)
 				throw new Error(`Native eXact bundle retained unused React compatibility: ${retained}`);
 			const unusedHydrationCapability = modules.find((id) =>
-				/[\\/]packages[\\/]hydrate[\\/]src[\\/](?:islands(?:[\\/]|\.ts)|patch(?:es|ing)(?:[\\/]|\.ts)|response[\\/]|runtime[\\/](?:client|operations)\.ts)/.test(
+				/[\\/]packages[\\/]hydrate[\\/](?:src|dist)[\\/](?:config\.(?:ts|js)|islands(?:[\\/]|\.(?:ts|js))|patch(?:es|ing)(?:[\\/]|\.(?:ts|js))|response[\\/]|runtime[\\/](?:client|operations)\.(?:ts|js))/.test(
 					id
 				)
 			);

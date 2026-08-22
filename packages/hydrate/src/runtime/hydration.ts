@@ -15,7 +15,6 @@ import {
 } from '@exactjs/dom';
 import { captureHydrationDom, restoreFormState } from '../adoption/form-state.js';
 import { adoptStaticTree, createStaticAdoptionBudget } from '../adoption/static-tree.js';
-import { resolveHydrateOptions } from '../config.js';
 import { reportMismatch } from '../mismatch.js';
 import type { CoreHydrationRoot, HydrateOptions, HydrateProfileEvent } from '../types.js';
 import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
@@ -29,10 +28,7 @@ export function hydrateWithClient<T extends CoreHydrationRoot>(
 	container: Element | Document,
 	options: HydrateOptions,
 	createClient: (container: Element, options: HydrateOptions) => T,
-	resolveOptions: (
-		container: Element,
-		options: HydrateOptions
-	) => HydrateOptions = resolveHydrateOptions
+	resolveOptions: (container: Element, options: HydrateOptions) => HydrateOptions
 ): T {
 	const started = options.onProfile ? performance.now() : undefined;
 	try {
@@ -57,10 +53,7 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 	container: Element | Document,
 	options: HydrateOptions,
 	createClient: (container: Element, options: HydrateOptions) => T,
-	resolveOptions: (
-		container: Element,
-		options: HydrateOptions
-	) => HydrateOptions = resolveHydrateOptions
+	resolveOptions: (container: Element, options: HydrateOptions) => HydrateOptions
 ): T {
 	assertCurrentDocumentContainer(container);
 	const documentNode = container.nodeType === 9 ? (container as Document) : undefined;
