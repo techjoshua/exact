@@ -340,6 +340,9 @@ The framework suite:
 
 Production fixture builds are also repeated in clean Node processes. Their emitted raw and
 compressed byte sizes must be deterministic before the suite reports a build baseline.
+Framework-comparison applications with separate Vite client/server configs use
+`buildExactViteApplication()` so both emissions share one process and native project generation;
+measuring two unrelated CLI startups would obscure compiler and emission work.
 
 ## Scenario coverage
 
