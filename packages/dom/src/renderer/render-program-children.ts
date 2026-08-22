@@ -8,8 +8,8 @@ import { peek, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { placeMountedBefore } from '../placement.js';
 import { getListBinding } from '../children.js';
 import type { Mounted } from '../types.js';
-import { mountDetachedChildren } from './mounting/children.js';
-import { patchChildren } from './patching/children.js';
+import { mountDetachedChild, mountDetachedChildren } from './mounting/children.js';
+import { patchChildren, patchSingleChild } from './patching/children.js';
 import { readDynamicChildren } from './dynamic.js';
 
 /** Adopts every compiler-owned variable-width child range inside one program. */
@@ -126,7 +126,28 @@ function prepareProgramChildBinding(
 			if (sameProgramChildren(childState.value, next)) return;
 			const parent = start.parentNode;
 			if (!parent) return;
-			if (initialBinding && childState.children.length === 0) {
+			const component = slot?.[0] === 'component' ? soleVNode(next) : undefined;
+			if (component && childState.children.length === 1) {
+				childState.children[0] = patchSingleChild(
+					state.root,
+					parent,
+					childState.children[0]!,
+					component,
+					state.parentInstance,
+					mounted.scope,
+					mounted
+				);
+			} else if (component && initialBinding && childState.children.length === 0) {
+				const child = mountDetachedChild(
+					state.root,
+					component,
+					state.parentInstance,
+					mounted.scope,
+					parent
+				);
+				placeMountedBefore(state.root, parent, child, end);
+				childState.children.push(child);
+			} else if (initialBinding && childState.children.length === 0) {
 				childState.children = mountDetachedChildren(
 					state.root,
 					next,
@@ -151,6 +172,10 @@ function prepareProgramChildBinding(
 			refreshMountedChildren(mounted);
 		});
 	};
+}
+
+function soleVNode(children: readonly Child[]): VNode | undefined {
+	return children.length === 1 && isVNode(children[0]) ? (children[0] as VNode) : undefined;
 }
 
 /** Finds the closing marker for one compiler-owned structural child slot. */
