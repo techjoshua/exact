@@ -8,7 +8,7 @@ import {
 } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import type { EffectScope } from '@exactjs/reactive';
-import { applyCompiledProps } from '../compiled-props.js';
+import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
@@ -304,8 +304,7 @@ export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 
 function bindRenderProgram(mounted: Mounted): boolean {
 	const state = mounted.renderProgram!;
-	const previousProps = state.props ?? new Map<Element, Record<string, unknown>>();
-	state.props = previousProps;
+	let previousProps = state.props;
 	let released = false;
 	let valid = true;
 	let initialBinding = true;
@@ -318,12 +317,16 @@ function bindRenderProgram(mounted: Mounted): boolean {
 		if (released) return;
 		released = true;
 		stopCurrentBindings();
-		for (const [element, props] of previousProps) {
-			const ref = props.ref as { fulfill(value: unknown): void } | undefined;
-			ref?.fulfill(undefined);
-			clearElementProps(element);
+		if (previousProps) {
+			for (const [element, props] of previousProps) {
+				const ref = props.ref as { fulfill(value: unknown): void } | undefined;
+				ref?.fulfill(undefined);
+				clearElementProps(element);
+			}
+			previousProps.clear();
+			state.props = undefined;
 		}
-		previousProps.clear();
+		releaseCompiledProps(mounted);
 		mounted.stop = undefined;
 		state.refresh = undefined;
 	};
@@ -366,9 +369,10 @@ function bindRenderProgram(mounted: Mounted): boolean {
 			const element = state.slotNodes[indexes[0]!] as Element;
 			const applyProps = () => {
 				if (writer !== undefined && state.invocation.propertyWriter) {
-					applyCompiledProps(mounted, element, previousProps, writer, initialBinding);
+					applyCompiledProps(mounted, element, writer, initialBinding);
 					return;
 				}
+				state.props = previousProps ??= new Map<Element, Record<string, unknown>>();
 				const next: Record<string, unknown> = {};
 				for (const index of indexes) {
 					const slot = state.invocation.program.slots[index]!;
