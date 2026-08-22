@@ -156,7 +156,14 @@ func (lowering *jsxLowering) lowerRenderProgram(
 				call.Expression.Text() == lowering.names.expression &&
 				call.Arguments != nil && len(call.Arguments.Nodes) == 1 &&
 				ast.IsArrowFunction(call.Arguments.Nodes[0]) {
-				readers[index] = call.Arguments.Nodes[0]
+				closure := call.Arguments.Nodes[0]
+				if !ast.IsBlock(closure.AsArrowFunction().Body) {
+					if materialized := lowering.reactiveClosure(closure.AsArrowFunction().Body); materialized != nil {
+						readers[index] = materialized
+						continue
+					}
+				}
+				readers[index] = closure
 				continue
 			}
 		}
@@ -164,6 +171,9 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		if readers[index] == nil {
 			readers[index] = lowering.arrow(reader)
 		}
+	}
+	for index, reader := range readers {
+		readers[index] = lowering.preservePlannedPropertyNarrowing(reader)
 	}
 	arguments := []*ast.Node{
 		lowering.factory.NewIdentifier(programName),
@@ -181,6 +191,38 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		arguments = append(arguments, lowering.arrow(fallback))
 	}
 	return lowering.call(lowering.names.preparedRenderProgram, arguments)
+}
+
+// preservePlannedPropertyNarrowing retains the source checker proof when a derived object read is
+// moved from its authored conditional branch into an independently scheduled property slot.
+func (lowering *jsxLowering) preservePlannedPropertyNarrowing(root *ast.Node) *ast.Node {
+	var visitor *ast.NodeVisitor
+	visitor = ast.NewNodeVisitor(
+		func(node *ast.Node) *ast.Node {
+			updated := visitor.VisitEachChild(node)
+			if !ast.IsPropertyAccessExpression(updated) {
+				return updated
+			}
+			property := updated.AsPropertyAccessExpression()
+			if !ast.IsCallExpression(property.Expression) {
+				return updated
+			}
+			call := property.Expression.AsCallExpression()
+			if !ast.IsPropertyAccessExpression(call.Expression) ||
+				call.Expression.AsPropertyAccessExpression().Name().Text() != "get" {
+				return updated
+			}
+			return lowering.factory.NewPropertyAccessExpression(
+				lowering.factory.NewNonNullExpression(property.Expression, ast.NodeFlagsNone),
+				property.QuestionDotToken,
+				property.Name(),
+				property.Flags,
+			)
+		},
+		&lowering.factory.NodeFactory,
+		ast.NodeVisitorHooks{},
+	)
+	return visitor.VisitNode(root)
 }
 
 // renderProgramReaders combines multi-slot readers into one component-local dispatcher. Each slot

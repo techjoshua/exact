@@ -5256,6 +5256,30 @@ func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *test
 	}
 }
 
+func TestSessionPreservesNarrowedDerivedValuesInsideNestedPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			type Point = { x: number; y: number };
+			export function Map(this: Component<{}>, props: { point?: Point }) {
+				const point = props.point;
+				return () => <div><svg><path d="M0 0" />{point ? <><circle cx={point.x} cy={point.y} /><circle cx={point.x} cy={point.y} /></> : null}</svg></div>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "point.get()!") {
+		t.Fatalf("nested program discarded the authored nullish narrowing: %s", response.Code)
+	}
+	if strings.Contains(response.Code, "point.get().x") || strings.Contains(response.Code, "point.get().y") {
+		t.Fatalf("nested program emitted property reads without the authored narrowing: %s", response.Code)
+	}
+}
+
 func TestSessionReportsAuthoredLocationsAfterSourceNormalization(t *testing.T) {
 	source := `
 		export function Card(props: { title: string }) {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/checker"
 )
 
 func (lowering *jsxLowering) reactiveExpression(
@@ -147,6 +148,7 @@ type materializedRenderLocal struct {
 	declaration *ast.Node
 	name        string
 	cached      bool
+	narrowed    bool
 }
 
 // reactiveClosure moves render-local pure calculations into the reactive
@@ -299,13 +301,14 @@ func (lowering *jsxLowering) cachedDerivedLocals(
 				declaration: declaration,
 				name:        localName,
 				cached:      !clockDerived,
+				narrowed:    referenceNarrowsNullish(node, name, lowering.checker),
 			}
 			break
 		}
 		return true
 	})
 	for symbol := range locals {
-		if counts[symbol] < 2 {
+		if counts[symbol] < 2 && !locals[symbol].narrowed {
 			delete(locals, symbol)
 		}
 	}
@@ -334,6 +337,9 @@ func (lowering *jsxLowering) materializedClosure(
 			initializer = lowering.derivedGet(
 				lowering.factory.NewIdentifier(variable.Name().Text()),
 			)
+			if local.narrowed {
+				initializer = lowering.factory.NewNonNullExpression(initializer, ast.NodeFlagsNone)
+			}
 		} else {
 			initializer = lowering.replaceMaterializedReferences(
 				variable.Initializer,
@@ -372,6 +378,21 @@ func (lowering *jsxLowering) materializedClosure(
 			true,
 		),
 	)
+}
+
+func referenceNarrowsNullish(reference *ast.Node, declaration *ast.Node, typeChecker *checker.Checker) bool {
+	declared := typeChecker.GetTypeAtLocation(declaration)
+	narrowed := typeChecker.GetTypeAtLocation(reference)
+	return typeHasNullishMember(declared) && !typeHasNullishMember(narrowed)
+}
+
+func typeHasNullishMember(value *checker.Type) bool {
+	for _, member := range value.Distributed() {
+		if member.Flags()&(checker.TypeFlagsNull|checker.TypeFlagsUndefined) != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) elidedDerivedLocal(
