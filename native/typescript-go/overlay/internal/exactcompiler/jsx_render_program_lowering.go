@@ -945,6 +945,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 	target *ast.Node,
 ) []*ast.Node {
 	statements := make([]*ast.Node, 0, len(build.nodes)+len(build.slots))
+	claimedElements := map[int]bool{0: true}
 	var emitChildren func([]int)
 	emitCall := func(helper string, arguments ...*ast.Node) {
 		statements = append(statements, lowering.factory.NewExpressionStatement(
@@ -954,7 +955,8 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 	emitChildren = func(parentPath []int) {
 		claims := make([]renderProgramClaim, 0)
 		for index, node := range build.nodes {
-			if index == 0 || !directChildPath(node.path, parentPath) {
+			if index == 0 || !directChildPath(node.path, parentPath) ||
+				!directProgramHasSlotDescendant(build, node.path) {
 				continue
 			}
 			claims = append(claims, renderProgramClaim{
@@ -989,6 +991,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 			claimIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(claim.index), ast.TokenFlagsNone)
 			switch claim.kind {
 			case "element":
+				claimedElements[claim.index] = true
 				arguments := []*ast.Node{
 					claimIndex,
 					skip,
@@ -1001,7 +1004,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 					)
 				}
 				emitCall(lowering.names.claimProgramElement, arguments...)
-				if directProgramHasChildren(build, claim.path) {
+				if directProgramHasSlotDescendant(build, claim.path) {
 					emitCall(lowering.names.enterProgramElement, claimIndex)
 					emitChildren(claim.path)
 					emitCall(lowering.names.leaveProgramElement)
@@ -1039,6 +1042,26 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 	}
 	emitChildren(nil)
 	for _, binding := range build.propertyBindings() {
+		if !claimedElements[binding.node] {
+			encoded, encodable := directProgramElementPath(build, build.nodes[binding.node].path)
+			if !encodable {
+				return lowering.directRenderProgramClaimsAll(build, target)
+			}
+			node := build.nodes[binding.node]
+			arguments := []*ast.Node{
+				lowering.factory.NewNumericLiteral(strconv.Itoa(binding.node), ast.TokenFlagsNone),
+				lowering.factory.NewNumericLiteral(strconv.FormatUint(encoded, 10), ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone),
+			}
+			if node.namespace != build.namespace {
+				arguments = append(
+					arguments,
+					lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone),
+				)
+			}
+			emitCall(lowering.names.claimElementPath, arguments...)
+			claimedElements[binding.node] = true
+		}
 		emitCall(
 			lowering.names.claimProgramProperty,
 			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.slots[0]), ast.TokenFlagsNone),
@@ -1046,6 +1069,19 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 		)
 	}
 	return statements
+}
+
+func directProgramHasSlotDescendant(build *renderProgramBuild, path []int) bool {
+	for _, slot := range build.slots {
+		if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
+			continue
+		}
+		parent := slot.path[:len(slot.path)-1]
+		if pathPrefix(path, parent) {
+			return true
+		}
+	}
+	return false
 }
 
 func directChildPath(path []int, parent []int) bool {

@@ -232,6 +232,69 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 	}
 }
 
+func TestSessionClaimsOnlyRequiredPropertyTargetsByElementPath(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "targeted-element-claims.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type State = { disabled: boolean };
+			export function Planned(this: { state: State }) {
+				this.state.disabled = false;
+				return () => (
+					<section>
+						<div><span>Static</span><button disabled={this.state.disabled}>Save</button></div>
+						<aside>Untouched</aside>
+					</section>
+				);
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(
+		response.Code,
+		`__exactClaimProgramElementPath(__exactBindingTarget, 3, 2050, "button")`,
+	) {
+		t.Fatalf("compiled property target did not use its direct element path:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactClaimProgramElement(__exactBindingTarget`) ||
+		strings.Contains(response.Code, `"span")`) ||
+		strings.Contains(response.Code, `"aside")`) {
+		t.Fatalf("targeted hydration retained inert static element claims:\n%s", response.Code)
+	}
+}
+
+func TestSessionAddressesPropertyTargetsFromStableEdgeAfterStructuralContent(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-stable-edge.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type State = { draft: string };
+			export function Planned(this: { state: State }, props: { visible: boolean }) {
+				this.state.draft = "";
+				return () => (
+					<section>
+						{props.visible ? <article>Variable</article> : null}
+						<form><textarea value={this.state.draft} /></form>
+					</section>
+				);
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	// The path reaches the form from the trailing edge because the structural range before it can
+	// contribute any number of elements, then reaches the textarea from the front.
+	if !strings.Contains(
+		response.Code,
+		`__exactClaimProgramElementPath(__exactBindingTarget, 2, 1026, "textarea")`,
+	) {
+		t.Fatalf("compiled property targets did not select their stable path edges:\n%s", response.Code)
+	}
+}
+
 func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "component-state-updates.tsx", Kind: "compile", Target: TargetClient,

@@ -108,11 +108,13 @@ rendering-mode-neutral artifact, or crosses the server boundary retains the univ
 Synchronous compiler-owned computations and resumption deferral also live in focused modules so
 importing them does not make the universal activation implementation reachable.
 
-Closed client render programs carry executable production claims. The compiler emits the exact
-intrinsic, scalar, structural-range, enter, and leave operations in DOM order; the runtime supplies
-only their focused mechanics. Each structural claim advances to its matching close marker, so
-nested or variable-width server output cannot perturb later static siblings. The successful path
-does not walk descriptor tables, build an identity map, or rediscover slots. Every claimed tag,
+Closed client render programs carry executable production claims. The compiler emits cursor claims
+only for scalar and structural slots and the intrinsic ancestors needed to reach them. A property
+target outside that topology receives one compact element path selected from a compiler-proven
+stable edge; a preceding variable-width range therefore cannot perturb a target addressed from the
+end. If variable structure makes neither edge stable, the component retains its generated cursor
+claims. Inert static intrinsics are never claimed or assigned individual ownership. The successful
+path does not walk descriptor tables, build an identity map, or rediscover slots. Every claimed tag,
 namespace, scalar sentinel, and structural marker pair is still checked. A stale or malformed plan
 therefore fails closed into the existing hydration recovery path, while complete isomorphic,
 manually constructed, and generic compatibility programs retain the table-driven adopter.
@@ -431,10 +433,11 @@ they do not allocate getter and setter closures for every declared field. A comp
 tracks field presence for deletion, snapshots, and optimistic rollback, while fields introduced
 dynamically retain the same reactive fallback semantics and receive stable indexes on first write.
 
-Render-program hydration stores directly claimed compiler-numbered elements in a dense ephemeral
-array. It does not allocate string keys or marker maps for the closed client path. Legacy authored
-identities and compatibility programs retain the bounded indexing path because they do not carry a
-compiler-generated claim lane.
+Render-program hydration stores only directly claimed compiler-numbered elements in a sparse
+ephemeral array. Inert static intrinsics remain covered by their enclosing component or structural
+range and receive no element-owner records. The closed client path allocates neither string keys nor
+marker maps. Legacy authored identities and compatibility programs retain the bounded indexing path
+because they do not carry a compiler-generated claim lane.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
 the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
@@ -443,9 +446,10 @@ own variable-width DOM ranges; scalar bindings already retain their exact node a
 second permanent range representation.
 
 Marker-mode SSR does not give finite compiled render programs generic cell ranges. The client
-validates and owns their roots and nested intrinsics through the program's dense compiler-numbered
-topology. Component, cell, list, fragment, and other variable-width boundaries retain explicit
-ranges because their update lifetime may replace the currently rendered root shape.
+validates their roots, structural boundaries, dynamic nodes, and property targets through generated
+claims; inert nested intrinsics remain ordinary DOM. Component, cell, list, fragment, and other
+variable-width boundaries retain explicit ranges because their update lifetime may replace the
+currently rendered root shape.
 
 Closed server component artifacts carry generated SSR execution rather than a compact interpreted
 tape. The compiler emits slot preparation and the exact static, text, child, and attribute
