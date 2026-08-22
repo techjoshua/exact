@@ -7,7 +7,8 @@ import {
 } from '@exactjs/core';
 import {
 	componentDomainInspection,
-	createFrameworkComponentDomain
+	createFrameworkComponentDomain,
+	setComponentDomainLogger
 } from '@exactjs/core/framework/component-domains';
 import { flushSync } from '@exactjs/reactive';
 import { clearDelegated } from '../events.js';
@@ -75,7 +76,8 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 			...vnode,
 			domain: createFrameworkComponentDomain({
 				executionRoot: inspection.executionRoot,
-				inspection
+				inspection,
+				logger: options.logger
 			})
 		};
 	}
@@ -91,6 +93,9 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
+	if (previousCurrent.domain)
+		setComponentDomainLogger(previousCurrent.domain, options.logger);
+	if (root.current.domain) setComponentDomainLogger(root.current.domain, options.logger);
 	if (options.logger) {
 		const contexts = root.ambientContexts as Map<symbol, unknown> | undefined;
 		if (contexts) contexts.set(LoggerContext.id, options.logger);
