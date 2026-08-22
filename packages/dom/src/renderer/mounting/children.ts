@@ -31,7 +31,9 @@ export function mountDetachedChildren(
 				countDomWork(root);
 				continue;
 			}
-			mounted.push(mount(root, vnode, parentInstance, parentScope, parentNode));
+			mounted.push(
+				mountDetachedChild(root, vnode, parentInstance, parentScope, parentNode)
+			);
 		}
 		return mounted;
 	} catch (error) {
