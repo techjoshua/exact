@@ -126,7 +126,7 @@ export function runEventInteraction<Result>(
 		return runDirectCompiledComponentInteraction(
 			owner,
 			'event',
-			nextEventGeneration(owner),
+			nextEventGeneration,
 			'interactive',
 			work,
 			onScope
@@ -160,7 +160,7 @@ function runInteractiveEvent<Result>(
 						? runDirectCompiledComponentInteraction(
 								owner,
 								'event',
-								nextEventGeneration(owner),
+								nextEventGeneration,
 								'interactive',
 								work,
 								(scope) => {

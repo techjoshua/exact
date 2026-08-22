@@ -57,6 +57,7 @@ export {
 	runComponentInteraction,
 	traceInteractionPhase,
 	type InteractionPriority,
+	type DeferredInteractionGeneration,
 	type InteractionScope,
 	type InteractionSource
 } from './interaction/execution.js';
