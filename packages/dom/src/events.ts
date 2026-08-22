@@ -125,6 +125,7 @@ export function closedInteractionKey(type: string): string {
  * The caller retains responsibility for the synchronous reactive batch and error observation.
  */
 export function runEventInteraction<Result>(
+	root: Root,
 	owner: AnyComponentInstance | undefined,
 	work: () => Result | PromiseLike<Result>,
 	onScope?: (scope: InteractionScope) => void,
@@ -138,7 +139,8 @@ export function runEventInteraction<Result>(
 			nextEventGeneration,
 			'interactive',
 			work,
-			onScope
+			onScope,
+			compiledInteractionTrace(root)
 		);
 	return runComponentInteraction(
 		owner,
@@ -175,7 +177,8 @@ function runInteractiveEvent<Result>(
 								(scope) => {
 									interaction = scope;
 									root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
-								}
+								},
+								compiledInteractionTrace(root)
 							)
 						: runCompiledComponentInteraction(
 								owner,
@@ -187,7 +190,8 @@ function runInteractiveEvent<Result>(
 								(scope) => {
 									interaction = scope;
 									root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
-								}
+								},
+								compiledInteractionTrace(root)
 							)
 					: work()
 			)
@@ -204,6 +208,12 @@ function runInteractiveEvent<Result>(
 	} finally {
 		root.interactionWork = undefined;
 	}
+}
+
+/** Skips generic trace discovery when one shared root logger proves trace logging is disabled. */
+function compiledInteractionTrace(root: Root): false | undefined {
+	const logging = root.componentLogging;
+	return logging && !logging.componentOverride && logging.logger === undefined ? false : undefined;
 }
 
 /**

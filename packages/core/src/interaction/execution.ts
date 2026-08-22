@@ -3,7 +3,8 @@ import {
 	markComponentTrace,
 	componentTraceStarter,
 	type LazyComponentTraceAttributes,
-	type ComponentTraceSpan
+	type ComponentTraceSpan,
+	type ComponentTraceStarter
 } from '../component/performance-trace.js';
 import {
 	currentTaskFrameRecord,
@@ -84,7 +85,8 @@ export function runCompiledComponentInteraction<Result>(
 	priority: InteractionPriority,
 	controller: AbortController,
 	work: () => Result | PromiseLike<Result>,
-	onTraceScope?: (scope: InteractionScope) => void
+	onTraceScope?: (scope: InteractionScope) => void,
+	trace?: ComponentTraceStarter | false
 ): Promise<Result> {
 	return executeComponentInteraction(
 		owner,
@@ -94,7 +96,8 @@ export function runCompiledComponentInteraction<Result>(
 		controller,
 		false,
 		work,
-		onTraceScope
+		onTraceScope,
+		trace
 	);
 }
 
@@ -108,9 +111,11 @@ export function runDirectCompiledComponentInteraction<Result>(
 	generation: number | DeferredInteractionGeneration,
 	priority: InteractionPriority,
 	work: () => Result | PromiseLike<Result>,
-	onTraceScope?: (scope: InteractionScope) => void
+	onTraceScope?: (scope: InteractionScope) => void,
+	trace?: ComponentTraceStarter | false
 ): Result | PromiseLike<Result> {
-	if (componentTraceStarter(owner))
+	const startTrace = trace === undefined ? componentTraceStarter(owner) : trace;
+	if (startTrace)
 		return runCompiledComponentInteraction(
 			owner,
 			source,
@@ -118,7 +123,8 @@ export function runDirectCompiledComponentInteraction<Result>(
 			priority,
 			new AbortController(),
 			work,
-			onTraceScope
+			onTraceScope,
+			startTrace
 		);
 
 	let frame: TaskFrameRecord | undefined;
@@ -185,11 +191,12 @@ function executeComponentInteraction<Result>(
 	work:
 		| ((scope: InteractionScope) => Result | PromiseLike<Result>)
 		| (() => Result | PromiseLike<Result>),
-	onTraceScope?: (scope: InteractionScope) => void
+	onTraceScope?: (scope: InteractionScope) => void,
+	trace?: ComponentTraceStarter | false
 ): Promise<Result> {
 	const taskOwner = taskOwnerForHost(owner);
 	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
-	const startTrace = componentTraceStarter(owner);
+	const startTrace = trace === undefined ? componentTraceStarter(owner) : trace || undefined;
 	let interactionScope: InteractionScope | undefined;
 	const execution = executeTaskFrame(
 		{
