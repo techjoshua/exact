@@ -219,9 +219,7 @@ func (lowering *jsxLowering) lowerRenderProgram(
 			runtimeReaders = append([]*ast.Node(nil), readers...)
 			for index, slot := range build.slots {
 				if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
-					runtimeReaders[index] = lowering.arrow(
-						lowering.factory.NewIdentifier("undefined"),
-					)
+					runtimeReaders[index] = nil
 				}
 			}
 		}
@@ -348,6 +346,60 @@ func (lowering *jsxLowering) preservePlannedPropertyNarrowing(root *ast.Node) *a
 // still executes under its own reactive observation; only the JavaScript function definitions are
 // shared, avoiding a branch for the common zero- and one-slot programs.
 func (lowering *jsxLowering) renderProgramReaders(readers []*ast.Node) *ast.Node {
+	omitted := false
+	active := 0
+	for _, reader := range readers {
+		if reader == nil {
+			omitted = true
+			continue
+		}
+		active++
+	}
+	if active == 0 {
+		return lowering.factory.NewArrayLiteralExpression(nil, false)
+	}
+	if omitted {
+		for _, reader := range readers {
+			if reader != nil && (!ast.IsArrowFunction(reader) || ast.IsBlock(reader.AsArrowFunction().Body)) {
+				members := make([]*ast.Node, len(readers))
+				for index, candidate := range readers {
+					if candidate == nil {
+						members[index] = lowering.factory.NewIdentifier("undefined")
+					} else {
+						members[index] = candidate
+					}
+				}
+				return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(members), false)
+			}
+		}
+		index := lowering.factory.NewIdentifier("__exactSlot")
+		value := lowering.factory.NewIdentifier("undefined")
+		for readerIndex := len(readers) - 1; readerIndex >= 0; readerIndex-- {
+			reader := readers[readerIndex]
+			if reader == nil {
+				continue
+			}
+			value = lowering.conditional(
+				lowering.binary(
+					index,
+					ast.KindEqualsEqualsEqualsToken,
+					lowering.factory.NewNumericLiteral(strconv.Itoa(readerIndex), ast.TokenFlagsNone),
+				),
+				reader.AsArrowFunction().Body,
+				value,
+			)
+		}
+		parameter := lowering.factory.NewParameterDeclaration(nil, nil, index, nil, nil, nil)
+		return lowering.factory.NewArrowFunction(
+			nil,
+			nil,
+			lowering.factory.NewNodeList([]*ast.Node{parameter}),
+			nil,
+			nil,
+			lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+			value,
+		)
+	}
 	if len(readers) <= 1 {
 		return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false)
 	}
