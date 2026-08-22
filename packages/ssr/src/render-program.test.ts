@@ -63,11 +63,9 @@ it('preflights generated server slots before selecting the local fallback', () =
 				target.prepareText(0);
 				target.prepareText(1);
 				target.begin(2, 2);
-				target.openNode(0);
 				target.static('<span>');
 				target.text(0, 'value');
 				target.static('</span>');
-				target.closeNode(0);
 			}
 		}),
 		[
@@ -126,11 +124,9 @@ it('executes structural program slots without colliding with nested marker ident
 			ssr(target) {
 				target.prepareChild(0);
 				target.begin(1, 1);
-				target.openNode(0);
 				target.static('<section>');
 				target.child(0, 'child');
 				target.static('</section>');
-				target.closeNode(0);
 			}
 		}),
 		[() => createVNode(Child, {})],
@@ -143,11 +139,11 @@ it('executes structural program slots without colliding with nested marker ident
 	);
 
 	const marked = renderToString(program).html;
-	expect(marked).toContain('<!--exact:cell:0--><section><!--exact:dynamic:child-->');
+	expect(marked).toContain('<section><!--exact:dynamic:child-->');
 	expect(marked).toContain('<!--exact:component:1:');
-	expect(marked).not.toContain('<!--exact:component:0:');
 	expect(marked).toContain('<strong>child</strong><!--/exact:component:1:');
-	expect(marked).toContain('<!--/exact:dynamic:child--></section><!--/exact:cell:0-->');
+	expect(marked).toContain('<!--/exact:dynamic:child--></section>');
+	expect(marked).not.toContain('<!--exact:cell:');
 	expect(renderToString(program, { markers: false }).html).toBe(
 		'<section><strong>child</strong></section>'
 	);
@@ -164,7 +160,6 @@ it('materializes marker-mode program fallbacks inside their component scope', as
 					id: 'render-program:ssr-owned-fallback',
 					namespace: 'html',
 					template: '<span>owned</span>',
-					parts: ['<span>owned</span>'],
 					slots: [],
 					bindings: [],
 					nodes: [['owned', 'span']]

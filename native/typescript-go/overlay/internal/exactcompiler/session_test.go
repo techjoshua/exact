@@ -194,7 +194,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	}
 }
 
-func TestSessionRetainsServerMarkerProgramsInCompleteIsomorphicArtifacts(t *testing.T) {
+func TestSessionEmitsDirectServerExecutionForCompleteArtifacts(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-complete.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionComplete,
@@ -207,15 +207,18 @@ func TestSessionRetainsServerMarkerProgramsInCompleteIsomorphicArtifacts(t *test
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "ssrParts:") ||
-		!strings.Contains(response.Code, "ssrOperations:") ||
-		strings.Contains(response.Code, `kind: "node-open"`) ||
-		strings.Contains(response.Code, `kind: "node-close"`) {
-		t.Fatalf("complete isomorphic artifact omitted its compact SSR tape:\n%s", response.Code)
+	if !strings.Contains(response.Code, `template: "<span><strong>`) ||
+		!strings.Contains(response.Code, `slots: [["text"`) ||
+		!strings.Contains(response.Code, `() => __exactVNode("span"`) ||
+		!strings.Contains(response.Code, `ssr: __exactSsr =>`) ||
+		strings.Contains(response.Code, "parts:") ||
+		strings.Contains(response.Code, "ssrParts:") ||
+		strings.Contains(response.Code, "ssrOperations:") {
+		t.Fatalf("complete artifact omitted direct server execution or retained interpreted metadata:\n%s", response.Code)
 	}
 }
 
-func TestSessionRetainsStructuralSsrTapesInCompletePrograms(t *testing.T) {
+func TestSessionUsesRegionFallbackForCompleteStructuralSsr(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-complete-structural.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionComplete,
@@ -227,11 +230,13 @@ func TestSessionRetainsStructuralSsrTapesInCompletePrograms(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if strings.Count(response.Code, "ssrParts:") != 2 ||
-		strings.Count(response.Code, "ssrOperations:") != 2 ||
+	if strings.Contains(response.Code, "parts:") ||
+		strings.Contains(response.Code, "ssrParts:") ||
+		strings.Contains(response.Code, "ssrOperations:") ||
+		!strings.Contains(response.Code, `ssr: __exactSsr =>`) ||
 		!strings.Contains(response.Code, `["component"`) ||
 		!strings.Contains(response.Code, `() => __exactVNode("span"`) {
-		t.Fatalf("structural complete program omitted its SSR operation tape:\n%s", response.Code)
+		t.Fatalf("structural complete program omitted its region fallback:\n%s", response.Code)
 	}
 }
 

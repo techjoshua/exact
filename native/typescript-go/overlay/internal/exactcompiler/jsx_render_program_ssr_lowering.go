@@ -11,7 +11,7 @@ import (
 // a topology table to reconstruct what the compiler already proved.
 func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBuild) *ast.Node {
 	target := lowering.factory.NewIdentifier("__exactSsr")
-	statements := make([]*ast.Node, 0, len(build.ssrOperations)*2+2)
+	statements := make([]*ast.Node, 0, len(build.serverSlots)*2+2)
 	call := func(method string, arguments ...*ast.Node) {
 		callee := lowering.factory.NewPropertyAccessExpression(
 			target,
@@ -45,38 +45,31 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		call(method, numberLiteral(index))
 	}
 	call("begin", numberLiteral(len(build.nodes)), numberLiteral(len(build.slots)))
-	for position, operation := range build.ssrOperations {
-		if part := build.ssrParts[position]; part != "" {
+	for position, slotIndex := range build.serverSlots {
+		if part := build.serverSegments[position]; part != "" {
 			call("static", stringLiteral(part))
 		}
-		switch operation.kind {
-		case "node-open":
-			call("openNode", numberLiteral(operation.index))
-		case "node-close":
-			call("closeNode", numberLiteral(operation.index))
-		case "slot":
-			slot := build.slots[operation.index]
-			index := numberLiteral(operation.index)
-			switch slot.kind {
-			case "text":
-				arguments := []*ast.Node{index, stringLiteral(slot.id)}
-				if build.markerlessTextSlot(operation.index) {
-					arguments = append(arguments, lowering.factory.NewTrueExpression())
-				}
-				call("text", arguments...)
-			case "child", "component":
-				call("child", index, stringLiteral(slot.id))
-			default:
-				call(
-					"attribute",
-					index,
-					stringLiteral(slot.name),
-					stringLiteral(build.nodes[slot.node].tag),
-				)
+		slot := build.slots[slotIndex]
+		index := numberLiteral(slotIndex)
+		switch slot.kind {
+		case "text":
+			arguments := []*ast.Node{index, stringLiteral(slot.id)}
+			if build.markerlessTextSlot(slotIndex) {
+				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
+			call("text", arguments...)
+		case "child", "component":
+			call("child", index, stringLiteral(slot.id))
+		default:
+			call(
+				"attribute",
+				index,
+				stringLiteral(slot.name),
+				stringLiteral(build.nodes[slot.node].tag),
+			)
 		}
 	}
-	if last := build.ssrParts[len(build.ssrParts)-1]; last != "" {
+	if last := build.serverSegments[len(build.serverSegments)-1]; last != "" {
 		call("static", stringLiteral(last))
 	}
 	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)

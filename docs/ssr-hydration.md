@@ -47,7 +47,8 @@ The native compiler emits branded render programs for compiler-finite intrinsic 
 SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
 form controls, events, and refs reuse focused renderer operations. Closed server artifacts emit a
 component-specific SSR function whose generated calls prepare known values and then write static
-markup, nodes, scalar text, structural children, and attributes in source order. The server runtime
+markup, scalar text, structural children, and attributes in source order. Universal artifacts use
+the same generated server lane alongside their client topology. The server runtime
 provides escaping, marker, resource-limit, and recursive-child mechanics; it does not interpret a
 generic render tape or retain client templates and topology tables. Markerless SSR writes escaped
 values directly. Hydratable SSR also omits scalar delimiters when static markup bounds
