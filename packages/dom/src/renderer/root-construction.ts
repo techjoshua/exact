@@ -34,6 +34,7 @@ export function createRendererRoot(
 		maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
 		traversedNodes: 0,
 		workDepth: 0,
+		focusTransactionDepth: 0,
 		workBudget: options.workBudget,
 		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
 		onUnsafeHtml: options.onUnsafeHtml,

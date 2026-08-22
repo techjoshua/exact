@@ -1,43 +1,30 @@
 import { describeNode, domDebug } from './debug.js';
-import type { Root } from './types.js';
-
-type FocusTransaction = { depth: number; snapshot?: FocusSnapshot };
-type FocusSnapshot = {
-	active: HTMLElement;
-	inputSelection?: {
-		start: number | null;
-		end: number | null;
-		direction: HTMLInputElement['selectionDirection'];
-	};
-	documentSelection?: SavedSelection;
-};
-
-const focusTransactions = new WeakMap<Root, FocusTransaction>();
+import type { DomFocusSnapshot, Root } from './types.js';
 
 /** Runs DOM work and restores a user-focused element if patching drops focus to the document body. */
 export function preserveFocus<T>(root: Root, work: () => T): T {
-	const existing = focusTransactions.get(root);
-	if (existing) {
-		existing.depth++;
+	if (root.focusTransactionDepth > 0) {
+		root.focusTransactionDepth++;
 		try {
 			return work();
 		} finally {
-			existing.depth--;
+			root.focusTransactionDepth--;
 		}
 	}
-	const transaction: FocusTransaction = { depth: 1, snapshot: captureFocus() };
-	focusTransactions.set(root, transaction);
+	root.focusTransactionDepth = 1;
+	root.focusSnapshot = captureFocus();
 	try {
 		const result = work();
-		restoreFocus(root, transaction.snapshot);
+		restoreFocus(root, root.focusSnapshot);
 		return result;
 	} finally {
-		focusTransactions.delete(root);
+		root.focusSnapshot = undefined;
+		root.focusTransactionDepth = 0;
 	}
 }
 
 /** Captures the one authored focus owner shared by a complete DOM transaction. */
-function captureFocus(): FocusSnapshot | undefined {
+function captureFocus(): DomFocusSnapshot | undefined {
 	const active = document.activeElement;
 	// Body focus means that no authored control owns focus. Besides avoiding unnecessary browser
 	// focus work, this prevents passive hydration from manufacturing a focus transition.
@@ -57,7 +44,7 @@ function captureFocus(): FocusSnapshot | undefined {
 }
 
 /** Restores the focus snapshot once, after all nested reconciliation work completes. */
-function restoreFocus(root: Root, snapshot: FocusSnapshot | undefined): void {
+function restoreFocus(root: Root, snapshot: DomFocusSnapshot | undefined): void {
 	if (!snapshot) return;
 	const { active, inputSelection, documentSelection } = snapshot;
 	if (active.isConnected && document.activeElement === document.body) {
@@ -83,9 +70,7 @@ function restoreFocus(root: Root, snapshot: FocusSnapshot | undefined): void {
 	}
 }
 
-type SavedSelection = { start: number[]; startOffset: number; end: number[]; endOffset: number };
-
-function cloneSelection(root: HTMLElement): SavedSelection | undefined {
+function cloneSelection(root: HTMLElement): DomFocusSnapshot['documentSelection'] {
 	const selection = document.getSelection();
 	if (!selection?.rangeCount) return undefined;
 	const range = selection.getRangeAt(0);
@@ -98,7 +83,10 @@ function cloneSelection(root: HTMLElement): SavedSelection | undefined {
 	};
 }
 
-function restoreSelection(root: HTMLElement, saved: SavedSelection): void {
+function restoreSelection(
+	root: HTMLElement,
+	saved: NonNullable<DomFocusSnapshot['documentSelection']>
+): void {
 	const start = nodeFrom(root, saved.start);
 	const end = nodeFrom(root, saved.end);
 	if (!start || !end) return;
