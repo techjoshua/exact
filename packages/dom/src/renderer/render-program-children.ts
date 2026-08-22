@@ -31,7 +31,7 @@ export function adoptProgramChildSlots(
 	try {
 		for (let index = 0; index < state.invocation.program.slots.length; index++) {
 			const slot = state.invocation.program.slots[index]!;
-			if (slot[0] !== 'child') continue;
+			if (slot[0] !== 'child' && slot[0] !== 'component') continue;
 			const start = state.slotNodes[index];
 			const end = findProgramChildEnd(start, slot[1]);
 			const parent = start?.parentNode;
@@ -108,7 +108,8 @@ function prepareProgramChildBinding(
 	const state = mounted.renderProgram!;
 	const start = state.slotNodes[index];
 	const slot = state.invocation.program.slots[index];
-	const identity = slot?.[0] === 'child' ? slot[1] : undefined;
+	const identity =
+		slot?.[0] === 'child' || slot?.[0] === 'component' ? slot[1] : undefined;
 	const end = findProgramChildEnd(start, identity);
 	if (!(start instanceof Comment) || !end || !start.parentNode) return undefined;
 	const childSlots = (state.childSlots ??= []);

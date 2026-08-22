@@ -80,6 +80,15 @@ func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.No
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), list: list, reader: reader})
 }
 
+func (build *renderProgramBuild) componentSlot(id string, path []int, reader *ast.Node) {
+	index := len(build.slots)
+	build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
+	build.parts = append(build.parts, build.part.String())
+	build.part.Reset()
+	build.ssrOperation("slot", index)
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "component", path: append([]int(nil), path...), reader: reader})
+}
+
 func (build *renderProgramBuild) propertySlot(id string, path []int, node int, name string, reader *ast.Node) {
 	index := len(build.slots)
 	build.parts = append(build.parts, build.part.String())
@@ -328,7 +337,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 					return false
 				}
-				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), false)
+				build.componentSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
 				domIndex += 2
 				continue
 			}
@@ -345,7 +354,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
 					return false
 				}
-				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), false)
+				build.componentSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
 				domIndex += 2
 				continue
 			}
@@ -364,17 +373,15 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	return true
 }
 
-// plannedComponentChild limits direct component slots to finite leaf state machines. Stateful,
-// interactive, contextual, or structurally effectful components keep their established component
-// mount path until the compiler emits a dedicated component-slot lifecycle operation for them.
+// plannedComponentChild keeps statically resolved native components in an explicit compiler-owned
+// lifecycle slot. The component still owns its durable state machine; only the surrounding intrinsic
+// host no longer falls back to generic VNode construction.
 func (lowering *jsxLowering) plannedComponentChild(tag *ast.Node) bool {
 	if lowering.declarativeRenderDepth > 0 || componentChildInsideMap(tag) || !ast.IsIdentifier(tag) {
 		return false
 	}
-	component, exists := lowering.components[tag.Text()]
-	return exists && len(component.StateSlots) == 0 && !component.Interactions &&
-		len(component.Contexts) == 0 && len(component.SplitBoundaries) == 0 &&
-		len(component.Execution.Transitions) == 0
+	_, exists := lowering.components[tag.Text()]
+	return exists
 }
 
 func componentChildInsideMap(node *ast.Node) bool {
@@ -592,7 +599,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		members := []*ast.Node{lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone)}
 		if slot.kind == "text" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone), path(slot.path))
-		} else if slot.kind == "child" {
+		} else if slot.kind == "child" || slot.kind == "component" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone))
 		} else {
 			members = append(members, lowering.factory.NewNumericLiteral(strconv.Itoa(slot.node), ast.TokenFlagsNone), lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone))
@@ -613,7 +620,7 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			listSlots = append(listSlots, index)
 			continue
 		}
-		if slot.kind == "text" || slot.kind == "child" {
+		if slot.kind == "text" || slot.kind == "child" || slot.kind == "component" {
 			textBindings = append(textBindings, array([]*ast.Node{
 				lowering.factory.NewStringLiteral(slot.kind, ast.TokenFlagsNone),
 				lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone),

@@ -139,7 +139,7 @@ function renderProgramSlot(
 		return value === null || value === undefined || value === false || value === true
 			? ''
 			: escapeText(String(value));
-	if (slot[0] === 'child') return '';
+	if (slot[0] === 'child' || slot[0] === 'component') return '';
 	if (!slot[2]) return '';
 	const node = program.nodes[slot[1]];
 	return renderAttrs({ [slot[2]]: value }, false, node?.[1], context);
