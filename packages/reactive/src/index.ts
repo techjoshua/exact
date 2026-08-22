@@ -8,6 +8,7 @@ export {
 export {
 	batch,
 	captureReactiveMutations,
+	publishBatch,
 	rollbackReactiveMutationJournals,
 	peek,
 	type ReactiveMutationJournal
