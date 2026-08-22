@@ -17,12 +17,7 @@ import { mount } from '../mounting/root.js';
 import { createRendererRoot } from '../root-construction.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { unmountMounted } from '../teardown.js';
-import {
-	adoptStaticChildren,
-	boundaryMarkers,
-	compactAdoptedElementRange,
-	contentNodesBetween
-} from './boundaries.js';
+import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
 import { constructAdoptedComponent } from './construction.js';
 import { componentMarkerMatchesType } from './identity.js';
 
@@ -126,13 +121,8 @@ export function adoptComponentRoot(
 	const root = createRendererRoot(container, vnode, options, { version: 1, mode: 'hydrated' });
 	const scope = createEffectScope();
 	const mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
-	return completeRootAdoption(
-		root,
-		mounted,
-		contentNodesBetween(markers.start, markers.end),
-		() => constructAdoptedComponent(vnode, options.logicalParent, root.ambientContexts),
-		undefined,
-		markers
+	return completeRootAdoption(root, mounted, contentNodesBetween(markers.start, markers.end), () =>
+		constructAdoptedComponent(vnode, options.logicalParent, root.ambientContexts)
 	);
 }
 
@@ -217,8 +207,7 @@ function completeRootAdoption(
 		instance: AnyComponentInstance,
 		scope: EffectScope,
 		nodes: readonly Node[]
-	) => Mounted[] | undefined,
-	compactMarkers?: { start: Comment; end: Comment }
+	) => Mounted[] | undefined
 ): boolean {
 	let current = mounted;
 	try {
@@ -237,8 +226,6 @@ function completeRootAdoption(
 			current = activateAdoptedEnhancements(root, current);
 			refreshComponentRoot(instance, true, rootIntroduction(root));
 			instance.markMounted();
-			if (compactMarkers)
-				compactAdoptedElementRange(current, compactMarkers.start, compactMarkers.end);
 			root.mounted = current;
 			root.initialCommitComplete = true;
 			roots.set(root.container, root);

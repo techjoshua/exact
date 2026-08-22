@@ -421,15 +421,14 @@ and `Map` entry for every compiler-known element merely to recover the numeric t
 compiler already emitted.
 
 Successful compiled scalar hydration releases its opening and closing sentinels after transferring
-ownership to the claimed `Text` node. A successfully adopted single-element cell or component range
-likewise transfers placement and teardown ownership to the claimed element. Variable-width
-structural, list, fragment, and patch-addressable ranges keep their explicit boundaries.
+ownership to the claimed `Text` node. Structural child and component markers remain because they
+own variable-width DOM ranges; scalar bindings already retain their exact node and do not need a
+second permanent range representation.
 
-Marker-mode SSR may use cell and component envelopes to discover compiled regions. The browser
-releases envelopes around compiler-claimed elements only after the entire optimized adoption path
-succeeds; failure leaves the original range intact for recovery. Component boundaries with
-variable-width output, lists, fragments, and other independently addressed regions retain their
-explicit ranges.
+Marker-mode SSR gives each compiled render program one outer cell range. Nested intrinsic nodes do
+not receive generic VNode cell pairs: the client validates and owns them through the program's
+dense compiler-numbered topology. Component, list, fragment, and other variable-width boundaries
+retain their explicit ranges.
 
 Complete isomorphic component artifacts retain the same compact SSR program tape as server-only
 artifacts. During synchronous SSR, structural child and component operations delegate only their

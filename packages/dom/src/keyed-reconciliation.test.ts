@@ -36,29 +36,6 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 		expect(Array.from(container.childNodes)).toEqual([start, child, end, anchor]);
 	});
 
-	it('moves a compact adopted component by its direct element owner', () => {
-		const container = document.createElement('div');
-		const child = document.createElement('p');
-		const anchor = document.createElement('i');
-		container.append(child, anchor);
-		function Boundary() {
-			return () => null;
-		}
-		const mounted = {
-			vnode: createVNode(Boundary, null),
-			dom: child,
-			directDom: true as const,
-			scope: createEffectScope(),
-			children: [
-				{ vnode: createVNode('p', null), dom: child, scope: createEffectScope(), children: [] }
-			]
-		};
-
-		placeMountedBefore({ debugMarkers: false } as any, container, mounted, null);
-		expect(mountedDomNodes(mounted)).toEqual([child]);
-		expect(Array.from(container.childNodes)).toEqual([anchor, child]);
-	});
-
 	it('moves only the out-of-order keyed range for a simple rotation', () => {
 		const container = document.createElement('div');
 		let list!: Component<{ items: string[] }>;

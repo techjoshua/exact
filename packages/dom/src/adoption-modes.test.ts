@@ -44,7 +44,6 @@ describe('DOM adoption modes', () => {
 
 		expect(adoptComponentRoot(vnode, container)).toBe(true);
 		expect(container.querySelector('span')).toBe(serverSpan);
-		expect(container.innerHTML).toBe('<span>server</span>');
 		expect(lifecycle.introduction).toBe('hydration');
 		expect(adoptComponentRoot(vnode, container)).toBe(false);
 		render(vnode, container);
