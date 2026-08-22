@@ -3,6 +3,7 @@ import {
 	readRenderProgram,
 	renderProgramFallback,
 	type ExactRenderProgram,
+	type ExactDomRenderProgram,
 	type ExactRenderProgramInvocation,
 	type ExactTableRenderProgram
 } from '@exactjs/core/runtime/render';
@@ -38,12 +39,15 @@ export function mountRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
-	const fragment = materializeProgramTemplate(invocation.program, root.container.ownerDocument);
+	// A browser renderer can receive only client or complete compiler artifacts. Server-only
+	// descriptors are excluded by artifact partitioning and cannot be authored through the brand.
+	const program = invocation.program as ExactDomRenderProgram;
+	const fragment = materializeProgramTemplate(program, root.container.ownerDocument);
 	if (!fragment.firstChild || fragment.firstChild !== fragment.lastChild) return undefined;
 	const dom = fragment.firstChild!;
 	if (!(dom instanceof Element)) return undefined;
-	const direct = claimCompiledRenderProgram(invocation.program, dom, 'template');
-	if (invocation.program.directClaims && !direct) return undefined;
+	const direct = claimCompiledRenderProgram(program, dom, 'template');
+	if (program.directClaims && !direct) return undefined;
 	const table = tableProgram(invocation);
 	const programIndex = direct ? undefined : indexProgramHydration(dom);
 	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
@@ -66,15 +70,12 @@ export function mountRenderProgram(
 		if (programIndex) ownProgramNodes(table!, programIndex, parentInstance);
 		else ownDirectProgramNodes(direct?.elements, parentInstance);
 	}
-	if (
-		(invocation.program.bind || invocation.program.bindings?.length) &&
-		!bindRenderProgram(mounted)
-	) {
+	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
 		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
 		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
-	countProgramWork(root, invocation.program, direct, false);
+	countProgramWork(root, program, direct, false);
 	return mounted;
 }
 
@@ -88,9 +89,10 @@ export function adoptRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
+	const program = invocation.program as ExactDomRenderProgram;
 	if (!(dom instanceof Element)) return undefined;
-	const direct = claimCompiledRenderProgram(invocation.program, dom, 'ssr');
-	if (invocation.program.directClaims && !direct) return undefined;
+	const direct = claimCompiledRenderProgram(program, dom, 'ssr');
+	if (program.directClaims && !direct) return undefined;
 	const table = tableProgram(invocation);
 	const rootPlan = table?.nodes[0];
 	if (
@@ -119,15 +121,12 @@ export function adoptRenderProgram(
 	};
 	if (programIndex) ownProgramNodes(table!, programIndex, parentInstance);
 	else ownDirectProgramNodes(direct?.elements, parentInstance);
-	if (
-		(invocation.program.bind || invocation.program.bindings?.length) &&
-		!bindRenderProgram(mounted)
-	) {
+	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
 		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
 		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
-	countProgramWork(root, invocation.program, direct, true);
+	countProgramWork(root, program, direct, true);
 	return mounted;
 }
 
@@ -224,10 +223,11 @@ function adoptMarkedRenderProgram(
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
+	const program = invocation.program as ExactDomRenderProgram;
 	// Universal artifacts retain table-driven bindings for server-safe serialization. The browser
 	// runtime intentionally does not activate that generic table. Select the untouched region
 	// fallback before claiming scalar sentinels so a failed optimized attempt remains atomic.
-	if (!invocation.program.bind && invocation.program.bindings?.length) return undefined;
+	if (!program.bind && program.bindings?.length) return undefined;
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
 	const table = tableProgram(invocation);
@@ -237,7 +237,7 @@ function adoptMarkedRenderProgram(
 		const node = nodes[index];
 		if (
 			node instanceof Element &&
-			(invocation.program.directClaims ||
+			(program.directClaims ||
 				(rootNodePlan &&
 					matchesProgramElement(
 						node,
@@ -251,8 +251,8 @@ function adoptMarkedRenderProgram(
 		}
 	}
 	if (!programRoot) return undefined;
-	const direct = claimCompiledRenderProgram(invocation.program, programRoot, 'ssr');
-	if (invocation.program.directClaims && !direct) return undefined;
+	const direct = claimCompiledRenderProgram(program, programRoot, 'ssr');
+	if (program.directClaims && !direct) return undefined;
 	const hydrationIndex = direct ? undefined : indexProgramHydration(programRoot);
 	if (hydrationIndex && !validateGenericProgramNodes(table!, hydrationIndex)) return undefined;
 	const slotNodes =
@@ -282,10 +282,7 @@ function adoptMarkedRenderProgram(
 		setElementOwner(element, parentInstance);
 		countDomWork(root);
 	}
-	if (
-		(invocation.program.bind || invocation.program.bindings?.length) &&
-		!bindRenderProgram(mounted)
-	) {
+	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
 		releaseDirectProgramNodeOwners(elements);
 		return undefined;
 	}
@@ -394,12 +391,13 @@ function validSlotNodes(
 function tableProgram(
 	invocation: ExactRenderProgramInvocation
 ): ExactTableRenderProgram | undefined {
-	return invocation.program.directClaims ? undefined : invocation.program;
+	const program = invocation.program;
+	return program.directClaims ? undefined : (program as ExactTableRenderProgram);
 }
 
 function countProgramWork(
 	root: Root,
-	program: ExactRenderProgram,
+	program: ExactDomRenderProgram,
 	direct: ReturnType<typeof claimCompiledRenderProgram>,
 	includeRoot: boolean
 ): void {

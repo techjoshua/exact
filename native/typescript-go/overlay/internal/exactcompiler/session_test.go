@@ -132,7 +132,7 @@ func TestUTF16PackageEnhancementBoundaryConversion(t *testing.T) {
 	}
 }
 
-func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
+func TestSessionEmitsGeneratedServerRenderProgramsWithLazyRegionFallback(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
@@ -147,21 +147,22 @@ func TestSessionEmitsRenderProgramsWithLazyRegionFallback(t *testing.T) {
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 2",
-		"parts:",
-		`["text",`,
-		`, true]`,
-		`bindings: [["text", 0]]`,
-		"ssrParts:",
+		"version: 3",
+		`ssr: __exactSsr =>`,
+		`__exactSsr.begin(2, 1)`,
+		`__exactSsr.static("<span><strong>")`,
+		`__exactSsr.text(0,`,
+		`, true)`,
 		"() => __exactVNode(\"span\"",
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `kind: "node-open"`) ||
-		strings.Contains(response.Code, `kind: "node-close"`) {
-		t.Fatalf("finite planned intrinsics retained generic cell boundaries:\n%s", response.Code)
+	for _, omitted := range []string{"template:", "slots:", "nodes:", "bindings:", "parts:", "ssrParts:", "ssrOperations:"} {
+		if strings.Contains(response.Code, omitted) {
+			t.Fatalf("generated server program retained %q topology metadata:\n%s", omitted, response.Code)
+		}
 	}
 }
 
@@ -248,18 +249,18 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
-		`["property", 0, "disabled"]`,
-		`template: "<button class=\"action\"`,
+		`__exactSsr.attribute(0, "disabled", "button")`,
+		`__exactSsr.text(1,`,
+		`__exactSsr.static("<button class=\"action\"")`,
 		`class=\"action\"`,
-		`bindings: [["text", 1], ["properties", [0]]]`,
 		`__exactSlot === 0 ? props.disabled : props.label`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `["class", 0, "className"]`) {
-		t.Fatalf("static class was retained as a runtime slot:\n%s", response.Code)
+	if strings.Contains(response.Code, `__exactSsr.attribute(0, "className"`) {
+		t.Fatalf("static class was retained as generated attribute work:\n%s", response.Code)
 	}
 }
 
@@ -493,9 +494,10 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `namespace: "svg", template: "<path`) ||
-		!strings.Contains(response.Code, `, "path"]`) ||
-		strings.Contains(response.Code, `, "path", "svg"]`) {
+	if !strings.Contains(response.Code, `namespace: "svg", ssr: __exactSsr =>`) ||
+		!strings.Contains(response.Code, `__exactSsr.static("<path class=\"route\"")`) ||
+		!strings.Contains(response.Code, `__exactSsr.attribute(0, "d", "path")`) ||
+		strings.Contains(response.Code, `__exactSsr.attribute(0, "d", "svg")`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
 }

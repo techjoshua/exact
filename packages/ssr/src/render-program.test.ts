@@ -22,26 +22,24 @@ it('writes compiler-owned scalar programs without redundant hydration delimiters
 				version: 3,
 				id: 'render-program:ssr',
 				namespace: 'html',
-				template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
-				parts: ['<span data-exact-id="planned">', '</span>'],
-				slots: [['text', 'value', [0], true]],
-				bindings: [['text', 0]],
-				nodes: [['planned', 'span']],
-				ssrParts: ['<span data-exact-id="planned">', '</span>'],
-				ssrOperations: [{ kind: 'slot', index: 0 }]
+				ssr(target) {
+					target.prepareText(0);
+					target.begin(1, 1);
+					target.static('<span data-exact-id="planned">');
+					target.text(0, 'value', true);
+					target.static('</span>');
+				}
 			};
 		},
 		[() => '<safe>'],
 		() => {
-			throw new Error('valid compiler SSR tape used its generic fallback');
+			throw new Error('valid generated SSR lane used its generic fallback');
 		}
 	);
 	expect(renderToString(program, { markers: false }).html).toBe(
 		'<span data-exact-id="planned">&lt;safe&gt;</span>'
 	);
-	expect(renderToString(program).html).toBe(
-		'<span data-exact-id="planned">&lt;safe&gt;</span>'
-	);
+	expect(renderToString(program).html).toBe('<span data-exact-id="planned">&lt;safe&gt;</span>');
 	createCompiledRenderProgram(
 		'render-program:ssr',
 		() => {
@@ -53,6 +51,41 @@ it('writes compiler-owned scalar programs without redundant hydration delimiters
 	expect(constructions).toBe(1);
 });
 
+it('preflights generated server slots before selecting the local fallback', () => {
+	let reads = 0;
+	const program = createCompiledRenderProgram(
+		'render-program:ssr-preflight',
+		() => ({
+			version: 3,
+			id: 'render-program:ssr-preflight',
+			namespace: 'html',
+			ssr(target) {
+				target.prepareText(0);
+				target.prepareText(1);
+				target.begin(2, 2);
+				target.openNode(0);
+				target.static('<span>');
+				target.text(0, 'value');
+				target.static('</span>');
+				target.closeNode(0);
+			}
+		}),
+		[
+			() => {
+				reads++;
+				return createCompiledVNode('em', null, 'unsupported text');
+			},
+			() => {
+				throw new Error('preflight continued after selecting the fallback');
+			}
+		],
+		() => createCompiledVNode('span', null, 'fallback')
+	);
+
+	expect(renderToString(program, { markers: false }).html).toBe('<span>fallback</span>');
+	expect(reads).toBe(1);
+});
+
 it('serializes planned host slots with ordinary SSR attribute semantics', () => {
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-props',
@@ -60,15 +93,17 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 			version: 3,
 			id: 'render-program:ssr-props',
 			namespace: 'html',
-			template: '<button data-exact-id="planned">Save</button>',
-			parts: ['<button data-exact-id="planned"', '', '', '>Save</button>'],
-			slots: [
-				['class', 0, 'className'],
-				['property', 0, 'disabled'],
-				['property', 0, 'onClick']
-			],
-			bindings: [['properties', [0, 1, 2]]],
-			nodes: [['planned', 'button']]
+			ssr(target) {
+				target.prepareAttribute(0);
+				target.prepareAttribute(1);
+				target.prepareAttribute(2);
+				target.begin(1, 3);
+				target.static('<button data-exact-id="planned"');
+				target.attribute(0, 'className', 'button');
+				target.attribute(1, 'disabled', 'button');
+				target.attribute(2, 'onClick', 'button');
+				target.static('>Save</button>');
+			}
 		}),
 		[() => ['primary', { active: true }], () => true, () => () => undefined],
 		() => createCompiledVNode('button', { className: 'primary active', disabled: true }, 'Save')
@@ -88,17 +123,15 @@ it('executes structural program slots without colliding with nested marker ident
 			version: 3,
 			id: 'render-program:ssr-structural',
 			namespace: 'html',
-			template: '<section><!---->\ue000exact:0\ue001<!----></section>',
-			parts: ['<section>', '</section>'],
-			slots: [['component', 'child']],
-			bindings: [['component', 0]],
-			nodes: [[0, 'section']],
-			ssrParts: ['', '<section>', '', '</section>', ''],
-			ssrOperations: [
-				{ kind: 'node-open', index: 0 },
-				{ kind: 'slot', index: 0 },
-				{ kind: 'node-close', index: 0 }
-			]
+			ssr(target) {
+				target.prepareChild(0);
+				target.begin(1, 1);
+				target.openNode(0);
+				target.static('<section>');
+				target.child(0, 'child');
+				target.static('</section>');
+				target.closeNode(0);
+			}
 		}),
 		[() => createVNode(Child, {})],
 		() =>

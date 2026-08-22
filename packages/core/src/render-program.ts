@@ -9,11 +9,38 @@ export type ExactRenderProgramNode = readonly [
 	namespace?: 'html' | 'svg' | 'mathml'
 ];
 
-/** One server-only marker or slot operation between immutable program strings. */
+/** Legacy table operation retained only by complete/universal compatibility artifacts. */
 export type ExactRenderProgramSsrOperation = Readonly<{
 	kind: 'node-open' | 'node-close' | 'slot';
 	index: number;
 }>;
+
+/** Focused server operations invoked in compiler-generated component order. */
+export type ExactRenderProgramSsrTarget = Readonly<{
+	/** Reads and validates one compiler-known scalar before serialization mutates request state. */
+	prepareText(index: number): void;
+	/** Reads and validates one recursive child before serialization mutates request state. */
+	prepareChild(index: number): void;
+	/** Reads and validates one host value before serialization mutates request state. */
+	prepareAttribute(index: number): void;
+	/** Reserves compiler-known marker identities and charges the complete finite region once. */
+	begin(nodeCount: number, slotCount: number): void;
+	/** Appends compiler-owned static markup under the request output limit. */
+	static(value: string): void;
+	/** Writes the opening ownership marker for one compiler-numbered intrinsic. */
+	openNode(index: number): void;
+	/** Writes the closing ownership marker for one compiler-numbered intrinsic. */
+	closeNode(index: number): void;
+	/** Writes one prepared escaped scalar and its delimiters when required. */
+	text(index: number, id: string, markerless?: true): void;
+	/** Recursively renders one prepared structural or component child. */
+	child(index: number, id: string): void;
+	/** Serializes one prepared host value with ordinary SSR attribute semantics. */
+	attribute(index: number, name: string, tag: string): void;
+}>;
+
+/** Component-specific server execution emitted by the compiler. */
+export type ExactRenderProgramSsrWriter = (target: ExactRenderProgramSsrTarget) => void;
 
 /** Compact text slot: kind, fallback identity, template path, and marker-free SSR proof. */
 export type ExactRenderProgramTextSlot = readonly [
@@ -62,13 +89,13 @@ type ExactRenderProgramBase = Readonly<{
 	version: 3;
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
-	template: string;
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
 	listBindings?: true;
 }>;
 
 /** Closed client program whose executable lanes own topology instead of descriptor tables. */
 export type ExactDirectRenderProgram = ExactRenderProgramBase &
+	Readonly<{ template: string }> &
 	(
 		| Readonly<{
 				directClaims: true;
@@ -90,11 +117,30 @@ export type ExactDirectRenderProgram = ExactRenderProgramBase &
 		parts?: never;
 		ssrParts?: never;
 		ssrOperations?: never;
+		ssr?: ExactRenderProgramSsrWriter;
 	}>;
 
-/** Table-backed program retained for SSR, complete artifacts, and explicit compatibility. */
+/** Closed server program whose generated function owns serialization order and topology. */
+export type ExactSsrRenderProgram = ExactRenderProgramBase &
+	Readonly<{
+		ssr: ExactRenderProgramSsrWriter;
+		template?: never;
+		nodes?: never;
+		slots?: never;
+		bindings?: never;
+		parts?: never;
+		ssrParts?: never;
+		ssrOperations?: never;
+		bind?: never;
+		directClaims?: never;
+		root?: never;
+		work?: never;
+	}>;
+
+/** Table-backed program retained for complete artifacts and explicit compatibility. */
 export type ExactTableRenderProgram = ExactRenderProgramBase &
 	Readonly<{
+		template: string;
 		/** Server/universal interpolation strings; closed client artifacts omit this SSR-only table. */
 		parts?: readonly string[];
 		slots: readonly ExactRenderProgramSlot[];
@@ -105,13 +151,21 @@ export type ExactTableRenderProgram = ExactRenderProgramBase &
 		nodes: readonly ExactRenderProgramNode[];
 		ssrParts?: readonly string[];
 		ssrOperations?: readonly ExactRenderProgramSsrOperation[];
+		/** Optional generated server lane for an explicitly hybrid artifact. */
+		ssr?: ExactRenderProgramSsrWriter;
 		directClaims?: never;
 		root?: never;
 		work?: never;
 	}>;
 
 /** Immutable compiler output for one finite intrinsic region. */
-export type ExactRenderProgram = ExactDirectRenderProgram | ExactTableRenderProgram;
+export type ExactRenderProgram =
+	| ExactDirectRenderProgram
+	| ExactSsrRenderProgram
+	| ExactTableRenderProgram;
+
+/** Render programs that own a browser template and can execute through the DOM renderer. */
+export type ExactDomRenderProgram = ExactDirectRenderProgram | ExactTableRenderProgram;
 
 type BrandedRenderProgram = ExactRenderProgram & { readonly __exactPreparedRenderProgram: never };
 

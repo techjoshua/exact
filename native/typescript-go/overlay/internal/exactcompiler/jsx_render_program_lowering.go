@@ -892,7 +892,9 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		property("version", lowering.factory.NewNumericLiteral("3", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
-		property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)),
+	}
+	if lowering.target != TargetServer {
+		members = append(members, property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)))
 	}
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
@@ -914,6 +916,8 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 		if len(listSlots) != 0 {
 			members = append(members, property("listBindings", lowering.factory.NewTrueExpression()))
 		}
+	} else if lowering.target == TargetServer {
+		members = append(members, property("ssr", lowering.directRenderProgramSsrWriter(build)))
 	} else {
 		members = append(
 			members,
@@ -922,10 +926,11 @@ func (lowering *jsxLowering) renderProgramLiteral(id string, build *renderProgra
 			property("bindings", array(bindings)),
 		)
 	}
-	if lowering.target != TargetClient || lowering.contractProjection == ComponentContractProjectionComplete {
+	if lowering.target == TargetDefault ||
+		(lowering.target != TargetServer && lowering.contractProjection == ComponentContractProjectionComplete) {
 		members = append(members, property("parts", array(parts)))
 	}
-	if lowering.target == TargetServer ||
+	if lowering.target != TargetServer &&
 		lowering.contractProjection == ComponentContractProjectionComplete {
 		ssrParts := make([]*ast.Node, len(build.ssrParts))
 		for index, value := range build.ssrParts {

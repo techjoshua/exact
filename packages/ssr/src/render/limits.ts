@@ -59,7 +59,13 @@ export function normalizeSsrTreeDepth(value: number | undefined): number {
 
 /** Charges one render value against the context's traversal budget. */
 export function countSsrNode(context: SsrContext): void {
-	if (++context.traversedNodes > context.maxTreeNodes) {
+	countSsrNodes(context, 1);
+}
+
+/** Charges a compiler-proven finite group against the traversal budget in one operation. */
+export function countSsrNodes(context: SsrContext, count: number): void {
+	context.traversedNodes += count;
+	if (context.traversedNodes > context.maxTreeNodes) {
 		throw new SsrTreeNodeError(context.maxTreeNodes);
 	}
 }

@@ -17,6 +17,8 @@ export {
 	readRenderProgramSlot,
 	renderProgramFallback,
 	type ExactRenderProgram,
+	type ExactDirectRenderProgram,
+	type ExactDomRenderProgram,
 	type ExactRenderProgramBinding,
 	type ExactRenderProgramBinder,
 	type ExactRenderProgramBindingTarget,
@@ -24,6 +26,9 @@ export {
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
 	type ExactRenderProgramSsrOperation,
+	type ExactRenderProgramSsrTarget,
+	type ExactRenderProgramSsrWriter,
+	type ExactSsrRenderProgram,
 	type ExactTableRenderProgram
 } from '../render-program.js';
 export {
