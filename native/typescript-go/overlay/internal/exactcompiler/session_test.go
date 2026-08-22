@@ -190,6 +190,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		`template: "<button data-exact-id=\"`,
 		`class=\"action\"`,
 		`bindings: [["text", 1], ["properties", [0]]]`,
+		`__exactSlot === 0 ? props.disabled : props.label`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
@@ -5208,6 +5209,9 @@ func TestSessionLowersKeyedMapsDeclaredInImportedTypes(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "this.map(") {
 		t.Fatalf("imported keyed item type was not lowered: %s", response.Code)
+	}
+	if !strings.Contains(response.Code, `, props.items, "member:id")`) {
+		t.Fatalf("annotated list omitted stable provenance and key identity: %s", response.Code)
 	}
 	if strings.Contains(response.Code, "const copy = () => this.map(") {
 		t.Fatalf("ordinary data mapping was lowered as a rendered list: %s", response.Code)

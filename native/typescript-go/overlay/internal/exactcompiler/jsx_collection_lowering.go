@@ -67,6 +67,21 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		key,
 	)
+	emittedCollection := lowering.visitor.VisitNode(collection)
+	var provenance *ast.Node
+	if ast.IsIdentifier(collection) {
+		if _, derived := lowering.derivedBindingAtReference(collection); derived {
+			provenance = lowering.derivedCollectionProvenance(collection)
+		}
+	}
+	if provenance == nil {
+		provenance = lowering.factory.NewIdentifier("undefined")
+	}
+	identity := componentMapKeyIdentity(selector)
+	var emittedIdentity *ast.Node = lowering.factory.NewIdentifier("undefined")
+	if identity != "" {
+		emittedIdentity = lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone)
+	}
 	return lowering.factory.NewCallExpression(
 		lowering.factory.NewPropertyAccessExpression(
 			lowering.factory.NewThisExpression(),
@@ -77,9 +92,15 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		nil,
 		nil,
 		lowering.factory.NewNodeList([]*ast.Node{
-			lowering.visitor.VisitNode(collection),
+			emittedCollection,
 			selector,
 			lowering.visitor.VisitNode(render),
+			lowering.factory.NewStringLiteral(
+				exactStableID(lowering.sourceFile.FileName(), "list", lowering.nodeIDs[node]),
+				ast.TokenFlagsNone,
+			),
+			provenance,
+			emittedIdentity,
 		}),
 		ast.NodeFlagsNone,
 	)

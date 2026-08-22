@@ -106,6 +106,17 @@ registrations are reconciled together instead of leaving one retained reaction a
 per structural expression. Dynamically indexed or otherwise unproven list expressions retain the
 generic structural path.
 
+Planned scalar and property slots expose their computation directly to the render program's owned
+watcher. They do not allocate an intermediate computed value each time the watcher reads a slot.
+Scope-owned watchers also execute callbacks and scheduling hooks with that scope current, so any
+reactive work materialized by a structural update inherits deterministic teardown ownership.
+
+Compiler-known list sites carry a stable site identity, source provenance, and key identity even
+when authored `Array.map` syntax is lowered directly. Cached item factories run inside per-key item
+scopes; removing a key releases its expressions and keyed-collection metadata after reconciliation.
+This keeps repeated filter and replacement updates bounded instead of retaining one small reactive
+graph per update.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:

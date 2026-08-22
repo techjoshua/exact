@@ -12,6 +12,7 @@ import {
 	writeReactive,
 	writeReactiveLazy
 } from './index.js';
+import { keyedCollectionMetadata } from './internal/keyed-collections.js';
 
 describe('@exactjs/reactive writes', () => {
 	it('retains keyed record identity when an API response reorders records', () => {
@@ -184,5 +185,17 @@ describe('@exactjs/reactive writes', () => {
 			);
 		}).not.toThrow();
 		replacement();
+	});
+
+	it('releases keyed metadata after the final list registration stops', () => {
+		const records = [{ id: 'one' }];
+		const first = registerReactiveListKey(records, (item) => (item as { id: string }).id);
+		const second = registerReactiveListKey(records, (item) => (item as { id: string }).id);
+
+		expect(keyedCollectionMetadata(records)).toBeDefined();
+		first();
+		expect(keyedCollectionMetadata(records)).toBeDefined();
+		second();
+		expect(keyedCollectionMetadata(records)).toBeUndefined();
 	});
 });

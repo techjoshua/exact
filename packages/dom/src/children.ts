@@ -1,8 +1,12 @@
 import { createTextVNode, isVNode, type Child, type ListBinding, type VNode } from '@exactjs/core';
 import { isCellVNode } from '@exactjs/core/runtime/render';
-import { peek } from '@exactjs/reactive';
+import { createEffectScope, peek, withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { getOwnedCellVNode } from './cells.js';
 import type { Mounted } from './types.js';
+
+const listItemScopes = new WeakMap<VNode, EffectScope>();
+const materializedListScopes = new WeakMap<VNode, EffectScope>();
+const retiredListScopes = new WeakMap<object, EffectScope[]>();
 
 /** Stops mounted children that cannot be reused by an upcoming replacement patch. */
 export function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): void {
@@ -183,7 +187,7 @@ export function getListBinding(vnode: VNode): ListBinding | undefined {
 }
 
 /** Expands a keyed list binding into renderable vnodes with stable keys. */
-export function materializeList<T>(list: ListBinding<T>): VNode[] {
+export function materializeList<T>(list: ListBinding<T>, scope?: EffectScope): VNode[] {
 	const collection = list.source ? list.source.get() : list.collection;
 	const nodes: VNode[] = [];
 	const keys = new Set<string>();
@@ -192,15 +196,54 @@ export function materializeList<T>(list: ListBinding<T>): VNode[] {
 		if (keys.has(key)) throw new Error(`Duplicate key "${key}" in this.map()`);
 		keys.add(key);
 		const cached = list.cache?.get(key);
-		const node = cached && Object.is(cached.item, item) ? cached.vnode : list.render(item);
+		let node = cached && Object.is(cached.item, item) ? cached.vnode : undefined;
+		let itemScope = cached ? listItemScopes.get(cached.vnode) : undefined;
+		if (!node) {
+			itemScope ??= createEffectScope(scope);
+			try {
+				node = withEffectScope(itemScope, () => list.render(item));
+			} catch (error) {
+				if (!cached) itemScope.stop();
+				throw error;
+			}
+			if (cached) listItemScopes.delete(cached.vnode);
+			listItemScopes.set(node, itemScope);
+		}
 		list.cache?.set(key, { item, vnode: node });
-		nodes.push({ ...node, key });
+		const keyed = { ...node, key };
+		if (itemScope) materializedListScopes.set(keyed, itemScope);
+		nodes.push(keyed);
 	}
 	if (list.cache) {
 		for (const cachedKey of list.cache.keys())
-			if (!keys.has(cachedKey)) list.cache.delete(cachedKey);
+			if (!keys.has(cachedKey)) {
+				const cached = list.cache.get(cachedKey);
+				const retired = cached ? listItemScopes.get(cached.vnode) : undefined;
+				if (retired) {
+					let scopes = retiredListScopes.get(list);
+					if (!scopes) retiredListScopes.set(list, (scopes = []));
+					scopes.push(retired);
+					listItemScopes.delete(cached!.vnode);
+				}
+				list.cache.delete(cachedKey);
+			}
 	}
 	return nodes;
+}
+
+/** Transfers the scope in which one keyed item factory created its reactive expressions. */
+export function takeMaterializedListScope(vnode: VNode): EffectScope | undefined {
+	const scope = materializedListScopes.get(vnode);
+	materializedListScopes.delete(vnode);
+	return scope;
+}
+
+/** Stops keyed-item expression scopes after their mounted ranges have reconciled away. */
+export function releaseRetiredListScopes<T>(list: ListBinding<T>): void {
+	const scopes = retiredListScopes.get(list);
+	if (!scopes) return;
+	retiredListScopes.delete(list);
+	for (const scope of scopes) scope.stop();
 }
 
 function canPatchMounted(mounted: Mounted, next: VNode): boolean {

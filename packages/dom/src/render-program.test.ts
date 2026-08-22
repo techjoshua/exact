@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
+import { Fragment, createVNode } from '@exactjs/core';
 import { createCompiledVNode } from '@exactjs/core/runtime/render';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
-import { flushSync, reactive } from '@exactjs/reactive';
+import { flushSync, reactive, ref } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { adoptStatic, render, unmount } from './index.js';
 
@@ -489,6 +490,44 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 	flushSync();
 	expect(container.textContent).toBe('After');
 	expect(container.firstElementChild).toBe(host);
+});
+
+it('observes in-place collection mutations through a compiler-owned list lane', () => {
+	const state = reactive({ items: [{ id: 'a' }] });
+	const source = ref(state.items)!;
+	const cache = new Map();
+	const vnode = createCompiledRenderProgram(
+		'render-program:list-slot',
+		() => ({
+			version: 3,
+			id: 'render-program:list-slot',
+			namespace: 'html',
+			template:
+				'<ul data-exact-id="list-root"><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
+			parts: [],
+			slots: [['child', 'items']],
+			bindings: [['lists', [0]]],
+			nodes: [['list-root', 'ul']]
+		}),
+		[
+			() =>
+				createVNode(Fragment, {
+					list: {
+						collection: state.items,
+						source,
+						key: (item: { id: string }) => item.id,
+						render: (item: { id: string }) => createCompiledVNode('li', {}, item.id),
+						cache
+					}
+				})
+		]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(container.querySelectorAll('li')).toHaveLength(1);
+	state.items.push({ id: 'b' });
+	flushSync();
+	expect(container.querySelectorAll('li')).toHaveLength(2);
 });
 
 it('claims a variable-width structural child range before later planned elements', () => {
