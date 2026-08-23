@@ -505,6 +505,7 @@ func (s *Session) Execute(request Request) Response {
 		islandPlacementDiagnostics(
 			sourceFile,
 			generation.checker,
+			callables,
 			components,
 			tasks,
 			stateAliases,

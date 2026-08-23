@@ -474,6 +474,8 @@ func rootComponentContractAttachment(
 		projectedBoundaries = contractArray(factory)
 	}
 	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
+	hasResumption := component.Placement == "isomorphic" &&
+		componentHasResumption(component.ID, resumptions)
 	var updates *ast.Node
 	if name, exists := componentUpdates[component.Name]; exists {
 		updates = factory.NewIdentifier(name)
@@ -511,7 +513,7 @@ func rootComponentContractAttachment(
 				projectedExecution,
 				component.StateSlots,
 				componentContinuations,
-				componentHasResumption(component.ID, resumptions),
+				hasResumption,
 				target == TargetClient && component.Interactions,
 				usesCompatibility,
 				component.DynamicComponents,
@@ -540,9 +542,9 @@ func rootComponentContractAttachment(
 			),
 		))
 	}
-	if component.Placement != "server" &&
+	if component.Placement == "isomorphic" &&
 		projection != ComponentContractProjectionClient &&
-		(component.Exported || componentHasResumption(component.ID, resumptions)) {
+		hasResumption {
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"resumption",

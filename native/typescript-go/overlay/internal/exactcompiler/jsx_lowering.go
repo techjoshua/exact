@@ -93,6 +93,7 @@ func lowerExactJSX(
 		ast.NodeVisitorHooks{},
 	)
 	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
+	transformed = lowering.omitUnreachableServerComponentLocals(transformed.AsNode()).AsSourceFile()
 	transformed = lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
 	for _, definition := range lowering.renderProgramDefinitionNodes {
 		if containsIdentifier(transformed.AsNode(), definition.name) {
