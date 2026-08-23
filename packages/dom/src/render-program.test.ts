@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { createCompiledVNode } from '@exactjs/core/runtime/render';
+import { createCompiledVNode, createServerBoundary } from '@exactjs/core/runtime/render';
 import { createCompiledRenderProgram as createCoreRenderProgram } from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
@@ -18,6 +18,14 @@ const createCompiledRenderProgram: typeof createCoreRenderProgram = (
 		readers,
 		fallback
 	);
+
+it('fails closed with the unsupported compiler boundary identity', () => {
+	const container = document.createElement('div');
+	render(createServerBoundary('router', 'Router'), container);
+	expect(container.textContent).toContain(
+		'Unsupported eXact vnode type: exact.server-boundary (Router)'
+	);
+});
 
 it('clones one compiler template and updates scalar slots without a generic vnode subtree', () => {
 	const state = reactive({ label: 'first' });

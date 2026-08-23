@@ -146,11 +146,7 @@ export function setElementProp(
 
 	const closedInteraction = key.startsWith('__exactClosedInteraction:');
 	const directInteraction = closedInteraction || key.startsWith('__exactDirectInteraction:');
-	const eventKey = closedInteraction
-		? key.slice('__exactClosedInteraction:'.length)
-		: directInteraction
-			? key.slice('__exactDirectInteraction:'.length)
-			: key;
+	const eventKey = authoredEventKey(key);
 	if (/^on[A-Z]/.test(eventKey)) {
 		const { type, capture } = eventTypeForProp(eventKey);
 		if (capture || requiresDirectListener(type)) {
@@ -202,6 +198,19 @@ export function setElementProp(
 		{ scope, onRelease: () => releasePropBinding(element, key) }
 	);
 	if (stop) setPropBinding(element, key, stop);
+}
+
+/** Identifies authored and compiler-specialized DOM event properties. */
+export function isEventHandlerProp(key: string): boolean {
+	return /^on[A-Z]/.test(authoredEventKey(key));
+}
+
+function authoredEventKey(key: string): string {
+	if (key.startsWith('__exactClosedInteraction:'))
+		return key.slice('__exactClosedInteraction:'.length);
+	if (key.startsWith('__exactDirectInteraction:'))
+		return key.slice('__exactDirectInteraction:'.length);
+	return key;
 }
 
 /** Identifies compiler-owned native-control bindings that enhancements must preserve verbatim. */

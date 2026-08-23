@@ -344,7 +344,12 @@ export function mountInner(
 		return mounted;
 	}
 
-	const element = createElement(vnode.type as string, parentNode, vnode.props);
+	if (typeof vnode.type !== 'string')
+		throw new TypeError(
+			`Unsupported eXact vnode type: ${describeVNodeType(vnode.type)}${typeof vnode.props.name === 'string' ? ` (${vnode.props.name})` : ''}`
+		);
+
+	const element = createElement(vnode.type, parentNode, vnode.props);
 	const mounted: Mounted = { vnode, dom: element, scope, children: [] };
 	if (parentInstance) setElementOwner(element, parentInstance);
 	mounted.children = mountChildren(root, element, vnode.children, parentInstance, mounted.scope);
