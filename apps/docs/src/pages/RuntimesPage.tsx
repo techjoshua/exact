@@ -1,7 +1,7 @@
 import type { Component } from '@exactjs/core';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
-import { CodeBlock } from './CodeBlock.jsx';
+import { CodeBlock } from '../CodeBlock.jsx';
 
 const pairedViteBuildSource = `import { buildExactViteApplication } from '@exactjs/vite-plugin/build';
 
