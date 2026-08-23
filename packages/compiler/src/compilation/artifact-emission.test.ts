@@ -210,6 +210,10 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(client).toContain('executors: []');
 		expect(server).toContain('executors: [');
+		expect(server).toContain('classification: "scheduled"');
+		expect(server).toContain('setup: [');
+		expect(server).toContain('slices: [');
+		expect(client).not.toContain('classification: "scheduled"');
 		expect(server).toMatch(
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
 		);

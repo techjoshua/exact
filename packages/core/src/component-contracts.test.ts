@@ -199,6 +199,47 @@ describe('@exactjs/core component contracts', () => {
 		);
 	});
 
+	it('validates compiler-projected server execution slices', () => {
+		const implementation = () => () => null;
+		const component = Object.assign(implementation, {
+			[exactComponentType]: 'component:ServerPage',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'server' as const,
+				role: 'executor' as const,
+				implementations: [
+					{
+						id: 'implementation:ServerPage',
+						name: 'ServerPage',
+						role: 'root' as const,
+						implementation
+					}
+				],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					capabilities: [],
+					server: {
+						version: 1 as const,
+						classification: 'scheduled' as const,
+						setup: [0],
+						slices: [{ transition: 0, inputs: [0], outputs: [1] }]
+					}
+				}
+			}
+		});
+
+		expect(readExactCompiledComponentContract(component).definition.server).toEqual({
+			version: 1,
+			classification: 'scheduled',
+			setup: [0],
+			slices: [{ transition: 0, inputs: [0], outputs: [1] }]
+		});
+	});
+
 	it('rejects pre-partition component contract versions before adoption', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Legacy',
