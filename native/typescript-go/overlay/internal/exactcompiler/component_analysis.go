@@ -40,6 +40,7 @@ func analyzeComponents(
 		component := &components[index]
 		candidate := candidates[index]
 		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
+		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
 		indivisible := ""
@@ -110,7 +111,6 @@ func analyzeComponents(
 			}
 			ownedElements = append(ownedElements, element)
 			if element.interactive {
-				clientEffects = true
 				for _, attribute := range jsxAttributeNames(element.node) {
 					if attribute == "ref" {
 						splitBoundaries["ref"] = struct{}{}
@@ -182,6 +182,9 @@ func analyzeComponents(
 					}
 				}
 				return true
+			}
+			if insideSourceSpans(node.Pos(), dormantCallableSpans) {
+				return false
 			}
 			if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
 				!isStaticPropertyName(node) {
@@ -260,8 +263,11 @@ func analyzeComponents(
 				continue
 			}
 			if task.Placement == "client" || task.Placement == "isomorphic" {
-				clientEffects = true
-				clientTaskEffects = true
+				if task.SyntheticSetup && task.BrowserEffects {
+					clientEffects = true
+				} else {
+					clientTaskEffects = true
+				}
 			}
 			if task.Placement == "server" || task.Placement == "isomorphic" {
 				serverEffects = true
@@ -289,6 +295,10 @@ func analyzeComponents(
 		)
 		component.SplitBoundaries = sortedSet(splitBoundaries)
 		component.Diagnostics = uniqueStrings(diagnostics)
+		// Activation is orthogonal to render residency. Event handlers and client
+		// task lanes require a client artifact, but their callbacks are not
+		// executed while the server renders the component's markup.
+		clientActivation := component.Interactions || component.Lifecycle || clientTaskEffects
 		component.EnvironmentEffect = "neutral"
 		if indivisible != "" {
 			component.EnvironmentEffect = indivisible
@@ -302,6 +312,8 @@ func analyzeComponents(
 			switch {
 			case clientEffects && serverEffects:
 				component.Placement = "isomorphic"
+			case serverEffects && clientActivation:
+				component.Placement = "isomorphic"
 			case serverEffects:
 				component.Placement = "server"
 			case clientEffects:
@@ -314,16 +326,17 @@ func analyzeComponents(
 		switch {
 		case component.Placement == "unknown":
 			component.ArtifactTargets = []string{}
-		case serverEffects && clientTaskEffects:
+		case serverEffects && clientActivation:
 			component.ArtifactTargets = []string{"client", "server"}
 		case serverEffects:
 			component.ArtifactTargets = []string{"server"}
 		case clientEffects:
 			component.ArtifactTargets = []string{"client"}
+		case clientActivation:
+			component.ArtifactTargets = []string{"client", "server"}
 		default:
 			component.ArtifactTargets = []string{"client", "server"}
 		}
-
 	}
 	localComponents := uniqueComponentNames(components)
 	nodeIDs := expressionNodeIDs(sourceFile)

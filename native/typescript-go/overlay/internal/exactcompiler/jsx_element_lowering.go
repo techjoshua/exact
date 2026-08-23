@@ -89,9 +89,16 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		lowering.serverComponents {
 		return lowering.clientPartitionSlot(opening, partitionEdge)
 	}
-	if intrinsic && lowering.target == TargetServer &&
-		lowering.serverComponents {
+	if intrinsic && lowering.target == TargetServer {
 		if island, exists := lowering.clientIslands[identityNode]; exists {
+			if island.component.Placement == "isomorphic" {
+				return lowering.serverIslandFallback(
+					identityNode,
+					opening,
+					children,
+					island.finiteSpreads,
+				)
+			}
 			return lowering.lowerServerClientIsland(
 				identityNode,
 				opening,

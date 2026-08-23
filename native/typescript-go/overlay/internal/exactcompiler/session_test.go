@@ -1502,6 +1502,7 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `export function Button() {
+			window.addEventListener("resize", () => undefined);
 			return () => <button onClick={() => alert(1)}>Go</button>;
 		}`,
 	})
@@ -1534,7 +1535,6 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		`role: "client"`,
 		`role: "root"`,
 		`implementation: __exactImplementation_Button_1`,
-		`resumption:`,
 		`"interactions"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -1545,10 +1545,13 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 			)
 		}
 	}
-	if !strings.Contains(response.Code, `import "@exactjs/core/runtime/tasks"`) {
-		t.Fatalf("complete client projection lost its generic fallback dependency:\n%s", response.Code)
+	if strings.Contains(response.Code, `resumption:`) {
+		t.Fatalf("client-only component retained an empty SSR resumption contract:\n%s", response.Code)
 	}
-	if strings.Count(response.Code, "boundaries: []") < 2 {
+	if !strings.Contains(response.Code, `withAbortSignal as __exactAbortOptions`) {
+		t.Fatalf("complete client projection lost its owned listener cleanup dependency:\n%s", response.Code)
+	}
+	if strings.Count(response.Code, "boundaries: []") != 1 {
 		t.Fatalf(
 			"fully client-owned component retained redundant nested island metadata:\n%s",
 			response.Code,
@@ -1681,7 +1684,8 @@ func TestSessionEmitsClientRootContractForComponentValue(t *testing.T) {
 		ID:     "button.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
-		Source: `export const Button = () =>
+		Source: `/** @exact client */
+		export const Button = () =>
 			<button onClick={() => alert(1)}>Go</button>;`,
 	})
 	if response.Error != "" {
@@ -1710,6 +1714,7 @@ func TestSessionReplacesClientFunctionRootWithServerBoundaryStub(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetServer,
 		Source: `export function Button() {
+			window.addEventListener("resize", () => undefined);
 			return () => <button onClick={() => alert(1)}>Go</button>;
 		}`,
 	})
@@ -1750,7 +1755,8 @@ func TestSessionReplacesClientComponentValueWithServerBoundaryStub(t *testing.T)
 		ID:     "button.tsx",
 		Kind:   "compile",
 		Target: TargetServer,
-		Source: `export const Button = () =>
+		Source: `/** @exact client */
+		export const Button = () =>
 			<button onClick={() => alert(1)}>Go</button>;`,
 	})
 	if response.Error != "" {
@@ -1799,6 +1805,7 @@ func TestSessionEmitsBoundaryForClientComponentRenderedByServer(t *testing.T) {
 		Source: `
 			import { TaskContext } from "@exactjs/core";
 			function ClientButton() {
+				window.addEventListener("resize", () => undefined);
 				return () =>
 					<button onClick={() => alert(1)}>Go</button>;
 			}
@@ -1994,7 +2001,7 @@ func TestSessionKeepsUnknownComponentChildrenInClientOnlyArtifacts(t *testing.T)
 	}
 }
 
-func TestSessionExtractsIntrinsicClientIslandFromServerArtifact(t *testing.T) {
+func TestSessionProjectsInteractionFreeServerArtifact(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
@@ -2057,11 +2064,8 @@ __fixtureTask1();
 		}
 	}
 	for _, expected := range []string{
-		`__exactBoundary("` + boundary.ID + `", "Panel_ExactClient_1"`,
-		`"__exactState": { count: this.state.count, label: this.state.label }`,
+		`__exactVNode("button"`,
 		`title: this.state.label`,
-		`__exactHydration: "interaction"`,
-		`__exactHydrationFallback: __exactVNode("button"`,
 		`"Save "`,
 		`name: "Panel_ExactServer_1"`,
 		`role: "server-part"`,
@@ -2076,6 +2080,9 @@ __fixtureTask1();
 		}
 	}
 	for _, forbidden := range []string{
+		`__exactBoundary("`,
+		`"__exactState"`,
+		`__exactHydration`,
 		"onClick",
 		"alert(",
 		"this.state.count++",
@@ -2090,7 +2097,31 @@ __fixtureTask1();
 	}
 }
 
-func TestSessionEmitsGeneratedIntrinsicIslandInClientArtifact(t *testing.T) {
+func TestSessionPreservesPotentiallyEffectfulServerSetupReads(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-setup-getter.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			const source = {
+				get value() {
+					console.log("setup getter");
+					return "ready";
+				}
+			};
+			export function Panel() {
+				const observed = source.value;
+				return () => <p>Ready</p>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "const observed = source.value") {
+		t.Fatalf("server projection erased a potentially effectful property read:\n%s", response.Code)
+	}
+}
+
+func TestSessionEmitsCompleteInteractiveComponentInClientArtifact(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:               "panel.tsx",
 		Kind:             "compile",
@@ -2128,15 +2159,12 @@ __fixtureTask2();
 		t.Fatalf("missing generated client island: %#v", response.Analysis.Boundaries)
 	}
 	for _, expected := range []string{
-		`export function Panel_ExactClient_1(this: any, props: any = {})`,
-		`[Symbol.for("@exactjs/component")]: "` + islandID + `"`,
-		`[Symbol.for("@exactjs/component-contract")]: {`,
-		`instantiate: Panel_ExactClient_1`,
-		`role: "client-island"`,
-		`if (props.__exactState)`,
-		`Object.assign(this.state, props.__exactState)`,
-		`title: props.title`,
-		`onClick: () => __exactUpdateResult(this.state, ["count"]`,
+		`const __exactImplementation_Panel_1 = function Panel`,
+		`export const Panel =`,
+		`placement: "isomorphic"`,
+		`instantiate: __exactImplementation_Panel_1`,
+		`title: __exactExpression(() => this.state.label)`,
+		`"__exactClosedInteraction:onClick": () => __exactUpdateResult(this.state, ["count"]`,
 		`__exactDynamic(() => this.state.count`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2179,10 +2207,7 @@ __fixtureTask0();
 	}
 	if strings.Contains(server.Code, "value:onInput") ||
 		strings.Contains(server.Code, "__exactBindInput") ||
-		!strings.Contains(
-			server.Code,
-			`"__exactState": { name: this.state.name }`,
-		) {
+		!strings.Contains(server.Code, `value: this.state.name ?? ""`) {
 		t.Fatalf(
 			"server form-binding island was not sanitized:\n%s",
 			server.Code,
@@ -2415,14 +2440,8 @@ __fixtureTask2();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`const __exactElementProps = { ...props }`,
-		`delete __exactElementProps.__exactState`,
-		`delete __exactElementProps.__exactCapture`,
-		`delete __exactElementProps.__exactHydration`,
-		`delete __exactElementProps.__exactHydrationFallback`,
-		`delete __exactElementProps.children`,
-		`...__exactElementProps`,
-		`onClick: () => alert(1)`,
+		`...props.events`,
+		`"__exactClosedInteraction:onClick": () => alert(1)`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -2461,26 +2480,8 @@ __fixtureTask4();
 	if server.Error != "" {
 		t.Fatal(server.Error)
 	}
-	var island Boundary
-	var slot Boundary
-	for _, boundary := range server.Analysis.Boundaries {
-		if boundary.Name == "Panel_ExactClient_1" {
-			island = boundary
-		}
-		if boundary.Name == "Panel_ExactClient_1:children" {
-			slot = boundary
-		}
-	}
-	if island.ID == "" || slot.ID != island.ID+":children" ||
-		slot.Kind != "server-slot" {
-		t.Fatalf(
-			"unexpected generated island server slot: island=%#v slot=%#v",
-			island,
-			slot,
-		)
-	}
 	for _, expected := range []string{
-		`__exactBoundary("` + island.ID + `", "Panel_ExactClient_1", {`,
+		`__exactVNode("section"`,
 		`__exactVNode("div"`,
 		`__exactComponentVNode(ServerSummary`,
 		"loadSummary",
@@ -2508,9 +2509,9 @@ __fixtureTask4();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`export function Panel_ExactClient_1`,
-		`onClick: () => __exactUpdateResult`,
-		`props.children`,
+		`export const Panel =`,
+		`"__exactClosedInteraction:onClick": () => __exactUpdateResult`,
+		`__exactServerSlot(`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -2557,10 +2558,8 @@ __fixtureTask5();
 	if server.Error != "" {
 		t.Fatal(server.Error)
 	}
-	if !strings.Contains(
-		server.Code,
-		`"__exactState": { count: this.state.count }`,
-	) || strings.Contains(server.Code, `"__exactCapture": { label: label }`) {
+	if !strings.Contains(server.Code, `const label = __exactDerived(() => String(this.state.count))`) ||
+		strings.Contains(server.Code, `"__exactCapture": { label: label }`) {
 		t.Fatalf(
 			"server client-island derived capture was not reduced to state:\n%s",
 			server.Code,
@@ -2658,7 +2657,7 @@ __fixtureTask6();
 	for _, expected := range []string{
 		`function save()`,
 		`const cancel = () =>`,
-		`console.log(props.__exactCapture.prefix)`,
+		`console.log(prefix)`,
 		`save();`,
 		`cancel();`,
 		`__exactUpdateResult(this.state, ["count"]`,
@@ -2677,14 +2676,13 @@ __fixtureTask6();
 			client.Code,
 		)
 	}
-	if !strings.Contains(
-		server.Code,
-		`"__exactCapture": { prefix: prefix }`,
-	) {
-		t.Fatalf(
-			"transitive function value capture is missing from server payload:\n%s",
-			server.Code,
-		)
+	for _, forbidden := range []string{"const prefix =", "function save", "const cancel", "console.log"} {
+		if strings.Contains(server.Code, forbidden) {
+			t.Fatalf(
+				"dormant interaction helper %q escaped into the server projection:\n%s",
+				forbidden, server.Code,
+			)
+		}
 	}
 }
 
@@ -5196,6 +5194,33 @@ __fixtureTask31();
 	}
 }
 
+func TestSessionTreatsTypeofGuardedBrowserFallbackAsUniversal(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "guarded-browser-fallback.ts",
+		Kind: "analyze",
+		Source: `
+			function pathName(path = typeof window === "undefined" ? "/" : window.location.pathname) {
+				return path;
+			}
+			function explicitlyBrowserOnly() {
+				return window.location.pathname;
+			}
+			export const current = pathName("/server");
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	guarded := findCallable(t, response.Analysis.Callables, "pathName")
+	if guarded.Effect != "neutral" {
+		t.Fatalf("typeof-guarded browser fallback constrained universal callable: %#v", guarded)
+	}
+	unguarded := findCallable(t, response.Analysis.Callables, "explicitlyBrowserOnly")
+	if unguarded.Effect != "browser" {
+		t.Fatalf("unguarded browser access lost its placement constraint: %#v", unguarded)
+	}
+}
+
 func TestSessionConvergesRecursiveCallableEffects(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
@@ -5365,7 +5390,7 @@ func TestSessionUsesExplicitPlacementToConstrainOpaqueComponentCalls(t *testing.
 	}
 }
 
-func TestSessionPreservesKnownClientPlacementThroughOpaqueRenderCalls(t *testing.T) {
+func TestSessionKeepsClientTasksIndependentFromServerRenderPlacement(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "analyze",
@@ -5386,8 +5411,8 @@ __fixtureTask33();
 		t.Fatal(response.Error)
 	}
 	panel := findComponent(t, response.Analysis.Components, "Panel")
-	if panel.Placement != "client" || panel.EnvironmentEffect != "browser" {
-		t.Fatalf("opaque render call erased known client placement: %#v", panel)
+	if panel.Placement != "isomorphic" || panel.EnvironmentEffect != "neutral" {
+		t.Fatalf("client task incorrectly prevented server rendering: %#v", panel)
 	}
 }
 
@@ -5420,8 +5445,8 @@ func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
 	}
 	component := findComponent(t, response.Analysis.Components, "CodeBlock")
-	if component.Placement != "client" ||
-		component.EnvironmentEffect != "browser" ||
+	if component.Placement != "isomorphic" ||
+		component.EnvironmentEffect != "neutral" ||
 		strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
 		!strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: "`+component.ID+`"`) {
 		t.Fatalf(
@@ -6056,12 +6081,12 @@ func TestSessionBuildsLocalComponentRenderSubgraphs(t *testing.T) {
 	}
 	parent := findComponent(t, response.Analysis.Components, "Parent")
 	child := findComponent(t, response.Analysis.Components, "Child")
-	if child.Placement != "client" || child.ClientIslandCount != 1 {
+	if child.Placement != "isomorphic" || child.ClientIslandCount != 1 {
 		t.Fatalf("unexpected child placement: %#v", child)
 	}
 	if len(parent.RenderEdges) != 1 ||
 		parent.RenderEdges[0].Tag != "Child" ||
-		parent.RenderEdges[0].Placement != "client" ||
+		parent.RenderEdges[0].Placement != "isomorphic" ||
 		parent.SubgraphPlacement != "isomorphic" {
 		t.Fatalf("unexpected parent subgraph: %#v", parent)
 	}
@@ -6338,6 +6363,31 @@ func TestSessionAllowsBrowserGlobalsInsideClientLifecycleForServerTarget(t *test
 	}
 }
 
+func TestSessionAllowsDormantBrowserInteractionCallbacksForServerTarget(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "interaction-server-projection.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State = {}> { state: State; }
+			declare function Child(props: { onSelected(id: string): void }): unknown;
+			export function RouteShell(this: Component<{ selected: string }>) {
+				const select = (id: string) => {
+					this.state.selected = id;
+					history.pushState({}, "", "/" + id);
+				};
+				return () => <Child onSelected={select} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "EXACT2211" {
+			t.Fatalf("dormant interaction callback became server setup: %#v", response.Diagnostics)
+		}
+	}
+}
+
 func TestSessionPropagatesAmbientCallablePlacementAnnotations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "ambient-policy.tsx",
@@ -6356,8 +6406,8 @@ func TestSessionPropagatesAmbientCallablePlacementAnnotations(t *testing.T) {
 	}
 	client := findComponent(t, response.Analysis.Components, "ClientPage")
 	server := findComponent(t, response.Analysis.Components, "ServerPage")
-	if client.Placement != "client" || server.Placement != "server" {
-		t.Fatalf("ambient callable annotations were not propagated: %#v %#v", client, server)
+	if client.Placement != "isomorphic" || server.Placement != "server" {
+		t.Fatalf("client work incorrectly prevented server markup emission: %#v %#v", client, server)
 	}
 }
 
@@ -6863,8 +6913,8 @@ func TestSessionPropagatesInteractiveHelperEffectsAcrossProjectImports(t *testin
 		t.Fatal(response.Error)
 	}
 	workspace := findComponent(t, response.Analysis.Components, "Workspace")
-	if workspace.Placement != "client" {
-		t.Fatalf("interactive helper effect did not reach component: %#v", workspace)
+	if workspace.Placement != "isomorphic" {
+		t.Fatalf("interactive helper incorrectly prevented server rendering: %#v", workspace)
 	}
 	workspaceFile := filepath.Join(root, "workspace.tsx")
 	if err := os.WriteFile(
@@ -6896,8 +6946,8 @@ func TestSessionPropagatesInteractiveHelperEffectsAcrossProjectImports(t *testin
 		t.Fatal(pageResponse.Error)
 	}
 	page := findComponent(t, pageResponse.Analysis.Components, "Page")
-	if len(page.RenderEdges) != 1 || page.RenderEdges[0].Placement != "client" {
-		t.Fatalf("transitive client component edge was not linked: %#v", page)
+	if len(page.RenderEdges) != 1 || page.RenderEdges[0].Placement != "isomorphic" {
+		t.Fatalf("transitive interactive component edge lost server rendering: %#v", page)
 	}
 }
 
@@ -7060,6 +7110,7 @@ func TestSessionResolvesImportedComponentPlacementSubgraphs(t *testing.T) {
 		childFile,
 		[]byte(`
 			export function Child() {
+				window.addEventListener("resize", () => undefined);
 				return () => <button onClick={() => {}}>child</button>;
 			}
 		`),
@@ -7171,6 +7222,7 @@ func TestSessionInvalidatesRetainedProjectComponentGraph(t *testing.T) {
 	childFile := filepath.Join(root, "child.tsx")
 	clientChild := `
 		export function Child() {
+			window.addEventListener("resize", () => undefined);
 			return () => <button onClick={() => {}}>child</button>;
 		}
 	`
