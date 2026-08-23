@@ -149,7 +149,10 @@ function invalid(path: string, message: string): ThemeResolutionError {
 	return new ThemeResolutionError('invalid-override', path, message);
 }
 
-/** Joins a sorted variable map into the single style attribute owned by a theme scope. */
+/**
+ * Joins a sorted variable map into the single style attribute owned by a theme scope.
+ * @exact pure
+ */
 export function themeStyleAttribute(map: Readonly<Record<string, string>>): string {
 	return Object.keys(map)
 		.sort()

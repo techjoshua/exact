@@ -174,7 +174,10 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 	});
 }
 
-/** Converts all generated tokens into a sorted, frozen null-prototype custom-property map. */
+/**
+ * Converts all generated tokens into a sorted, frozen null-prototype custom-property map.
+ * @exact pure
+ */
 export function serializeThemeVariables(
 	theme: ResolvedTheme
 ): import('./contracts.js').ThemeVariableMap {
