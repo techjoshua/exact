@@ -174,6 +174,7 @@ func attachComponentExecutionPlans(
 	bindings []ReactiveBinding,
 ) {
 	planned := make(map[string]struct{}, len(continuations))
+	tasksByID := make(map[string]Task, len(tasks))
 	componentIDs := make(map[string]string, len(components))
 	for _, component := range components {
 		componentIDs[component.Name] = component.ID
@@ -182,6 +183,7 @@ func attachComponentExecutionPlans(
 		planned[continuation.ID] = struct{}{}
 	}
 	for _, task := range tasks {
+		tasksByID[task.ID] = task
 		if _, exists := planned[task.ID]; exists ||
 			(task.Placement != "client" && task.Placement != "server" && task.Placement != "isomorphic") {
 			continue
@@ -212,18 +214,29 @@ func attachComponentExecutionPlans(
 				activation = "interaction"
 			}
 			plan.Transitions = append(plan.Transitions, ComponentTransition{
-				ID:          continuation.ID,
-				TaskID:      continuation.TaskID,
-				Activation:  activation,
-				Placement:   continuation.Placement,
-				Readiness:   continuation.Readiness,
-				Concurrency: continuation.Concurrency,
-				Inputs:      inputs,
-				Outputs:     outputs,
+				ID:                continuation.ID,
+				TaskID:            continuation.TaskID,
+				Activation:        activation,
+				Placement:         continuation.Placement,
+				Readiness:         continuation.Readiness,
+				Concurrency:       continuation.Concurrency,
+				Inputs:            inputs,
+				Outputs:           outputs,
+				DirectServerSetup: directServerSetupComputation(tasksByID[continuation.TaskID]),
 			})
 		}
 		component.Execution = plan
 	}
+}
+
+// directServerSetupComputation recognizes compiler-created synchronous value propagation. An
+// authored server task stays on the scheduled lane even when its current implementation is small.
+func directServerSetupComputation(task Task) bool {
+	return task.CompilerComputation && !task.Async && !task.Invoked && !task.Detached &&
+		(task.Placement == "server" || task.Placement == "isomorphic") &&
+		task.EnvironmentEffect == "neutral" && len(task.Contexts) == 0 &&
+		len(task.Resources) == 0 && len(task.SignalCalls) == 0 &&
+		len(task.ResultWritePath) == 0
 }
 
 func componentExecutionContinuation(task Task, componentID string) Continuation {

@@ -508,6 +508,13 @@ through the generic fallback. Hydrate-only client artifacts omit server markup a
 Complete rendering-mode-neutral artifacts retain the table representation as an explicit
 compatibility boundary.
 
+Compiler-created synchronous setup computations are also target-specialized. On the server their
+already-known dependency expressions feed the generated computation directly in authored order;
+the artifact does not construct a task definition, reactive dependency wrapper, readiness watcher,
+continuation executor, or transition port for that work. Authored tasks retain their declared
+scheduling, cancellation, readiness, and inspection semantics. Client artifacts continue to use
+durable reactive activation because those dependencies can change after hydration.
+
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
 representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed

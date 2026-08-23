@@ -27,6 +27,9 @@ type ComponentTransition struct {
 	Concurrency string `json:"concurrency"`
 	Inputs      []int  `json:"inputs"`
 	Outputs     []int  `json:"outputs"`
+	// DirectServerSetup is compiler-private: the server facet executes this synchronous
+	// computation inline and does not publish a runtime transition for it.
+	DirectServerSetup bool `json:"-"`
 }
 
 // ReactiveAllocation records whether lowering forwards, inlines, snapshots,

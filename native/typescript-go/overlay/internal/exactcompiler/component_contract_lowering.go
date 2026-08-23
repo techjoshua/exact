@@ -450,12 +450,20 @@ func rootComponentContractAttachment(
 		continuations,
 		component.ID,
 	)
+	projectedExecution := projectComponentExecution(component.Execution, target)
+	runtimeContinuations := componentContinuations
+	if target == TargetServer {
+		runtimeContinuations = omitDirectServerSetupContinuations(
+			componentContinuations,
+			component.Execution,
+		)
+	}
 	executors := contractArray(factory)
 	if target == TargetServer {
 		executors = continuationExecutorMetadata(
 			factory,
 			componentFunction,
-			componentContinuations,
+			runtimeContinuations,
 			used,
 		)
 	}
@@ -463,7 +471,6 @@ func rootComponentContractAttachment(
 	if target == TargetClient {
 		role = "client"
 	}
-	projectedExecution := projectComponentExecution(component.Execution, target)
 	projectedContinuations := continuationMetadata(factory, componentContinuations, target == TargetClient)
 	projectedBoundaries := componentBoundaryMetadata(factory, component, boundaries)
 	if target == TargetClient && projection == ComponentContractProjectionHydrate {
@@ -512,7 +519,7 @@ func rootComponentContractAttachment(
 				implementation,
 				projectedExecution,
 				component.StateSlots,
-				componentContinuations,
+				runtimeContinuations,
 				hasResumption,
 				target == TargetClient && component.Interactions,
 				usesCompatibility,
@@ -658,6 +665,28 @@ func componentHasResumption(componentID string, resumptions []ComponentResumptio
 		}
 	}
 	return false
+}
+
+func omitDirectServerSetupContinuations(
+	continuations []Continuation,
+	execution ComponentExecution,
+) []Continuation {
+	direct := make(map[string]struct{})
+	for _, transition := range execution.Transitions {
+		if transition.DirectServerSetup {
+			direct[transition.ID] = struct{}{}
+		}
+	}
+	if len(direct) == 0 {
+		return continuations
+	}
+	result := make([]Continuation, 0, len(continuations))
+	for _, continuation := range continuations {
+		if _, omitted := direct[continuation.ID]; !omitted {
+			result = append(result, continuation)
+		}
+	}
+	return result
 }
 
 func wrapRootComponentVariables(

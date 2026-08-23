@@ -223,7 +223,8 @@ func projectComponentExecution(execution ComponentExecution, target Target) Comp
 	outputPorts := make(map[int]struct{})
 	for _, transition := range execution.Transitions {
 		if (target == TargetClient && transition.Placement == "server") ||
-			(target == TargetServer && transition.Placement == "client") {
+			(target == TargetServer &&
+				(transition.Placement == "client" || transition.DirectServerSetup)) {
 			continue
 		}
 		transitions = append(transitions, transition)

@@ -92,6 +92,40 @@ func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *tes
 	}
 }
 
+func TestServerProjectionInlinesCompilerSynchronousComputations(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-computation.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Greeting(this: Component<{ message: string }>, props: { name: string }) {
+				this.state.message = "Hello " + props.name;
+				return () => <p>{this.state.message}</p>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, omitted := range []string{
+		"activateTaskForHost as", "defineTask as", "createDerived as",
+		`label: "__exactComponentComputation_`, `"tasks"`,
+	} {
+		if strings.Contains(response.Code, omitted) {
+			t.Fatalf("direct server computation retained %q:\n%s", omitted, response.Code)
+		}
+	}
+	for _, expected := range []string{
+		`})(props.name, { signal: void 0 })`,
+		`classification: "synchronous"`,
+		`setup: []`,
+		`slices: []`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("direct server computation is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";
