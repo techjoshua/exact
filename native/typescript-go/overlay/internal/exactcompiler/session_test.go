@@ -1273,6 +1273,34 @@ func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 	}
 }
 
+func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			interface Component<State> {
+				state: State;
+				onMount(handler: () => void): void;
+			}
+			function StaticPanel() {
+				return () => <main />;
+			}
+			function LivePanel(this: Component<{}>) {
+				this.onMount(() => undefined);
+				return () => <aside />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Count(response.Code, `abi: 1`) != 1 ||
+		strings.Count(response.Code, `abi: 3`) != 1 {
+		t.Fatalf("component runtime ABI did not distinguish direct and lifecycle paths:\n%s", response.Code)
+	}
+}
+
 func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "component.tsx",

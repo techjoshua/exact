@@ -68,6 +68,7 @@ func componentDefinitionMetadata(
 	compatibility bool,
 	dynamicComponents bool,
 	collections bool,
+	runtimeABI int,
 	compact bool,
 	updates *ast.Node,
 ) *ast.Node {
@@ -110,6 +111,7 @@ func componentDefinitionMetadata(
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "instantiate", instantiate),
+		contractProperty(factory, "abi", contractNumber(factory, runtimeABI)),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		contractProperty(factory, "state", stringMetadata(factory, state)),
 	}
@@ -124,6 +126,31 @@ func componentDefinitionMetadata(
 		)
 	}
 	return contractObject(factory, true, properties...)
+}
+
+const (
+	componentABICompiledRender = 1 << iota
+	componentABILifecycle
+	componentABILists
+	componentABITasks
+)
+
+// componentRuntimeABI compacts compiler-proven execution needs into the hot construction record.
+func componentRuntimeABI(component Component, execution ComponentExecution, compatibility bool) int {
+	abi := 0
+	if component.CompiledRender {
+		abi |= componentABICompiledRender
+	}
+	if component.Lifecycle {
+		abi |= componentABILifecycle
+	}
+	if component.Lists {
+		abi |= componentABILists
+	}
+	if len(execution.Transitions) != 0 || component.Interactions || compatibility {
+		abi |= componentABITasks
+	}
+	return abi
 }
 
 // projectComponentExecution removes opposite-target transitions and compacts

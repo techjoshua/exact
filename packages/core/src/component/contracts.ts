@@ -416,6 +416,8 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	readonly mounted: boolean;
 	readonly scope: EffectScope;
 	readonly renderFunction: RenderFunction;
+	/** Compiler-selected hot-path capabilities; zero is a valid fully specialized ABI. */
+	readonly runtimeABI: number;
 	renderStop?: StopHandle;
 	mountController?: AbortController;
 	activationController?: AbortController;

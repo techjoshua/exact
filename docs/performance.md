@@ -437,6 +437,14 @@ separate activity object or the closure set that would otherwise capture its lif
 activity blockers, lifecycle registrations, controllers, task state, refs, lists, and localization
 remain allocation-on-demand sidecars.
 
+Compiled component definitions also carry a compact runtime ABI describing whether their generated
+execution uses a compiled render, authored lifecycle work, the general list capability, or task
+ownership. A compiler-owned render constructs its direct bindings and structural readers once;
+state and prop changes are then routed by those generated operations rather than by a second generic
+component-render watcher. Construction and disposal use the same ABI to avoid task lookups,
+lifecycle-map probes, and list-controller calls that the component cannot exercise. Framework test
+fixtures and compatibility artifacts retain the conservative general path.
+
 Compiler-indexed component state uses one proxy handler and numeric dependency identities per
 state object. Initialized fields are ordinary data properties on the inspectable backing record;
 they do not allocate getter and setter closures for every declared field. A compact indexed bitmap

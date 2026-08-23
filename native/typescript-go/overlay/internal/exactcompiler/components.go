@@ -61,12 +61,54 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			},
 			SplitBoundaries: []string{},
 			Diagnostics:     []string{},
+			CompiledRender:  componentHasCompiledRender(candidate.node),
+			Lifecycle: componentUsesProtocolMember(
+				candidate.node,
+				"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
+			),
+			Lists: componentUsesProtocolMember(candidate.node, "map"),
 		})
 	}
 	sort.Slice(components, func(left int, right int) bool {
 		return components[left].Start < components[right].Start
 	})
 	return components
+}
+
+func componentHasCompiledRender(node *ast.Node) bool {
+	if ast.IsArrowFunction(node) && containsJSX(unwrapRenderExpression(node.Body())) {
+		return true
+	}
+	for _, returned := range directCallableReturns(node) {
+		callable := unwrapRenderExpression(returned)
+		if ast.IsArrowFunction(callable) && containsJSX(callable) {
+			return true
+		}
+	}
+	return false
+}
+
+func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
+	accepted := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		accepted[name] = struct{}{}
+	}
+	found := false
+	walkNode(node, func(candidate *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(candidate) {
+			return true
+		}
+		member := candidate.AsPropertyAccessExpression()
+		if member.Expression.Kind != ast.KindThisKeyword || member.Name() == nil {
+			return true
+		}
+		if _, exists := accepted[member.Name().Text()]; exists {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // usesForeignJSXRuntime keeps React, Preact, and other explicitly authored JSX

@@ -516,6 +516,7 @@ func rootComponentContractAttachment(
 				usesCompatibility,
 				component.DynamicComponents,
 				component.Collections,
+				componentRuntimeABI(component, projectedExecution, usesCompatibility),
 				projection != ComponentContractProjectionComplete,
 				updates,
 			),

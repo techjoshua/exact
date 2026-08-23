@@ -2,28 +2,17 @@ import {
 	createEffectScope,
 	updateReactive,
 	withEffectScope,
-	type Reactive,
-	type ReactiveValue
+	type Reactive
 } from '@exactjs/reactive/framework/runtime';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
-import {
-	componentContextCapability,
-	optionalComponentContextCapability
-} from './context-capability.js';
+import { optionalComponentContextCapability } from './context-capability.js';
 import type {
 	AnyComponentInstance,
 	ComponentContextValues,
 	ComponentFunction,
 	ComponentInstance,
-	ContextToken,
-	LifecycleHandler,
-	RefBinding,
-	RefKey,
-	RefRegistry,
-	RenderEventHandler,
-	RenderFunction,
-	VNode
+	RenderFunction
 } from './contracts.js';
 import { cleanupFailedComponentConstruction } from './construction.js';
 import { ErrorContext } from './contexts.js';
@@ -36,29 +25,28 @@ import {
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import {
 	clearComponentLifecycleHandlers,
-	componentLifecycleHandlers,
-	mutableComponentLifecycleHandlers,
-	mutableComponentRenderHandlers
+	componentLifecycleHandlers
 } from './lifecycle-handlers.js';
-import { componentListCapability, optionalComponentListCapability } from './list-capability.js';
-import { componentLocalizationCapability } from './localization-capability.js';
-import { createComponentLog } from './log.js';
+import { optionalComponentListCapability } from './list-capability.js';
 import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
-import type { IntlFacade } from '../localization/contracts.js';
-import type { ComponentLog } from '../logging.js';
-import { componentRefCapability } from './ref-capability.js';
-import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
-import { disposeComponentResource } from './resource-ownership.js';
 import { createComponentProps, createComponentState } from './state.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import { type ExactComponentContract } from '../component-contracts.js';
+import {
+	compiledComponentLifecycleABI,
+	compiledComponentListsABI,
+	compiledComponentTasksABI,
+	generalComponentABI
+} from './compiled-abi.js';
+import { ComponentRuntimeSurface } from './runtime-surface.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
 
 /** Shared-prototype implementation of one durable component instance. */
 export class ComponentInstanceImpl<State extends object, Props extends Record<string, unknown>>
+	extends ComponentRuntimeSurface<State>
 	implements ComponentInstance<State>
 {
 	readonly type: ComponentFunction<State, Props>;
@@ -69,18 +57,15 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 	readonly state: Reactive<State>;
 	readonly props: Reactive<Record<string, unknown>>;
 	readonly ambientContexts?: ComponentContextValues;
-	private logValue?: ComponentLog;
+	readonly runtimeABI: number;
 	renderStop?: ComponentInstance<State>['renderStop'];
 	mountController?: AbortController;
 	activationController?: AbortController;
 	invalidate?: () => void;
 	errorFallback?: RenderFunction;
 
-	private contextsValue?: Map<symbol, unknown>;
-	private contextTokensValue?: Map<symbol, ContextToken<unknown>>;
-	private intlFacade?: IntlFacade;
 	private readonly inspection;
-	private readonly taskCapability = componentTaskCapability();
+	private readonly taskCapability;
 	private taskState?: ComponentTaskCapabilityState;
 	private activeValue = false;
 	private activityBlockers?: Set<symbol>;
@@ -98,10 +83,14 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		execution?: PreparedComponentExecution,
 		contract?: ExactComponentContract
 	) {
+		super();
 		this.type = type;
 		this.parent = parent;
 		this.domain = domain;
 		this.ambientContexts = ambientContexts;
+		this.runtimeABI = contract?.definition?.abi ?? generalComponentABI;
+		this.taskCapability =
+			this.runtimeABI & compiledComponentTasksABI ? componentTaskCapability() : undefined;
 		this.id = `c${nextComponentId++}`;
 		this.inspection = componentDomainInspection(domain);
 		this.scope = createEffectScope(undefined, (error) => {
@@ -120,21 +109,6 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.initialize(instantiate, execution, rawProps, contract);
 	}
 
-	/** Returns the lazily allocated local context value map owned by this instance. */
-	get contexts(): Map<symbol, unknown> {
-		return (this.contextsValue ??= new Map());
-	}
-
-	/** Returns the lazily allocated component logger shared by every call from this instance. */
-	get log(): ComponentLog {
-		return (this.logValue ??= createComponentLog(this));
-	}
-
-	/** Returns the lazily allocated token catalog used for inspection and resumption. */
-	get contextTokens(): Map<symbol, ContextToken<unknown>> {
-		return (this.contextTokensValue ??= new Map());
-	}
-
 	/** Reports whether mount publication has completed and unmount has not begun. */
 	get mounted(): boolean {
 		return this.mountedValue;
@@ -145,147 +119,14 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		return this.renderFunctionValue;
 	}
 
-	/** Returns the compiler-selected ref registry, allocating its capability state lazily. */
-	get refs(): RefRegistry {
-		return componentRefCapability().registry(this);
-	}
-
-	/** Returns the lazy localization facade or fails when the artifact omitted that capability. */
-	get intl(): IntlFacade {
-		const capability = componentLocalizationCapability();
-		if (!capability)
-			throw new Error(
-				'Component localization is unavailable because this artifact did not include the localization capability'
-			);
-		return (this.intlFacade ??= capability.create(this));
-	}
-
-	/** Returns the mutable mount-handler lane retained by the lifecycle capability. */
-	get mountHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'mount');
-	}
-
-	/** Returns the mutable activation-handler lane retained by the lifecycle capability. */
-	get activateHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'activate');
-	}
-
-	/** Returns the mutable deactivation-handler lane retained by the lifecycle capability. */
-	get deactivateHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'deactivate');
-	}
-
-	/** Returns the mutable unmount-handler lane retained by the lifecycle capability. */
-	get unmountHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'unmount');
-	}
-
-	/** Returns the mutable post-render handler lane retained by the lifecycle capability. */
-	get renderHandlers(): RenderEventHandler[] {
-		return mutableComponentRenderHandlers(this);
-	}
-
-	/** Transfers a disposable resource to this component's unmount lifetime. */
-	own<T extends Disposable | AsyncDisposable | { dispose(): unknown }>(resource: T): T {
-		this.onUnmount(() => disposeComponentResource(resource));
-		return resource;
-	}
-
 	/** Opens compiler-selected list bookkeeping for one render pass when lists are present. */
 	beginRender(): void {
-		optionalComponentListCapability()?.begin(this);
+		if (this.runtimeABI & compiledComponentListsABI) optionalComponentListCapability()?.begin(this);
 	}
 
 	/** Closes compiler-selected list bookkeeping and releases entries absent from this pass. */
 	endRender(): void {
-		optionalComponentListCapability()?.end(this);
-	}
-
-	/** Reports whether a token is available while publishing its read for inspection. */
-	hasContext(token: ContextToken<unknown>): boolean {
-		this.contextTokens.set(token.id, token);
-		const capability = componentContextCapability();
-		capability.publish(this, token, 'read');
-		return capability.has(this, this.ambientContexts, token);
-	}
-
-	/** Reads one reactive context value and records the compiler-observable dependency. */
-	getContext<T>(token: ContextToken<T>): Reactive<T> {
-		this.contextTokens.set(token.id, token);
-		const capability = componentContextCapability();
-		capability.publish(this, token, 'read');
-		return capability.get(this, this.ambientContexts, token);
-	}
-
-	/** Publishes one descendant context value owned by this durable instance. */
-	setContext<T>(token: ContextToken<T>, value: T): void {
-		this.contextTokens.set(token.id, token);
-		const capability = componentContextCapability();
-		capability.set(this, token, value);
-		capability.publish(this, token, 'write');
-	}
-
-	/** Creates an explicitly reactive value or tagged expression owned by the current scope. */
-	reactive<T>(
-		input: TemplateStringsArray | (() => T) | T,
-		...values: unknown[]
-	): ReactiveValue<string> | ReactiveValue<T> {
-		return createComponentReactive(input, values);
-	}
-
-	/** Creates a typed ref binding in the compiler-selected ref capability. */
-	ref<T>(key: RefKey<T>): RefBinding<T> {
-		return componentRefCapability().ref(this, key);
-	}
-
-	/** Reads the current value of a typed ref without changing its ownership. */
-	readRef<T>(key: RefKey<T>): T | undefined {
-		return componentRefCapability().read(this, key);
-	}
-
-	/** Creates a keyed list VNode whose identity and cleanup belong to this component. */
-	map<T>(
-		collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-		key: (item: T) => string,
-		render: (item: T) => VNode,
-		id?: string,
-		provenance?: Iterable<T>,
-		keyIdentity?: string
-	): VNode {
-		return componentListCapability().map(
-			this,
-			collection,
-			key,
-			render,
-			id,
-			provenance,
-			keyIdentity
-		);
-	}
-
-	/** Registers work to run once after this instance first mounts. */
-	onMount(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'mount').push(handler);
-	}
-
-	/** Registers work for each transition into the active component state. */
-	onActivate(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'activate').push(handler);
-	}
-
-	/** Registers work for each transition out of the active component state. */
-	onDeactivate(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'deactivate').push(handler);
-	}
-
-	/** Registers final cleanup that runs when the durable instance is disposed. */
-	onUnmount(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'unmount').push(handler);
-	}
-
-	/** Registers work that runs after a committed render publication. */
-	onRender(handler: RenderEventHandler): void {
-		mutableComponentRenderHandlers(this).push(handler);
+		if (this.runtimeABI & compiledComponentListsABI) optionalComponentListCapability()?.end(this);
 	}
 
 	/** Publishes first mount, runs mount handlers, and derives initial activation. */
@@ -293,7 +134,10 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		if (this.mountedValue || this.disposedValue) return;
 		this.mountedValue = true;
 		this.inspection?.publish({ kind: 'component.mount', component: this });
-		const handlers = componentLifecycleHandlers(this, 'mount');
+		const handlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'mount')
+				: [];
 		this.mountController = handlers.length ? new AbortController() : undefined;
 		for (const handler of handlers) {
 			if (this.disposedValue || !this.mountedValue) break;
@@ -348,10 +192,15 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		};
 		if (this.renderStop) teardown(this.renderStop);
 		teardown(() => this.scope.stop());
-		teardown(() => optionalComponentListCapability()?.dispose(this));
+		if (this.runtimeABI & compiledComponentListsABI)
+			teardown(() => optionalComponentListCapability()?.dispose(this));
 		if (this.mountController) teardown(() => this.mountController!.abort(reason));
 		if (this.taskState) teardown(() => this.taskCapability?.release(this.taskState, this));
-		for (const handler of componentLifecycleHandlers(this, 'unmount')) {
+		const unmountHandlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'unmount')
+				: [];
+		for (const handler of unmountHandlers) {
 			try {
 				const result = handler({ signal: AbortSignal.abort(reason), reason });
 				if (isPromiseLike(result))
@@ -362,7 +211,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 				);
 			}
 		}
-		clearComponentLifecycleHandlers(this);
+		if (this.runtimeABI & compiledComponentLifecycleABI) clearComponentLifecycleHandlers(this);
 		if (failed) throw firstError;
 	}
 
@@ -438,7 +287,10 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		if (this.activeValue) return;
 		this.activeValue = true;
 		this.inspection?.publish({ kind: 'component.activate', component: this, reason });
-		const handlers = componentLifecycleHandlers(this, 'activate');
+		const handlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'activate')
+				: [];
 		this.activationController = handlers.length ? new AbortController() : undefined;
 		for (const handler of handlers) {
 			try {
@@ -458,7 +310,11 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.inspection?.publish({ kind: 'component.deactivate', component: this, reason });
 		this.activationController?.abort(reason);
 		this.activationController = undefined;
-		for (const handler of componentLifecycleHandlers(this, 'deactivate')) {
+		const handlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'deactivate')
+				: [];
+		for (const handler of handlers) {
 			try {
 				const result = handler({ signal: AbortSignal.abort(reason), reason });
 				if (isPromiseLike(result))

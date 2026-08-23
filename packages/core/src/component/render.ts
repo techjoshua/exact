@@ -12,8 +12,9 @@ import {
 } from './errors.js';
 import { componentDomainInspection, withComponentDomain } from './domain.js';
 import { componentRenderHandlers } from './lifecycle-handlers.js';
+import { compiledComponentLifecycleABI, compiledComponentRenderABI } from './compiled-abi.js';
 
-/** Renders a component instance inside a watcher and returns normalized child output. */
+/** Renders once for a compiler-owned program or retains the general watched fallback. */
 export function renderInstance(instance: AnyComponentInstance, onInvalidate: () => void): Child[] {
 	let output: RenderResult = null;
 	const start = performanceNow();
@@ -27,41 +28,39 @@ export function renderInstance(instance: AnyComponentInstance, onInvalidate: () 
 
 	instance.invalidate = observedInvalidate;
 	instance.renderStop?.();
-	instance.renderStop = watch(
-		() => {
-			try {
-				instance.beginRender();
-				const render = instance.errorFallback ?? instance.renderFunction;
-				output = withEffectScope(instance.scope, () =>
-					withComponentDomain(instance.domain, render)
-				);
-			} catch (error) {
-				if (isPromiseLike(error) && handleComponentSuspension(instance, error)) {
-					output = null;
-					return;
-				}
-				const fallback = handleComponentError(
-					instance,
-					createErrorReport(error, 'render', instance)
-				);
-				if (!fallback) {
-					output = null;
-					return;
-				}
-				instance.errorFallback = fallback;
-				output = withEffectScope(instance.scope, () =>
-					withComponentDomain(instance.domain, fallback)
-				);
-			} finally {
-				instance.endRender();
+	const render = () => {
+		try {
+			instance.beginRender();
+			const render = instance.errorFallback ?? instance.renderFunction;
+			output = withEffectScope(instance.scope, () => withComponentDomain(instance.domain, render));
+		} catch (error) {
+			if (isPromiseLike(error) && handleComponentSuspension(instance, error)) {
+				output = null;
+				return;
 			}
-		},
-		observedInvalidate,
-		{ scope: instance.scope }
-	);
+			const fallback = handleComponentError(instance, createErrorReport(error, 'render', instance));
+			if (!fallback) {
+				output = null;
+				return;
+			}
+			instance.errorFallback = fallback;
+			output = withEffectScope(instance.scope, () =>
+				withComponentDomain(instance.domain, fallback)
+			);
+		} finally {
+			instance.endRender();
+		}
+	};
+	if (instance.runtimeABI & compiledComponentRenderABI) {
+		render();
+	} else {
+		instance.renderStop = watch(render, observedInvalidate, { scope: instance.scope });
+	}
 
 	const duration = performanceNow() - start;
-	for (const handler of componentRenderHandlers(instance)) {
+	const handlers =
+		instance.runtimeABI & compiledComponentLifecycleABI ? componentRenderHandlers(instance) : [];
+	for (const handler of handlers) {
 		try {
 			const result = handler({ duration });
 			if (isPromiseLike(result))

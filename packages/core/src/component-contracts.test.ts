@@ -306,6 +306,27 @@ describe('@exactjs/core component contracts', () => {
 		);
 	});
 
+	it('rejects runtime ABI bits outside the supported compiler contract', () => {
+		const instantiate = () => undefined;
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:InvalidRuntimeABI',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: { version: 1 as const, instantiate, abi: 16, capabilities: [] }
+			}
+		});
+
+		expect(() => readExactCompiledComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
+	});
+
 	it('rejects contract records owned by a different branded component', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
