@@ -29,7 +29,7 @@ default `universal` behavior preserves the complete contract.
 ## What the plugin handles
 
 The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact`
-facades, applies client or server export conditions, supports HMR, and verifies that server-only
+facades, adds client or server conditions without discarding Vite's platform conditions, supports HMR, and verifies that server-only
 code does not enter the final browser graph.
 
 For `target: 'server'`, compiler-recorded component package requests are resolved and authorized

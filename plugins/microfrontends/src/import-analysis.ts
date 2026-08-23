@@ -58,6 +58,9 @@ export function analyzeProvidedPackageImports(
 			});
 		}
 		if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+			// `import {} from` still evaluates the imported module even though it binds no names.
+			// TypeScript can retain this shape for value-bearing package edges after declaration emit.
+			if (clause.namedBindings.elements.length === 0) add(key, { kind: 'side-effect' });
 			for (const element of clause.namedBindings.elements) {
 				if (!element.isTypeOnly)
 					add(key, { kind: 'named', imported: (element.propertyName ?? element.name).text });

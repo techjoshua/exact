@@ -80,7 +80,6 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					moduleType: 'js'
 				}
 			: null;
-	input.recordMicrofrontendModule(code, id);
 	const authoredOwnership = jsxSourceOwnership(filename, code, input.reactCompatibility);
 	const intlAnalysis =
 		internationalization && authoredOwnership !== 'react'
