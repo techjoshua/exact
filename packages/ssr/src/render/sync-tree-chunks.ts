@@ -23,6 +23,7 @@ import { escapeText, voidElements } from '../html.js';
 import { exactMarkerId, markerId, renderAttrs, suspenseStatusMarkerId } from '../markup.js';
 import { SsrTreeDepthError, boundedJoin, countSsrNode, isSsrRenderLimitError } from './limits.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
+import type { DirectSsrComponentSnapshot } from '../types.js';
 import {
 	componentMarkerId,
 	renderResumableComponentBoundary,
@@ -235,6 +236,7 @@ function* renderComponentChunks(
 	const enhancement = context.enhancementVNodes.has(vnode);
 	let childParent = parent;
 	let children: Child[];
+	let directSnapshot: DirectSsrComponentSnapshot | undefined;
 	let componentProps: Record<string, unknown> = {};
 	const prepared = context.preparedEnhancementComponents.get(vnode);
 	if (prepared) {
@@ -244,9 +246,11 @@ function* renderComponentChunks(
 	} else
 		try {
 			componentProps = getComponentProps(vnode);
-			const directChildren = renderDirectSsrComponent(context, blueprint, componentProps);
-			if (directChildren) {
-				children = directChildren;
+			const direct = renderDirectSsrComponent(context, blueprint, componentProps);
+			if (direct) {
+				children = direct.children;
+				componentProps = direct.props;
+				directSnapshot = direct.snapshot;
 			} else {
 				const instance = createSsrComponentInstance(
 					context,
@@ -267,18 +271,26 @@ function* renderComponentChunks(
 	const rendered = function* () {
 		for (const child of children) yield* renderChildChunks(context, child, childParent, depth + 1);
 	};
-	if (enhancement) yield* rendered();
-	else if (context.documentProbe && context.hostStack.length === 0)
-		yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
-	else if (parent && blueprint.contract?.resumption)
-		yield renderResumableComponentBoundary(
-			context,
-			vnode,
-			componentId,
-			boundedJoin(context, [...rendered()]),
-			componentProps
-		);
-	else yield* marked(componentId, rendered);
+	const checkpoint = directSnapshot ? context.onComponentAttemptCheckpoint?.() : undefined;
+	try {
+		if (directSnapshot) context.onDirectComponentCreated?.(directSnapshot);
+		if (enhancement) yield* rendered();
+		else if (context.documentProbe && context.hostStack.length === 0)
+			yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
+		else if (parent && blueprint.contract?.resumption)
+			yield renderResumableComponentBoundary(
+				context,
+				vnode,
+				componentId,
+				boundedJoin(context, [...rendered()]),
+				componentProps
+			);
+		else yield* marked(componentId, rendered);
+		if (directSnapshot) context.onDirectComponentRendered?.(directSnapshot);
+	} catch (error) {
+		if (directSnapshot) context.onComponentAttemptRollback?.(checkpoint);
+		throw error;
+	}
 }
 
 /** Streams one child value, including scalar text and absent children. */

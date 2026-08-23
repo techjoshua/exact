@@ -483,12 +483,13 @@ func rootComponentContractAttachment(
 	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
 	hasResumption := component.Placement == "isomorphic" &&
 		componentHasResumption(component.ID, resumptions)
+	directResumption := hasResumption && directServerResumptionSupported(component.ID, resumptions)
 	hasInteractions := target == TargetClient && component.Interactions
 	hasLifecycle := component.Lifecycle
 	unsupportedServerSurface := componentUsesProtocolMember(
 		componentFunction,
 		"log", "intl", "hasContext", "getContext", "setContext", "reactive",
-		"ref", "refs", "map", "onUnmount", "onRender", "own",
+		"ref", "refs", "onUnmount", "onRender", "own",
 	)
 	if target == TargetServer {
 		// Mount/activation registrations are absent from the projected server function.
@@ -536,6 +537,7 @@ func rootComponentContractAttachment(
 				component.StateSlots,
 				runtimeContinuations,
 				hasResumption,
+				directResumption,
 				hasInteractions,
 				usesCompatibility,
 				component.DynamicComponents,
@@ -678,6 +680,22 @@ func componentHasResumption(componentID string, resumptions []ComponentResumptio
 				len(resumption.Client.Contexts) != 0 ||
 				len(resumption.Client.Boundaries) != 0) {
 			return true
+		}
+	}
+	return false
+}
+
+// directServerResumptionSupported identifies records a request-local state frame can publish
+// without constructing context capability or durable continuation ownership. State paths, finite
+// value captures, and boundary identities are compiler data; resumable contexts still require the
+// generic component lane until they have a dedicated direct-frame ABI.
+func directServerResumptionSupported(
+	componentID string,
+	resumptions []ComponentResumption,
+) bool {
+	for _, resumption := range resumptions {
+		if resumption.ComponentID == componentID {
+			return len(resumption.Client.Contexts) == 0
 		}
 	}
 	return false

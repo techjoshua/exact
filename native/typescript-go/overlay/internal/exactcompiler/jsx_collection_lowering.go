@@ -50,7 +50,10 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	// capability only becomes visible after this lowering creates this.map.
 	// Record that semantic decision directly so runtime import selection does
 	// not have to rediscover a synthesized node from the original source tree.
-	lowering.listCapabilityUsed = true
+	if lowering.target != TargetServer || !lowering.directServerFrameComponent(node) {
+		lowering.listCapabilityUsed = true
+		lowering.markComponentListCapability(node)
+	}
 	item := lowering.factory.NewIdentifier("__exactItem")
 	var key *ast.Node = item
 	if !plan.primitive {
@@ -109,6 +112,26 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		}),
 		ast.NodeFlagsNone,
 	)
+}
+
+// markComponentListCapability records the durable controller selected by one lowered list site.
+// Direct server frames use their request-local fallback operation and intentionally omit this ABI.
+func (lowering *jsxLowering) markComponentListCapability(node *ast.Node) {
+	owner := ""
+	ownerWidth := int(^uint(0) >> 1)
+	for name, component := range lowering.components {
+		if node.Pos() < component.Start || node.End() > component.Start+component.Length ||
+			component.Length >= ownerWidth {
+			continue
+		}
+		owner = name
+		ownerWidth = component.Length
+	}
+	if owner != "" {
+		component := lowering.components[owner]
+		component.Lists = true
+		lowering.components[owner] = component
+	}
 }
 
 func (lowering *jsxLowering) directRenderProgramKeyedMap(node *ast.Node) bool {

@@ -8,6 +8,51 @@ type serverLocalCandidate struct {
 	end    int
 }
 
+// directServerFrameComponent reports whether the containing component has only synchronous,
+// compiler-closed server work. The predicate mirrors the contract's direct-lane exclusions so
+// server-only eager derived values and output forwarding cannot diverge from runtime selection.
+func (lowering *jsxLowering) directServerFrameComponent(node *ast.Node) bool {
+	if lowering.target != TargetServer {
+		return false
+	}
+	var owner Component
+	found := false
+	for _, component := range lowering.components {
+		if node.Pos() >= component.Start && node.End() <= component.Start+component.Length &&
+			(!found || component.Length < owner.Length) {
+			owner = component
+			found = true
+		}
+	}
+	if !found || !owner.CompiledRender || owner.DynamicComponents ||
+		len(projectComponentExecution(owner.Execution, TargetServer).Transitions) != 0 {
+		return false
+	}
+	componentNode := componentSourceNode(lowering.sourceFile, owner)
+	if componentNode == nil ||
+		componentUsesProtocolMember(
+			componentNode,
+			"log", "intl", "hasContext", "getContext", "setContext", "reactive",
+			"ref", "refs", "map", "onUnmount", "onRender", "own",
+		) {
+		return false
+	}
+	return lowering.interop == nil || !componentUsesJSXInterop(owner, componentNode)
+}
+
+func componentSourceNode(sourceFile *ast.SourceFile, component Component) *ast.Node {
+	var result *ast.Node
+	walkNode(sourceFile.AsNode(), func(candidate *ast.Node) bool {
+		if candidate.Pos() == component.Start &&
+			candidate.End() == component.Start+component.Length {
+			result = candidate
+			return false
+		}
+		return result == nil
+	})
+	return result
+}
+
 // omitUnreachableServerComponentLocals removes effect-free setup declarations whose complete
 // consumer graph disappeared when the server projection erased dormant interaction callbacks.
 // It deliberately operates after JSX projection and keeps any declaration with an effectful

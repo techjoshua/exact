@@ -9,6 +9,7 @@ import {
 	readPreparedExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { RenderToStringOptions } from './types.js';
+import type { DirectSsrComponentSnapshot } from './types.js';
 import { readReactiveOwnProperty } from '@exactjs/reactive';
 
 type MutableResumption = {
@@ -25,9 +26,39 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 } {
 	const records: MutableResumption[] = [];
 	const recordsByInstance = new WeakMap<AnyComponentInstance, MutableResumption>();
+	const recordsByDirectFrame = new WeakMap<DirectSsrComponentSnapshot, MutableResumption>();
+	const reserveDirect = (snapshot: DirectSsrComponentSnapshot): void => {
+		const resumption = snapshot.contract.resumption;
+		if (!resumption) return;
+		const record: MutableResumption = {
+			componentId: snapshot.componentId,
+			values: {},
+			contexts: {},
+			settledContinuations: []
+		};
+		recordsByDirectFrame.set(snapshot, record);
+		records.push(record);
+	};
+	const captureDirect = (snapshot: DirectSsrComponentSnapshot): void => {
+		const resumption = snapshot.contract.resumption;
+		const record = recordsByDirectFrame.get(snapshot);
+		if (!resumption || !record) return;
+		for (const path of resumption.statePaths) {
+			const found = readPath(snapshot.state, path);
+			if (found.present && found.value !== undefined) record.values[path] = found.value;
+		}
+	};
 	return {
 		options: {
 			...options,
+			onDirectComponentCreated(snapshot) {
+				reserveDirect(snapshot);
+				options.onDirectComponentCreated?.(snapshot);
+			},
+			onDirectComponentRendered(snapshot) {
+				captureDirect(snapshot);
+				options.onDirectComponentRendered?.(snapshot);
+			},
 			onComponentAttemptCheckpoint: () => records.length,
 			onComponentAttemptRollback(checkpoint) {
 				if (typeof checkpoint === 'number') records.splice(checkpoint);

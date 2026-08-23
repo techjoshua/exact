@@ -117,12 +117,76 @@ func TestServerProjectionInlinesCompilerSynchronousComputations(t *testing.T) {
 	for _, expected := range []string{
 		`})(props.name, { signal: void 0 })`,
 		`classification: "synchronous"`,
+		`lane: "direct"`,
 		`setup: []`,
 		`slices: []`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct server computation is missing %q:\n%s", expected, response.Code)
 		}
+	}
+}
+
+func TestServerDirectFrameEvaluatesSharedDerivedValuesWithoutReactiveOwnership(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-derived.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Summary(this: Component<{ count: number }>, props: { count: number }) {
+				this.state.count = props.count;
+				const label = ` + "`Count: ${this.state.count}`" + `;
+				return () => <output aria-label={label}>{label}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, omitted := range []string{"createDerived", "label.get()", "componentExecutionValueForHost"} {
+		if strings.Contains(response.Code, omitted) {
+			t.Fatalf("direct server frame retained %q:\n%s", omitted, response.Code)
+		}
+	}
+	for _, expected := range []string{
+		"const label = `Count: ${this.state.count}`",
+		`lane: "direct"`,
+		`"resumption"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("direct server frame is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestServerDirectFrameOwnsCompiledKeyedListFallbackWithoutListRuntime(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-list.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State }
+			interface Row {
+				/** @exact key */
+				id: string;
+				label: string;
+			}
+			export function Rows(
+				this: Component<{ filter: string }>,
+				props: { rows: Row[] }
+			) {
+				this.state.filter = "";
+				return () => <ul>{props.rows.map((row) => <li>{row.label}</li>)}</ul>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{`lane: "direct"`, `abi: 1`, "this.map"} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("direct list frame is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `@exactjs/core/runtime/lists`) {
+		t.Fatalf("direct server list retained durable list runtime:\n%s", response.Code)
 	}
 }
 

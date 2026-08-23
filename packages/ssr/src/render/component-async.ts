@@ -74,14 +74,28 @@ export async function renderComponentAsync(
 			};
 			const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 			const rawProps = getComponentProps(vnode);
-			const directChildren = renderDirectSsrComponent(context, blueprint, rawProps);
-			if (directChildren) {
-				if (documentProbe) resetDocumentProbe(context);
-				const html = await renderChildrenAsync(context, directChildren, parent, options);
-				return componentHtml(context, vnode, parent, componentId, html, rawProps, {
-					enhancement,
-					documentProbe
-				});
+			const direct = renderDirectSsrComponent(context, blueprint, rawProps);
+			if (direct) {
+				const checkpoint = context.onComponentAttemptCheckpoint?.();
+				try {
+					context.onDirectComponentCreated?.(direct.snapshot);
+					if (documentProbe) resetDocumentProbe(context);
+					const html = await renderChildrenAsync(context, direct.children, parent, options);
+					const directOutput = componentHtml(
+						context,
+						vnode,
+						parent,
+						componentId,
+						html,
+						direct.props,
+						{ enhancement, documentProbe }
+					);
+					context.onDirectComponentRendered?.(direct.snapshot);
+					return directOutput;
+				} catch (error) {
+					context.onComponentAttemptRollback?.(checkpoint);
+					throw error;
+				}
 			}
 			const componentProps = await prepareComponentProps(
 				rawProps,

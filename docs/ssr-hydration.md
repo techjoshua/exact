@@ -51,7 +51,11 @@ markup, scalar text, structural children, and attributes in source order. Univer
 the same generated server lane alongside their client topology. The server runtime
 provides escaping, marker, resource-limit, and recursive-child mechanics; it does not interpret a
 generic render tape or retain client templates and topology tables. Markerless SSR writes escaped
-values directly. Hydratable SSR also omits scalar delimiters when static markup bounds
+values directly. A synchronous compiler-closed component executes on a request-local state frame
+without allocating the browser's durable component instance. The frame snapshots compiler
+expression props, publishes only compiler-selected resumable state after successful output, and
+uses a shared non-retaining keyed-list fallback if the generated writer rejects an unexpected slot
+shape. Hydratable SSR also omits scalar delimiters when static markup bounds
 the value on both sides; the client claims that text, or creates an owned empty text node, at the
 compiled position. Adjacent text retains delimiters where browser parsing could merge independently
 updated values. Client mounting clones a cached inert template, and hydration adopts elements and

@@ -108,6 +108,15 @@ func (lowering *jsxLowering) lowerDerivedDeclaration(node *ast.Node) *ast.Node {
 	if _, exists := lowering.derived[name.Pos()]; !exists {
 		return nil
 	}
+	if lowering.directServerFrameComponent(node) {
+		return lowering.factory.UpdateVariableDeclaration(
+			declaration,
+			name,
+			declaration.ExclamationToken,
+			declaration.Type,
+			lowering.visitor.VisitNode(declaration.Initializer),
+		)
+	}
 	closure := lowering.materializedClosure(
 		declaration.Initializer,
 		lowering.cachedDerivedLocals(declaration.Initializer),
@@ -130,6 +139,9 @@ func (lowering *jsxLowering) lowerDerivedDeclaration(node *ast.Node) *ast.Node {
 
 func (lowering *jsxLowering) lowerDerivedReference(node *ast.Node) *ast.Node {
 	if _, exists := lowering.derivedBindingAtReference(node); exists {
+		if lowering.directServerFrameComponent(node) {
+			return lowering.factory.NewIdentifier(node.Text())
+		}
 		return lowering.derivedGet(lowering.factory.NewIdentifier(node.Text()))
 	}
 	return nil
