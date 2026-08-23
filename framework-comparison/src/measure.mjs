@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 import { measureRetainedHeap } from './browser-memory.mjs';
 import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
-import { summarizeSampleMetric } from './percentile-summary.mjs';
+import { summarizePercentiles, summarizeSampleMetric } from './percentile-summary.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -96,14 +96,14 @@ try {
 			paintTiming: { canonical: 'first-contentful-paint.startTime' }
 		},
 		browser: browserResults,
-		server: await measureServer(),
+		controlledService: await measureControlledService(),
 		build: builds,
 		complexity: await Promise.all(participants.map(profileParticipant)),
 		limitations: [
 			'Browser samples use local loopback without network or CPU throttling.',
 			'Browser samples are warm: each participant completes one equivalent discarded scenario before measurement.',
 			'Chromium heap is an experimental post-GC retained point-in-time signal, not a repeated-lifecycle leak measurement.',
-			'Server requests are sequential loopback probes, not a saturation benchmark.'
+			'Controlled-service requests are sequential loopback probes and do not measure framework SSR.'
 		]
 	};
 	const output = outputPath();
@@ -266,7 +266,7 @@ function installInteractionTiming() {
 	}).observe(document, { childList: true, characterData: true, subtree: true });
 }
 
-async function measureServer() {
+async function measureControlledService() {
 	await resetService({});
 	const durations = [];
 	const started = performance.now();
@@ -279,13 +279,12 @@ async function measureServer() {
 	}
 	const elapsedMs = performance.now() - started;
 	return {
+		kind: 'controlled-service-loopback',
 		samplesMs: durations,
 		summary: {
 			requests: durations.length,
 			requestsPerSecond: (durations.length / elapsedMs) * 1_000,
-			p50Ms: percentile(durations, 0.5),
-			p95Ms: percentile(durations, 0.95),
-			p99Ms: percentile(durations, 0.99)
+			latencyMs: summarizePercentiles(durations)
 		}
 	};
 }
@@ -393,12 +392,6 @@ function summarizeBrowser(samples) {
 		optimisticFeedbackMs: summarizeSampleMetric(samples, (sample) => sample.optimisticFeedbackMs),
 		settlementMs: summarizeSampleMetric(samples, (sample) => sample.settlementMs)
 	};
-}
-
-function percentile(values, quantile) {
-	const numbers = values.filter(Number.isFinite).sort((left, right) => left - right);
-	if (numbers.length === 0) return null;
-	return numbers[Math.min(numbers.length - 1, Math.ceil(numbers.length * quantile) - 1)];
 }
 
 async function resetService(body) {

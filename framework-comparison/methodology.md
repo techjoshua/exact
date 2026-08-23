@@ -33,7 +33,8 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
 
 The browser runner will collect navigation response time, first contentful paint, largest contentful paint,
 interaction latency, long tasks, transferred and executed JavaScript, heap, and scenario settlement time.
-Server runs will collect request throughput, p50/p95/p99 latency, CPU, peak memory, and cold-start behavior.
+Server runs collect request throughput, p50/p75/p95/p99 latency, CPU, post-GC memory trends, server
+artifact size, stable response identity, and cold-start behavior.
 Build runs will report clean build, incremental rebuild, and emitted raw/gzip/Brotli bytes.
 
 Scenario settlement is a semantic boundary, not merely the end of an event handler. For example, claiming an
@@ -87,6 +88,33 @@ work, while Performance-domain script duration describes main-thread wall time. 
 desktop-browser emulation rather than a claim about a particular mobile processor. Chunk URLs and precise
 coverage provide bundle-level attribution; source-map attribution inside a chunk requires a separate sampling
 profile.
+
+### Isolated SSR profile
+
+The SSR track starts one production participant per child process so framework heap, RSS, external
+memory, and CPU are not mixed with the controlled fixture service or another framework. The worker
+imports the production server artifact directly and owns its listener; it does not start a shell,
+package manager, or descendant application process. Shutdown first uses the worker's control endpoint,
+then terminates only that exact child if graceful cleanup misses its deadline.
+
+Every measured route obtains the same immutable session and incident snapshot from the controlled
+service before rendering `/incidents/inc-101`. Client-observed TTFB and full-body time therefore describe
+the complete SSR route, while worker-observed first-byte and completion phases make framework-owned work
+visible without adding code to a participant. Sequential requests use warm keep-alive connections.
+Concurrent results are reported as individual latency percentiles and per-wave throughput percentiles;
+aggregate process CPU is normalized by completed requests because overlapping requests cannot be assigned
+independent process-CPU intervals safely.
+
+Memory checkpoints force collection outside the measured latency lanes, then record `heapUsed`,
+`heapTotal`, RSS, external memory, and array buffers after equal request batches. A least-squares
+byte-per-request slope is a bounded retention signal: a positive short-run slope warrants investigation
+but does not alone prove an unbounded leak. Response hashes must remain stable for the immutable input,
+and every body must contain the selected incident, so a fast error, empty shell, or cross-request mutation
+cannot be accepted as an SSR sample.
+
+Node and Bun results are separate runtime rows over the same production artifacts. Runtime comparisons
+must not combine their samples or present Bun executing Node-oriented output as a claim about a dedicated
+Bun build adapter.
 
 ## Complexity dimensions
 
