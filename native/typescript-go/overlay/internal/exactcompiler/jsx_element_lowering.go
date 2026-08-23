@@ -137,7 +137,8 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	}
 	arguments = append(arguments, lowering.children(children)...)
 	elementHelper := lowering.names.element
-	if !intrinsic && lowering.localExactComponentTag(tag) {
+	if (!intrinsic && lowering.localExactComponentTag(tag)) ||
+		(intrinsic && lowering.renderProgramChildDepth > 0) {
 		elementHelper = lowering.names.componentElement
 	}
 	element := lowering.call(elementHelper, arguments)
@@ -365,6 +366,12 @@ func (lowering *jsxLowering) exactCoreVNodeTag(tag *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) lowerFragment(fragment *ast.JsxFragment) *ast.Node {
+	if lowering.renderProgramChildDepth > 0 {
+		return lowering.factory.NewArrayLiteralExpression(
+			lowering.factory.NewNodeList(lowering.children(fragment.Children)),
+			false,
+		)
+	}
 	arguments := []*ast.Node{lowering.props(nil, "", false, "")}
 	arguments = append(arguments, lowering.children(fragment.Children)...)
 	return lowering.call(lowering.names.fragment, arguments)

@@ -1,4 +1,4 @@
-import { unwrap, watch, type ComponentInstance } from '@exactjs/core';
+import { unwrap, watch, type Component } from '@exactjs/core';
 import { PhysicsBodyContext, PhysicsWorldContext, type PhysicsWorld } from '@exactjs/physics';
 import { applyGravity } from './application.js';
 import type {
@@ -12,7 +12,7 @@ import type {
 import { BodyGravityRegistration } from './registration.js';
 
 /** Transparent subtree component that owns one world field registration. */
-export function GravityFieldComponent(this: ComponentInstance<{}>, props: GravityFieldProps) {
+export function GravityFieldComponent(this: Component<{}>, props: GravityFieldProps) {
 	if (!this.hasContext(PhysicsWorldContext)) {
 		throw new Error('GravityField requires a PhysicsWorld context');
 	}
@@ -53,7 +53,7 @@ export function GravityFieldComponent(this: ComponentInstance<{}>, props: Gravit
 }
 
 /** Transparent same-target component that consumes the current physics body. */
-export function GravityElement(this: ComponentInstance<{}>, props: GravityElementProps) {
+export function GravityElement(this: Component<{}>, props: GravityElementProps) {
 	if (!this.hasContext(PhysicsBodyContext)) {
 		this.log.error('Gravity enhancement requires a physics body', undefined, {
 			enhancement: '@exactjs/gravity#default',

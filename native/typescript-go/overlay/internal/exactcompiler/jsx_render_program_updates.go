@@ -60,7 +60,11 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 	for index, slot := range build.slots {
 		slotIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone)
 		if slot.kind == "child" && slot.list {
-			listSlots = append(listSlots, slotIndex)
+			if slot.directList {
+				call(lowering.names.bindProgramKeyedChild, slotIndex)
+			} else {
+				listSlots = append(listSlots, slotIndex)
+			}
 			continue
 		}
 		switch slot.kind {

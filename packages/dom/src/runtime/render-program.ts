@@ -3,6 +3,7 @@ export {
 	applyCompiledProgramProperties,
 	applyCompiledProgramText,
 	bindCompiledProgramChild,
+	bindCompiledProgramKeyedChild,
 	bindCompiledProgramLists,
 	bindCompiledProgramProperties,
 	bindCompiledProgramText
@@ -18,6 +19,7 @@ export { bindCompiledComponentUpdate } from '../renderer/component-update-bindin
 export {
 	beginCompiledProgramClaims,
 	claimCompiledProgramChild,
+	claimCompiledProgramKeyedChild,
 	claimCompiledProgramElement,
 	claimCompiledProgramElementPath,
 	claimCompiledProgramProperty,

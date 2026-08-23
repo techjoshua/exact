@@ -40,6 +40,7 @@ export {
 	createDynamicChild,
 	createExpression,
 	createForwardedExpression,
+	keyCompiledVNode,
 	createKeyedServerSlot,
 	createServerBoundary,
 	createServerSlot,

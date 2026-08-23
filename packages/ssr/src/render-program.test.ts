@@ -5,7 +5,11 @@ import {
 	type Component,
 	type TaskContext
 } from '@exactjs/core';
-import { createDynamicChild, createCompiledVNode } from '@exactjs/core/runtime/render';
+import {
+	createDynamicChild,
+	createCompiledVNode,
+	keyCompiledVNode
+} from '@exactjs/core/runtime/render';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
@@ -147,6 +151,35 @@ it('executes structural program slots without colliding with nested marker ident
 	expect(renderToString(program, { markers: false }).html).toBe(
 		'<section><strong>child</strong></section>'
 	);
+});
+
+it('writes a compiler-proven final keyed child without structural delimiters', () => {
+	const program = createCompiledRenderProgram(
+		'render-program:ssr-keyed-tail',
+		() => ({
+			version: 3,
+			id: 'render-program:ssr-keyed-tail',
+			namespace: 'html',
+			ssr(target) {
+				target.prepareChild(0);
+				target.begin(1, 1);
+				target.static('<ul>');
+				target.keyedChild(0);
+				target.static('</ul>');
+			}
+		}),
+		[
+			() => [
+				keyCompiledVNode(createCompiledVNode('li', null, 'a'), 'a'),
+				keyCompiledVNode(createCompiledVNode('li', null, 'b'), 'b')
+			]
+		]
+	);
+
+	const html = renderToString(program).html;
+	expect(html).toContain('<li>a</li>');
+	expect(html).toContain('<li>b</li>');
+	expect(html).not.toContain('exact:dynamic:');
 });
 
 it('materializes marker-mode program fallbacks inside their component scope', async () => {

@@ -11,12 +11,14 @@ import (
 type jsxRuntimeNames struct {
 	element                string
 	componentElement       string
+	keyedElement           string
 	renderProgram          string
 	preparedRenderProgram  string
 	prepareRenderProgram   string
 	bindProgramText        string
 	bindProgramChild       string
 	bindProgramLists       string
+	bindProgramKeyedChild  string
 	bindProgramProperties  string
 	bindProgramState       string
 	bindComponentUpdate    string
@@ -27,6 +29,7 @@ type jsxRuntimeNames struct {
 	claimElementPath       string
 	claimProgramText       string
 	claimProgramChild      string
+	claimProgramKeyedChild string
 	claimProgramProperty   string
 	enterProgramElement    string
 	leaveProgramElement    string
@@ -129,6 +132,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}{
 		{"createCompiledVNode", lowering.names.element, 0},
 		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
+		{"keyCompiledVNode", lowering.names.keyedElement, 0},
 		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
 		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, 0},
 		{"prepareCompiledRenderProgram", lowering.names.prepareRenderProgram, 0},
@@ -162,6 +166,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"bindCompiledProgramText", lowering.names.bindProgramText, 18},
 		{"bindCompiledProgramChild", lowering.names.bindProgramChild, 18},
 		{"bindCompiledProgramLists", lowering.names.bindProgramLists, 18},
+		{"bindCompiledProgramKeyedChild", lowering.names.bindProgramKeyedChild, 18},
 		{"bindCompiledProgramProperties", lowering.names.bindProgramProperties, 18},
 		{"bindCompiledProgramState", lowering.names.bindProgramState, 18},
 		{"bindCompiledComponentUpdate", lowering.names.bindComponentUpdate, 18},
@@ -172,6 +177,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"claimCompiledProgramElementPath", lowering.names.claimElementPath, 18},
 		{"claimCompiledProgramText", lowering.names.claimProgramText, 18},
 		{"claimCompiledProgramChild", lowering.names.claimProgramChild, 18},
+		{"claimCompiledProgramKeyedChild", lowering.names.claimProgramKeyedChild, 18},
 		{"claimCompiledProgramProperty", lowering.names.claimProgramProperty, 18},
 		{"enterCompiledProgramElement", lowering.names.enterProgramElement, 18},
 		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, 18},
@@ -536,12 +542,14 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	return jsxRuntimeNames{
 		element:                allocate("__exactVNode"),
 		componentElement:       allocate("__exactComponentVNode"),
+		keyedElement:           allocate("__exactKeyedVNode"),
 		renderProgram:          allocate("__exactRenderProgram"),
 		preparedRenderProgram:  allocate("__exactPreparedRenderProgram"),
 		prepareRenderProgram:   allocate("__exactPrepareRenderProgram"),
 		bindProgramText:        allocate("__exactBindProgramText"),
 		bindProgramChild:       allocate("__exactBindProgramChild"),
 		bindProgramLists:       allocate("__exactBindProgramLists"),
+		bindProgramKeyedChild:  allocate("__exactBindProgramKeyedChild"),
 		bindProgramProperties:  allocate("__exactBindProgramProperties"),
 		bindProgramState:       allocate("__exactBindProgramState"),
 		bindComponentUpdate:    allocate("__exactBindComponentUpdate"),
@@ -552,6 +560,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		claimElementPath:       allocate("__exactClaimProgramElementPath"),
 		claimProgramText:       allocate("__exactClaimProgramText"),
 		claimProgramChild:      allocate("__exactClaimProgramChild"),
+		claimProgramKeyedChild: allocate("__exactClaimProgramKeyedChild"),
 		claimProgramProperty:   allocate("__exactClaimProgramProperty"),
 		enterProgramElement:    allocate("__exactEnterProgramElement"),
 		leaveProgramElement:    allocate("__exactLeaveProgramElement"),

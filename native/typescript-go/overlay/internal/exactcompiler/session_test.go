@@ -593,6 +593,92 @@ func TestSessionGroupsPlannedKeyedListsIntoOneRenderLane(t *testing.T) {
 	}
 }
 
+func TestSessionWiresInferredProgramListsWithoutComponentListController(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compiled-program-list.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			interface Item {
+				/** @exact key */
+				id: string;
+				label: string;
+			}
+			function Badge(props: { value: string }) {
+				return () => <span>{props.value}</span>;
+			}
+			export function List(props: { items: Item[] }) {
+				return () => <ul>{props.items.map((item) => <li><Badge value={item.label} />{item.label}</li>)}</ul>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `props.items.map((item) => __exactKeyedVNode(`) ||
+		!strings.Contains(response.Code, `, item.id))`) {
+		t.Fatalf("compiler-owned list omitted direct key wiring:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `__exactPreparedRenderProgram(`) ||
+		!strings.Contains(response.Code, `__exactBindProgramKeyedChild(__exactBindingTarget, 0)`) ||
+		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0)`) ||
+		!strings.Contains(response.Code, `template: "<ul></ul>"`) {
+		t.Fatalf("compiled list item did not retain its generated program lane:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `this.map(`) ||
+		strings.Contains(response.Code, `__exactBindProgramLists(`) ||
+		strings.Contains(response.Code, `@exactjs/core/runtime/lists`) {
+		t.Fatalf("closed program list retained the universal component list controller:\n%s", response.Code)
+	}
+}
+
+func TestSessionRetainsAListBoundaryBeforeAFollowingSibling(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compiled-program-list-before-sibling.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			interface Item {
+				/** @exact key */
+				id: string;
+			}
+			export function List(props: { items: Item[] }) {
+				return () => <ul>{props.items.map((item) => <li>{item.id}</li>)}<li>tail</li></ul>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, `__exactClaimProgramKeyedChild(`) ||
+		!strings.Contains(response.Code, `__exactClaimProgramChild(`) ||
+		!strings.Contains(response.Code, `<!--exact:dynamic:`) {
+		t.Fatalf("non-final keyed list lost its required sibling boundary:\n%s", response.Code)
+	}
+}
+
+func TestSessionInlinesConditionalFragmentsIntoTheirProgramRange(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compiled-program-branch.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Detail(props: { open: boolean; title: string }) {
+				return () => <section>{props.open ? <><h2>{props.title}</h2><p>Ready</p></> : null}</section>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `props.open ? [__exactPreparedRenderProgram(`) ||
+		!strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) {
+		t.Fatalf("conditional fragment was not inlined into its generated structural range:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactFragment(`) ||
+		strings.Contains(response.Code, `__exactVNode("h2"`) ||
+		strings.Contains(response.Code, `__exactVNode("p"`) {
+		t.Fatalf("closed conditional retained generic fragment or cell construction:\n%s", response.Code)
+	}
+}
+
 func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-select.tsx", Kind: "compile", Target: TargetClient,

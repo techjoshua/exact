@@ -1,10 +1,4 @@
-import {
-	isTaskCancellation,
-	unwrap,
-	watch,
-	type ComponentInstance,
-	type RootRelease
-} from '@exactjs/core';
+import { isTaskCancellation, unwrap, watch, type Component, type RootRelease } from '@exactjs/core';
 import { defaultMotionSettings, MotionContext } from './context.js';
 import { LayoutContext } from './layout.js';
 import { ExitLayoutContext, PresenceEnterContext } from './presence.js';
@@ -24,7 +18,7 @@ import {
 } from './playback.js';
 
 /** Transparent ordinary component activated for one resolved motion target. */
-export function MotionElement(this: ComponentInstance<{}>, props: MotionElementProps) {
+export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 	const root = this.refs.root<Element>();
 	const settings = this.hasContext(MotionContext)
 		? this.getContext(MotionContext)

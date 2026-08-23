@@ -4,7 +4,8 @@ import {
 	createCompiledComponentVNode,
 	createCompiledVNode,
 	createForwardedExpression,
-	isCellVNode
+	isCellVNode,
+	keyCompiledVNode
 } from './vnode.js';
 
 describe('compiled reactive expression allocation', () => {
@@ -33,5 +34,15 @@ describe('compiled vnode marker ownership', () => {
 		expect(isCellVNode(createCompiledVNode(Child, null))).toBe(true);
 		expect(isCellVNode(createCompiledComponentVNode(Child, null))).toBe(false);
 		expect(createCompiledComponentVNode(Child, { label: 'ready' }).type).toBe(Child);
+	});
+
+	it('assigns inferred list identity to the unpublished compiler allocation', () => {
+		const vnode = createCompiledComponentVNode('li', null, 'row');
+
+		expect(keyCompiledVNode(vnode, 42)).toBe(vnode);
+		expect(vnode.key).toBe('42');
+		expect(() => keyCompiledVNode(createCompiledComponentVNode('li', null), undefined)).toThrow(
+			'Compiled keyed lists require a key'
+		);
 	});
 });

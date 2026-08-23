@@ -7,7 +7,7 @@ import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framew
 import { peek, withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../placement.js';
 import { getListBinding } from '../children.js';
-import type { Mounted } from '../types.js';
+import type { Mounted, RenderProgramChildAnchor } from '../types.js';
 import { mountDetachedChild, mountDetachedChildren } from './mounting/children.js';
 import { patchChildren, patchSingleChild } from './patching/children.js';
 import { readDynamicChildren } from './dynamic.js';
@@ -28,6 +28,7 @@ export function adoptProgramChildSlots(
 	const state = mounted.renderProgram!;
 	const ownsLists =
 		state.invocation.program.listBindings === true ||
+		state.invocation.program.keyedChildren !== undefined ||
 		state.invocation.program.bindings?.some((binding) => binding[0] === 'lists') === true;
 	if (ownsLists) parentInstance.beginRender();
 	try {
@@ -37,16 +38,45 @@ export function adoptProgramChildSlots(
 			if (!slot) continue;
 			if (slot[0] !== 'child' && slot[0] !== 'component') continue;
 			const start = state.slotNodes[index];
-			const end = findProgramChildEnd(start, slot[1]);
-			const parent = start?.parentNode;
-			if (!(start instanceof Comment) || !end || !parent) return false;
+			if (isKeyedChildAnchor(start)) {
+				const nodes = Array.from(start[0].childNodes, (node): Node => node);
+				const cursor = start[1] ? nodes.indexOf(start[1]) : nodes.length;
+				const endIndex = nodes.length;
+				if (cursor < 0 || endIndex < cursor) return false;
+				const value = withEffectScope(mounted.scope, () =>
+					readDirectProgramChildren(state.invocation, index, parentInstance)
+				);
+				const children = adoptChildren(
+					value,
+					nodes,
+					parentInstance,
+					mounted.scope,
+					cursor,
+					endIndex
+				);
+				if (!children) return false;
+				(state.childSlots ??= []).push({
+					slot: index,
+					parent: start[0],
+					before: null,
+					children,
+					value
+				});
+				continue;
+			}
+			const marker = start instanceof Node ? start : undefined;
+			const end = findProgramChildEnd(marker, slot[1]);
+			const parent = marker?.parentNode;
+			if (!(marker instanceof Comment) || !end || !parent) return false;
 			const nodes: Node[] = [];
 			for (let node = parent.firstChild; node; node = node.nextSibling) nodes.push(node);
-			const cursor = nodes.indexOf(start);
+			const cursor = nodes.indexOf(marker);
 			const endIndex = nodes.indexOf(end);
 			if (cursor < 0 || endIndex < cursor) return false;
 			const value = withEffectScope(mounted.scope, () =>
-				readProgramChildren(state.invocation, index, parentInstance)
+				programKeyedChildIncludes(state.invocation.program.keyedChildren, index)
+					? readDirectProgramChildren(state.invocation, index, parentInstance)
+					: readProgramChildren(state.invocation, index, parentInstance)
 			);
 			const children = adoptChildren(
 				value,
@@ -61,7 +91,8 @@ export function adoptProgramChildSlots(
 			const componentValue = slot[0] === 'component' ? soleVNode(value) : undefined;
 			childSlots.push({
 				slot: index,
-				end,
+				parent,
+				before: end,
 				children,
 				...(componentValue ? { componentValue } : { value })
 			});
@@ -110,27 +141,65 @@ export function bindProgramLists(
 	return true;
 }
 
+/** Installs one compiler-keyed array lane without constructing a Fragment/ListBinding wrapper. */
+export function bindProgramKeyedChild(
+	mounted: Mounted,
+	index: number,
+	initialBinding: boolean,
+	stopBindings: OwnedRetainedWatch[]
+): boolean {
+	const apply = prepareProgramChildBinding(
+		mounted,
+		index,
+		initialBinding,
+		readDirectProgramChildren
+	);
+	if (!apply) return false;
+	const owner = mounted.renderProgram!.parentInstance;
+	const refresh = () => {
+		owner?.beginRender();
+		try {
+			apply();
+		} finally {
+			owner?.endRender();
+		}
+	};
+	const watcher = watchRetained(refresh, undefined, { scope: mounted.scope, owned: true });
+	if (watcher) stopBindings.push(watcher);
+	return true;
+}
+
 function prepareProgramChildBinding(
 	mounted: Mounted,
 	index: number,
-	initialBinding: boolean
+	initialBinding: boolean,
+	read: typeof readProgramChildren = readProgramChildren
 ): (() => void) | undefined {
 	const state = mounted.renderProgram!;
 	const start = state.slotNodes[index];
 	const slot = structuralProgramSlot(state, index);
 	const identity = slot?.[0] === 'child' || slot?.[0] === 'component' ? slot[1] : undefined;
-	const end = findProgramChildEnd(start, identity);
-	if (!(start instanceof Comment) || !end || !start.parentNode) return undefined;
+	const anchor = isKeyedChildAnchor(start) ? start : undefined;
+	const marker = start instanceof Node ? start : undefined;
+	const end = anchor ? undefined : findProgramChildEnd(marker, identity);
+	const parent = anchor?.[0] ?? marker?.parentNode;
+	const before = anchor ? null : end;
+	if (!parent || (!anchor && (!(marker instanceof Comment) || !end))) return undefined;
 	const childSlots = (state.childSlots ??= []);
 	let childState = childSlots.find((candidate) => candidate.slot === index);
 	if (!childState) {
-		childState = { slot: index, end, children: [] };
+		childState = { slot: index, parent, before: before ?? null, children: [] };
 		childSlots.push(childState);
 	}
+	let skipAdoptedInitialPatch = initialBinding && childState.children.length !== 0;
 	return () => {
 		const next = withEffectScope(mounted.scope, () =>
-			readProgramChildren(state.invocation, index, state.parentInstance)
+			read(state.invocation, index, state.parentInstance)
 		);
+		if (skipAdoptedInitialPatch) {
+			skipAdoptedInitialPatch = false;
+			return;
+		}
 		peek(() => {
 			const component = slot?.[0] === 'component' ? soleVNode(next) : undefined;
 			if (
@@ -139,8 +208,8 @@ function prepareProgramChildBinding(
 					: sameProgramChildren(childState.value, next)
 			)
 				return;
-			const parent = start.parentNode;
-			if (!parent) return;
+			const parent = childState.parent;
+			const before = childState.before;
 			if (component && childState.children.length === 1) {
 				childState.children[0] = patchSingleChild(
 					state.root,
@@ -159,7 +228,7 @@ function prepareProgramChildBinding(
 					mounted.scope,
 					parent
 				);
-				placeMountedBefore(state.root, parent, child, end);
+				placeMountedBefore(state.root, parent, child, before);
 				childState.children.push(child);
 			} else if (initialBinding && childState.children.length === 0) {
 				childState.children = mountDetachedChildren(
@@ -169,7 +238,8 @@ function prepareProgramChildBinding(
 					mounted.scope,
 					parent
 				);
-				for (const child of childState.children) placeMountedBefore(state.root, parent, child, end);
+				for (const child of childState.children)
+					placeMountedBefore(state.root, parent, child, before);
 			} else {
 				childState.children = patchChildren(
 					state.root,
@@ -178,7 +248,7 @@ function prepareProgramChildBinding(
 					next,
 					state.parentInstance,
 					mounted.scope,
-					end,
+					before,
 					mounted
 				);
 			}
@@ -201,9 +271,16 @@ function structuralProgramSlot(
 	const slot = state.invocation.program.slots?.[index];
 	if (slot?.[0] === 'child' || slot?.[0] === 'component') return slot;
 	const marker = state.slotNodes[index];
+	if (isKeyedChildAnchor(marker)) return ['child', ''];
 	if (!(marker instanceof Comment) || !marker.data.startsWith('exact:dynamic:')) return undefined;
 	const kind = componentSlotIncludes(state.componentSlots, index) ? 'component' : 'child';
 	return [kind, marker.data.slice('exact:dynamic:'.length)];
+}
+
+function isKeyedChildAnchor(
+	value: Node | RenderProgramChildAnchor | undefined
+): value is RenderProgramChildAnchor {
+	return Array.isArray(value);
 }
 
 function componentSlotIncludes(
@@ -260,6 +337,27 @@ function readProgramChildren(
 		} else owned.push(child);
 	}
 	return owned;
+}
+
+function readDirectProgramChildren(
+	invocation: ExactRenderProgramInvocation,
+	index: number,
+	parentInstance: AnyComponentInstance | undefined
+): Child[] {
+	return readDynamicChildren(
+		() => readRenderProgramSlot(invocation, index),
+		parentInstance,
+		'compiled-keyed-child-slot'
+	);
+}
+
+function programKeyedChildIncludes(
+	slots: number | readonly number[] | undefined,
+	index: number
+): boolean {
+	return typeof slots === 'number'
+		? index < 31 && (slots & (1 << index)) !== 0
+		: slots?.includes(index) === true;
 }
 
 function sameProgramChildren(

@@ -6,7 +6,10 @@ import {
 	indexProgramHydration,
 	programElement
 } from './render-program-hydration.js';
-import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
+import type {
+	ExactRenderProgram,
+	ExactRenderProgramBindingTarget
+} from '@exactjs/core/runtime/render';
 import {
 	beginCompiledProgramClaims,
 	claimCompiledProgramChild,
@@ -95,7 +98,7 @@ describe('compiler-wired render-program claims', () => {
 		root.textContent = 'Ready';
 		const program: ExactRenderProgram = {
 			...scalarProgram,
-			bind(target) {
+			bind(target: ExactRenderProgramBindingTarget) {
 				if (!beginCompiledProgramClaims(target, 'p', 'html', 1, 1)) return;
 				claimCompiledProgramText(target, 0, 0, true);
 			}
@@ -122,7 +125,7 @@ describe('compiler-wired render-program claims', () => {
 			namespace: 'html',
 			template: '<main><section><span>Static</span><button>Save</button></section></main>',
 			directClaims: true,
-			bind(target) {
+			bind(target: ExactRenderProgramBindingTarget) {
 				if (!beginCompiledProgramClaims(target, 'main', 'html', 4, 0)) return;
 				// depth 2, followed by element-child ordinals 0 and 1 in base 128.
 				claimCompiledProgramElementPath(target, 3, 2 + 1 * 16 * 128, 'button');
@@ -145,7 +148,7 @@ describe('compiler-wired render-program claims', () => {
 			namespace: 'html',
 			template: '<section><form><textarea></textarea></form></section>',
 			directClaims: true,
-			bind(target) {
+			bind(target: ExactRenderProgramBindingTarget) {
 				if (!beginCompiledProgramClaims(target, 'section', 'html', 3, 0)) return;
 				// The high bit selects the final element child; textarea is then child zero.
 				claimCompiledProgramElementPath(target, 2, 1 + 64 * 16, 'form');
@@ -162,7 +165,7 @@ describe('compiler-wired render-program claims', () => {
 		root.innerHTML = '<strong>After</strong>';
 		const program: ExactRenderProgram = {
 			...scalarProgram,
-			bind(target) {
+			bind(target: ExactRenderProgramBindingTarget) {
 				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
 				claimCompiledProgramText(target, 0, 0, true);
 			}
@@ -179,7 +182,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('p');
 		const program: ExactRenderProgram = {
 			...scalarProgram,
-			bind(target) {
+			bind(target: ExactRenderProgramBindingTarget) {
 				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
 				claimCompiledProgramText(target, 0, 1, true);
 			}
