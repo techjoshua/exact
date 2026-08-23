@@ -258,9 +258,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		root,
 		"log",
 	) || strings.Contains(source, "this.log")
-	listUsed := lowering.listCapabilityUsed ||
-		containsComponentSurfaceUse(root, "map") ||
-		strings.Contains(source, "this.map")
+	listUsed := lowering.listCapabilityUsed
+	for _, component := range lowering.components {
+		if component.Lists {
+			listUsed = true
+			break
+		}
+	}
 	refsUsed := containsComponentSurfaceUse(root, "ref", "readRef", "refs") ||
 		strings.Contains(source, "this.ref") || strings.Contains(source, "this.readRef") ||
 		strings.Contains(source, "this.refs")

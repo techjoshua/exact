@@ -55,6 +55,8 @@ export function normalizeExactServerRuntimeOptions(options: ExactServerRuntimeOp
 		onComponentCreated: options.onComponentCreated,
 		onComponentAttemptCheckpoint: options.onComponentAttemptCheckpoint,
 		onComponentAttemptRollback: options.onComponentAttemptRollback,
+		onDirectComponentCreated: undefined,
+		onDirectComponentRendered: undefined,
 		onProfile: options.onProfile,
 		inspection: options.inspection,
 		dynamicComponentArtifacts: options.dynamicComponentArtifacts,

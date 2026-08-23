@@ -70,6 +70,74 @@ describe('@exactjs/ssr ownership', () => {
 		expect(created).toBe(0);
 	});
 
+	it('renders a direct-frame keyed-list fallback without durable list ownership', () => {
+		function DirectList(
+			this: Component<{}> & {
+				map<T>(
+					collection: Iterable<T>,
+					key: (item: T) => string,
+					render: (item: T) => ReturnType<typeof createVNode>,
+					id?: string
+				): ReturnType<typeof createVNode>;
+			},
+			props: { rows: readonly { id: string; label: string }[] }
+		) {
+			return () =>
+				this.map(
+					props.rows,
+					(row) => row.id,
+					(row) => createVNode('li', null, row.label),
+					'rows'
+				);
+		}
+		Object.assign(DirectList, {
+			[exactComponentType]: 'component:direct-list-fixture',
+			[exactComponentContract]: {
+				version: 2,
+				placement: 'server',
+				role: 'executor',
+				implementations: [
+					{
+						id: 'implementation:direct-list-fixture',
+						name: 'DirectList',
+						role: 'root',
+						implementation: DirectList
+					}
+				],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1,
+					instantiate: DirectList,
+					abi: 1,
+					capabilities: [],
+					state: [],
+					server: {
+						version: 1,
+						classification: 'synchronous',
+						lane: 'direct',
+						setup: [],
+						slices: [],
+						render: DirectList
+					}
+				}
+			}
+		});
+
+		const rendered = renderToString(
+			createVNode(DirectList, {
+				rows: [
+					{ id: 'a', label: 'Alpha' },
+					{ id: 'b', label: 'Beta' }
+				]
+			}),
+			{ markers: false }
+		);
+
+		expect(rendered.html).toBe('<li>Alpha</li><li>Beta</li>');
+	});
+
 	it('disposes component tasks and lifecycle ownership after synchronous SSR', () => {
 		let taskSignal: AbortSignal | undefined;
 		let unmounted = 0;

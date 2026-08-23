@@ -17,7 +17,10 @@ import type {
 	VNode
 } from '@exactjs/core';
 export type { AnyComponentInstance };
-import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
+import type {
+	ExactCompiledComponentContract,
+	ExactComponentContinuationContract
+} from '@exactjs/core/framework/component-contracts';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type {
@@ -80,6 +83,10 @@ export type RenderToStringOptions = {
 	onComponentAttemptCheckpoint?: () => unknown;
 	/** @internal Discards observations produced by an invalidated sync render attempt. */
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
+	/** @internal Reserves construction order for a compiler-closed request-local frame. */
+	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** @internal Publishes a compiler-closed component without manufacturing a durable instance. */
+	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Internal request-owned observation boundary; omitted in hardened server output. */
@@ -374,6 +381,8 @@ export type SsrContext = {
 	onComponentRendered?: (instance: AnyComponentInstance) => void;
 	onComponentAttemptCheckpoint?: () => unknown;
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
+	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
+	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** Request-local scheduler shared by every eligible sibling group. */
 	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
@@ -383,6 +392,13 @@ export type SsrContext = {
 	/** Reusable immutable plan cache selected by the rendered root component. */
 	rootExecutionBlueprint?: import('./render/root-execution-cache.js').SsrRootExecutionBlueprint;
 };
+
+/** Request-local state published by a compiler-closed synchronous server component. */
+export type DirectSsrComponentSnapshot = Readonly<{
+	componentId: string;
+	contract: ExactCompiledComponentContract;
+	state: Record<string, unknown>;
+}>;
 
 export type {
 	Child,

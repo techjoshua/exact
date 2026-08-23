@@ -64,6 +64,7 @@ func componentDefinitionMetadata(
 	stateSlots []string,
 	continuations []Continuation,
 	hasResumption bool,
+	directResumption bool,
 	hasInteractions bool,
 	compatibility bool,
 	dynamicComponents bool,
@@ -121,8 +122,8 @@ func componentDefinitionMetadata(
 		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
 	if server {
-		direct := !hasResumption && !hasInteractions && !compatibility && !dynamicComponents &&
-			!collections && !unsupportedServerSurface && runtimeABI&^(componentABICompiledRender) == 0
+		direct := (!hasResumption || directResumption) && !hasInteractions && !compatibility && !dynamicComponents &&
+			!unsupportedServerSurface && runtimeABI&^(componentABICompiledRender) == 0
 		properties = append(properties, contractProperty(
 			factory,
 			"server",

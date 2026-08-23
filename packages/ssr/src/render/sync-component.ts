@@ -75,21 +75,30 @@ export function renderSyncComponent(
 		}
 		const componentProps = getComponentProps(vnode);
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
-		const directChildren = renderDirectSsrComponent(context, blueprint, componentProps);
-		if (directChildren) {
-			if (documentProbe) resetDocumentProbe(context);
-			const html = operations.renderChildren(context, directChildren, parent);
-			return componentOutput(
-				context,
-				vnode,
-				parent,
-				componentId,
-				html,
-				componentProps,
-				enhancement,
-				documentProbe,
-				operations
-			);
+		const direct = renderDirectSsrComponent(context, blueprint, componentProps);
+		if (direct) {
+			const checkpoint = context.onComponentAttemptCheckpoint?.();
+			try {
+				context.onDirectComponentCreated?.(direct.snapshot);
+				if (documentProbe) resetDocumentProbe(context);
+				const html = operations.renderChildren(context, direct.children, parent);
+				const directOutput = componentOutput(
+					context,
+					vnode,
+					parent,
+					componentId,
+					html,
+					direct.props,
+					enhancement,
+					documentProbe,
+					operations
+				);
+				context.onDirectComponentRendered?.(direct.snapshot);
+				return directOutput;
+			} catch (error) {
+				context.onComponentAttemptRollback?.(checkpoint);
+				throw error;
+			}
 		}
 		instance = createSsrComponentInstance(
 			context,

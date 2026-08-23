@@ -23,6 +23,53 @@ import { readRemainingStreamEvents } from './test-support/streams.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr component resumption', () => {
+	it('captures direct-frame state in parent-before-child construction order', () => {
+		const DirectChild = directResumableFixture(
+			'DirectChild',
+			['value'],
+			function DirectChild(this: { state: Record<string, unknown> }, props: { value: number }) {
+				this.state.value = props.value + 1;
+				return () => createVNode('output', null, String(this.state.value));
+			}
+		);
+		const DirectCounter = directResumableFixture(
+			'DirectCounter',
+			['count'],
+			function DirectCounter(this: { state: Record<string, unknown> }, props: { count: number }) {
+				this.state.count = props.count;
+				this.state.serverOnly = 'private';
+				return () =>
+					createVNode(
+						'section',
+						null,
+						createVNode(DirectChild, { value: this.state.count as number })
+					);
+			}
+		);
+
+		const rendered = renderToHydratableString(
+			createVNode(DirectCounter, { count: computed(() => 4) })
+		);
+
+		expect(rendered.html).toContain('<output>5</output>');
+		expect(rendered.resumptions).toEqual([
+			{
+				componentId: 'component:DirectCounter',
+				values: { count: 4 },
+				contexts: {},
+				settledContinuations: []
+			},
+			{
+				componentId: 'component:DirectChild',
+				values: { value: 5 },
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+		expect(rendered.hydrationScript).not.toContain('serverOnly');
+		expect(rendered.hydrationScript).not.toContain('private');
+	});
+
 	it('discards resumptions from invalidated synchronous render attempts', () => {
 		const childImplementation = function Snapshot(
 			this: Component<{ value: number }>,
@@ -405,3 +452,56 @@ describe('@exactjs/ssr component resumption', () => {
 		]);
 	});
 });
+
+/** Attaches the smallest prepared contract used by direct-frame resumption fixtures. */
+function directResumableFixture<Props extends Record<string, unknown>>(
+	name: string,
+	statePaths: readonly string[],
+	implementation: (
+		this: { state: Record<string, unknown> },
+		props: Props
+	) => () => ReturnType<typeof createVNode>
+) {
+	const componentId = `component:${name}`;
+	return Object.assign(implementation, {
+		[exactComponentType]: componentId,
+		[exactComponentContract]: {
+			version: 2 as const,
+			placement: 'isomorphic' as const,
+			role: 'client' as const,
+			implementations: [
+				{
+					id: `implementation:${name}`,
+					name,
+					role: 'root' as const,
+					implementation
+				}
+			],
+			continuations: [],
+			executors: [],
+			boundaries: [],
+			definition: {
+				version: 1 as const,
+				instantiate: implementation,
+				abi: 1,
+				capabilities: ['resumption'] as const,
+				state: statePaths,
+				server: {
+					version: 1 as const,
+					classification: 'synchronous' as const,
+					lane: 'direct' as const,
+					setup: [],
+					slices: [],
+					render: implementation
+				}
+			},
+			resumption: {
+				componentId,
+				statePaths,
+				valueCaptures: [],
+				contexts: [],
+				boundaries: []
+			}
+		}
+	});
+}

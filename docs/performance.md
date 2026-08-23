@@ -162,8 +162,14 @@ removing generic component and task infrastructure without changing the authored
 When the compiler proves that a synchronous server component needs only its generated render
 artifact, it selects the direct lane. SSR invokes that artifact against a small request-local state
 frame and never constructs a durable component instance, reactive scope, task owner, or lifecycle
-registry. Components that require capabilities not yet projected into a direct server slice remain
-on the generic lane; classification alone never weakens their ownership semantics.
+registry. Compiler-selected state paths are published from that frame for hydration resumption only
+after descendant output succeeds. Expression props are read once into the direct frame instead of
+creating the general readonly props proxy. A compiler-keyed list normally writes its item VNodes
+through the generated SSR function; its lazy compatibility fallback calls one shared request-local
+list operation that creates no controller, registration, cache, or durable owner. Authored
+`this.map()` ownership and components that require capabilities not yet projected into a direct
+server slice remain on the generic lane; classification alone never weakens their ownership
+semantics.
 Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
 binder contexts are released after synchronous installation and are not captured by the retained
 slot watchers. Server and universal artifacts retain individual readers for SSR, while older
