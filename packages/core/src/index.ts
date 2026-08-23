@@ -246,8 +246,7 @@ export {
 	createErrorContext,
 	createErrorReport,
 	handleComponentError,
-	handleComponentSuspension,
-	normalizeRenderResult
+	handleComponentSuspension
 } from './component/errors.js';
 export { logFrameworkEvent } from './component/log.js';
 export { sameJsonData, type JsonComparisonOptions } from './json.js';
@@ -315,5 +314,6 @@ export {
 	isVNode,
 	normalizeChildren,
 	normalizeDocumentVNode,
+	normalizeRenderResult,
 	unsafeHtml
 } from './vnode.js';

@@ -106,7 +106,9 @@ directly; request cancellation wraps only the awaits and owned timers that need 
 calls in the server artifact, so their setup tasks can enter the bounded scheduler while the parent
 creates their VNodes and before the first sibling settles. Each request owns and disposes its frames, task generations, cancellation, and buffered
 resumption snapshots; immutable component contracts and prepared indexes are the only cross-request
-state.
+state. Compiler-closed artifacts also omit the generic reactive error context. A direct construction
+failure propagates through the request unless the reachable artifact graph explicitly installs the
+generic component/error-boundary capability.
 
 After output extensions choose the rendered root, SSR reuses a root-keyed immutable contract
 blueprint for components reached beneath that root, including dynamic components on first use. It

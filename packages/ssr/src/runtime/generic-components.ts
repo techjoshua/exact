@@ -1,4 +1,5 @@
 import './structural-boundaries.js';
+import '../render/construction-errors.js';
 import '@exactjs/core/runtime/component-tasks';
 import { renderGenericComponentAsync } from '../render/generic-component-async.js';
 import {

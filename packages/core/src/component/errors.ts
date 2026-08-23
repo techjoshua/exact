@@ -1,12 +1,10 @@
 import type {
 	AnyComponentInstance,
-	Child,
 	ErrorContextValue,
 	ErrorReport,
 	ErrorReportOptions,
 	ErrorSource,
 	RenderFunction,
-	RenderResult,
 	SuspensionContextValue
 } from './contracts.js';
 
@@ -14,7 +12,6 @@ import { ErrorContext, SuspensionContext } from './contexts.js';
 
 import { batch, unwrap } from '@exactjs/reactive/framework/runtime';
 import { reactiveObjects } from '@exactjs/reactive/framework/objects';
-import { normalizeChildren } from '../vnode.js';
 import { componentLogMethod, componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
 import { createDefaultErrorView } from './error-view.js';
 
@@ -147,10 +144,5 @@ export function handleComponentSuspension(
 	return false;
 }
 
-/** Normalizes any component render result into a flat child array. */
-export function normalizeRenderResult(result: RenderResult): Child[] {
-	return Array.isArray(result) ? normalizeChildren(result) : normalizeChildren([result]);
-}
-
 /** Provides the canonical default error context value. */
-export const defaultErrorContext = createErrorContextWithLimit([], 100);
+export const defaultErrorContext = /* @__PURE__ */ createErrorContextWithLimit([], 100);

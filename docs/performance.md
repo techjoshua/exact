@@ -206,7 +206,8 @@ enhancement planning, and task ownership; a native Suspense artifact explicitly 
 structural-boundary capability. Those implementation modules are therefore unreachable from a
 closed server bundle that uses neither feature. The performance fixture rejects a closed bundle if
 durable component construction, generic component rendering, readiness-owner construction, task
-owner construction, or reactive scheduler ownership installation
+owner construction, reactive scheduler ownership installation, proxy construction, or the
+client-style reactive error fallback
 reappears.
 Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
 binder contexts are released after synchronous installation and are not captured by the retained

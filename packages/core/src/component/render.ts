@@ -7,9 +7,9 @@ import { observeLifecyclePromise } from './async.js';
 import {
 	createErrorReport,
 	handleComponentError,
-	handleComponentSuspension,
-	normalizeRenderResult
+	handleComponentSuspension
 } from './errors.js';
+import { normalizeRenderResult } from '../vnode.js';
 import { componentDomainInspection, withComponentDomain } from './domain.js';
 import { componentRenderHandlers } from './lifecycle-handlers.js';
 import { compiledComponentLifecycleABI, compiledComponentRenderABI } from './compiled-abi.js';

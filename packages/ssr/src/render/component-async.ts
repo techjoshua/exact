@@ -5,7 +5,7 @@ import { renderChildrenAsync } from './async-tree.js';
 import { componentMarkerId } from './boundaries.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { componentHtml } from './component-output.js';
-import { handleSsrConstructionError } from './construction-errors.js';
+import { handleSsrConstructionError } from './construction-error-capability.js';
 import {
 	createDirectScheduledSsrComponent,
 	renderDirectSsrComponent,

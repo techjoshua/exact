@@ -20,7 +20,7 @@ import { flushSync, unwrap } from '@exactjs/reactive';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 import { isSsrRenderInterruption, isSsrRenderLimitError } from './limits.js';
 import { componentName, getComponentProps } from './component-vnode.js';
-import { handleSsrConstructionError } from './construction-errors.js';
+import { handleSsrConstructionError } from './construction-error-capability.js';
 import { awaitWithAbort, drainTasks } from './context.js';
 import { chargeEnhancementPlanning } from './enhancement-limits.js';
 import { collectSsrEnhancementRoutes } from './enhancement-routing.js';
