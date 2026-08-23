@@ -188,7 +188,10 @@ semantics.
 Compiler-closed scheduled server components use the same request-local frame plus only their
 generated transition slices and disposable port storage. They do not construct a durable
 component instance, effect scope, state proxy, lifecycle sidecars, or the generic component
-capability graph. The compiler preserves proven independent server children as direct calls instead
+capability graph. State initialization and task mutations remain direct JavaScript writes against
+that frame rather than allocating reactive-write closures or resolving runtime state paths.
+Cancellation-aware awaits and timers use focused request-signal operations without constructing a
+durable task frame. The compiler preserves proven independent server children as direct calls instead
 of selecting an ordered render-program representation that would erase readiness information. Each
 known scheduled child VNode issues its frame while the generated parent render function creates it;
 the renderer does not walk the resulting host tree to rediscover task-bearing components. The

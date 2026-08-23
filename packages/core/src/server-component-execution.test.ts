@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
 	activateServerComponentTaskForHost,
+	awaitServerComponentTask,
 	createServerComponentExecutionFrame,
 	issueServerComponentVNode,
 	serverComponentExecutionValueForHost,
+	serverComponentTaskTimeout,
 	withServerComponentVNodeIssuer,
 	type ServerComponentTaskSlice
 } from './framework/server-component-execution.js';
 
-const valueSlice = [[], [[0, ['value']]], 'blocking', 'produce'] as const satisfies ServerComponentTaskSlice;
+const valueSlice = [
+	[],
+	[[0, ['value']]],
+	'blocking',
+	'produce'
+] as const satisfies ServerComponentTaskSlice;
 const consumeSlice = [[-1], [], 'blocking', 'consume'] as const satisfies ServerComponentTaskSlice;
 
 describe('compiler-closed server component execution', () => {
@@ -90,5 +97,27 @@ describe('compiler-closed server component execution', () => {
 		);
 		issueServerComponentVNode('outside');
 		expect(issued).toEqual(['outer:one', 'inner:two', 'outer:three']);
+	});
+
+	it('awaits and cancels request-local timer work without a durable task frame', async () => {
+		const completed = new AbortController();
+		await expect(
+			awaitServerComponentTask(completed.signal, Promise.resolve('ready'))
+		).resolves.toBe('ready');
+
+		const cancelled = new AbortController();
+		let fired = false;
+		serverComponentTaskTimeout(
+			cancelled.signal,
+			() => {
+				fired = true;
+			},
+			1
+		);
+		const pending = awaitServerComponentTask(cancelled.signal, new Promise<void>(() => undefined));
+		cancelled.abort('request complete');
+		await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		expect(fired).toBe(false);
 	});
 });

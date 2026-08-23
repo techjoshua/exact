@@ -66,6 +66,8 @@ type jsxRuntimeNames struct {
 	taskFetch              string
 	taskResource           string
 	taskAwait              string
+	serverTaskAwait        string
+	serverTaskTimeout      string
 	taskMutation           string
 	stageTaskMutation      string
 	taskCollectionMutation string
@@ -178,6 +180,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"deleteReactiveValue", lowering.names.delete, 1},
 		{"mutateReactiveArray", lowering.names.arrayMutation, 1},
 		{"mutateReactiveCollection", lowering.names.collectionMutation, 1},
+		{"awaitServerComponentTask", lowering.names.serverTaskAwait, 23},
+		{"serverComponentTaskTimeout", lowering.names.serverTaskTimeout, 23},
 		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
 		{"createEnhancementNode", lowering.names.enhancements, 5},
 		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
@@ -671,6 +675,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		taskOptions:            allocate("__exactTaskOptionsSignal"),
 		taskCombined:           allocate("__exactTaskCombinedSignal"),
 		taskAwait:              allocate("__exactTaskAwait"),
+		serverTaskAwait:        allocate("__exactServerTaskAwait"),
+		serverTaskTimeout:      allocate("__exactServerTaskTimeout"),
 		taskMutation:           allocate("__exactTaskMutation"),
 		stageTaskMutation:      allocate("__exactStageTaskMutation"),
 		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),

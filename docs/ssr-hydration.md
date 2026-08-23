@@ -101,7 +101,8 @@ branches or unselected dynamic components from starting work.
 
 A compiler-closed scheduled component executes on a request-local state frame, settles only its
 compiler-listed setup props, and consumes generated input/output slices directly. It allocates neither a generic component
-instance nor a reactive component scope. Compiler-proven scheduled child slots emit direct issue
+instance nor a reactive component scope. Its generated setup and task bodies mutate that plain state
+directly; request cancellation wraps only the awaits and owned timers that need it. Compiler-proven scheduled child slots emit direct issue
 calls in the server artifact, so their setup tasks can enter the bounded scheduler while the parent
 creates their VNodes and before the first sibling settles. Each request owns and disposes its frames, task generations, cancellation, and buffered
 resumption snapshots; immutable component contracts and prepared indexes are the only cross-request

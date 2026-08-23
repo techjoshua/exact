@@ -122,6 +122,7 @@ func (lowering *jsxLowering) manageTaskWork(
 	task Task,
 	dependencyCount int,
 	callsTaskDefinition bool,
+	directServer bool,
 ) *ast.Node {
 	if len(task.Resources) == 0 && len(task.SignalCalls) == 0 &&
 		len(task.Writes) == 0 && !taskContainsAwait(work) &&
@@ -169,8 +170,10 @@ func (lowering *jsxLowering) manageTaskWork(
 							task.Readiness != "blocking" {
 							return lowering.directTaskAssignment(
 								value,
+								visitor.VisitNode(expression.AsBinaryExpression().Left),
 								write,
 								expression.Pos(),
+								directServer,
 							)
 						}
 						return lowering.stagedTaskAssignment(
@@ -179,6 +182,9 @@ func (lowering *jsxLowering) manageTaskWork(
 							signal,
 							expression.Pos(),
 						)
+					}
+					if directServer {
+						return visitor.VisitEachChild(node)
 					}
 					var mutation *ast.Node
 					if lowering.target == TargetServer &&
@@ -234,6 +240,7 @@ func (lowering *jsxLowering) manageTaskWork(
 					resource,
 					signal,
 					visitor,
+					directServer,
 				)
 			}
 			if signalCall, exists := signals[nodeSpanKey(node)]; exists {
@@ -242,10 +249,16 @@ func (lowering *jsxLowering) manageTaskWork(
 					signalCall,
 					signal,
 					visitor,
+					directServer,
 				)
 			}
 			if ast.IsAwaitExpression(node) {
 				argument := visitor.VisitNode(node.AsAwaitExpression().Expression)
+				if directServer {
+					return lowering.factory.NewAwaitExpression(
+						lowering.call(lowering.names.serverTaskAwait, []*ast.Node{signal, argument}),
+					)
+				}
 				return lowering.factory.NewAwaitExpression(
 					lowering.taskHelperCall(
 						"taskAwait",
@@ -424,8 +437,10 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 
 func (lowering *jsxLowering) directTaskAssignment(
 	value *ast.Node,
+	target *ast.Node,
 	writeEffect StateWrite,
 	position int,
+	directServer bool,
 ) *ast.Node {
 	writeValue := value
 	statements := []*ast.Node{}
@@ -452,14 +467,25 @@ func (lowering *jsxLowering) directTaskAssignment(
 		)
 		writeValue = local
 	}
-	write := lowering.call(
-		lowering.names.write,
-		[]*ast.Node{
-			lowering.stateWriteRoot(writeEffect),
-			lowering.stateWritePathNode(writeEffect),
-			lowering.arrow(writeValue),
-		},
-	)
+	var write *ast.Node
+	if directServer {
+		write = lowering.factory.NewBinaryExpression(
+			nil,
+			target,
+			nil,
+			lowering.factory.NewToken(ast.KindEqualsToken),
+			writeValue,
+		)
+	} else {
+		write = lowering.call(
+			lowering.names.write,
+			[]*ast.Node{
+				lowering.stateWriteRoot(writeEffect),
+				lowering.stateWritePathNode(writeEffect),
+				lowering.arrow(writeValue),
+			},
+		)
+	}
 	statements = append(
 		statements,
 		lowering.factory.NewExpressionStatement(write),
@@ -535,6 +561,7 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 	signalCall TaskSignalCall,
 	signal *ast.Node,
 	visitor *ast.NodeVisitor,
+	directServer bool,
 ) *ast.Node {
 	if !ast.IsCallExpression(node) {
 		return visitor.VisitEachChild(node)
@@ -560,15 +587,22 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 			[]*ast.Node{existing, signal},
 		)
 	default:
-		combined := []*ast.Node{signal}
-		if !isUndefinedIdentifier(existing) {
-			combined = append(combined, existing)
+		if directServer && (isUndefinedIdentifier(existing) || sameSimpleExpression(existing, signal)) {
+			arguments[signalCall.Parameter] = signal
+		} else {
+			combined := []*ast.Node{signal}
+			if !isUndefinedIdentifier(existing) {
+				combined = append(combined, existing)
+			}
+			arguments[signalCall.Parameter] = lowering.taskHelperCall(
+				"combineTaskSignal",
+				lowering.names.taskCombined,
+				combined,
+			)
 		}
-		arguments[signalCall.Parameter] = lowering.taskHelperCall(
-			"combineTaskSignal",
-			lowering.names.taskCombined,
-			combined,
-		)
+	}
+	if directServer && lowering.importedTaskRuntimeHelper(call.Expression, "taskTimeout") {
+		return lowering.call(lowering.names.serverTaskTimeout, arguments)
 	}
 	return lowering.factory.NewCallExpression(
 		call.Expression,
@@ -577,6 +611,48 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 		lowering.factory.NewNodeList(arguments),
 		call.Flags,
 	)
+}
+
+func sameSimpleExpression(left *ast.Node, right *ast.Node) bool {
+	if left == nil || right == nil || left.Kind != right.Kind {
+		return false
+	}
+	if ast.IsIdentifier(left) {
+		return left.Text() == right.Text()
+	}
+	if left.Kind == ast.KindThisKeyword {
+		return true
+	}
+	if ast.IsPropertyAccessExpression(left) {
+		leftAccess := left.AsPropertyAccessExpression()
+		rightAccess := right.AsPropertyAccessExpression()
+		return leftAccess.Name().Text() == rightAccess.Name().Text() &&
+			sameSimpleExpression(leftAccess.Expression, rightAccess.Expression)
+	}
+	return false
+}
+
+func (lowering *jsxLowering) importedTaskRuntimeHelper(
+	expression *ast.Node,
+	exportName string,
+) bool {
+	if lowering.checker == nil {
+		return false
+	}
+	reference, exists := externalImportForExpression(
+		expression,
+		collectExternalImportBindings(lowering.sourceFile, lowering.checker),
+		lowering.checker,
+	)
+	if !exists || reference.exportName != exportName {
+		return false
+	}
+	switch reference.moduleSpecifier {
+	case "@exactjs/core", "@exactjs/core/tasks", "@exactjs/core/tasks/v1":
+		return true
+	default:
+		return false
+	}
 }
 
 func isUndefinedIdentifier(node *ast.Node) bool {
@@ -672,10 +748,17 @@ func (lowering *jsxLowering) lowerTaskResource(
 	resource TaskResource,
 	signal *ast.Node,
 	visitor *ast.NodeVisitor,
+	directServer bool,
 ) *ast.Node {
 	visited := visitor.VisitEachChild(node)
 	switch resource.Kind {
 	case "timeout":
+		if directServer {
+			return lowering.call(
+				lowering.names.serverTaskTimeout,
+				append([]*ast.Node{signal}, callArguments(visited)...),
+			)
+		}
 		return lowering.taskHelperCall(
 			"taskTimeout",
 			lowering.names.taskTimeout,
