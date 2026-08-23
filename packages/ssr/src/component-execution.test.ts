@@ -13,6 +13,10 @@ import {
 	exactComponentType,
 	type ExactComponentExecutionContract
 } from '@exactjs/core/framework/component-contracts';
+import {
+	activateServerComponentTaskForHost,
+	serverComponentExecutionValueForHost
+} from '@exactjs/core/framework/server-component-execution';
 import { describe, expect, it } from 'vitest';
 import { renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
@@ -88,67 +92,80 @@ describe('@exactjs/ssr compiler-planned component execution', () => {
 	});
 
 	it('forwards an unresolved parent output without issuing a stale child generation', async () => {
+		let genericInstances = 0;
 		const childValues: string[] = [];
 		function Child(this: Component<{ label: string }>, props: { value: unknown }) {
 			this.state.label = 'waiting';
-			activateTaskForHost(
+			activateServerComponentTaskForHost(
 				this,
-				defineTask(
-					{},
-					markComponentContinuationTask('consume', (value: string, _task: TaskContext) => {
-						childValues.push(value);
-						this.state.label = value.toUpperCase();
-					})
-				),
+				[[-1], [[1, ['label']]], 'blocking', 'consume'],
+				'consume',
+				(value: string, _task: TaskContext) => {
+					childValues.push(value);
+					this.state.label = value.toUpperCase();
+				},
 				props.value as string
 			);
 			return () => createVNode('strong', null, this.state.label);
 		}
-		const CompiledChild = compiledComponent(Child, 'component:Child', {
-			version: 1,
-			ports: [
-				['props', 'value', 'input'],
-				['state', 'label', 'output']
-			],
-			transitions: [
-				['consume', 'consume', 'setup', 'isomorphic', 'blocking', 'parallel', [0], [1]]
-			],
-			reactive: []
-		});
+		const CompiledChild = compiledComponent(
+			Child,
+			'component:Child',
+			{
+				version: 1,
+				ports: [
+					['props', 'value', 'input'],
+					['state', 'label', 'output']
+				],
+				transitions: [
+					['consume', 'consume', 'setup', 'isomorphic', 'blocking', 'parallel', [0], [1]]
+				],
+				reactive: []
+			},
+			true,
+			true
+		);
 
 		function Parent(this: Component<{ result: string }>) {
 			this.state.result = 'loading';
-			activateTaskForHost(
+			activateServerComponentTaskForHost(
 				this,
-				defineTask(
-					{},
-					markComponentContinuationTask('load', async () => {
-						await Promise.resolve();
-						this.state.result = 'ready';
-					})
-				)
+				[[], [[0, ['result']]], 'blocking', 'load'],
+				'load',
+				async (_task: TaskContext) => {
+					await Promise.resolve();
+					this.state.result = 'ready';
+				}
 			);
 			return () =>
 				createVNode(CompiledChild, {
-					value: componentExecutionValueForHost(
+					value: serverComponentExecutionValueForHost(
 						this,
 						'result',
 						createExpression(() => this.state.result)
 					)
 				});
 		}
-		const CompiledParent = compiledComponent(Parent, 'component:Parent', {
-			version: 1,
-			ports: [['state', 'result', 'output']],
-			transitions: [['load', 'load', 'setup', 'server', 'blocking', 'parallel', [], [0]]],
-			reactive: []
-		});
+		const CompiledParent = compiledComponent(
+			Parent,
+			'component:Parent',
+			{
+				version: 1,
+				ports: [['state', 'result', 'output']],
+				transitions: [['load', 'load', 'setup', 'server', 'blocking', 'parallel', [], [0]]],
+				reactive: []
+			},
+			true,
+			true
+		);
 
 		const result = await renderToStringAsync(createVNode(CompiledParent, {}), {
-			markers: false
+			markers: false,
+			onComponentCreated: () => genericInstances++
 		});
 		expect(childValues).toEqual(['ready']);
 		expect(result.html).toBe('<strong>READY</strong>');
+		expect(genericInstances).toBe(0);
 	});
 
 	it('settles an unresolved prop before authored child setup reads it synchronously', async () => {
@@ -254,7 +271,8 @@ function compiledComponent<T extends (...args: any[]) => any>(
 	component: T,
 	id: string,
 	execution: ExactComponentExecutionContract,
-	hasSetupTask = false
+	hasSetupTask = false,
+	directScheduled = false
 ): T {
 	return Object.assign(component, {
 		[exactComponentType]: id,
@@ -272,11 +290,30 @@ function compiledComponent<T extends (...args: any[]) => any>(
 						definition: {
 							version: 1 as const,
 							instantiate: component,
+							abi: directScheduled ? 9 : 8,
 							state: [],
 							tasks: ['setup'],
 							reactive: execution.reactive,
 							render: 'returned-function' as const,
-							capabilities: ['tasks'] as const
+							capabilities: ['tasks'] as const,
+							...(directScheduled
+								? {
+										server: {
+											version: 1 as const,
+											classification: 'scheduled' as const,
+											lane: 'direct' as const,
+											setup: execution.transitions.flatMap((transition, index) =>
+												transition[2] === 'setup' ? [index] : []
+											),
+											slices: execution.transitions.map((transition, index) => ({
+												transition: index,
+												inputs: transition[6],
+												outputs: transition[7]
+											})),
+											render: component
+										}
+									}
+								: {})
 						}
 					}
 				: {})

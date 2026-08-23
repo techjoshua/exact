@@ -139,7 +139,16 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 	}
 	return lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList([]*ast.Node{
-			lowering.property(lowering.factory.NewIdentifier("bindings"), array(bindings)),
+			lowering.property(
+				lowering.factory.NewIdentifier("bindings"),
+				lowering.factory.NewAsExpression(
+					array(bindings),
+					lowering.factory.NewTypeReferenceNode(
+						lowering.factory.NewIdentifier("const"),
+						nil,
+					),
+				),
+			),
 			lowering.property(lowering.factory.NewIdentifier("apply"), lowering.componentUpdateApply(build)),
 		}),
 		false,
@@ -188,10 +197,33 @@ func (lowering *jsxLowering) componentUpdateApply(build *componentUpdateBuild) *
 		))
 		statements = append(statements, body...)
 	}
-	parameters := []*ast.Node{targets, dirtyLow, dirtyHigh}
-	declarations := make([]*ast.Node, len(parameters))
-	for index, name := range parameters {
-		declarations[index] = lowering.factory.NewParameterDeclaration(nil, nil, name, nil, nil, nil)
+	declarations := []*ast.Node{
+		lowering.factory.NewParameterDeclaration(
+			nil,
+			nil,
+			targets,
+			nil,
+			lowering.factory.NewArrayTypeNode(
+				lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword),
+			),
+			nil,
+		),
+		lowering.factory.NewParameterDeclaration(
+			nil,
+			nil,
+			dirtyLow,
+			nil,
+			lowering.factory.NewKeywordTypeNode(ast.KindNumberKeyword),
+			nil,
+		),
+		lowering.factory.NewParameterDeclaration(
+			nil,
+			nil,
+			dirtyHigh,
+			nil,
+			lowering.factory.NewKeywordTypeNode(ast.KindNumberKeyword),
+			nil,
+		),
 	}
 	return lowering.factory.NewArrowFunction(
 		nil, nil, lowering.factory.NewNodeList(declarations), nil, nil,

@@ -89,9 +89,9 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		lowering.serverComponents {
 		return lowering.clientPartitionSlot(opening, partitionEdge)
 	}
-	if intrinsic && lowering.target == TargetServer {
+	if lowering.target == TargetServer {
 		if island, exists := lowering.clientIslands[identityNode]; exists {
-			if island.component.Placement == "isomorphic" {
+			if _, explicit := lowering.explicitServerIsland(identityNode); !explicit {
 				return lowering.serverIslandFallback(
 					identityNode,
 					opening,
@@ -109,6 +109,11 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	}
 	if !intrinsic && lowering.target == TargetServer {
 		if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.Placement == "client" {
+			if lowering.serverClientFallbackDepth > 0 {
+				arguments := []*ast.Node{lowering.props(nil, "", false, "")}
+				arguments = append(arguments, lowering.children(children)...)
+				return lowering.call(lowering.names.fragment, arguments)
+			}
 			return lowering.clientComponentBoundary(
 				opening,
 				children,
@@ -149,6 +154,9 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		elementHelper = lowering.names.componentElement
 	}
 	element := lowering.call(elementHelper, arguments)
+	if lowering.directScheduledServerComponent(tag) {
+		element = lowering.call(lowering.names.issueServerComponent, []*ast.Node{element})
+	}
 	if intrinsic && lowering.independentAsyncSiblings(children) {
 		element = lowering.call(lowering.names.asyncSiblings, []*ast.Node{element})
 	}
@@ -164,6 +172,40 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		}
 	}
 	return element
+}
+
+// directScheduledServerComponent selects only compiler-closed children whose setup contains
+// scheduled transitions. Their VNode creation is the earliest semantically valid point at which
+// the request renderer can issue task readiness without rediscovering the authored tree.
+func (lowering *jsxLowering) directScheduledServerComponent(tag *ast.Node) bool {
+	if lowering.target != TargetServer || !ast.IsIdentifier(tag) {
+		return false
+	}
+	component, exists := lowering.components[tag.Text()]
+	if !exists || !component.DirectServer {
+		return false
+	}
+	execution := projectComponentExecution(component.Execution, TargetServer)
+	return len(execution.Transitions) != 0
+}
+
+func (lowering *jsxLowering) componentRetainsContinuation(componentID string) bool {
+	_, retained := lowering.continuationComponents[componentID]
+	return retained
+}
+
+func (lowering *jsxLowering) explicitServerIsland(
+	identityNode *ast.Node,
+) (clientElementIsland, bool) {
+	island, exists := lowering.clientIslands[identityNode]
+	if !exists || lowering.target != TargetServer {
+		return clientElementIsland{}, false
+	}
+	if island.component.Placement == "isomorphic" &&
+		lowering.componentRetainsContinuation(island.component.ID) {
+		return clientElementIsland{}, false
+	}
+	return island, true
 }
 
 func (lowering *jsxLowering) lowerDynamicComponent(
@@ -241,10 +283,12 @@ func (lowering *jsxLowering) independentAsyncSiblings(children *ast.NodeList) bo
 			return false
 		}
 		component, exists := lowering.components[tag.Text()]
-		if !exists || component.Placement == "client" || component.EnvironmentEffect != "neutral" ||
+		if !exists || component.Placement == "client" ||
+			(component.EnvironmentEffect != "neutral" && component.EnvironmentEffect != "server") ||
 			len(component.Contexts) != 0 || len(component.EnhancementContexts.Provides) != 0 ||
 			len(component.EnhancementContexts.Requires) != 0 ||
-			len(component.EnhancementContexts.OptionallyConsumes) != 0 || len(component.SplitBoundaries) != 0 {
+			len(component.EnhancementContexts.OptionallyConsumes) != 0 ||
+			(component.Placement != "server" && len(component.SplitBoundaries) != 0) {
 			return false
 		}
 	}
@@ -373,6 +417,11 @@ func (lowering *jsxLowering) exactCoreVNodeTag(tag *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) lowerFragment(fragment *ast.JsxFragment) *ast.Node {
+	if lowering.target == TargetServer {
+		if island, exists := lowering.clientIslands[fragment.AsNode()]; exists {
+			return lowering.lowerServerClientFragment(fragment.AsNode(), fragment.Children, island)
+		}
+	}
 	if lowering.renderProgramChildDepth > 0 {
 		return lowering.factory.NewArrayLiteralExpression(
 			lowering.factory.NewNodeList(lowering.children(fragment.Children)),
@@ -395,6 +444,8 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 	if children == nil {
 		return nil
 	}
+	directIndependentServerChildren :=
+		lowering.target == TargetServer && lowering.independentAsyncSiblings(children)
 	result := []*ast.Node{}
 	semantic := ast.GetSemanticJsxChildren(children.Nodes)
 	for childIndex, child := range semantic {
@@ -456,7 +507,7 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 			} else if ast.IsJsxSelfClosingElement(child) {
 				tag = child.AsJsxSelfClosingElement().TagName
 			}
-			if tag != nil && lowering.plannedComponentChild(tag) {
+			if tag != nil && lowering.plannedComponentChild(tag) && !directIndependentServerChildren {
 				emitted = lowering.call(lowering.names.dynamic, []*ast.Node{
 					lowering.arrow(emitted),
 					lowering.factory.NewStringLiteral(lowering.dynamicID(child), ast.TokenFlagsNone),

@@ -159,12 +159,10 @@ describe('@exactjs/compiler: artifact bundling', () => {
 		);
 		const result = await compileFileArtifacts(input, { outDir, rootDir: srcDir });
 		const usedId = artifactAnalysis(result).symbols.find(
-			(symbol) =>
-				symbol.target === 'client' && symbol.role === 'root' && symbol.debugName === 'Used'
+			(symbol) => symbol.role === 'root' && symbol.debugName === 'Used'
 		)!.id;
 		const unusedId = artifactAnalysis(result).symbols.find(
-			(symbol) =>
-				symbol.target === 'client' && symbol.role === 'root' && symbol.debugName === 'Unused'
+			(symbol) => symbol.role === 'root' && symbol.debugName === 'Unused'
 		)!.id;
 		const artifactCode = await readFile(result.clientFile, 'utf8');
 		const descriptorPlugin: Plugin = {
@@ -408,13 +406,24 @@ describe('@exactjs/compiler: artifact bundling', () => {
 			'exact-server': './dist/panel.exact.server.ts',
 			default: './dist/panel.exact.client.ts'
 		});
-		expect(graph.clientIslands).toEqual([
-			expect.objectContaining({
-				name: 'Panel_ExactClient_1',
-				exportName: 'Panel_ExactClient_1',
-				module: './dist/panel.exact.client.ts'
-			})
-		]);
+		expect(graph.clientIslands).toHaveLength(2);
+		expect(graph.clientIslands).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: 'Panel',
+					exportName: 'Panel',
+					module: './dist/panel.exact.client.ts'
+				}),
+				expect.objectContaining({
+					name: 'Panel_ExactClient_1',
+					exportName: 'Panel_ExactClient_1',
+					module: './dist/panel.exact.client.ts'
+				})
+			])
+		);
+		expect(graph.clientIslands.map(({ id }) => id)).toEqual(
+			graph.clientIslands.map(({ id }) => id).sort((left, right) => left.localeCompare(right))
+		);
 		expect(graph.serverParts).toEqual([
 			expect.objectContaining({
 				name: 'Panel_ExactServer_1',

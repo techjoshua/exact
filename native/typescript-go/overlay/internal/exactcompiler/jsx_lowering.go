@@ -1,6 +1,8 @@
 package exactcompiler
 
 import (
+	"sort"
+
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/checker"
 	"github.com/microsoft/typescript-go/internal/printer"
@@ -36,11 +38,14 @@ type jsxLowering struct {
 	renderEdges                  map[string]RenderEdge
 	clientIslands                map[*ast.Node]clientElementIsland
 	clientDefinitions            []*ast.Node
+	recordedClientIslands        map[string]struct{}
+	serverTaskSlices             map[string]string
 	captureValues                map[ast.SymbolId]string
 	interop                      *JSXInterop
 	materializedNames            map[int]string
 	cachedDerivedNames           map[int]string
 	contextWrites                map[string][]string
+	continuationComponents       map[string]struct{}
 	collectionMaps               map[string]collectionMapPlan
 	enhancementImports           enhancementImports
 	partitionPlan                PartitionPlan
@@ -50,6 +55,7 @@ type jsxLowering struct {
 	renderProgramChildDepth      int
 	renderProgramListDepth       int
 	renderProgramFallback        bool
+	serverClientFallbackDepth    int
 	renderProgramContexts        map[int]renderProgramContext
 	renderProgramDefinitions     map[int]string
 	renderProgramDefinitionNodes []namedRenderProgramDefinition
@@ -62,6 +68,19 @@ type jsxLowering struct {
 	timePlanInputIndexes         map[*ast.Node]int
 	timeAdoptedRanges            []timeAdoptedRange
 	timeAdoptedSelection         *timeAdoptedRange
+}
+
+// omitsComponentFromClient distinguishes a complete client-rendering artifact from the
+// same-build hydration projection. A mixed component can require client code solely for finite
+// interactive ranges; hydration retains those ranges but must not rerun server-owned setup.
+func (lowering *jsxLowering) omitsComponentFromClient(component Component) bool {
+	if componentOmittedFromClient(component, lowering.serverComponents) {
+		return true
+	}
+	return lowering.serverComponents &&
+		lowering.contractProjection == ComponentContractProjectionHydrate &&
+		component.ClientIslandCount != 0 &&
+		component.EnvironmentEffect == "server"
 }
 
 type namedRenderProgramDefinition struct {
@@ -93,6 +112,21 @@ func lowerExactJSX(
 		ast.NodeVisitorHooks{},
 	)
 	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
+	if lowering.target == TargetClient &&
+		lowering.contractProjection == ComponentContractProjectionHydrate {
+		components := make([]Component, 0, len(lowering.components))
+		for _, component := range lowering.components {
+			components = append(components, component)
+		}
+		sort.Slice(components, func(left int, right int) bool {
+			return components[left].Start < components[right].Start
+		})
+		for _, component := range components {
+			if component.Placement != "client" && component.ClientIslandCount != 0 {
+				lowering.recordClientIslandDefinitions(component)
+			}
+		}
+	}
 	transformed = lowering.omitUnreachableServerComponentLocals(transformed.AsNode()).AsSourceFile()
 	transformed = lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
 	for _, definition := range lowering.renderProgramDefinitionNodes {
@@ -245,7 +279,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		name := node.Name()
 		if name != nil {
 			if component, exists := lowering.components[name.Text()]; exists &&
-				componentOmittedFromClient(component, lowering.serverComponents) {
+				lowering.omitsComponentFromClient(component) {
 				lowering.recordClientIslandDefinitions(component)
 				return lowering.clientComponentFunctionStub(
 					node.AsFunctionDeclaration(),

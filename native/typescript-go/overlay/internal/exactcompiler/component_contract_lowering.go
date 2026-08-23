@@ -550,6 +550,7 @@ func rootComponentContractAttachment(
 					usesCompatibility,
 				),
 				unsupportedServerSurface,
+				component.DirectServer,
 				target == TargetServer,
 				projection != ComponentContractProjectionComplete,
 				updates,

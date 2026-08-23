@@ -160,7 +160,7 @@ export type ExactServerComponentExecutionContract = Readonly<{
 	version: 1;
 	/** Selects the smallest server lane capable of executing the projected component. */
 	classification: 'synchronous' | 'scheduled' | 'dynamic';
-	/** Whether this artifact can bypass durable generic server ownership. State-only resumption is supported. */
+	/** Whether this artifact can bypass durable generic server ownership. State-only resumption and compiler-closed scheduled setup are supported. */
 	lane: 'direct' | 'generic';
 	/** Setup transition indexes in compiler-determined activation order. */
 	setup: readonly number[];

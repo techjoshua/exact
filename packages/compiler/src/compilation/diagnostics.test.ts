@@ -58,7 +58,7 @@ describe('@exactjs/compiler: diagnostics', () => {
 		);
 	});
 
-	it('records component render subgraphs for local client boundaries', () => {
+	it('records SSR-capable render subgraphs for local interactive components', () => {
 		const analysis = analyzeSource(
 			`
       function ClientWidget() {
@@ -84,8 +84,8 @@ describe('@exactjs/compiler: diagnostics', () => {
 				tag: 'ClientWidget',
 				name: 'ClientWidget',
 				componentId: widget.id,
-				placement: 'client',
-				boundary: 'client',
+				placement: 'isomorphic',
+				boundary: 'isomorphic',
 				index: 1,
 				path: expect.any(String)
 			}),
@@ -94,8 +94,8 @@ describe('@exactjs/compiler: diagnostics', () => {
 				tag: 'ClientWidget',
 				name: 'ClientWidget',
 				componentId: widget.id,
-				placement: 'client',
-				boundary: 'client',
+				placement: 'isomorphic',
+				boundary: 'isomorphic',
 				index: 2,
 				path: expect.any(String)
 			})

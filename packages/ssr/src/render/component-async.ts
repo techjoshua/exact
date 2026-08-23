@@ -15,7 +15,11 @@ import { prepareComponentProps } from './component-props.js';
 import { handleSsrConstructionError } from './construction-errors.js';
 import { drainTasks } from './context.js';
 import type { SsrRenderOptions } from './entrypoints.js';
-import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
+import {
+	disposeAsyncPreservingPrimary,
+	disposePreservingPrimary,
+	noPrimaryFailure
+} from './ownership.js';
 import { renderChildrenAsync } from './async-tree.js';
 import { markerPair } from '../markup.js';
 import { resetDocumentProbe } from './host.js';
@@ -23,7 +27,12 @@ import {
 	createSsrComponentInstance,
 	resolveSsrComponentExecution
 } from './root-execution-cache.js';
-import { renderDirectSsrComponent } from './direct-component.js';
+import {
+	createDirectScheduledSsrComponent,
+	renderIssuedServerComponentChildren,
+	renderDirectSsrComponent,
+	takePreparedDirectScheduledSsrComponent
+} from './direct-component.js';
 
 const retainSsrComponent = (): void => {};
 
@@ -74,13 +83,77 @@ export async function renderComponentAsync(
 			};
 			const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 			const rawProps = getComponentProps(vnode);
-			const direct = renderDirectSsrComponent(context, blueprint, rawProps);
+			const scheduled = await (takePreparedDirectScheduledSsrComponent(context, vnode) ??
+				createDirectScheduledSsrComponent(context, blueprint, rawProps, options));
+			if (scheduled) {
+				const constructionCheckpoint = context.onComponentAttemptCheckpoint?.();
+				try {
+					context.onDirectComponentCreated?.(scheduled.snapshot);
+					const maxPasses = options.maxTaskPasses ?? 10;
+					for (let pass = 0; pass < maxPasses; pass++) {
+						const renderCheckpoint = context.onComponentAttemptCheckpoint?.();
+						if (documentProbe) resetDocumentProbe(context);
+						const issued = await scheduled.render();
+						let renderPrimary: unknown = noPrimaryFailure;
+						try {
+							const html = await renderChildrenAsync(context, issued.children, parent, options);
+							if (await scheduled.drain()) {
+								context.onComponentAttemptRollback?.(renderCheckpoint);
+								continue;
+							}
+							const output = componentHtml(
+								context,
+								vnode,
+								parent,
+								componentId,
+								html,
+								scheduled.props,
+								{ enhancement, documentProbe }
+							);
+							context.onDirectComponentRendered?.(scheduled.snapshot);
+							return output;
+						} catch (error) {
+							renderPrimary = error;
+							context.onComponentAttemptRollback?.(renderCheckpoint);
+							throw error;
+						} finally {
+							if (issued.preparation)
+								await disposeAsyncPreservingPrimary(
+									() => Promise.resolve(issued.preparation![Symbol.asyncDispose]()),
+									renderPrimary
+								);
+						}
+					}
+					throw new Error(
+						`eXact direct scheduled SSR component did not stabilize after ${maxPasses} render passes`
+					);
+				} catch (error) {
+					context.onComponentAttemptRollback?.(constructionCheckpoint);
+					throw error;
+				} finally {
+					await scheduled[Symbol.asyncDispose]();
+				}
+			}
+			const direct = await renderDirectSsrComponent(context, blueprint, rawProps, options);
 			if (direct) {
 				const checkpoint = context.onComponentAttemptCheckpoint?.();
 				try {
 					context.onDirectComponentCreated?.(direct.snapshot);
 					if (documentProbe) resetDocumentProbe(context);
-					const html = await renderChildrenAsync(context, direct.children, parent, options);
+					let directPrimary: unknown = noPrimaryFailure;
+					let html: string;
+					try {
+						html = await renderChildrenAsync(context, direct.children, parent, options);
+					} catch (error) {
+						directPrimary = error;
+						throw error;
+					} finally {
+						if (direct.preparation)
+							await disposeAsyncPreservingPrimary(
+								() => Promise.resolve(direct.preparation![Symbol.asyncDispose]()),
+								directPrimary
+							);
+					}
 					const directOutput = componentHtml(
 						context,
 						vnode,
@@ -124,10 +197,25 @@ export async function renderComponentAsync(
 			for (let pass = 0; pass < maxPasses; pass++) {
 				if (documentProbe) resetDocumentProbe(context);
 				invalidated = false;
-				const children = renderInstance(instance, () => {
-					invalidated = true;
-				});
-				const html = await renderChildrenAsync(context, children, instance, options);
+				const issued = await renderIssuedServerComponentChildren(context, options, () =>
+					renderInstance(instance!, () => {
+						invalidated = true;
+					})
+				);
+				let renderPrimary: unknown = noPrimaryFailure;
+				let html: string;
+				try {
+					html = await renderChildrenAsync(context, issued.children, instance, options);
+				} catch (error) {
+					renderPrimary = error;
+					throw error;
+				} finally {
+					if (issued.preparation)
+						await disposeAsyncPreservingPrimary(
+							() => Promise.resolve(issued.preparation![Symbol.asyncDispose]()),
+							renderPrimary
+						);
+				}
 				if (pending) await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 				flushSync();
 				if (!invalidated)

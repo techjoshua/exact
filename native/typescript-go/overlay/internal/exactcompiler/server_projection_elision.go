@@ -8,6 +8,19 @@ type serverLocalCandidate struct {
 	end    int
 }
 
+func (lowering *jsxLowering) directServerArtifactComponent(node *ast.Node) bool {
+	if lowering.target != TargetServer {
+		return false
+	}
+	for _, component := range lowering.components {
+		if component.DirectServer && node.Pos() >= component.Start &&
+			node.End() <= component.Start+component.Length {
+			return true
+		}
+	}
+	return false
+}
+
 // directServerFrameComponent reports whether the containing component has only synchronous,
 // compiler-closed server work. The predicate mirrors the contract's direct-lane exclusions so
 // server-only eager derived values and output forwarding cannot diverge from runtime selection.

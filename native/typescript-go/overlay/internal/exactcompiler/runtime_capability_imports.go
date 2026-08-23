@@ -39,6 +39,8 @@ type jsxRuntimeNames struct {
 	expression             string
 	forwardedExpression    string
 	componentOutput        string
+	serverComponentOutput  string
+	issueServerComponent   string
 	dynamic                string
 	dynamicComponent       string
 	serverDynamicComponent string
@@ -78,6 +80,7 @@ type jsxRuntimeNames struct {
 	activateComputation    string
 	bindCompiledLatest     string
 	activateCompiledLatest string
+	activateServerTask     string
 	taskOptions            string
 	taskCombined           string
 	delete                 string
@@ -124,6 +127,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/lifecycle"},
 		{module: "@exactjs/core/runtime/component-reactivity"},
 		{module: "@exactjs/core/framework/component-lifecycle"},
+		{module: "@exactjs/core/framework/server-component-execution"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -147,6 +151,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createExpression", lowering.names.expression, 0},
 		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
 		{"componentExecutionValueForHost", lowering.names.componentOutput, 16},
+		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, 23},
+		{"issueServerComponentVNode", lowering.names.issueServerComponent, 23},
 		{"createDynamicChild", lowering.names.dynamic, 0},
 		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
 		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
@@ -171,6 +177,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, 22},
 		{"registerComponentRenderHandler", lowering.names.registerRender, 22},
 		{"ownComponentResource", lowering.names.ownResource, 22},
+		{"activateServerComponentTaskForHost", lowering.names.activateServerTask, 23},
 		{"createTimeActivation", lowering.names.createTimeActivation, 13},
 		{"bindCompiledProgramText", lowering.names.bindProgramText, 18},
 		{"bindCompiledProgramChild", lowering.names.bindProgramChild, 18},
@@ -291,7 +298,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	if executionUsed {
 		executionUsed = false
 		for _, component := range lowering.components {
-			if len(projectComponentExecution(component.Execution, lowering.target).Transitions) != 0 {
+			if !(lowering.target == TargetServer && component.DirectServer) &&
+				len(projectComponentExecution(component.Execution, lowering.target).Transitions) != 0 {
 				executionUsed = true
 				break
 			}
@@ -315,7 +323,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			containsCompiledTargetCall(lowering.sourceFile, lowering.checker))
 	collectionsUsed := false
 	for _, component := range lowering.components {
-		if component.Collections {
+		if component.Collections && !(lowering.target == TargetServer && component.DirectServer) {
 			collectionsUsed = true
 			break
 		}
@@ -613,6 +621,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		expression:             allocate("__exactExpression"),
 		forwardedExpression:    allocate("__exactForwardedExpression"),
 		componentOutput:        allocate("__exactComponentOutput"),
+		serverComponentOutput:  allocate("__exactServerComponentOutput"),
+		issueServerComponent:   allocate("__exactIssueServerComponent"),
 		dynamic:                allocate("__exactDynamic"),
 		dynamicComponent:       allocate("__exactDynamicComponent"),
 		serverDynamicComponent: allocate("__exactServerDynamicComponent"),
@@ -654,6 +664,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		activateComputation:    allocate("__exactActivateComputation"),
 		bindCompiledLatest:     allocate("__exactBindClientLatestTask"),
 		activateCompiledLatest: allocate("__exactActivateClientLatestTask"),
+		activateServerTask:     allocate("__exactActivateServerTask"),
 		delete:                 allocate("__exactDelete"),
 		arrayMutation:          allocate("__exactArrayMutation"),
 		collectionMutation:     allocate("__exactCollectionMutation"),

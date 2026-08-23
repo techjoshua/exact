@@ -262,7 +262,10 @@ func planComponentComputationEdits(
 			hasRawAwait = true
 		}
 	}
-	if asyncModifier != nil && hasRawAwait {
+	// Setup-level await is eXact component syntax even when the outer definition is not authored
+	// `async`: lower it into the compiler-owned blocking continuation and keep the component's
+	// runtime construction contract synchronous.
+	if hasRawAwait {
 		return planAsyncComponentComputation(
 			sourceFile,
 			statements,
@@ -806,6 +809,11 @@ func visitDirectComponentSyntax(root *ast.Node, visit func(*ast.Node)) {
 
 func collectDirectComponentAwaits(root *ast.Node) []*ast.Node {
 	result := []*ast.Node{}
+	// A task or callback declaration is setup data; its internal awaits do not make the containing
+	// component definition asynchronous. Only await executed directly by setup belongs here.
+	if isCallableNode(root) {
+		return result
+	}
 	visitDirectComponentSyntax(root, func(node *ast.Node) {
 		if ast.IsAwaitExpression(node) {
 			result = append(result, node)
@@ -832,18 +840,12 @@ func planAsyncComponentComputation(
 	first := statements[0]
 	last := statements[len(statements)-1]
 	name := fmt.Sprintf("__exactComponentSetupTask_%d", nodeTokenStart(sourceFile, first))
-	*edits = append(
-		*edits,
+	planned := []sourceEdit{
 		sourceEdit{
 			start: 0,
 			end:   0,
 			text:  "import { TaskContext as __exactTaskContext } from \"@exactjs/core\"; ",
 			order: -1,
-		},
-		sourceEdit{
-			start: nodeTokenStart(sourceFile, asyncModifier),
-			end:   asyncModifier.End(),
-			text:  "",
 		},
 		sourceEdit{
 			start: nodeTokenStart(sourceFile, first),
@@ -858,7 +860,15 @@ func planAsyncComponentComputation(
 			text:  " } " + name + "();",
 			order: 1,
 		},
-	)
+	}
+	if asyncModifier != nil {
+		planned = append(planned, sourceEdit{
+			start: nodeTokenStart(sourceFile, asyncModifier),
+			end:   asyncModifier.End(),
+			text:  "",
+		})
+	}
+	*edits = append(*edits, planned...)
 	for _, statement := range statements {
 		visitDirectComponentSyntax(statement, func(node *ast.Node) {
 			if !ast.IsCatchClause(node) {

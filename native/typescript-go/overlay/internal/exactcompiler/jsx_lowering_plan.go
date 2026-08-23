@@ -82,13 +82,24 @@ func (plan jsxLoweringPlan) prepare(
 		microComponents:          lexicalMicroComponentSymbols(sourceFile, plan.typeChecker),
 		renderEdges:              indexRenderEdges(plan.components),
 		contextWrites:            indexContinuationContextWrites(plan.continuations),
+		continuationComponents:   indexContinuationComponents(plan.continuations),
 		collectionMaps:           make(map[string]collectionMapPlan),
 		enhancementImports:       plan.enhancementImports,
 		partitionPlan:            plan.partitionPlan,
 		dynamicComponents:        plan.dynamicComponents,
 		clientIslands:            plan.clientIslands,
+		recordedClientIslands:    make(map[string]struct{}),
+		serverTaskSlices:         make(map[string]string),
 		componentLocalization:    plan.componentLocalization,
 	}
 	lowering.indexCollectionMaps()
 	return lowering, true
+}
+
+func indexContinuationComponents(continuations []Continuation) map[string]struct{} {
+	components := make(map[string]struct{}, len(continuations))
+	for _, continuation := range continuations {
+		components[continuation.ComponentID] = struct{}{}
+	}
+	return components
 }

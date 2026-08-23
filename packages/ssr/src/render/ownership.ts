@@ -50,3 +50,16 @@ export function disposePreservingPrimary(dispose: () => void, primary: unknown):
 		attachSuppressedCleanupFailure(primary, cleanup);
 	}
 }
+
+/** Releases asynchronous ownership without replacing a render failure with cleanup failure. */
+export async function disposeAsyncPreservingPrimary(
+	dispose: () => Promise<void>,
+	primary: unknown
+): Promise<void> {
+	try {
+		await dispose();
+	} catch (cleanup) {
+		if (primary === noPrimaryFailure) throw cleanup;
+		attachSuppressedCleanupFailure(primary, cleanup);
+	}
+}

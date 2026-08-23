@@ -58,6 +58,10 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 		return islands[left].index < islands[right].index
 	})
 	for _, island := range islands {
+		if _, recorded := lowering.recordedClientIslands[island.id]; recorded {
+			continue
+		}
+		lowering.recordedClientIslands[island.id] = struct{}{}
 		lowering.clientDefinitions = append(
 			lowering.clientDefinitions,
 			lowering.clientIslandDefinition(island),
@@ -82,19 +86,16 @@ func clientIslandArtifactAttachment(
 ) *ast.Node {
 	state := []string{}
 	seenState := make(map[string]struct{})
-	resumptionPaths := []string{}
 	for _, path := range island.statePaths {
 		if len(path) == 0 {
 			continue
 		}
-		joined := strings.Join(path, ".")
-		resumptionPaths = append(resumptionPaths, joined)
 		if _, exists := seenState[path[0]]; !exists {
 			seenState[path[0]] = struct{}{}
 			state = append(state, path[0])
 		}
 	}
-	capabilities := []string{"resumption"}
+	capabilities := []string{}
 	if island.interaction {
 		capabilities = append(capabilities, "interactions")
 	}
@@ -119,18 +120,6 @@ func clientIslandArtifactAttachment(
 			contractProperty(factory, "instantiate", implementation),
 			contractProperty(factory, "state", stringMetadata(factory, state)),
 			contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
-		)),
-		contractProperty(factory, "execution", componentExecutionMetadata(
-			factory,
-			ComponentExecution{Version: 1},
-			true,
-		)),
-		contractProperty(factory, "resumption", contractObject(factory, true,
-			contractProperty(factory, "componentId", contractString(factory, island.id)),
-			contractProperty(factory, "statePaths", stringMetadata(factory, resumptionPaths)),
-			contractProperty(factory, "valueCaptures", contractArray(factory)),
-			contractProperty(factory, "contexts", contractArray(factory)),
-			contractProperty(factory, "boundaries", contractArray(factory)),
 		)),
 	)
 	return factory.NewCallExpression(
@@ -231,23 +220,45 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		element := island.node.AsJsxElement()
 		opening = element.OpeningElement
 		children = element.Children
+	} else if ast.IsJsxFragment(island.node) {
+		children = island.node.AsJsxFragment().Children
 	} else {
 		opening = island.node
 	}
-	tag := openingTag(opening)
-	tagText := sourceText(lowering.sourceFile, tag)
-	arguments := []*ast.Node{
-		lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone),
-		lowering.factory.NewObjectLiteralExpression(
-			lowering.factory.NewNodeList(
-				lowering.clientIslandAttributeProperties(
-					island,
-					opening.Attributes(),
-					props,
+	arguments := []*ast.Node{}
+	renderHelper := lowering.names.element
+	if opening == nil {
+		renderHelper = lowering.names.fragment
+		arguments = append(arguments, lowering.props(nil, "", false, ""))
+	} else {
+		tag := openingTag(opening)
+		tagText := sourceText(lowering.sourceFile, tag)
+		var emittedTag *ast.Node
+		if jsxIntrinsic(tagText) {
+			emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
+		} else {
+			emittedTag = lowering.visitor.VisitNode(tag)
+			if lowering.interop != nil &&
+				!lowering.localExactComponentTag(tag) &&
+				!lowering.exactCoreVNodeTag(tag) {
+				emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
+			}
+		}
+		arguments = append(
+			arguments,
+			emittedTag,
+			lowering.factory.NewObjectLiteralExpression(
+				lowering.factory.NewNodeList(
+					lowering.clientIslandAttributeProperties(
+						island,
+						opening.Attributes(),
+						props,
+						tagText,
+					),
 				),
+				false,
 			),
-			false,
-		),
+		)
 	}
 	if island.serverSlot {
 		arguments = append(
@@ -263,7 +274,7 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		arguments = append(arguments, lowering.children(children)...)
 	}
 	render := lowering.arrow(
-		lowering.call(lowering.names.element, arguments),
+		lowering.call(renderHelper, arguments),
 	)
 	lowering.captureValues = previousCaptures
 	bodyStatements := []*ast.Node{stateInitialization}
@@ -428,6 +439,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 	island clientElementIsland,
 	attributes *ast.Node,
 	props *ast.Node,
+	tag string,
 ) []*ast.Node {
 	properties := []*ast.Node{
 		lowering.property(
@@ -499,6 +511,9 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 			default:
 				value = lowering.visitor.VisitNode(attribute.Initializer)
 			}
+		} else if ast.IsJsxExpression(attribute.Initializer) &&
+			lowering.clientIslandAttributeReadsState(island, attribute.Initializer.AsJsxExpression().Expression) {
+			value = lowering.jsxAttributeInitializer(attribute, tag, name, true)
 		} else {
 			value = lowering.factory.NewPropertyAccessExpression(
 				props,
@@ -513,6 +528,22 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 		)
 	}
 	return properties
+}
+
+func (lowering *jsxLowering) clientIslandAttributeReadsState(
+	island clientElementIsland,
+	expression *ast.Node,
+) bool {
+	if expression == nil {
+		return false
+	}
+	for _, read := range lowering.stateReads {
+		if read.Component == island.component.Name &&
+			read.Start >= expression.Pos() && read.Start < expression.End() {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) finiteSpreadPropertyValue(
@@ -743,7 +774,7 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 			island.finiteSpreads,
 		)...,
 	)
-	if island.interaction {
+	if island.interaction && jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(opening))) {
 		properties = append(
 			properties,
 			lowering.property(
@@ -788,6 +819,55 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 		lowering.names.boundary,
 		arguments,
 	)
+}
+
+// lowerServerClientFragment preserves the complete server-rendered range while assigning all
+// state-connected client work to one generated component instance. The eager boundary adopts the
+// fallback immediately; no renderer-side state synchronization is required.
+func (lowering *jsxLowering) lowerServerClientFragment(
+	_ *ast.Node,
+	children *ast.NodeList,
+	island clientElementIsland,
+) *ast.Node {
+	properties := []*ast.Node{}
+	if len(island.statePaths) != 0 {
+		properties = append(
+			properties,
+			lowering.property(
+				lowering.factory.NewStringLiteral("__exactState", ast.TokenFlagsNone),
+				lowering.islandStateSnapshot(island.statePaths),
+			),
+		)
+	}
+	if len(island.valueCaptures) != 0 {
+		captures := make([]*ast.Node, 0, len(island.valueCaptures))
+		for _, capture := range island.valueCaptures {
+			captures = append(captures, lowering.property(
+				jsxPropertyName(lowering.factory, capture.name),
+				lowering.factory.NewIdentifier(capture.name),
+			))
+		}
+		properties = append(properties, lowering.property(
+			lowering.factory.NewStringLiteral("__exactCapture", ast.TokenFlagsNone),
+			lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(captures), false),
+		))
+	}
+	fallbackArguments := []*ast.Node{lowering.props(nil, "", false, "")}
+	lowering.serverClientFallbackDepth++
+	fallbackArguments = append(fallbackArguments, lowering.children(children)...)
+	lowering.serverClientFallbackDepth--
+	properties = append(properties, lowering.property(
+		lowering.factory.NewIdentifier("__exactHydration"),
+		lowering.factory.NewStringLiteral("eager", ast.TokenFlagsNone),
+	), lowering.property(
+		lowering.factory.NewIdentifier("__exactHydrationFallback"),
+		lowering.call(lowering.names.fragment, fallbackArguments),
+	))
+	return lowering.call(lowering.names.boundary, []*ast.Node{
+		lowering.factory.NewStringLiteral(island.id, ast.TokenFlagsNone),
+		lowering.factory.NewStringLiteral(island.name, ast.TokenFlagsNone),
+		lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false),
+	})
 }
 
 func (lowering *jsxLowering) serverIslandFallback(

@@ -236,7 +236,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain('executors: []');
 		expect(server).toContain('executors: [');
 		expect(server).toContain('classification: "scheduled"');
-		expect(server).toContain('lane: "generic"');
+		expect(server).toContain('lane: "direct"');
 		expect(server).toContain('setup: [');
 		expect(server).toContain('slices: [');
 		expect(client).not.toContain('classification: "scheduled"');
@@ -459,7 +459,12 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(panelContract).toBeTruthy();
 		expect(
 			artifactAnalysis(app).partitionPlan.nodes.some(
-				(node) => node.componentContract === panelContract && node.placement === 'client'
+				(node) => node.componentContract === panelContract && node.placement === 'either'
+			)
+		).toBe(true);
+		expect(
+			artifactAnalysis(panel).partitionPlan.nodes.some(
+				(node) => node.kind === 'region' && node.placement === 'client'
 			)
 		).toBe(true);
 	});
@@ -514,6 +519,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const workspaceServer = await readFile(workspace.serverFile, 'utf8');
 		const workspaceClient = await readFile(workspace.clientFile, 'utf8');
 		const workspaceViewClient = await readFile(workspaceView.clientFile, 'utf8');
+		const workspaceViewServer = await readFile(workspaceView.serverFile, 'utf8');
 
 		expect(results.map((result) => path.basename(result.inputFile)).sort()).toEqual([
 			'App.tsx',
@@ -522,15 +528,16 @@ describe('@exactjs/compiler: artifacts', () => {
 			'workspace.tsx'
 		]);
 		expect(appServer).toContain('./components/page.exact.server.js');
-		expect(pageServer).toContain('createServerBoundary as __exactBoundary');
-		expect(pageServer).not.toContain('./workspace.exact.server.js');
+		expect(pageServer).not.toContain('createServerBoundary as __exactBoundary');
+		expect(pageServer).toContain('./workspace.exact.server.js');
 		expect(pageServer).not.toContain('./workspace.js');
-		expect(workspaceServer).toContain('createServerBoundary as __exactBoundary');
+		expect(workspaceServer).toContain('./workspace-view.exact.server.js');
 		expect(workspaceClient).toContain('./workspace-view.exact.client.js');
 		expect(workspaceViewClient).toContain('__exactClaimProgramKeyedChild');
 		expect(workspaceViewClient).toContain('directClaims: true');
-		expect(workspaceViewClient).toContain('ssr: __exactSsr =>');
-		expect(workspaceViewClient).toContain('() => __exactVNode("div"');
+		expect(workspaceViewClient).not.toContain('ssr: __exactSsr =>');
+		expect(workspaceViewServer).toContain('ssr: __exactSsr =>');
+		expect(workspaceViewClient).not.toContain('() => __exactVNode("div"');
 		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
 		expect(workspaceViewClient).not.toContain('this.map(');
 		expect(workspaceViewClient).not.toContain('Anonymous_ExactClient');
@@ -538,8 +545,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(pageClient).not.toContain('../provider.js');
 		expect(artifactAnalysis(page).components[0]?.tasks[0]?.placement).toBe('server');
 		expect(artifactAnalysis(workspace).components[0]).toMatchObject({
-			placement: 'client',
-			artifactTargets: ['client']
+			placement: 'isomorphic',
+			artifactTargets: ['client', 'server']
 		});
 	}, 15_000);
 

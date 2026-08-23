@@ -22,19 +22,19 @@ export async function buildPerformanceFixtures(outputDirectory) {
 		path.join(fixtureRoot, 'client-scenarios.tsx'),
 		outputDirectory,
 		'client-scenarios.mjs',
-		true
+		{ ssr: false, target: 'client' }
 	);
 	await buildFixture(
 		path.join(fixtureRoot, 'server-scenarios.tsx'),
 		outputDirectory,
 		'server-scenarios.mjs',
-		true
+		{ ssr: true, target: 'server' }
 	);
 	await buildFixture(
 		path.join(fixtureRoot, 'browser-entry.ts'),
 		outputDirectory,
 		'browser-entry.js',
-		false
+		{ ssr: false, target: 'client' }
 	);
 	const elapsedMs = performance.now() - started;
 	const paths = {
@@ -54,19 +54,20 @@ export async function buildPerformanceFixtures(outputDirectory) {
 	return { elapsedMs, paths, bytes };
 }
 
-async function buildFixture(entry, outputDirectory, entryFileName, server) {
+async function buildFixture(entry, outputDirectory, entryFileName, options) {
 	await build({
 		configFile: false,
 		logLevel: 'warn',
-		plugins: [exact()],
+		plugins: [exact({ target: options.target })],
 		build: {
-			...(server ? { ssr: entry } : {}),
+			...(options.ssr ? { ssr: entry } : {}),
 			outDir: outputDirectory,
 			emptyOutDir: false,
 			minify: false,
 			target: 'es2022',
 			rollupOptions: {
 				input: entry,
+				preserveEntrySignatures: 'strict',
 				output: { entryFileNames: entryFileName }
 			}
 		}

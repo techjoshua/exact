@@ -315,6 +315,25 @@ func createContinuationContracts(
 	return continuations, resumptions
 }
 
+// retainInvokedContinuations removes setup-only transport catalogs after partition planning has
+// consumed their data-flow facts. Invoked operations remain remotely dispatchable.
+func retainInvokedContinuations(
+	continuations []Continuation,
+	operations []InvokedTaskOperation,
+) []Continuation {
+	invoked := make(map[string]struct{}, len(operations))
+	for _, operation := range operations {
+		invoked[operation.ID] = struct{}{}
+	}
+	result := make([]Continuation, 0, len(invoked))
+	for _, continuation := range continuations {
+		if _, retained := invoked[continuation.ID]; retained {
+			result = append(result, continuation)
+		}
+	}
+	return result
+}
+
 func stateReadInsideServerTask(
 	read StateRead,
 	component string,

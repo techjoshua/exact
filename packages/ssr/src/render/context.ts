@@ -96,6 +96,7 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		preparedEnhancementComponents: new WeakMap(),
 		preparedEnhancementChildren: new WeakMap(),
 		preparedEnhancementSuspense: new WeakMap(),
+		preparedDirectScheduledComponents: new WeakMap(),
 		componentContexts: options.contexts,
 		componentDomain: createFrameworkComponentDomain({
 			executionRoot: options.inspection?.executionRoot ?? options.executionRoot ?? 'page',

@@ -17,10 +17,10 @@ import { transform } from './index.js';
 
 describe('compiled direct React boundary', () => {
 	it('compiles, mounts, updates, hydrates, and unmounts one mixed component', () => {
-		const App = compileMixedApp('client');
-		const ServerApp = compileMixedApp('server');
+		const client = compileMixedApp('client');
+		const serverApp = compileMixedApp('server');
 		const mounted = document.createElement('div');
-		render(createVNode(App, null), mounted);
+		render(createVNode(client.App, null), mounted);
 
 		click(mounted, '#react-control');
 		flushSync();
@@ -34,11 +34,11 @@ describe('compiled direct React boundary', () => {
 		unmount(mounted);
 		expect(mounted.childNodes).toHaveLength(0);
 
-		const server = renderToString(createVNode(ServerApp, null));
+		const server = renderToString(createVNode(serverApp.App, null));
 		const hydrated = document.createElement('div');
 		hydrated.innerHTML = server.html;
 		expect(hydrated.querySelector('#react-control')).toBeNull();
-		const root = createExactClient(hydrated, { islands: { App } });
+		const root = createExactClient(hydrated, { islands: client.islands });
 		expect(hydrated.querySelector('#react-control')).toBeInstanceOf(HTMLElement);
 
 		click(hydrated, '#react-control');
@@ -49,7 +49,12 @@ describe('compiled direct React boundary', () => {
 	});
 });
 
-function compileMixedApp(target: 'client' | 'server'): exactCore.AnyComponentFunction {
+type CompiledMixedApp = Readonly<{
+	App: exactCore.AnyComponentFunction;
+	islands: Record<string, exactCore.AnyComponentFunction>;
+}>;
+
+function compileMixedApp(target: 'client' | 'server'): CompiledMixedApp {
 	const source = `
 		import { Widget } from 'react-widget';
 		declare class Component<S> { state: S }
@@ -68,6 +73,9 @@ function compileMixedApp(target: 'client' | 'server'): exactCore.AnyComponentFun
 	const compiled = transform(source, {
 		filename: 'CompiledReactBoundary.tsx',
 		target,
+		...(target === 'client'
+			? { componentContractProjection: 'hydrate' as const, serverComponents: true }
+			: { serverComponents: true }),
 		jsxInterop: {
 			adapterModule: '@exactjs/react-compat/exact',
 			adapterExport: 'adaptReactComponent',
@@ -81,7 +89,7 @@ function compileMixedApp(target: 'client' | 'server'): exactCore.AnyComponentFun
 			target: ts.ScriptTarget.ES2022
 		}
 	}).outputText;
-	const module = { exports: {} as { App?: exactCore.AnyComponentFunction } };
+	const module = { exports: {} as Record<string, exactCore.AnyComponentFunction> };
 	const Widget = (props: { value: number; onIncrement(): void }) => {
 		const [local, setLocal] = reactRuntime.useState(0);
 		return reactRuntime.createElement(
@@ -111,7 +119,12 @@ function compileMixedApp(target: 'client' | 'server'): exactCore.AnyComponentFun
 	};
 	new Function('require', 'exports', 'module', javascript)(requireModule, module.exports, module);
 	if (!module.exports.App) throw new Error('Compiled integration fixture did not export App');
-	return module.exports.App;
+	return {
+		App: module.exports.App,
+		islands: Object.fromEntries(
+			Object.entries(module.exports).filter(([name]) => name.startsWith('App_ExactClient_'))
+		)
+	};
 }
 
 function click(container: Element, selector: string): void {

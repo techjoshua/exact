@@ -205,6 +205,7 @@ type Component struct {
 	CompiledRender      bool                      `json:"-"`
 	Lifecycle           bool                      `json:"-"`
 	Lists               bool                      `json:"-"`
+	DirectServer        bool                      `json:"-"`
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.

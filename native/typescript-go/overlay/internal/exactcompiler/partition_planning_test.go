@@ -171,9 +171,9 @@ func TestPartitionPlanKeepsInteractiveShellAndServerChildrenInOneServerTree(t *t
 	if len(partitionBoundaries) != 2 {
 		t.Fatalf("server-only child ranges lost their partition contracts: %#v", response.Analysis.Boundaries)
 	}
-	if strings.Contains(response.Code, `__exactBoundary("`) ||
+	if !strings.Contains(response.Code, `__exactBoundary("`) ||
 		!strings.Contains(response.Code, `__exactComponentVNode(ClientShell`) {
-		t.Fatalf("server-renderable interactive shell became a client component boundary:\n%s", response.Code)
+		t.Fatalf("server-renderable interactive shell lost its finite element boundary or server tree:\n%s", response.Code)
 	}
 }
 
