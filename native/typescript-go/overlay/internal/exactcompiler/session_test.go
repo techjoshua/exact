@@ -77,8 +77,7 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 	if clientPage.Error != "" {
 		t.Fatal(clientPage.Error)
 	}
-	if !strings.Contains(clientPage.Code, `__exactClaimProgramChild(__exactBindingTarget, 0, 0,`) ||
-		!strings.Contains(clientPage.Code, `, true)`) ||
+	if !strings.Contains(clientPage.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0, true)`) ||
 		strings.Contains(clientPage.Code, `__exactVNode("main"`) {
 		t.Fatalf("imported native component did not enter the compiled host lifecycle slot:\n%s", clientPage.Code)
 	}
@@ -368,7 +367,7 @@ func TestSessionUsesDirectStructuralClaimsWithCompleteMetadata(t *testing.T) {
 	if strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") ||
-		!strings.Contains(response.Code, `__exactClaimProgramChild`) ||
+		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0, true)`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		!strings.Contains(response.Code, `ssr: __exactSsr =>`) ||
 		strings.Contains(response.Code, `["component"`) ||
@@ -675,7 +674,9 @@ func TestSessionInlinesConditionalFragmentsIntoTheirProgramRange(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `props.open ? [__exactPreparedRenderProgram(`) ||
-		!strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) {
+		!strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
+		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0)`) ||
+		!strings.Contains(response.Code, `template: "<section></section>"`) {
 		t.Fatalf("conditional fragment was not inlined into its generated structural range:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactFragment(`) ||

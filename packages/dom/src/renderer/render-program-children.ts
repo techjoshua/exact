@@ -44,7 +44,9 @@ export function adoptProgramChildSlots(
 				const endIndex = nodes.length;
 				if (cursor < 0 || endIndex < cursor) return false;
 				const value = withEffectScope(mounted.scope, () =>
-					readDirectProgramChildren(state.invocation, index, parentInstance)
+					programKeyedChildIncludes(state.invocation.program.keyedChildren, index)
+						? readDirectProgramChildren(state.invocation, index, parentInstance)
+						: readProgramChildren(state.invocation, index, parentInstance)
 				);
 				const children = adoptChildren(
 					value,
@@ -55,12 +57,13 @@ export function adoptProgramChildSlots(
 					endIndex
 				);
 				if (!children) return false;
+				const componentValue = slot[0] === 'component' ? soleVNode(value) : undefined;
 				(state.childSlots ??= []).push({
 					slot: index,
 					parent: start[0],
 					before: null,
 					children,
-					value
+					...(componentValue ? { componentValue } : { value })
 				});
 				continue;
 			}
@@ -271,7 +274,10 @@ function structuralProgramSlot(
 	const slot = state.invocation.program.slots?.[index];
 	if (slot?.[0] === 'child' || slot?.[0] === 'component') return slot;
 	const marker = state.slotNodes[index];
-	if (isKeyedChildAnchor(marker)) return ['child', ''];
+	if (isKeyedChildAnchor(marker)) {
+		const kind = componentSlotIncludes(state.componentSlots, index) ? 'component' : 'child';
+		return [kind, ''];
+	}
 	if (!(marker instanceof Comment) || !marker.data.startsWith('exact:dynamic:')) return undefined;
 	const kind = componentSlotIncludes(state.componentSlots, index) ? 'component' : 'child';
 	return [kind, marker.data.slice('exact:dynamic:'.length)];

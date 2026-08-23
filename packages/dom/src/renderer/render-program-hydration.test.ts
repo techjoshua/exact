@@ -14,6 +14,7 @@ import {
 	beginCompiledProgramClaims,
 	claimCompiledProgramChild,
 	claimCompiledProgramElementPath,
+	claimCompiledProgramKeyedChild,
 	claimCompiledProgramText,
 	claimCompiledRenderProgram
 } from './render-program-claims.js';
@@ -211,5 +212,26 @@ describe('compiler-wired render-program claims', () => {
 
 		expect(claimed?.componentSlots).toBeInstanceOf(Set);
 		expect((claimed?.componentSlots as ReadonlySet<number>).has(32)).toBe(true);
+	});
+
+	it('preserves component ownership for a marker-free final child range', () => {
+		const root = document.createElement('main');
+		root.innerHTML = '<article>detail</article>';
+		const program: ExactRenderProgram = {
+			version: 3,
+			id: 'direct-marker-free-component-tail',
+			namespace: 'html',
+			template: '<main></main>',
+			directClaims: true,
+			bind(target) {
+				if (!beginCompiledProgramClaims(target, 'main', 'html', 1, 1)) return;
+				claimCompiledProgramKeyedChild(target, 0, 0, true);
+			}
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect(claimed?.slotNodes[0]).toEqual([root, root.firstChild]);
+		expect(claimed?.componentSlots).toBe(1);
 	});
 });

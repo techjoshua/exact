@@ -125,9 +125,10 @@ those structural results instead of recursively rediscovering roots through nest
 
 Finite render-program roots do not receive a generic cell envelope in compiler-generated SSR. The
 program's root element and dense topology provide its fixed ownership and hydration identity.
-Variable-width component, cell, fragment, list, and structural ranges keep their markers until a
-compiler-owned execution path can represent their complete update and replacement lifetime without
-DOM discovery anchors.
+Variable-width component, cell, fragment, list, and structural ranges keep their markers when a
+later sibling requires a concrete boundary. A compiler-proven final structural or component child
+uses its parent and the end of the child list as its complete retained boundary, so its server markup
+does not emit an otherwise redundant comment pair.
 
 Schema-defined empty hydration metadata is omitted from compiler registrations and document
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with

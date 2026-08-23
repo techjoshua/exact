@@ -48,7 +48,11 @@ func (lowering *jsxLowering) directRenderProgramClaimsAll(
 				}
 				emitCall(lowering.names.claimProgramText, arguments...)
 			case "keyed":
-				emitCall(lowering.names.claimProgramKeyedChild, claimIndex, skip)
+				arguments := []*ast.Node{claimIndex, skip}
+				if claim.component {
+					arguments = append(arguments, lowering.factory.NewTrueExpression())
+				}
+				emitCall(lowering.names.claimProgramKeyedChild, arguments...)
 			default:
 				arguments := []*ast.Node{claimIndex, skip, lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone)}
 				if claim.kind == "component" {
@@ -90,7 +94,7 @@ func (lowering *jsxLowering) directProgramChildClaims(
 		path := append([]int(nil), slot.path...)
 		width := 2
 		kind := slot.kind
-		if slot.markerlessList {
+		if slot.markerlessTail {
 			kind = "keyed"
 			width = 0
 		}
@@ -100,7 +104,7 @@ func (lowering *jsxLowering) directProgramChildClaims(
 		}
 		if directChildPath(path, parentPath) {
 			claims = append(claims, renderProgramClaim{
-				kind: kind, index: index, path: path, id: slot.id, width: width,
+				kind: kind, component: slot.kind == "component", index: index, path: path, id: slot.id, width: width,
 			})
 		}
 	}
@@ -196,6 +200,53 @@ func pathPrefix(prefix []int, path []int) bool {
 		}
 	}
 	return true
+}
+
+func directProgramHasSlotDescendant(build *renderProgramBuild, path []int) bool {
+	for _, slot := range build.slots {
+		if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
+			continue
+		}
+		parent := slot.path[:len(slot.path)-1]
+		if pathPrefix(path, parent) {
+			return true
+		}
+	}
+	return false
+}
+
+func directChildPath(path []int, parent []int) bool {
+	if len(path) != len(parent)+1 {
+		return false
+	}
+	for index := range parent {
+		if path[index] != parent[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func directProgramHasChildren(build *renderProgramBuild, parent []int) bool {
+	for index, node := range build.nodes {
+		if index != 0 && directChildPath(node.path, parent) {
+			return true
+		}
+	}
+	for _, slot := range build.slots {
+		if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
+			continue
+		}
+		path := slot.path
+		if slot.kind == "text" {
+			path = append([]int(nil), path...)
+			path[len(path)-1]--
+		}
+		if directChildPath(path, parent) {
+			return true
+		}
+	}
+	return false
 }
 
 // noRenderedProgramChildrenAfter proves that a structural slot owns the host's physical tail.

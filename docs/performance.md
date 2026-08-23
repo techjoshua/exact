@@ -472,11 +472,12 @@ because they do not carry a compiler-generated claim lane.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
 the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
-ownership to the claimed `Text` node. Structural child and component markers remain when they own
-variable-width DOM ranges; scalar bindings already retain their exact node and do not need a second
-permanent range representation. Within a compiled keyed-child range, inferred list, item, and cell
-markers are never emitted. A compiler-proven final keyed child also omits its outer structural pair
-and uses the parent plus end-of-children as its retained range. A finite conditional Fragment
+ownership to the claimed `Text` node. Structural child and component markers remain when a later
+sibling requires an explicit variable-width boundary; scalar bindings already retain their exact
+node and do not need a second permanent range representation. Within a compiled keyed-child range,
+inferred list, item, and cell markers are never emitted. Any compiler-proven final structural child
+or component omits its outer structural pair and uses the parent plus end-of-children as its retained
+range. A finite conditional Fragment
 likewise emits its children into the existing structural range rather than adding nested cell and
 fragment markers.
 

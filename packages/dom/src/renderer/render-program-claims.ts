@@ -270,11 +270,12 @@ export function claimCompiledProgramChild(
 	target.current = closing.nextSibling;
 }
 
-/** Claims a compiler-proven final keyed-child range without requiring serialized delimiters. */
+/** Claims a compiler-proven final child range without requiring serialized delimiters. */
 export function claimCompiledProgramKeyedChild(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
-	skip: number
+	skip: number,
+	component = false
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
 	let start = target.current;
@@ -286,6 +287,7 @@ export function claimCompiledProgramKeyedChild(
 		start = start.nextSibling;
 	}
 	target.slotNodes[index] = [target.container, start];
+	if (component) markComponentSlot(target, index);
 	target.current = null;
 }
 

@@ -59,7 +59,7 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 			}
 			call("text", arguments...)
 		case "child", "component":
-			if slot.markerlessList {
+			if slot.markerlessTail {
 				call("keyedChild", index)
 			} else {
 				call("child", index, stringLiteral(slot.id))
