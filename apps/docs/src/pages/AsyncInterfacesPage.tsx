@@ -210,7 +210,7 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				<p>
 					The compiler selects the coordinated Activity and Suspense DOM implementation only for a
 					bundle that authors one of these boundaries, including lazy and microfrontend bundles.
-					Compilerless VNode construction opts in through
+					Runtime integrations outside compiled component source opt in through
 					<code>@exactjs/dom/structural-boundaries</code>.
 				</p>
 			</section>

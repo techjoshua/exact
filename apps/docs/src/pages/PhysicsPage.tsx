@@ -64,9 +64,9 @@ export function PhysicsPage(this: Component<{}>) {
 				<CodeBlock source={componentSource} language="tsx" title="BouncingBall.tsx" />
 				<p>
 					Use the explicit <code>PhysicsElement</code> when DOM attachment is required behavior or
-					in a compilerless caller. The world component owns one Activity-aware frame chain, and the
-					body component uses its logical root, publishes body context, and detaches projection and
-					collision work exactly once.
+					where enhancement attributes are unavailable. The world component owns one Activity-aware
+					frame chain, and the body component uses its logical root, publishes body context, and
+					detaches projection and collision work exactly once.
 				</p>
 			</section>
 			<section>

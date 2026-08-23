@@ -44,12 +44,12 @@ component's topology or interpret a universal component plan when the artifact a
 | Existing path                                     | Classification                    | Required replacement                                                          |
 | ------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------- |
 | Compiler-attached component contract and identity | Compiled foundation               | Evolve into the mandatory target-local artifact; remove optional lookup       |
-| `markExactComponent()`                            | Compilerless native fallback      | Removed; compatibility and fixtures use complete scoped artifacts             |
-| `contract?.definition?.instantiate ?? type`       | Compilerless construction         | Removed; native construction requires artifact wiring                         |
+| `markExactComponent()`                            | Ad hoc native fallback            | Removed; compatibility and fixtures use complete scoped artifacts             |
+| `contract?.definition?.instantiate ?? type`       | Ad hoc native construction        | Removed; native construction requires artifact wiring                         |
 | `ComponentInstanceImpl`                           | Universal native host             | Replace with artifact-selected compact storage and capability sidecars        |
 | `defineTask()` in compiler output                 | Generic task fallback             | Emit compiler-selected computation or task lanes                              |
 | `defineTask()` as an advanced runtime API         | Internal/advanced primitive       | Move out of the normal compiled runtime graph                                 |
-| Generic VNode component mounting and adoption     | Compilerless/dynamic fallback     | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
+| Generic VNode component mounting and adoption     | Dynamic/compatibility fallback    | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
 | `createComponentRegistry()` callable entries      | Native dynamic selection          | Migrated to compiler-selected target-local facade artifacts                   |
 | Accessibility components                          | First-party native components     | Migrated to target-paired package artifacts                                   |
 | Internationalization components                   | First-party native components     | Migrated to target-paired package artifacts                                   |
