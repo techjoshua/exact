@@ -5,7 +5,11 @@ import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framew
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted } from '../types.js';
-import { bindProgramChild, bindProgramLists } from './render-program-children.js';
+import {
+	bindProgramChild,
+	bindProgramKeyedChild,
+	bindProgramLists
+} from './render-program-children.js';
 
 type ProgramBindingTarget = {
 	readonly mounted: Mounted;
@@ -108,6 +112,16 @@ export function bindCompiledProgramLists(
 ): void {
 	const context = target as ProgramBindingTarget;
 	if (!bindProgramLists(context.mounted, indexes, context.initialBinding, context.stopBindings))
+		context.valid = false;
+}
+
+/** Binds one compiler-generated keyed child array without a component list controller. */
+export function bindCompiledProgramKeyedChild(
+	target: ExactRenderProgramBindingTarget,
+	index: number
+): void {
+	const context = target as ProgramBindingTarget;
+	if (!bindProgramKeyedChild(context.mounted, index, context.initialBinding, context.stopBindings))
 		context.valid = false;
 }
 

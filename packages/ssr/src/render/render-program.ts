@@ -130,6 +130,13 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 		);
 	}
 
+	keyedChild(index: number): void {
+		if (!this.prepared) return;
+		this.static(
+			this.renderChildren!(normalizeRenderResult(this.#values[index] as Child | Child[]))
+		);
+	}
+
 	attribute(index: number, name: string, tag: string): void {
 		if (!this.prepared) return;
 		this.static(renderAttrs({ [name]: this.#values[index] }, false, tag, this.context));

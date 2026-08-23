@@ -1,17 +1,19 @@
-import { unwrap, watch, type ComponentInstance } from '@exactjs/core';
+import { unwrap, watch, type Component, type ComponentInstance } from '@exactjs/core';
 import { defaultGestureSettings, GestureContext } from './context.js';
 import type { GestureDefinition, GestureElementProps } from './contracts.js';
 import { GestureSession } from './session.js';
 
 /** Transparent ordinary component activated for one resolved gesture target. */
-export function GestureElement(this: ComponentInstance<{}>, props: GestureElementProps) {
+export function GestureElement(this: Component<{}>, props: GestureElementProps) {
 	const root = this.refs.root<Element>();
 	const settings = this.hasContext(GestureContext)
 		? this.getContext(GestureContext)
 		: defaultGestureSettings;
 	const session = new GestureSession(
 		(error) => this.log.error('gesture callback failed', error),
-		this
+		// Compiled component definitions execute with their durable runtime instance; the authored
+		// Component contract intentionally omits the internal parent link used for nested routing.
+		this as ComponentInstance<{}>
 	);
 
 	watch(() => {

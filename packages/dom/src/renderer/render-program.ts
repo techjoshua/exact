@@ -9,7 +9,7 @@ import {
 } from '@exactjs/core/runtime/render';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
-import type { Mounted, Root } from '../types.js';
+import type { Mounted, RenderProgramChildAnchor, Root } from '../types.js';
 import { countDomWork } from './limits.js';
 import { materializeProgramTemplate } from './render-program-template.js';
 import { adoptProgramChildSlots } from './render-program-children.js';
@@ -383,9 +383,10 @@ function ownDirectProgramNodes(
 
 function validSlotNodes(
 	invocation: ExactRenderProgramInvocation,
-	nodes: readonly (Node | undefined)[]
+	nodes: readonly (Node | RenderProgramChildAnchor | undefined)[]
 ): boolean {
 	return nodes.every((node, index) => {
+		if (!(node instanceof Node)) return false;
 		const kind = invocation.program.slots?.[index]?.[0];
 		return kind === 'text'
 			? node?.nodeType === textNode

@@ -17,6 +17,9 @@ import type {
 	VNode
 } from '@exactjs/core';
 import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render';
+
+/** Parent and first node of a marker-free final-child range proven by a generated program. */
+export type RenderProgramChildAnchor = readonly [parent: Node, start: Node | null];
 import type { ReadinessCoordinator } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
@@ -42,7 +45,7 @@ export type Mounted = {
 		invocation: ExactRenderProgramInvocation;
 		/** Intrinsic root used for compiler-path ownership when `dom` is an SSR range marker. */
 		readonly programRoot: Node;
-		readonly slotNodes: readonly (Node | undefined)[];
+		readonly slotNodes: readonly (Node | RenderProgramChildAnchor | undefined)[];
 		/** Component structural slots encoded as a number until an unusually high index needs a set. */
 		readonly componentSlots?: number | ReadonlySet<number>;
 		readonly root: Root;
@@ -60,7 +63,8 @@ export type Mounted = {
 		/** Mounted structural ranges keyed by their compiler slot index. */
 		childSlots?: Array<{
 			readonly slot: number;
-			readonly end: Comment;
+			readonly parent: Node;
+			readonly before: Node | null;
 			children: Mounted[];
 			value?: readonly Child[];
 			/** Last scalar VNode for a compiler-proven fixed-cardinality component slot. */

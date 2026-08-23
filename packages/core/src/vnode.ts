@@ -89,6 +89,20 @@ export function createCompiledComponentVNode(
 	return createVNode(type, props, ...children);
 }
 
+/**
+ * Assigns compiler-proven keyed-list identity to a newly created VNode.
+ *
+ * The compiler calls this operation before publishing the VNode to a renderer. Mutating that
+ * otherwise-unshared allocation avoids cloning every keyed item while keeping authored keys out
+ * of component props.
+ */
+export function keyCompiledVNode(vnode: VNode, value: unknown): VNode {
+	const key = unwrap(value);
+	if (key === null || key === undefined) throw new Error('Compiled keyed lists require a key');
+	(vnode as { key?: string }).key = String(key);
+	return vnode;
+}
+
 /** Creates a compiled fragment vnode cell from raw children. */
 export function createCompiledFragment(
 	props: Record<string, unknown> | null,

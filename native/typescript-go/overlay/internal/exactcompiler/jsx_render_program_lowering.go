@@ -16,13 +16,15 @@ type renderProgramContext struct {
 }
 
 type renderProgramSlot struct {
-	id     string
-	kind   string
-	path   []int
-	node   int
-	name   string
-	list   bool
-	reader *ast.Node
+	id             string
+	kind           string
+	path           []int
+	node           int
+	name           string
+	list           bool
+	directList     bool
+	markerlessList bool
+	reader         *ast.Node
 }
 
 type renderProgramNode struct {
@@ -112,11 +114,23 @@ func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Nod
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: mountPath, reader: reader})
 }
 
-func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.Node, list bool) {
+func (build *renderProgramBuild) childSlot(
+	id string,
+	path []int,
+	reader *ast.Node,
+	list bool,
+	directList bool,
+	markerlessList bool,
+) {
 	index := len(build.slots)
-	build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
+	if !markerlessList {
+		build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
+	}
 	build.serverSlot(index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), list: list, reader: reader})
+	build.slots = append(build.slots, renderProgramSlot{
+		id: id, kind: "child", path: append([]int(nil), path...),
+		list: list, directList: directList, markerlessList: markerlessList, reader: reader,
+	})
 }
 
 func (build *renderProgramBuild) componentSlot(id string, path []int, reader *ast.Node) {
@@ -531,8 +545,24 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if lowering.target != TargetClient {
 					return false
 				}
-				build.childSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression), lowering.renderProgramListExpression(expression))
-				domIndex += 2
+				list := lowering.renderProgramListExpression(expression)
+				directList := list && lowering.directRenderProgramKeyedMap(expression)
+				markerlessList := directList && noRenderedProgramChildrenAfter(semantic, childIndex)
+				lowering.renderProgramChildDepth++
+				if list {
+					lowering.renderProgramListDepth++
+				}
+				reader := lowering.visitor.VisitNode(expression)
+				if list {
+					lowering.renderProgramListDepth--
+				}
+				lowering.renderProgramChildDepth--
+				build.childSlot(
+					lowering.dynamicID(child), childPath, reader, list, directList, markerlessList,
+				)
+				if !markerlessList {
+					domIndex += 2
+				}
 				continue
 			}
 			build.textSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression))
@@ -586,7 +616,9 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 // lifecycle slot. The component still owns its durable state machine; only the surrounding intrinsic
 // host no longer falls back to generic VNode construction.
 func (lowering *jsxLowering) plannedComponentChild(tag *ast.Node) bool {
-	if lowering.declarativeRenderDepth > 0 || componentChildInsideMap(tag) || !ast.IsIdentifier(tag) {
+	if lowering.declarativeRenderDepth > 0 ||
+		(lowering.renderProgramListDepth == 0 && componentChildInsideMap(tag)) ||
+		!ast.IsIdentifier(tag) {
 		return false
 	}
 	return lowering.localExactComponentTag(tag)
@@ -826,9 +858,14 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	}
 	textBindings := make([]*ast.Node, 0, len(build.slots))
 	listSlots := make([]int, 0, len(build.slots))
+	directListSlots := make([]int, 0, len(build.slots))
 	for index, slot := range build.slots {
 		if slot.kind == "child" && slot.list {
-			listSlots = append(listSlots, index)
+			if slot.directList {
+				directListSlots = append(directListSlots, index)
+			} else {
+				listSlots = append(listSlots, index)
+			}
 			continue
 		}
 		if slot.kind == "text" || slot.kind == "child" || slot.kind == "component" {
@@ -892,7 +929,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	}
 	if lowering.target == TargetClient &&
 		lowering.contractProjection != ComponentContractProjectionComplete {
-		if len(bindings) != 0 || len(build.nodes) > 1 {
+		if len(bindings) != 0 || len(directListSlots) != 0 || len(build.nodes) > 1 {
 			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget, componentUpdates)))
 		} else {
 			members = append(
@@ -909,6 +946,28 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		members = append(members, property("directClaims", lowering.factory.NewTrueExpression()))
 		if len(listSlots) != 0 {
 			members = append(members, property("listBindings", lowering.factory.NewTrueExpression()))
+		}
+		if len(directListSlots) != 0 {
+			mask := uint64(0)
+			compact := true
+			for _, slot := range directListSlots {
+				if slot >= 31 {
+					compact = false
+					break
+				}
+				mask |= uint64(1) << slot
+			}
+			var value *ast.Node
+			if compact {
+				value = lowering.factory.NewNumericLiteral(strconv.FormatUint(mask, 10), ast.TokenFlagsNone)
+			} else {
+				indexes := make([]*ast.Node, len(directListSlots))
+				for index, slot := range directListSlots {
+					indexes[index] = lowering.factory.NewNumericLiteral(strconv.Itoa(slot), ast.TokenFlagsNone)
+				}
+				value = array(indexes)
+			}
+			members = append(members, property("keyedChildren", value))
 		}
 		if len(directUpdates) != 0 && componentTarget == nil {
 			members = append(members, property("update", lowering.directRenderProgramUpdater(directUpdates)))
@@ -970,6 +1029,11 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 			}
 			path := append([]int(nil), slot.path...)
 			width := 2
+			kind := slot.kind
+			if slot.markerlessList {
+				kind = "keyed"
+				width = 0
+			}
 			if slot.kind == "text" {
 				path[len(path)-1]--
 				width = 3
@@ -978,7 +1042,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 				continue
 			}
 			claims = append(claims, renderProgramClaim{
-				kind: slot.kind, index: index, path: path, id: slot.id, width: width,
+				kind: kind, index: index, path: path, id: slot.id, width: width,
 			})
 		}
 		sort.SliceStable(claims, func(left int, right int) bool {
@@ -1026,6 +1090,8 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 					lowering.names.claimProgramText,
 					arguments...,
 				)
+			case "keyed":
+				emitCall(lowering.names.claimProgramKeyedChild, claimIndex, skip)
 			default:
 				arguments := []*ast.Node{
 					claimIndex,

@@ -134,27 +134,27 @@ dependency-collection passes and one retained reaction per binding without addin
 turn. Expressions with nested, dynamically indexed, or otherwise incomplete dependencies retain
 their independent tracked reaction. This is generated component control flow, not an opcode tape:
 the runtime supplies focused claim, subscription, and DOM mutation operations but does not interpret
-a general update plan. Closed
-client output emits each property group as one direct writer operation: one
+a general update plan. Closed client output emits each property group as one direct writer
+operation: one
 invocation applies its known keys in browser-safe order without allocating and enumerating a
 temporary props record or redispatching through the generic slot reader for every property. Those
 properties are omitted from the client slot dispatcher. Their previous values occupy a compact
 group-indexed array; programs with only text or structural work allocate no property map at all.
 Closed hydrate and client artifacts emit their complete claim and binding topology in one direct
 executor. Its claim lane wires intrinsic and slot identities; its binding lane calls text,
-structural-child, grouped-list, and property operations. The DOM executor invokes those
-compiler-authored calls without walking or branching over general node, slot, or binding tables.
+structural-child, compiler-keyed-child, grouped compatibility-list, and property operations. The DOM
+executor invokes those compiler-authored calls without walking or branching over general node,
+slot, or binding tables.
 Complete rendering-mode-neutral artifacts retain the client tables because they may execute through
 either renderer, but their server lane is still a component-specific generated function rather
 than interpreted metadata. Closed server artifacts emit only that component-specific SSR function: a
 generated preparation prefix reads the known slots, then generated calls write static markup,
 text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
-tables. Manually constructed programs use the explicit DOM testing compatibility helper. Temporary binder
-contexts are released after synchronous installation and are not captured by the retained slot
-watchers.
-Server and universal artifacts retain individual readers for SSR,
-while older precompiled clients continue through the runtime fallback. A change therefore
+tables. Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
+binder contexts are released after synchronous installation and are not captured by the retained
+slot watchers. Server and universal artifacts retain individual readers for SSR, while older
+precompiled clients continue through the runtime fallback. A change therefore
 evaluates only the affected target group instead of rebuilding props
 for every element in the program. The descriptor carries those binding groups in browser-safe
 application order, including option values before a controlled select, so mounting does not
@@ -226,13 +226,22 @@ become client runtime responsibilities. This lets conditional JSX, fragments, co
 other non-scalar child values stop forcing their surrounding intrinsic skeleton through the generic
 client host renderer.
 
-Compiler-known keyed-list expressions in those slots are grouped into one render lane. Mounting,
-hydration, and refresh bracket the complete group with one component render transaction, so list
-registrations are reconciled together instead of leaving one retained reaction and lifecycle pass
-per structural expression. Each compiled list binding carries the collection's stable structural
-reference, including collections stored in indexed component state, so in-place mutations schedule
-that lane directly instead of depending on incidental reads during DOM binding. Dynamically indexed
-or otherwise unproven list expressions retain the generic structural path.
+Compiler-known keyed-list expressions in those slots emit their keyed VNode array directly. The
+generated binder calls one focused keyed-child operation for that exact slot; it does not register
+`this.map()`, create a component list controller, or construct a Fragment/ListBinding wrapper.
+Mounting, hydration, and refresh bracket the lane with one component render transaction. Reactive
+collection iteration records structural dependencies, while compiler-assigned VNode keys preserve
+DOM and component identity across insertion and reorder. When that list is the host's final rendered
+child, the compiler uses the parent and end-of-children as its range and emits no structural
+delimiters. A following sibling keeps the explicit structural pair that makes the list's end
+unambiguous. In either form, SSR emits neither a nested list range nor per-item or compiled-cell
+ranges. Explicit `this.map()`, dynamically indexed collections, block-bodied item factories, and
+otherwise unproven expressions retain the generic keyed-list path.
+
+Finite fragments produced inside a compiler-owned structural slot lower to their child array. The
+existing structural range owns that branch, so adding a Cell and Fragment range inside it would add
+no identity or disposal information. Branch children still retain their own component, suspense,
+portal, server, or independently variable structural boundaries when those lifetimes require them.
 
 Compiled component contracts also select nested collection interception from their complete state
 and props types. Components proven to contain only scalars, functions, plain objects, and arrays use
@@ -252,11 +261,12 @@ release it during rebinding or teardown. Callable stop handles remain part of th
 API, but the renderer does not allocate one additional handle closure for every live compiled
 binding.
 
-Compiler-known list sites carry a stable site identity, source provenance, and key identity even
-when authored `Array.map` syntax is lowered directly. Cached item factories run inside per-key item
-scopes; removing a key releases its expressions and keyed-collection metadata after reconciliation.
-This keeps repeated filter and replacement updates bounded instead of retaining one small reactive
-graph per update.
+Generic compiler-known list sites carry a stable site identity, source provenance, and key identity.
+Their cached item factories run inside per-key item scopes, and removing a key releases its
+expressions and keyed-collection metadata after reconciliation. Closed render-program lists instead
+give each mounted keyed item its ordinary subtree scope and release that scope when the keyed mount
+is removed; they need no parallel list cache because their generated item readers remain live on
+the retained mount.
 
 ## Commands
 
@@ -441,15 +451,20 @@ because they do not carry a compiler-generated claim lane.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
 the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
-ownership to the claimed `Text` node. Structural child and component markers remain because they
-own variable-width DOM ranges; scalar bindings already retain their exact node and do not need a
-second permanent range representation.
+ownership to the claimed `Text` node. Structural child and component markers remain when they own
+variable-width DOM ranges; scalar bindings already retain their exact node and do not need a second
+permanent range representation. Within a compiled keyed-child range, inferred list, item, and cell
+markers are never emitted. A compiler-proven final keyed child also omits its outer structural pair
+and uses the parent plus end-of-children as its retained range. A finite conditional Fragment
+likewise emits its children into the existing structural range rather than adding nested cell and
+fragment markers.
 
 Marker-mode SSR does not give finite compiled render programs generic cell ranges. The client
 validates their roots, structural boundaries, dynamic nodes, and property targets through generated
-claims; inert nested intrinsics remain ordinary DOM. Component, cell, list, fragment, and other
-variable-width boundaries retain explicit ranges because their update lifetime may replace the
-currently rendered root shape.
+claims; inert nested intrinsics remain ordinary DOM. Component and independently variable-width
+boundaries retain explicit ranges because their update lifetime may replace the currently rendered
+root shape. Compiler-owned keyed items use their keyed mounted roots, and inlined finite fragments
+use their enclosing structural range, instead of duplicating those boundaries.
 
 Closed server component artifacts carry generated SSR execution rather than a compact interpreted
 tape. The compiler emits slot preparation and the exact static, text, child, and attribute

@@ -47,6 +47,8 @@ type jsxLowering struct {
 	dynamicComponents            map[int]dynamicComponentUseKind
 	componentLocalization        bool
 	listCapabilityUsed           bool
+	renderProgramChildDepth      int
+	renderProgramListDepth       int
 	renderProgramFallback        bool
 	renderProgramContexts        map[int]renderProgramContext
 	renderProgramDefinitions     map[int]string

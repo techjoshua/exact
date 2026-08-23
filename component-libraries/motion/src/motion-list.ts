@@ -1,11 +1,11 @@
-import { type ComponentInstance } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { watch } from '@exactjs/core';
 import { LayoutContext } from './layout.js';
 import { keyedPresenceChild } from './presence.js';
 import type { MotionListProps } from './contracts.js';
 
 /** Projects application-owned items into the renderer's existing keyed identity model. */
-export function MotionList(this: ComponentInstance<{}>, props: MotionListProps<unknown>) {
+export function MotionList(this: Component<{}>, props: MotionListProps<unknown>) {
 	if (this.hasContext(LayoutContext)) {
 		const layout = this.getContext(LayoutContext);
 		let initialized = false;

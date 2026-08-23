@@ -82,9 +82,9 @@ describe('compiled render-program cache', () => {
 			slots: [
 				['property', 0, 'title'],
 				['property', 0, 'tabIndex']
-			],
-			bindings: [['properties', [0, 1]]],
-			nodes: [['node', 'button']]
+			] as const,
+			bindings: [['properties', [0, 1]]] as const,
+			nodes: [['node', 'button']] as const
 		});
 		const writer = (group: number, apply: (name: string, value: unknown) => void) => {
 			expect(group).toBe(0);

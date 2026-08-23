@@ -47,6 +47,8 @@ func (lowering *jsxLowering) directRenderProgramClaimsAll(
 					arguments = append(arguments, lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone))
 				}
 				emitCall(lowering.names.claimProgramText, arguments...)
+			case "keyed":
+				emitCall(lowering.names.claimProgramKeyedChild, claimIndex, skip)
 			default:
 				arguments := []*ast.Node{claimIndex, skip, lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone)}
 				if claim.kind == "component" {
@@ -87,13 +89,18 @@ func (lowering *jsxLowering) directProgramChildClaims(
 		}
 		path := append([]int(nil), slot.path...)
 		width := 2
+		kind := slot.kind
+		if slot.markerlessList {
+			kind = "keyed"
+			width = 0
+		}
 		if slot.kind == "text" {
 			path[len(path)-1]--
 			width = 3
 		}
 		if directChildPath(path, parentPath) {
 			claims = append(claims, renderProgramClaim{
-				kind: slot.kind, index: index, path: path, id: slot.id, width: width,
+				kind: kind, index: index, path: path, id: slot.id, width: width,
 			})
 		}
 	}
@@ -187,6 +194,25 @@ func pathPrefix(prefix []int, path []int) bool {
 		if prefix[index] != path[index] {
 			return false
 		}
+	}
+	return true
+}
+
+// noRenderedProgramChildrenAfter proves that a structural slot owns the host's physical tail.
+func noRenderedProgramChildrenAfter(children []*ast.Node, index int) bool {
+	for childIndex := index + 1; childIndex < len(children); childIndex++ {
+		child := children[childIndex]
+		if ast.IsJsxText(child) && normalizeJSXChildText(
+			child.AsJsxText().Text,
+			childIndex,
+			len(children),
+		) == "" {
+			continue
+		}
+		if ast.IsJsxExpression(child) && child.AsJsxExpression().Expression == nil {
+			continue
+		}
+		return false
 	}
 	return true
 }

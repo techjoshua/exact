@@ -1,9 +1,4 @@
-import {
-	createContext,
-	isTaskCancellation,
-	type Child,
-	type ComponentInstance
-} from '@exactjs/core';
+import { createContext, isTaskCancellation, type Child, type Component } from '@exactjs/core';
 import type { LayoutGroupProps, MotionElementProps, MotionPlayback } from './contracts.js';
 import { defaultMotionSettings, MotionContext } from './context.js';
 import { animateInFrame, resolveMotionEffect } from './playback.js';
@@ -27,7 +22,7 @@ export interface LayoutCoordinator {
 export const LayoutContext = createContext<LayoutCoordinator>('motion.layout');
 
 /** Coordinates FLIP measurement and stable shared identity for one logical subtree. */
-export function LayoutGroup(this: ComponentInstance<{}>, props: LayoutGroupProps) {
+export function LayoutGroup(this: Component<{}>, props: LayoutGroupProps) {
 	const settings = this.hasContext(MotionContext)
 		? this.getContext(MotionContext)
 		: defaultMotionSettings;

@@ -2,14 +2,21 @@
 import { Fragment, createVNode, type Component } from '@exactjs/core';
 import {
 	createCompiledRenderProgram as createCoreRenderProgram,
+	createCompiledComponentVNode,
 	createCompiledVNode,
 	createExpression,
+	keyCompiledVNode,
 	createPreparedRenderProgram,
 	prepareCompiledRenderProgram as prepareCoreRenderProgram
 } from '@exactjs/core/runtime/render';
 import { collectionRef, flushSync, indexedReactive, reactive, ref } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
+import {
+	beginCompiledProgramClaims,
+	bindCompiledProgramKeyedChild,
+	claimCompiledProgramKeyedChild
+} from './runtime/render-program.js';
 import { jsx } from './test-support/native-vnode.js';
 import { withGenericRenderProgramBindings } from './testing.js';
 
@@ -27,6 +34,78 @@ const createCompiledRenderProgram: typeof createCoreRenderProgram = (
 	);
 const prepareCompiledRenderProgram: typeof prepareCoreRenderProgram = (program) =>
 	prepareCoreRenderProgram(withGenericRenderProgramBindings(program));
+
+it('reconciles compiler-keyed program children without list or item marker ranges', () => {
+	const state = reactive({ items: [{ id: 'a' }, { id: 'b' }] });
+	const vnode = createCompiledRenderProgram(
+		'render-program:direct-keyed-array',
+		() => ({
+			version: 3,
+			id: 'render-program:direct-keyed-array',
+			namespace: 'html',
+			template: '<ul><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
+			slots: [['child', 'items']],
+			bindings: [['lists', [0]]],
+			nodes: [[0, 'ul']]
+		}),
+		[
+			() =>
+				state.items.map((item) =>
+					keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
+				)
+		]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	const original = [...container.querySelectorAll('li')];
+	const comments = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
+	let commentCount = 0;
+	while (comments.nextNode()) commentCount++;
+	expect(commentCount).toBe(2);
+
+	state.items.splice(0, 2, state.items[1]!, state.items[0]!);
+	flushSync();
+	const reordered = [...container.querySelectorAll('li')];
+	expect(reordered.map((node) => node.textContent)).toEqual(['b', 'a']);
+	expect(reordered[0]).toBe(original[1]);
+	expect(reordered[1]).toBe(original[0]);
+});
+
+it('owns a final compiler-keyed child lane without structural marker nodes', () => {
+	const state = reactive({ items: [{ id: 'a' }, { id: 'b' }] });
+	const program = prepareCoreRenderProgram({
+		version: 3,
+		id: 'render-program:markerless-keyed-tail',
+		namespace: 'html',
+		template: '<ul></ul>',
+		directClaims: true,
+		keyedChildren: 1,
+		bind(target) {
+			if (beginCompiledProgramClaims(target, 'ul', 'html', 1, 1)) {
+				claimCompiledProgramKeyedChild(target, 0, 0);
+				return;
+			}
+			bindCompiledProgramKeyedChild(target, 0);
+		}
+	});
+	const vnode = createPreparedRenderProgram(program, [
+		() =>
+			state.items.map((item) =>
+				keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
+			)
+	]);
+	const container = document.createElement('div');
+	render(vnode, container);
+	const original = [...container.querySelectorAll('li')];
+	expect(container.querySelector('ul')?.childNodes).toHaveLength(2);
+
+	state.items.splice(0, 2, state.items[1]!, state.items[0]!);
+	flushSync();
+	const reordered = [...container.querySelectorAll('li')];
+	expect(reordered.map((node) => node.textContent)).toEqual(['b', 'a']);
+	expect(reordered[0]).toBe(original[1]);
+	expect(reordered[1]).toBe(original[0]);
+});
 
 it('observes in-place collection mutations through a compiler-owned list lane', () => {
 	const state = reactive({ items: [{ id: 'a' }] });

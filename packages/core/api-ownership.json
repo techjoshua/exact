@@ -1,6 +1,6 @@
 {
 	"application": [
-		"@exactjs/reactive",
+		"@exactjs/reactive/framework/runtime",
 		"./activity.js",
 		"./class-values.js",
 		"./component/contexts.js",

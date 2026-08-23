@@ -2,6 +2,7 @@ import type {
 	ExactRenderProgram,
 	ExactRenderProgramBindingTarget
 } from '@exactjs/core/runtime/render';
+import type { RenderProgramChildAnchor } from '../types.js';
 
 type ProgramClaimTarget = {
 	readonly claiming: true;
@@ -9,7 +10,7 @@ type ProgramClaimTarget = {
 	readonly source: 'template' | 'ssr';
 	namespace: ExactRenderProgram['namespace'];
 	readonly elements: Array<Element | undefined>;
-	readonly slotNodes: Array<Node | undefined>;
+	readonly slotNodes: Array<Node | RenderProgramChildAnchor | undefined>;
 	componentSlots: number | Set<number>;
 	work: readonly [nodes: number, slots: number];
 	readonly parents: Array<Node | null>;
@@ -22,7 +23,7 @@ type ProgramClaimTarget = {
 /** Result of one compiler-wired successful-path claim. */
 export type ClaimedRenderProgram = Readonly<{
 	elements: readonly (Element | undefined)[];
-	slotNodes: readonly (Node | undefined)[];
+	slotNodes: readonly (Node | RenderProgramChildAnchor | undefined)[];
 	componentSlots: number | ReadonlySet<number>;
 	work: readonly [nodes: number, slots: number];
 }>;
@@ -135,7 +136,9 @@ export function claimCompiledProgramElementPath(
 	while (depth-- > 0) {
 		const step = remaining % 128;
 		const ordinal = step % 64;
-		const child = element.children.item(step < 64 ? ordinal : element.children.length - ordinal - 1);
+		const child = element.children.item(
+			step < 64 ? ordinal : element.children.length - ordinal - 1
+		);
 		if (!child) {
 			target.valid = false;
 			return;
@@ -265,6 +268,25 @@ export function claimCompiledProgramChild(
 	target.slotNodes[index] = marker;
 	if (component) markComponentSlot(target, index);
 	target.current = closing.nextSibling;
+}
+
+/** Claims a compiler-proven final keyed-child range without requiring serialized delimiters. */
+export function claimCompiledProgramKeyedChild(
+	target: ExactRenderProgramBindingTarget,
+	index: number,
+	skip: number
+): void {
+	if (!isClaimTarget(target) || !target.valid) return;
+	let start = target.current;
+	for (let offset = 0; offset < skip; offset++) {
+		if (!start) {
+			target.valid = false;
+			return;
+		}
+		start = start.nextSibling;
+	}
+	target.slotNodes[index] = [target.container, start];
+	target.current = null;
 }
 
 function isClaimTarget(target: ExactRenderProgramBindingTarget): target is ProgramClaimTarget {

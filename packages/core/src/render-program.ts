@@ -25,6 +25,8 @@ export type ExactRenderProgramSsrTarget = Readonly<{
 	text(index: number, id: string, markerless?: true): void;
 	/** Recursively renders one prepared structural or component child. */
 	child(index: number, id: string): void;
+	/** Renders one compiler-keyed final-child range without serializing delimiters. */
+	keyedChild(index: number): void;
 	/** Serializes one prepared host value with ordinary SSR attribute semantics. */
 	attribute(index: number, name: string, tag: string): void;
 }>;
@@ -88,6 +90,8 @@ type ExactRenderProgramBase = Readonly<{
 	namespace: 'html' | 'svg' | 'mathml';
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
 	listBindings?: true;
+	/** Compiler-keyed child slots, encoded as a compact bit mask or explicit indexes. */
+	keyedChildren?: number | readonly number[];
 	/** Applies only operations selected by compiler-assigned dirty bits. */
 	update?: ExactRenderProgramUpdater;
 }>;
