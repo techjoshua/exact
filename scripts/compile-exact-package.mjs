@@ -115,6 +115,11 @@ async function verifyCompiledExports(target, targetDirectory) {
 					`${manifest.name} ${target} export ${subpath}:${name} is not a compiled component artifact`
 				);
 			}
+			if (target === 'client' && contract.placement === 'server') {
+				throw new Error(
+					`${manifest.name} client export ${subpath}:${name} contains a server boundary instead of an executable client artifact`
+				);
+			}
 		}
 	}
 }

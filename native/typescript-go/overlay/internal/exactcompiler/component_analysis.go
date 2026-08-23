@@ -39,6 +39,7 @@ func analyzeComponents(
 	for index := range components {
 		component := &components[index]
 		candidate := candidates[index]
+		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
 		indivisible := ""
@@ -138,6 +139,46 @@ func analyzeComponents(
 					}
 					if serverOnlyImportSymbol(symbol) {
 						splitBoundaries["server-import:"+name] = struct{}{}
+					}
+				}
+				return true
+			}
+			if insideSourceSpans(node.Pos(), clientLifecycleSpans) {
+				if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
+					!isStaticPropertyName(node) &&
+					serverOnlyImportSymbol(typeChecker.GetSymbolAtLocation(node)) {
+					indivisible = "mixed"
+					diagnostics = append(diagnostics,
+						"error: client lifecycle references a server-only import ("+node.Text()+")",
+					)
+				}
+				if ast.IsCallExpression(node) {
+					call := node.AsCallExpression()
+					target, exists := callableEffectForCall(callables, node.Pos())
+					if !exists {
+						symbol := resolvedCallableSymbol(
+							callTargetSymbol(call.Expression, typeChecker),
+							typeChecker,
+						)
+						if symbol != nil {
+							target, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
+						}
+					}
+					if exists {
+						knownBrowser, knownServer := knownEffectEnvironments(target.EffectSources)
+						switch {
+						case target.Effect == "server" || target.Effect == "mixed" || knownServer:
+							indivisible = "mixed"
+							diagnostics = append(diagnostics,
+								"error: client lifecycle calls server-only work ("+
+									strings.TrimSpace(sourceText(sourceFile, call.Expression))+")",
+							)
+						case target.Effect == "unknown" && !knownBrowser:
+							indivisible = "unknown"
+							if opaquePath == "" {
+								opaquePath = effectSourcePath(target.EffectSources)
+							}
+						}
 					}
 				}
 				return true
@@ -317,6 +358,38 @@ func analyzeComponents(
 	}
 	resolveComponentSubgraphs(sourceFile, components)
 	return components
+}
+
+func componentClientLifecycleCallbackSpans(component *ast.Node) []SourceSpan {
+	spans := []SourceSpan{}
+	walkNode(component, func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		call := node.AsCallExpression()
+		name, componentMember, dynamic := componentProtocolMember(call.Expression)
+		if !componentMember || dynamic || call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
+			return true
+		}
+		switch name {
+		case "onMount", "onActivate", "onDeactivate", "onUnmount":
+			callback := call.Arguments.Nodes[0]
+			if ast.IsArrowFunction(callback) || ast.IsFunctionExpression(callback) {
+				spans = append(spans, SourceSpan{Start: callback.Pos(), Length: callback.End() - callback.Pos()})
+			}
+		}
+		return true
+	})
+	return spans
+}
+
+func insideSourceSpans(position int, spans []SourceSpan) bool {
+	for _, span := range spans {
+		if position >= span.Start && position < span.Start+span.Length {
+			return true
+		}
+	}
+	return false
 }
 
 func enhancementContextEffects(

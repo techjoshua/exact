@@ -6242,8 +6242,12 @@ func TestSessionAppliesCallablePlacementAndResidencyAnnotations(t *testing.T) {
 			function browserOnly() { return 1; }
 			/** @exact keep=secret */
 			function secretValue() { return "secret"; }
+			declare function opaqueValue(): number;
 			/** @exact pure */
-			function safeValue() { return 1; }
+			function safeValue() { return opaqueValue(); }
+			function portableBase64() { return btoa("safe"); }
+			/** @exact pure */
+			function serverPure() { return process.cwd(); }
 		`,
 	})
 	if response.Error != "" {
@@ -6252,6 +6256,8 @@ func TestSessionAppliesCallablePlacementAndResidencyAnnotations(t *testing.T) {
 	browser := findCallable(t, response.Analysis.Callables, "browserOnly")
 	secret := findCallable(t, response.Analysis.Callables, "secretValue")
 	safe := findCallable(t, response.Analysis.Callables, "safeValue")
+	portable := findCallable(t, response.Analysis.Callables, "portableBase64")
+	serverPure := findCallable(t, response.Analysis.Callables, "serverPure")
 	if browser.Effect != "browser" ||
 		len(browser.ArtifactTargets) != 1 ||
 		browser.ArtifactTargets[0] != "client" {
@@ -6262,8 +6268,47 @@ func TestSessionAppliesCallablePlacementAndResidencyAnnotations(t *testing.T) {
 		secret.ArtifactTargets[0] != "server" {
 		t.Fatalf("secret policy did not restrict callable: %#v", secret)
 	}
-	if !safe.ReevaluationSafe {
+	if !safe.ReevaluationSafe || safe.Effect != "neutral" {
 		t.Fatalf("pure annotation did not mark callable safe: %#v", safe)
+	}
+	if portable.Effect != "neutral" {
+		t.Fatalf("portable base64 global was not classified as neutral: %#v", portable)
+	}
+	if serverPure.Effect != "server" {
+		t.Fatalf("pure annotation erased a concrete server effect: %#v", serverPure)
+	}
+}
+
+func TestSessionKeepsClientLifecycleWorkOutOfSharedSetupPlacement(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "lifecycle-placement.tsx",
+		Kind: "analyze",
+		Source: `
+			/** @exact client */
+			function observeHost() { return () => undefined; }
+			/** @exact server */
+			function readSecret() { return "secret"; }
+			export function Shared(this: Component<{}>) {
+				this.onMount(() => observeHost());
+				return () => <div />;
+			}
+			export function Invalid(this: Component<{}>) {
+				this.onMount(() => readSecret());
+				return () => <div />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	shared := findComponent(t, response.Analysis.Components, "Shared")
+	invalid := findComponent(t, response.Analysis.Components, "Invalid")
+	if shared.Placement != "isomorphic" {
+		t.Fatalf("client lifecycle incorrectly constrained shared component placement: %#v", shared)
+	}
+	if invalid.Placement != "unknown" ||
+		!strings.Contains(strings.Join(invalid.Diagnostics, "\n"), "client lifecycle calls server-only work") {
+		t.Fatalf("server work escaped into a client lifecycle: %#v", invalid)
 	}
 }
 
@@ -7793,6 +7838,26 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	}
 	if !strings.Contains(valid.Code, `import "@exactjs/dom/runtime/target"`) {
 		t.Fatalf("_target did not select its DOM target capability:\n%s", valid.Code)
+	}
+	direct := NewSession().Execute(Request{
+		ID: "direct-target.ts", Kind: "compile", Target: TargetClient,
+		Source: `
+			import type { Component } from "@exactjs/core";
+			import { createCompiledTarget } from "@exactjs/core/runtime/render";
+			export function Enhancement(this: Component<{}>, props: { children: unknown }) {
+				return () => renderTarget(props.children);
+			}
+			/** @exact pure */
+			function renderTarget(children: unknown) {
+				return createCompiledTarget({ className: "surface" }, children);
+			}
+		`,
+	})
+	if direct.Error != "" {
+		t.Fatal(direct.Error)
+	}
+	if !strings.Contains(direct.Code, `import "@exactjs/dom/runtime/target"`) {
+		t.Fatalf("direct compiled target use did not select its DOM target capability:\n%s", direct.Code)
 	}
 	server := NewSession().Execute(Request{
 		ID: "target-server.tsx", Kind: "compile", Target: TargetServer,

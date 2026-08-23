@@ -72,10 +72,11 @@ export function ThemeScopeEnhancement(
 	props: ThemeScopeEnhancementProps
 ) {
 	const parent = this.hasContext(ThemeContext) ? this.getContext(ThemeContext) : undefined;
-	const initialPreferences = readSystemPreferences();
-	this.state.appearance = initialPreferences.appearance;
-	this.state.contrast = initialPreferences.contrast;
-	this.state.motion = initialPreferences.motion;
+	// Shared setup must be deterministic across SSR and browser activation. The mounted client
+	// lifecycle applies its host preferences after the server-compatible state has been established.
+	this.state.appearance = 'light';
+	this.state.contrast = 'standard';
+	this.state.motion = 'full';
 	const state = this.state;
 	const resolved = this.reactive(() =>
 		resolveTheme({
@@ -111,13 +112,15 @@ export function ThemeScopeEnhancement(
 			}
 		})
 	);
-	this.onMount(() =>
-		observeSystemPreferences((next) => {
+	this.onMount(() => {
+		const applyPreferences = (next: ThemeSystemPreferences) => {
 			state.appearance = next.appearance;
 			state.contrast = next.contrast;
 			state.motion = next.motion;
-		})
-	);
+		};
+		applyPreferences(readSystemPreferences());
+		return observeSystemPreferences(applyPreferences);
+	});
 	return () =>
 		createVNode(
 			props.element ?? 'div',
@@ -132,6 +135,7 @@ export function ThemeScopeEnhancement(
 		);
 }
 
+/** @exact pure */
 function themeRevision(fingerprint: string): number {
 	let revision = 2_166_136_261;
 	for (let index = 0; index < fingerprint.length; index++) {
@@ -174,6 +178,7 @@ export const builtInThemeKeys: Readonly<Record<BuiltInThemeKey, string>> = Objec
 	rose: '#be185d',
 	green: '#15803d'
 });
+/** @exact client */
 function readSystemPreferences(): ThemeSystemPreferences {
 	if (typeof globalThis.matchMedia !== 'function')
 		return { appearance: 'light', contrast: 'standard', motion: 'full' };
@@ -183,6 +188,7 @@ function readSystemPreferences(): ThemeSystemPreferences {
 		motion: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full'
 	};
 }
+/** @exact client */
 function observeSystemPreferences(
 	publish: (preferences: ThemeSystemPreferences) => void
 ): () => void {
