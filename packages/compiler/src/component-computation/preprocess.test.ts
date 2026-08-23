@@ -62,7 +62,11 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Clock.tsx' }
 		);
-		expect(lifecycleOutput).toContain('import "@exactjs/core/runtime/lifecycle"');
+		expect(lifecycleOutput).toContain(
+			'import { registerComponentLifecycleHandler as __exactRegisterLifecycle } from "@exactjs/core/framework/component-lifecycle"'
+		);
+		expect(lifecycleOutput).toContain('__exactRegisterLifecycle(this, "mount", () => undefined)');
+		expect(lifecycleOutput).not.toContain('@exactjs/core/runtime/lifecycle');
 
 		const reactiveOutput = transform(
 			`function Total(this: Component<{ value: number }>) {

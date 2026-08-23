@@ -41,6 +41,14 @@ export function registerComponentLifecycleHandler(
 	mutableComponentLifecycleHandlers(instance, phase).push(handler);
 }
 
+/** Registers one compiler-lowered render callback without exposing a prototype method. */
+export function registerComponentRenderHandler(
+	instance: AnyComponentInstance,
+	handler: RenderEventHandler
+): void {
+	mutableComponentRenderHandlers(instance).push(handler);
+}
+
 /** Reads a lifecycle phase without allocating storage for components that do not use it. */
 export function componentLifecycleHandlers(
 	instance: AnyComponentInstance,

@@ -449,12 +449,14 @@ lifecycle-map probes, and list-controller calls that the component cannot exerci
 fixtures and compatibility artifacts retain the conservative general path.
 
 The compiler also selects the authored component surface itself. The base durable instance owns only
-the state machine and its always-valid context operations; lifecycle registration, resource ownership,
-refs, general lists, localization, explicit reactive values, and the noncanonical logger
-facade are installed by focused runtime entries only when emitted code uses them. Type declarations
-retain the complete authoring interface, but they emit no universal prototype implementation. This
-keeps an unused feature's imports unreachable instead of relying on a lazy field to disguise a
-bundle-level dependency.
+the state machine and its always-valid context operations. Canonical lifecycle registration and
+resource ownership calls lower directly to focused kernel operations; they neither install nor look
+up authored prototype methods at runtime. Refs, general lists, localization, explicit reactive
+values, and the noncanonical logger facade are installed by focused runtime entries only when emitted
+code uses them. Dynamic or extracted lifecycle member access conservatively selects that same focused
+compatibility surface. Type declarations retain the complete authoring interface, but they emit no
+universal prototype implementation. This keeps an unused feature's imports unreachable instead of
+relying on a lazy field to disguise a bundle-level dependency.
 
 Compiler-indexed component state uses one proxy handler and numeric dependency identities per
 state object. Initialized fields are ordinary data properties on the inspectable backing record;

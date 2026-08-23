@@ -87,6 +87,9 @@ type jsxRuntimeNames struct {
 	enhancements           string
 	omitEnhancementProps   string
 	componentLog           string
+	registerLifecycle      string
+	registerRender         string
+	ownResource            string
 	interop                string
 	timeActivation         string
 	createTimeActivation   string
@@ -120,6 +123,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/contexts"},
 		{module: "@exactjs/core/runtime/lifecycle"},
 		{module: "@exactjs/core/runtime/component-reactivity"},
+		{module: "@exactjs/core/framework/component-lifecycle"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -164,6 +168,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createEnhancementNode", lowering.names.enhancements, 5},
 		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
 		{"componentLogMethod", lowering.names.componentLog, 7},
+		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, 22},
+		{"registerComponentRenderHandler", lowering.names.registerRender, 22},
+		{"ownComponentResource", lowering.names.ownResource, 22},
 		{"createTimeActivation", lowering.names.createTimeActivation, 13},
 		{"bindCompiledProgramText", lowering.names.bindProgramText, 18},
 		{"bindCompiledProgramChild", lowering.names.bindProgramChild, 18},
@@ -268,13 +275,10 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		lowering.checker,
 	) || strings.Contains(source, "this.hasContext") || strings.Contains(source, "this.getContext") ||
 		strings.Contains(source, "this.setContext")
-	lifecycleUsed := false
-	for _, component := range lowering.components {
-		if component.Lifecycle {
-			lifecycleUsed = true
-			break
-		}
-	}
+	lifecycleUsed := containsComponentSurfaceUse(
+		root,
+		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
+	)
 	componentReactivityUsed := containsComponentSurfaceUse(
 		root,
 		"reactive",
@@ -626,6 +630,9 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		enhancements:           allocate("__exactEnhancements"),
 		omitEnhancementProps:   allocate("__exactOmitEnhancementProps"),
 		componentLog:           allocate("__exactComponentLog"),
+		registerLifecycle:      allocate("__exactRegisterLifecycle"),
+		registerRender:         allocate("__exactRegisterRender"),
+		ownResource:            allocate("__exactOwnResource"),
 		interop:                allocate("__exactInteropComponent"),
 		timeActivation:         allocate("__exactTimeRange"),
 		createTimeActivation:   allocate("__exactCreateTimeActivation"),

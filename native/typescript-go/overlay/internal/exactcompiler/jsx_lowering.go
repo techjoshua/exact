@@ -154,6 +154,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if compiled := lowering.lowerComponentLogCall(node); compiled != nil {
 		return compiled
 	}
+	if compiled := lowering.lowerComponentLifecycleCall(node); compiled != nil {
+		return compiled
+	}
 	if ast.IsCallExpression(node) && isComponentMapCall(node) {
 		return lowering.lowerComponentMapCall(node)
 	}

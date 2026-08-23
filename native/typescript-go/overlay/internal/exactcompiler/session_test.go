@@ -1305,6 +1305,11 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 		strings.Count(response.Code, `abi: 3`) != 1 {
 		t.Fatalf("component runtime ABI did not distinguish direct and lifecycle paths:\n%s", response.Code)
 	}
+	if !strings.Contains(response.Code, `registerComponentLifecycleHandler as __exactRegisterLifecycle`) ||
+		!strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount", () => undefined)`) ||
+		strings.Contains(response.Code, `"@exactjs/core/runtime/lifecycle"`) {
+		t.Fatalf("canonical lifecycle registration was not lowered directly:\n%s", response.Code)
+	}
 }
 
 func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *testing.T) {
@@ -6219,6 +6224,11 @@ func TestSessionAcceptsDurableComponentOwnedResources(t *testing.T) {
 		if strings.Contains(diagnostic.Message, "cannot be owned") {
 			t.Fatalf("component ownership was rejected: %#v", response.Diagnostics)
 		}
+	}
+	if !strings.Contains(response.Code, `ownComponentResource as __exactOwnResource`) ||
+		!strings.Contains(response.Code, `__exactOwnResource(this, new Session())`) ||
+		!strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount"`) {
+		t.Fatalf("component ownership or lifecycle registration was not lowered directly:\n%s", response.Code)
 	}
 }
 
