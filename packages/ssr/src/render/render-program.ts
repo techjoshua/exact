@@ -41,7 +41,9 @@ export function renderSsrProgram(
 		const target = new GeneratedSsrTarget(context, invocation, renderChildren);
 		program.ssr(target);
 		if (!target.prepared) return { fallback: materializeProgramFallback(vnode, owner) };
-		return renderChildren ? { html: target.html } : { segments: target.segments };
+		return typeof target.output === 'string'
+			? { html: target.output }
+			: { segments: target.output.segments };
 	}
 	return { fallback: materializeProgramFallback(vnode, owner) };
 }
@@ -57,16 +59,16 @@ type DeferredSsrSegment = string | readonly Child[];
  */
 class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 	readonly #values: unknown[] = [];
-	readonly segments: DeferredSsrSegment[] = [];
-	#staticCharacters = 0;
+	output: string | { readonly segments: DeferredSsrSegment[]; staticCharacters: number };
 	prepared = true;
-	html = '';
 
 	constructor(
 		private readonly context: SsrContext,
 		private readonly invocation: ExactRenderProgramInvocation,
 		private readonly renderChildren?: (children: readonly Child[]) => string
-	) {}
+	) {
+		this.output = renderChildren ? '' : { segments: [], staticCharacters: 0 };
+	}
 
 	prepareText(index: number): void {
 		if (!this.prepared) return;
@@ -110,14 +112,14 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 
 	static(value: string): void {
 		if (!this.prepared) return;
-		if (this.renderChildren) {
-			this.html = appendBoundedHtml(this.context, this.html, value);
+		if (typeof this.output === 'string') {
+			this.output = appendBoundedHtml(this.context, this.output, value);
 			return;
 		}
-		this.#staticCharacters += value.length;
-		if (this.#staticCharacters > this.context.maxOutputBytes)
+		this.output.staticCharacters += value.length;
+		if (this.output.staticCharacters > this.context.maxOutputBytes)
 			throw new SsrOutputLimitError(this.context.maxOutputBytes);
-		if (value !== '') this.segments.push(value);
+		if (value !== '') this.output.segments.push(value);
 	}
 
 	text(index: number, id: string, markerless?: true): void {
@@ -147,7 +149,7 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 			return;
 		}
 		if (this.context.markers) this.static(`<!--exact:dynamic:${exactMarkerId(id)}-->`);
-		this.segments.push(children);
+		if (typeof this.output !== 'string') this.output.segments.push(children);
 		if (this.context.markers) this.static(`<!--/exact:dynamic:${exactMarkerId(id)}-->`);
 	}
 
@@ -155,7 +157,7 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 		if (!this.prepared) return;
 		const children = normalizeRenderResult(this.#values[index] as Child | Child[]);
 		if (this.renderChildren) this.static(this.renderChildren(children));
-		else this.segments.push(children);
+		else if (typeof this.output !== 'string') this.output.segments.push(children);
 	}
 
 	attribute(index: number, name: string, tag: string): void {
