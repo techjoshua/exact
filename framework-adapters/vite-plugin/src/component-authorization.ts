@@ -153,6 +153,10 @@ export class ExactViteComponentAuthorization {
 			});
 			for (const file of provenance.watchFiles) options.watch(file);
 			for (const file of provenance.watchFiles) this.#authorizationInputs.add(path.resolve(file));
+			if (provenance.applicationOwned) {
+				this.#preflighted.set(preflightKey, '');
+				return resolved;
+			}
 			const authorization = await this.#session.authorizeResolvedComponent(
 				Object.freeze({
 					importerModuleId,

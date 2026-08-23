@@ -6,6 +6,29 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
 
 describe('@exactjs/vite-plugin: component authorization', () => {
+	it('keeps compiler-owned application components outside published-library authorization', async () => {
+		const fixture = createViteFixture();
+		const localModule = path.join(fixture.root, 'src', 'Card.tsx');
+		writeFileSync(localModule, 'export function Card() { return () => <article />; }\n');
+		const pageSource =
+			"import { Card } from './Card.js'; export function Page() { return () => <Card />; }";
+		const plugin = exact({
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		await plugin.buildStart?.call({ addWatchFile() {} });
+		plugin.transform(pageSource, fixture.pageFile);
+
+		await expect(
+			plugin.resolveId?.call(
+				{ resolve: async () => ({ id: localModule }) },
+				'./Card.js',
+				fixture.pageFile
+			)
+		).resolves.toEqual({ id: localModule });
+	});
+
 	it('authorizes before returning a server component resolution and emits private manifests', async () => {
 		const fixture = createViteFixture();
 		const plugin = exact({
