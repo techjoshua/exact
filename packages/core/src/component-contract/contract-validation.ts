@@ -77,7 +77,8 @@ function isDefinition(value: unknown): boolean {
 			'tasks',
 			'reactive',
 			'render',
-			'capabilities'
+			'capabilities',
+			'server'
 		]) &&
 		value.version === 1 &&
 		typeof value.instantiate === 'function' &&
@@ -92,6 +93,7 @@ function isDefinition(value: unknown): boolean {
 		(value.reactive === undefined ||
 			(Array.isArray(value.reactive) && value.reactive.every(isReactiveAllocation))) &&
 		(value.render === undefined || value.render === 'returned-function') &&
+		(value.server === undefined || isServerExecution(value.server)) &&
 		Array.isArray(value.capabilities) &&
 		value.capabilities.every((capability) =>
 			[
@@ -108,6 +110,35 @@ function isDefinition(value: unknown): boolean {
 			].includes(capability)
 		)
 	);
+}
+
+/** Validates the closed server projection without accepting executable data from foreign input. */
+function isServerExecution(value: unknown): boolean {
+	if (!isContractRecord(value)) return false;
+	return (
+		hasOnlyContractKeys(value, ['version', 'classification', 'setup', 'slices']) &&
+		value.version === 1 &&
+		(value.classification === 'synchronous' ||
+			value.classification === 'scheduled' ||
+			value.classification === 'dynamic') &&
+		Array.isArray(value.setup) &&
+		value.setup.every(isSafeIndex) &&
+		Array.isArray(value.slices) &&
+		value.slices.every(
+			(slice) =>
+				isContractRecord(slice) &&
+				hasOnlyContractKeys(slice, ['transition', 'inputs', 'outputs']) &&
+				isSafeIndex(slice.transition) &&
+				Array.isArray(slice.inputs) &&
+				slice.inputs.every(isSafeIndex) &&
+				Array.isArray(slice.outputs) &&
+				slice.outputs.every(isSafeIndex)
+		)
+	);
+}
+
+function isSafeIndex(value: unknown): value is number {
+	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isComponentUpdates(value: unknown): boolean {

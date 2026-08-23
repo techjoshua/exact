@@ -155,6 +155,21 @@ export type ExactComponentExecutionContract = Readonly<{
 	}>[];
 }>;
 
+/** Compiler-projected server execution slice consumed without rebuilding the component DAG. */
+export type ExactServerComponentExecutionContract = Readonly<{
+	version: 1;
+	/** Selects the smallest server lane capable of executing the projected component. */
+	classification: 'synchronous' | 'scheduled' | 'dynamic';
+	/** Setup transition indexes in compiler-determined activation order. */
+	setup: readonly number[];
+	/** Direct dependency slices for independently dispatchable server transitions. */
+	slices: readonly Readonly<{
+		transition: number;
+		inputs: readonly number[];
+		outputs: readonly number[];
+	}>[];
+}>;
+
 /** Canonical compiler description from which one durable state-machine instance is created. */
 export type ExactCompiledComponentDefinitionContract = Readonly<{
 	version: 1;
@@ -169,6 +184,8 @@ export type ExactCompiledComponentDefinitionContract = Readonly<{
 	reactive?: ExactComponentExecutionContract['reactive'];
 	render?: 'returned-function';
 	capabilities: readonly ExactCompiledComponentCapability[];
+	/** Server-only execution classification and direct dependency slices. */
+	server?: ExactServerComponentExecutionContract;
 }>;
 
 /** One component-owned direct DOM update program shared by every instance of its definition. */

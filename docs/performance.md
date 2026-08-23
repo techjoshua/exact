@@ -154,7 +154,12 @@ function: a
 generated preparation prefix reads the known slots, then generated calls write static markup,
 text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
-tables. Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
+tables. The server facet also carries a compact execution classification, ordered setup-transition
+indexes, and direct input/output slices. These are build products of the canonical component
+dataflow graph; request execution must consume them rather than rebuilding the graph. Synchronous,
+scheduled, and dynamic components therefore have an explicit bundle boundary for progressively
+removing generic component and task infrastructure without changing the authored component model.
+Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
 binder contexts are released after synchronous installation and are not captured by the retained
 slot watchers. Server and universal artifacts retain individual readers for SSR, while older
 precompiled clients continue through the runtime fallback. A change therefore

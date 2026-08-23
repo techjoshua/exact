@@ -69,6 +69,7 @@ func componentDefinitionMetadata(
 	dynamicComponents bool,
 	collections bool,
 	runtimeABI int,
+	server bool,
 	compact bool,
 	updates *ast.Node,
 ) *ast.Node {
@@ -118,6 +119,13 @@ func componentDefinitionMetadata(
 	if updates != nil {
 		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
+	if server {
+		properties = append(properties, contractProperty(
+			factory,
+			"server",
+			serverComponentExecutionMetadata(factory, execution, dynamicComponents),
+		))
+	}
 	if !compact {
 		properties = append(properties,
 			contractProperty(factory, "tasks", stringMetadata(factory, tasks)),
@@ -126,6 +134,39 @@ func componentDefinitionMetadata(
 		)
 	}
 	return contractObject(factory, true, properties...)
+}
+
+// serverComponentExecutionMetadata projects activation and dependency slices once at build time.
+// The server renderer consumes this record directly instead of reconstructing a per-request DAG.
+func serverComponentExecutionMetadata(
+	factory *printer.NodeFactory,
+	execution ComponentExecution,
+	dynamic bool,
+) *ast.Node {
+	classification := "synchronous"
+	if dynamic {
+		classification = "dynamic"
+	} else if len(execution.Transitions) != 0 {
+		classification = "scheduled"
+	}
+	setup := []int{}
+	slices := make([]*ast.Node, 0, len(execution.Transitions))
+	for index, transition := range execution.Transitions {
+		if transition.Activation == "setup" {
+			setup = append(setup, index)
+		}
+		slices = append(slices, contractObject(factory, false,
+			contractProperty(factory, "transition", contractNumber(factory, index)),
+			contractProperty(factory, "inputs", contractNumberArray(factory, transition.Inputs)),
+			contractProperty(factory, "outputs", contractNumberArray(factory, transition.Outputs)),
+		))
+	}
+	return contractObject(factory, true,
+		contractProperty(factory, "version", contractNumber(factory, 1)),
+		contractProperty(factory, "classification", contractString(factory, classification)),
+		contractProperty(factory, "setup", contractNumberArray(factory, setup)),
+		contractProperty(factory, "slices", contractArray(factory, slices...)),
+	)
 }
 
 const (
