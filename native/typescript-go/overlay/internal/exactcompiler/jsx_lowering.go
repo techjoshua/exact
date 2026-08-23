@@ -380,6 +380,19 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		}
 	}
 	if write, exists := lowering.writes[nodeSpanKey(node)]; exists {
+		if lowering.directServerArtifactComponent(node) {
+			if ast.IsBinaryExpression(node) {
+				expression := node.AsBinaryExpression()
+				if expression.OperatorToken.Kind == ast.KindEqualsToken {
+					if taskNode, task, exists := lowering.assignedTask(expression.Right); exists {
+						return lowering.lowerTask(taskNode, task)
+					}
+				}
+			}
+			// Compiler-closed server artifacts own plain request-local state. Preserve the
+			// authored JavaScript operation instead of routing it through reactive writes.
+			return lowering.visitor.VisitEachChild(node)
+		}
 		if transformed := lowering.lowerStateWrite(node, write); transformed != nil {
 			return transformed
 		}

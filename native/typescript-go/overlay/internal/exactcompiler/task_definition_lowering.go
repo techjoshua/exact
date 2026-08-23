@@ -162,6 +162,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		// Runtime task context follows every activation dependency, including
 		// authored dependencies that do not appear in the inferred plan.
 		runtimeArgumentCount,
+		directServerComputation || directServerSlice,
 	)
 	if directServerComputation {
 		arguments := append([]*ast.Node{}, nextArguments...)
@@ -790,7 +791,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 		(operation.Placement == "server" || operation.Placement == "isomorphic") {
 		work = lowering.lowerInvokedTaskOperationWork(work, *operation)
 	} else {
-		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount)
+		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount, false)
 	}
 	if (operation == nil || operation.Placement == "client") && useCompiledLatest {
 		return lowering.taskHelperCall(
@@ -1079,6 +1080,7 @@ func (lowering *jsxLowering) lowerSetupResourceTask(
 		task,
 		0,
 		lowering.taskWorkCallsDefinition(work),
+		false,
 	)
 	callee := lowering.factory.NewPropertyAccessExpression(
 		lowering.factory.NewPropertyAccessExpression(

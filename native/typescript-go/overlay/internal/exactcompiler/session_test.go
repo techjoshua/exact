@@ -3312,9 +3312,9 @@ __fixtureTask7();
 	})
 	if !strings.Contains(
 		server.Code,
-		`__exactTaskCollectionMutation(_task.signal, this.state, ["lookup"], "map", "set", () => ["answer", 42])`,
+		`__exactDependency.set("answer", 42)`,
 	) {
-		t.Fatalf("server collection delta lowering is missing:\n%s", server.Code)
+		t.Fatalf("direct request-local server collection mutation is missing:\n%s", server.Code)
 	}
 
 	invalid := NewSession().Execute(Request{
@@ -5955,6 +5955,51 @@ __fixtureTask35();
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native task await output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionSpecializesDirectServerAwaitAndTimeout(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-await.tsx", Kind: "compile", Target: TargetServer,
+		ServerComponents: true,
+		Source: `
+			import { TaskContext, taskTimeout, type Component } from "@exactjs/core";
+			function Panel(this: Component<{ value: number }>) {
+				this.state.value = 0;
+				const load = async (task: TaskContext = TaskContext.server().blocking()) => {
+					await new Promise<void>((resolve) => taskTimeout(task.signal, resolve, 1));
+					this.state.value = 1;
+				};
+				void load();
+				return () => <output>{this.state.value}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`awaitServerComponentTask as __exactServerTaskAwait`,
+		`serverComponentTaskTimeout as __exactServerTaskTimeout`,
+		`await __exactServerTaskAwait(task.signal`,
+		`__exactServerTaskTimeout(`,
+		`this.state.value = 0`,
+		`this.state.value = 1`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("direct server task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, excluded := range []string{
+		`taskAwait as __exactTaskAwait`,
+		`taskTimeout as __exactTaskTimeout`,
+		`@exactjs/core/runtime/reactivity`,
+		`writeReactiveLazy`,
+		`combineTaskSignal`,
+	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("direct server task output retained %q:\n%s", excluded, response.Code)
 		}
 	}
 }

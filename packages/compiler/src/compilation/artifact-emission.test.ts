@@ -244,7 +244,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toMatch(
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
 		);
-		expect(server).toMatch(/__exactWrite\(__exactComponent_\d+\.state, \["count"\]/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.count = 1/);
+		expect(server).not.toContain('__exactWrite');
 	});
 
 	it('preserves awaited server task value flow in both client and executor artifacts', async () => {
@@ -336,8 +337,9 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
-		expect(server).toMatch(/__exactComponent_\d+\.state, \["settled"\]/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.settled = true/);
+		expect(server).not.toContain('__exactWrite');
 	});
 
 	it('keeps direct server-context dependencies out of client activation records', async () => {

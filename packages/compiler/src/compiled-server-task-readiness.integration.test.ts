@@ -38,6 +38,10 @@ it('issues nested independent server tasks before authored-order serialization',
 			serverComponents: true
 		}
 	);
+	expect(compiled).toContain('this.state.value = 0');
+	expect(compiled).toContain('this.state.value = value');
+	expect(compiled).toContain('awaitServerComponentTask');
+	expect(compiled).not.toContain('writeReactiveLazy');
 	const javascript = ts.transpileModule(compiled, {
 		compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 	}).outputText;
