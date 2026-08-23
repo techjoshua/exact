@@ -32,6 +32,15 @@ export function mutableComponentLifecycleHandlers(
 	return (value[phase] ??= []);
 }
 
+/** Registers one lifecycle callback through the renderer/compiler kernel contract. */
+export function registerComponentLifecycleHandler(
+	instance: AnyComponentInstance,
+	phase: LifecyclePhase,
+	handler: LifecycleHandler
+): void {
+	mutableComponentLifecycleHandlers(instance, phase).push(handler);
+}
+
 /** Reads a lifecycle phase without allocating storage for components that do not use it. */
 export function componentLifecycleHandlers(
 	instance: AnyComponentInstance,

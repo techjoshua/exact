@@ -118,6 +118,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/collections"},
 		{module: "@exactjs/dom/runtime/render-program"},
 		{module: "@exactjs/core/runtime/contexts"},
+		{module: "@exactjs/core/runtime/lifecycle"},
+		{module: "@exactjs/core/runtime/component-reactivity"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -242,25 +244,41 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		}
 	}
 	source := lowering.sourceFile.Text()
-	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root) ||
+	localizationUsed := lowering.componentLocalization ||
+		containsComponentSurfaceUse(root, "intl") ||
 		strings.Contains(source, "this.intl")
+	loggingSurfaceUsed := containsComponentSurfaceUse(
+		root,
+		"log",
+	) || strings.Contains(source, "this.log")
 	listUsed := lowering.listCapabilityUsed ||
-		containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "map") ||
+		containsComponentSurfaceUse(root, "map") ||
 		strings.Contains(source, "this.map")
-	refsUsed := containsComponentSurfaceUse(lowering.sourceFile.AsNode(), "ref", "readRef", "refs") ||
+	refsUsed := containsComponentSurfaceUse(root, "ref", "readRef", "refs") ||
 		strings.Contains(source, "this.ref") || strings.Contains(source, "this.readRef") ||
 		strings.Contains(source, "this.refs")
 	contextsUsed := containsComponentSurfaceUse(
-		lowering.sourceFile.AsNode(),
+		root,
 		"hasContext",
 		"getContext",
 		"setContext",
 	) || containsCoreContextComponentImport(
-		lowering.sourceFile.AsNode(),
+		root,
 		lowering.sourceFile,
 		lowering.checker,
 	) || strings.Contains(source, "this.hasContext") || strings.Contains(source, "this.getContext") ||
 		strings.Contains(source, "this.setContext")
+	lifecycleUsed := false
+	for _, component := range lowering.components {
+		if component.Lifecycle {
+			lifecycleUsed = true
+			break
+		}
+	}
+	componentReactivityUsed := containsComponentSurfaceUse(
+		root,
+		"reactive",
+	) || strings.Contains(source, "this.reactive")
 	executionUsed := lowering.contractProjection != ComponentContractProjectionHydrate
 	if executionUsed {
 		executionUsed = false
@@ -296,6 +314,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	for index, group := range groups {
 		if len(group.specifiers) == 0 {
 			if (index == 2 && (interopUsed || interactionUsed)) ||
+				(group.module == "@exactjs/core/runtime/logging" && loggingSurfaceUsed) ||
 				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) ||
 				(group.module == "@exactjs/core/runtime/lists" && listUsed) ||
 				(group.module == "@exactjs/core/runtime/refs" && refsUsed) ||
@@ -305,7 +324,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				(group.module == "@exactjs/dom/runtime/target" && targetUsed) ||
 				(group.module == "@exactjs/core/runtime/component-execution" && executionUsed) ||
 				(group.module == "@exactjs/core/runtime/collections" && collectionsUsed) ||
-				(group.module == "@exactjs/core/runtime/contexts" && contextsUsed) {
+				(group.module == "@exactjs/core/runtime/contexts" && contextsUsed) ||
+				(group.module == "@exactjs/core/runtime/lifecycle" && lifecycleUsed) ||
+				(group.module == "@exactjs/core/runtime/component-reactivity" && componentReactivityUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,
@@ -342,12 +363,12 @@ func containsComponentSurfaceUse(root *ast.Node, names ...string) bool {
 	}
 	found := false
 	walkNode(root, func(node *ast.Node) bool {
-		if !ast.IsPropertyAccessExpression(node) {
+		name, componentMember, dynamic := componentProtocolMember(node)
+		if !componentMember {
 			return true
 		}
-		member := node.AsPropertyAccessExpression()
-		_, matched := accepted[member.Name().Text()]
-		found = matched && member.Expression.Kind == ast.KindThisKeyword
+		_, matched := accepted[name]
+		found = matched || dynamic
 		return !found
 	})
 	return found
@@ -429,19 +450,6 @@ func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "unsafeHtml"
-		return !found
-	})
-	return found
-}
-
-func containsComponentLocalizationUse(root *ast.Node) bool {
-	found := false
-	walkNode(root, func(node *ast.Node) bool {
-		if !ast.IsPropertyAccessExpression(node) {
-			return true
-		}
-		member := node.AsPropertyAccessExpression()
-		found = member.Expression.Kind == ast.KindThisKeyword && member.Name().Text() == "intl"
 		return !found
 	})
 	return found

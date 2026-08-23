@@ -332,7 +332,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain(
 			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'
 		);
-		expect(client).toContain('this.reactive(() => this.state.id)');
+		expect(client).toContain('__exactDerived(() => this.state.id)');
 		expect(server).toMatch(
 			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
 		);
@@ -497,7 +497,10 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(pageServer).not.toContain('./workspace.js');
 		expect(workspaceServer).toContain('createServerBoundary as __exactBoundary');
 		expect(workspaceClient).toContain('./workspace-view.exact.client.js');
-		expect(workspaceViewClient).toContain('__exactVNode');
+		expect(workspaceViewClient).toContain('__exactClaimProgramChild');
+		expect(workspaceViewClient).toContain('directClaims: true');
+		expect(workspaceViewClient).toContain('ssr: __exactSsr =>');
+		expect(workspaceViewClient).toContain('() => __exactVNode("div"');
 		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
 		expect(workspaceViewClient).not.toContain('this.map(');
 		expect(workspaceViewClient).not.toContain('Anonymous_ExactClient');

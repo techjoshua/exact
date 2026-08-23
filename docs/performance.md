@@ -116,8 +116,10 @@ end. If variable structure makes neither edge stable, the component retains its 
 claims. Inert static intrinsics are never claimed or assigned individual ownership. The successful
 path does not walk descriptor tables, build an identity map, or rediscover slots. Every claimed tag,
 namespace, scalar sentinel, and structural marker pair is still checked. A stale or malformed plan
-therefore fails closed into the existing hydration recovery path, while complete isomorphic,
-manually constructed, and generic compatibility programs retain the table-driven adopter.
+therefore fails closed into the existing hydration recovery path. Complete rendering-mode-neutral
+artifacts combine the same direct client claim lane with a generated SSR writer and a generated
+recovery factory; manually constructed and older compatibility programs alone retain the
+table-driven adopter.
 
 Render-program descriptors are emitted once as immutable module tables. Component instances join
 only their local expression readers and optional recovery function to that shared table; they do
@@ -144,10 +146,11 @@ Closed hydrate and client artifacts emit their complete claim and binding topolo
 executor. Its claim lane wires intrinsic and slot identities; its binding lane calls text,
 structural-child, compiler-keyed-child, grouped compatibility-list, and property operations. The DOM
 executor invokes those compiler-authored calls without walking or branching over general node,
-slot, or binding tables.
-Complete rendering-mode-neutral artifacts retain the client tables because they may execute through
-either renderer, but their server lane is still a component-specific generated function rather
-than interpreted metadata. Closed server artifacts emit only that component-specific SSR function: a
+slot, or binding tables. Complete rendering-mode-neutral artifacts retain direct client execution,
+a component-specific server function, and a region recovery factory because the same physical
+artifact may execute through either renderer. They do not make contract-metadata completeness
+select generic successful execution. Closed server artifacts emit only that component-specific SSR
+function: a
 generated preparation prefix reads the known slots, then generated calls write static markup,
 text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
@@ -444,6 +447,14 @@ state and prop changes are then routed by those generated operations rather than
 component-render watcher. Construction and disposal use the same ABI to avoid task lookups,
 lifecycle-map probes, and list-controller calls that the component cannot exercise. Framework test
 fixtures and compatibility artifacts retain the conservative general path.
+
+The compiler also selects the authored component surface itself. The base durable instance owns only
+the state machine and its always-valid context operations; lifecycle registration, resource ownership,
+refs, general lists, localization, explicit reactive values, and the noncanonical logger
+facade are installed by focused runtime entries only when emitted code uses them. Type declarations
+retain the complete authoring interface, but they emit no universal prototype implementation. This
+keeps an unused feature's imports unreachable instead of relying on a lazy field to disguise a
+bundle-level dependency.
 
 Compiler-indexed component state uses one proxy handler and numeric dependency identities per
 state object. Initialized fields are ordinary data properties on the inspectable backing record;

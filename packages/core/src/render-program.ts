@@ -161,11 +161,14 @@ export type ExactRenderProgram =
 export type ExactDomRenderProgram = ExactDirectRenderProgram | ExactTableRenderProgram;
 
 type BrandedRenderProgram = ExactRenderProgram & { readonly __exactPreparedRenderProgram: never };
+type ExactRenderProgramReaders =
+	| ReadonlyArray<(() => unknown) | undefined>
+	| ((index: number) => unknown);
 
 /** Per-instance readers and generic fallback joined to one cached compiled program. */
 export type ExactRenderProgramInvocation = Readonly<{
 	program: BrandedRenderProgram;
-	readers: readonly (() => unknown)[] | ((index: number) => unknown);
+	readers: ExactRenderProgramReaders;
 	/** Compiler-emitted direct property-group writers indexed by the binding descriptor. */
 	propertyWriter?: (group: number, apply: (name: string, value: unknown) => void) => void;
 	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
@@ -194,7 +197,7 @@ export function compiledRenderProgramCacheSize(): number {
 export function createCompiledRenderProgram(
 	cacheKey: string,
 	createProgram: () => ExactRenderProgram,
-	readers: readonly (() => unknown)[] | ((index: number) => unknown),
+	readers: ExactRenderProgramReaders,
 	fallback?: () => VNode
 ): VNode {
 	let prepared = programs.get(cacheKey);
@@ -222,7 +225,7 @@ export function prepareCompiledRenderProgram(program: ExactRenderProgram): Brand
 /** Joins invocation-local readers to one compiler-hoisted immutable descriptor. */
 export function createPreparedRenderProgram(
 	branded: BrandedRenderProgram,
-	readers: readonly (() => unknown)[] | ((index: number) => unknown),
+	readers: ExactRenderProgramReaders,
 	fallback?: () => VNode,
 	propertyWriter?: (group: number, apply: (name: string, value: unknown) => void) => void
 ): VNode {

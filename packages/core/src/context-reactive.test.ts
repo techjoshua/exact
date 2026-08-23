@@ -10,8 +10,8 @@ import {
 	type Component,
 	type VNode
 } from './index.js';
-import './component/ref-capability-integration.js';
-import './component/list-capability-integration.js';
+import './runtime/lists.js';
+import './runtime/refs.js';
 import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
 
 describe('@exactjs/core context-reactive', () => {

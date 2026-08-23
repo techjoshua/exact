@@ -2,7 +2,7 @@ import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 
 import '../component/task-capability-integration.js';
-import '../component/context-capability-integration.js';
+import '../runtime/contexts.js';
 import type { Component } from '../component/contracts.js';
 import { LoggerContext } from '../component/contexts.js';
 import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';

@@ -79,6 +79,16 @@ export function markCompiledTaskPerformanceTrace(
 
 function componentTraceOwner(owner: TaskOwnerRecord): AnyComponentInstance | undefined {
 	const host = owner.host;
-	if (!host || typeof host !== 'object' || !('log' in host) || !('id' in host)) return undefined;
+	if (
+		!host ||
+		typeof host !== 'object' ||
+		!('id' in host) ||
+		typeof host.id !== 'string' ||
+		!('domain' in host) ||
+		!('scope' in host) ||
+		!('unmount' in host) ||
+		typeof host.unmount !== 'function'
+	)
+		return undefined;
 	return host as AnyComponentInstance;
 }

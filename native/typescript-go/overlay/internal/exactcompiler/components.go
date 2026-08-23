@@ -95,20 +95,41 @@ func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
 	}
 	found := false
 	walkNode(node, func(candidate *ast.Node) bool {
-		if !ast.IsPropertyAccessExpression(candidate) {
+		name, componentMember, dynamic := componentProtocolMember(candidate)
+		if !componentMember {
 			return true
 		}
-		member := candidate.AsPropertyAccessExpression()
-		if member.Expression.Kind != ast.KindThisKeyword || member.Name() == nil {
-			return true
-		}
-		if _, exists := accepted[member.Name().Text()]; exists {
+		if _, exists := accepted[name]; exists || dynamic {
 			found = true
 			return false
 		}
 		return true
 	})
 	return found
+}
+
+// componentProtocolMember identifies direct and computed access to the authored component view.
+// A dynamic computed key conservatively selects every queried capability family because the
+// compiler cannot prove which operation the running program will choose.
+func componentProtocolMember(node *ast.Node) (name string, componentMember bool, dynamic bool) {
+	if ast.IsPropertyAccessExpression(node) {
+		member := node.AsPropertyAccessExpression()
+		if member.Expression.Kind == ast.KindThisKeyword && member.Name() != nil {
+			return member.Name().Text(), true, false
+		}
+		return "", false, false
+	}
+	if !ast.IsElementAccessExpression(node) {
+		return "", false, false
+	}
+	member := node.AsElementAccessExpression()
+	if member.Expression.Kind != ast.KindThisKeyword || member.ArgumentExpression == nil {
+		return "", false, false
+	}
+	if ast.IsStringLiteral(member.ArgumentExpression) {
+		return member.ArgumentExpression.Text(), true, false
+	}
+	return "", true, true
 }
 
 // usesForeignJSXRuntime keeps React, Preact, and other explicitly authored JSX
