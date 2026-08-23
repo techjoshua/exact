@@ -8,6 +8,7 @@ import {
 	readRenderProgram,
 	readRenderProgramSlot
 } from './render-program.js';
+import { RenderProgram } from './symbols.js';
 import { createVNode } from './vnode.js';
 
 const fallback = () => createVNode('span', null);
@@ -24,6 +25,10 @@ const program = (id: string) => ({
 
 describe('compiled render-program cache', () => {
 	beforeEach(clearCompiledRenderPrograms);
+
+	it('shares the render-program discriminator across separately loaded artifacts', () => {
+		expect(RenderProgram).toBe(Symbol.for('exact.render-program'));
+	});
 
 	it('shares immutable programs within a generation and supports explicit invalidation', () => {
 		createCompiledRenderProgram('revision:1', () => program('first'), [() => 'a'], fallback);

@@ -24,5 +24,5 @@ export const Activity = Symbol.for('exact.activity') as symbol &
 /** Provides the canonical native readiness boundary value. */
 export const Suspense = Symbol.for('exact.suspense') as symbol &
 	((props: { fallback?: unknown; children?: unknown }) => never);
-/** Internal vnode kind used only by compiler-emitted render programs. */
-export const RenderProgram = Symbol('exact.render-program');
+/** Compiler-emitted render-program kind shared by independently loaded framework artifacts. */
+export const RenderProgram = Symbol.for('exact.render-program');
