@@ -38,6 +38,9 @@ universal function as a substitute for compilation.
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the
 component's topology or interpret a universal component plan when the artifact already knows it.
+Compiler-owned vnode discriminators use realm-stable ABI identities so separately loaded
+precompiled libraries and renderer modules agree on generated execution boundaries during
+development as well as in deduplicated production bundles.
 
 ## Migration inventory
 
