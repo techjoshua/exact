@@ -23,7 +23,7 @@ type renderProgramSlot struct {
 	name           string
 	list           bool
 	directList     bool
-	markerlessList bool
+	markerlessTail bool
 	reader         *ast.Node
 }
 
@@ -120,24 +120,34 @@ func (build *renderProgramBuild) childSlot(
 	reader *ast.Node,
 	list bool,
 	directList bool,
-	markerlessList bool,
+	markerlessTail bool,
 ) {
 	index := len(build.slots)
-	if !markerlessList {
+	if !markerlessTail {
 		build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
 	}
 	build.serverSlot(index)
 	build.slots = append(build.slots, renderProgramSlot{
 		id: id, kind: "child", path: append([]int(nil), path...),
-		list: list, directList: directList, markerlessList: markerlessList, reader: reader,
+		list: list, directList: directList, markerlessTail: markerlessTail, reader: reader,
 	})
 }
 
-func (build *renderProgramBuild) componentSlot(id string, path []int, reader *ast.Node) {
+func (build *renderProgramBuild) componentSlot(
+	id string,
+	path []int,
+	reader *ast.Node,
+	markerlessTail bool,
+) {
 	index := len(build.slots)
-	build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
+	if !markerlessTail {
+		build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
+	}
 	build.serverSlot(index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "component", path: append([]int(nil), path...), reader: reader})
+	build.slots = append(build.slots, renderProgramSlot{
+		id: id, kind: "component", path: append([]int(nil), path...),
+		markerlessTail: markerlessTail, reader: reader,
+	})
 }
 
 func (build *renderProgramBuild) propertySlot(id string, path []int, node int, name string, reader *ast.Node) {
@@ -539,15 +549,14 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				continue
 			}
 			if expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 || !lowering.scalarRenderProgramExpression(expression) {
-				// Server artifacts retain the generic tree for recursive streaming. The client
-				// claims its dynamic marker as a structural slot, avoiding a generic host tree
-				// while preserving the existing SSR/hydration protocol.
-				if lowering.target != TargetClient {
+				// The generated SSR executor delegates the owned value back to ordinary recursive
+				// child rendering, so both targets can retain the same compiler-proven boundary.
+				if lowering.target != TargetClient && lowering.target != TargetServer {
 					return false
 				}
 				list := lowering.renderProgramListExpression(expression)
 				directList := list && lowering.directRenderProgramKeyedMap(expression)
-				markerlessList := directList && noRenderedProgramChildrenAfter(semantic, childIndex)
+				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				lowering.renderProgramChildDepth++
 				if list {
 					lowering.renderProgramListDepth++
@@ -558,9 +567,9 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				lowering.renderProgramChildDepth--
 				build.childSlot(
-					lowering.dynamicID(child), childPath, reader, list, directList, markerlessList,
+					lowering.dynamicID(child), childPath, reader, list, directList, markerlessTail,
 				)
-				if !markerlessList {
+				if !markerlessTail {
 					domIndex += 2
 				}
 				continue
@@ -574,11 +583,16 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if !lowering.plannedComponentChild(childTag) {
 					return false
 				}
-				if lowering.target != TargetClient {
+				if lowering.target != TargetClient && lowering.target != TargetServer {
 					return false
 				}
-				build.componentSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
-				domIndex += 2
+				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
+				build.componentSlot(
+					lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), markerlessTail,
+				)
+				if !markerlessTail {
+					domIndex += 2
+				}
 				continue
 			}
 			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace)) {
@@ -591,11 +605,16 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if !lowering.plannedComponentChild(childTag) {
 					return false
 				}
-				if lowering.target != TargetClient {
+				if lowering.target != TargetClient && lowering.target != TargetServer {
 					return false
 				}
-				build.componentSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child))
-				domIndex += 2
+				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
+				build.componentSlot(
+					lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), markerlessTail,
+				)
+				if !markerlessTail {
+					domIndex += 2
+				}
 				continue
 			}
 			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace)) {
@@ -989,6 +1008,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 
 type renderProgramClaim struct {
 	kind      string
+	component bool
 	index     int
 	path      []int
 	tag       string
@@ -1031,7 +1051,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 			path := append([]int(nil), slot.path...)
 			width := 2
 			kind := slot.kind
-			if slot.markerlessList {
+			if slot.markerlessTail {
 				kind = "keyed"
 				width = 0
 			}
@@ -1043,7 +1063,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 				continue
 			}
 			claims = append(claims, renderProgramClaim{
-				kind: kind, index: index, path: path, id: slot.id, width: width,
+				kind: kind, component: slot.kind == "component", index: index, path: path, id: slot.id, width: width,
 			})
 		}
 		sort.SliceStable(claims, func(left int, right int) bool {
@@ -1092,7 +1112,11 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 					arguments...,
 				)
 			case "keyed":
-				emitCall(lowering.names.claimProgramKeyedChild, claimIndex, skip)
+				arguments := []*ast.Node{claimIndex, skip}
+				if claim.component {
+					arguments = append(arguments, lowering.factory.NewTrueExpression())
+				}
+				emitCall(lowering.names.claimProgramKeyedChild, arguments...)
 			default:
 				arguments := []*ast.Node{
 					claimIndex,
@@ -1136,51 +1160,4 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 		)
 	}
 	return statements
-}
-
-func directProgramHasSlotDescendant(build *renderProgramBuild, path []int) bool {
-	for _, slot := range build.slots {
-		if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
-			continue
-		}
-		parent := slot.path[:len(slot.path)-1]
-		if pathPrefix(path, parent) {
-			return true
-		}
-	}
-	return false
-}
-
-func directChildPath(path []int, parent []int) bool {
-	if len(path) != len(parent)+1 {
-		return false
-	}
-	for index := range parent {
-		if path[index] != parent[index] {
-			return false
-		}
-	}
-	return true
-}
-
-func directProgramHasChildren(build *renderProgramBuild, parent []int) bool {
-	for index, node := range build.nodes {
-		if index != 0 && directChildPath(node.path, parent) {
-			return true
-		}
-	}
-	for _, slot := range build.slots {
-		if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
-			continue
-		}
-		path := slot.path
-		if slot.kind == "text" {
-			path = append([]int(nil), path...)
-			path[len(path)-1]--
-		}
-		if directChildPath(path, parent) {
-			return true
-		}
-	}
-	return false
 }

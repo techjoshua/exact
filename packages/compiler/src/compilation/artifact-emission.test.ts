@@ -497,7 +497,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(pageServer).not.toContain('./workspace.js');
 		expect(workspaceServer).toContain('createServerBoundary as __exactBoundary');
 		expect(workspaceClient).toContain('./workspace-view.exact.client.js');
-		expect(workspaceViewClient).toContain('__exactClaimProgramChild');
+		expect(workspaceViewClient).toContain('__exactClaimProgramKeyedChild');
 		expect(workspaceViewClient).toContain('directClaims: true');
 		expect(workspaceViewClient).toContain('ssr: __exactSsr =>');
 		expect(workspaceViewClient).toContain('() => __exactVNode("div"');
