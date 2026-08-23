@@ -62,6 +62,29 @@ export async function buildPerformanceFixtures(outputDirectory) {
 	return { elapsedMs, paths, bytes };
 }
 
+/** Builds only the compiler-closed artifact served by the sustained production HTTP benchmark. */
+export async function buildServerPerformanceFixture(outputDirectory) {
+	const started = performance.now();
+	const filename = path.join(outputDirectory, 'server-http-scenario.mjs');
+	await buildFixture(
+		path.join(fixtureRoot, 'server-http-entry.ts'),
+		outputDirectory,
+		path.basename(filename),
+		{ ssr: true, target: 'server' }
+	);
+	const content = await readFile(filename);
+	assertCompilerClosedServerBundle(content.toString('utf8'));
+	return {
+		elapsedMs: performance.now() - started,
+		path: filename,
+		bytes: {
+			raw: content.byteLength,
+			gzip: gzipSync(content).byteLength,
+			brotli: brotliCompressSync(content).byteLength
+		}
+	};
+}
+
 function assertCompilerClosedServerBundle(source) {
 	for (const signature of [
 		'ComponentInstanceImpl',

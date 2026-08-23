@@ -801,6 +801,37 @@ func TestSessionKeepsIndependentServerTaskSiblingsOutOfOrderedRenderPrograms(t *
 	}
 }
 
+func TestSessionKeepsNestedIndependentServerTaskSiblingsOutOfOrderedRenderPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "nested-server-task-siblings.tsx", Kind: "compile", Target: TargetServer,
+		ServerComponents: true,
+		Source: `
+			import { TaskContext, type Component } from "@exactjs/core";
+			function Leaf(this: Component<{ value: number }>, props: { value: number }) {
+				this.state.value = 0;
+				async function load(value: number, _task: TaskContext = TaskContext.server().blocking()) {
+					await Promise.resolve();
+					this.state.value = value;
+				}
+				void load(props.value);
+				return () => <span>{this.state.value}</span>;
+			}
+			export function Page(props: { title: string }) {
+				return () => <main><h1>{props.title}</h1><section><Leaf value={1} /><Leaf value={2} /></section></main>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactAsyncSiblings(__exactVNode("section"`) {
+		t.Fatalf("nested independent server task siblings were not marked:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "return () => __exactCreatePreparedRenderProgram") {
+		t.Fatalf("ordered server render program serialized nested independent task siblings:\n%s", response.Code)
+	}
+}
+
 func TestSessionValidatesOnlyCommentDirectives(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",

@@ -6,6 +6,19 @@ measurements. The tracked
 current client, server, wire, heap, and production-fixture build evidence. It is a comparison point,
 not a machine-independent release budget.
 
+`npm run benchmark:server` complements the isolated framework scenarios with sustained production
+HTTP load against the compiler-closed SSR artifact on Node and Bun. It reports client-visible
+latency and time-to-first-byte percentiles, server render percentiles, throughput, event-loop delay,
+peak RSS and heap, and post-GC memory after each load round. The runner owns and reaps every server
+process; use its results for server-performance claims and retain the isolated fixture for precise
+compiler reachability, readiness, and request-cleanup regressions.
+
+Server render-program selection must preserve readiness at every nested host, not only at a
+component's returned root. If a planned intrinsic subtree contains compiler-proven independent
+server-component siblings, server compilation keeps that subtree on the direct issuance lane so
+their request-local task frames start before authored-order HTML publication. The compiler does not
+trade task parallelism for a compact ordered program.
+
 The dated
 [`compiler-planned component execution record`](performance-baselines/compiler-planned-component-execution-2026-08-10.md)
 interprets the current planned-SSR, root-cache, shipping retained-heap, and allocation results that
