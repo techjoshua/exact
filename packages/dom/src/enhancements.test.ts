@@ -115,6 +115,34 @@ describe('renderer enhancements', () => {
 		expect(container.querySelector('select')?.className).toBe('field');
 	});
 
+	it('preserves compiler-specialized interaction handlers through target contributions', () => {
+		const publish = vi.fn();
+		const Action = markTestComponent(function Action(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createCompiledTarget({ className: 'action' }, props.children);
+		});
+		const container = document.createElement('div');
+
+		render(
+			createVNode(
+				'button',
+				{
+					'__exactClosedInteraction:onClick': publish,
+					__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				},
+				'Save'
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Action]]) }
+		);
+		container.querySelector('button')!.click();
+
+		expect(publish).toHaveBeenCalledOnce();
+		expect(container.querySelector('button')?.className).toBe('action');
+	});
+
 	it('composes an enhancement directly around an underscore fragment boundary', () => {
 		const Wrapper = markTestComponent(function Wrapper(
 			this: Component<{}>,
