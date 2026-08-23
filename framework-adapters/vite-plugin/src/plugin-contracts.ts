@@ -64,7 +64,7 @@ export type ExactPlugin = {
 			};
 		};
 	};
-	configResolved?(config: { command: 'build' | 'serve' }): void;
+	configResolved?(config: { command: 'build' | 'serve'; build?: { ssr?: boolean | string } }): void;
 	buildStart?(this: {
 		addWatchFile(file: string): void;
 		warn?(message: string): void;

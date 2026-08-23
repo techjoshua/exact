@@ -403,7 +403,9 @@ describe('@exactjs/vite-plugin: transform', () => {
 			'/src/Page.tsx'
 		);
 
-		expect(result?.code).toContain('Page_ExactClient_1');
+		expect(result?.code).toContain('role: "client"');
+		expect(result?.code).toContain('__exactDispatchContinuation');
+		expect(result?.code).not.toContain('node:fs/promises');
 		expect(result?.code).not.toContain('export function Page(');
 	});
 
@@ -476,7 +478,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			reactCompatibility: false,
 			debug: { catalog: true, runtime: true }
 		});
-		plugin.configResolved?.({ command: 'build' });
+		plugin.configResolved?.({ command: 'build', build: { ssr: true } });
 
 		await expect(plugin.buildStart?.call({ addWatchFile() {} } as never)).rejects.toThrow(
 			/explicit immutable debug\.buildKey/

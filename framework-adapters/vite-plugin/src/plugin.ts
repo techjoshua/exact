@@ -117,6 +117,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		configResolved(config) {
 			viteCommand = config.command;
+			if (config.command === 'build' && Boolean(config.build?.ssr) !== (options.target === 'server'))
+				throw new Error(
+					config.build?.ssr
+						? 'eXact Vite SSR builds require exact({ target: \'server\' })'
+						: 'eXact Vite server targets require Vite build.ssr'
+				);
 			compiler.configure(options.diagnostics ?? config.command === 'serve');
 		},
 		async buildStart() {

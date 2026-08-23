@@ -22,6 +22,9 @@ await buildExactViteApplication(['vite.config.ts', 'vite.server.config.ts']);
 
 Use `target: 'server'` for server artifacts, `serverComponents: true` for split server-component
 builds, and `reactCompatibility` only when the application consumes React-owned packages.
+The plugin rejects a Vite `build.ssr` configuration that omits `target: 'server'`, as well as a
+server-target plugin placed in a browser build, so a production server cannot silently bundle
+client component artifacts.
 Set `renderMode: 'hydrate'` for a browser bundle that adopts SSR HTML, or `renderMode: 'client'`
 for a fresh-mount-only browser bundle. These modes prune unused emitted contract fields; the
 default `universal` behavior preserves the complete contract.
