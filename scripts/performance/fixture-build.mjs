@@ -31,6 +31,12 @@ export async function buildPerformanceFixtures(outputDirectory) {
 		{ ssr: true, target: 'server' }
 	);
 	await buildFixture(
+		path.join(fixtureRoot, 'server-direct-entry.ts'),
+		outputDirectory,
+		'server-direct-scenarios.mjs',
+		{ ssr: true, target: 'server' }
+	);
+	await buildFixture(
 		path.join(fixtureRoot, 'browser-entry.ts'),
 		outputDirectory,
 		'browser-entry.js',
@@ -40,11 +46,13 @@ export async function buildPerformanceFixtures(outputDirectory) {
 	const paths = {
 		client: path.join(outputDirectory, 'client-scenarios.mjs'),
 		server: path.join(outputDirectory, 'server-scenarios.mjs'),
+		serverDirect: path.join(outputDirectory, 'server-direct-scenarios.mjs'),
 		browser: path.join(outputDirectory, 'browser-entry.js')
 	};
 	const bytes = {};
 	for (const [name, filename] of Object.entries(paths)) {
 		const content = await readFile(filename);
+		if (name === 'serverDirect') assertCompilerClosedServerBundle(content.toString('utf8'));
 		bytes[name] = {
 			raw: content.byteLength,
 			gzip: gzipSync(content).byteLength,
@@ -52,6 +60,19 @@ export async function buildPerformanceFixtures(outputDirectory) {
 		};
 	}
 	return { elapsedMs, paths, bytes };
+}
+
+function assertCompilerClosedServerBundle(source) {
+	for (const signature of [
+		'ComponentInstanceImpl',
+		'createGenericSsrComponentInstance',
+		'renderGenericComponentAsync',
+		'registerGenericSsrComponentRenderer',
+		'SsrReadinessOwner'
+	]) {
+		if (source.includes(signature))
+			throw new Error(`Compiler-closed server bundle retained generic runtime ${signature}`);
+	}
 }
 
 async function buildFixture(entry, outputDirectory, entryFileName, options) {

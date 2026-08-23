@@ -323,3 +323,4 @@ describe('component interactions', () => {
 	});
 });
 import '../runtime/contexts.js';
+import '../runtime/component-tasks.js';

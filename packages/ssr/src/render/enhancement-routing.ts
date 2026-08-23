@@ -7,7 +7,7 @@ import {
 	type EnhancementEntry,
 	type VNode
 } from '@exactjs/core';
-import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
+import { getCellVNode, isCellVNode } from '@exactjs/core/framework/render-structure';
 import { unwrap } from '@exactjs/reactive';
 import type { SsrContext } from '../types.js';
 import { chargeEnhancementPlanning } from './enhancement-limits.js';

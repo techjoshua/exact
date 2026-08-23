@@ -118,8 +118,7 @@ func TestServerProjectionInlinesCompilerSynchronousComputations(t *testing.T) {
 		`})(props.name, { signal: void 0 })`,
 		`classification: "synchronous"`,
 		`lane: "direct"`,
-		`setup: []`,
-		`slices: []`,
+		`setupProps: []`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct server computation is missing %q:\n%s", expected, response.Code)
@@ -196,15 +195,15 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 		Source: `
 			import { TaskContext } from "@exactjs/core";
 			declare class Component<State> { state: State }
-			function Page(this: Component<{ value: string }>) {
-				async function load(_task: TaskContext = TaskContext.server().blocking()) {
-					this.state.value = await Promise.resolve("ready");
+			function Page(this: Component<{ value: string }>, props: { request: string }) {
+				async function load(request: string, _task: TaskContext = TaskContext.server().blocking()) {
+					this.state.value = await Promise.resolve(request);
 				}
-				load();
+				load(props.request);
 				return () => <output>{this.state.value}</output>;
 			}
 			export function Shell() {
-				return () => <main><Page /><Page /></main>;
+				return () => <main><Page request="first" /><Page request="second" /></main>;
 			}
 		`,
 	})
@@ -213,7 +212,7 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`classification: "scheduled"`, `lane: "direct"`,
-		`render: __exactImplementation_Page_1`, `setup: [`,
+		`render: __exactImplementation_Page_1`, `setupProps: [`, `"request"`,
 		`issueServerComponentVNode as`, `__exactIssueServerComponent(__exactComponentVNode(Page`,
 		`activateServerComponentTaskForHost as`,
 	} {
@@ -223,11 +222,43 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		`defineTask as`, `bindTaskForHost as`, `activateTaskForHost as`,
-		`@exactjs/core/runtime/component-execution`,
+		`@exactjs/core/runtime/component-execution`, `@exactjs/ssr/runtime/generic-components`,
+		`execution:`, `slices:`,
 	} {
 		if strings.Contains(response.Code, forbidden) {
 			t.Fatalf("scheduled direct server component retained generic runtime %q:\n%s", forbidden, response.Code)
 		}
+	}
+}
+
+func TestServerGenericExecutionImportsItsOwnRuntimeCapability(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-generic-execution.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> {
+				state: State;
+				getContext(token: unknown): unknown;
+			}
+			export function ContextPage(this: Component<{ value: string }>) {
+				async function load(_task: TaskContext = TaskContext.server().blocking()) {
+					this.getContext(Symbol.for("request"));
+					this.state.value = await Promise.resolve("ready");
+				}
+				load();
+				return () => <output>{this.state.value}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	const capability = `import "@exactjs/ssr/runtime/generic-components"`
+	if !strings.Contains(response.Code, capability) {
+		t.Fatalf("generic server component did not import %q:\n%s", capability, response.Code)
+	}
+	if !strings.Contains(response.Code, `lane: "generic"`) {
+		t.Fatalf("context-owning server component did not select the generic lane:\n%s", response.Code)
 	}
 }
 

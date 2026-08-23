@@ -83,3 +83,4 @@ describe('@exactjs/core component resumption', () => {
 		instance.unmount();
 	});
 });
+import './runtime/component-tasks.js';

@@ -154,9 +154,10 @@ function: a
 generated preparation prefix reads the known slots, then generated calls write static markup,
 text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
-tables. The server facet also carries a compact execution classification, ordered setup-transition
-indexes, and direct input/output slices. These are build products of the canonical component
-dataflow graph; request execution must consume them rather than rebuilding the graph. Synchronous,
+tables. The direct server facet carries only its compact execution classification, the setup prop
+names read before construction, and its generated render function. Scheduled calls reference
+module-level input/output slices emitted from the canonical component dataflow graph; request
+execution consumes those constants rather than serializing or rebuilding a generic plan. Synchronous,
 scheduled, and dynamic components therefore have an explicit bundle boundary for progressively
 removing generic component and task infrastructure without changing the authored component model.
 When the compiler proves that a synchronous server component needs only its generated render
@@ -181,6 +182,15 @@ the renderer does not walk the resulting host tree to rediscover task-bearing co
 request scheduler starts ready child tasks up to its bound before awaiting the first settlement.
 Framework-owned resumption observers are buffered and replayed in authored order; user
 component-instance observers retain the serial lane because their timing is observable.
+
+Server compilation also selects runtime modules rather than importing the universal component
+barrel. Compiler-closed output imports structure-only VNode and render-program operations plus
+server task helpers. A generic component artifact explicitly installs durable component execution,
+enhancement planning, and task ownership; a native Suspense artifact explicitly installs its
+structural-boundary capability. Those implementation modules are therefore unreachable from a
+closed server bundle that uses neither feature. The performance fixture rejects a closed bundle if
+durable component construction, generic component rendering, or readiness-owner construction
+reappears.
 Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
 binder contexts are released after synchronous installation and are not captured by the retained
 slot watchers. Server and universal artifacts retain individual readers for SSR, while older

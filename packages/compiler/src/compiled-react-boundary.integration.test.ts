@@ -1,9 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/ssr/runtime/generic-components';
 import * as exactCore from '@exactjs/core';
 import { createVNode } from '@exactjs/core';
 import * as exactRenderRuntime from '@exactjs/core/runtime/render';
+import * as exactTaskRuntime from '@exactjs/core/runtime/tasks';
 import * as exactDomRenderProgram from '@exactjs/dom/runtime/render-program';
 import { render, unmount } from '@exactjs/dom';
 import { createExactClient } from '@exactjs/hydrate';
@@ -35,6 +37,7 @@ describe('compiled direct React boundary', () => {
 		expect(mounted.childNodes).toHaveLength(0);
 
 		const server = renderToString(createVNode(serverApp.App, null));
+		expect(server.html).not.toContain('Application error');
 		const hydrated = document.createElement('div');
 		hydrated.innerHTML = server.html;
 		expect(hydrated.querySelector('#react-control')).toBeNull();
@@ -106,10 +109,14 @@ function compileMixedApp(target: 'client' | 'server'): CompiledMixedApp {
 	};
 	const modules: Record<string, unknown> = {
 		'@exactjs/core': exactCore,
+		'@exactjs/core/framework/render-structure': exactRenderRuntime,
+		'@exactjs/core/framework/server-task-helpers': exactCore,
 		'@exactjs/core/runtime/render': exactRenderRuntime,
 		'@exactjs/core/runtime/reactivity': exactCore,
-		'@exactjs/core/runtime/tasks': exactCore,
+		'@exactjs/core/runtime/tasks': exactTaskRuntime,
 		'@exactjs/dom/runtime/render-program': exactDomRenderProgram,
+		'@exactjs/ssr/runtime/generic-components': {},
+		'@exactjs/ssr/runtime/structural-boundaries': {},
 		'@exactjs/react-compat/exact': { adaptReactComponent },
 		'react-widget': { Widget }
 	};

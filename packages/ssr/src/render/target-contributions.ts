@@ -5,14 +5,14 @@ import {
 	isVNode,
 	type VNode
 } from '@exactjs/core';
-import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
+import { getCellVNode, isCellVNode } from '@exactjs/core/framework/render-structure';
 import {
 	mergeTargetClassContributions,
 	mergeTargetTokenContributions
 } from '@exactjs/core/framework/target-contributions';
 import { unwrap } from '@exactjs/reactive';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
-import { prepareSsrTargetBoundary, prepareSsrTargetBoundaryAsync } from './enhancement-planning.js';
+import { ssrEnhancementPlanningCapability } from './enhancement-planning-capability.js';
 import { resolveSsrTargetBoundary } from './enhancement-routing.js';
 import { resolveSsrLogicalChildren } from './logical-children.js';
 
@@ -31,7 +31,7 @@ export function applySsrTargetContributions(
 	boundary: VNode,
 	parent: AnyComponentInstance | undefined
 ): void {
-	prepareSsrTargetBoundary(context, boundary, parent);
+	ssrEnhancementPlanningCapability().prepareTarget(context, boundary, parent);
 	applyPreparedTargetTree(context, boundary, parent);
 }
 
@@ -42,7 +42,7 @@ export async function applySsrTargetContributionsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<void> {
-	await prepareSsrTargetBoundaryAsync(context, boundary, parent, options);
+	await ssrEnhancementPlanningCapability().prepareTargetAsync(context, boundary, parent, options);
 	applyPreparedTargetTree(context, boundary, parent);
 }
 

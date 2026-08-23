@@ -103,10 +103,16 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		module     string
 		specifiers []*ast.Node
 	}
+	renderRuntimeModule := "@exactjs/core/runtime/render"
+	taskRuntimeModule := "@exactjs/core/runtime/tasks"
+	if lowering.target == TargetServer {
+		renderRuntimeModule = "@exactjs/core/framework/render-structure"
+		taskRuntimeModule = "@exactjs/core/framework/server-task-helpers"
+	}
 	groups := []importGroup{
-		{module: "@exactjs/core/runtime/render"},
+		{module: renderRuntimeModule},
 		{module: "@exactjs/core/runtime/reactivity"},
-		{module: "@exactjs/core/runtime/tasks"},
+		{module: taskRuntimeModule},
 		{module: "@exactjs/core/runtime/inspection"},
 		{module: "@exactjs/core/runtime/registry"},
 		{module: "@exactjs/core/runtime/enhancements"},
@@ -128,6 +134,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/runtime/component-reactivity"},
 		{module: "@exactjs/core/framework/component-lifecycle"},
 		{module: "@exactjs/core/framework/server-component-execution"},
+		{module: "@exactjs/ssr/runtime/generic-components"},
+		{module: "@exactjs/ssr/runtime/structural-boundaries"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -305,6 +313,15 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			}
 		}
 	}
+	genericServerRuntimeUsed := false
+	if lowering.target == TargetServer {
+		for _, component := range lowering.components {
+			if component.Placement != "client" && !component.DirectServer {
+				genericServerRuntimeUsed = true
+				break
+			}
+		}
+	}
 	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,
@@ -318,6 +335,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			containsIdentifier(root, lowering.names.asyncSiblings) ||
 			containsIdentifier(root, lowering.names.serverSlot) ||
 			containsIdentifier(root, lowering.names.keyedServerSlot))
+	serverStructuralBoundariesUsed := lowering.target == TargetServer &&
+		containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker)
 	targetUsed := lowering.target != TargetServer &&
 		(containsIdentifier(root, lowering.names.target) ||
 			containsCompiledTargetCall(lowering.sourceFile, lowering.checker))
@@ -344,7 +363,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				(group.module == "@exactjs/core/runtime/collections" && collectionsUsed) ||
 				(group.module == "@exactjs/core/runtime/contexts" && contextsUsed) ||
 				(group.module == "@exactjs/core/runtime/lifecycle" && lifecycleUsed) ||
-				(group.module == "@exactjs/core/runtime/component-reactivity" && componentReactivityUsed) {
+				(group.module == "@exactjs/core/runtime/component-reactivity" && componentReactivityUsed) ||
+				(group.module == "@exactjs/ssr/runtime/generic-components" && genericServerRuntimeUsed) ||
+				(group.module == "@exactjs/ssr/runtime/structural-boundaries" && serverStructuralBoundariesUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,

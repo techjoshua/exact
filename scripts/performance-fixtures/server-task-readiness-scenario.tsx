@@ -1,7 +1,7 @@
 import { TaskContext, taskTimeout, type Component } from '@exactjs/core';
 import { renderToStringAsync } from '@exactjs/ssr';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
-import type { ServerScenarioResult } from './server-scenarios.js';
+import type { ServerScenarioResult } from './server-scenario-contract.js';
 
 type TaskReadinessState = { value: number };
 

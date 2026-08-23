@@ -177,6 +177,8 @@ describe('installed eXact component package artifacts', () => {
 					type: 'module',
 					exports: {
 						'.': './index.js',
+						'./framework/render-structure': './index.js',
+						'./framework/server-task-helpers': './index.js',
 						'./runtime/render': './index.js',
 						'./runtime/reactivity': './index.js',
 						'./runtime/tasks': './index.js',

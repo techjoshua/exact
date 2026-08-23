@@ -117,3 +117,4 @@ describe('compiled component capability construction', () => {
 		instance.unmount();
 	});
 });
+import '../runtime/component-tasks.js';

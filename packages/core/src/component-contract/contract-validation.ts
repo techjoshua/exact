@@ -116,40 +116,18 @@ function isDefinition(value: unknown): boolean {
 function isServerExecution(value: unknown): boolean {
 	if (!isContractRecord(value)) return false;
 	return (
-		hasOnlyContractKeys(value, [
-			'version',
-			'classification',
-			'lane',
-			'setup',
-			'slices',
-			'render'
-		]) &&
+		hasOnlyContractKeys(value, ['version', 'classification', 'lane', 'setupProps', 'render']) &&
 		value.version === 1 &&
 		(value.classification === 'synchronous' ||
 			value.classification === 'scheduled' ||
 			value.classification === 'dynamic') &&
 		(value.lane === 'direct' || value.lane === 'generic') &&
 		(value.lane === 'direct'
-			? value.classification !== 'dynamic' && typeof value.render === 'function'
-			: value.render === undefined) &&
-		Array.isArray(value.setup) &&
-		value.setup.every(isSafeIndex) &&
-		Array.isArray(value.slices) &&
-		value.slices.every(
-			(slice) =>
-				isContractRecord(slice) &&
-				hasOnlyContractKeys(slice, ['transition', 'inputs', 'outputs']) &&
-				isSafeIndex(slice.transition) &&
-				Array.isArray(slice.inputs) &&
-				slice.inputs.every(isSafeIndex) &&
-				Array.isArray(slice.outputs) &&
-				slice.outputs.every(isSafeIndex)
-		)
+			? value.classification !== 'dynamic' &&
+				typeof value.render === 'function' &&
+				isSafeContractStringList(value.setupProps)
+			: value.render === undefined && value.setupProps === undefined)
 	);
-}
-
-function isSafeIndex(value: unknown): value is number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isComponentUpdates(value: unknown): boolean {

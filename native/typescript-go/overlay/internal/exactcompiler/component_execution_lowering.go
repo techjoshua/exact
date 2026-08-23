@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/printer"
@@ -219,29 +220,46 @@ func serverComponentExecutionMetadata(
 	if direct && classification != "dynamic" {
 		lane = "direct"
 	}
-	setup := []int{}
-	slices := make([]*ast.Node, 0, len(execution.Transitions))
-	for index, transition := range execution.Transitions {
-		if transition.Activation == "setup" {
-			setup = append(setup, index)
-		}
-		slices = append(slices, contractObject(factory, false,
-			contractProperty(factory, "transition", contractNumber(factory, index)),
-			contractProperty(factory, "inputs", contractNumberArray(factory, transition.Inputs)),
-			contractProperty(factory, "outputs", contractNumberArray(factory, transition.Outputs)),
-		))
-	}
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "classification", contractString(factory, classification)),
 		contractProperty(factory, "lane", contractString(factory, lane)),
-		contractProperty(factory, "setup", contractNumberArray(factory, setup)),
-		contractProperty(factory, "slices", contractArray(factory, slices...)),
 	}
 	if lane == "direct" {
-		properties = append(properties, contractProperty(factory, "render", instantiate))
+		properties = append(properties,
+			contractProperty(factory, "setupProps", stringMetadata(factory, serverSetupPropNames(execution))),
+			contractProperty(factory, "render", instantiate),
+		)
 	}
 	return contractObject(factory, true, properties...)
+}
+
+func serverSetupPropNames(execution ComponentExecution) []string {
+	seen := make(map[string]struct{})
+	result := []string{}
+	for _, transition := range execution.Transitions {
+		if transition.Activation != "setup" {
+			continue
+		}
+		for _, input := range transition.Inputs {
+			if input < 0 || input >= len(execution.Ports) || execution.Ports[input].Kind != "props" {
+				continue
+			}
+			path := strings.TrimPrefix(execution.Ports[input].Path, "props.")
+			if separator := strings.IndexByte(path, '.'); separator >= 0 {
+				path = path[:separator]
+			}
+			if path == "" {
+				continue
+			}
+			if _, exists := seen[path]; exists {
+				continue
+			}
+			seen[path] = struct{}{}
+			result = append(result, path)
+		}
+	}
+	return result
 }
 
 const (

@@ -8,7 +8,10 @@ import {
 } from '@exactjs/server';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { PlannedTree } from './planned-components.js';
+import type { ServerScenarioResult } from './server-scenario-contract.js';
 import { taskReadinessSsr } from './server-task-readiness-scenario.js';
+
+export type { ServerScenarioResult } from './server-scenario-contract.js';
 
 /** Stable server scenario identifiers emitted into baseline reports and release diagnostics. */
 export const serverScenarioNames = [
@@ -24,12 +27,6 @@ export const serverScenarioNames = [
 
 /** One supported compiler-produced server performance workload. */
 export type ServerScenarioName = (typeof serverScenarioNames)[number];
-
-/** Portable measurements and their explicit units for one server workload sample. */
-export type ServerScenarioResult = Readonly<{
-	metrics: Readonly<Record<string, number>>;
-	units: Readonly<Record<string, 'bytes' | 'count' | 'ms'>>;
-}>;
 
 /** Runs one compiler-produced SSR or server-protocol performance scenario. */
 export async function runServerScenario(

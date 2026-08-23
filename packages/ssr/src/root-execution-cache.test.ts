@@ -8,8 +8,8 @@ import {
 } from '@exactjs/core/framework/component-contracts';
 import { ssrRootExecutionBlueprint } from './render/root-execution-cache.js';
 
-describe('SSR root execution blueprint cache', () => {
-	it('reuses root and dynamic component preparations while detecting replaced authority', () => {
+describe('SSR root component blueprint cache', () => {
+	it('reuses root and dynamic contracts while detecting replaced authority', () => {
 		function Root(this: Component<{ value: string }>) {
 			return () => this.state.value;
 		}
@@ -29,7 +29,7 @@ describe('SSR root execution blueprint cache', () => {
 		expect(cache.resolve(compiledRoot)).toBe(root);
 		const dynamic = cache.resolve(compiledDynamic);
 		expect(cache.resolve(compiledDynamic)).toBe(dynamic);
-		expect(dynamic.execution?.transitionsById.has('dynamic-task')).toBe(true);
+		expect(dynamic.contract.execution?.transitions[0]?.[0]).toBe('dynamic-task');
 
 		compiledDynamic[exactComponentContract] = {
 			...executionContract('replacement-task'),
@@ -37,7 +37,7 @@ describe('SSR root execution blueprint cache', () => {
 		};
 		const replacement = cache.resolve(compiledDynamic);
 		expect(replacement).not.toBe(dynamic);
-		expect(replacement.execution?.transitionsById.has('replacement-task')).toBe(true);
+		expect(replacement.contract.execution?.transitions[0]?.[0]).toBe('replacement-task');
 	});
 });
 

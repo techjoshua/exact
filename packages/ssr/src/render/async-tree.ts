@@ -6,7 +6,6 @@ import {
 	Target,
 	Text,
 	UnsafeHtml,
-	createReadinessCoordinator,
 	hasIndependentAsyncSiblings,
 	isVNode,
 	markIndependentAsyncSiblings,
@@ -16,10 +15,9 @@ import {
 	RenderProgram,
 	ServerBoundary,
 	ServerSlot,
-	createComponentInstance,
 	getCellVNode,
 	isCellVNode
-} from '@exactjs/core/runtime/render';
+} from '@exactjs/core/framework/render-structure';
 import { unwrap } from '@exactjs/reactive';
 import { escapeText, voidElements } from '../html.js';
 import {
@@ -42,9 +40,7 @@ import {
 	serverSlotOpening,
 	serverSlotVNodeReference
 } from './boundaries.js';
-import { awaitWithAbort } from './context.js';
 import { type SsrRenderOptions } from './entrypoints.js';
-import { SsrReadinessOwner } from './readiness-owner.js';
 import {
 	claimRootText,
 	enterHost,
@@ -67,6 +63,7 @@ import { canRenderIndependentChildren, renderIndependentChildren } from './async
 import { renderComponentAsync } from './component-async.js';
 import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
 import { renderVNode } from './sync-tree.js';
+import { renderNativeSuspenseAsync } from './structural-boundary-capability.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -183,7 +180,13 @@ export async function renderVNodeAsyncInner(
 				prepared.dispose();
 			}
 		}
-		const rendered = await renderNativeSuspenseAsync(context, vnode, parent, options);
+		const rendered = await renderNativeSuspenseAsync(
+			context,
+			vnode,
+			parent,
+			options,
+			renderChildrenAsync
+		);
 		return markerPair(
 			context,
 			suspenseStatusMarkerId(identity, rendered.status),
@@ -275,43 +278,5 @@ export async function renderVNodeAsyncInner(
 		return `${host.prefix}<${tag}${attrs}>${content}</${tag}>`;
 	} finally {
 		leaveHost(context, tag);
-	}
-}
-
-async function renderNativeSuspenseAsync(
-	context: SsrContext,
-	vnode: VNode,
-	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
-): Promise<{ readonly html: string; readonly status: 'content' | 'fallback' }> {
-	const coordinator = createReadinessCoordinator(() => undefined, { commitSettled: true });
-	coordinator.beginGeneration();
-	const owner = createComponentInstance(
-		SsrReadinessOwner,
-		{ context: coordinator.context },
-		parent,
-		context.componentContexts,
-		context.componentDomain
-	);
-	try {
-		const maxPasses = options.maxTaskPasses ?? 10;
-		for (let pass = 0; pass < maxPasses; pass++) {
-			if (pass) coordinator.beginGeneration();
-			const candidate = await renderChildrenAsync(context, vnode.children, owner, options);
-			const readiness = await awaitWithAbort(
-				coordinator.whenReady(),
-				options.signal,
-				options.taskDeadline
-			);
-			if (readiness.generation !== coordinator.generation) continue;
-			if (readiness.retry) continue;
-			return { html: candidate, status: 'content' };
-		}
-		throw new Error(
-			`eXact async SSR Suspense boundary did not stabilize after ${maxPasses} render passes`
-		);
-	} finally {
-		coordinator.dispose();
-		owner.unmount('ssr suspense complete');
 	}
 }

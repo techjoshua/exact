@@ -274,3 +274,4 @@ describe('compiler-planned component execution', () => {
 		instance.unmount();
 	});
 });
+import '../runtime/component-tasks.js';

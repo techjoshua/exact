@@ -613,3 +613,4 @@ describe('unified task runtime', () => {
 	});
 });
 import '../runtime/contexts.js';
+import '../runtime/component-tasks.js';

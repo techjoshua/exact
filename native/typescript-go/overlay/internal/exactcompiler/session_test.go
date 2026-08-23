@@ -1573,6 +1573,26 @@ func TestSessionDoesNotAdaptCoreVNodeSymbolsAsReactComponents(t *testing.T) {
 	}
 }
 
+func TestServerSuspenseSelectsItsStructuralBoundaryCapability(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "server-suspense.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			import { Suspense } from "@exactjs/core";
+			export function Panel() {
+				return () => <Suspense fallback="wait"><main /></Suspense>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `import "@exactjs/ssr/runtime/structural-boundaries"`) {
+		t.Fatalf("native server Suspense did not select its SSR structural capability:\n%s", response.Code)
+	}
+}
+
 func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "button.tsx",

@@ -6,16 +6,16 @@ import {
 	withComponentDomain,
 	type VNode
 } from '@exactjs/core';
-import { RenderProgram } from '@exactjs/core/runtime/render';
+import { RenderProgram } from '@exactjs/core/framework/render-structure';
 import type {
 	ExactRenderProgramInvocation,
 	ExactRenderProgramSsrTarget
-} from '@exactjs/core/runtime/render';
+} from '@exactjs/core/framework/render-structure';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,
 	renderProgramFallback
-} from '@exactjs/core/runtime/render';
+} from '@exactjs/core/framework/render-structure';
 import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
