@@ -49,6 +49,7 @@ describe('compiled component capability construction', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					abi: 0,
 					state: [],
 					tasks: [],
 					reactive: [],
@@ -59,6 +60,7 @@ describe('compiled component capability construction', () => {
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
 		const instance = createComponentInstance(StaticPanel, {});
+		expect(instance.runtimeABI).toBe(0);
 		expect(taskOwnerForHost(instance)).toBeUndefined();
 		instance.unmount();
 	});
@@ -99,6 +101,7 @@ describe('compiled component capability construction', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					abi: 8,
 					state: [],
 					tasks: ['setup'],
 					reactive: [],

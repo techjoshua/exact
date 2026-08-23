@@ -1,6 +1,8 @@
 import { unwrap } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { createExpression } from '../vnode.js';
+import { exactComponentContract, exactComponentType } from '../component-contracts.js';
+import type { Component, ComponentFunction } from './contracts.js';
 import { renderInstance } from './render.js';
 import { createComponentInstance, createFrameworkFixtureComponentInstance } from './runtime.js';
 
@@ -37,5 +39,43 @@ describe('component render binding', () => {
 		instance.unmount();
 		expect(scope.active).toBe(false);
 		expect(scope.reactions).toHaveLength(0);
+	});
+
+	it('does not retain a generic render watcher for compiler-owned live readers', () => {
+		let invalidations = 0;
+		const implementation = function Direct(this: Component<{ value: string }>) {
+			this.state.value = 'direct';
+			return () => this.state.value;
+		};
+		const Direct = Object.assign(implementation, {
+			[exactComponentType]: 'test:direct-render',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					abi: 1,
+					state: ['value'],
+					capabilities: []
+				}
+			}
+		}) as ComponentFunction<{ value: string }, Record<string, unknown>>;
+		const instance = createComponentInstance(Direct, {});
+		const scope = instance.scope as typeof instance.scope & {
+			readonly reactions: ReadonlySet<unknown>;
+		};
+
+		expect(renderInstance(instance, () => invalidations++)).toEqual(['direct']);
+		expect(scope.reactions).toHaveLength(0);
+		instance.state.value = 'updated';
+		expect(invalidations).toBe(0);
+		instance.unmount();
 	});
 });

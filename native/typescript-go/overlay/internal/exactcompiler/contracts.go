@@ -202,6 +202,9 @@ type Component struct {
 	DynamicComponents   bool                      `json:"-"`
 	StateSlots          []string                  `json:"-"`
 	Collections         bool                      `json:"-"`
+	CompiledRender      bool                      `json:"-"`
+	Lifecycle           bool                      `json:"-"`
+	Lists               bool                      `json:"-"`
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.
