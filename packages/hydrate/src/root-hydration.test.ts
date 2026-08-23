@@ -1,10 +1,26 @@
 /**
  * @vitest-environment jsdom
  */
-import { type Component } from '@exactjs/core';
-import { createCompiledVNode, createDynamicChild } from '@exactjs/core/runtime/render';
+import { createDerived, type Component } from '@exactjs/core';
+import {
+	createCompiledVNode,
+	createDynamicChild,
+	createPreparedRenderProgram,
+	keyCompiledVNode,
+	prepareCompiledRenderProgram
+} from '@exactjs/core/runtime/render';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { createCompiledRenderProgram as createCoreRenderProgram } from '@exactjs/core/runtime/render';
+import {
+	beginCompiledProgramClaims,
+	bindCompiledProgramProperties,
+	bindCompiledProgramKeyedChild,
+	claimCompiledProgramElement,
+	claimCompiledProgramKeyedChild,
+	claimCompiledProgramProperty,
+	enterCompiledProgramElement,
+	leaveCompiledProgramElement
+} from '@exactjs/dom/runtime/render-program';
 import { withGenericRenderProgramBindings } from '@exactjs/dom/testing';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
@@ -210,6 +226,96 @@ describe('hydration-only root capability', () => {
 
 		expect(container.querySelector('span')).toBe(span);
 		expect(fallbacks).toBe(fallbackCount);
+		root.dispose();
+	});
+
+	it('activates bindings and structural children from a markerless compiled SSR program root', async () => {
+		const items = [
+			{ id: 'a', label: 'Alpha', kind: 'primary' },
+			{ id: 'b', label: 'Beta', kind: 'secondary' }
+		];
+		const rowProgram = prepareCompiledRenderProgram({
+			version: 3,
+			id: 'markerless-ssr-row',
+			namespace: 'html',
+			template: '<li data-testid="row"></li>',
+			root: ['li'],
+			work: [1, 0],
+			directClaims: true,
+			ssr(target) {
+				target.begin(1, 0);
+				target.static('<li data-testid="row"></li>');
+			}
+		});
+		const program = prepareCompiledRenderProgram({
+			version: 3,
+			id: 'markerless-ssr-children',
+			namespace: 'html',
+			template:
+				'<section><select><option value="all">All</option><option value="primary">Primary</option></select><ul></ul></section>',
+			directClaims: true,
+			keyedChildren: 1,
+			bind(target) {
+				if (beginCompiledProgramClaims(target, 'section', 'html', 6, 2)) {
+					claimCompiledProgramElement(target, 1, 0, 'select');
+					claimCompiledProgramProperty(target, 1, 1);
+					claimCompiledProgramElement(target, 2, 0, 'ul');
+					enterCompiledProgramElement(target, 2);
+					claimCompiledProgramKeyedChild(target, 0, 0);
+					leaveCompiledProgramElement(target);
+					return;
+				}
+				bindCompiledProgramKeyedChild(target, 0);
+				bindCompiledProgramProperties(target, 0, 1);
+			},
+			ssr(target) {
+				target.prepareChild(0);
+				target.begin(6, 2);
+				target.static(
+					'<section><select><option value="all">All</option><option value="primary">Primary</option></select><ul>'
+				);
+				target.keyedChild(0);
+				target.static('</ul></section>');
+			}
+		});
+		const App = createExactFrameworkFixtureArtifact(function App(this: Component<{}>) {
+			this.state.kind = 'all';
+			const filtered = createDerived(() =>
+				items.filter((item) => this.state.kind === 'all' || item.kind === this.state.kind)
+			);
+			return () =>
+				createPreparedRenderProgram(
+					program,
+					[
+						() =>
+							filtered
+								.get()
+								.map((item) =>
+									keyCompiledVNode(createPreparedRenderProgram(rowProgram, []), item.id)
+								)
+					],
+					undefined,
+					(_group, write) => {
+						write('value', this.state.kind);
+						write('__exactBindChange', (event: Event) => {
+							this.state.kind = (event.currentTarget as HTMLSelectElement).value;
+						});
+					}
+				);
+		}, '@exactjs/hydrate:markerless-ssr-children');
+		const vnode = createVNode(App, null);
+		const container = document.createElement('main');
+		container.innerHTML = renderToString(vnode).html;
+		const serverItems = [...container.querySelectorAll('[data-testid="row"]')];
+
+		const root = hydrate(vnode, container, { onMismatch: 'throw' });
+
+		expect([...container.querySelectorAll('[data-testid="row"]')]).toEqual(serverItems);
+		const select = container.querySelector('select')!;
+		select.value = 'primary';
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+		await Promise.resolve();
+		expect(container.querySelectorAll('[data-testid="row"]')).toHaveLength(1);
 		root.dispose();
 	});
 

@@ -85,7 +85,15 @@ export function adoptRenderProgram(
 	vnode: VNode,
 	dom: Node,
 	scope: EffectScope,
-	parentInstance: AnyComponentInstance
+	parentInstance: AnyComponentInstance,
+	adoptChildren: (
+		children: readonly Child[],
+		nodes: readonly Node[],
+		parentInstance: AnyComponentInstance,
+		scope: EffectScope,
+		cursor: number,
+		end: number
+	) => Mounted[] | undefined
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
@@ -119,6 +127,7 @@ export function adoptRenderProgram(
 			parentInstance
 		}
 	};
+	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
 	if (programIndex) ownProgramNodes(table!, programIndex, parentInstance);
 	else ownDirectProgramNodes(direct?.elements, parentInstance);
 	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
@@ -191,7 +200,7 @@ export function adoptRenderProgramOrFallback(
 	);
 	if (marked) return marked;
 	const adopted = nodes[cursor]
-		? adoptRenderProgram(root, vnode, nodes[cursor]!, scope, parentInstance)
+		? adoptRenderProgram(root, vnode, nodes[cursor]!, scope, parentInstance, adoptChildren)
 		: undefined;
 	if (adopted) return { mounted: adopted, next: cursor + 1 };
 	scope.stop();
@@ -262,6 +271,7 @@ function adoptMarkedRenderProgram(
 		vnode,
 		dom: range.start ?? programRoot,
 		...(range.start ? { end: nodes[range.endIndex]! } : {}),
+		...(range.start ? { rawNodes: [programRoot] } : {}),
 		scope,
 		children: [],
 		renderProgram: {
