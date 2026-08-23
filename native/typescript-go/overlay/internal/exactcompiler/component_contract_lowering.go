@@ -10,7 +10,7 @@ import (
 // lowerComponentContracts attaches a target-local executable artifact to every
 // native component. Exported roots may additionally own continuations,
 // resumption, and boundary records, but private children are not reduced to a
-// compilerless identity-only callable.
+// ad hoc identity-only callable without executable compiler artifacts.
 func lowerComponentContracts(
 	sourceFile *ast.SourceFile,
 	emitContext *printer.EmitContext,

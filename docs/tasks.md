@@ -184,7 +184,7 @@ Task functions return data normally. Returning a function is data, not cleanup.
 ## Owners, lanes, and status
 
 Concurrency is isolated by durable owner, stable task definition, and optional
-key. Component instances are owners. Compilerless code can create an explicit
+key. Component instances are owners. Runtime integration code can create an explicit
 owner for a session or adapter lifetime. Disposing an owner cancels every
 queued and active generation and awaits structural cleanup.
 
@@ -272,7 +272,7 @@ subscribing to the same source.
 
 ## Versioned library ABI
 
-Compilerless libraries import `@exactjs/core/tasks/v1`. The main operations
+Runtime integrations outside compiled component source import `@exactjs/core/tasks/v1`. The main operations
 are `defineTask`, `activateTask`, `invokeTask`, `bindTask`, `taskStatus`, `createTaskOwner`,
 `runTaskContinuation`, `trackTaskReads`, `bindTaskCallback`, and
 `reserveTaskCallback`.
@@ -290,7 +290,7 @@ outcome. A structural finalizer remains part of the parent's settlement, and
 runtime inspection preserves both its semantic `kind` and optional human
 label. The SPI does not expose mutable frame records or settlement counters.
 
-Compilerless code must state policy and capabilities that the compiler cannot
+Runtime integration code must state policy and capabilities that the compiler cannot
 infer. It does not receive source partitioning, static capture or secret-flow
 validation, generated remote continuations, or automatic disposable escape
 analysis.

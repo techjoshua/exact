@@ -53,7 +53,7 @@ removes the visual path without replacing markup, state, events, or accessibilit
 
 ## Explicit components and playback
 
-`Motion` is the compilerless intrinsic form:
+`Motion` is the explicit component form:
 
 ```tsx
 <Motion as="section" motion={dialogMotion} appear className="dialog">
@@ -61,7 +61,7 @@ removes the visual path without replacing markup, state, events, or accessibilit
 </Motion>
 ```
 
-Use the explicit form when motion is required, the caller is compilerless, or a structural
+Use the explicit form when motion is required, enhancement attributes are unavailable, or a structural
 component such as `Presence`, `MotionConfig`, or `MotionList` owns coordination beyond one existing
 target.
 
@@ -198,4 +198,4 @@ component output, merge nearest props, and mount `MotionElement` as an ordinary 
 component. An attributed `@exactjs/motion` import is recorded independently of build policy. Vite
 includes the reached capability in its bundle-local catalog and supplies it to DOM, hydration, and
 SSR entry points. Applications can therefore use either namespaced `motion:*` attributes or the
-explicit compilerless `Motion` component.
+explicit `Motion` component.

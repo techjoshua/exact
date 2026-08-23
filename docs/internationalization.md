@@ -456,8 +456,9 @@ the formatter through the cache. That component reference also makes the compile
 localization capability registration into the component's own bundle. Components that never use
 `this.intl` therefore omit the formatter pool, while lazy modules and microfrontend bundles carry
 the capability when their own compiled components require it; the shell does not need to predict
-their requirements. Compilerless component definitions can opt in with a side-effect import of
-`@exactjs/core/localization`. Helpers outside components can import the same global facade:
+their requirements. Compatibility integrations that construct framework values outside compiled
+component source can opt in with a side-effect import of `@exactjs/core/localization`. Helpers
+outside components can import the same global facade:
 
 ```ts
 import { intl } from '@exactjs/core';

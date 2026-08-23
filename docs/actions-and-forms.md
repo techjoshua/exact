@@ -50,7 +50,7 @@ used:
 - `generation`, `result`, and `error` report accepted terminal generations;
 - `cancel(reason?)` cancels represented generations and descendants.
 
-Portable TypeScript uses `taskStatus(save)`. Compilerless libraries define a
+Portable TypeScript uses `taskStatus(save)`. Runtime integrations outside compiled component source define a
 task with `defineTask()` and can bind it to an explicit owner with
 `bindTask()`.
 

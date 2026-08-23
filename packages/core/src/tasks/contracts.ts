@@ -78,7 +78,7 @@ export interface BoundTaskFunction<Args extends unknown[], Result>
 	extends TaskFunction<Args, Result>,
 		TaskStatus<Result> {}
 
-/** Runtime policy required when a library defines a task without the compiler. */
+/** Runtime policy required when an integration defines a task outside compiled component source. */
 export interface RuntimeTaskOptions<Args extends unknown[]> {
 	readonly label?: string;
 	readonly placement?: 'current' | 'client' | 'server';

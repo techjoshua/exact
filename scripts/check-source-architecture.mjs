@@ -35,7 +35,7 @@ const legacyArchitectureCeilings = new Map([
 	['packages/core/src/component/runtime.ts', 404],
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
-const compilerlessComponentCeilings = new Map([]);
+const legacyComponentConstructionCeilings = new Map([]);
 
 for (const maintainedRoot of maintainedRoots) {
 	for (const file of await sourceFiles(path.join(root, maintainedRoot))) inspectSource(file);
@@ -86,7 +86,7 @@ async function inspectSource(file) {
 		violations.push(`${relative}: tests must be named for the behavior they exercise`);
 	}
 	if (isTest) return;
-	inspectCompilerlessComponentCalls(relative, source);
+	inspectLegacyComponentConstruction(relative, source);
 
 	const sourceFile = ts.createSourceFile(
 		file,
@@ -100,16 +100,16 @@ async function inspectSource(file) {
 	inspectOwnershipName(relative);
 }
 
-/** Prevents the temporary compilerless component surface from growing during its migration. */
-function inspectCompilerlessComponentCalls(relative, source) {
+/** Prevents removed ad hoc native component construction from returning during migration. */
+function inspectLegacyComponentConstruction(relative, source) {
 	const count = source.match(/\bmarkExactComponent\s*\(/g)?.length ?? 0;
-	const ceiling = compilerlessComponentCeilings.get(relative);
+	const ceiling = legacyComponentConstructionCeilings.get(relative);
 	if (count === 0) return;
 	if (ceiling === undefined)
-		violations.push(`${relative}: new compilerless native component is not permitted`);
+		violations.push(`${relative}: ad hoc native component construction is not permitted`);
 	else if (count > ceiling)
 		violations.push(
-			`${relative}: ${count} compilerless components exceeds its ceiling of ${ceiling}`
+			`${relative}: ${count} ad hoc native components exceeds its ceiling of ${ceiling}`
 		);
 }
 

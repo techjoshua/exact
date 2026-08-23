@@ -72,8 +72,8 @@ export function GesturesPage(this: Component<{}>) {
 				<CodeBlock source={explicitSource} language="tsx" title="MovableCard.tsx" />
 				<p>
 					Use <code>GestureElement</code> when gesture behavior is part of the component&apos;s
-					contract or the caller is compilerless. Unlike the optional attribute, that component and
-					its behavior are always part of the authored tree.
+					contract or enhancement attributes are unavailable. Unlike the optional attribute, that
+					component and its behavior are always part of the authored tree.
 				</p>
 			</section>
 			<section>

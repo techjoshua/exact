@@ -62,8 +62,9 @@ const price = intl
 	.format(42);
 ```
 
-Compilerless component definitions that use `this.intl` must install that optional integration
-explicitly with `import '@exactjs/core/localization'`. Compiled components need no such import.
+Compatibility integrations that construct framework values outside compiled component source must
+install localization explicitly with `import '@exactjs/core/localization'`. Compiled components need
+no such import.
 
 Use ordinary callbacks and inferred tasks when they are sufficient. Reach for explicit policy when
 work needs placement, scheduling, cancellation capabilities, a stable key, or a human-readable

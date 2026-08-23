@@ -64,7 +64,7 @@ unmounting. It disposes a world it creates from `options`, but only pauses a sup
 `PhysicsElement` is a transparent ordinary component: its logical intrinsic root is the projection
 target, and replacing configuration reuses the durable component-owned controller.
 
-Use the explicit component when DOM attachment is required or the caller is compilerless. The
+Use the explicit component when DOM attachment is required or enhancement attributes are unavailable. The
 optional `physics:*` namespace is activated when the final application bundle includes the
 attributed capability and remains inert when it does not.
 
