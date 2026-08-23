@@ -13,6 +13,7 @@ import { createExactClient, type ExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
 import { readExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRemoteModule } from './artifacts.js';
+import { importIntegrityPinnedRemoteModule } from './client-integrity.js';
 import { registerExactRemoteRecovery, type ExactRemoteRecoveryRegistration } from './recovery.js';
 
 /** Browser-safe projection for one page-configured remote binding. */
@@ -36,7 +37,6 @@ export type RemoteComponentProps = {
 };
 
 const bindingsSymbol = Symbol.for('@exactjs/microfrontends/client-bindings');
-const remoteLoaderSymbol = Symbol.for('@exactjs/microfrontends/remote-loader');
 const moduleLoads = new Map<
 	string,
 	Readonly<{ promise: Promise<ExactRemoteModule>; abort: AbortController }>
@@ -46,13 +46,7 @@ const remoteLoadTimeoutMilliseconds = 30_000;
 
 type BindingHost = typeof globalThis & {
 	[bindingsSymbol]?: Readonly<Record<string, ExactRemoteClientBinding>>;
-	[remoteLoaderSymbol]?: ExactRemoteIntegrityLoader;
 };
-
-type ExactRemoteIntegrityLoader = Readonly<{
-	load(url: string, integrity: string, signal: AbortSignal): Promise<unknown>;
-	publish(token: string | null, value: unknown): void;
-}>;
 
 /** Publishes the generated browser-only binding projection before remote mounts. */
 export function registerExactRemoteClientBindings(
@@ -303,105 +297,6 @@ function waitForRemoteModule<T>(load: Promise<T>, signal: AbortSignal): Promise<
 			}
 		);
 	});
-}
-
-function importIntegrityPinnedRemoteModule(
-	url: string,
-	integrity: string,
-	signal: AbortSignal
-): Promise<unknown> {
-	return exactRemoteIntegrityLoader().load(url, integrity, signal);
-}
-
-function exactRemoteIntegrityLoader(): ExactRemoteIntegrityLoader {
-	const host = globalThis as BindingHost;
-	if (host[remoteLoaderSymbol]) return host[remoteLoaderSymbol];
-	let sequence = 0;
-	const pending = new Map<
-		string,
-		Readonly<{
-			resolve(value: unknown): void;
-			reject(error: Error): void;
-			script: HTMLScriptElement;
-			cleanup(): void;
-		}>
-	>();
-	const loader: ExactRemoteIntegrityLoader = Object.freeze({
-		load(url, integrity, signal) {
-			if (typeof document === 'undefined')
-				return Promise.reject(
-					new Error('Integrity-pinned remote loading requires a browser document')
-				);
-			const token = `${Date.now().toString(36)}-${(++sequence).toString(36)}`;
-			const source = new URL(url, document.baseURI);
-			source.searchParams.set('__exact_module_token', token);
-			const script = document.createElement('script');
-			script.type = 'module';
-			script.src = source.href;
-			script.integrity = integrity;
-			if (source.origin !== document.location.origin) script.crossOrigin = 'anonymous';
-			return new Promise((resolve, reject) => {
-				const fail = () =>
-					settleRemoteLoad(
-						token,
-						pending,
-						new Error('Remote client entry failed integrity-checked loading')
-					);
-				const abort = () =>
-					settleRemoteLoad(
-						token,
-						pending,
-						signal.reason instanceof Error
-							? signal.reason
-							: new Error('Remote client entry loading aborted')
-					);
-				pending.set(token, {
-					resolve,
-					reject,
-					script,
-					cleanup: () => signal.removeEventListener('abort', abort)
-				});
-				signal.addEventListener('abort', abort, { once: true });
-				script.addEventListener('error', fail, { once: true });
-				script.addEventListener(
-					'load',
-					() => {
-						if (pending.has(token)) fail();
-					},
-					{ once: true }
-				);
-				document.head.append(script);
-				if (signal.aborted) abort();
-			});
-		},
-		publish(token, value) {
-			if (!token) return;
-			const entry = pending.get(token);
-			if (!entry) return;
-			pending.delete(token);
-			entry.cleanup();
-			entry.script.remove();
-			entry.resolve(value);
-		}
-	});
-	host[remoteLoaderSymbol] = loader;
-	return loader;
-}
-
-function settleRemoteLoad(
-	token: string,
-	pending: Map<
-		string,
-		Readonly<{ reject(error: Error): void; script: HTMLScriptElement; cleanup(): void }>
-	>,
-	error: Error
-): void {
-	const entry = pending.get(token);
-	if (!entry) return;
-	pending.delete(token);
-	entry.cleanup();
-	entry.script.remove();
-	entry.reject(error);
 }
 
 function isValidIntegrity(value: string): boolean {

@@ -187,6 +187,20 @@ const bindings = Object.freeze({
 	broken: Object.freeze({ clientEntry: brokenEntry })
 });
 
+function stubUnsupportedBuild(): void {
+	vi.stubGlobal(
+		'fetch',
+		vi.fn(async () => ({
+			ok: false,
+			status: 410,
+			headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
+			async json() {
+				return { error: 'exact_build_unsupported' };
+			}
+		}))
+	);
+}
+
 describe('RemoteComponent', () => {
 	beforeAll(() => registerExactRemoteClientBindings(bindings));
 	afterEach(() => {
@@ -452,17 +466,7 @@ describe('RemoteComponent', () => {
 	});
 
 	it('coordinates an unsupported-build replacement through the page-owned resolver', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async () => ({
-				ok: false,
-				status: 410,
-				headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
-				async json() {
-					return { error: 'exact_build_unsupported' };
-				}
-			}))
-		);
+		stubUnsupportedBuild();
 		const container = document.createElement('div');
 		render(createVNode(RemoteComponent, { binding: 'retiring' }), container);
 		await waitFor(() => container.textContent === 'Old remote');
@@ -529,17 +533,7 @@ describe('RemoteComponent', () => {
 	});
 
 	it('falls back after one bounded attempt when a resolver returns the unchanged build', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async () => ({
-				ok: false,
-				status: 410,
-				headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
-				async json() {
-					return { error: 'exact_build_unsupported' };
-				}
-			}))
-		);
+		stubUnsupportedBuild();
 		const container = document.createElement('div');
 		render(
 			createVNode(RemoteComponent, {
@@ -559,17 +553,7 @@ describe('RemoteComponent', () => {
 	});
 
 	it('falls back when the page-owned replacement resolver rejects', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async () => ({
-				ok: false,
-				status: 410,
-				headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
-				async json() {
-					return { error: 'exact_build_unsupported' };
-				}
-			}))
-		);
+		stubUnsupportedBuild();
 		const container = document.createElement('div');
 		render(
 			createVNode(RemoteComponent, {
