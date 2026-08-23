@@ -6,6 +6,7 @@ import {
 	summarizeScenario,
 	summarizeValues
 } from './measurement.mjs';
+import { summarizeServerLoad } from './server-load-measurement.mjs';
 
 test('uses nearest-rank percentiles for isolated process samples', () => {
 	assert.equal(percentile([1, 2, 3, 4, 5], 0.5), 3);
@@ -89,4 +90,33 @@ test('summarizes deterministic production build samples', () => {
 			]),
 		/nondeterministic/
 	);
+});
+
+test('summarizes sustained server latency, throughput, and post-GC drift', () => {
+	const summary = summarizeServerLoad({
+		runtime: 'node',
+		moduleEvaluationMs: 5,
+		requestSamples: [
+			{ statusCode: 200, latencyMs: 4, ttfbMs: 3, serverRenderMs: 2, bytes: 100 },
+			{ statusCode: 200, latencyMs: 8, ttfbMs: 6, serverRenderMs: 5, bytes: 100 }
+		],
+		elapsedMs: 100,
+		server: {
+			requestCount: 2,
+			errorCount: 0,
+			loopDelays: [0.1, 0.5],
+			peakMemory: { heapUsed: 30, rss: 40 }
+		},
+		baselineMemory: { heapUsed: 10, rss: 20 },
+		serverSnapshots: [
+			{ currentMemory: { heapUsed: 12, rss: 24 } },
+			{ currentMemory: { heapUsed: 14, rss: 26 } }
+		]
+	});
+
+	assert.equal(summary.throughputRequestsPerSecond, 20);
+	assert.equal(summary.latencyMs.p50, 4);
+	assert.equal(summary.ttfbMs.p95, 6);
+	assert.equal(summary.memory.postGcHeapDriftBytes, 2);
+	assert.equal(summary.memory.postGcRssDriftBytes, 2);
 });

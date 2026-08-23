@@ -165,9 +165,9 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	}
 	// The current render-program ABI serializes dynamic component slots in authored order and
 	// cannot carry the compiler's stronger sibling-independence proof. Preserve the direct VNode
-	// form until the server component ABI invokes those child programs itself; otherwise choosing
-	// the compact program silently serializes independently ready server tasks.
-	if lowering.target == TargetServer && lowering.independentAsyncSiblings(children) {
+	// form when any nested host owns such a group; checking only the program root silently
+	// serialized task siblings below otherwise unrelated static or scalar content.
+	if lowering.target == TargetServer && lowering.containsIndependentAsyncSiblings(children) {
 		return nil
 	}
 	parentNamespace, certain := lowering.renderProgramParentNamespace(identityNode)
@@ -278,6 +278,26 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		arguments = append(arguments, propertyWriter)
 	}
 	return lowering.call(lowering.names.preparedRenderProgram, arguments)
+}
+
+func (lowering *jsxLowering) containsIndependentAsyncSiblings(children *ast.NodeList) bool {
+	if children == nil {
+		return false
+	}
+	if lowering.independentAsyncSiblings(children) {
+		return true
+	}
+	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+		if !ast.IsJsxElement(child) {
+			continue
+		}
+		element := child.AsJsxElement()
+		if jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(element.OpeningElement))) &&
+			lowering.containsIndependentAsyncSiblings(element.Children) {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) renderProgramPropertyWriter(
