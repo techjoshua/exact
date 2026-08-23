@@ -6312,6 +6312,32 @@ func TestSessionKeepsClientLifecycleWorkOutOfSharedSetupPlacement(t *testing.T) 
 	}
 }
 
+func TestSessionAllowsBrowserGlobalsInsideClientLifecycleForServerTarget(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "lifecycle-server-projection.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State = {}> {
+				onMount(handler: () => void): void;
+			}
+			export function RouteShell(this: Component) {
+				this.onMount(() => window.addEventListener("popstate", () => undefined));
+				return () => <main>route</main>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "EXACT2211" {
+			t.Fatalf("client lifecycle leaked into server-rendered placement diagnostics: %#v", response.Diagnostics)
+		}
+	}
+	if !strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount"`) {
+		t.Fatalf("server output lost the inert client lifecycle registration: %s", response.Code)
+	}
+}
+
 func TestSessionPropagatesAmbientCallablePlacementAnnotations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "ambient-policy.tsx",
