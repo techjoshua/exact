@@ -18,6 +18,7 @@ import {
 	createSsrComponentInstance,
 	resolveSsrComponentExecution
 } from './root-execution-cache.js';
+import { renderDirectSsrComponent } from './direct-component.js';
 
 /** Renderer operations supplied by the sync tree without creating an import cycle. */
 export type SyncComponentOperations = Readonly<{
@@ -74,6 +75,22 @@ export function renderSyncComponent(
 		}
 		const componentProps = getComponentProps(vnode);
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
+		const directChildren = renderDirectSsrComponent(context, blueprint, componentProps);
+		if (directChildren) {
+			if (documentProbe) resetDocumentProbe(context);
+			const html = operations.renderChildren(context, directChildren, parent);
+			return componentOutput(
+				context,
+				vnode,
+				parent,
+				componentId,
+				html,
+				componentProps,
+				enhancement,
+				documentProbe,
+				operations
+			);
+		}
 		instance = createSsrComponentInstance(
 			context,
 			vnode.type as AnyEnhancementComponentFunction,

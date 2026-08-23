@@ -116,11 +116,22 @@ function isDefinition(value: unknown): boolean {
 function isServerExecution(value: unknown): boolean {
 	if (!isContractRecord(value)) return false;
 	return (
-		hasOnlyContractKeys(value, ['version', 'classification', 'setup', 'slices']) &&
+		hasOnlyContractKeys(value, [
+			'version',
+			'classification',
+			'lane',
+			'setup',
+			'slices',
+			'render'
+		]) &&
 		value.version === 1 &&
 		(value.classification === 'synchronous' ||
 			value.classification === 'scheduled' ||
 			value.classification === 'dynamic') &&
+		(value.lane === 'direct' || value.lane === 'generic') &&
+		(value.lane === 'direct'
+			? value.classification === 'synchronous' && typeof value.render === 'function'
+			: value.render === undefined) &&
 		Array.isArray(value.setup) &&
 		value.setup.every(isSafeIndex) &&
 		Array.isArray(value.slices) &&

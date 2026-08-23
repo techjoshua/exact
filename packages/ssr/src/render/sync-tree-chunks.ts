@@ -54,6 +54,7 @@ import {
 	createSsrComponentInstance,
 	resolveSsrComponentExecution
 } from './root-execution-cache.js';
+import { renderDirectSsrComponent } from './direct-component.js';
 import { renderChildren } from './sync-children.js';
 import * as syncComponents from './sync-component.js';
 import { createSsrChunkMarker } from './sync-markers.js';
@@ -243,16 +244,21 @@ function* renderComponentChunks(
 	} else
 		try {
 			componentProps = getComponentProps(vnode);
-			const instance = createSsrComponentInstance(
-				context,
-				component,
-				componentProps,
-				parent,
-				blueprint
-			);
-			context.onComponentCreated?.(instance);
-			childParent = instance;
-			children = renderInstance(instance, () => undefined);
+			const directChildren = renderDirectSsrComponent(context, blueprint, componentProps);
+			if (directChildren) {
+				children = directChildren;
+			} else {
+				const instance = createSsrComponentInstance(
+					context,
+					component,
+					componentProps,
+					parent,
+					blueprint
+				);
+				context.onComponentCreated?.(instance);
+				childParent = instance;
+				children = renderInstance(instance, () => undefined);
+			}
 		} catch (error) {
 			if (isSsrRenderLimitError(error)) throw error;
 			const fallback = handleSsrConstructionError(parent, error, componentName(component));

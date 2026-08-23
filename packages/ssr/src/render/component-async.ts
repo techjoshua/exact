@@ -23,6 +23,7 @@ import {
 	createSsrComponentInstance,
 	resolveSsrComponentExecution
 } from './root-execution-cache.js';
+import { renderDirectSsrComponent } from './direct-component.js';
 
 const retainSsrComponent = (): void => {};
 
@@ -72,8 +73,18 @@ export async function renderComponentAsync(
 				retain: retainSsrComponent
 			};
 			const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
+			const rawProps = getComponentProps(vnode);
+			const directChildren = renderDirectSsrComponent(context, blueprint, rawProps);
+			if (directChildren) {
+				if (documentProbe) resetDocumentProbe(context);
+				const html = await renderChildrenAsync(context, directChildren, parent, options);
+				return componentHtml(context, vnode, parent, componentId, html, rawProps, {
+					enhancement,
+					documentProbe
+				});
+			}
 			const componentProps = await prepareComponentProps(
-				getComponentProps(vnode),
+				rawProps,
 				blueprint.execution,
 				options.signal
 			);

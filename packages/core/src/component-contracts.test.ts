@@ -225,6 +225,7 @@ describe('@exactjs/core component contracts', () => {
 					server: {
 						version: 1 as const,
 						classification: 'scheduled' as const,
+						lane: 'generic' as const,
 						setup: [0],
 						slices: [{ transition: 0, inputs: [0], outputs: [1] }]
 					}
@@ -235,6 +236,7 @@ describe('@exactjs/core component contracts', () => {
 		expect(readExactCompiledComponentContract(component).definition.server).toEqual({
 			version: 1,
 			classification: 'scheduled',
+			lane: 'generic',
 			setup: [0],
 			slices: [{ transition: 0, inputs: [0], outputs: [1] }]
 		});
