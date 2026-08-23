@@ -40,6 +40,7 @@ let nextFrameId = 1;
 let currentFrame: TaskFrameRecord | undefined;
 let currentOwner: TaskOwnerRecord | undefined;
 let deferredFrameMaterializer: (() => TaskFrameRecord) | undefined;
+let scheduledWorkCaptureInstalled = false;
 const synchronousFrameErrors = new WeakMap<Promise<unknown>, { readonly error: unknown }>();
 
 /** Creates a durable task owner and its cancellation lifetime. */
@@ -99,6 +100,7 @@ export function withTaskOwnerRecord<T>(owner: TaskOwnerRecord, work: () => T): T
 /** Runs a synchronous segment with one frame as ambient context. */
 export function withTaskFrameRecord<T>(frame: TaskFrameRecord, work: () => T): T {
 	if (frame.settled) throw new Error('Cannot resume a settled task frame');
+	ensureScheduledWorkContextCapture();
 	const previous = currentFrame;
 	currentFrame = frame;
 	try {
@@ -358,13 +360,17 @@ export function allocateTaskFrameId(): number {
 	return nextFrameId++;
 }
 
-setScheduledWorkContextCapture((priority) => {
-	const parent = currentTaskFrameRecord();
-	if (!parent || !parent.producerOpen || parent.settled) return undefined;
-	if (priority === 'interactive' && uninspectedSynchronousFrames.has(parent))
-		return interactiveReactionContext(parent);
-	return acquireScheduledReactionBatch(parent);
-});
+function ensureScheduledWorkContextCapture(): void {
+	if (scheduledWorkCaptureInstalled) return;
+	scheduledWorkCaptureInstalled = true;
+	setScheduledWorkContextCapture((priority) => {
+		const parent = currentTaskFrameRecord();
+		if (!parent || !parent.producerOpen || parent.settled) return undefined;
+		if (priority === 'interactive' && uninspectedSynchronousFrames.has(parent))
+			return interactiveReactionContext(parent);
+		return acquireScheduledReactionBatch(parent);
+	});
+}
 
 /** Reuses an open interaction producer for consequences drained inside the same DOM callback. */
 function interactiveReactionContext(parent: TaskFrameRecord): ScheduledWorkContext {

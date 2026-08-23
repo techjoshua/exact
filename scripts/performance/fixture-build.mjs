@@ -91,7 +91,9 @@ function assertCompilerClosedServerBundle(source) {
 		'createGenericSsrComponentInstance',
 		'renderGenericComponentAsync',
 		'registerGenericSsrComponentRenderer',
-		'SsrReadinessOwner'
+		'SsrReadinessOwner',
+		'createTaskOwnerRecord',
+		'setScheduledWorkContextCapture'
 	]) {
 		if (source.includes(signature))
 			throw new Error(`Compiler-closed server bundle retained generic runtime ${signature}`);

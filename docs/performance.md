@@ -205,7 +205,8 @@ server task helpers. A generic component artifact explicitly installs durable co
 enhancement planning, and task ownership; a native Suspense artifact explicitly installs its
 structural-boundary capability. Those implementation modules are therefore unreachable from a
 closed server bundle that uses neither feature. The performance fixture rejects a closed bundle if
-durable component construction, generic component rendering, or readiness-owner construction
+durable component construction, generic component rendering, readiness-owner construction, task
+owner construction, or reactive scheduler ownership installation
 reappears.
 Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
 binder contexts are released after synchronous installation and are not captured by the retained
