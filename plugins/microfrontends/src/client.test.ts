@@ -21,7 +21,28 @@ import {
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 
 function remoteBrand(name: string): string {
-	return `Object.assign(${name}, { [Symbol.for("@exactjs/component")]: "test:${name}" });`;
+	return `Object.defineProperties(${name}, {
+  [Symbol.for("@exactjs/component")]: { value: "test:${name}" },
+  [Symbol.for("@exactjs/component-contract")]: { value: {
+    version: 2,
+    placement: "client",
+    role: "client",
+    implementations: [{ id: "test:${name}:implementation", name: "${name}", role: "root", implementation: ${name} }],
+    continuations: [],
+    executors: [],
+    boundaries: [],
+    execution: { version: 1, ports: [], transitions: [], reactive: [] },
+    definition: {
+      version: 1,
+      instantiate: ${name},
+      state: [],
+      tasks: [],
+      reactive: [],
+      render: "returned-function",
+      capabilities: ["interactions", "tasks"]
+    }
+  } }
+});`;
 }
 const probeRegistration = JSON.stringify({
 	continuations: {
@@ -223,6 +244,12 @@ describe('RemoteComponent', () => {
 			'non-function component',
 			dataModule(
 				`export default { buildKey: "${buildKey}", root: "area", component: {}, registration: {} };`
+			)
+		],
+		[
+			'identity-only component',
+			dataModule(
+				`function IdentityOnly() {}; Object.assign(IdentityOnly, { [Symbol.for("@exactjs/component")]: "test:identity-only" }); export default { buildKey: "${buildKey}", root: "area", component: IdentityOnly, registration: {} };`
 			)
 		],
 		[

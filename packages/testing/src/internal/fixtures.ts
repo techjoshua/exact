@@ -11,6 +11,7 @@ import {
 } from '@exactjs/core';
 import { createCompiledVNode } from '@exactjs/core/runtime/render';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import '@exactjs/core/runtime/lifecycle';
 import type { AnyExactComponentCallable } from '@exactjs/core/framework/component-contracts';
 import { jsx, jsxs } from '@exactjs/jsx';
 
