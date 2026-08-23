@@ -19,7 +19,7 @@ import {
 import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
-import { appendBoundedHtml, countSsrNodes } from './limits.js';
+import { appendBoundedHtml, countSsrNodes, SsrOutputLimitError } from './limits.js';
 import type { Child, SsrContext } from '../types.js';
 
 /** Executes the compiler-native scalar subset or selects its lazy generic fallback. */
@@ -28,7 +28,11 @@ export function renderSsrProgram(
 	vnode: VNode,
 	owner?: AnyComponentInstance,
 	renderChildren?: (children: readonly Child[]) => string
-): { readonly html?: string; readonly fallback?: VNode } {
+): {
+	readonly html?: string;
+	readonly segments?: readonly DeferredSsrSegment[];
+	readonly fallback?: VNode;
+} {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation || context.reactMarkup)
 		return { fallback: materializeProgramFallback(vnode, owner) };
@@ -37,10 +41,12 @@ export function renderSsrProgram(
 		const target = new GeneratedSsrTarget(context, invocation, renderChildren);
 		program.ssr(target);
 		if (!target.prepared) return { fallback: materializeProgramFallback(vnode, owner) };
-		return { html: target.html };
+		return renderChildren ? { html: target.html } : { segments: target.segments };
 	}
 	return { fallback: materializeProgramFallback(vnode, owner) };
 }
+
+type DeferredSsrSegment = string | readonly Child[];
 
 /**
  * Supplies serialization mechanics to one compiler-generated server lane.
@@ -51,6 +57,8 @@ export function renderSsrProgram(
  */
 class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 	readonly #values: unknown[] = [];
+	readonly segments: DeferredSsrSegment[] = [];
+	#staticCharacters = 0;
 	prepared = true;
 	html = '';
 
@@ -73,7 +81,7 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 	prepareChild(index: number): void {
 		if (!this.prepared) return;
 		const value = unwrap(readRenderProgramSlot(this.invocation, index));
-		if (value instanceof Promise || !this.renderChildren) {
+		if (value instanceof Promise) {
 			this.prepared = false;
 			return;
 		}
@@ -101,7 +109,15 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 	}
 
 	static(value: string): void {
-		if (this.prepared) this.html = appendBoundedHtml(this.context, this.html, value);
+		if (!this.prepared) return;
+		if (this.renderChildren) {
+			this.html = appendBoundedHtml(this.context, this.html, value);
+			return;
+		}
+		this.#staticCharacters += value.length;
+		if (this.#staticCharacters > this.context.maxOutputBytes)
+			throw new SsrOutputLimitError(this.context.maxOutputBytes);
+		if (value !== '') this.segments.push(value);
 	}
 
 	text(index: number, id: string, markerless?: true): void {
@@ -120,21 +136,26 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 
 	child(index: number, id: string): void {
 		if (!this.prepared) return;
-		const rendered = this.renderChildren!(
-			normalizeRenderResult(this.#values[index] as Child | Child[])
-		);
-		this.static(
-			this.context.markers
-				? `<!--exact:dynamic:${exactMarkerId(id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(id)}-->`
-				: rendered
-		);
+		const children = normalizeRenderResult(this.#values[index] as Child | Child[]);
+		if (this.renderChildren) {
+			const rendered = this.renderChildren(children);
+			this.static(
+				this.context.markers
+					? `<!--exact:dynamic:${exactMarkerId(id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(id)}-->`
+					: rendered
+			);
+			return;
+		}
+		if (this.context.markers) this.static(`<!--exact:dynamic:${exactMarkerId(id)}-->`);
+		this.segments.push(children);
+		if (this.context.markers) this.static(`<!--/exact:dynamic:${exactMarkerId(id)}-->`);
 	}
 
 	keyedChild(index: number): void {
 		if (!this.prepared) return;
-		this.static(
-			this.renderChildren!(normalizeRenderResult(this.#values[index] as Child | Child[]))
-		);
+		const children = normalizeRenderResult(this.#values[index] as Child | Child[]);
+		if (this.renderChildren) this.static(this.renderChildren(children));
+		else this.segments.push(children);
 	}
 
 	attribute(index: number, name: string, tag: string): void {
@@ -161,11 +182,23 @@ export function renderSsrProgramChunks(
 	context: SsrContext,
 	vnode: VNode,
 	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => Iterable<string>
+	renderFallback: (fallback: VNode) => Iterable<string>,
+	renderChildren: (children: readonly Child[]) => Iterable<string>
 ): Iterable<string> | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
 	const planned = renderSsrProgram(context, vnode, owner);
-	return planned.fallback ? renderFallback(planned.fallback) : [planned.html!];
+	if (planned.fallback) return renderFallback(planned.fallback);
+	return flattenDeferredSegments(planned.segments!, renderChildren);
+}
+
+function* flattenDeferredSegments(
+	segments: readonly DeferredSsrSegment[],
+	renderChildren: (children: readonly Child[]) => Iterable<string>
+): Iterable<string> {
+	for (const segment of segments) {
+		if (typeof segment === 'string') yield segment;
+		else yield* renderChildren(segment);
+	}
 }
 
 /** Re-enters the component owner while a marker-mode fallback allocates reactive VNodes. */

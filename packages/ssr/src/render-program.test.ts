@@ -13,8 +13,9 @@ import {
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
-import { renderToString, renderToStringAsync } from './index.js';
+import { renderToStream, renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
+import { readStreamText } from './test-support/streams.js';
 
 it('writes compiler-owned scalar programs without redundant hydration delimiters', () => {
 	let constructions = 0;
@@ -115,7 +116,7 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 	);
 });
 
-it('executes structural program slots without colliding with nested marker identities', () => {
+it('executes structural program slots without colliding with nested marker identities', async () => {
 	function Child() {
 		return () => createVNode('strong', null, 'child');
 	}
@@ -151,9 +152,15 @@ it('executes structural program slots without colliding with nested marker ident
 	expect(renderToString(program, { markers: false }).html).toBe(
 		'<section><strong>child</strong></section>'
 	);
+	expect((await renderToStringAsync(program, { markers: false })).html).toBe(
+		'<section><strong>child</strong></section>'
+	);
+	expect(await readStreamText(renderToStream(program, { markers: false }))).toBe(
+		'<section><strong>child</strong></section>'
+	);
 });
 
-it('writes a compiler-proven final keyed child without structural delimiters', () => {
+it('writes a compiler-proven final keyed child without structural delimiters', async () => {
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-keyed-tail',
 		() => ({
@@ -180,6 +187,8 @@ it('writes a compiler-proven final keyed child without structural delimiters', (
 	expect(html).toContain('<li>a</li>');
 	expect(html).toContain('<li>b</li>');
 	expect(html).not.toContain('exact:dynamic:');
+	expect((await renderToStringAsync(program)).html).toBe(html);
+	expect(await readStreamText(renderToStream(program))).toBe(html);
 });
 
 it('materializes marker-mode program fallbacks inside their component scope', async () => {

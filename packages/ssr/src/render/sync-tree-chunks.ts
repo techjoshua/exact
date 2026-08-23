@@ -80,8 +80,14 @@ export function* renderVNodeChunks(
 		yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
 		return;
 	}
-	const programChunks = renderSsrProgramChunks(context, vnode, parent, (fallback) =>
-		renderVNodeChunks(context, fallback, parent, depth + 1)
+	const programChunks = renderSsrProgramChunks(
+		context,
+		vnode,
+		parent,
+		(fallback) => renderVNodeChunks(context, fallback, parent, depth + 1),
+		function* (children) {
+			for (const child of children) yield* renderChildChunks(context, child, parent, depth + 1);
+		}
 	);
 	if (programChunks) {
 		yield* programChunks;

@@ -136,9 +136,16 @@ export async function renderVNodeAsyncInner(
 	}
 	if (vnode.type === RenderProgram) {
 		const planned = renderSsrProgram(context, vnode, parent);
-		return planned.fallback
-			? renderVNodeAsync(context, planned.fallback, parent, options)
-			: planned.html!;
+		if (planned.fallback) return renderVNodeAsync(context, planned.fallback, parent, options);
+		const html: string[] = [];
+		for (const segment of planned.segments!) {
+			html.push(
+				typeof segment === 'string'
+					? segment
+					: await renderChildrenAsync(context, segment, parent, options)
+			);
+		}
+		return boundedJoin(context, html);
 	}
 
 	if (vnode.type === Text) {

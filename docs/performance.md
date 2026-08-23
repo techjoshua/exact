@@ -492,10 +492,11 @@ Closed server component artifacts carry generated SSR execution rather than a co
 tape. The compiler emits slot preparation and the exact static, text, child, and attribute
 calls in source order; server-only descriptors omit the client template and all generic topology
 tables. Structural child and component calls delegate only their owned value to the ordinary child
-renderer. Asynchronous and streaming renderers retain the region-local generic structural fallback
-until they can preserve the same scheduling and chunk boundaries directly. Hydrate-only client
-artifacts omit server markup and execution. Complete rendering-mode-neutral artifacts retain the
-table representation as an explicit compatibility boundary.
+renderer. Asynchronous and streaming renderers execute the same generated calls and defer only each
+prepared child value to their ordinary async or chunk renderer; they do not reconstruct the host
+through the generic fallback. Hydrate-only client artifacts omit server markup and execution.
+Complete rendering-mode-neutral artifacts retain the table representation as an explicit
+compatibility boundary.
 
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
