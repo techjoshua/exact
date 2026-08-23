@@ -26,7 +26,7 @@ import { chargeEnhancementPlanning } from './enhancement-limits.js';
 import { collectSsrEnhancementRoutes } from './enhancement-routing.js';
 import { resolveSsrLogicalChildren } from './logical-children.js';
 import { SsrReadinessOwner } from './readiness-owner.js';
-import { createSsrComponentInstance } from './root-execution-cache.js';
+import { createGenericSsrComponentInstance } from './generic-component-instance.js';
 
 type SsrAsyncOptions = RenderToStringOptions & { taskDeadline?: number };
 
@@ -141,7 +141,7 @@ function materializeSync(
 		let children: readonly Child[] = [];
 		let failed = false;
 		try {
-			instance = createSsrComponentInstance(
+			instance = createGenericSsrComponentInstance(
 				context,
 				vnode.type as AnyEnhancementComponentFunction,
 				props,
@@ -249,7 +249,7 @@ async function materializeAsync(
 				retain() {}
 			};
 			instance = withTaskObserver(observer, () =>
-				createSsrComponentInstance(
+				createGenericSsrComponentInstance(
 					context,
 					vnode.type as AnyEnhancementComponentFunction,
 					props,

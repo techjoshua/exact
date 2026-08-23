@@ -60,6 +60,14 @@
 			"types": "./dist/framework/server-component-execution.d.ts",
 			"default": "./dist/framework/server-component-execution.js"
 		},
+		"./framework/render-structure": {
+			"types": "./dist/framework/render-structure.d.ts",
+			"default": "./dist/framework/render-structure.js"
+		},
+		"./framework/server-task-helpers": {
+			"types": "./dist/framework/server-task-helpers.d.ts",
+			"default": "./dist/framework/server-task-helpers.js"
+		},
 		"./framework/component-lifecycle": {
 			"types": "./dist/framework/component-lifecycle.d.ts",
 			"default": "./dist/framework/component-lifecycle.js"
@@ -103,6 +111,10 @@
 		"./runtime/tasks": {
 			"types": "./dist/runtime/tasks.d.ts",
 			"default": "./dist/runtime/tasks.js"
+		},
+		"./runtime/component-tasks": {
+			"types": "./dist/runtime/component-tasks.d.ts",
+			"default": "./dist/runtime/component-tasks.js"
 		},
 		"./runtime/component-execution": {
 			"types": "./dist/runtime/component-execution.d.ts",

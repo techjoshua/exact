@@ -9,7 +9,7 @@ import {
 	type Child,
 	type VNode
 } from '@exactjs/core';
-import { ServerSlot } from '@exactjs/core/runtime/render';
+import { ServerSlot } from '@exactjs/core/framework/render-structure';
 import { unwrap } from '@exactjs/reactive';
 import type { SsrContext } from '../types.js';
 import { registerDynamicComponentPreload } from './resource-hints.js';

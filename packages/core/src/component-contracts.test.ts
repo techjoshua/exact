@@ -202,8 +202,22 @@ describe('@exactjs/core component contracts', () => {
 	it.each([
 		['generic', undefined],
 		['direct', () => () => null]
-	] as const)('validates compiler-projected %s server execution slices', (lane, render) => {
+	] as const)('validates compiler-projected %s server execution metadata', (lane, render) => {
 		const implementation = () => () => null;
+		const server =
+			lane === 'direct'
+				? {
+						version: 1 as const,
+						classification: 'scheduled' as const,
+						lane,
+						setupProps: ['request'],
+						render
+					}
+				: {
+						version: 1 as const,
+						classification: 'scheduled' as const,
+						lane
+					};
 		const component = Object.assign(implementation, {
 			[exactComponentType]: 'component:ServerPage',
 			[exactComponentContract]: {
@@ -225,26 +239,12 @@ describe('@exactjs/core component contracts', () => {
 					version: 1 as const,
 					instantiate: implementation,
 					capabilities: [],
-					server: {
-						version: 1 as const,
-						classification: 'scheduled' as const,
-						lane,
-						setup: [0],
-						slices: [{ transition: 0, inputs: [0], outputs: [1] }],
-						...(render ? { render } : {})
-					}
+					server
 				}
 			}
 		});
 
-		expect(readExactCompiledComponentContract(component).definition.server).toEqual({
-			version: 1,
-			classification: 'scheduled',
-			lane,
-			setup: [0],
-			slices: [{ transition: 0, inputs: [0], outputs: [1] }],
-			...(render ? { render } : {})
-		});
+		expect(readExactCompiledComponentContract(component).definition.server).toEqual(server);
 	});
 
 	it('rejects pre-partition component contract versions before adoption', () => {

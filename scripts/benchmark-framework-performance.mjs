@@ -63,7 +63,9 @@ try {
 	const nodeResults = [];
 	for (const scenario of nodeScenarios) {
 		const fixture = scenario.startsWith('server.')
-			? fixtureBuild.paths.server
+			? scenario === 'server.ssr-task-readiness'
+				? fixtureBuild.paths.serverDirect
+				: fixtureBuild.paths.server
 			: fixtureBuild.paths.client;
 		const scenarioSamples = [];
 		process.stdout.write(`${scenario}: `);

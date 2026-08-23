@@ -7,10 +7,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
-import {
-	planSsrEnhancementBoundary,
-	planSsrEnhancementBoundaryAsync
-} from './enhancement-planning.js';
+import { ssrEnhancementPlanningCapability } from './enhancement-planning-capability.js';
 
 /** Activates declarations carried by one SSR vnode boundary. */
 export function activateSsrEnhancements(
@@ -33,7 +30,7 @@ export async function activateSsrEnhancementsAsync(
 	if (declarations.length) reportUnavailableEntries(context, declarations);
 	if (declarations.length && !context.plannedEnhancementBoundaries.has(vnode)) {
 		if (declarations.some((entry) => activeEnhancement(context, entry.identity))) {
-			await planSsrEnhancementBoundaryAsync(context, vnode, parent, options);
+			await ssrEnhancementPlanningCapability().planBoundaryAsync(context, vnode, parent, options);
 		} else {
 			context.plannedEnhancementBoundaries.add(vnode);
 		}
@@ -51,7 +48,7 @@ function planBoundaryIfNeeded(
 	reportUnavailableEntries(context, declarations);
 	if (context.plannedEnhancementBoundaries.has(vnode)) return;
 	if (declarations.some((entry) => activeEnhancement(context, entry.identity))) {
-		planSsrEnhancementBoundary(context, vnode, parent);
+		ssrEnhancementPlanningCapability().planBoundary(context, vnode, parent);
 	} else {
 		context.plannedEnhancementBoundaries.add(vnode);
 	}

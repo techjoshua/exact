@@ -99,18 +99,18 @@ discovery waterfall without building or flattening a request-wide plan. Explicit
 boundaries keep the ordinary drain-before-render path, and structural render reachability still prevents inactive
 branches or unselected dynamic components from starting work.
 
-A compiler-closed scheduled component executes on a request-local state frame and consumes the
-compiler's setup order and input/output slices directly. It allocates neither a generic component
+A compiler-closed scheduled component executes on a request-local state frame, settles only its
+compiler-listed setup props, and consumes generated input/output slices directly. It allocates neither a generic component
 instance nor a reactive component scope. Compiler-proven scheduled child slots emit direct issue
 calls in the server artifact, so their setup tasks can enter the bounded scheduler while the parent
 creates their VNodes and before the first sibling settles. Each request owns and disposes its frames, task generations, cancellation, and buffered
 resumption snapshots; immutable component contracts and prepared indexes are the only cross-request
 state.
 
-After output extensions choose the rendered root, SSR reuses a root-keyed immutable execution
-blueprint. It caches validated contracts and prepared lookup indexes for components reached beneath
-that root, including dynamic components on first use. Weak keys avoid retaining replaced dynamic
-components, and an attachment or compiler-identity change forces validation and preparation again.
+After output extensions choose the rendered root, SSR reuses a root-keyed immutable contract
+blueprint for components reached beneath that root, including dynamic components on first use. It
+does not build a second execution-plan index. Weak keys avoid retaining replaced dynamic components,
+and an attachment or compiler-identity change forces contract validation again.
 The cache contains no props, contexts, state, task generations, cancellation, or other request data.
 Per request, components allocate only their compact value slots and the watchers required by actual
 transitions; components without transitions skip continuation-frame allocation entirely.

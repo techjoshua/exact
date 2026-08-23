@@ -20,6 +20,14 @@
 		"./enhanced": {
 			"types": "./dist/enhanced.d.ts",
 			"default": "./dist/enhanced.js"
+		},
+		"./runtime/generic-components": {
+			"types": "./dist/runtime/generic-components.d.ts",
+			"default": "./dist/runtime/generic-components.js"
+		},
+		"./runtime/structural-boundaries": {
+			"types": "./dist/runtime/structural-boundaries.d.ts",
+			"default": "./dist/runtime/structural-boundaries.js"
 		}
 	},
 	"main": "./dist/index.js",

@@ -557,7 +557,8 @@ func rootComponentContractAttachment(
 			),
 		),
 	}
-	if projection != ComponentContractProjectionHydrate {
+	if projection != ComponentContractProjectionHydrate &&
+		!(target == TargetServer && component.DirectServer) {
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"execution",

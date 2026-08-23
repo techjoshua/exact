@@ -237,8 +237,9 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('executors: [');
 		expect(server).toContain('classification: "scheduled"');
 		expect(server).toContain('lane: "direct"');
-		expect(server).toContain('setup: [');
-		expect(server).toContain('slices: [');
+		expect(server).toContain('setupProps: [');
+		expect(server).not.toContain('slices: [');
+		expect(server).not.toContain('execution: {');
 		expect(client).not.toContain('classification: "scheduled"');
 		expect(server).toMatch(
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/

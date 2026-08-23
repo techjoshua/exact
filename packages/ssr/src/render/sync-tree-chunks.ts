@@ -15,9 +15,8 @@ import {
 	ServerBoundary,
 	ServerSlot,
 	getCellVNode,
-	isCellVNode,
-	renderInstance
-} from '@exactjs/core/runtime/render';
+	isCellVNode
+} from '@exactjs/core/framework/render-structure';
 import { unwrap } from '@exactjs/reactive';
 import { escapeText, voidElements } from '../html.js';
 import { exactMarkerId, markerId, renderAttrs, suspenseStatusMarkerId } from '../markup.js';
@@ -49,13 +48,11 @@ import {
 	resolveSsrFragmentChildren
 } from './logical-children.js';
 import { dynamicMarkerId } from './marker-identity.js';
-import { renderNativeSuspenseSync } from './native-boundaries.js';
+import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
 import { renderSsrProgramChunks } from './render-program.js';
-import {
-	createSsrComponentInstance,
-	resolveSsrComponentExecution
-} from './root-execution-cache.js';
+import { resolveSsrComponentExecution } from './root-execution-cache.js';
 import { renderDirectSsrComponent } from './direct-component.js';
+import { renderGenericSyncSsrComponentChunks } from './generic-component-capability.js';
 import { renderChildren } from './sync-children.js';
 import * as syncComponents from './sync-component.js';
 import { createSsrChunkMarker } from './sync-markers.js';
@@ -252,16 +249,16 @@ function* renderComponentChunks(
 				componentProps = direct.props;
 				directSnapshot = direct.snapshot;
 			} else {
-				const instance = createSsrComponentInstance(
+				const generic = renderGenericSyncSsrComponentChunks({
 					context,
-					component,
-					componentProps,
+					vnode,
 					parent,
-					blueprint
-				);
-				context.onComponentCreated?.(instance);
-				childParent = instance;
-				children = renderInstance(instance, () => undefined);
+					blueprint,
+					rawProps: componentProps
+				});
+				childParent = generic.instance;
+				children = generic.children;
+				componentProps = generic.props;
 			}
 		} catch (error) {
 			if (isSsrRenderLimitError(error)) throw error;

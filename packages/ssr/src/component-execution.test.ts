@@ -302,14 +302,9 @@ function compiledComponent<T extends (...args: any[]) => any>(
 											version: 1 as const,
 											classification: 'scheduled' as const,
 											lane: 'direct' as const,
-											setup: execution.transitions.flatMap((transition, index) =>
-												transition[2] === 'setup' ? [index] : []
+											setupProps: execution.ports.flatMap((port) =>
+												port[0] === 'props' ? [port[1].replace(/^props\./, '').split('.')[0]!] : []
 											),
-											slices: execution.transitions.map((transition, index) => ({
-												transition: index,
-												inputs: transition[6],
-												outputs: transition[7]
-											})),
 											render: component
 										}
 									}

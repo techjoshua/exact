@@ -14,7 +14,7 @@ import {
 	ServerSlot,
 	getCellVNode,
 	isCellVNode
-} from '@exactjs/core/runtime/render';
+} from '@exactjs/core/framework/render-structure';
 import { unwrap } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import {
@@ -46,7 +46,7 @@ import {
 	serverSlotVNodeReference
 } from './boundaries.js';
 import { renderElement, renderUnsafeHtml } from './host.js';
-import { renderNativeSuspenseSync } from './native-boundaries.js';
+import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
 import { activateSsrEnhancements } from './enhancements.js';
 import { applySsrTargetContributions } from './target-contributions.js';
 import { renderChildren } from './sync-children.js';

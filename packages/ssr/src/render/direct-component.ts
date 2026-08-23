@@ -125,14 +125,9 @@ export function createDirectScheduledSsrComponent(
 	options: SsrRenderOptions
 ): DirectScheduledSsrComponent | Promise<DirectScheduledSsrComponent | undefined> | undefined {
 	const server = blueprint.contract.definition.server;
-	if (
-		server?.lane !== 'direct' ||
-		server.classification !== 'scheduled' ||
-		!server.render ||
-		!blueprint.execution
-	)
+	if (server?.lane !== 'direct' || server.classification !== 'scheduled' || !server.render)
 		return undefined;
-	const preparedProps = prepareComponentProps(rawProps, blueprint.execution, options.signal);
+	const preparedProps = prepareComponentProps(rawProps, server.setupProps, options.signal);
 	return resolveMaybe(preparedProps, (props) =>
 		constructDirectScheduledSsrComponent(context, blueprint, props, options)
 	);

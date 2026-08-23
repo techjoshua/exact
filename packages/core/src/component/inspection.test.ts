@@ -216,3 +216,4 @@ describe('component runtime inspection', () => {
 	});
 });
 import '../runtime/contexts.js';
+import '../runtime/component-tasks.js';
