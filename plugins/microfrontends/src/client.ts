@@ -11,6 +11,7 @@ import {
 } from '@exactjs/core';
 import { createExactClient, type ExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
+import { readExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRemoteModule } from './artifacts.js';
 import { registerExactRemoteRecovery, type ExactRemoteRecoveryRegistration } from './recovery.js';
 
@@ -425,6 +426,14 @@ function validateRemoteModule(value: unknown): ExactRemoteModule {
 		typeof module.registration !== 'object'
 	)
 		throw new Error('Invalid eXact remote module');
+	let contract;
+	try {
+		contract = readExactCompiledComponentContract(module.component);
+	} catch {
+		throw new Error('Invalid eXact remote module: component is not a compiled client artifact');
+	}
+	if (contract.placement === 'server')
+		throw new Error('Invalid eXact remote module: component is server-only');
 	return module as ExactRemoteModule;
 }
 
