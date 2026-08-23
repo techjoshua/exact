@@ -327,7 +327,7 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	}
 }
 
-func TestSessionEmitsDirectServerExecutionForCompleteArtifacts(t *testing.T) {
+func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-complete.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionComplete,
@@ -341,17 +341,19 @@ func TestSessionEmitsDirectServerExecutionForCompleteArtifacts(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `template: "<span><strong>`) ||
-		!strings.Contains(response.Code, `slots: [["text"`) ||
+		!strings.Contains(response.Code, `bind: __exactBindingTarget =>`) ||
+		!strings.Contains(response.Code, `directClaims: true`) ||
+		strings.Contains(response.Code, `slots: [["text"`) ||
 		!strings.Contains(response.Code, `() => __exactVNode("span"`) ||
 		!strings.Contains(response.Code, `ssr: __exactSsr =>`) ||
 		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") {
-		t.Fatalf("complete artifact omitted direct server execution or retained interpreted metadata:\n%s", response.Code)
+		t.Fatalf("complete metadata artifact omitted a direct lane or its universal fallback:\n%s", response.Code)
 	}
 }
 
-func TestSessionUsesRegionFallbackForCompleteStructuralSsr(t *testing.T) {
+func TestSessionUsesDirectStructuralClaimsWithCompleteMetadata(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-complete-structural.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionComplete,
@@ -366,10 +368,12 @@ func TestSessionUsesRegionFallbackForCompleteStructuralSsr(t *testing.T) {
 	if strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") ||
+		!strings.Contains(response.Code, `__exactClaimProgramChild`) ||
+		!strings.Contains(response.Code, `directClaims: true`) ||
 		!strings.Contains(response.Code, `ssr: __exactSsr =>`) ||
-		!strings.Contains(response.Code, `["component"`) ||
+		strings.Contains(response.Code, `["component"`) ||
 		!strings.Contains(response.Code, `() => __exactVNode("span"`) {
-		t.Fatalf("structural complete program omitted its region fallback:\n%s", response.Code)
+		t.Fatalf("complete metadata artifact omitted direct structural execution or recovery:\n%s", response.Code)
 	}
 }
 
@@ -538,9 +542,11 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if complete.Error != "" {
 		t.Fatal(complete.Error)
 	}
-	if !strings.Contains(complete.Code, `__exactVNode("main"`) ||
+	if !strings.Contains(complete.Code, `__exactClaimProgramChild`) ||
+		!strings.Contains(complete.Code, `__exactComponentVNode(Detail`) ||
+		!strings.Contains(complete.Code, `__exactVNode("main"`) ||
 		!strings.Contains(complete.Code, `__exactDynamic(() => __exactComponentVNode(Detail`) {
-		t.Fatalf("complete artifact did not retain recursive rendering with the client boundary:\n%s", complete.Code)
+		t.Fatalf("complete metadata artifact omitted direct component claims or recovery:\n%s", complete.Code)
 	}
 
 	stateful := NewSession().Execute(Request{
@@ -3794,7 +3800,7 @@ __fixtureTask10();
 	}
 	for _, expected := range []string{
 		`const label = __exactDerived(() => this.state.query + "!")`,
-		`this.reactive(() => label.get())`,
+		`__exactDerived(() => label.get())`,
 		`(__exactDependency: string, _task: TaskContext) => consume(__exactDependency)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -4195,7 +4201,7 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 		"activateTaskForHost as __exactActivateTask",
 		"defineTask as __exactDefineTask",
 		"__exactActivateTask(this, __exactDefineTask(",
-		"this.reactive(() => this.state.revision)",
+		"__exactDerived(() => this.state.revision)",
 		"async (revision: number, task: TaskContext)",
 		"__exactTaskAwait(task.signal, delay(task.signal))",
 	} {
@@ -4338,14 +4344,14 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
 		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft : __exactTaskArgs[1];`,
 		`return [__exactTaskArgs[0], draft];`,
-		`this.reactive(() => this.state.revision)`,
+		`__exactDerived(() => this.state.revision)`,
 		`async (__exactDependency: number, draft: string, task: TaskContext)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("captured task output is missing %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, "this.reactive(() => this.state.draft)") ||
+	if strings.Contains(response.Code, "__exactDerived(() => this.state.draft)") ||
 		strings.Contains(response.Code, "draft: string = this.state.draft") {
 		t.Fatalf("captured default remained a reactive dependency or body default:\n%s", response.Code)
 	}
@@ -5440,7 +5446,7 @@ __fixtureTask34();
 		len(response.Analysis.Tasks[0].Reads) != 1 ||
 		len(response.Analysis.Tasks[0].Writes) != 1 ||
 		len(response.Analysis.Tasks[0].Dependencies) != 0 ||
-		strings.Contains(response.Code, "this.reactive(() => this.state.revision)") {
+		strings.Contains(response.Code, "__exactDerived(() => this.state.revision)") {
 		t.Fatalf(
 			"task mutation became a self-invalidating dependency: %#v\n%s",
 			response.Analysis.Tasks,
@@ -5590,13 +5596,12 @@ func TestSessionLowersKeyedMapsDeclaredInImportedTypes(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "this.map(") {
-		t.Fatalf("imported keyed item type was not lowered: %s", response.Code)
+	if !strings.Contains(response.Code, "__exactClaimProgramKeyedChild") ||
+		!strings.Contains(response.Code, "keyedChildren:") ||
+		!strings.Contains(response.Code, "__exactKeyedVNode") {
+		t.Fatalf("imported keyed item type was not lowered to direct keyed execution: %s", response.Code)
 	}
-	if !strings.Contains(response.Code, `, props.items, "member:id")`) {
-		t.Fatalf("annotated list omitted stable provenance and key identity: %s", response.Code)
-	}
-	if strings.Contains(response.Code, "const copy = () => this.map(") {
+	if strings.Contains(response.Code, "const copy = () => __exactKeyedVNode(") {
 		t.Fatalf("ordinary data mapping was lowered as a rendered list: %s", response.Code)
 	}
 }

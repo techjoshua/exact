@@ -56,6 +56,10 @@
 			"types": "./dist/framework/component-execution.d.ts",
 			"default": "./dist/framework/component-execution.js"
 		},
+		"./framework/component-lifecycle": {
+			"types": "./dist/framework/component-lifecycle.d.ts",
+			"default": "./dist/framework/component-lifecycle.js"
+		},
 		"./framework/protocol-records": {
 			"types": "./dist/framework/protocol-records.d.ts",
 			"default": "./dist/framework/protocol-records.js"
@@ -83,6 +87,14 @@
 		"./runtime/reactivity": {
 			"types": "./dist/runtime/reactivity.d.ts",
 			"default": "./dist/runtime/reactivity.js"
+		},
+		"./runtime/component-reactivity": {
+			"types": "./dist/runtime/component-reactivity.d.ts",
+			"default": "./dist/runtime/component-reactivity.js"
+		},
+		"./runtime/lifecycle": {
+			"types": "./dist/runtime/lifecycle.d.ts",
+			"default": "./dist/runtime/lifecycle.js"
 		},
 		"./runtime/tasks": {
 			"types": "./dist/runtime/tasks.d.ts",

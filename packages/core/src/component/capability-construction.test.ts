@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import '../runtime/lifecycle.js';
 
 import { exactComponentContract, exactComponentType } from '../component-contracts.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';

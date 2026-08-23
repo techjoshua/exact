@@ -40,6 +40,7 @@ import {
 	generalComponentABI
 } from './compiled-abi.js';
 import { ComponentRuntimeSurface } from './runtime-surface.js';
+import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
@@ -325,6 +326,8 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		}
 	}
 }
+
+registerComponentRuntimeSurfaceTarget(ComponentInstanceImpl.prototype);
 
 export {
 	createComponentInstance,

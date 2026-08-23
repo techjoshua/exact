@@ -13,6 +13,7 @@ import {
 import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
+import { registerComponentLifecycleHandler } from '@exactjs/core/framework/component-lifecycle';
 import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { placeMountedBefore } from '../placement.js';
@@ -97,7 +98,7 @@ export function prepareSuspense(
 			mounted.vnode.domain ?? parentInstance?.domain
 		)
 	);
-	owner.onUnmount(() => {
+	registerComponentLifecycleHandler(owner, 'unmount', () => {
 		releaseSuspenseTransition(mounted);
 		coordinator.dispose();
 	});

@@ -225,10 +225,10 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	}
 	var propertyWriter *ast.Node
 	runtimeReaders := readers
-	if lowering.target == TargetClient &&
-		lowering.contractProjection != ComponentContractProjectionComplete {
+	if lowering.target == TargetClient {
 		propertyWriter = lowering.renderProgramPropertyWriter(build, readers)
-		if propertyWriter != nil {
+		if propertyWriter != nil &&
+			lowering.contractProjection != ComponentContractProjectionComplete {
 			runtimeReaders = append([]*ast.Node(nil), readers...)
 			for index, slot := range build.slots {
 				if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
@@ -916,8 +916,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	directUpdates := []renderProgramDirectUpdate{}
 	var componentTarget *int
 	componentUpdates := ""
-	if lowering.target == TargetClient &&
-		lowering.contractProjection != ComponentContractProjectionComplete {
+	if lowering.target == TargetClient {
 		directUpdates = lowering.directRenderProgramUpdates(build)
 		if target, updates, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
 			componentTarget = &target
@@ -927,8 +926,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	if lowering.target != TargetServer {
 		members = append(members, property("template", lowering.factory.NewStringLiteral(build.template.String(), ast.TokenFlagsNone)))
 	}
-	if lowering.target == TargetClient &&
-		lowering.contractProjection != ComponentContractProjectionComplete {
+	if lowering.target == TargetClient {
 		if len(bindings) != 0 || len(directListSlots) != 0 || len(build.nodes) > 1 {
 			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget, componentUpdates)))
 		} else {
@@ -971,6 +969,9 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		}
 		if len(directUpdates) != 0 && componentTarget == nil {
 			members = append(members, property("update", lowering.directRenderProgramUpdater(directUpdates)))
+		}
+		if lowering.contractProjection == ComponentContractProjectionComplete {
+			members = append(members, property("ssr", lowering.directRenderProgramSsrWriter(build)))
 		}
 	} else if lowering.target == TargetServer {
 		members = append(members, property("ssr", lowering.directRenderProgramSsrWriter(build)))

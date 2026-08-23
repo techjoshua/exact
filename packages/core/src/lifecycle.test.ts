@@ -1,5 +1,7 @@
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
+import './runtime/lifecycle.js';
+import './runtime/logging.js';
 import {
 	ErrorContext,
 	createErrorContext,

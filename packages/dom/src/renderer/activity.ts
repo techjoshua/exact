@@ -13,6 +13,7 @@ import {
 import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
+import { registerComponentLifecycleHandler } from '@exactjs/core/framework/component-lifecycle';
 import {
 	flushSync,
 	setEffectScopeWorkPriority,
@@ -81,7 +82,7 @@ export function prepareActivity(
 		parentReadiness,
 		activationGeneration: 0
 	};
-	owner.onUnmount(() => {
+	registerComponentLifecycleHandler(owner, 'unmount', () => {
 		mounted.activity?.readinessRegistration?.cancel();
 		readiness.dispose();
 	});

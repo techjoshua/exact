@@ -2,7 +2,8 @@
  * Opt-in component localization integration.
  *
  * Compiled components import the narrower runtime entry automatically when they use `this.intl`.
- * Compilerless component definitions can import this entry to install the same capability.
+ * Importing the public localization helpers installs the same integration for compiled library
+ * components that share the caller's runtime.
  */
 import './localization/component-integration.js';
 

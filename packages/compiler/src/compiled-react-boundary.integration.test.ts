@@ -4,6 +4,7 @@
 import * as exactCore from '@exactjs/core';
 import { createVNode } from '@exactjs/core';
 import * as exactRenderRuntime from '@exactjs/core/runtime/render';
+import * as exactDomRenderProgram from '@exactjs/dom/runtime/render-program';
 import { render, unmount } from '@exactjs/dom';
 import { createExactClient } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
@@ -100,6 +101,7 @@ function compileMixedApp(target: 'client' | 'server'): exactCore.AnyComponentFun
 		'@exactjs/core/runtime/render': exactRenderRuntime,
 		'@exactjs/core/runtime/reactivity': exactCore,
 		'@exactjs/core/runtime/tasks': exactCore,
+		'@exactjs/dom/runtime/render-program': exactDomRenderProgram,
 		'@exactjs/react-compat/exact': { adaptReactComponent },
 		'react-widget': { Widget }
 	};

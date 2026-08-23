@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
+import './runtime/lifecycle.js';
 import {
 	ErrorContext,
 	createErrorContext,
