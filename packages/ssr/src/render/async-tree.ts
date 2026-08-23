@@ -9,6 +9,7 @@ import {
 	createReadinessCoordinator,
 	hasIndependentAsyncSiblings,
 	isVNode,
+	markIndependentAsyncSiblings,
 	type VNode
 } from '@exactjs/core';
 import {
@@ -127,11 +128,17 @@ export async function renderVNodeAsyncInner(
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): Promise<string> {
+	const independentSiblings = hasIndependentAsyncSiblings(vnode);
 	const enhanced = await activateSsrEnhancementsAsync(context, vnode, parent, options);
-	if (enhanced !== vnode) return renderVNodeAsync(context, enhanced, parent, options);
+	if (enhanced !== vnode) {
+		if (independentSiblings) markIndependentAsyncSiblings(enhanced);
+		return renderVNodeAsync(context, enhanced, parent, options);
+	}
 	if (isCellVNode(vnode)) {
+		const inner = getCellVNode(vnode);
+		if (independentSiblings) markIndependentAsyncSiblings(inner);
 		return markerPair(context, markerId(context, 'cell', undefined, vnode.key), async () =>
-			renderVNodeAsync(context, getCellVNode(vnode), parent, options)
+			renderVNodeAsync(context, inner, parent, options)
 		);
 	}
 	if (vnode.type === RenderProgram) {
@@ -232,7 +239,9 @@ export async function renderVNodeAsyncInner(
 	}
 
 	const contributed = context.targetContributions.get(vnode);
-	const host = enterHost(context, contributed ? { ...vnode, props: contributed } : vnode);
+	const hostInput = contributed ? { ...vnode, props: contributed } : vnode;
+	if (independentSiblings && hostInput !== vnode) markIndependentAsyncSiblings(hostInput);
+	const host = enterHost(context, hostInput);
 	const hostVNode = host.vnode;
 	const tag = host.tag;
 	try {

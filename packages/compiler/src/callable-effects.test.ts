@@ -12,7 +12,7 @@ import { analyzeSource } from './compilation/source-analysis.js';
 import { artifactAnalysis } from './compilation/analysis-results.js';
 
 describe('symbol-level placement inference', () => {
-	it('uses callable client and server directives at invocation sites', () => {
+	it('keeps effect-only client setup SSR-capable while honoring server directives', () => {
 		const analysis = analyzeSource(
 			`
       /** @exact client */
@@ -27,7 +27,7 @@ describe('symbol-level placement inference', () => {
 
 		expect(
 			analysis.components.find((component) => component.name === 'ClientPage')?.placement
-		).toBe('client');
+		).toBe('isomorphic');
 		expect(
 			analysis.components.find((component) => component.name === 'ServerPage')?.placement
 		).toBe('server');

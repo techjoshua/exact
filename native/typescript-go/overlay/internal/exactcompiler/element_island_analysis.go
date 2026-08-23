@@ -33,9 +33,18 @@ func indexClientElementIslands(
 				owned = append(owned, element)
 			}
 		}
+		owned = promoteStateConnectedClientRanges(
+			owned,
+			component.Name,
+			stateReads,
+			stateWrites,
+		)
 		for index, element := range outerClientIslandElements(owned) {
 			node := fullJSXElementNode(element.node)
-			finiteSpreads := islandFiniteSpreads(sourceFile, element.node, typeChecker)
+			finiteSpreads := make(map[int][]finiteSpreadProperty)
+			if !ast.IsJsxFragment(element.node) {
+				finiteSpreads = islandFiniteSpreads(sourceFile, element.node, typeChecker)
+			}
 			valueCaptures, functionCaptures := islandCaptures(
 				candidates[componentIndex].node,
 				node,
@@ -103,12 +112,81 @@ func indexClientElementIslands(
 				valueCaptures:    valueCaptures,
 				functionCaptures: functionCaptures,
 				derivedCaptures:  derivedCaptures,
-				hasSpread:        islandHasOpaqueSpread(element.node, finiteSpreads),
+				hasSpread:        !ast.IsJsxFragment(element.node) && islandHasOpaqueSpread(element.node, finiteSpreads),
 				finiteSpreads:    finiteSpreads,
 			}
 		}
 	}
 	return result
+}
+
+// promoteStateConnectedClientRanges gives all client work connected through one mutable state path
+// a single durable owner. Without this compile-time coalescing, sibling islands would receive
+// independent snapshots and an interaction in one range could not update consumers in another.
+func promoteStateConnectedClientRanges(
+	elements []componentElement,
+	component string,
+	reads []StateRead,
+	writes []StateWrite,
+) []componentElement {
+	result := append([]componentElement(nil), elements...)
+	for index, element := range result {
+		if !element.interactive {
+			continue
+		}
+		minimum, maximum := element.fullStart, element.fullEnd
+		connected := false
+		for _, write := range writes {
+			if write.Component != component || write.Start < element.fullStart || write.Start >= element.fullEnd {
+				continue
+			}
+			for _, read := range reads {
+				if read.Component != component || !statePathsAffectEachOther(write.Path, read.Path) ||
+					(read.Start >= element.fullStart && read.Start < element.fullEnd) {
+					continue
+				}
+				connected = true
+				if read.Start < minimum {
+					minimum = read.Start
+				}
+				if read.Start >= maximum {
+					maximum = read.Start + 1
+				}
+			}
+		}
+		if !connected {
+			continue
+		}
+		owner := -1
+		ownerWidth := int(^uint(0) >> 1)
+		for candidateIndex, candidate := range result {
+			if candidate.fullStart > minimum || candidate.fullEnd < maximum {
+				continue
+			}
+			width := candidate.fullEnd - candidate.fullStart
+			if width < ownerWidth {
+				owner = candidateIndex
+				ownerWidth = width
+			}
+		}
+		if owner >= 0 && owner != index {
+			result[owner].interactive = true
+		}
+	}
+	return result
+}
+
+func statePathsAffectEachOther(left []string, right []string) bool {
+	limit := min(len(left), len(right))
+	if limit == 0 {
+		return false
+	}
+	for index := range limit {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func islandDerivedStatePaths(

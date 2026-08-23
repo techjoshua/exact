@@ -528,7 +528,11 @@ func functionTaskActivation(
 			break
 		}
 	}
-	if work == nil || work == component.node {
+	// A declaration or ambient signature can contribute placement facts, but it
+	// has no executable body the compiler can schedule as component-owned work.
+	// Keep its invocation in ordinary setup so lowering never manufactures a
+	// task closure with a missing body.
+	if work == nil || work == component.node || work.Body() == nil {
 		return nil, nil, false
 	}
 	facets, explicit := functionTaskPolicy(

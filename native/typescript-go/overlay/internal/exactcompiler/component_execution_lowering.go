@@ -7,6 +7,61 @@ import (
 	"github.com/microsoft/typescript-go/internal/printer"
 )
 
+// markDirectServerComponents records the single compiler proof shared by task lowering and
+// contract emission. Keeping the decision on the analyzed component prevents generated task calls
+// and the renderer lane from silently selecting different ABIs.
+func markDirectServerComponents(
+	sourceFile *ast.SourceFile,
+	components []Component,
+	tasks []Task,
+	resumptions []ComponentResumption,
+	compatibilityEnabled bool,
+) {
+	for index := range components {
+		component := &components[index]
+		componentNode := componentSourceNode(sourceFile, *component)
+		if componentNode == nil {
+			continue
+		}
+		execution := projectComponentExecution(component.Execution, TargetServer)
+		hasResumption := component.Placement == "isomorphic" &&
+			componentHasResumption(component.ID, resumptions)
+		directResumption := hasResumption &&
+			directServerResumptionSupported(component.ID, resumptions)
+		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
+		hasLifecycle := componentUsesProtocolMember(componentNode, "onUnmount", "onRender", "own")
+		unsupportedSurface := componentUsesProtocolMember(
+			componentNode,
+			"log", "intl", "hasContext", "getContext", "setContext", "reactive",
+			"ref", "refs", "onUnmount", "onRender", "own",
+		)
+		abi := componentRuntimeABI(*component, execution, hasLifecycle, false, usesCompatibility)
+		directABI := componentABICompiledRender | componentABITasks
+		tasksSupported := true
+		for _, task := range tasks {
+			if task.Component == component.Name && !directServerTaskSupported(task) {
+				tasksSupported = false
+				break
+			}
+		}
+		component.DirectServer = component.CompiledRender &&
+			(!hasResumption || directResumption) && !usesCompatibility &&
+			!component.DynamicComponents && !unsupportedSurface && tasksSupported && abi&^directABI == 0
+	}
+}
+
+func directServerTaskSupported(task Task) bool {
+	if task.Placement == "client" {
+		return true
+	}
+	if directServerSetupComputation(task) {
+		return true
+	}
+	return !task.Invoked && !task.Detached && task.KeyLength == 0 &&
+		(task.Readiness == "" || task.Readiness == "blocking" || !task.Async) &&
+		len(task.Contexts) == 0
+}
+
 // componentExecutionMetadata emits the compact canonical subgraph on both
 // target facets so each runtime can optimize without importing its opposite.
 func componentExecutionMetadata(
@@ -71,6 +126,7 @@ func componentDefinitionMetadata(
 	collections bool,
 	runtimeABI int,
 	unsupportedServerSurface bool,
+	directServer bool,
 	server bool,
 	compact bool,
 	updates *ast.Node,
@@ -122,8 +178,6 @@ func componentDefinitionMetadata(
 		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
 	if server {
-		direct := (!hasResumption || directResumption) && !hasInteractions && !compatibility && !dynamicComponents &&
-			!unsupportedServerSurface && runtimeABI&^(componentABICompiledRender) == 0
 		properties = append(properties, contractProperty(
 			factory,
 			"server",
@@ -131,7 +185,7 @@ func componentDefinitionMetadata(
 				factory,
 				execution,
 				instantiate,
-				direct,
+				directServer,
 				dynamicComponents,
 			),
 		))
@@ -162,7 +216,7 @@ func serverComponentExecutionMetadata(
 		classification = "scheduled"
 	}
 	lane := "generic"
-	if direct && classification == "synchronous" {
+	if direct && classification != "dynamic" {
 		lane = "direct"
 	}
 	setup := []int{}

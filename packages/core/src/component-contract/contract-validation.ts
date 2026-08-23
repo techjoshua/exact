@@ -130,7 +130,7 @@ function isServerExecution(value: unknown): boolean {
 			value.classification === 'dynamic') &&
 		(value.lane === 'direct' || value.lane === 'generic') &&
 		(value.lane === 'direct'
-			? value.classification === 'synchronous' && typeof value.render === 'function'
+			? value.classification !== 'dynamic' && typeof value.render === 'function'
 			: value.render === undefined) &&
 		Array.isArray(value.setup) &&
 		value.setup.every(isSafeIndex) &&

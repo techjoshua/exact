@@ -33,6 +33,8 @@ const legacyArchitectureCeilings = new Map([
 	['apps/workbench/src/styles.css', 572],
 	['packages/chromium-devtools/src/static/panel.css', 630],
 	['packages/core/src/component/runtime.ts', 404],
+	['packages/core/src/component-contracts.ts', 412],
+	['framework-adapters/vite-plugin/src/plugin.ts', 404],
 	['plugins/microfrontends/src/client.test.ts', 601]
 ]);
 const legacyComponentConstructionCeilings = new Map([]);

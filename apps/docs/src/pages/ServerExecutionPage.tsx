@@ -134,6 +134,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 					Hydration adopts that HTML and restores the browser component without repeating settled
 					work. Later dependency changes run the server task again and update the same component.
 				</p>
+				<p>
+					The compiler starts independently ready component tasks through a bounded request
+					scheduler, even when an earlier sibling has not finished rendering. Output still follows
+					authored order, and every task frame is disposed with its request. A real data, context,
+					or selection dependency continues to delay only the work that depends on it.
+				</p>
 			</section>
 			<section>
 				<h2>Keep one request lifetime</h2>

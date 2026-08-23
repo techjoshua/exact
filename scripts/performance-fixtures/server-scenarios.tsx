@@ -8,6 +8,7 @@ import {
 } from '@exactjs/server';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { PlannedTree } from './planned-components.js';
+import { taskReadinessSsr } from './server-task-readiness-scenario.js';
 
 /** Stable server scenario identifiers emitted into baseline reports and release diagnostics. */
 export const serverScenarioNames = [
@@ -15,6 +16,7 @@ export const serverScenarioNames = [
 	'server.ssr-async-cpu',
 	'server.ssr-async-io',
 	'server.ssr-planned',
+	'server.ssr-task-readiness',
 	'server.ssr-progressive',
 	'server.operation-request',
 	'server.operation-stream'
@@ -43,6 +45,8 @@ export async function runServerScenario(
 			return asynchronousIoSsr(options.iterations ?? 4);
 		case 'server.ssr-planned':
 			return plannedContinuationSsr(options.iterations ?? 64);
+		case 'server.ssr-task-readiness':
+			return taskReadinessSsr(options.iterations ?? 64);
 		case 'server.ssr-progressive':
 			return progressiveSsr();
 		case 'server.operation-request':

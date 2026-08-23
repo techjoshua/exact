@@ -380,6 +380,9 @@ func (s *Session) Execute(request Request) Response {
 		components,
 		callables,
 	)
+	if request.JSXInterop != nil {
+		components = applyJSXInteropBoundaries(components)
+	}
 	response.Timings.ProjectLinkMicroseconds = time.Since(
 		projectLinkStarted,
 	).Microseconds()
@@ -441,6 +444,13 @@ func (s *Session) Execute(request Request) Response {
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
 	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
+	markDirectServerComponents(sourceFile, components, tasks, resumptions, request.JSXInterop != nil)
+	if request.ServerComponents {
+		// Partition planning needs setup-task flow, but same-build SSR executes that setup
+		// directly and hydrates its published state. Only authored invocation paths retain
+		// transport continuations and executors in the emitted contract.
+		continuations = retainInvokedContinuations(continuations, operations)
+	}
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()

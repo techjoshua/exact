@@ -51,6 +51,11 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 	return {
 		options: {
 			...options,
+			allowIndependentComponentObservation:
+				!options.onComponentCreated &&
+				!options.onComponentRendered &&
+				!options.onDirectComponentCreated &&
+				!options.onDirectComponentRendered,
 			onDirectComponentCreated(snapshot) {
 				reserveDirect(snapshot);
 				options.onDirectComponentCreated?.(snapshot);

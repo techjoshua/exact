@@ -56,6 +56,10 @@
 			"types": "./dist/framework/component-execution.d.ts",
 			"default": "./dist/framework/component-execution.js"
 		},
+		"./framework/server-component-execution": {
+			"types": "./dist/framework/server-component-execution.d.ts",
+			"default": "./dist/framework/server-component-execution.js"
+		},
 		"./framework/component-lifecycle": {
 			"types": "./dist/framework/component-lifecycle.d.ts",
 			"default": "./dist/framework/component-lifecycle.js"

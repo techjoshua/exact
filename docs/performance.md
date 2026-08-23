@@ -170,6 +170,17 @@ list operation that creates no controller, registration, cache, or durable owner
 `this.map()` ownership and components that require capabilities not yet projected into a direct
 server slice remain on the generic lane; classification alone never weakens their ownership
 semantics.
+
+Compiler-closed scheduled server components use the same request-local frame plus only their
+generated transition slices and disposable port storage. They do not construct a durable
+component instance, effect scope, state proxy, lifecycle sidecars, or the generic component
+capability graph. The compiler preserves proven independent server children as direct calls instead
+of selecting an ordered render-program representation that would erase readiness information. Each
+known scheduled child VNode issues its frame while the generated parent render function creates it;
+the renderer does not walk the resulting host tree to rediscover task-bearing components. The
+request scheduler starts ready child tasks up to its bound before awaiting the first settlement.
+Framework-owned resumption observers are buffered and replayed in authored order; user
+component-instance observers retain the serial lane because their timing is observable.
 Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
 binder contexts are released after synchronous installation and are not captured by the retained
 slot watchers. Server and universal artifacts retain individual readers for SSR, while older

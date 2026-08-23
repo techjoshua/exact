@@ -8,6 +8,7 @@ import {
 import {
 	createDynamicChild,
 	createCompiledVNode,
+	createServerSlot,
 	keyCompiledVNode
 } from '@exactjs/core/runtime/render';
 import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
@@ -244,6 +245,46 @@ it('bounds compiler-proven sibling work while preserving source order', async ()
 	await expect(rendering).resolves.toMatchObject({
 		html: '<div><span>a</span><span>b</span><span>c</span><span>d</span></div>'
 	});
+});
+
+it('preserves proven concurrency through directly wired server slots', async () => {
+	const releases: Array<() => void> = [];
+	let started = 0;
+	function Wait(this: Component<{}>, props: { label: string }) {
+		activateTaskForHost(
+			this,
+			defineTask({}, async () => {
+				started++;
+				await new Promise<void>((resolve) => releases.push(resolve));
+			})
+		);
+		return () => createVNode('span', null, props.label);
+	}
+	const child = (label: string) => {
+		const id = `slot:${label}`;
+		return createServerSlot(
+			id,
+			{
+				planVersion: 1,
+				buildKey: 'test-build',
+				planEdgeId: id,
+				ownerComponentId: 'test-owner',
+				discriminator: { kind: 'single' },
+				generation: 1
+			},
+			createVNode(Wait, { label })
+		);
+	};
+	const group = markIndependentAsyncSiblings(
+		createCompiledVNode('div', null, child('a'), child('b'))
+	);
+	const rendering = renderToStringAsync(group, { markers: false, maxAsyncSsrConcurrency: 2 });
+	await vi.waitFor(() => expect(started).toBe(2));
+	releases.splice(0).forEach((release) => release());
+	const rendered = await rendering;
+	expect(rendered.html).toMatch(
+		/^<div><span data-exact-server-slot="slot:a"[^>]*><span>a<\/span><\/span><span data-exact-server-slot="slot:b"[^>]*><span>b<\/span><\/span><\/div>$/
+	);
 });
 
 it('shares the request limit with nested proven sibling groups without deadlocking', async () => {

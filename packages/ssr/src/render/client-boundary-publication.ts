@@ -8,7 +8,7 @@ export function publishClientBoundary(
 	name: string,
 	id: string,
 	props: Record<string, unknown>,
-	hydration: 'interaction' | undefined,
+	hydration: 'interaction' | 'eager' | undefined,
 	finite: boolean,
 	children: string
 ): string {

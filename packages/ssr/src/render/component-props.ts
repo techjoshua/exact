@@ -1,34 +1,63 @@
 import { plannedContinuationDependency } from '@exactjs/core';
 import type { PreparedComponentExecution } from '@exactjs/core/framework/component-execution';
+import { serverComponentDependencyForValue } from '@exactjs/core/framework/server-component-execution';
 
 const noPlannedInputs: ReadonlySet<string> = new Set();
 
 /** Resolves pending values needed by component initialization while preserving planned task-input sources. */
-export async function prepareComponentProps(
+export function prepareComponentProps(
 	props: Record<string, unknown>,
 	execution: PreparedComponentExecution | undefined,
 	signal: AbortSignal | undefined
-): Promise<Record<string, unknown>> {
+): Record<string, unknown> | Promise<Record<string, unknown>> {
 	const plannedInputs = execution?.setupPropNames ?? noPlannedInputs;
 	let resolved: Record<string, unknown> | undefined;
+	let pending: Promise<readonly [key: string, value: unknown]>[] | undefined;
 	for (const key in props) {
 		if (!Object.hasOwn(props, key) || plannedInputs.has(key)) continue;
-		const source = plannedContinuationDependency(props[key]);
+		const source =
+			serverComponentDependencyForValue(props[key]) ?? plannedContinuationDependency(props[key]);
 		if (!source) continue;
-		let snapshot = source.read();
-		if (snapshot.status === 'pending') snapshot = await availableSnapshot(source, signal);
-		if (snapshot.status === 'failed') throw snapshot.error;
-		if (snapshot.status === 'cancelled')
-			throw snapshot.reason ?? new Error(`Component prop ${key} was cancelled before setup`);
-		if (snapshot.status !== 'available') throw new Error(`Component prop ${key} did not settle`);
+		const snapshot = source.read();
+		if (snapshot.status === 'pending') {
+			(pending ??= []).push(
+				availableSnapshot(source, signal).then((available) => [key, settledValue(key, available)])
+			);
+			continue;
+		}
 		if (!resolved) resolved = { ...props };
-		resolved[key] = snapshot.value;
+		resolved[key] = settledValue(key, snapshot);
 	}
+	if (pending)
+		return Promise.all(pending).then((entries) => {
+			const output = resolved ?? { ...props };
+			for (const [key, value] of entries) output[key] = value;
+			return output;
+		});
 	return resolved ?? props;
 }
 
+function settledValue(
+	key: string,
+	snapshot: ReturnType<
+		NonNullable<
+			| ReturnType<typeof plannedContinuationDependency>
+			| ReturnType<typeof serverComponentDependencyForValue>
+		>['read']
+	>
+): unknown {
+	if (snapshot.status === 'failed') throw snapshot.error;
+	if (snapshot.status === 'cancelled')
+		throw snapshot.reason ?? new Error(`Component prop ${key} was cancelled before setup`);
+	if (snapshot.status !== 'available') throw new Error(`Component prop ${key} did not settle`);
+	return snapshot.value;
+}
+
 function availableSnapshot(
-	source: NonNullable<ReturnType<typeof plannedContinuationDependency>>,
+	source: NonNullable<
+		| ReturnType<typeof plannedContinuationDependency>
+		| ReturnType<typeof serverComponentDependencyForValue>
+	>,
 	signal: AbortSignal | undefined
 ): Promise<ReturnType<typeof source.read>> {
 	return new Promise((resolve, reject) => {

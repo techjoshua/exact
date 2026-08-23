@@ -190,6 +190,47 @@ func TestServerDirectFrameOwnsCompiledKeyedListFallbackWithoutListRuntime(t *tes
 	}
 }
 
+func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-scheduled-direct.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Page(this: Component<{ value: string }>) {
+				async function load(_task: TaskContext = TaskContext.server().blocking()) {
+					this.state.value = await Promise.resolve("ready");
+				}
+				load();
+				return () => <output>{this.state.value}</output>;
+			}
+			export function Shell() {
+				return () => <main><Page /><Page /></main>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`classification: "scheduled"`, `lane: "direct"`,
+		`render: __exactImplementation_Page_1`, `setup: [`,
+		`issueServerComponentVNode as`, `__exactIssueServerComponent(__exactComponentVNode(Page`,
+		`activateServerComponentTaskForHost as`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("scheduled server component is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, forbidden := range []string{
+		`defineTask as`, `bindTaskForHost as`, `activateTaskForHost as`,
+		`@exactjs/core/runtime/component-execution`,
+	} {
+		if strings.Contains(response.Code, forbidden) {
+			t.Fatalf("scheduled direct server component retained generic runtime %q:\n%s", forbidden, response.Code)
+		}
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";

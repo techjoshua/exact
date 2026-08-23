@@ -20,6 +20,16 @@ type nativeTaskDependency struct {
 }
 
 func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
+	if lowering.target == TargetClient &&
+		lowering.contractProjection == ComponentContractProjectionHydrate &&
+		task.Placement == "server" && !task.Invoked {
+		// Same-build hydration resumes the state published by server setup. A setup-only
+		// server task has no client invocation path, so retaining a dispatch stub would
+		// rerun work already completed for this response and pull transport machinery in.
+		return lowering.factory.NewVoidExpression(
+			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+		)
+	}
 	if lowering.target == TargetServer && task.Placement == "client" {
 		return lowering.factory.NewVoidExpression(
 			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
@@ -71,6 +81,8 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	contextBindings := lowering.taskContextWriteBindings(work, task.ID)
 	directServerComputation := lowering.target == TargetServer &&
 		directServerSetupComputation(task) && len(contextBindings) == 0
+	directComponent, directTransition, directServerSlice :=
+		lowering.directServerSetupTransition(task)
 	dependencies := []nativeTaskDependency{}
 	nextArguments := []*ast.Node{}
 	argumentOffset := 0
@@ -91,7 +103,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 				nextArguments = append(nextArguments, visited)
 				continue
 			}
-			if directServerComputation {
+			if directServerComputation || directServerSlice {
 				nextArguments = append(nextArguments, visited)
 			} else {
 				nextArguments = append(
@@ -104,7 +116,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		dependencies = lowering.inferredTaskDependencies(task, work)
 		argumentOffset = len(dependencies)
 		for _, dependency := range dependencies {
-			if directServerComputation {
+			if directServerComputation || directServerSlice {
 				nextArguments = append(
 					nextArguments,
 					lowering.visitor.VisitNode(dependency.expression),
@@ -170,6 +182,26 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			nil,
 			lowering.factory.NewNodeList(arguments),
 			ast.NodeFlagsNone,
+		)
+	}
+	if directServerSlice {
+		slice := lowering.serverTaskSlice(
+			task,
+			directComponent,
+			directTransition,
+			runtimeArgumentCount,
+		)
+		return lowering.call(
+			lowering.names.activateServerTask,
+			append(
+				[]*ast.Node{
+					lowering.factory.NewThisExpression(),
+					slice,
+					lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
+					rewrittenWork,
+				},
+				nextArguments...,
+			),
 		)
 	}
 	if lowering.target == TargetClient && task.Placement == "server" {

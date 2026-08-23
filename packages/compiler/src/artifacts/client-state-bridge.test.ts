@@ -15,12 +15,17 @@ describe('@exactjs/compiler: client state bridges', () => {
 	it('generates client island components with state bridge initialization', () => {
 		const output = transform(
 			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button title={this.state.count} onClick={() => this.state.count++} />;\n      }\n    ',
-			{ filename: 'Panel.tsx', target: 'client', serverComponents: true }
+			{
+				filename: 'Panel.tsx',
+				target: 'client',
+				componentContractProjection: 'hydrate',
+				serverComponents: true
+			}
 		);
 
 		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(output).toContain('Object.assign(this.state, props.__exactState)');
-		expect(output).toContain('title: props.title');
+		expect(output).toContain('title: __exactExpression(() => this.state.count)');
 		expect(output).toContain(
 			'onClick: () => __exactUpdateResult(this.state, ["count"], previous =>'
 		);
@@ -30,7 +35,12 @@ describe('@exactjs/compiler: client state bridges', () => {
 	it('omits server-owned roots from client artifacts in server component mode', () => {
 		const output = transform(
 			'import { TaskContext } from "@exactjs/core";\n\n      import { readFile } from "node:fs/promises";\n\n      export function Panel(this: Component<{ count: number }>) {\n        const runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n          await readFile("panel.txt", "utf8");\n        };\nrunFixtureTask();\n        return () => <button title={this.state.count} onClick={() => this.state.count++} />;\n      }\n    ',
-			{ filename: 'Panel.tsx', target: 'client', serverComponents: true }
+			{
+				filename: 'Panel.tsx',
+				target: 'client',
+				componentContractProjection: 'hydrate',
+				serverComponents: true
+			}
 		);
 
 		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');

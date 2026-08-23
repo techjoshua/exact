@@ -183,12 +183,11 @@ export function clientBoundaryProps(context: SsrContext, vnode: VNode): Record<s
 }
 
 /** Reads compiler-owned interaction hydration metadata without exposing it as component props. */
-export function clientBoundaryHydration(vnode: VNode): 'interaction' | undefined {
+export function clientBoundaryHydration(vnode: VNode): 'interaction' | 'eager' | undefined {
 	const props = unwrap(vnode.props.props);
 	if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
-	return (props as Record<string, unknown>).__exactHydration === 'interaction'
-		? 'interaction'
-		: undefined;
+	const hydration = (props as Record<string, unknown>).__exactHydration;
+	return hydration === 'interaction' || hydration === 'eager' ? hydration : undefined;
 }
 
 /** Reads the inert server-rendered VNode used by an interaction-activated client island. */

@@ -190,15 +190,15 @@ describe('@exactjs/compiler: registries', () => {
 				targetComponentId: widget.id,
 				targetName: 'ClientWidget',
 				tag: 'ClientWidget',
-				placement: 'client',
-				boundary: 'client',
+				placement: 'isomorphic',
+				boundary: 'isomorphic',
 				index: 1,
 				path: expect.any(String)
 			}
 		]);
 	});
 
-	it('emits server boundary stubs for pure client components', async () => {
+	it('renders a static server shell around finite client ranges', async () => {
 		const root = await createTestWorkspace('exact-split-');
 		const input = path.join(root, 'src', 'panel.tsx');
 		const outDir = path.join(root, 'out');
@@ -242,22 +242,21 @@ describe('@exactjs/compiler: registries', () => {
 		expect(client).not.toContain('export function Panel_ExactClient_1');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
 		expect(server).toContain('createServerBoundary as');
-		expect(server).toContain('const __exactImplementation_Panel_1 = function Panel(props = {})');
+		expect(server).toContain(
+			'const __exactImplementation_Panel_1 = function Panel(this: Component<'
+		);
 		expect(server).toContain('definition:');
 		expect(server).toContain('instantiate: __exactImplementation_Panel_1');
-		expect(server).not.toContain('Panel_ExactServer_1');
-		expect(server).toContain('"Panel"');
-		expect(server).not.toContain('Panel_ExactClient_1');
-		expect(server).not.toContain('className: "primary"');
-		expect(server).not.toContain('title: this.state.count');
+		expect(server).toContain('export { Panel as Panel_ExactServer_1 }');
+		expect(server).toContain('"Panel_ExactClient_1"');
+		expect(server).toContain('className: "primary"');
+		expect(server).toContain('title: this.state.count');
 		expect(server).not.toContain('onClick');
-		expect(artifactAnalysis(result).boundaries).toContainEqual({
-			id: expect.any(String),
-			name: 'Panel',
-			componentId: artifactAnalysis(result).components[0]!.id,
-			ownerComponentId: artifactAnalysis(result).components[0]!.id,
-			kind: 'client-island'
-		});
+		expect(
+			artifactAnalysis(result)
+				.boundaries.filter((boundary) => boundary.kind === 'client-island')
+				.map((boundary) => boundary.name)
+		).toEqual(['Panel_ExactClient_1', 'Panel_ExactClient_2']);
 	});
 
 	it('infers arbitrary dynamic client island props in isomorphic server artifacts', () => {

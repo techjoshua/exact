@@ -215,8 +215,8 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 		`__exactBindProgramProperties(__exactBindingTarget, 0, 0, true)`,
 		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`updates: __exact_component_updates_1`,
-		`bindings: [["count", 1, 0], ["disabled", 2, 0]]`,
-		`apply: (__exactTargets, __exactDirtyLow, __exactDirtyHigh) =>`,
+		`bindings: [["count", 1, 0], ["disabled", 2, 0]] as const`,
+		`apply: (__exactTargets: object[], __exactDirtyLow: number, __exactDirtyHigh: number) =>`,
 		`__exactApplyProgramText(__exactTarget0, 2)`,
 		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
 	} {
@@ -313,7 +313,7 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	for _, expected := range []string{
 		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`__exactBindComponentUpdate(__exactBindingTarget, 1, __exact_component_updates_1)`,
-		`bindings: [["first", 1, 0], ["second", 2, 0]]`,
+		`bindings: [["first", 1, 0], ["second", 2, 0]] as const`,
 		`const __exactTarget0 = __exactTargets[0]`,
 		`const __exactTarget1 = __exactTargets[1]`,
 	} {
@@ -766,6 +766,38 @@ func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "__exactAsyncSiblings(__exactVNode(\"main\"") {
 		t.Fatalf("proven sibling group was not marked:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "return () => __exactCreatePreparedRenderProgram") {
+		t.Fatalf("server render program erased sibling independence from the successful path:\n%s", response.Code)
+	}
+}
+
+func TestSessionKeepsIndependentServerTaskSiblingsOutOfOrderedRenderPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-task-siblings.tsx", Kind: "compile", Target: TargetServer,
+		ServerComponents: true,
+		Source: `
+			import { TaskContext, type Component } from "@exactjs/core";
+			function Leaf(this: Component<{ value: number }>, props: { value: number }) {
+				this.state.value = 0;
+				async function load(value: number, _task: TaskContext = TaskContext.server().blocking()) {
+					await Promise.resolve();
+					this.state.value = value;
+				}
+				void load(props.value);
+				return () => <span>{this.state.value}</span>;
+			}
+			export function Page() { return () => <main><Leaf value={1} /><Leaf value={2} /></main>; }
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "__exactAsyncSiblings(__exactVNode(\"main\"") {
+		t.Fatalf("independent server task siblings were not marked:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "return () => __exactCreatePreparedRenderProgram") {
+		t.Fatalf("ordered server render program serialized independent task siblings:\n%s", response.Code)
 	}
 }
 
@@ -1433,6 +1465,51 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 	}
 }
 
+func TestSessionKeepsUnprovenInteropComponentsBehindServerBoundary(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "component.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { Foreign } from "foreign-ui";
+			export function Panel() { return () => <main><Foreign /></main>; }
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactBoundary(`) ||
+		!strings.Contains(response.Code, `"Foreign"`) ||
+		strings.Contains(response.Code, `__exactInteropComponent(Foreign)`) {
+		t.Fatalf("foreign component escaped its server compatibility boundary:\n%s", response.Code)
+	}
+}
+
+func TestSessionReconstructsInteropCallbacksInsideClientIsland(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "component.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { Foreign } from "foreign-ui";
+			export function Panel() {
+				return () => <Foreign value={1} onReady={() => undefined} />;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `"Panel_ExactClient_1"`) ||
+		strings.Contains(response.Code, `onReady:`) {
+		t.Fatalf("interop callback crossed the serialized server boundary:\n%s", response.Code)
+	}
+}
+
 func TestSessionRetainsImportedExactComponentsWithoutJSXInteropAdapter(t *testing.T) {
 	root := t.TempDir()
 	child := filepath.Join(root, "child.tsx")
@@ -1556,6 +1633,26 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 			"fully client-owned component retained redundant nested island metadata:\n%s",
 			response.Code,
 		)
+	}
+}
+
+func TestSessionKeepsBrowserStateSetupClientResident(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "browser-state.tsx", Kind: "analyze", Target: TargetServer,
+		Source: `
+			export function ClientShell(this: Component<{ width: number }>) {
+				this.state.width = window.innerWidth;
+				return () => <output>{this.state.width}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Analysis.Components) != 1 {
+		t.Fatalf("analysis failed: %s %#v", response.Error, response.Analysis.Components)
+	}
+	component := response.Analysis.Components[0]
+	if component.Placement != "client" || component.EnvironmentEffect != "browser" ||
+		len(component.ArtifactTargets) != 1 || component.ArtifactTargets[0] != "client" {
+		t.Fatalf("browser-derived setup state was not kept client-resident: %#v", component)
 	}
 }
 
@@ -2064,6 +2161,9 @@ __fixtureTask1();
 		}
 	}
 	for _, expected := range []string{
+		`__exactBoundary("`,
+		`"__exactState"`,
+		`__exactHydration`,
 		`__exactVNode("button"`,
 		`title: this.state.label`,
 		`"Save "`,
@@ -2080,9 +2180,6 @@ __fixtureTask1();
 		}
 	}
 	for _, forbidden := range []string{
-		`__exactBoundary("`,
-		`"__exactState"`,
-		`__exactHydration`,
 		"onClick",
 		"alert(",
 		"this.state.count++",
@@ -2094,6 +2191,66 @@ __fixtureTask1();
 				response.Code,
 			)
 		}
+	}
+}
+
+func TestSessionEmitsOnlyFiniteClientIslandForServerOwnedSetup(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:                          "panel.tsx",
+		Kind:                        "compile",
+		Target:                      TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		ServerComponents:            true,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			import { loadPrivate } from "node:private-data";
+			declare class Component<State> { state: State }
+			export function Panel(this: Component<{ count: number }>) {
+				const load = async (_task: TaskContext = TaskContext.server()) => {
+					await loadPrivate();
+				};
+				load();
+				return () => <button onClick={() => this.state.count++}>Save</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "Panel_ExactClient_1") {
+		t.Fatalf("client artifact omitted the finite interactive island:\n%s", response.Code)
+	}
+	for _, forbidden := range []string{"node:private-data", "__exactActivateTask"} {
+		if strings.Contains(response.Code, forbidden) {
+			t.Fatalf("client artifact retained server-owned setup %q:\n%s", forbidden, response.Code)
+		}
+	}
+}
+
+func TestSessionKeepsAmbientEffectCallsOutOfTaskLowering(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "directives.tsx",
+		Kind:   "compile",
+		Target: TargetDefault,
+		Source: `
+			/** @exact client */
+			declare function render(): void;
+			/** @exact server */
+			declare function load(): string;
+			export function ClientPage() { render(); return () => <p />; }
+			export function ServerPage() { const value = load(); return () => <p>{value}</p>; }
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Analysis.Components) != 2 ||
+		response.Analysis.Components[0].Placement != "isomorphic" ||
+		response.Analysis.Components[1].Placement != "server" {
+		t.Fatalf("ambient effect placement was not preserved: %#v", response.Analysis.Components)
+	}
+	if len(response.Analysis.Tasks) != 0 {
+		t.Fatalf("ambient call was lowered as task work: %#v", response.Analysis.Tasks)
 	}
 }
 

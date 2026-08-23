@@ -208,7 +208,7 @@ func (lowering *jsxLowering) omitServerComponentValues(
 			(ast.IsArrowFunction(declaration.Initializer) ||
 				ast.IsFunctionExpression(declaration.Initializer)) {
 			if component, exists := lowering.components[name.Text()]; exists &&
-				componentOmittedFromClient(component, lowering.serverComponents) {
+				lowering.omitsComponentFromClient(component) {
 				lowering.recordClientIslandDefinitions(component)
 				declarations = append(
 					declarations,

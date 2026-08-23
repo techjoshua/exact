@@ -199,7 +199,10 @@ describe('@exactjs/core component contracts', () => {
 		);
 	});
 
-	it('validates compiler-projected server execution slices', () => {
+	it.each([
+		['generic', undefined],
+		['direct', () => () => null]
+	] as const)('validates compiler-projected %s server execution slices', (lane, render) => {
 		const implementation = () => () => null;
 		const component = Object.assign(implementation, {
 			[exactComponentType]: 'component:ServerPage',
@@ -225,9 +228,10 @@ describe('@exactjs/core component contracts', () => {
 					server: {
 						version: 1 as const,
 						classification: 'scheduled' as const,
-						lane: 'generic' as const,
+						lane,
 						setup: [0],
-						slices: [{ transition: 0, inputs: [0], outputs: [1] }]
+						slices: [{ transition: 0, inputs: [0], outputs: [1] }],
+						...(render ? { render } : {})
 					}
 				}
 			}
@@ -236,9 +240,10 @@ describe('@exactjs/core component contracts', () => {
 		expect(readExactCompiledComponentContract(component).definition.server).toEqual({
 			version: 1,
 			classification: 'scheduled',
-			lane: 'generic',
+			lane,
 			setup: [0],
-			slices: [{ transition: 0, inputs: [0], outputs: [1] }]
+			slices: [{ transition: 0, inputs: [0], outputs: [1] }],
+			...(render ? { render } : {})
 		});
 	});
 

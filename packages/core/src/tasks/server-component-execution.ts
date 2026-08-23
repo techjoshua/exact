@@ -1,0 +1,304 @@
+import type { TaskContext } from './contracts.js';
+
+/** Static task wiring emitted once per compiler-closed server component transition. */
+export type ServerComponentTaskSlice = readonly [
+	/** Authored argument positions mapped to a predecessor output port, or -1 for the authored value. */
+	inputs: readonly number[],
+	/** Output port and component-state path pairs published after successful work. */
+	outputs: readonly (readonly [port: number, path: readonly string[]])[],
+	readiness: 'blocking' | 'nonblocking',
+	label: string
+];
+
+/** Request-local ownership used by a compiler-closed scheduled server component. */
+export type ServerComponentExecutionFrame = AsyncDisposable &
+	Readonly<{
+		run<T>(work: () => T): T;
+	}>;
+
+type ServerExecutionOptions = Readonly<{
+	observe(settlement: Promise<unknown>): void;
+	runTask?<T>(work: () => Promise<T>): Promise<T>;
+}>;
+
+type OutputSlot = {
+	status: 'pending' | 'available' | 'failed';
+	value?: unknown;
+	error?: unknown;
+	waiters: Set<{ resolve(value: unknown): void; reject(error: unknown): void }>;
+	subscribers: Set<() => void>;
+};
+
+type MutableServerExecutionFrame = {
+	host: { readonly state?: object };
+	options: ServerExecutionOptions;
+	controller: AbortController;
+	ports: Map<number, OutputSlot>;
+	paths: Map<string, number>;
+	active: Set<Promise<unknown>>;
+	disposed: boolean;
+};
+
+const frames = new WeakMap<object, MutableServerExecutionFrame>();
+const serverDependencyBrand = Symbol('exact.server-component-dependency');
+
+type ServerComponentDependency = Readonly<{
+	[serverDependencyBrand]: OutputSlot;
+}>;
+
+type ServerComponentVNodeIssuer = (vnode: unknown) => void;
+
+let activeVNodeIssuer: ServerComponentVNodeIssuer | undefined;
+
+/**
+ * Installs the request renderer's synchronous child-issuance callback while compiled render code
+ * materializes its VNodes. JavaScript cannot interleave another request during this synchronous
+ * extent, and nested renderers restore the preceding issuer in stack order.
+ */
+export function withServerComponentVNodeIssuer<T>(
+	issuer: ServerComponentVNodeIssuer,
+	render: () => T
+): T {
+	const previous = activeVNodeIssuer;
+	activeVNodeIssuer = issuer;
+	try {
+		return render();
+	} finally {
+		activeVNodeIssuer = previous;
+	}
+}
+
+/**
+ * Returns a compiler-created component VNode after issuing its request-local server work. Outside
+ * SSR this is deliberately a zero-allocation pass-through.
+ */
+export function issueServerComponentVNode<T>(vnode: T): T {
+	activeVNodeIssuer?.(vnode);
+	return vnode;
+}
+
+/** Returns the request-local output source carried by a compiler-forwarded server value. */
+export function serverComponentDependencyForValue(value: unknown) {
+	const slot = serverDependencySlot(value);
+	if (!slot) return undefined;
+	return {
+		read() {
+			switch (slot.status) {
+				case 'available':
+					return { status: 'available' as const, generation: 1, version: 1, value: slot.value };
+				case 'failed':
+					return { status: 'failed' as const, generation: 1, version: 1, error: slot.error };
+				default:
+					return { status: 'pending' as const, generation: 1, version: 0 };
+			}
+		},
+		subscribe(notify: () => void): Disposable {
+			slot.subscribers.add(notify);
+			return { [Symbol.dispose]: () => slot.subscribers.delete(notify) };
+		}
+	};
+}
+
+function serverDependencySlot(value: unknown): OutputSlot | undefined {
+	return value && typeof value === 'object' && serverDependencyBrand in value
+		? (value as ServerComponentDependency)[serverDependencyBrand]
+		: undefined;
+}
+
+/** Forwards a compiler-known component output without constructing generic dependency provenance. */
+export function serverComponentExecutionValueForHost<T>(
+	host: object,
+	path: string | readonly string[],
+	value: T
+): T | ServerComponentDependency {
+	const frame = frames.get(host);
+	if (!frame) return value;
+	const paths = typeof path === 'string' ? [path] : path;
+	for (const candidate of paths) {
+		const port = frame.paths.get(candidate.replace(/^this\.state\./, ''));
+		if (port !== undefined)
+			return Object.freeze({ [serverDependencyBrand]: outputSlot(frame, port) });
+	}
+	return value;
+}
+
+/**
+ * Creates only the cancellation and port storage required by compiler-emitted task slices. It does
+ * not construct a task owner, prepare a component graph, subscribe reactive watchers, or allocate
+ * universal task lanes.
+ */
+export function createServerComponentExecutionFrame(
+	host: { readonly state?: object },
+	options: ServerExecutionOptions
+): ServerComponentExecutionFrame {
+	const frame: MutableServerExecutionFrame = {
+		host,
+		options,
+		controller: new AbortController(),
+		ports: new Map(),
+		paths: new Map(),
+		active: new Set(),
+		disposed: false
+	};
+	frames.set(host, frame);
+	return Object.freeze({
+		run<T>(work: () => T): T {
+			if (frame.disposed) throw new Error('Server component execution frame has been disposed');
+			return work();
+		},
+		async [Symbol.asyncDispose]() {
+			if (frame.disposed) return;
+			frame.disposed = true;
+			const reason = new DOMException('Server component execution disposed', 'AbortError');
+			frame.controller.abort(reason);
+			for (const [port, slot] of frame.ports)
+				if (slot.status === 'pending') failPort(frame, port, reason);
+			await Promise.allSettled([...frame.active]);
+			frames.delete(host);
+			frame.ports.clear();
+			frame.paths.clear();
+		}
+	});
+}
+
+/** Activates one compiler-wired setup transition without materializing the universal task ABI. */
+export function activateServerComponentTaskForHost<Args extends unknown[], Result>(
+	host: object,
+	slice: ServerComponentTaskSlice,
+	_transitionId: string,
+	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
+	...authored: Args
+): void {
+	const frame = frames.get(host);
+	if (!frame || frame.disposed)
+		throw new Error('Compiled server task requires an active server component execution frame');
+	for (const [port, path] of slice[1]) {
+		outputSlot(frame, port);
+		frame.paths.set(path.join('.'), port);
+	}
+	const settlement = executeSlice(frame, slice, work, authored);
+	frame.active.add(settlement);
+	void settlement.finally(() => frame.active.delete(settlement)).catch(() => undefined);
+	if (slice[2] === 'blocking') frame.options.observe(settlement);
+}
+
+function executeSlice<Args extends unknown[], Result>(
+	frame: MutableServerExecutionFrame,
+	slice: ServerComponentTaskSlice,
+	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
+	authored: Args
+): Promise<Result> {
+	const inputs = authored.slice() as Args;
+	const pending: Promise<void>[] = [];
+	for (let index = 0; index < inputs.length; index++) {
+		const port = slice[0][index] ?? -1;
+		const slot = port < 0 ? serverDependencySlot(inputs[index]) : outputSlot(frame, port);
+		if (!slot) continue;
+		if (slot.status === 'available') inputs[index] = slot.value as Args[number];
+		else if (slot.status === 'failed') return Promise.reject(slot.error);
+		else
+			pending.push(
+				waitForSlot(slot).then((value) => {
+					inputs[index] = value as Args[number];
+				})
+			);
+	}
+	return pending.length
+		? Promise.all(pending).then(() => invokeSlice(frame, slice, work, inputs))
+		: invokeSlice(frame, slice, work, inputs);
+}
+
+async function invokeSlice<Args extends unknown[], Result>(
+	frame: MutableServerExecutionFrame,
+	slice: ServerComponentTaskSlice,
+	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
+	inputs: Args
+): Promise<Result> {
+	if (frame.controller.signal.aborted) throw frame.controller.signal.reason;
+	const cleanups: (() => void | Promise<void>)[] = [];
+	const context: TaskContext = {
+		signal: frame.controller.signal,
+		generation: 1,
+		activation: 'initialization',
+		peek: (read) => read(),
+		optimistic: (update) => update(),
+		cleanup(cleanup) {
+			cleanups.push(cleanup);
+		},
+		own<T extends Disposable | AsyncDisposable>(resource: T): T {
+			cleanups.push(() => {
+				if (Symbol.asyncDispose in resource)
+					return Promise.resolve(resource[Symbol.asyncDispose]());
+				resource[Symbol.dispose]();
+			});
+			return resource;
+		}
+	};
+	let result!: Result;
+	let failure: unknown;
+	try {
+		const invoke = async () => Promise.resolve(work(...inputs, context));
+		result = frame.options.runTask ? await frame.options.runTask(invoke) : await invoke();
+		for (const [port, path] of slice[1]) publishPort(frame, port, readPath(frame.host.state, path));
+	} catch (error) {
+		failure = error;
+		for (const [port] of slice[1]) failPort(frame, port, error);
+	} finally {
+		for (let index = cleanups.length - 1; index >= 0; index--) {
+			try {
+				await cleanups[index]!();
+			} catch (cleanupError) {
+				if (failure && typeof failure === 'object')
+					Object.defineProperty(failure, 'suppressed', {
+						configurable: true,
+						value: cleanupError
+					});
+				else failure = cleanupError;
+			}
+		}
+	}
+	if (failure !== undefined) throw failure;
+	return result;
+}
+
+function outputSlot(frame: MutableServerExecutionFrame, port: number): OutputSlot {
+	let slot = frame.ports.get(port);
+	if (!slot) {
+		slot = { status: 'pending', waiters: new Set(), subscribers: new Set() };
+		frame.ports.set(port, slot);
+	}
+	return slot;
+}
+
+function waitForSlot(slot: OutputSlot): Promise<unknown> {
+	if (slot.status === 'available') return Promise.resolve(slot.value);
+	if (slot.status === 'failed') return Promise.reject(slot.error);
+	return new Promise((resolve, reject) => slot.waiters.add({ resolve, reject }));
+}
+
+function publishPort(frame: MutableServerExecutionFrame, port: number, value: unknown): void {
+	const slot = outputSlot(frame, port);
+	slot.status = 'available';
+	slot.value = value;
+	for (const waiter of slot.waiters) waiter.resolve(value);
+	slot.waiters.clear();
+	for (const subscriber of slot.subscribers) subscriber();
+}
+
+function failPort(frame: MutableServerExecutionFrame, port: number, error: unknown): void {
+	const slot = outputSlot(frame, port);
+	slot.status = 'failed';
+	slot.error = error;
+	for (const waiter of slot.waiters) waiter.reject(error);
+	slot.waiters.clear();
+	for (const subscriber of slot.subscribers) subscriber();
+}
+
+function readPath(source: unknown, path: readonly string[]): unknown {
+	let value = source;
+	for (const segment of path) {
+		if (!value || typeof value !== 'object') return undefined;
+		value = (value as Record<string, unknown>)[segment];
+	}
+	return value;
+}

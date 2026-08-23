@@ -87,6 +87,8 @@ export type RenderToStringOptions = {
 	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** @internal Publishes a compiler-closed component without manufacturing a durable instance. */
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** @internal Allows framework-owned observers to be replayed after independent sibling work. */
+	allowIndependentComponentObservation?: boolean;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Internal request-owned observation boundary; omitted in hardened server output. */
@@ -372,6 +374,11 @@ export type SsrContext = {
 			readonly status: 'content' | 'fallback';
 			dispose(): void;
 		}
+	>;
+	/** Request-local scheduled frames started from compiler-proven child reachability. */
+	preparedDirectScheduledComponents: WeakMap<
+		VNode,
+		import('./render/direct-component.js').PreparedDirectScheduledSsrComponent
 	>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
