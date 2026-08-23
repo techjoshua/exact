@@ -197,18 +197,24 @@ const (
 )
 
 // componentRuntimeABI compacts compiler-proven execution needs into the hot construction record.
-func componentRuntimeABI(component Component, execution ComponentExecution, compatibility bool) int {
+func componentRuntimeABI(
+	component Component,
+	execution ComponentExecution,
+	hasLifecycle bool,
+	hasInteractions bool,
+	compatibility bool,
+) int {
 	abi := 0
 	if component.CompiledRender {
 		abi |= componentABICompiledRender
 	}
-	if component.Lifecycle {
+	if hasLifecycle {
 		abi |= componentABILifecycle
 	}
 	if component.Lists {
 		abi |= componentABILists
 	}
-	if len(execution.Transitions) != 0 || component.Interactions || compatibility {
+	if len(execution.Transitions) != 0 || hasInteractions || compatibility {
 		abi |= componentABITasks
 	}
 	return abi

@@ -515,6 +515,15 @@ continuation executor, or transition port for that work. Authored tasks retain t
 scheduling, cancellation, readiness, and inspection semantics. Client artifacts continue to use
 durable reactive activation because those dependencies can change after hydration.
 
+Target projection also closes over deferred client work before runtime imports are selected. A
+client-placed function task that remains referenced by server-rendered component props becomes an
+inert callable value; its TaskContext default, browser body, task definition, and durable host do
+not enter the server artifact. Canonical mount, activate, and deactivate registrations are erased
+with their callback dependency graphs because those phases cannot run during SSR. Server-relevant
+render, unmount, and owned-resource cleanup remain intact. Runtime ABI and side-effect imports are
+then computed from the projected transitions and lifecycle surface rather than the target-neutral
+source analysis.
+
 For stage-16 candidates without a proposal-specific threshold, CPU or latency must improve its
 target median by at least 10%, and retained or peak heap must improve by at least 15%. No
 representative counter-metric median may regress by more than 3%, p95 by more than 5%, or compressed

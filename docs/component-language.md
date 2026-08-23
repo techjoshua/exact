@@ -1570,6 +1570,9 @@ this.onRender(({ duration, dependencies }) => {
 
 Mount and activation handlers receive an `AbortSignal`. Lifecycle return values
 are observed when promise-like; ordinary return values are ignored.
+Canonical mount, activate, and deactivate handlers belong to client activation and are not
+evaluated by the server artifact. `onRender`, `onUnmount`, and `own` retain server semantics where
+SSR rendering or request cleanup can exercise them.
 Task cleanup remains the preferred owner for resources acquired by a task.
 Use `this.own(resource)` for a disposable value created during component setup
 that must live until the durable component instance is unmounted. It returns

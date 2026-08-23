@@ -6358,8 +6358,72 @@ func TestSessionAllowsBrowserGlobalsInsideClientLifecycleForServerTarget(t *test
 			t.Fatalf("client lifecycle leaked into server-rendered placement diagnostics: %#v", response.Diagnostics)
 		}
 	}
-	if !strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount"`) {
-		t.Fatalf("server output lost the inert client lifecycle registration: %s", response.Code)
+	if strings.Contains(response.Code, `__exactRegisterLifecycle`) ||
+		strings.Contains(response.Code, `window.addEventListener`) {
+		t.Fatalf("server output retained a client-only lifecycle registration: %s", response.Code)
+	}
+}
+
+func TestSessionRetainsServerCleanupWhenProjectingClientLifecycle(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "lifecycle-server-cleanup.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State = {}> {
+				onMount(handler: () => void): void;
+				onUnmount(handler: () => void): void;
+			}
+			declare function releaseRequestResource(): void;
+			export function RouteShell(this: Component) {
+				this.onMount(() => window.addEventListener("popstate", () => undefined));
+				this.onUnmount(() => releaseRequestResource());
+				return () => <main>route</main>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, `window.addEventListener`) ||
+		strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount"`) {
+		t.Fatalf("server output retained client lifecycle work: %s", response.Code)
+	}
+	if !strings.Contains(response.Code, `__exactRegisterLifecycle(this, "unmount"`) ||
+		!strings.Contains(response.Code, `releaseRequestResource()`) {
+		t.Fatalf("server output discarded request cleanup: %s", response.Code)
+	}
+}
+
+func TestSessionProjectsClientTaskDefinitionsToInertServerCallbacks(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "client-task-server-projection.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State = {}> { state: State; }
+			/** @exact client */
+			declare function loadFromBrowser(signal: AbortSignal): Promise<string>;
+			export function RouteShell(this: Component<{ value: string }>) {
+				async function refresh(task: TaskContext = TaskContext.client().latest()) {
+					this.state.value = await loadFromBrowser(task.signal);
+				}
+				if (false) void refresh();
+				return () => <button onClick={refresh}>refresh</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, retained := range []string{
+		"defineTask", "bindTaskForHost", "TaskContext.client", "await loadFromBrowser",
+		`import "@exactjs/core/runtime/tasks"`,
+		`import "@exactjs/core/runtime/component-execution"`,
+	} {
+		if strings.Contains(response.Code, retained) {
+			t.Fatalf("server output retained client task machinery %q: %s", retained, response.Code)
+		}
+	}
+	if response.Code == "" {
+		t.Fatalf("server projection emitted no artifact: %#v", response.Diagnostics)
 	}
 }
 
