@@ -2,10 +2,15 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { loadExactRemoteModule } from './client.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 const loaderSymbol = Symbol.for('@exactjs/microfrontends/remote-loader');
+const IntegrityArea = createExactFrameworkFixtureArtifact(
+	function IntegrityArea() {},
+	'@company/integrity#./Area'
+);
 
 describe('remote entry integrity loading', () => {
 	it('rejects malformed metadata before creating executable module state', async () => {
@@ -25,7 +30,7 @@ describe('remote entry integrity loading', () => {
 				loader.publish(token, {
 					buildKey,
 					root: '@company/integrity#./Area',
-					component() {},
+					component: IntegrityArea,
 					registration: {}
 				});
 			});
