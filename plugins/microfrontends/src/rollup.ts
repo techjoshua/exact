@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import {
 	generateProvidedPackageBridge,
 	planProvidedPackageBridge,
@@ -135,7 +136,30 @@ export function createExactRemoteRollupAdapter(
 			const remoteImporter = importer ? remoteScope(importer, exposuresById) : undefined;
 			const requestedScope = remoteScope(source, new Map());
 			if (provided.has(source) && remoteImporter) {
-				const usages = importsByModule.get(importer!)?.get(source);
+				let usages = importsByModule.get(importer!)?.get(source);
+				if (!usages) {
+					// Rolldown may request imports from an already-compiled physical module before
+					// running transform hooks. Analyze that exact scoped importer on demand; virtual
+					// modules remain fail-closed because their source is owned by load()/recordModule().
+					const filename = unscopedId(importer!).split('?', 1)[0]!;
+					if (path.isAbsolute(filename)) {
+						let code: string | undefined;
+						try {
+							code = await readFile(filename, 'utf8');
+						} catch {
+							// The existing fail-closed diagnostic below owns missing or virtual sources.
+						}
+						if (code !== undefined) {
+							const analysis = analyzeProvidedPackageImports(
+								code,
+								importer!,
+								options.plan.providedPackages
+							);
+							importsByModule.set(importer!, analysis);
+							usages = analysis.get(source);
+						}
+					}
+				}
 				if (!usages)
 					throw new Error(
 						`Provided package ${JSON.stringify(source)} was resolved before its import shape was analyzed in ${importer}`

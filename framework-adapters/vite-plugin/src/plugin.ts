@@ -373,6 +373,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		closeBundle: async () => disposeBuildProcesses(),
 		transform(code, id) {
+			// Rollup resolves a module's imports after this hook. Record every remote-scoped source here,
+			// including precompiled package JavaScript that the compiler transform intentionally skips.
+			microfrontends.recordModule(code, id);
 			const transformed = transformExactViteModule({
 				code,
 				id,

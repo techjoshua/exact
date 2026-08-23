@@ -427,10 +427,12 @@ describe('@exactjs/vite-plugin: transform', () => {
 
 	it('adds target export conditions for packaged exact artifacts', () => {
 		expect(exact({ target: 'client', reactCompatibility: false }).config?.()).toMatchObject({
-			resolve: { conditions: ['exact-client'] }
+			resolve: {
+				conditions: ['exact-client', 'module', 'browser', 'development|production']
+			}
 		});
 		expect(exact({ target: 'server', reactCompatibility: false }).config?.()).toMatchObject({
-			resolve: { conditions: ['exact-server'] }
+			resolve: { conditions: ['exact-server', 'module', 'node', 'development|production'] }
 		});
 	});
 
