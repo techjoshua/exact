@@ -69,6 +69,8 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		explicit = arguments[:len(arguments)-1]
 	}
 	contextBindings := lowering.taskContextWriteBindings(work, task.ID)
+	directServerComputation := lowering.target == TargetServer &&
+		directServerSetupComputation(task) && len(contextBindings) == 0
 	dependencies := []nativeTaskDependency{}
 	nextArguments := []*ast.Node{}
 	argumentOffset := 0
@@ -89,19 +91,30 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 				nextArguments = append(nextArguments, visited)
 				continue
 			}
-			nextArguments = append(
-				nextArguments,
-				lowering.componentReactive(visited),
-			)
+			if directServerComputation {
+				nextArguments = append(nextArguments, visited)
+			} else {
+				nextArguments = append(
+					nextArguments,
+					lowering.componentReactive(visited),
+				)
+			}
 		}
 	} else {
 		dependencies = lowering.inferredTaskDependencies(task, work)
 		argumentOffset = len(dependencies)
 		for _, dependency := range dependencies {
-			nextArguments = append(
-				nextArguments,
-				lowering.componentReactive(dependency.expression),
-			)
+			if directServerComputation {
+				nextArguments = append(
+					nextArguments,
+					lowering.visitor.VisitNode(dependency.expression),
+				)
+			} else {
+				nextArguments = append(
+					nextArguments,
+					lowering.componentReactive(dependency.expression),
+				)
+			}
 		}
 	}
 	runtimeArgumentCount := len(nextArguments)
@@ -138,6 +151,27 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		// authored dependencies that do not appear in the inferred plan.
 		runtimeArgumentCount,
 	)
+	if directServerComputation {
+		arguments := append([]*ast.Node{}, nextArguments...)
+		arguments = append(arguments, lowering.factory.NewObjectLiteralExpression(
+			lowering.factory.NewNodeList([]*ast.Node{
+				lowering.property(
+					lowering.factory.NewIdentifier("signal"),
+					lowering.factory.NewVoidExpression(
+						lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+					),
+				),
+			}),
+			false,
+		))
+		return lowering.factory.NewCallExpression(
+			lowering.factory.NewParenthesizedExpression(rewrittenWork),
+			nil,
+			nil,
+			lowering.factory.NewNodeList(arguments),
+			ast.NodeFlagsNone,
+		)
+	}
 	if lowering.target == TargetClient && task.Placement == "server" {
 		if component, exists := lowering.components[task.Component]; exists &&
 			component.Placement == "isomorphic" {

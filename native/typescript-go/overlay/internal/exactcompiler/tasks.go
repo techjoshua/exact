@@ -126,6 +126,8 @@ func collectTasks(
 			task.FunctionDefined = true
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
+			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
+				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
 			task.Invoked = taskRegistrationInsideNestedFunction(node, candidate.node)
 			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
 			task.ArgumentCount = len(work.Parameters())
