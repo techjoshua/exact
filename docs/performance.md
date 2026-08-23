@@ -159,6 +159,11 @@ indexes, and direct input/output slices. These are build products of the canonic
 dataflow graph; request execution must consume them rather than rebuilding the graph. Synchronous,
 scheduled, and dynamic components therefore have an explicit bundle boundary for progressively
 removing generic component and task infrastructure without changing the authored component model.
+When the compiler proves that a synchronous server component needs only its generated render
+artifact, it selects the direct lane. SSR invokes that artifact against a small request-local state
+frame and never constructs a durable component instance, reactive scope, task owner, or lifecycle
+registry. Components that require capabilities not yet projected into a direct server slice remain
+on the generic lane; classification alone never weakens their ownership semantics.
 Manually constructed programs use the explicit DOM testing compatibility helper. Temporary
 binder contexts are released after synchronous installation and are not captured by the retained
 slot watchers. Server and universal artifacts retain individual readers for SSR, while older

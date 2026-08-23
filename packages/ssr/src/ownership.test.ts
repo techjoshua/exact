@@ -1,9 +1,75 @@
-import { activateTaskForHost, defineTask, type Component, type TaskContext } from '@exactjs/core';
+import {
+	activateTaskForHost,
+	createVNode as createNativeVNode,
+	defineTask,
+	type Component,
+	type TaskContext
+} from '@exactjs/core';
+import {
+	exactComponentContract,
+	exactComponentType
+} from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr ownership', () => {
+	it('executes compiler-closed synchronous server components without durable ownership', () => {
+		let created = 0;
+		const receivers: object[] = [];
+		function Direct(this: Component<{ label: string }>, props: { label: string }) {
+			receivers.push(this);
+			this.state.label = props.label;
+			return () => createVNode('p', null, this.state.label);
+		}
+		Object.assign(Direct, {
+			[exactComponentType]: 'component:direct-server-fixture',
+			[exactComponentContract]: {
+				version: 2,
+				placement: 'server',
+				role: 'executor',
+				implementations: [
+					{
+						id: 'implementation:direct-server-fixture',
+						name: 'Direct',
+						role: 'root',
+						implementation: Direct
+					}
+				],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1,
+					instantiate: Direct,
+					abi: 1,
+					capabilities: [],
+					state: ['label'],
+					server: {
+						version: 1,
+						classification: 'synchronous',
+						lane: 'direct',
+						setup: [],
+						slices: [],
+						render: Direct
+					}
+				},
+				execution: { version: 1, ports: [], transitions: [] }
+			}
+		});
+		const vnode = createNativeVNode(Direct, { label: 'direct' });
+
+		const rendered = renderToString(vnode, {
+			markers: false,
+			onComponentCreated: () => created++
+		});
+
+		expect(rendered.html).toBe('<p>direct</p>');
+		expect(receivers).toHaveLength(1);
+		expect(receivers[0]).not.toHaveProperty('unmount');
+		expect(created).toBe(0);
+	});
+
 	it('disposes component tasks and lifecycle ownership after synchronous SSR', () => {
 		let taskSignal: AbortSignal | undefined;
 		let unmounted = 0;

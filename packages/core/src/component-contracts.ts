@@ -160,6 +160,8 @@ export type ExactServerComponentExecutionContract = Readonly<{
 	version: 1;
 	/** Selects the smallest server lane capable of executing the projected component. */
 	classification: 'synchronous' | 'scheduled' | 'dynamic';
+	/** Whether this artifact can bypass durable generic server ownership. */
+	lane: 'direct' | 'generic';
 	/** Setup transition indexes in compiler-determined activation order. */
 	setup: readonly number[];
 	/** Direct dependency slices for independently dispatchable server transitions. */
@@ -168,6 +170,8 @@ export type ExactServerComponentExecutionContract = Readonly<{
 		inputs: readonly number[];
 		outputs: readonly number[];
 	}>[];
+	/** Direct synchronous setup/render entry emitted only when generic ownership is unnecessary. */
+	render?: AnyExactComponentCallable;
 }>;
 
 /** Canonical compiler description from which one durable state-machine instance is created. */

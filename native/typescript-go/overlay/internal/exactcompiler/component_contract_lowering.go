@@ -517,6 +517,12 @@ func rootComponentContractAttachment(
 				component.DynamicComponents,
 				component.Collections,
 				componentRuntimeABI(component, projectedExecution, usesCompatibility),
+				componentUsesProtocolMember(
+					componentFunction,
+					"log", "intl", "hasContext", "getContext", "setContext", "reactive",
+					"ref", "refs", "map", "onMount", "onActivate", "onDeactivate",
+					"onUnmount", "onRender", "own",
+				),
 				target == TargetServer,
 				projection != ComponentContractProjectionComplete,
 				updates,

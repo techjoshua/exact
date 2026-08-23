@@ -112,6 +112,31 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(serverMap.sources).toEqual([input]);
 	});
 
+	it('emits a direct synchronous server lane for a compiler-closed component', async () => {
+		const root = await createTestWorkspace('exact-direct-server-');
+		const input = path.join(root, 'src', 'greeting.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`export function Greeting(props: { name: string }) {
+				return () => <p>Hello {props.name}</p>;
+			}`
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src')
+		});
+		const client = await readFile(result.clientFile, 'utf8');
+		const server = await readFile(result.serverFile, 'utf8');
+
+		expect(server).toContain('classification: "synchronous"');
+		expect(server).toContain('lane: "direct"');
+		expect(server).toMatch(/render: __exactImplementation_Greeting_/);
+		expect(client).not.toContain('lane: "direct"');
+	});
+
 	it('creates package export maps for generated target artifacts', async () => {
 		const root = await createTestWorkspace('exact-package-');
 		const input = path.join(root, 'src', 'components', 'page.tsx');
@@ -211,6 +236,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain('executors: []');
 		expect(server).toContain('executors: [');
 		expect(server).toContain('classification: "scheduled"');
+		expect(server).toContain('lane: "generic"');
 		expect(server).toContain('setup: [');
 		expect(server).toContain('slices: [');
 		expect(client).not.toContain('classification: "scheduled"');

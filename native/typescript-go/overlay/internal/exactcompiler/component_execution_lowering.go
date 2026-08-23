@@ -69,6 +69,7 @@ func componentDefinitionMetadata(
 	dynamicComponents bool,
 	collections bool,
 	runtimeABI int,
+	unsupportedServerSurface bool,
 	server bool,
 	compact bool,
 	updates *ast.Node,
@@ -120,10 +121,18 @@ func componentDefinitionMetadata(
 		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
 	if server {
+		direct := !hasResumption && !hasInteractions && !compatibility && !dynamicComponents &&
+			!collections && !unsupportedServerSurface && runtimeABI&^(componentABICompiledRender) == 0
 		properties = append(properties, contractProperty(
 			factory,
 			"server",
-			serverComponentExecutionMetadata(factory, execution, dynamicComponents),
+			serverComponentExecutionMetadata(
+				factory,
+				execution,
+				instantiate,
+				direct,
+				dynamicComponents,
+			),
 		))
 	}
 	if !compact {
@@ -141,6 +150,8 @@ func componentDefinitionMetadata(
 func serverComponentExecutionMetadata(
 	factory *printer.NodeFactory,
 	execution ComponentExecution,
+	instantiate *ast.Node,
+	direct bool,
 	dynamic bool,
 ) *ast.Node {
 	classification := "synchronous"
@@ -148,6 +159,10 @@ func serverComponentExecutionMetadata(
 		classification = "dynamic"
 	} else if len(execution.Transitions) != 0 {
 		classification = "scheduled"
+	}
+	lane := "generic"
+	if direct && classification == "synchronous" {
+		lane = "direct"
 	}
 	setup := []int{}
 	slices := make([]*ast.Node, 0, len(execution.Transitions))
@@ -161,12 +176,17 @@ func serverComponentExecutionMetadata(
 			contractProperty(factory, "outputs", contractNumberArray(factory, transition.Outputs)),
 		))
 	}
-	return contractObject(factory, true,
+	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "classification", contractString(factory, classification)),
+		contractProperty(factory, "lane", contractString(factory, lane)),
 		contractProperty(factory, "setup", contractNumberArray(factory, setup)),
 		contractProperty(factory, "slices", contractArray(factory, slices...)),
-	)
+	}
+	if lane == "direct" {
+		properties = append(properties, contractProperty(factory, "render", instantiate))
+	}
+	return contractObject(factory, true, properties...)
 }
 
 const (
