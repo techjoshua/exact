@@ -142,7 +142,9 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 					format: 'esm',
 					splitting: true,
 					sourcemap: 'external',
-					external: ['@exactjs/core'],
+					// This case observes transformed source rather than runtime linkage. The remote-build
+					// acceptance above owns the fully bundled eXact runtime graph.
+					external: ['@exactjs/core', '@exactjs/dom/*'],
 					plugins: [exactPlugin]
 				});
 
