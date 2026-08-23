@@ -115,15 +115,15 @@ async function measureParticipant(runtime, participantId) {
 		for (let index = 0; index < warmupCount; index += 1) await measureRequest(worker.url);
 
 		await control(worker, 'reset');
-		const sequentialBefore = await snapshot(worker);
+		const sequentialBefore = await telemetry(worker);
 		const sequentialSamples = [];
 		for (let index = 0; index < sampleCount; index += 1)
 			sequentialSamples.push(await measureRequest(worker.url));
-		const sequentialAfter = await snapshot(worker);
+		const sequentialAfter = await telemetry(worker);
 		validateResponses(participantId, sequentialSamples);
 
 		await control(worker, 'reset');
-		const concurrentBefore = await snapshot(worker);
+		const concurrentBefore = await telemetry(worker);
 		const concurrentSamples = [];
 		const throughput = [];
 		for (let wave = 0; wave < concurrencyWaves; wave += 1) {
@@ -133,7 +133,7 @@ async function measureParticipant(runtime, participantId) {
 			concurrentSamples.push(...samples);
 			throughput.push((samples.length / elapsedMs) * 1_000);
 		}
-		const concurrentAfter = await snapshot(worker);
+		const concurrentAfter = await telemetry(worker);
 		validateResponses(participantId, concurrentSamples);
 
 		await control(worker, 'reset');
@@ -313,6 +313,10 @@ function waitForExit(child, timeoutMs) {
 
 async function snapshot(worker) {
 	return control(worker, 'snapshot');
+}
+
+async function telemetry(worker) {
+	return control(worker, 'telemetry');
 }
 
 async function control(worker, operation) {

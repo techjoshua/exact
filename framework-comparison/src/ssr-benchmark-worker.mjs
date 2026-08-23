@@ -156,17 +156,11 @@ async function handleControlRequest(pathname, response) {
 	}
 	if (pathname === '/__exact-benchmark/snapshot') {
 		await collectGarbage();
-		writeJson(response, {
-			pid: process.pid,
-			cpu: process.cpuUsage(),
-			memory: process.memoryUsage(),
-			statistics: {
-				firstByteMs: [...statistics.firstByteMs],
-				totalMs: [...statistics.totalMs],
-				userCpuMs: [...statistics.userCpuMs],
-				systemCpuMs: [...statistics.systemCpuMs]
-			}
-		});
+		writeJson(response, telemetry());
+		return;
+	}
+	if (pathname === '/__exact-benchmark/telemetry') {
+		writeJson(response, telemetry());
 		return;
 	}
 	if (pathname === '/__exact-benchmark/shutdown') {
@@ -176,6 +170,21 @@ async function handleControlRequest(pathname, response) {
 	}
 	response.writeHead(404, { 'content-type': 'application/json' });
 	response.end('{"error":"unknown benchmark control"}');
+}
+
+/** Reads cumulative process counters without injecting collection work into a measured lane. */
+function telemetry() {
+	return {
+		pid: process.pid,
+		cpu: process.cpuUsage(),
+		memory: process.memoryUsage(),
+		statistics: {
+			firstByteMs: [...statistics.firstByteMs],
+			totalMs: [...statistics.totalMs],
+			userCpuMs: [...statistics.userCpuMs],
+			systemCpuMs: [...statistics.systemCpuMs]
+		}
+	};
 }
 
 /** Forces a full collection when the runtime exposes one, then yields for finalizers. */

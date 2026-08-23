@@ -112,6 +112,9 @@ but does not alone prove an unbounded leak. Response hashes must remain stable f
 and every body must contain the selected incident, so a fast error, empty shell, or cross-request mutation
 cannot be accepted as an SSR sample.
 
+CPU lanes read cumulative process counters without forcing collection. Forced collection is confined to
+the separate retention lane, so benchmark bookkeeping is not charged to framework request CPU.
+
 Node and Bun results are separate runtime rows over the same production artifacts. Runtime comparisons
 must not combine their samples or present Bun executing Node-oriented output as a claim about a dedicated
 Bun build adapter.
