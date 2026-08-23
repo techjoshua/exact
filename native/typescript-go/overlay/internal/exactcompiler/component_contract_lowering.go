@@ -483,6 +483,21 @@ func rootComponentContractAttachment(
 	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
 	hasResumption := component.Placement == "isomorphic" &&
 		componentHasResumption(component.ID, resumptions)
+	hasInteractions := target == TargetClient && component.Interactions
+	hasLifecycle := component.Lifecycle
+	unsupportedServerSurface := componentUsesProtocolMember(
+		componentFunction,
+		"log", "intl", "hasContext", "getContext", "setContext", "reactive",
+		"ref", "refs", "map", "onUnmount", "onRender", "own",
+	)
+	if target == TargetServer {
+		// Mount/activation registrations are absent from the projected server function.
+		// Only lifecycle phases that can run during SSR require the lifecycle ABI there.
+		hasLifecycle = componentUsesProtocolMember(
+			componentFunction,
+			"onUnmount", "onRender", "own",
+		)
+	}
 	var updates *ast.Node
 	if name, exists := componentUpdates[component.Name]; exists {
 		updates = factory.NewIdentifier(name)
@@ -521,17 +536,18 @@ func rootComponentContractAttachment(
 				component.StateSlots,
 				runtimeContinuations,
 				hasResumption,
-				target == TargetClient && component.Interactions,
+				hasInteractions,
 				usesCompatibility,
 				component.DynamicComponents,
 				component.Collections,
-				componentRuntimeABI(component, projectedExecution, usesCompatibility),
-				componentUsesProtocolMember(
-					componentFunction,
-					"log", "intl", "hasContext", "getContext", "setContext", "reactive",
-					"ref", "refs", "map", "onMount", "onActivate", "onDeactivate",
-					"onUnmount", "onRender", "own",
+				componentRuntimeABI(
+					component,
+					projectedExecution,
+					hasLifecycle,
+					hasInteractions,
+					usesCompatibility,
 				),
+				unsupportedServerSurface,
 				target == TargetServer,
 				projection != ComponentContractProjectionComplete,
 				updates,

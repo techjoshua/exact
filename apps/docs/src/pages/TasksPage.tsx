@@ -163,7 +163,8 @@ export function TasksPage(this: Component<{}>) {
 					<li>
 						<strong>Placement and lifetime:</strong> <code>client()</code> and <code>server()</code>
 						constrain execution. Children attach structurally unless <code>detached()</code> is
-						deliberate.
+						deliberate. A client-placed task&apos;s body and scheduling runtime are omitted from the
+						server artifact, even when its callable is passed through server-rendered component props.
 					</li>
 				</ul>
 				<p>

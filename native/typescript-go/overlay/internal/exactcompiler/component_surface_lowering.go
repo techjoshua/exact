@@ -24,6 +24,16 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 	helper := ""
 	switch name {
 	case "onMount", "onActivate", "onDeactivate", "onUnmount":
+		// Mount and client activation phases never execute during SSR. Erase the complete
+		// registration expression so its callback and browser-only dependency graph cannot
+		// enter a server artifact. Unmount remains meaningful because SSR owners run request
+		// cleanup, while render and owned resources likewise retain their server semantics.
+		if lowering.target == TargetServer &&
+			(name == "onMount" || name == "onActivate" || name == "onDeactivate") {
+			return lowering.factory.NewVoidExpression(
+				lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+			)
+		}
 		helper = lowering.names.registerLifecycle
 		phase := map[string]string{
 			"onMount": "mount", "onActivate": "activate", "onDeactivate": "deactivate", "onUnmount": "unmount",

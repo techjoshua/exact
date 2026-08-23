@@ -242,7 +242,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	interactionUsed := containsInteractionRuntimeUse(root)
-	if !interactionUsed {
+	if !interactionUsed && lowering.target != TargetServer {
 		for _, component := range lowering.components {
 			if component.Interactions {
 				interactionUsed = true
@@ -287,7 +287,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	if executionUsed {
 		executionUsed = false
 		for _, component := range lowering.components {
-			if len(component.Execution.Transitions) != 0 {
+			if len(projectComponentExecution(component.Execution, lowering.target).Transitions) != 0 {
 				executionUsed = true
 				break
 			}

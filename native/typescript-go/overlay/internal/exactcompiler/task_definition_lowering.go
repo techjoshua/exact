@@ -637,6 +637,19 @@ func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
 	if work == nil || declaration.Name() == nil {
 		return lowering.visitor.VisitEachChild(declaration.AsNode())
 	}
+	if lowering.target == TargetServer && task.Placement == "client" {
+		return lowering.factory.NewVariableStatement(
+			nil,
+			lowering.factory.NewVariableDeclarationList(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.factory.NewVariableDeclaration(
+						declaration.Name(), nil, nil, lowering.inertClientTaskCallable(),
+					),
+				}),
+				ast.NodeFlagsConst,
+			),
+		)
+	}
 	dependencyCount := len(declaration.Parameters.Nodes)
 	if dependencyCount != 0 &&
 		strings.Contains(
@@ -681,6 +694,15 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 	if name == nil || !ast.IsIdentifier(name) || work == nil {
 		return lowering.visitor.VisitEachChild(declaration.AsNode())
 	}
+	if lowering.target == TargetServer && task.Placement == "client" {
+		return lowering.factory.UpdateVariableDeclaration(
+			declaration,
+			name,
+			declaration.ExclamationToken,
+			declaration.Type,
+			lowering.inertClientTaskCallable(),
+		)
+	}
 	dependencyCount := len(work.Parameters())
 	if dependencyCount != 0 &&
 		strings.Contains(
@@ -698,6 +720,18 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 		declaration.ExclamationToken,
 		declaration.Type,
 		lowering.boundTaskDefinition(name.Text(), work, task, operation, dependencyCount),
+	)
+}
+
+// inertClientTaskCallable preserves a referenced callback's identity in server-rendered props
+// without retaining its browser-only body, task policy, host binding, or TaskContext defaults.
+// Calls to a client-placed task are separately projected out of server setup; this callable is
+// therefore only a value placeholder for markup/component composition that cannot execute there.
+func (lowering *jsxLowering) inertClientTaskCallable() *ast.Node {
+	return lowering.arrow(
+		lowering.factory.NewVoidExpression(
+			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+		),
 	)
 }
 
