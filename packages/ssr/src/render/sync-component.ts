@@ -8,7 +8,7 @@ import {
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
 import { componentName, getComponentProps } from './component-vnode.js';
-import { handleSsrConstructionError } from './construction-errors.js';
+import { handleSsrConstructionError } from './construction-error-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderLimitError } from './limits.js';
 import { renderDirectSsrComponent } from './direct-component.js';

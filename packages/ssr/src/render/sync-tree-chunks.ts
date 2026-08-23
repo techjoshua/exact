@@ -31,7 +31,7 @@ import {
 } from './boundaries.js';
 import { renderClientBoundaryChunks } from './client-boundary-chunks.js';
 import { componentName, getComponentProps } from './component-vnode.js';
-import { handleSsrConstructionError } from './construction-errors.js';
+import { handleSsrConstructionError } from './construction-error-capability.js';
 import { activateSsrEnhancements } from './enhancements.js';
 import {
 	claimRootText,

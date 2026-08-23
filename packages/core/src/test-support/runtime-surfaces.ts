@@ -3,6 +3,7 @@
 // component behavior without making production runtime entries universal.
 import '../runtime/contexts.js';
 import '../runtime/component-reactivity.js';
+import '../runtime/component-tasks.js';
 import '../runtime/lifecycle.js';
 import '../runtime/lists.js';
 import '../runtime/localization.js';
@@ -13,6 +14,7 @@ import '../runtime/refs.js';
 // outside Vite's source module graph. Install the surfaces in that built-package realm as well.
 import '@exactjs/core/runtime/contexts';
 import '@exactjs/core/runtime/component-reactivity';
+import '@exactjs/core/runtime/component-tasks';
 import '@exactjs/core/runtime/lifecycle';
 import '@exactjs/core/runtime/lists';
 import '@exactjs/core/runtime/localization';

@@ -43,6 +43,11 @@ export function createVNode(
 	};
 }
 
+/** Normalizes any component render result into a flat child array. */
+export function normalizeRenderResult(result: RenderResult): Child[] {
+	return Array.isArray(result) ? normalizeChildren(result) : normalizeChildren([result]);
+}
+
 /** Creates a virtual text node from an arbitrary value. */
 export function createTextVNode(value: unknown): VNode {
 	const domain = currentComponentDomain();
