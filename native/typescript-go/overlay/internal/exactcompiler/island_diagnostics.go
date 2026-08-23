@@ -75,9 +75,11 @@ func islandPlacementDiagnostics(
 			continue
 		}
 		candidate := candidates[index]
+		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			if insideTaskSpan(node.Pos(), tasks, component.Name) ||
-				nodeInsideAnyIsland(node, islandNodes) {
+				nodeInsideAnyIsland(node, islandNodes) ||
+				insideSourceSpans(node.Pos(), clientLifecycleSpans) {
 				return false
 			}
 			if !ast.IsIdentifier(node) ||

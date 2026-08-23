@@ -19,6 +19,7 @@ import {
 	type BunLoadArgs,
 	type BunLoadResult
 } from './index.js';
+import { readBunImporterSource } from './microfrontends.js';
 
 type BunResolveHandler = Parameters<NonNullable<BunBuildLike['onResolve']>>[1];
 
@@ -71,6 +72,26 @@ describe('@exactjs/bun-plugin', () => {
 
 		expect(result?.code).not.toContain('resumption:');
 		expect(result?.code).not.toContain('render: "returned-function"');
+	});
+
+	it('keeps routing shells isomorphic while projecting client lifecycle work by target', () => {
+		const source = `import type { Component } from '@exactjs/core';
+		export function RouteShell(this: Component) {
+			this.onMount(() => window.addEventListener('popstate', () => undefined));
+			return () => <main>route</main>;
+		}`;
+		const client = transformExactBunSource(source, '/src/RouteShell.tsx', {
+			target: 'client'
+		});
+		const server = transformExactBunSource(source, '/src/RouteShell.tsx', {
+			target: 'server'
+		});
+
+		expect(client?.code).toContain('window.addEventListener');
+		expect(client?.code).toContain('__exactComponentContract');
+		expect(server?.code).toContain('window.addEventListener');
+		expect(server?.code).toContain('__exactRegisterLifecycle(this, "mount"');
+		expect(server?.code).toContain('__exactComponentContract');
 	});
 
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
@@ -289,6 +310,18 @@ describe('@exactjs/bun-plugin', () => {
 			'exact-client',
 			'browser'
 		]);
+	});
+
+	it('recovers filesystem importer source before Bun has invoked its load hook', () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-importer-'));
+		const importer = path.join(root, 'runtime.js');
+		try {
+			writeFileSync(importer, `import { logFrameworkEvent } from '@exactjs/core';\n`);
+			expect(readBunImporterSource(importer)).toContain('logFrameworkEvent');
+			expect(readBunImporterSource('exact-remote:virtual')).toBeUndefined();
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	it('adds filename context to transform errors', () => {

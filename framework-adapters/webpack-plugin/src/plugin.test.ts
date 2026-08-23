@@ -113,6 +113,26 @@ describe('@exactjs/webpack-plugin', () => {
 		expect(result?.code).not.toContain('node:fs/promises');
 	});
 
+	it('keeps routing shells isomorphic while projecting client lifecycle work by target', () => {
+		const source = `import type { Component } from '@exactjs/core';
+		export function RouteShell(this: Component) {
+			this.onMount(() => window.addEventListener('popstate', () => undefined));
+			return () => <main>route</main>;
+		}`;
+		const client = transformExactWebpackSource(source, '/src/RouteShell.tsx', {
+			target: 'client'
+		});
+		const server = transformExactWebpackSource(source, '/src/RouteShell.tsx', {
+			target: 'server'
+		});
+
+		expect(client?.code).toContain('window.addEventListener');
+		expect(client?.code).toContain('__exactComponentContract');
+		expect(server?.code).toContain('window.addEventListener');
+		expect(server?.code).toContain('__exactRegisterLifecycle(this, "mount"');
+		expect(server?.code).toContain('__exactComponentContract');
+	});
+
 	it('derives compact runtime instrumentation independently from hardened output', () => {
 		const source = `import { TaskContext } from '@exactjs/core';
 		function Page() {
