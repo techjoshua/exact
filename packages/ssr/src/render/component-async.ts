@@ -6,12 +6,29 @@ import { componentMarkerId } from './component-markers.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { componentHtml } from './component-output.js';
 import { handleSsrConstructionError } from './construction-error-capability.js';
-import { renderDirectSsrComponentVNode } from './direct-component.js';
+import { renderDirectSsrComponentOutput } from './direct-component.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { renderGenericSsrComponent } from './generic-component-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderInterruption } from './limits.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
+
+type DirectComponentPublication = Readonly<{
+	componentId: string;
+	documentProbe: boolean;
+	enhancement: boolean;
+}>;
+
+function publishDirectComponent(
+	context: SsrContext,
+	vnode: VNode,
+	parent: AnyComponentInstance | undefined,
+	html: string,
+	props: Record<string, unknown>,
+	publication: DirectComponentPublication
+): string {
+	return componentHtml(context, vnode, parent, publication.componentId, html, props, publication);
+}
 
 /** Renders a direct compiler artifact or delegates an explicitly selected generic component. */
 export async function renderComponentAsync(
@@ -38,17 +55,17 @@ export async function renderComponentAsync(
 				documentProbe
 			});
 		}
-		const direct = await renderDirectSsrComponentVNode(
+		const direct = await renderDirectSsrComponentOutput(
 			context,
 			vnode,
 			parent,
 			options,
-			componentId,
-			{ enhancement, documentProbe },
 			async (children, owner) => {
 				if (documentProbe) resetDocumentProbe(context);
 				return renderChildrenAsync(context, children, owner, options);
-			}
+			},
+			publishDirectComponent,
+			{ componentId, enhancement, documentProbe }
 		);
 		if (direct !== undefined) return direct;
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);

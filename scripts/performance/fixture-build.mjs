@@ -108,6 +108,10 @@ function assertCompilerClosedServerBundle(source) {
 		'function applyPreparedTargetTree',
 		'function renderVNodeAsync',
 		'function renderGenericSsrComponent',
+		'function renderResumableComponentBoundary',
+		'function serializeHydrationPayload',
+		'function componentHtml',
+		'function processExactOutput',
 		'__exactExecution_'
 	]) {
 		if (source.includes(signature))

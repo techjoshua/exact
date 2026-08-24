@@ -262,9 +262,9 @@ func TestCompilerClosedServerRootSelectsNarrowStringRenderer(t *testing.T) {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	for _, expected := range []string{
-		`renderCompilerClosedToStringAsync as`,
+		`renderCompilerClosedUnmarkedToStringAsync as`,
 		`from "@exactjs/ssr/runtime/compiler-closed"`,
-		`__exactRenderClosedSsr(__exactComponentVNode(Page`,
+		`__exactRenderClosedUnmarkedSsr(__exactComponentVNode(Page`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("compiler-closed root is missing %q:\n%s", expected, response.Code)
@@ -273,6 +273,59 @@ func TestCompilerClosedServerRootSelectsNarrowStringRenderer(t *testing.T) {
 	if strings.Contains(response.Code, `from "@exactjs/ssr"`) ||
 		strings.Contains(response.Code, `renderToStringAsync(__exactComponentVNode(Page`) {
 		t.Fatalf("compiler-closed root retained the universal renderer:\n%s", response.Code)
+	}
+}
+
+func TestCompilerClosedMarkedServerRootRetainsMarkerFormatting(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-root-marked.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { renderToStringAsync } from "@exactjs/ssr";
+			export function Page() { return () => <main>ready</main>; }
+			export function render() { return renderToStringAsync(<Page />); }
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+		strings.Contains(response.Code, `renderCompilerClosedUnmarkedToStringAsync as`) {
+		t.Fatalf("marked closed root did not retain marker formatting:\n%s", response.Code)
+	}
+}
+
+func TestUnmarkedClosedRootOmitsOnlyPrivateResumptionFormatting(t *testing.T) {
+	for name, exported := range map[string]string{
+		"private":  "",
+		"exported": "export ",
+	} {
+		t.Run(name, func(t *testing.T) {
+			response := NewSession().Execute(Request{
+				ID: "server-root-unmarked-" + name + ".tsx", Kind: "compile", Target: TargetServer,
+				Source: `
+					import { TaskContext } from "@exactjs/core";
+					import { renderToStringAsync } from "@exactjs/ssr";
+					declare class Component<State> { state: State }
+					` + exported + `function Page(this: Component<{ value: string }>) {
+						async function load(_task: TaskContext = TaskContext.server().blocking()) {
+							this.state.value = await Promise.resolve("ready");
+						}
+						load();
+						return () => <main>{this.state.value}</main>;
+					}
+					export function render() {
+						return renderToStringAsync(<Page />, { markers: false });
+					}
+				`,
+			})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			retained := strings.Contains(response.Code, `import "@exactjs/ssr/runtime/resumption-boundaries"`)
+			if retained != (name == "exported") {
+				t.Fatalf("%s unmarked root has incorrect resumption capability reachability:\n%s", name, response.Code)
+			}
+		})
 	}
 }
 
@@ -323,10 +376,11 @@ func TestCompilerClosedServerRootRetainsUniversalRendererForGeneralChildSlot(t *
 
 func TestCompilerClosedServerRootRetainsUniversalRendererForDynamicMarkupOptions(t *testing.T) {
 	for name, options := range map[string]string{
-		"dynamic":  "options",
-		"enabled":  "{ reactMarkup: true }",
-		"spread":   "{ ...options, markers: false }",
-		"computed": `{ ["reactMarkup"]: false }`,
+		"dynamic":          "options",
+		"enabled":          "{ reactMarkup: true }",
+		"spread":           "{ ...options, markers: false }",
+		"computed":         `{ ["reactMarkup"]: false }`,
+		"output-extension": `{ markers: false, outputExtensions: [undefined as never] }`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			response := NewSession().Execute(Request{

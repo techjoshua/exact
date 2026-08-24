@@ -57,7 +57,13 @@ serializer that accepts generated render programs, scalar and property slots, an
 closed component slots. Dynamic render options, general child expressions, and unsupported graph
 edges leave the authored call on the universal SSR entry point. This proof keeps the broad async
 VNode dispatcher out of simple production server bundles without creating a second author-facing
-render API.
+render API. A private closed graph rendered by a local call with literal `markers: false` also
+publishes its generated HTML directly, so marker, hydration-payload, and resumption-envelope
+formatting do not enter that server bundle. Exported server components retain those capabilities
+because an external caller can render them with markers, and non-empty output extensions retain
+the universal entry point because they may replace the rendered value. The unmarked closed lane can
+therefore trust its compiler-produced root directly; plugin-host output processing remains at the
+ordinary renderer boundary for authored or externally transformed values.
 Server artifacts import structure-only render and task helpers. Durable generic component
 construction, enhancement planning, and native structural-boundary ownership are separately
 installed capabilities selected only by artifacts that can reach those paths. Resumption

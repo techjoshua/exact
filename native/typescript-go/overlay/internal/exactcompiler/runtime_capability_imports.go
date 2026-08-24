@@ -100,6 +100,8 @@ type jsxRuntimeNames struct {
 	timeActivation         string
 	createTimeActivation   string
 	renderClosedSsr        string
+
+	renderClosedUnmarkedSsr string
 }
 
 func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
@@ -222,6 +224,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"enterCompiledProgramElement", lowering.names.enterProgramElement, 18},
 		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, 18},
 		{"renderCompilerClosedToStringAsync", lowering.names.renderClosedSsr, 28},
+		{"renderCompilerClosedUnmarkedToStringAsync", lowering.names.renderClosedUnmarkedSsr, 28},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -357,6 +360,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			containsIdentifier(root, lowering.names.boundary))
 	serverResumptionBoundariesUsed := lowering.target == TargetServer &&
 		len(lowering.continuationComponents) != 0
+	if serverResumptionBoundariesUsed &&
+		containsIdentifier(root, lowering.names.renderClosedUnmarkedSsr) &&
+		!containsIdentifier(root, lowering.names.renderClosedSsr) &&
+		!lowering.universalSsrCallSurvives(root) &&
+		!lowering.exportsServerComponent() {
+		serverResumptionBoundariesUsed = false
+	}
 	serverEnhancementsUsed := lowering.target == TargetServer &&
 		(containsIdentifier(root, lowering.names.enhancements) ||
 			containsIdentifier(root, lowering.names.target))
@@ -418,6 +428,32 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		result = append(result, declaration)
 	}
 	return result
+}
+
+// universalSsrCallSurvives reports whether an authored public renderer call remains after closed
+// call-site lowering. Import declarations themselves do not count as runtime uses.
+func (lowering *jsxLowering) universalSsrCallSurvives(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if ast.IsCallExpression(node) &&
+			lowering.compilerClosedSsrCallee(node.AsCallExpression().Expression) {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+// exportsServerComponent keeps module-level capability installation when another module can render
+// one of this artifact's server-capable components through a renderer selected at its own call site.
+func (lowering *jsxLowering) exportsServerComponent() bool {
+	for _, component := range lowering.components {
+		if component.Exported && component.Placement != "client" {
+			return true
+		}
+	}
+	return false
 }
 
 func containsComponentSurfaceUse(root *ast.Node, names ...string) bool {
@@ -728,5 +764,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		timeActivation:         allocate("__exactTimeRange"),
 		createTimeActivation:   allocate("__exactCreateTimeActivation"),
 		renderClosedSsr:        allocate("__exactRenderClosedSsr"),
+
+		renderClosedUnmarkedSsr: allocate("__exactRenderClosedUnmarkedSsr"),
 	}
 }
