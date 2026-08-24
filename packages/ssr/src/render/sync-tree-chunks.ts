@@ -62,29 +62,33 @@ export function* renderVNodeChunks(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
-	depth: number
+	depth: number,
+	hasComponentAncestor = false
 ): Generator<string> {
 	if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
 	countSsrNode(context);
 	const enhanced = activateSsrEnhancements(context, vnode, parent);
 	if (enhanced !== vnode) {
-		yield* renderVNodeChunks(context, enhanced, parent, depth);
+		yield* renderVNodeChunks(context, enhanced, parent, depth, hasComponentAncestor);
 		return;
 	}
 	const marked = createSsrChunkMarker(context);
 
 	if (isCellVNode(vnode)) {
 		const id = markerId(context, 'cell', undefined, vnode.key);
-		yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
+		yield* marked(id, () =>
+			renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1, hasComponentAncestor)
+		);
 		return;
 	}
 	const programChunks = renderSsrProgramChunks(
 		context,
 		vnode,
 		parent,
-		(fallback) => renderVNodeChunks(context, fallback, parent, depth + 1),
+		(fallback) => renderVNodeChunks(context, fallback, parent, depth + 1, hasComponentAncestor),
 		function* (children) {
-			for (const child of children) yield* renderChildChunks(context, child, parent, depth + 1);
+			for (const child of children)
+				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		}
 	);
 	if (programChunks) {
@@ -106,7 +110,7 @@ export function* renderVNodeChunks(
 		const id = markerId(context, 'activity', undefined, vnode.key);
 		yield* marked(id, function* () {
 			for (const child of resolveSsrActivityChildren(context, vnode))
-				yield* renderChildChunks(context, child, parent, depth + 1);
+				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		});
 		return;
 	}
@@ -118,7 +122,13 @@ export function* renderVNodeChunks(
 			try {
 				yield* marked(id, function* () {
 					for (const child of prepared.children)
-						yield* renderChildChunks(context, child, prepared.parent, depth + 1);
+						yield* renderChildChunks(
+							context,
+							child,
+							prepared.parent,
+							depth + 1,
+							hasComponentAncestor
+						);
 				});
 			} finally {
 				prepared.dispose();
@@ -141,13 +151,13 @@ export function* renderVNodeChunks(
 		yield* marked(id, function* () {
 			if (!fragment.list) {
 				for (const child of fragment.children)
-					yield* renderChildChunks(context, child, parent, depth + 1);
+					yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 				return;
 			}
 			for (const child of fragment.children) {
 				if (!isVNode(child)) continue;
 				yield* marked(markerId(context, 'item', undefined, child.key), () =>
-					renderVNodeChunks(context, child, parent, depth + 1)
+					renderVNodeChunks(context, child, parent, depth + 1, hasComponentAncestor)
 				);
 			}
 		});
@@ -158,7 +168,7 @@ export function* renderVNodeChunks(
 		const id = markerId(context, 'target', undefined, vnode.key);
 		yield* marked(id, function* () {
 			for (const child of vnode.children)
-				yield* renderChildChunks(context, child, parent, depth + 1);
+				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		});
 		return;
 	}
@@ -166,7 +176,7 @@ export function* renderVNodeChunks(
 		const id = dynamicMarkerId(context, vnode);
 		yield* marked(id, function* () {
 			for (const child of resolveSsrDynamicChildren(context, vnode))
-				yield* renderChildChunks(context, child, parent, depth + 1);
+				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		});
 		return;
 	}
@@ -176,7 +186,7 @@ export function* renderVNodeChunks(
 			vnode,
 			parent,
 			depth,
-			(child, owner, childDepth) => renderChildChunks(context, child, owner, childDepth),
+			(child, owner, childDepth) => renderChildChunks(context, child, owner, childDepth, true),
 			marked
 		);
 		return;
@@ -184,12 +194,13 @@ export function* renderVNodeChunks(
 	if (vnode.type === ServerSlot) {
 		if (!vnode.children.length) return;
 		yield serverSlotOpening(serverSlotVNodeReference(vnode), context);
-		for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1);
+		for (const child of vnode.children)
+			yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		yield '</span>';
 		return;
 	}
 	if (typeof vnode.type === 'function') {
-		yield* renderComponentChunks(context, vnode, parent, depth, marked);
+		yield* renderComponentChunks(context, vnode, parent, depth, hasComponentAncestor, marked);
 		return;
 	}
 
@@ -208,7 +219,7 @@ export function* renderVNodeChunks(
 				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
 				for (const child of hostVNode.children)
-					yield* renderChildChunks(context, child, parent, depth + 1);
+					yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 			} finally {
 				context.selectValue = previousSelect;
 			}
@@ -224,6 +235,7 @@ function* renderComponentChunks(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	depth: number,
+	hasComponentAncestor: boolean,
 	marked: ReturnType<typeof createSsrChunkMarker>
 ): Generator<string> {
 	const component = vnode.type as AnyEnhancementComponentFunction;
@@ -265,7 +277,8 @@ function* renderComponentChunks(
 			children = fallback ? normalizeRenderResult(fallback()) : [];
 		}
 	const rendered = function* () {
-		for (const child of children) yield* renderChildChunks(context, child, childParent, depth + 1);
+		for (const child of children)
+			yield* renderChildChunks(context, child, childParent, depth + 1, true);
 	};
 	const checkpoint = directSnapshot ? context.onComponentAttemptCheckpoint?.() : undefined;
 	try {
@@ -273,7 +286,7 @@ function* renderComponentChunks(
 		if (enhancement) yield* rendered();
 		else if (context.documentProbe && context.hostStack.length === 0)
 			yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
-		else if (parent && blueprint.contract?.resumption)
+		else if (hasComponentAncestor && blueprint.contract?.resumption)
 			yield renderResumableComponentBoundary(
 				context,
 				vnode,
@@ -294,9 +307,10 @@ export function* renderChildChunks(
 	context: SsrContext,
 	child: Child,
 	parent: AnyComponentInstance | undefined,
-	depth: number
+	depth: number,
+	hasComponentAncestor = false
 ): Generator<string> {
-	if (isVNode(child)) yield* renderVNodeChunks(context, child, parent, depth);
+	if (isVNode(child)) yield* renderVNodeChunks(context, child, parent, depth, hasComponentAncestor);
 	else {
 		countSsrNode(context);
 		if (child === null || child === undefined || child === false || child === true) return;

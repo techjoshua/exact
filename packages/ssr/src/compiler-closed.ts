@@ -12,14 +12,26 @@ import { SsrOutputBuffer } from './render/output-buffer.js';
 import { createChunkedStringResult } from './render/output-result.js';
 import { attachSsrRootExecutionBlueprint } from './render/root-execution-cache.js';
 
-const publishMarkedComponent: DirectSsrComponentPublisher = (context, child, parent, html, props) =>
-	componentHtml(context, child, parent, componentMarkerId(context, child), html, props, {
+const publishMarkedComponent: DirectSsrComponentPublisher<boolean> = (
+	context,
+	child,
+	_parent,
+	html,
+	props,
+	hasComponentAncestor
+) =>
+	componentHtml(context, child, componentMarkerId(context, child), html, props, {
 		enhancement: false,
-		documentProbe: context.documentProbe
+		documentProbe: context.documentProbe,
+		hasComponentAncestor
 	});
 
-const publishUnmarkedComponent: DirectSsrComponentPublisher = (_context, _child, _parent, html) =>
-	html;
+const publishUnmarkedComponent: DirectSsrComponentPublisher<boolean> = (
+	_context,
+	_child,
+	_parent,
+	html
+) => html;
 
 /**
  * Compiler-only async string entrypoint for a statically proven direct component root.
@@ -66,7 +78,7 @@ type CompilerClosedOutput = {
 async function renderCompilerClosedOutput(
 	vnode: VNode,
 	options: RenderToStringOptions,
-	publish: DirectSsrComponentPublisher
+	publish: DirectSsrComponentPublisher<boolean>
 ): Promise<CompilerClosedOutput> {
 	const renderOptions = withTaskDeadline(options);
 	const context = createSsrContext(renderOptions);

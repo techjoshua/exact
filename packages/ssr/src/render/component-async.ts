@@ -17,17 +17,18 @@ type DirectComponentPublication = Readonly<{
 	componentId: string;
 	documentProbe: boolean;
 	enhancement: boolean;
+	hasComponentAncestor: boolean;
 }>;
 
 function publishDirectComponent(
 	context: SsrContext,
 	vnode: VNode,
-	parent: AnyComponentInstance | undefined,
+	_parent: AnyComponentInstance | undefined,
 	html: string,
 	props: Record<string, unknown>,
 	publication: DirectComponentPublication
 ): string {
-	return componentHtml(context, vnode, parent, publication.componentId, html, props, publication);
+	return componentHtml(context, vnode, publication.componentId, html, props, publication);
 }
 
 /** Renders a direct compiler artifact or delegates an explicitly selected generic component. */
@@ -35,7 +36,8 @@ export async function renderComponentAsync(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	hasComponentAncestor: boolean
 ): Promise<string> {
 	const componentId = componentMarkerId(context, vnode);
 	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
@@ -48,11 +50,13 @@ export async function renderComponentAsync(
 				context,
 				prepared.children,
 				prepared.failed ? parent : (prepared.instance ?? parent),
-				options
+				options,
+				true
 			);
-			return componentHtml(context, vnode, parent, componentId, html, prepared.props, {
+			return componentHtml(context, vnode, componentId, html, prepared.props, {
 				enhancement,
-				documentProbe
+				documentProbe,
+				hasComponentAncestor
 			});
 		}
 		const direct = await renderDirectSsrComponentOutput(
@@ -62,10 +66,10 @@ export async function renderComponentAsync(
 			options,
 			async (children, owner) => {
 				if (documentProbe) resetDocumentProbe(context);
-				return renderChildrenAsync(context, children, owner, options);
+				return renderChildrenAsync(context, children, owner, options, true);
 			},
 			publishDirectComponent,
-			{ componentId, enhancement, documentProbe }
+			{ componentId, enhancement, documentProbe, hasComponentAncestor }
 		);
 		if (direct !== undefined) return direct;
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
@@ -79,13 +83,20 @@ export async function renderComponentAsync(
 			rawProps,
 			componentId,
 			enhancement,
-			documentProbe
+			documentProbe,
+			hasComponentAncestor
 		});
 	} catch (error) {
 		if (isSsrRenderInterruption(error, options.signal)) throw error;
 		const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
 		const html = fallback
-			? await renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options)
+			? await renderChildrenAsync(
+					context,
+					normalizeRenderResult(fallback()),
+					parent,
+					options,
+					hasComponentAncestor
+				)
 			: '';
 		return enhancement || (documentProbe && context.documentRootSeen)
 			? html

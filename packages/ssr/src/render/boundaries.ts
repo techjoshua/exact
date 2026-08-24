@@ -1,13 +1,9 @@
 import { isFiniteClientBoundary, type VNode } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr } from '../html.js';
-import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
+import { jsonUnsafePath } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';
-import type {
-	AnyComponentInstance,
-	RenderToStringOptions,
-	SsrContext
-} from '../types.js';
+import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
 import { renderChildrenAsync } from './async-tree.js';
 import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
 import { publishClientBoundary } from './client-boundary-publication.js';
@@ -33,7 +29,7 @@ export function renderServerBoundary(context: SsrContext, vnode: VNode): string 
 	}
 	const fallback = clientBoundaryHydrationFallback(vnode);
 	const children = fallback
-		? renderChildren(context, [fallback], undefined)
+		? renderChildren(context, [fallback], undefined, true)
 		: renderServerBoundaryChildren(context, vnode, undefined);
 	// Client boundary props are serialized into an attribute, while children are
 	// represented as server slots so the client bundle does not need server-only code.
@@ -60,11 +56,11 @@ export async function renderServerBoundaryAsync(
 	const fallback = clientBoundaryHydrationFallback(vnode);
 	const slots = serverBoundarySlotReferences(vnode);
 	const children = fallback
-		? await renderChildrenAsync(context, [fallback], parent, options)
+		? await renderChildrenAsync(context, [fallback], parent, options, true)
 		: slots
 			? await boundedServerRangeChildrenAsync(context, vnode, slots, parent, options)
 			: vnode.children.length
-				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
+				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options, true)}</span>`
 				: '';
 	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
@@ -135,12 +131,12 @@ export function renderServerBoundaryChildren(
 		return vnode.children
 			.map(
 				(child, index) =>
-					`${serverSlotOpening(slots[index]!, context)}${renderChildren(context, [child], parent)}</span>`
+					`${serverSlotOpening(slots[index]!, context)}${renderChildren(context, [child], parent, true)}</span>`
 			)
 			.join('');
 	}
 	const slotId = serverSlotId(String(unwrap(vnode.props.id) ?? ''));
-	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, vnode.children, parent)}</span>`;
+	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, vnode.children, parent, true)}</span>`;
 }
 
 /** Reads and validates compiler-owned independent range identities. */
@@ -191,7 +187,7 @@ async function boundedServerRangeChildrenAsync(
 	const ranges = await Promise.all(
 		vnode.children.map(
 			async (child, index) =>
-				`${serverSlotOpening(slots[index]!, context)}${await renderChildrenAsync(context, [child], parent, options)}</span>`
+				`${serverSlotOpening(slots[index]!, context)}${await renderChildrenAsync(context, [child], parent, options, true)}</span>`
 		)
 	);
 	return ranges.join('');

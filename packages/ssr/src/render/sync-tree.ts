@@ -65,12 +65,13 @@ const syncComponentOperations = {
 export function renderVNode(
 	context: SsrContext,
 	vnode: VNode,
-	parent?: AnyComponentInstance
+	parent?: AnyComponentInstance,
+	hasComponentAncestor = false
 ): string {
 	enterSsrTreeDepth(context);
 	try {
 		countSsrNode(context);
-		const html = renderVNodeInner(context, vnode, parent);
+		const html = renderVNodeInner(context, vnode, parent, hasComponentAncestor);
 		assertOutputCharacterBound(context, html);
 		return html;
 	} finally {
@@ -82,21 +83,22 @@ export function renderVNode(
 export function renderVNodeInner(
 	context: SsrContext,
 	vnode: VNode,
-	parent?: AnyComponentInstance
+	parent?: AnyComponentInstance,
+	hasComponentAncestor = false
 ): string {
 	const enhanced = activateSsrEnhancements(context, vnode, parent);
-	if (enhanced !== vnode) return renderVNode(context, enhanced, parent);
+	if (enhanced !== vnode) return renderVNode(context, enhanced, parent, hasComponentAncestor);
 	if (isCellVNode(vnode)) {
 		return withMarker(context, 'cell', vnode.key, () =>
-			renderVNode(context, getCellVNode(vnode), parent)
+			renderVNode(context, getCellVNode(vnode), parent, hasComponentAncestor)
 		);
 	}
 	const program = renderSsrProgramString(
 		context,
 		vnode,
 		parent,
-		(fallback) => renderVNode(context, fallback, parent),
-		(children) => renderChildren(context, children, parent)
+		(fallback) => renderVNode(context, fallback, parent, hasComponentAncestor),
+		(children) => renderChildren(context, children, parent, hasComponentAncestor)
 	);
 	if (program !== undefined) return program;
 
@@ -112,7 +114,12 @@ export function renderVNodeInner(
 
 	if (vnode.type === Activity) {
 		return markerPair(context, markerId(context, 'activity', undefined, vnode.key), () =>
-			renderChildren(context, resolveSsrActivityChildren(context, vnode), parent)
+			renderChildren(
+				context,
+				resolveSsrActivityChildren(context, vnode),
+				parent,
+				hasComponentAncestor
+			)
 		);
 	}
 
@@ -122,13 +129,15 @@ export function renderVNodeInner(
 		if (prepared) {
 			try {
 				return markerPair(context, suspenseStatusMarkerId(identity, prepared.status), () =>
-					renderChildren(context, prepared.children, prepared.parent)
+					renderChildren(context, prepared.children, prepared.parent, hasComponentAncestor)
 				);
 			} finally {
 				prepared.dispose();
 			}
 		}
-		const rendered = renderNativeSuspenseSync(context, vnode, parent, renderChildren);
+		const rendered = renderNativeSuspenseSync(context, vnode, parent, (target, children, owner) =>
+			renderChildren(target, children, owner, hasComponentAncestor)
+		);
 		return markerPair(
 			context,
 			suspenseStatusMarkerId(identity, rendered.status),
@@ -143,12 +152,15 @@ export function renderVNodeInner(
 				? exactMarkerId(vnode.key)
 				: markerId(context, 'fragment', undefined, vnode.key);
 		return markerPair(context, marker, () => {
-			if (!fragment.list) return renderChildren(context, fragment.children, parent);
+			if (!fragment.list)
+				return renderChildren(context, fragment.children, parent, hasComponentAncestor);
 			const html: string[] = [];
 			for (const child of fragment.children) {
 				if (!isVNode(child)) continue;
 				html.push(
-					withMarker(context, 'item', child.key, () => renderVNode(context, child, parent))
+					withMarker(context, 'item', child.key, () =>
+						renderVNode(context, child, parent, hasComponentAncestor)
+					)
 				);
 			}
 			return boundedJoin(context, html);
@@ -158,13 +170,18 @@ export function renderVNodeInner(
 	if (vnode.type === Target) {
 		applySsrTargetContributions(context, vnode, parent);
 		return markerPair(context, markerId(context, 'target', undefined, vnode.key), () =>
-			renderChildren(context, vnode.children, parent)
+			renderChildren(context, vnode.children, parent, hasComponentAncestor)
 		);
 	}
 
 	if (vnode.type === Dynamic) {
 		const render = () => {
-			return renderChildren(context, resolveSsrDynamicChildren(context, vnode), parent);
+			return renderChildren(
+				context,
+				resolveSsrDynamicChildren(context, vnode),
+				parent,
+				hasComponentAncestor
+			);
 		};
 		return vnode.props.__exactMarkerId
 			? markerPair(context, dynamicMarkerId(context, vnode), render)
@@ -177,12 +194,18 @@ export function renderVNodeInner(
 
 	if (vnode.type === ServerSlot) {
 		if (!vnode.children.length) return '';
-		return `${serverSlotOpening(serverSlotVNodeReference(vnode), context)}${renderChildren(context, vnode.children, parent)}</span>`;
+		return `${serverSlotOpening(serverSlotVNodeReference(vnode), context)}${renderChildren(context, vnode.children, parent, hasComponentAncestor)}</span>`;
 	}
 
 	if (typeof vnode.type === 'function') {
-		return syncComponents.renderSyncComponent(context, vnode, parent, syncComponentOperations);
+		return syncComponents.renderSyncComponent(
+			context,
+			vnode,
+			parent,
+			hasComponentAncestor,
+			syncComponentOperations
+		);
 	}
 
-	return renderElement(context, vnode, parent);
+	return renderElement(context, vnode, parent, hasComponentAncestor);
 }

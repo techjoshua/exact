@@ -16,6 +16,7 @@ export type GenericSsrComponentInput = Readonly<{
 	componentId: string;
 	enhancement: boolean;
 	documentProbe: boolean;
+	hasComponentAncestor: boolean;
 }>;
 
 type GenericSsrComponentRenderer = (input: GenericSsrComponentInput) => Promise<string>;

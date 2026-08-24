@@ -34,7 +34,7 @@ export function renderGenericComponentSync({
 			const children = renderInstance(instance, () => {
 				invalidated = true;
 			});
-			html = operations.renderChildren(context, children, instance);
+			html = operations.renderChildren(context, children, instance, true);
 		} catch (error) {
 			context.onComponentAttemptRollback?.(checkpoint);
 			throw error;

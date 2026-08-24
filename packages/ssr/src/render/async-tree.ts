@@ -69,12 +69,13 @@ export async function renderChildrenAsync(
 	context: SsrContext,
 	children: readonly Child[],
 	parent: AnyComponentInstance | undefined,
-	options: RenderToStringOptions
+	options: RenderToStringOptions,
+	hasComponentAncestor = false
 ): Promise<string> {
 	const html: string[] = [];
 	let previousWasText = false;
 	for (const child of children) {
-		const rendered = await renderChildAsync(context, child, parent, options);
+		const rendered = await renderChildAsync(context, child, parent, options, hasComponentAncestor);
 		const isText = !isVNode(child) && rendered !== '';
 		if (context.textSeparators && isText && previousWasText) html.push('<!-- -->');
 		if (rendered !== '') html.push(rendered);
@@ -89,9 +90,11 @@ export async function renderChildAsync(
 	context: SsrContext,
 	child: Child,
 	parent: AnyComponentInstance | undefined,
-	options: RenderToStringOptions
+	options: RenderToStringOptions,
+	hasComponentAncestor = false
 ): Promise<string> {
-	if (isVNode(child)) return renderVNodeAsync(context, child, parent, options);
+	if (isVNode(child))
+		return renderVNodeAsync(context, child, parent, options, hasComponentAncestor);
 	countSsrNode(context);
 	if (child === null || child === undefined || child === false || child === true) return '';
 	claimRootText(context);
@@ -103,13 +106,15 @@ export async function renderVNodeAsync(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	hasComponentAncestor = false
 ): Promise<string> {
-	if (canRenderSsrSubtreeSynchronously(context, vnode)) return renderVNode(context, vnode, parent);
+	if (canRenderSsrSubtreeSynchronously(context, vnode))
+		return renderVNode(context, vnode, parent, hasComponentAncestor);
 	enterSsrTreeDepth(context);
 	try {
 		countSsrNode(context);
-		const html = await renderVNodeAsyncInner(context, vnode, parent, options);
+		const html = await renderVNodeAsyncInner(context, vnode, parent, options, hasComponentAncestor);
 		assertOutputCharacterBound(context, html);
 		return html;
 	} finally {
@@ -122,30 +127,32 @@ export async function renderVNodeAsyncInner(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	hasComponentAncestor = false
 ): Promise<string> {
 	const independentSiblings = hasIndependentAsyncSiblings(vnode);
 	const enhanced = await activateSsrEnhancementsAsync(context, vnode, parent, options);
 	if (enhanced !== vnode) {
 		if (independentSiblings) markIndependentAsyncSiblings(enhanced);
-		return renderVNodeAsync(context, enhanced, parent, options);
+		return renderVNodeAsync(context, enhanced, parent, options, hasComponentAncestor);
 	}
 	if (isCellVNode(vnode)) {
 		const inner = getCellVNode(vnode);
 		if (independentSiblings) markIndependentAsyncSiblings(inner);
 		return markerPair(context, markerId(context, 'cell', undefined, vnode.key), async () =>
-			renderVNodeAsync(context, inner, parent, options)
+			renderVNodeAsync(context, inner, parent, options, hasComponentAncestor)
 		);
 	}
 	if (vnode.type === RenderProgram) {
 		const planned = renderSsrProgram(context, vnode, parent);
-		if (planned.fallback) return renderVNodeAsync(context, planned.fallback, parent, options);
+		if (planned.fallback)
+			return renderVNodeAsync(context, planned.fallback, parent, options, hasComponentAncestor);
 		const html: string[] = [];
 		for (const segment of planned.segments!) {
 			html.push(
 				typeof segment === 'string'
 					? segment
-					: await renderChildrenAsync(context, segment, parent, options)
+					: await renderChildrenAsync(context, segment, parent, options, hasComponentAncestor)
 			);
 		}
 		return boundedJoin(context, html);
@@ -163,7 +170,13 @@ export async function renderVNodeAsyncInner(
 
 	if (vnode.type === Activity) {
 		return markerPair(context, markerId(context, 'activity', undefined, vnode.key), async () =>
-			renderChildrenAsync(context, resolveSsrActivityChildren(context, vnode), parent, options)
+			renderChildrenAsync(
+				context,
+				resolveSsrActivityChildren(context, vnode),
+				parent,
+				options,
+				hasComponentAncestor
+			)
 		);
 	}
 
@@ -173,7 +186,13 @@ export async function renderVNodeAsyncInner(
 		if (prepared) {
 			try {
 				return await markerPair(context, suspenseStatusMarkerId(identity, prepared.status), () =>
-					renderChildrenAsync(context, prepared.children, prepared.parent, options)
+					renderChildrenAsync(
+						context,
+						prepared.children,
+						prepared.parent,
+						options,
+						hasComponentAncestor
+					)
 				);
 			} finally {
 				prepared.dispose();
@@ -184,7 +203,8 @@ export async function renderVNodeAsyncInner(
 			vnode,
 			parent,
 			options,
-			renderChildrenAsync
+			(target, children, owner, renderOptions) =>
+				renderChildrenAsync(target, children, owner, renderOptions, hasComponentAncestor)
 		);
 		return markerPair(
 			context,
@@ -200,13 +220,20 @@ export async function renderVNodeAsyncInner(
 				? exactMarkerId(vnode.key)
 				: markerId(context, 'fragment', undefined, vnode.key);
 		return markerPair(context, marker, async () => {
-			if (!fragment.list) return renderChildrenAsync(context, fragment.children, parent, options);
+			if (!fragment.list)
+				return renderChildrenAsync(
+					context,
+					fragment.children,
+					parent,
+					options,
+					hasComponentAncestor
+				);
 			const html: string[] = [];
 			for (const child of fragment.children) {
 				if (!isVNode(child)) continue;
 				html.push(
 					await markerPair(context, markerId(context, 'item', undefined, child.key), () =>
-						renderVNodeAsync(context, child, parent, options)
+						renderVNodeAsync(context, child, parent, options, hasComponentAncestor)
 					)
 				);
 			}
@@ -217,13 +244,19 @@ export async function renderVNodeAsyncInner(
 	if (vnode.type === Target) {
 		await applySsrTargetContributionsAsync(context, vnode, parent, options);
 		return markerPair(context, markerId(context, 'target', undefined, vnode.key), () =>
-			renderChildrenAsync(context, vnode.children, parent, options)
+			renderChildrenAsync(context, vnode.children, parent, options, hasComponentAncestor)
 		);
 	}
 
 	if (vnode.type === Dynamic) {
 		return markDynamic(context, vnode, async () =>
-			renderChildrenAsync(context, resolveSsrDynamicChildren(context, vnode), parent, options)
+			renderChildrenAsync(
+				context,
+				resolveSsrDynamicChildren(context, vnode),
+				parent,
+				options,
+				hasComponentAncestor
+			)
 		);
 	}
 
@@ -233,11 +266,11 @@ export async function renderVNodeAsyncInner(
 
 	if (vnode.type === ServerSlot) {
 		if (!vnode.children.length) return '';
-		return `${serverSlotOpening(serverSlotVNodeReference(vnode), context)}${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`;
+		return `${serverSlotOpening(serverSlotVNodeReference(vnode), context)}${await renderChildrenAsync(context, vnode.children, parent, options, hasComponentAncestor)}</span>`;
 	}
 
 	if (typeof vnode.type === 'function') {
-		return renderComponentAsync(context, vnode, parent, options);
+		return renderComponentAsync(context, vnode, parent, options, hasComponentAncestor);
 	}
 
 	const contributed = context.targetContributions?.get(vnode);
@@ -267,9 +300,16 @@ export async function renderVNodeAsyncInner(
 								hostVNode.children,
 								parent,
 								options,
-								renderChildAsync
+								(target, child, owner, renderOptions) =>
+									renderChildAsync(target, child, owner, renderOptions, hasComponentAncestor)
 							)
-						: await renderChildrenAsync(context, hostVNode.children, parent, options);
+						: await renderChildrenAsync(
+								context,
+								hostVNode.children,
+								parent,
+								options,
+								hasComponentAncestor
+							);
 			} finally {
 				context.selectValue = previousSelect;
 			}
