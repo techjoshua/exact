@@ -45,16 +45,19 @@ Chromium's JavaScript parse, compile, evaluation, and total script-duration sign
 readiness. It runs at 1x, 4x, and 6x CPU rates by default. `COMPARISON_STARTUP_SAMPLES` selects the sample
 count and `COMPARISON_CPU_RATES` accepts a comma-separated rate list.
 
-The isolated SSR profile starts one framework process at a time on Node and Bun. It reports cold
-startup, warm sequential and concurrent request phases, CPU per request, post-GC memory trends,
-stable response identity, and server-artifact sizes. `COMPARISON_SSR_SAMPLES` selects sequential
+The isolated SSR profile starts one framework process at a time on Node and Bun. Each participant
+declares its production transport for each runtime: native integrations such as eXact's `Bun.serve`
+lane are measured directly, while compatibility-only paths remain explicitly labeled. The report
+includes cold startup, warm sequential and concurrent request phases, CPU per request, post-GC memory
+trends, stable response identity, and target-local server-artifact sizes. `COMPARISON_SSR_SAMPLES` selects sequential
 samples; the `COMPARISON_SSR_STARTUP_SAMPLES`, `COMPARISON_SSR_CONCURRENCY`,
 `COMPARISON_SSR_CONCURRENCY_WAVES`, `COMPARISON_SSR_RETENTION_BATCHES`, and
 `COMPARISON_SSR_RETENTION_BATCH_SIZE` variables control the other lanes. Use
 `COMPARISON_SSR_RUNTIMES=node` when only Node is installed.
 
 The SSR report is written under `results/raw/`. Treat its Node and Bun rows as separate runtime
-profiles, and compare framework results only within the same row and benchmark run.
+profiles, compare framework results only within the same row and benchmark run, and retain the
+reported transport identity when interpreting a framework's runtime support.
 
 The service listens on `http://127.0.0.1:4310` by default. `PORT` may select another port. Its state can
 be restored with `POST /__benchmark/reset` and the `x-benchmark-control: fixture-reset` header.

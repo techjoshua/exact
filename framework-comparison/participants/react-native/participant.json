@@ -6,6 +6,7 @@
 	"status": "scaffolded",
 	"tracks": ["native-full-stack"],
 	"runtime": "node-24",
+	"ssrTransports": { "node": "node-http", "bun": "node-http-compat" },
 	"commands": {
 		"build": "npm run build:react-native -w @exactjs/framework-comparison-suite",
 		"start": "npm run start:react-native -w @exactjs/framework-comparison-suite"

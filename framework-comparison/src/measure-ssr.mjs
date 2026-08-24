@@ -13,6 +13,7 @@ import {
 	summarizeSsrSamples,
 	summarizeWorkerRequests
 } from './ssr-benchmark-statistics.mjs';
+import { ssrTransportFor } from './ssr-benchmark-transport.mjs';
 
 if (!process.argv.includes('--correctness-passed'))
 	throw new Error('Run `npm run measure:ssr` so correctness gates the SSR benchmark.');
@@ -32,10 +33,10 @@ const saturationWaves = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WA
 const retentionBatches = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCHES, 5);
 const retentionBatchSize = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCH_SIZE, 50);
 const participants = [
-	{ id: 'exact', artifact: 'dist-server' },
-	{ id: 'react', artifact: 'dist-server' },
-	{ id: 'sveltekit', artifact: 'build/server' },
-	{ id: 'nuxt', artifact: '.output/server' }
+	{ id: 'exact', artifacts: { node: 'dist-server', bun: 'dist-bun-server' } },
+	{ id: 'react', artifacts: { node: 'dist-server', bun: 'dist-server' } },
+	{ id: 'sveltekit', artifacts: { node: 'build/server', bun: 'build/server' } },
+	{ id: 'nuxt', artifacts: { node: '.output/server', bun: '.output/server' } }
 ];
 const runtimes = availableRuntimes();
 const participantMetadata = await Promise.all(
@@ -44,6 +45,9 @@ const participantMetadata = await Promise.all(
 			await readFile(resolve(suiteRoot, 'participants', participant.id, 'participant.json'), 'utf8')
 		)
 	)
+);
+const participantMetadataById = Object.fromEntries(
+	participants.map((participant, index) => [participant.id, participantMetadata[index]])
 );
 const unreviewed = participantMetadata.filter((metadata) => metadata.status !== 'complete');
 if (unreviewed.length && !process.argv.includes('--allow-unreviewed'))
@@ -55,10 +59,22 @@ const service = await startComparisonServer();
 try {
 	const artifacts = Object.fromEntries(
 		await Promise.all(
-			participants.map(async (participant) => [
-				participant.id,
-				await measureArtifact(
-					resolve(suiteRoot, 'participants', participant.id, participant.artifact)
+			runtimes.map(async (runtime) => [
+				runtime.id,
+				Object.fromEntries(
+					await Promise.all(
+						participants.map(async (participant) => [
+							participant.id,
+							await measureArtifact(
+								resolve(
+									suiteRoot,
+									'participants',
+									participant.id,
+									participant.artifacts[runtime.id]
+								)
+							)
+						])
+					)
 				)
 			])
 		)
@@ -67,12 +83,19 @@ try {
 	for (const runtime of runtimes) {
 		results[runtime.id] = {};
 		for (const participant of participants) {
-			process.stdout.write(`Measuring ${participant.id} SSR on ${runtime.id}...\n`);
-			results[runtime.id][participant.id] = await measureParticipant(runtime, participant.id);
+			const transport = ssrTransportFor(participantMetadataById[participant.id], runtime.id);
+			process.stdout.write(
+				`Measuring ${participant.id} SSR on ${runtime.id} through ${transport}...\n`
+			);
+			results[runtime.id][participant.id] = await measureParticipant(
+				runtime,
+				participant.id,
+				transport
+			);
 		}
 	}
 	const report = {
-		schemaVersion: 2,
+		schemaVersion: 3,
 		kind: 'framework-comparison-ssr-run',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
@@ -98,7 +121,8 @@ try {
 			'Every SSR route loads the same fixture through the controlled service before rendering.',
 			'Saturation levels measure finite local-loopback waves rather than an externally generated maximum-load plateau.',
 			'Post-GC slopes are leak signals across a bounded run, not proof of unbounded retention.',
-			'Bun compatibility is measured against the same Node-oriented production artifacts.'
+			'Each participant declares its production transport per runtime; transport identity is recorded with every result.',
+			"Frameworks without native Bun hosting remain on Bun's node:http compatibility layer."
 		]
 	};
 	const output = outputPath();
@@ -111,13 +135,13 @@ try {
 }
 
 /** Measures one framework/runtime pair while retaining exactly one owned worker at a time. */
-async function measureParticipant(runtime, participantId) {
+async function measureParticipant(runtime, participantId, transport) {
 	const startupMs = [];
 	let worker;
 	try {
 		for (let index = 0; index < startupSampleCount; index += 1) {
 			if (worker) await stopWorker(worker);
-			worker = await startWorker(runtime, participantId);
+			worker = await startWorker(runtime, participantId, transport);
 			startupMs.push(worker.startupMs);
 		}
 		for (let index = 0; index < warmupCount; index += 1) await measureRequest(worker.url);
@@ -151,6 +175,11 @@ async function measureParticipant(runtime, participantId) {
 		}
 
 		return {
+			transport,
+			workerMeasurement:
+				transport === 'bun-fetch'
+					? 'fetch-handler-response-ready'
+					: 'node-response-first-byte-and-finish',
 			startupMs: summarizeSsrSamples(startupMs),
 			startupSamplesMs: startupMs,
 			sequential: summarizeLane(sequentialSamples, sequentialBefore, sequentialAfter, sampleCount),
@@ -232,9 +261,9 @@ function summarizeRetention(checkpoints) {
 }
 
 /** Starts one runtime process and resolves only after its production modules are listening. */
-async function startWorker(runtime, participantId) {
+async function startWorker(runtime, participantId, transport) {
 	const startedAt = performance.now();
-	const arguments_ = [...runtime.arguments, workerPath, participantId, '0'];
+	const arguments_ = [...runtime.arguments, workerPath, participantId, '0', runtime.id, transport];
 	const child = spawn(runtime.command, arguments_, {
 		cwd: suiteRoot,
 		env: {
@@ -280,6 +309,10 @@ async function startWorker(runtime, participantId) {
 			}
 		});
 	});
+	if (ready.transport !== transport)
+		throw new Error(
+			`SSR worker transport mismatch for ${runtime.id}/${participantId}: expected ${transport}, received ${ready.transport}`
+		);
 	return {
 		child,
 		participantId,
