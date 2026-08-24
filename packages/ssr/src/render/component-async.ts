@@ -2,7 +2,7 @@ import { type AnyComponentFunction, normalizeRenderResult, type VNode } from '@e
 import { markerPair } from '../markup.js';
 import type { AnyComponentInstance, SsrContext } from '../types.js';
 import { renderChildrenAsync } from './async-tree.js';
-import { componentMarkerId } from './boundaries.js';
+import { componentMarkerId } from './component-markers.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { componentHtml } from './component-output.js';
 import { handleSsrConstructionError } from './construction-error-capability.js';

@@ -38,13 +38,10 @@ import {
 	resolveSsrFragmentChildren
 } from './logical-children.js';
 import { dynamicMarkerId } from './marker-identity.js';
-import {
-	componentMarkerId,
-	renderResumableComponentBoundary,
-	renderServerBoundary,
-	serverSlotOpening,
-	serverSlotVNodeReference
-} from './boundaries.js';
+import { componentMarkerId } from './component-markers.js';
+import { renderResumableComponentBoundary } from './resumption-boundary-capability.js';
+import { renderServerBoundary } from './server-boundary-capability.js';
+import { serverSlotOpening, serverSlotVNodeReference } from './server-slots.js';
 import { renderElement, renderUnsafeHtml } from './host.js';
 import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
 import { activateSsrEnhancements } from './enhancements.js';

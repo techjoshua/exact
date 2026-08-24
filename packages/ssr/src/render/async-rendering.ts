@@ -13,7 +13,7 @@ import type {
 	RenderToStringResult
 } from '../types.js';
 import { renderVNodeAsync } from './async-tree.js';
-import { shouldEmitDocumentHydration } from './boundaries.js';
+import { shouldEmitDocumentHydration } from './document-hydration.js';
 import { createSsrContext, drainTasks } from './context.js';
 import { hydrationScriptOptions } from './hydration-options.js';
 import { renderToStringOwned } from './entrypoints.js';

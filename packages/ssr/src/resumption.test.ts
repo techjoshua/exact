@@ -17,7 +17,7 @@ import {
 	renderToHydratableString,
 	renderToHydratableStringAsync
 } from './index.js';
-import { renderResumableComponentBoundary } from './render/boundaries.js';
+import { renderResumableComponentBoundary } from './render/resumption-boundaries.js';
 import { createSsrContext } from './render/context.js';
 import { readRemainingStreamEvents } from './test-support/streams.js';
 import { createVNode } from './test-support/native-vnode.js';

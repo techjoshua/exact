@@ -35,11 +35,8 @@ import {
 	leaveSsrTreeDepth
 } from '../render/limits.js';
 import type { AnyComponentInstance, Child, RenderToStringOptions, SsrContext } from '../types.js';
-import {
-	renderServerBoundaryAsync,
-	serverSlotOpening,
-	serverSlotVNodeReference
-} from './boundaries.js';
+import { renderServerBoundaryAsync } from './server-boundary-capability.js';
+import { serverSlotOpening, serverSlotVNodeReference } from './server-slots.js';
 import { type SsrRenderOptions } from './entrypoints.js';
 import {
 	claimRootText,

@@ -23,13 +23,10 @@ import { exactMarkerId, markerId, renderAttrs, suspenseStatusMarkerId } from '..
 import { SsrTreeDepthError, boundedJoin, countSsrNode, isSsrRenderLimitError } from './limits.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
 import type { DirectSsrComponentSnapshot } from '../types.js';
-import {
-	componentMarkerId,
-	renderResumableComponentBoundary,
-	serverSlotOpening,
-	serverSlotVNodeReference
-} from './boundaries.js';
-import { renderClientBoundaryChunks } from './client-boundary-chunks.js';
+import { componentMarkerId } from './component-markers.js';
+import { renderResumableComponentBoundary } from './resumption-boundary-capability.js';
+import { serverSlotOpening, serverSlotVNodeReference } from './server-slots.js';
+import { renderServerBoundaryChunks } from './server-boundary-chunk-capability.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { handleSsrConstructionError } from './construction-error-capability.js';
 import { activateSsrEnhancements } from './enhancements.js';
@@ -172,7 +169,7 @@ export function* renderVNodeChunks(
 		return;
 	}
 	if (vnode.type === ServerBoundary) {
-		yield* renderClientBoundaryChunks(
+		yield* renderServerBoundaryChunks(
 			context,
 			vnode,
 			parent,

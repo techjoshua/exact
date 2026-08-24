@@ -4,13 +4,9 @@ import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { markerId } from '../markup.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
 import type { VNode } from '@exactjs/core';
-import {
-	clientBoundaryProps,
-	clientBoundarySerializationMessage,
-	serverBoundarySlotReferences,
-	serverSlotId,
-	serverSlotOpening
-} from './boundaries.js';
+import { clientBoundaryProps, serverBoundarySlotReferences } from './boundaries.js';
+import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
+import { serverSlotId, serverSlotOpening } from './server-slots.js';
 
 type ChunkRenderer = (
 	child: Child,
