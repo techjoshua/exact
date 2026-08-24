@@ -8273,6 +8273,12 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	if strings.Contains(server.Code, `@exactjs/dom/runtime/target`) {
 		t.Fatalf("server target output selected a client DOM capability:\n%s", server.Code)
 	}
+	if !strings.Contains(server.Code, `import "@exactjs/ssr/runtime/enhancements"`) {
+		t.Fatalf("server target output omitted its SSR enhancement capability:\n%s", server.Code)
+	}
+	if strings.Contains(valid.Code, `@exactjs/ssr/runtime/enhancements`) {
+		t.Fatalf("client target output retained an SSR enhancement capability:\n%s", valid.Code)
+	}
 	missing := NewSession().Execute(Request{
 		ID: "missing-target.tsx", Kind: "compile", Source: `export const view = <_target />;`,
 	})

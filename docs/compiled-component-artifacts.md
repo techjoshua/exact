@@ -43,7 +43,9 @@ construction, enhancement planning, and native structural-boundary ownership are
 installed capabilities selected only by artifacts that can reach those paths. Resumption
 publication is a distinct server capability: a compiled continuation component can publish its
 request-local resumption envelope without retaining client-boundary traversal or generic component
-construction. Client-only artifacts never select SSR, resumption, or continuation capabilities;
+construction. SSR enhancement activation and `_target` composition are likewise installed only by
+server artifacts that emit enhancement operations. Client-only artifacts never select SSR,
+resumption, or continuation capabilities;
 SSR-only, hydratable, continuation, and mixed artifacts each import their own analyzed lane.
 Compiler-owned vnode discriminators use realm-stable ABI identities so separately loaded
 precompiled libraries and renderer modules agree on generated execution boundaries during

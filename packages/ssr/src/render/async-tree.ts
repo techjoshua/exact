@@ -53,8 +53,10 @@ import {
 	resolveSsrDynamicChildren,
 	resolveSsrFragmentChildren
 } from './logical-children.js';
-import { activateSsrEnhancementsAsync } from './enhancements.js';
-import { applySsrTargetContributionsAsync } from './target-contributions.js';
+import {
+	activateSsrEnhancementsAsync,
+	applySsrTargetContributionsAsync
+} from './enhancement-execution-capability.js';
 import { renderSsrProgram } from './render-program.js';
 import { canRenderIndependentChildren, renderIndependentChildren } from './async-independent.js';
 import { renderComponentAsync } from './component-async.js';

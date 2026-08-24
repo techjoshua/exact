@@ -29,7 +29,10 @@ import { serverSlotOpening, serverSlotVNodeReference } from './server-slots.js';
 import { renderServerBoundaryChunks } from './server-boundary-chunk-capability.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { handleSsrConstructionError } from './construction-error-capability.js';
-import { activateSsrEnhancements } from './enhancements.js';
+import {
+	activateSsrEnhancements,
+	applySsrTargetContributions
+} from './enhancement-execution-capability.js';
 import {
 	claimRootText,
 	enterHost,
@@ -53,7 +56,6 @@ import { renderGenericSyncSsrComponentChunks } from './generic-component-capabil
 import { renderChildren } from './sync-children.js';
 import * as syncComponents from './sync-component.js';
 import { createSsrChunkMarker } from './sync-markers.js';
-import { applySsrTargetContributions } from './target-contributions.js';
 
 /** Streams one synchronous VNode tree while preserving marker and ownership semantics. */
 export function* renderVNodeChunks(

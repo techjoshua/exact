@@ -103,7 +103,9 @@ function assertCompilerClosedServerBundle(source) {
 		'metadataByCollection',
 		'function peek',
 		'function clientBoundaryProps',
-		'function* renderClientBoundaryChunks'
+		'function* renderClientBoundaryChunks',
+		'function orderEnhancementEntries',
+		'function applyPreparedTargetTree'
 	]) {
 		if (source.includes(signature))
 			throw new Error(`Compiler-closed server bundle retained generic runtime ${signature}`);

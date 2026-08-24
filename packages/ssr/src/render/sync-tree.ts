@@ -44,8 +44,10 @@ import { renderServerBoundary } from './server-boundary-capability.js';
 import { serverSlotOpening, serverSlotVNodeReference } from './server-slots.js';
 import { renderElement, renderUnsafeHtml } from './host.js';
 import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
-import { activateSsrEnhancements } from './enhancements.js';
-import { applySsrTargetContributions } from './target-contributions.js';
+import {
+	activateSsrEnhancements,
+	applySsrTargetContributions
+} from './enhancement-execution-capability.js';
 import { renderChildren } from './sync-children.js';
 import * as syncComponents from './sync-component.js';
 import { renderSsrProgramString } from './render-program.js';
