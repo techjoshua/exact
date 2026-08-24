@@ -287,15 +287,13 @@ function* renderComponentChunks(
 				context,
 				directProgram,
 				childParent,
-				(fallback) =>
-					renderVNodeChunks(context, fallback, childParent, depth + 1, true),
+				(fallback) => renderVNodeChunks(context, fallback, childParent, depth + 1, true),
 				(programChildren) =>
 					(function* () {
 						for (const child of programChildren)
 							yield* renderChildChunks(context, child, childParent, depth + 1, true);
 					})(),
-				(component) =>
-					renderVNodeChunks(context, component, childParent, depth + 1, true, true)
+				(component) => renderVNodeChunks(context, component, childParent, depth + 1, true, true)
 			);
 			return;
 		}

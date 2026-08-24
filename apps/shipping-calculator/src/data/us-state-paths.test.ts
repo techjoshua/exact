@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 describe('Census map paths', () => {
 	it('includes the states, DC, and Puerto Rico without projection spikes', async () => {
-		const svg = await readFile(new URL('../../public/assets/us-states.svg', import.meta.url), 'utf8');
+		const svg = await readFile(
+			new URL('../../public/assets/us-states.svg', import.meta.url),
+			'utf8'
+		);
 		const states = [...svg.matchAll(/<path class="[^"]+" data-state="([A-Z]+)" d="([^"]+)"/g)].map(
 			(match) => ({ abbreviation: match[1]!, d: match[2]! })
 		);

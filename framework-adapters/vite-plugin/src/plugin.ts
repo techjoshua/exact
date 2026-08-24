@@ -10,13 +10,10 @@ import {
 	prepareExactPluginRegistry,
 	type ExactPreparedPluginRegistry
 } from '@exactjs/plugin-host/node';
-import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
-import {
-	resolveReactCompatibility,
-	validateInstalledReactReconciler
-} from '@exactjs/react-compat/plugin';
+import { validateInstalledReactReconciler } from '@exactjs/react-compat/plugin';
 import path from 'node:path';
 import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js';
+import { createExactViteAuthorizationOptions } from './authorization-options.js';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
 import { exactViteConfig } from './vite-config.js';
@@ -45,26 +42,14 @@ import {
 } from '@exactjs/language-extension-host';
 import { ExactViteCompilerSession } from './compiler-session.js';
 import { emitExactViteServerArtifacts } from './server-artifacts.js';
+import { createExactViteReactCompatibility } from './react-compatibility.js';
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const compiler = new ExactViteCompilerSession(options.diagnostics ?? false, options.onProfile);
 	const diagnosticReporter = createExactDiagnosticReporter();
-	const compatibilityCwd =
-		(typeof options.reactCompatibility === 'object' ? options.reactCompatibility.cwd : undefined) ??
-		options.applicationRoot ??
-		process.cwd();
-	const reactCompatibility = resolveReactCompatibility(
-		options.reactCompatibility,
-		compatibilityCwd
-	);
-	const compatibilityEngine = reactCompatibility
-		? createReactCompatibilityBuildEngine(
-				typeof options.reactCompatibility === 'object'
-					? options.reactCompatibility
-					: { cwd: compatibilityCwd, target: reactCompatibility.target }
-			)
-		: undefined;
+	const { compatibility: reactCompatibility, engine: compatibilityEngine } =
+		createExactViteReactCompatibility(options);
 	let preparedRegistry: ExactPreparedPluginRegistry | undefined;
 	let loadedConfig: ExactLoadedConfig | undefined;
 	let languageValidation: ExactLanguageValidationSession | undefined;
@@ -117,10 +102,13 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		},
 		configResolved(config) {
 			viteCommand = config.command;
-			if (config.command === 'build' && Boolean(config.build?.ssr) !== (options.target === 'server'))
+			if (
+				config.command === 'build' &&
+				Boolean(config.build?.ssr) !== (options.target === 'server')
+			)
 				throw new Error(
 					config.build?.ssr
-						? 'eXact Vite SSR builds require exact({ target: \'server\' })'
+						? "eXact Vite SSR builds require exact({ target: 'server' })"
 						: 'eXact Vite server targets require Vite build.ssr'
 				);
 			compiler.configure(options.diagnostics ?? config.command === 'serve');
@@ -191,12 +179,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				resolve: async (request, owner) =>
 					this.resolve ? this.resolve(request, owner, { skipSelf: true }) : null,
 				authorize: (resolved, request, owner) =>
-					componentAuthorization.authorize(resolved, request, owner, {
-						applicationRoot:
+					componentAuthorization.authorize(
+						resolved,
+						request,
+						owner,
+						createExactViteAuthorizationOptions(
+							options,
 							preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
-						executionReason: options.serverExecutionReason,
-						watch: (file) => this.addWatchFile?.(file)
-					}),
+							(file) => this.addWatchFile?.(file)
+						)
+					),
 				requires: (request, owner) => componentAuthorization.requires(request, owner),
 				activationModule:
 					options.target === 'server' ? undefined : '@exactjs/dom/framework/enhancements',
@@ -239,12 +231,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						value ?? (this.resolve ? this.resolve(source, importer, { skipSelf: true }) : null)
 				)
 				.then((value) =>
-					componentAuthorization.authorize(value, source, importer, {
-						applicationRoot:
+					componentAuthorization.authorize(
+						value,
+						source,
+						importer,
+						createExactViteAuthorizationOptions(
+							options,
 							preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
-						executionReason: options.serverExecutionReason,
-						watch: (file) => this.addWatchFile?.(file)
-					})
+							(file) => this.addWatchFile?.(file)
+						)
+					)
 				);
 		},
 		load(id) {
@@ -309,11 +305,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				const registry = await prepareRegistry();
 				openAuthorizationGeneration(registry);
 				try {
-					const authorizationOptions = {
-						applicationRoot: registry.applicationRoot,
-						executionReason: options.serverExecutionReason,
-						watch: (file: string) => this.addWatchFile?.(file)
-					};
+					const authorizationOptions = createExactViteAuthorizationOptions(
+						options,
+						registry.applicationRoot,
+						(file) => this.addWatchFile?.(file)
+					);
 					await componentAuthorization.revalidate(
 						authorizationOptions,
 						componentAuthorization.watches(context.file) ? undefined : filename

@@ -41,10 +41,7 @@ export function collectSsrEnhancementRoutes(
 		}
 	});
 	for (const [target, group] of groups)
-		(context.enhancementTargets ??= new WeakMap()).set(
-			target,
-			Object.freeze([...group.entries])
-		);
+		(context.enhancementTargets ??= new WeakMap()).set(target, Object.freeze([...group.entries]));
 }
 
 function mergeEntry(group: TargetGroup, entry: EnhancementEntry, order: number): void {
