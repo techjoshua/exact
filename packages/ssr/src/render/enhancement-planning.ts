@@ -36,7 +36,7 @@ export function planSsrEnhancementBoundary(
 	boundary: VNode,
 	parent: AnyComponentInstance | undefined
 ): void {
-	if (context.plannedEnhancementBoundaries.has(boundary)) return;
+	if (context.plannedEnhancementBoundaries?.has(boundary)) return;
 	const budget = { nodes: 0 };
 	materializeSync(context, boundary, parent, 1, budget);
 	collectSsrEnhancementRoutes(context, boundary, parent, 1, { nodes: 0 });
@@ -49,7 +49,7 @@ export async function planSsrEnhancementBoundaryAsync(
 	parent: AnyComponentInstance | undefined,
 	options: SsrAsyncOptions
 ): Promise<void> {
-	if (context.plannedEnhancementBoundaries.has(boundary)) return;
+	if (context.plannedEnhancementBoundaries?.has(boundary)) return;
 	const budget = { nodes: 0 };
 	await materializeAsync(context, boundary, parent, options, 1, budget);
 	collectSsrEnhancementRoutes(context, boundary, parent, 1, { nodes: 0 });
@@ -61,9 +61,9 @@ export function prepareSsrTargetBoundary(
 	boundary: VNode,
 	parent: AnyComponentInstance | undefined
 ): void {
-	if (context.plannedTargetBoundaries.has(boundary)) return;
+	if (context.plannedTargetBoundaries?.has(boundary)) return;
 	materializeSync(context, boundary, parent, 1, { nodes: 0 });
-	context.plannedTargetBoundaries.add(boundary);
+	(context.plannedTargetBoundaries ??= new WeakSet()).add(boundary);
 }
 
 /** Asynchronously prepares one `_target` subtree and its durable state-machine instances. */
@@ -73,9 +73,9 @@ export async function prepareSsrTargetBoundaryAsync(
 	parent: AnyComponentInstance | undefined,
 	options: SsrAsyncOptions
 ): Promise<void> {
-	if (context.plannedTargetBoundaries.has(boundary)) return;
+	if (context.plannedTargetBoundaries?.has(boundary)) return;
 	await materializeAsync(context, boundary, parent, options, 1, { nodes: 0 });
-	context.plannedTargetBoundaries.add(boundary);
+	(context.plannedTargetBoundaries ??= new WeakSet()).add(boundary);
 }
 
 /**
@@ -117,7 +117,7 @@ function materializeSync(
 					if (isVNode(child)) materializeSync(context, child, parent, depth + 1, budget);
 				}
 			}
-			context.preparedEnhancementSuspense.set(
+			(context.preparedEnhancementSuspense ??= new WeakMap()).set(
 				vnode,
 				preparedSuspense(
 					children,
@@ -135,7 +135,7 @@ function materializeSync(
 		return;
 	}
 	if (typeof vnode.type === 'function') {
-		if (context.preparedEnhancementComponents.has(vnode)) return;
+		if (context.preparedEnhancementComponents?.has(vnode)) return;
 		const props = getComponentProps(vnode);
 		let instance: AnyComponentInstance | undefined;
 		let children: readonly Child[] = [];
@@ -174,7 +174,7 @@ function materializeSync(
 				if (isVNode(child)) materializeSync(context, child, parent, depth + 1, budget);
 			}
 		}
-		context.preparedEnhancementComponents.set(vnode, {
+		(context.preparedEnhancementComponents ??= new WeakMap()).set(vnode, {
 			instance,
 			props,
 			children,
@@ -220,7 +220,7 @@ async function materializeAsync(
 					await materializeAsync(context, child, owner, options, depth + 1, budget);
 			}
 			await awaitWithAbort(coordinator.whenReady(), options.signal, options.taskDeadline);
-			context.preparedEnhancementSuspense.set(
+			(context.preparedEnhancementSuspense ??= new WeakMap()).set(
 				vnode,
 				preparedSuspense(vnode.children, owner, 'content', coordinator, owner)
 			);
@@ -232,7 +232,7 @@ async function materializeAsync(
 		return;
 	}
 	if (typeof vnode.type === 'function') {
-		if (context.preparedEnhancementComponents.has(vnode)) return;
+		if (context.preparedEnhancementComponents?.has(vnode)) return;
 		const props = getComponentProps(vnode);
 		let instance: AnyComponentInstance | undefined;
 		let children: readonly Child[] = [];
@@ -291,7 +291,7 @@ async function materializeAsync(
 					await materializeAsync(context, child, parent, options, depth + 1, budget);
 			}
 		}
-		context.preparedEnhancementComponents.set(vnode, {
+		(context.preparedEnhancementComponents ??= new WeakMap()).set(vnode, {
 			instance,
 			props,
 			children,

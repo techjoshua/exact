@@ -25,17 +25,17 @@ type OutputSlot = {
 	status: 'pending' | 'available' | 'failed';
 	value?: unknown;
 	error?: unknown;
-	waiters: Set<{ resolve(value: unknown): void; reject(error: unknown): void }>;
-	subscribers: Set<() => void>;
+	waiters?: Set<{ resolve(value: unknown): void; reject(error: unknown): void }>;
+	subscribers?: Set<() => void>;
 };
 
 type MutableServerExecutionFrame = {
 	host: { readonly state?: object };
 	options: ServerExecutionOptions;
 	controller: AbortController;
-	ports: Map<number, OutputSlot>;
-	paths: Map<string, number>;
-	active: Set<Promise<unknown>>;
+	ports: OutputSlot[];
+	paths: Array<readonly [path: string, port: number]>;
+	active: Promise<unknown>[];
 	disposed: boolean;
 };
 
@@ -93,8 +93,9 @@ export function serverComponentDependencyForValue(value: unknown) {
 			}
 		},
 		subscribe(notify: () => void): Disposable {
-			slot.subscribers.add(notify);
-			return { [Symbol.dispose]: () => slot.subscribers.delete(notify) };
+			const subscribers = (slot.subscribers ??= new Set());
+			subscribers.add(notify);
+			return { [Symbol.dispose]: () => subscribers.delete(notify) };
 		}
 	};
 }
@@ -115,9 +116,10 @@ export function serverComponentExecutionValueForHost<T>(
 	if (!frame) return value;
 	const paths = typeof path === 'string' ? [path] : path;
 	for (const candidate of paths) {
-		const port = frame.paths.get(candidate.replace(/^this\.state\./, ''));
-		if (port !== undefined)
-			return Object.freeze({ [serverDependencyBrand]: outputSlot(frame, port) });
+		const normalized = candidate.replace(/^this\.state\./, '');
+		for (const [registered, port] of frame.paths)
+			if (registered === normalized)
+				return Object.freeze({ [serverDependencyBrand]: outputSlot(frame, port) });
 	}
 	return value;
 }
@@ -135,9 +137,9 @@ export function createServerComponentExecutionFrame(
 		host,
 		options,
 		controller: new AbortController(),
-		ports: new Map(),
-		paths: new Map(),
-		active: new Set(),
+		ports: [],
+		paths: [],
+		active: [],
 		disposed: false
 	};
 	frames.set(host, frame);
@@ -151,12 +153,13 @@ export function createServerComponentExecutionFrame(
 			frame.disposed = true;
 			const reason = new DOMException('Server component execution disposed', 'AbortError');
 			frame.controller.abort(reason);
-			for (const [port, slot] of frame.ports)
-				if (slot.status === 'pending') failPort(frame, port, reason);
-			await Promise.allSettled([...frame.active]);
+			for (let port = 0; port < frame.ports.length; port++)
+				if (frame.ports[port]?.status === 'pending') failPort(frame, port, reason);
+			await Promise.allSettled(frame.active);
 			frames.delete(host);
-			frame.ports.clear();
-			frame.paths.clear();
+			frame.ports.length = 0;
+			frame.paths.length = 0;
+			frame.active.length = 0;
 		}
 	});
 }
@@ -174,11 +177,11 @@ export function activateServerComponentTaskForHost<Args extends unknown[], Resul
 		throw new Error('Compiled server task requires an active server component execution frame');
 	for (const [port, path] of slice[1]) {
 		outputSlot(frame, port);
-		frame.paths.set(path.join('.'), port);
+		registerOutputPath(frame, path.join('.'), port);
 	}
 	const settlement = executeSlice(frame, slice, work, authored);
-	frame.active.add(settlement);
-	void settlement.finally(() => frame.active.delete(settlement)).catch(() => undefined);
+	frame.active.push(settlement);
+	void settlement.catch(() => undefined);
 	if (slice[2] === 'blocking') frame.options.observe(settlement);
 }
 
@@ -262,36 +265,47 @@ async function invokeSlice<Args extends unknown[], Result>(
 }
 
 function outputSlot(frame: MutableServerExecutionFrame, port: number): OutputSlot {
-	let slot = frame.ports.get(port);
+	let slot = frame.ports[port];
 	if (!slot) {
-		slot = { status: 'pending', waiters: new Set(), subscribers: new Set() };
-		frame.ports.set(port, slot);
+		slot = { status: 'pending' };
+		frame.ports[port] = slot;
 	}
 	return slot;
+}
+
+function registerOutputPath(frame: MutableServerExecutionFrame, path: string, port: number): void {
+	for (let index = 0; index < frame.paths.length; index++) {
+		if (frame.paths[index]![0] !== path) continue;
+		frame.paths[index] = [path, port];
+		return;
+	}
+	frame.paths.push([path, port]);
 }
 
 function waitForSlot(slot: OutputSlot): Promise<unknown> {
 	if (slot.status === 'available') return Promise.resolve(slot.value);
 	if (slot.status === 'failed') return Promise.reject(slot.error);
-	return new Promise((resolve, reject) => slot.waiters.add({ resolve, reject }));
+	return new Promise((resolve, reject) =>
+		(slot.waiters ??= new Set()).add({ resolve, reject })
+	);
 }
 
 function publishPort(frame: MutableServerExecutionFrame, port: number, value: unknown): void {
 	const slot = outputSlot(frame, port);
 	slot.status = 'available';
 	slot.value = value;
-	for (const waiter of slot.waiters) waiter.resolve(value);
-	slot.waiters.clear();
-	for (const subscriber of slot.subscribers) subscriber();
+	for (const waiter of slot.waiters ?? []) waiter.resolve(value);
+	slot.waiters?.clear();
+	for (const subscriber of slot.subscribers ?? []) subscriber();
 }
 
 function failPort(frame: MutableServerExecutionFrame, port: number, error: unknown): void {
 	const slot = outputSlot(frame, port);
 	slot.status = 'failed';
 	slot.error = error;
-	for (const waiter of slot.waiters) waiter.reject(error);
-	slot.waiters.clear();
-	for (const subscriber of slot.subscribers) subscriber();
+	for (const waiter of slot.waiters ?? []) waiter.reject(error);
+	slot.waiters?.clear();
+	for (const subscriber of slot.subscribers ?? []) subscriber();
 }
 
 function readPath(source: unknown, path: readonly string[]): unknown {

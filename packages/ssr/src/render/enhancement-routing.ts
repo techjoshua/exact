@@ -37,11 +37,14 @@ export function collectSsrEnhancementRoutes(
 				groups.set(routed.target, group);
 			}
 			mergeEntry(group, entry, order++);
-			context.plannedEnhancementBoundaries.add(vnode);
+			(context.plannedEnhancementBoundaries ??= new WeakSet()).add(vnode);
 		}
 	});
 	for (const [target, group] of groups)
-		context.enhancementTargets.set(target, Object.freeze([...group.entries]));
+		(context.enhancementTargets ??= new WeakMap()).set(
+			target,
+			Object.freeze([...group.entries])
+		);
 }
 
 function mergeEntry(group: TargetGroup, entry: EnhancementEntry, order: number): void {
@@ -135,7 +138,7 @@ function findFirstTargetExport(
 		return resolveSsrTargetBoundary(context, vnode, parent);
 	let childParent = parent;
 	if (typeof vnode.type === 'function') {
-		const prepared = context.preparedEnhancementComponents.get(vnode);
+		const prepared = context.preparedEnhancementComponents?.get(vnode);
 		childParent = prepared?.failed ? parent : (prepared?.instance ?? parent);
 	}
 	for (const child of plannedChildren(context, vnode, childParent)) {
@@ -153,7 +156,7 @@ function findRootBearingFrame(
 ): RoutedTarget | undefined {
 	const prepared =
 		typeof boundary.type === 'function'
-			? context.preparedEnhancementComponents.get(boundary)
+			? context.preparedEnhancementComponents?.get(boundary)
 			: undefined;
 	const frame = typeof boundary.type === 'function' ? boundary : undefined;
 	const instance = prepared?.failed ? parent : (prepared?.instance ?? parent);
@@ -189,7 +192,9 @@ function findExplicitTarget(
 	identity: string
 ): VNode | undefined {
 	const prepared =
-		typeof frame.type === 'function' ? context.preparedEnhancementComponents.get(frame) : undefined;
+		typeof frame.type === 'function'
+			? context.preparedEnhancementComponents?.get(frame)
+			: undefined;
 	const children = typeof frame.type === 'function' ? (prepared?.children ?? []) : [frame];
 	for (const child of children) {
 		if (!isVNode(child)) continue;
@@ -227,9 +232,9 @@ function plannedChildren(
 	_parent: AnyComponentInstance | undefined
 ): readonly unknown[] {
 	if (vnode.type === Suspense)
-		return context.preparedEnhancementSuspense.get(vnode)?.children ?? [];
+		return context.preparedEnhancementSuspense?.get(vnode)?.children ?? [];
 	if (typeof vnode.type === 'function')
-		return context.preparedEnhancementComponents.get(vnode)?.children ?? [];
+		return context.preparedEnhancementComponents?.get(vnode)?.children ?? [];
 	return resolveSsrLogicalChildren(context, vnode);
 }
 
@@ -249,7 +254,7 @@ function visitTree(
 	}
 	let childParent = parent;
 	if (typeof vnode.type === 'function') {
-		const prepared = context.preparedEnhancementComponents.get(vnode);
+		const prepared = context.preparedEnhancementComponents?.get(vnode);
 		childParent = prepared?.failed ? parent : (prepared?.instance ?? parent);
 	}
 	for (const child of plannedChildren(context, vnode, childParent))

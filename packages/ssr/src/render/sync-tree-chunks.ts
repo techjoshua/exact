@@ -113,7 +113,7 @@ export function* renderVNodeChunks(
 	}
 	if (vnode.type === Suspense) {
 		const identity = markerId(context, 'suspense', undefined, vnode.key);
-		const prepared = context.preparedEnhancementSuspense.get(vnode);
+		const prepared = context.preparedEnhancementSuspense?.get(vnode);
 		if (prepared) {
 			const id = suspenseStatusMarkerId(identity, prepared.status);
 			try {
@@ -230,12 +230,12 @@ function* renderComponentChunks(
 	const component = vnode.type as AnyEnhancementComponentFunction;
 	const blueprint = resolveSsrComponentExecution(context, component);
 	const componentId = componentMarkerId(context, vnode);
-	const enhancement = context.enhancementVNodes.has(vnode);
+	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
 	let childParent = parent;
 	let children: Child[];
 	let directSnapshot: DirectSsrComponentSnapshot | undefined;
 	let componentProps: Record<string, unknown> = {};
-	const prepared = context.preparedEnhancementComponents.get(vnode);
+	const prepared = context.preparedEnhancementComponents?.get(vnode);
 	if (prepared) {
 		componentProps = prepared.props;
 		childParent = prepared.failed ? parent : (prepared.instance ?? parent);

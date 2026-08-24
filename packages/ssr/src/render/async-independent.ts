@@ -154,13 +154,15 @@ function mergeIndependentResults(
 		context.traversedNodes += result.frame.traversedNodes;
 		if (context.traversedNodes > context.maxTreeNodes)
 			throw new SsrTreeNodeError(context.maxTreeNodes);
-		for (const hint of result.frame.reactResourceHints)
-			if (!context.reactResourceHints.includes(hint)) context.reactResourceHints.push(hint);
-		for (const link of result.frame.resourceLinkHeaders)
-			if (!context.resourceLinkHeaders.includes(link)) context.resourceLinkHeaders.push(link);
-		context.dynamicComponentPreloads = context.resourceLinkHeaders.length;
-		for (const identity of result.frame.unavailableEnhancements)
-			context.unavailableEnhancements.add(identity);
+		const hints = (context.reactResourceHints ??= []);
+		for (const hint of result.frame.reactResourceHints ?? [])
+			if (!hints.includes(hint)) hints.push(hint);
+		const links = (context.resourceLinkHeaders ??= []);
+		for (const link of result.frame.resourceLinkHeaders ?? [])
+			if (!links.includes(link)) links.push(link);
+		context.dynamicComponentPreloads = links.length;
+		for (const identity of result.frame.unavailableEnhancements ?? [])
+			(context.unavailableEnhancements ??= new Set()).add(identity);
 		for (const instance of result.created) context.onComponentCreated?.(instance);
 		for (const instance of result.rendered) context.onComponentRendered?.(instance);
 		for (const snapshot of result.directCreated) context.onDirectComponentCreated?.(snapshot);

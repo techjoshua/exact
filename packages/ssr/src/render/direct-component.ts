@@ -195,10 +195,10 @@ export function takePreparedDirectScheduledSsrComponent(
 	context: SsrContext,
 	vnode: VNode
 ): Promise<DirectScheduledSsrComponent | undefined> | undefined {
-	const prepared = context.preparedDirectScheduledComponents.get(vnode);
+	const prepared = context.preparedDirectScheduledComponents?.get(vnode);
 	if (!prepared || prepared.consumed) return undefined;
 	(prepared as { consumed: boolean }).consumed = true;
-	context.preparedDirectScheduledComponents.delete(vnode);
+	context.preparedDirectScheduledComponents?.delete(vnode);
 	return prepared.component;
 }
 
@@ -234,7 +234,7 @@ export function renderIssuedServerComponentChildren(
 					vnode: candidate
 				};
 				prepared.push(record);
-				context.preparedDirectScheduledComponents.set(candidate, record);
+				(context.preparedDirectScheduledComponents ??= new WeakMap()).set(candidate, record);
 			}, render)
 		);
 		return {
@@ -264,7 +264,7 @@ async function disposePrepared(
 ): Promise<void> {
 	const failures: unknown[] = [];
 	for (const record of prepared) {
-		context.preparedDirectScheduledComponents.delete(record.vnode);
+		context.preparedDirectScheduledComponents?.delete(record.vnode);
 		if (record.consumed) continue;
 		try {
 			const component = await record.component;
