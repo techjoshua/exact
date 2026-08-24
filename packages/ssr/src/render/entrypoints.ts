@@ -130,7 +130,8 @@ export function renderToHydratableString(
 	const resumptions = capture.records();
 	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(options, result, emittedResumptions)
+		hydrationScriptOptions(options, result, emittedResumptions),
+		capture.layouts()
 	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }

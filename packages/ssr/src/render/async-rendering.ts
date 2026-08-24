@@ -76,7 +76,8 @@ export async function renderToHydratableStringAsync(
 	const resumptions = capture.records();
 	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(options, result, emittedResumptions)
+		hydrationScriptOptions(options, result, emittedResumptions),
+		capture.layouts()
 	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
@@ -136,7 +137,8 @@ export async function streamDocumentRender(
 						options,
 						final,
 						resumptions.length > 0 ? resumptions : options.resumptions
-					)
+					),
+					capture.layouts()
 				)
 			});
 		}

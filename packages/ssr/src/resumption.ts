@@ -19,12 +19,20 @@ type MutableResumption = {
 	settledContinuations: string[];
 };
 
+/** Compiler-owned field order used only to compact the serialized hydration record. */
+export type SsrResumptionLayout = Readonly<{
+	statePaths: readonly string[];
+	contexts: readonly string[];
+}>;
+
 /** Captures compiler-selected state and settled work in deterministic construction order. */
 export function createSsrResumptionCapture(options: RenderToStringOptions): {
 	options: RenderToStringOptions;
 	records(): readonly ComponentResumptionActivation[];
+	layouts(): ReadonlyMap<string, SsrResumptionLayout>;
 } {
 	const records: MutableResumption[] = [];
+	const layouts = new Map<string, SsrResumptionLayout>();
 	const recordsByInstance = new WeakMap<AnyComponentInstance, MutableResumption>();
 	const recordsByDirectFrame = new WeakMap<DirectSsrComponentSnapshot, MutableResumption>();
 	const reserveDirect = (snapshot: DirectSsrComponentSnapshot): void => {
@@ -36,6 +44,10 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 			contexts: {},
 			settledContinuations: []
 		};
+		layouts.set(snapshot.componentId, {
+			statePaths: resumption.statePaths,
+			contexts: resumption.contexts
+		});
 		recordsByDirectFrame.set(snapshot, record);
 		records.push(record);
 	};
@@ -71,6 +83,10 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 			onComponentCreated(instance) {
 				const contract = readPreparedExactCompiledComponentContract(instance.type);
 				if (contract.resumption) {
+					layouts.set(exactComponentIdentity(instance.type), {
+						statePaths: contract.resumption.statePaths,
+						contexts: contract.resumption.contexts
+					});
 					const record: MutableResumption = {
 						componentId: exactComponentIdentity(instance.type),
 						values: {},
@@ -102,7 +118,8 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 				options.onComponentRendered?.(instance);
 			}
 		},
-		records: () => records
+		records: () => records,
+		layouts: () => layouts
 	};
 }
 

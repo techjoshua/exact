@@ -32,6 +32,47 @@ describe('hydration-only config projection', () => {
 			'Client and server eXact build identities do not match'
 		);
 	});
+
+	it('accepts only bounded, unique indexes in compact component resumptions', () => {
+		const valid = configContainer({
+			resumptions: [
+				[
+					'component:Counter',
+					[
+						[0, 7],
+						['label', 'ready']
+					],
+					[],
+					['task:ready']
+				]
+			]
+		});
+		expect(resolveRootHydrateOptions(valid, {}).resumptions).toEqual([
+			{
+				componentId: 'component:Counter',
+				values: { '@0': 7, label: 'ready' },
+				contexts: {},
+				settledContinuations: ['task:ready']
+			}
+		]);
+
+		for (const resumptions of [
+			[['component:Counter', [[-1, 7]]]],
+			[
+				[
+					'component:Counter',
+					[
+						[0, 7],
+						[0, 8]
+					]
+				]
+			],
+			[['component:Counter', [['@0', 7]]]]
+		]) {
+			const invalid = configContainer({ resumptions });
+			expect(resolveRootHydrateOptions(invalid, {}).resumptions).toBeUndefined();
+		}
+	});
 });
 
 function configContainer(config: Record<string, unknown>): HTMLElement {

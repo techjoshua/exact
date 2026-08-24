@@ -3,7 +3,11 @@ import {
 	sameExactComponentAuthorization
 } from '@exactjs/core';
 import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom/root';
-import { isRecord, normalizeComponentResumptions, positiveLimit } from './config-validation.js';
+import {
+	isRecord,
+	normalizeSerializedComponentResumptions,
+	positiveLimit
+} from './config-validation.js';
 import { utf8ByteLength } from './limits.js';
 import { decodeBoundedReactiveProtocolValue } from './protocol-decoding.js';
 import type { ExactHydrationConfig, ExactHydrationConfigLimits, HydrateOptions } from './types.js';
@@ -122,7 +126,7 @@ function parseRootConfig(
 			return {};
 		let resumptions: HydrateOptions['resumptions'];
 		try {
-			resumptions = normalizeComponentResumptions(record.resumptions);
+			resumptions = normalizeSerializedComponentResumptions(record.resumptions);
 		} catch {
 			resumptions = undefined;
 		}

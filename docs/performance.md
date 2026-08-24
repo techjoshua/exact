@@ -596,6 +596,13 @@ compatibility boundary. When one module contains both direct and generic server 
 generated imports preserve those lanes independently: generic components retain reactive render
 helpers while direct components obtain the server-only prepared-program constructor.
 
+Hydratable renderers also retain each component's compiler-declared state and context order while
+capturing its readable resumption record. The in-memory result keeps authored path names for
+inspection, but the response encodes captured values as bounded index/value pairs. Hydration first
+validates the tuple shape, then expands those indexes against the receiving component's prepared
+contract; duplicate, negative, non-integer, or out-of-contract indexes fail closed. This avoids
+repeating state-path strings in every response without making the wire format an authority source.
+
 For `renderToStringAsync()` and `renderToHydratableStringAsync()` roots whose complete local
 component graph has direct server writers, the compiler selects a narrower entry point as well. The
 hydratable lane retains resumption capture and the hydration publication while avoiding the

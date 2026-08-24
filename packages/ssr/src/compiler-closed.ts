@@ -100,7 +100,8 @@ export async function renderCompilerClosedToHydratableStringAsync(
 	const captured = capture.records();
 	const resumptions = captured.length ? captured : options.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(options, result, resumptions)
+		hydrationScriptOptions(options, result, resumptions),
+		capture.layouts()
 	);
 	return createChunkedHydratableResult(result, resumptions, hydrationScript);
 }

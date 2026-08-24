@@ -448,7 +448,7 @@ describe('@exactjs/ssr component resumption', () => {
 			expect.objectContaining({ event: 'replace', html: expect.stringContaining('>9</output>') })
 		);
 		expect(hydration.html).toContain(
-			'"resumptions":[{"componentId":"component:StreamedCounter","values":{"count":9},"settledContinuations":["task:stream"]}]'
+			'"resumptions":[["component:StreamedCounter",[[0,9]],[],["task:stream"]]]'
 		);
 	});
 
