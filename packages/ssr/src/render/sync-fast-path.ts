@@ -1,5 +1,5 @@
 import { Text, UnsafeHtml, isVNode, type VNode } from '@exactjs/core';
-import { RenderProgram, getCellVNode, isCellVNode } from '@exactjs/core/framework/render-structure';
+import { getCellVNode, isCellVNode } from '@exactjs/core/framework/render-structure';
 import type { SsrContext } from '../types.js';
 
 /**
@@ -10,7 +10,6 @@ import type { SsrContext } from '../types.js';
 export function canRenderSsrSubtreeSynchronously(context: SsrContext, vnode: VNode): boolean {
 	if (context.enhancementCatalog || vnode.enhancement?.entries.length) return false;
 	if (isCellVNode(vnode)) return canRenderSsrSubtreeSynchronously(context, getCellVNode(vnode));
-	if (vnode.type === RenderProgram) return false;
 	if (vnode.type === Text || vnode.type === UnsafeHtml) return true;
 	if (typeof vnode.type !== 'string') return false;
 	for (const child of vnode.children) {

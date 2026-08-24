@@ -50,7 +50,6 @@ import {
 } from './enhancement-execution-capability.js';
 import { renderChildren } from './sync-children.js';
 import * as syncComponents from './sync-component.js';
-import { renderSsrProgramString } from './render-program.js';
 
 export { renderChildren } from './sync-children.js';
 export { renderChildChunks, renderVNodeChunks } from './sync-tree-chunks.js';
@@ -102,16 +101,6 @@ export function renderVNodeInner(
 			renderVNode(context, getCellVNode(vnode), parent, hasComponentAncestor)
 		);
 	}
-	const program = renderSsrProgramString(
-		context,
-		vnode,
-		parent,
-		(fallback) => renderVNode(context, fallback, parent, hasComponentAncestor),
-		(children) => renderChildren(context, children, parent, hasComponentAncestor),
-		(component) => renderVNode(context, component, parent, hasComponentAncestor, true)
-	);
-	if (program !== undefined) return program;
-
 	if (vnode.type === Text) {
 		return escapeText(String(unwrap(vnode.props.value) ?? ''));
 	}
