@@ -203,6 +203,7 @@ export type ExactRenderProgram =
 export type ExactDomRenderProgram = ExactDirectRenderProgram | ExactTableRenderProgram;
 
 type BrandedRenderProgram = ExactRenderProgram & { readonly __exactPreparedRenderProgram: never };
+const PreparedServerRenderProgram = Symbol.for('@exactjs/prepared-server-render-program');
 type ExactRenderProgramReaders =
 	| ReadonlyArray<(() => unknown) | undefined>
 	| ((index: number) => unknown);
@@ -220,6 +221,10 @@ export type ExactRenderProgramInvocation = Readonly<{
 	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
 	fallback?: () => VNode;
 }>;
+
+/** Compiler-issued server invocation consumed directly by the compiler-closed SSR lane. */
+export type ExactPreparedServerRenderProgram = ExactRenderProgramInvocation &
+	Readonly<{ [PreparedServerRenderProgram]: true }>;
 
 /**
  * Registers one compiler-emitted descriptor without copying its trusted executable data.
@@ -268,19 +273,23 @@ export function createPreparedServerRenderProgram(
 	branded: BrandedRenderProgram,
 	eagerValues: readonly unknown[],
 	fallback?: () => VNode
-): VNode {
-	const domain = currentComponentDomain();
+): ExactPreparedServerRenderProgram {
 	return {
-		type: RenderProgram,
-		props: {
-			program: branded,
-			readers: [],
-			eagerValues,
-			...(fallback ? { fallback } : {})
-		},
-		children: [],
-		...(domain ? { domain } : {})
+		[PreparedServerRenderProgram]: true,
+		program: branded,
+		readers: [],
+		eagerValues,
+		...(fallback ? { fallback } : {})
 	};
+}
+
+/** Recognizes only the realm-stable compiler-issued direct server invocation shape. */
+export function readPreparedServerRenderProgram(
+	value: unknown
+): ExactPreparedServerRenderProgram | undefined {
+	return typeof value === 'object' && value !== null && PreparedServerRenderProgram in value
+		? (value as ExactPreparedServerRenderProgram)
+		: undefined;
 }
 
 /** Reads the invocation carried by the compiler-only render-program VNode kind. */

@@ -13,6 +13,7 @@ import { handleSsrConstructionError } from './construction-error-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderLimitError } from './limits.js';
 import { renderDirectSsrComponent } from './direct-component.js';
+import { renderPreparedSsrProgramString } from './render-program.js';
 import { renderGenericSyncSsrComponent } from './generic-component-capability.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
 
@@ -23,6 +24,13 @@ export type SyncComponentOperations = Readonly<{
 		children: readonly Child[],
 		parent?: AnyComponentInstance,
 		hasComponentAncestor?: boolean
+	): string;
+	renderVNode(
+		context: SsrContext,
+		vnode: VNode,
+		parent?: AnyComponentInstance,
+		hasComponentAncestor?: boolean,
+		omitCompilerOwnedBoundary?: boolean
 	): string;
 	componentMarkerId(context: SsrContext, vnode: VNode): string;
 	renderResumable(
@@ -82,7 +90,16 @@ export function renderSyncComponent(
 			try {
 				context.onDirectComponentCreated?.(direct.snapshot);
 				if (documentProbe) resetDocumentProbe(context);
-				const html = operations.renderChildren(context, direct.children, parent, true);
+				const html = direct.content.program
+					? renderPreparedSsrProgramString(
+							context,
+							direct.content.program,
+							parent,
+							(fallback) => operations.renderVNode(context, fallback, parent, true),
+							(children) => operations.renderChildren(context, children, parent, true),
+							(component) => operations.renderVNode(context, component, parent, true, true)
+						)
+					: operations.renderChildren(context, direct.content.children, parent, true);
 				const directOutput = componentOutput(
 					context,
 					vnode,

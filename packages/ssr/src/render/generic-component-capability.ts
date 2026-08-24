@@ -1,4 +1,5 @@
-import type { AnyComponentInstance, Child, VNode } from '@exactjs/core';
+import type { AnyComponentInstance, VNode } from '@exactjs/core';
+import type { DirectSsrComponentContent } from './direct-component.js';
 import type { SsrContext } from '../types.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
@@ -54,7 +55,7 @@ export type GenericSyncSsrChunkInput = Readonly<{
 /** Durable instance and rendered children consumed by synchronous chunk streaming. */
 export type GenericSyncSsrChunkResult = Readonly<{
 	instance: AnyComponentInstance;
-	children: Child[];
+	content: DirectSsrComponentContent;
 	props: Record<string, unknown>;
 }>;
 

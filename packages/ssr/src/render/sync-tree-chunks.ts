@@ -49,9 +49,10 @@ import {
 } from './logical-children.js';
 import { dynamicMarkerId } from './marker-identity.js';
 import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
-import { renderSsrProgramChunks } from './render-program.js';
+import { renderPreparedSsrProgramChunks, renderSsrProgramChunks } from './render-program.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
 import { renderDirectSsrComponent } from './direct-component.js';
+import type { DirectSsrComponentContent } from './direct-component.js';
 import { renderGenericSyncSsrComponentChunks } from './generic-component-capability.js';
 import { renderChildren } from './sync-children.js';
 import * as syncComponents from './sync-component.js';
@@ -256,6 +257,7 @@ function* renderComponentChunks(
 	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
 	let childParent = parent;
 	let children: Child[];
+	let directProgram: DirectSsrComponentContent['program'];
 	let directSnapshot: DirectSsrComponentSnapshot | undefined;
 	let componentProps: Record<string, unknown> = {};
 	const prepared = context.preparedEnhancementComponents?.get(vnode);
@@ -268,7 +270,10 @@ function* renderComponentChunks(
 			componentProps = getComponentProps(vnode);
 			const direct = renderDirectSsrComponent(context, blueprint, componentProps);
 			if (direct) {
-				children = direct.children;
+				if (direct.content.program) {
+					directProgram = direct.content.program;
+					children = [];
+				} else children = direct.content.children;
 				componentProps = direct.props;
 				directSnapshot = direct.snapshot;
 			} else {
@@ -280,7 +285,10 @@ function* renderComponentChunks(
 					rawProps: componentProps
 				});
 				childParent = generic.instance;
-				children = generic.children;
+				if (generic.content.program) {
+					directProgram = generic.content.program;
+					children = [];
+				} else children = generic.content.children;
 				componentProps = generic.props;
 			}
 		} catch (error) {
@@ -289,6 +297,23 @@ function* renderComponentChunks(
 			children = fallback ? normalizeRenderResult(fallback()) : [];
 		}
 	const rendered = function* () {
+		if (directProgram) {
+			yield* renderPreparedSsrProgramChunks(
+				context,
+				directProgram,
+				childParent,
+				(fallback) =>
+					renderVNodeChunks(context, fallback, childParent, depth + 1, true),
+				(programChildren) =>
+					(function* () {
+						for (const child of programChildren)
+							yield* renderChildChunks(context, child, childParent, depth + 1, true);
+					})(),
+				(component) =>
+					renderVNodeChunks(context, component, childParent, depth + 1, true, true)
+			);
+			return;
+		}
 		for (const child of children)
 			yield* renderChildChunks(context, child, childParent, depth + 1, true);
 	};

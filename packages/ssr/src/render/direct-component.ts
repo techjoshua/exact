@@ -17,6 +17,10 @@ import {
 	withServerComponentVNodeIssuer,
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
+import {
+	readPreparedServerRenderProgram,
+	type ExactPreparedServerRenderProgram
+} from '@exactjs/core/framework/server-render-structure';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { drainTasks } from './context.js';
@@ -27,6 +31,7 @@ import {
 	resolveSsrComponentExecution,
 	type SsrComponentExecutionBlueprint
 } from './root-execution-cache.js';
+import { renderPreparedSsrProgram } from './render-program.js';
 
 /** Minimal request-local receiver for compiler-proven synchronous server components. */
 type DirectSsrComponentFrame = Readonly<{
@@ -36,7 +41,7 @@ type DirectSsrComponentFrame = Readonly<{
 
 /** Completed setup and render result awaiting successful descendant serialization. */
 export type DirectSsrComponentResult = Readonly<{
-	children: Child[];
+	content: DirectSsrComponentContent;
 	preparation?: DirectScheduledPreparation;
 	props: Record<string, unknown>;
 	snapshot: DirectSsrComponentSnapshot;
@@ -64,9 +69,14 @@ export type DirectScheduledPreparation = AsyncDisposable;
 
 /** Render output paired with ownership for child work issued during VNode materialization. */
 export type DirectIssuedRender = Readonly<{
-	children: Child[];
+	content: DirectSsrComponentContent;
 	preparation?: DirectScheduledPreparation;
 }>;
+
+/** Compiler-closed result before its deferred child/component segments are serialized. */
+export type DirectSsrComponentContent =
+	| Readonly<{ children: Child[]; program?: never }>
+	| Readonly<{ children?: never; program: ExactPreparedServerRenderProgram }>;
 
 /** Publishes stabilized direct-component HTML through the formatting selected by its renderer. */
 export type DirectSsrComponentPublisher<Publication = undefined> = (
@@ -88,6 +98,10 @@ export async function renderDirectSsrComponentOutput<Publication>(
 		children: readonly Child[],
 		parent: AnyComponentInstance | undefined
 	) => Promise<string>,
+	renderOwnedComponent: (
+		component: VNode,
+		parent: AnyComponentInstance | undefined
+	) => Promise<string>,
 	publish: DirectSsrComponentPublisher<Publication>,
 	publication: Publication
 ): Promise<string | undefined> {
@@ -105,7 +119,13 @@ export async function renderDirectSsrComponentOutput<Publication>(
 				const issued = await scheduled.render();
 				let renderPrimary: unknown = noPrimaryFailure;
 				try {
-					const html = await renderChildren(issued.children, parent);
+					const html = await renderDirectSsrContent(
+						context,
+						issued.content,
+						parent,
+						renderChildren,
+						renderOwnedComponent
+					);
 					if (await scheduled.drain()) {
 						context.onComponentAttemptRollback?.(renderCheckpoint);
 						continue;
@@ -143,7 +163,13 @@ export async function renderDirectSsrComponentOutput<Publication>(
 		let directPrimary: unknown = noPrimaryFailure;
 		let html: string;
 		try {
-			html = await renderChildren(direct.children, parent);
+			html = await renderDirectSsrContent(
+				context,
+				direct.content,
+				parent,
+				renderChildren,
+				renderOwnedComponent
+			);
 		} catch (error) {
 			directPrimary = error;
 			throw error;
@@ -197,9 +223,9 @@ export function renderDirectSsrComponent(
 		? renderIssuedServerComponentChildren(context, options, () =>
 				inComponentDomain(context, () => render())
 			)
-		: { children: normalizeRenderResult(inComponentDomain(context, () => render())) };
-	return resolveMaybe(rendered, ({ children, preparation }) => ({
-		children,
+		: { content: readDirectSsrContent(inComponentDomain(context, () => render())) };
+	return resolveMaybe(rendered, ({ content, preparation }) => ({
+		content,
 		...(preparation ? { preparation } : {}),
 		props,
 		snapshot: {
@@ -304,12 +330,11 @@ export function takePreparedDirectScheduledSsrComponent(
 export function renderIssuedServerComponentChildren(
 	context: SsrContext,
 	options: SsrRenderOptions,
-	render: () => Child | Child[]
+	render: () => unknown
 ): DirectIssuedRender | Promise<DirectIssuedRender> {
 	const prepared: PreparedDirectScheduledSsrComponent[] = [];
 	try {
-		const children = normalizeRenderResult(
-			withServerComponentVNodeIssuer((candidate) => {
+		const output = withServerComponentVNodeIssuer((candidate) => {
 				if (!isVNode(candidate) || typeof candidate.type !== 'function') return;
 				let created:
 					| DirectScheduledSsrComponent
@@ -333,10 +358,9 @@ export function renderIssuedServerComponentChildren(
 				};
 				prepared.push(record);
 				(context.preparedDirectScheduledComponents ??= new WeakMap()).set(candidate, record);
-			}, render)
-		);
+			}, render);
 		return {
-			children,
+			content: readDirectSsrContent(output),
 			...(prepared.length
 				? {
 						preparation: Object.freeze({
@@ -354,6 +378,42 @@ export function renderIssuedServerComponentChildren(
 			}
 		);
 	}
+}
+
+/** Classifies raw component output before generic child normalization loses its server ABI. */
+export function readDirectSsrContent(value: unknown): DirectSsrComponentContent {
+	const program = readPreparedServerRenderProgram(value);
+	return program ? { program } : { children: normalizeRenderResult(value as Child | Child[]) };
+}
+
+/** Serializes direct component content through caller-owned recursive rendering operations. */
+export async function renderDirectSsrContent(
+	context: SsrContext,
+	content: DirectSsrComponentContent,
+	parent: AnyComponentInstance | undefined,
+	renderChildren: (
+		children: readonly Child[],
+		parent: AnyComponentInstance | undefined
+	) => Promise<string>,
+	renderOwnedComponent: (
+		component: VNode,
+		parent: AnyComponentInstance | undefined
+	) => Promise<string>
+): Promise<string> {
+	if (content.children) return renderChildren(content.children, parent);
+	const planned = renderPreparedSsrProgram(context, content.program, parent);
+	if (planned.fallback) return renderChildren([planned.fallback], parent);
+	const output: string[] = [];
+	for (const segment of planned.segments!) {
+		output.push(
+			typeof segment === 'string'
+				? segment
+				: Array.isArray(segment)
+					? await renderChildren(segment, parent)
+					: await renderOwnedComponent(segment as VNode, parent)
+		);
+	}
+	return output.join('');
 }
 
 async function disposePrepared(

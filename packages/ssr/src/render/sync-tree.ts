@@ -57,6 +57,7 @@ export { renderChildChunks, renderVNodeChunks } from './sync-tree-chunks.js';
 
 const syncComponentOperations = {
 	renderChildren,
+	renderVNode,
 	componentMarkerId,
 	renderResumable: renderResumableComponentBoundary
 };

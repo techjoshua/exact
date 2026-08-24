@@ -5,12 +5,14 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive/framework/values';
-import { RenderProgram } from '@exactjs/core/framework/render-structure';
+import { RenderProgram, ServerSlot } from '@exactjs/core/framework/render-structure';
 import type { ExactRenderProgramSsrOperations } from '@exactjs/core/framework/render-structure';
+import type { ExactPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,
-	renderProgramFallback
+	renderProgramFallback,
+	type ExactRenderProgramInvocation
 } from '@exactjs/core/framework/render-structure';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
@@ -31,13 +33,34 @@ export function renderSsrProgram(
 	const invocation = readRenderProgram(vnode);
 	if (!invocation || context.reactMarkup)
 		return { fallback: materializeProgramFallback(vnode, owner) };
+	return executeSsrProgram(context, invocation, owner);
+}
+
+/** Executes a compiler-closed server invocation without constructing or dispatching a VNode. */
+export function renderPreparedSsrProgram(
+	context: SsrContext,
+	invocation: ExactPreparedServerRenderProgram,
+	owner?: AnyComponentInstance
+): {
+	readonly segments?: readonly DeferredSsrSegment[];
+	readonly fallback?: VNode;
+} {
+	if (context.reactMarkup) return { fallback: materializeInvocationFallback(invocation, owner) };
+	return executeSsrProgram(context, invocation, owner);
+}
+
+function executeSsrProgram(
+	context: SsrContext,
+	invocation: ExactRenderProgramInvocation,
+	owner?: AnyComponentInstance
+): { readonly segments?: readonly DeferredSsrSegment[]; readonly fallback?: VNode } {
 	const { program } = invocation;
 	if (program.ssr) {
 		const output = program.ssr(generatedSsrOperations, context, invocation);
-		if (!output) return { fallback: materializeProgramFallback(vnode, owner) };
+		if (!output) return { fallback: materializeInvocationFallback(invocation, owner) };
 		return { segments: output as DeferredSsrSegment[] };
 	}
-	return { fallback: materializeProgramFallback(vnode, owner) };
+	return { fallback: materializeInvocationFallback(invocation, owner) };
 }
 
 type DeferredSsrSegment = string | readonly Child[] | VNode;
@@ -66,7 +89,9 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	},
 	prepareComponent(invocation, index) {
 		const value = unwrap(readRenderProgramSlot(invocation, index));
-		return value instanceof Promise || !isVNode(value) || typeof value.type !== 'function'
+		return value instanceof Promise ||
+			!isVNode(value) ||
+			(typeof value.type !== 'function' && value.type !== ServerSlot)
 			? unpreparedSsrValue
 			: value;
 	},
@@ -185,6 +210,43 @@ export function renderSsrProgramChunks(
 	return flattenDeferredSegments(planned.segments!, renderChildren, renderOwnedComponent);
 }
 
+/** Serializes one direct compiler-issued server invocation into a bounded string. */
+export function renderPreparedSsrProgramString(
+	context: SsrContext,
+	invocation: ExactPreparedServerRenderProgram,
+	owner: AnyComponentInstance | undefined,
+	renderFallback: (fallback: VNode) => string,
+	renderChildren: (children: readonly Child[]) => string,
+	renderOwnedComponent: (component: VNode) => string
+): string {
+	const planned = renderPreparedSsrProgram(context, invocation, owner);
+	if (planned.fallback) return renderFallback(planned.fallback);
+	return boundedJoin(
+		context,
+		planned.segments!.map((segment) =>
+			typeof segment === 'string'
+				? segment
+				: Array.isArray(segment)
+					? renderChildren(segment)
+					: renderOwnedComponent(segment as VNode)
+		)
+	);
+}
+
+/** Streams one direct compiler-issued server invocation without a RenderProgram VNode. */
+export function renderPreparedSsrProgramChunks(
+	context: SsrContext,
+	invocation: ExactPreparedServerRenderProgram,
+	owner: AnyComponentInstance | undefined,
+	renderFallback: (fallback: VNode) => Iterable<string>,
+	renderChildren: (children: readonly Child[]) => Iterable<string>,
+	renderOwnedComponent: (component: VNode) => Iterable<string>
+): Iterable<string> {
+	const planned = renderPreparedSsrProgram(context, invocation, owner);
+	if (planned.fallback) return renderFallback(planned.fallback);
+	return flattenDeferredSegments(planned.segments!, renderChildren, renderOwnedComponent);
+}
+
 function* flattenDeferredSegments(
 	segments: readonly DeferredSsrSegment[],
 	renderChildren: (children: readonly Child[]) => Iterable<string>,
@@ -202,5 +264,17 @@ function materializeProgramFallback(vnode: VNode, owner: AnyComponentInstance | 
 	const fallback = withRenderProgramOwner(owner, () => renderProgramFallback(vnode));
 	if (!fallback)
 		throw new Error('Client-only compiler render programs cannot execute through SSR fallback');
+	return fallback;
+}
+
+function materializeInvocationFallback(
+	invocation: ExactRenderProgramInvocation,
+	owner: AnyComponentInstance | undefined
+): VNode {
+	const fallback = withRenderProgramOwner(owner, () => invocation.fallback?.());
+	if (!fallback)
+		throw new Error(
+			`Client-only compiler render program ${invocation.program.id} cannot execute through SSR fallback`
+		);
 	return fallback;
 }

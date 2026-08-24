@@ -42,7 +42,11 @@ Generated server writers preflight each dynamic input into a compiler-named loca
 value directly to its serialization operation; the runtime does not rebuild a per-region slot
 table or allocate a receiver merely to replay the compiler's ordering. Render-program ABI version
 4 identifies this direct stateless-operation contract so older precompiled writers cannot be
-silently executed with the incompatible calling convention. Direct server components capture
+silently executed with the incompatible calling convention. Server artifacts return a branded
+prepared invocation directly to the SSR component lane; they do not allocate a render-program
+VNode and send it back through ordinary child normalization and kind dispatch. Durable fallback
+components likewise preserve raw compiler output until SSR has selected that invocation or the
+ordinary child path. Direct server components capture
 compiler-known child slots during request-local task issuance, allowing independent child work to
 start before the writer publishes those slots in authored order. Generic components retain lazy
 slot evaluation where reactive stabilization remains observable. A compiler-closed server region

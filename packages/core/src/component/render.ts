@@ -16,7 +16,15 @@ import { compiledComponentLifecycleABI, compiledComponentRenderABI } from './com
 
 /** Renders once for a compiler-owned program or retains the general watched fallback. */
 export function renderInstance(instance: AnyComponentInstance, onInvalidate: () => void): Child[] {
-	let output: RenderResult = null;
+	return normalizeRenderResult(renderInstanceOutput(instance, onInvalidate) as RenderResult);
+}
+
+/** Executes one durable instance while preserving compiler-owned non-VNode server output. */
+export function renderInstanceOutput(
+	instance: AnyComponentInstance,
+	onInvalidate: () => void
+): unknown {
+	let output: RenderResult | unknown = null;
 	const start = performanceNow();
 	const observedInvalidate = (): void => {
 		componentDomainInspection(instance.domain)?.publish({
@@ -70,7 +78,7 @@ export function renderInstance(instance: AnyComponentInstance, onInvalidate: () 
 		}
 	}
 
-	return normalizeRenderResult(output);
+	return output;
 }
 
 function performanceNow(): number {

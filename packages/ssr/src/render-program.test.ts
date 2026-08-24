@@ -31,6 +31,13 @@ const createCompiledRenderProgram = (
 		fallback
 	);
 
+const programRoot = (program: ReturnType<typeof createCompiledRenderProgram>) => {
+	const Root: Component = function ProgramRoot() {
+		return () => program as never;
+	};
+	return createVNode(Root, {});
+};
+
 it('writes compiler-owned scalar programs without redundant hydration delimiters', () => {
 	let constructions = 0;
 	const program = createCompiledRenderProgram(
@@ -58,10 +65,10 @@ it('writes compiler-owned scalar programs without redundant hydration delimiters
 			throw new Error('valid generated SSR lane used its generic fallback');
 		}
 	);
-	expect(renderToString(program, { markers: false }).html).toBe(
+	expect(renderToString(programRoot(program), { markers: false }).html).toBe(
 		'<span data-exact-id="planned">&lt;safe&gt;</span>'
 	);
-	expect(renderToString(program).html).toBe('<span data-exact-id="planned">&lt;safe&gt;</span>');
+	expect(renderToString(programRoot(program)).html).toContain('<span data-exact-id="planned">&lt;safe&gt;</span>');
 	expect(constructions).toBe(1);
 });
 
@@ -99,7 +106,7 @@ it('captures every generated server slot before selecting the local fallback', (
 		() => createCompiledVNode('span', null, 'fallback')
 	);
 
-	expect(renderToString(program, { markers: false }).html).toBe('<span>fallback</span>');
+	expect(renderToString(programRoot(program), { markers: false }).html).toBe('<span>fallback</span>');
 	expect(reads).toBe(2);
 });
 
@@ -130,7 +137,7 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 		[() => ['primary', { active: true }], () => true, () => () => undefined],
 		() => createCompiledVNode('button', { className: 'primary active', disabled: true }, 'Save')
 	);
-	expect(renderToString(program, { markers: false }).html).toBe(
+	expect(renderToString(programRoot(program), { markers: false }).html).toBe(
 		'<button data-exact-id="planned" class="primary active" disabled>Save</button>'
 	);
 });
@@ -165,19 +172,19 @@ it('executes structural program slots without colliding with nested marker ident
 			)
 	);
 
-	const marked = renderToString(program).html;
+	const marked = renderToString(programRoot(program)).html;
 	expect(marked).toContain('<section><!--exact:dynamic:child-->');
-	expect(marked).toContain('<!--exact:component:1:');
-	expect(marked).toContain('<strong>child</strong><!--/exact:component:1:');
+	expect(marked).toContain('<!--exact:component:2:');
+	expect(marked).toContain('<strong>child</strong><!--/exact:component:2:');
 	expect(marked).toContain('<!--/exact:dynamic:child--></section>');
 	expect(marked).not.toContain('<!--exact:cell:');
-	expect(renderToString(program, { markers: false }).html).toBe(
+	expect(renderToString(programRoot(program), { markers: false }).html).toBe(
 		'<section><strong>child</strong></section>'
 	);
-	expect((await renderToStringAsync(program, { markers: false })).html).toBe(
+	expect((await renderToStringAsync(programRoot(program), { markers: false })).html).toBe(
 		'<section><strong>child</strong></section>'
 	);
-	expect(await readStreamText(renderToStream(program, { markers: false }))).toBe(
+	expect(await readStreamText(renderToStream(programRoot(program), { markers: false }))).toBe(
 		'<section><strong>child</strong></section>'
 	);
 });
@@ -206,11 +213,11 @@ it('uses the compiler-owned component slot as the component hydration boundary',
 		[() => createVNode(Child, {})]
 	);
 
-	const html = renderToString(program).html;
-	expect(html).toBe(
+	const html = renderToString(programRoot(program)).html;
+	expect(html).toContain(
 		'<section><!--exact:dynamic:child--><strong>child</strong><!--/exact:dynamic:child--></section>'
 	);
-	expect(html).not.toContain('exact:component:');
+	expect(html.match(/exact:component:/g)).toHaveLength(2);
 });
 
 it('writes a compiler-proven final keyed child without structural delimiters', async () => {
@@ -239,12 +246,13 @@ it('writes a compiler-proven final keyed child without structural delimiters', a
 		]
 	);
 
-	const html = renderToString(program).html;
+	const root = programRoot(program);
+	const html = renderToString(root).html;
 	expect(html).toContain('<li>a</li>');
 	expect(html).toContain('<li>b</li>');
 	expect(html).not.toContain('exact:dynamic:');
-	expect((await renderToStringAsync(program)).html).toBe(html);
-	expect(await readStreamText(renderToStream(program))).toBe(html);
+	expect((await renderToStringAsync(root)).html).toBe(html);
+	expect(await readStreamText(renderToStream(root))).toBe(html);
 });
 
 it('materializes marker-mode program fallbacks inside their component scope', async () => {

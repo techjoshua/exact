@@ -1,7 +1,7 @@
 import { type AnyComponentFunction, normalizeRenderResult, type VNode } from '@exactjs/core';
 import { markerPair } from '../markup.js';
 import type { AnyComponentInstance, SsrContext } from '../types.js';
-import { renderChildrenAsync } from './async-tree.js';
+import { renderChildrenAsync, renderVNodeAsync } from './async-tree.js';
 import { componentMarkerId } from './component-markers.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { componentHtml } from './component-output.js';
@@ -70,6 +70,7 @@ export async function renderComponentAsync(
 				if (documentProbe) resetDocumentProbe(context);
 				return renderChildrenAsync(context, children, owner, options, true);
 			},
+			(component, owner) => renderVNodeAsync(context, component, owner, options, true, true),
 			publishDirectComponent,
 			{
 				componentId,

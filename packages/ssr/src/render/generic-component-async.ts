@@ -1,12 +1,15 @@
 import { type AnyEnhancementComponentFunction, withTaskObserver } from '@exactjs/core';
-import { renderInstance } from '@exactjs/core/runtime/render';
+import { renderInstanceOutput } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import type { AnyComponentInstance, TaskObserver } from '../types.js';
-import { renderChildrenAsync } from './async-tree.js';
+import { renderChildrenAsync, renderVNodeAsync } from './async-tree.js';
 import { componentHtml } from './component-output.js';
 import { prepareComponentProps } from './component-props.js';
 import { drainTasks } from './context.js';
-import { renderIssuedServerComponentChildren } from './direct-component.js';
+import {
+	renderDirectSsrContent,
+	renderIssuedServerComponentChildren
+} from './direct-component.js';
 import type { GenericSsrComponentInput } from './generic-component-capability.js';
 import {
 	disposeAsyncPreservingPrimary,
@@ -69,14 +72,22 @@ export async function renderGenericComponentAsync({
 		for (let pass = 0; pass < maxPasses; pass++) {
 			invalidated = false;
 			const issued = await renderIssuedServerComponentChildren(context, options, () =>
-				renderInstance(instance!, () => {
+				renderInstanceOutput(instance!, () => {
 					invalidated = true;
 				})
 			);
 			let renderPrimary: unknown = noPrimaryFailure;
 			let html: string;
 			try {
-				html = await renderChildrenAsync(context, issued.children, instance, options, true);
+				html = await renderDirectSsrContent(
+					context,
+					issued.content,
+					instance,
+					(children, owner) =>
+						renderChildrenAsync(context, children, owner, options, true),
+					(component, owner) =>
+						renderVNodeAsync(context, component, owner, options, true, true)
+				);
 			} catch (error) {
 				renderPrimary = error;
 				throw error;
