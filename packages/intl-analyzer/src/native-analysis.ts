@@ -46,6 +46,8 @@ export interface NativeIntlRegion {
 	readonly attribute: NativeIntlSpan;
 	/** All analyzer-consumed attributes owned by this message scope. */
 	readonly attributes: readonly NativeIntlSpan[];
+	/** Namespaced target capabilities moved from the temporary source target to its reconstruction. */
+	readonly transferred?: readonly NativeIntlSpan[];
 	readonly content: NativeIntlSpan;
 	readonly values: readonly NativeIntlSpan[];
 	readonly structures: readonly Readonly<{
@@ -139,6 +141,7 @@ function normalizeNativeIntlAnalysis(
 			element: span(region.element),
 			attribute: span(region.attribute),
 			attributes: region.attributes.map(span),
+			...(region.transferred ? { transferred: region.transferred.map(span) } : {}),
 			content: span(region.content),
 			values: region.values.map(span),
 			evidence: region.evidence.map((item) => ({ ...item, ...span(item) })),

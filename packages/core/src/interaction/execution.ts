@@ -8,6 +8,7 @@ import {
 } from '../component/performance-trace.js';
 import {
 	currentTaskFrameRecord,
+	createTaskOwnerRecord,
 	executeTaskFrame,
 	taskFrameSynchronousError,
 	withDeferredTaskFrame,
@@ -45,6 +46,11 @@ export function currentInteraction(): InteractionScope | undefined {
 		if (interaction) return interaction;
 	}
 	return undefined;
+}
+
+/** Reports whether a component already owns the durable task lane required by full interactions. */
+export function hasComponentTaskOwner(owner: AnyComponentInstance): boolean {
+	return taskOwnerForHost(owner) !== undefined;
 }
 
 /** Emits a correlated performance mark for a currently executing interaction. */
@@ -133,8 +139,8 @@ export function runDirectCompiledComponentInteraction<Result>(
 	let rejectForeground: ((error: unknown) => void) | undefined;
 	const materialize = (): TaskFrameRecord => {
 		if (frame) return frame;
-		const taskOwner = taskOwnerForHost(owner);
-		if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
+		const registeredOwner = taskOwnerForHost(owner);
+		const taskOwner = registeredOwner ?? createTaskOwnerRecord(`${owner.id}:interaction`);
 		const foreground = new Promise<Result>((resolve, reject) => {
 			resolveForeground = resolve;
 			rejectForeground = reject;
@@ -155,7 +161,7 @@ export function runDirectCompiledComponentInteraction<Result>(
 				frame = currentTaskFrameRecord()!;
 				return foreground;
 			}
-		);
+		).finally(() => (registeredOwner ? undefined : taskOwner[Symbol.asyncDispose]()));
 		return frame!;
 	};
 
@@ -194,11 +200,11 @@ function executeComponentInteraction<Result>(
 	onTraceScope?: (scope: InteractionScope) => void,
 	trace?: ComponentTraceStarter | false
 ): Promise<Result> {
-	const taskOwner = taskOwnerForHost(owner);
-	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
+	const registeredOwner = taskOwnerForHost(owner);
+	const taskOwner = registeredOwner ?? createTaskOwnerRecord(`${owner.id}:interaction`);
 	const startTrace = trace === undefined ? componentTraceStarter(owner) : trace || undefined;
 	let interactionScope: InteractionScope | undefined;
-	const execution = executeTaskFrame(
+	const frameExecution = executeTaskFrame(
 		{
 			owner: taskOwner,
 			controller,
@@ -235,12 +241,17 @@ function executeComponentInteraction<Result>(
 			return (work as () => Result | PromiseLike<Result>)();
 		}
 	);
-	const synchronousError = taskFrameSynchronousError(execution);
+	const synchronousError = taskFrameSynchronousError(frameExecution);
 	if (synchronousError) {
+		if (!registeredOwner)
+			void frameExecution.finally(() => taskOwner[Symbol.asyncDispose]()).catch(() => undefined);
 		if (interactionScope && interactionTraces?.has(interactionScope))
 			finishInteractionTrace(interactionScope, 'error');
 		throw synchronousError.error;
 	}
+	const execution = registeredOwner
+		? frameExecution
+		: frameExecution.finally(() => taskOwner[Symbol.asyncDispose]());
 	if (interactionScope && interactionTraces?.has(interactionScope)) {
 		void execution.then(
 			() => finishInteractionTrace(interactionScope!, 'success'),
