@@ -61,10 +61,7 @@ export async function stageNativeCompilerPackage({
 	);
 	await cp(path.join(templateRoot, 'README.md'), path.join(packageRoot, 'README.md'));
 	await cp(license, path.join(packageRoot, 'LICENSE.typescript-go'));
-	const packageExecutable = path.join(
-		packageRoot,
-		platform === 'win32' ? 'exactc-native.exe' : 'exactc-native'
-	);
+	const packageExecutable = path.join(packageRoot, platform === 'win32' ? 'exactc.exe' : 'exactc');
 	await cp(executable, packageExecutable, { force: true });
 	if (platform !== 'win32') await chmod(packageExecutable, 0o755);
 	return packageRoot;
@@ -75,7 +72,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 	const license = argument('license');
 	const platform = argument('platform') ?? process.platform;
 	const arch = argument('arch') ?? process.arch;
-	if (!executable) throw new Error('Pass --executable <exactc-native path>');
+	if (!executable) throw new Error('Pass --executable <exactc path>');
 	if (!license) throw new Error('Pass --license <TypeScript-Go LICENSE path>');
 	console.log(
 		await stageNativeCompilerPackage({

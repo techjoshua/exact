@@ -41,10 +41,7 @@ try {
 	assert.deepEqual(manifest.cpu, [process.arch]);
 	assert.equal(manifest.scripts, undefined, 'native package must not invoke a local toolchain');
 
-	const executable = path.join(
-		packageRoot,
-		process.platform === 'win32' ? 'exactc-native.exe' : 'exactc-native'
-	);
+	const executable = path.join(packageRoot, process.platform === 'win32' ? 'exactc.exe' : 'exactc');
 	const response = await requestVersion(executable);
 	const contracts = await readFile(
 		path.resolve('native', 'typescript-go', 'overlay', 'internal', 'exactcompiler', 'contracts.go'),

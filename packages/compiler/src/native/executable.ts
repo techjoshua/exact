@@ -23,10 +23,13 @@ export function nativeCompilerPlatformPackage(
  * recognize the output of the native build script.
  */
 export function resolveNativeCompilerExecutable(from?: string): string {
-	const override = process.env.EXACT_NATIVE_COMPILER;
-	if (override) return requireExecutable(path.resolve(override), 'EXACT_NATIVE_COMPILER');
+	const override = process.env.EXACT_COMPILER_EXECUTABLE;
+	if (override) return requireExecutable(path.resolve(override), 'EXACT_COMPILER_EXECUTABLE');
+	const legacyOverride = process.env.EXACT_NATIVE_COMPILER;
+	if (legacyOverride)
+		return requireExecutable(path.resolve(legacyOverride), 'EXACT_NATIVE_COMPILER');
 	const packageName = nativeCompilerPlatformPackage();
-	const filename = process.platform === 'win32' ? 'exactc-native.exe' : 'exactc-native';
+	const filename = process.platform === 'win32' ? 'exactc.exe' : 'exactc';
 
 	if (from) {
 		try {
@@ -54,7 +57,7 @@ export function resolveNativeCompilerExecutable(from?: string): string {
 
 	throw new Error(
 		`The eXact native compiler for ${process.platform}-${process.arch} is not installed. ` +
-			`Install ${packageName} or set EXACT_NATIVE_COMPILER to an exactc-native executable.`
+			`Install ${packageName} or set EXACT_COMPILER_EXECUTABLE to an exactc executable.`
 	);
 }
 
