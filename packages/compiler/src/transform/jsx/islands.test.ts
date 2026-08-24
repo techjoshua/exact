@@ -174,10 +174,10 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(analysis.boundaries[0]?.activation?.mode).toBe('interaction');
-		expect(client).toContain("onClick: () => console.log('final')");
-		expect(client.indexOf("onClick: () => console.log('final')")).toBeGreaterThan(
-			client.indexOf("onClick: () => console.log('base')")
-		);
+		// The authored declarations remain for source semantics, while the generated island must
+		// expand only the winning handler. Declaration placement is not part of the output contract.
+		expect(client.match(/console\.log\('base'\)/gu)).toHaveLength(1);
+		expect(client.match(/console\.log\('final'\)/gu)).toHaveLength(2);
 		expect(client).not.toContain('__exactClientProps');
 		expect(server).toContain("title: 'Final'");
 		expect(server).toContain(
