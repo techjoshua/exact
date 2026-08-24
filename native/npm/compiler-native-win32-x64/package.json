@@ -8,7 +8,7 @@
 		"cpu": "x64"
 	},
 	"files": [
-		"exactc-native.exe",
+		"exactc.exe",
 		"LICENSE.typescript-go",
 		"README.md"
 	],

@@ -37,7 +37,7 @@ test('the native compiler cache follows repository-owned build inputs', async (c
 
 test('a native compiler build is reused only with its matching successful stamp', async (context) => {
 	const root = await fixtureRepository(context);
-	const executable = path.join(root, 'exactc-native');
+	const executable = path.join(root, 'exactc');
 	const stampFile = path.join(root, 'build.json');
 	await writeFile(executable, 'binary');
 

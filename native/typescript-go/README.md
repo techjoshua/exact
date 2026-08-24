@@ -1,7 +1,7 @@
 # eXact native compiler overlay
 
 This directory contains eXact-owned Go packages that are copied into a pinned
-TypeScript-Go checkout before building `exactc-native`.
+TypeScript-Go checkout before building `exactc`.
 
 TypeScript-Go intentionally keeps its AST, checker, transformer, and printer
 packages under Go's `internal` visibility rule. The overlay therefore has to be

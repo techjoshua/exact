@@ -45,10 +45,7 @@ if (revision !== upstream.revision) {
 }
 const outputDirectory = path.join(repositoryRoot, '.tmp', 'native-compiler');
 await mkdir(outputDirectory, { recursive: true });
-const executable = path.join(
-	outputDirectory,
-	targetPlatform === 'win32' ? 'exactc-native.exe' : 'exactc-native'
-);
+const executable = path.join(outputDirectory, targetPlatform === 'win32' ? 'exactc.exe' : 'exactc');
 const stampFile = path.join(outputDirectory, `${target}.build.json`);
 const buildKey = await createNativeCompilerBuildKey({
 	repositoryRoot,
@@ -71,7 +68,7 @@ if (current) {
 	await run('git', ['worktree', 'add', '--detach', stageRoot, upstream.revision], sourceRoot, true);
 
 	const overlayRoot = path.join(nativeRoot, 'overlay');
-	for (const relative of ['internal/exactcompiler', 'cmd/exactc-native']) {
+	for (const relative of ['internal/exactcompiler', 'cmd/exactc']) {
 		await cp(path.join(overlayRoot, relative), path.join(stageRoot, relative), {
 			recursive: true,
 			force: true
@@ -79,10 +76,10 @@ if (current) {
 	}
 
 	const go = process.env.EXACT_GO || 'go';
-	await run(go, ['test', './internal/exactcompiler', './cmd/exactc-native'], stageRoot, true);
+	await run(go, ['test', './internal/exactcompiler', './cmd/exactc'], stageRoot, true);
 	await run(
 		go,
-		['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc-native'],
+		['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc'],
 		stageRoot,
 		true,
 		{

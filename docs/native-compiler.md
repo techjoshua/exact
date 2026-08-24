@@ -1,6 +1,6 @@
 # Native compiler
 
-`@exactjs/compiler` is a JavaScript host for the native `exactc-native` compiler. Parsing,
+`@exactjs/compiler` is the JavaScript process host and public API for the native `exactc` compiler. Parsing,
 checking, eXact analysis, placement, policy enforcement, artifact partitioning, lowering,
 generated-code validation, and printing execute in one persistent TypeScript-Go process.
 After analysis and target transforms settle, the JavaScript artifact host stages the complete
@@ -70,8 +70,9 @@ orchestration. It declares six optional platform packages:
 Each platform package declares npm `os` and `cpu` constraints. npm therefore installs only the
 package matching the current machine. The host package does not contain six executables.
 
-Set `EXACT_NATIVE_COMPILER` only when a hermetic build or compiler-development workflow must
-provide an explicit executable.
+Set `EXACT_COMPILER_EXECUTABLE` only when a hermetic build or compiler-development workflow must
+provide an explicit executable. `EXACT_NATIVE_COMPILER` remains a temporary compatibility alias;
+the current variable takes precedence when both are set.
 
 ## Public integration
 
@@ -154,7 +155,7 @@ without adding a compiler-side trust decision.
 
 [`../fixtures/native-compiler-corpus`](../fixtures/native-compiler-corpus) retains focused
 TypeScript and TSX semantic stress cases alongside representative framework applications. The
-release check sends those sources directly through `exactc-native`; there is no executable
+release check sends those sources directly through `exactc`; there is no executable
 JavaScript expression engine or alternate semantic backend. Its tracked wall-time guard normalizes
 the baseline for both the discovered source count and the available native worker count, so CI and
 local runs remain comparable without oversubscribing smaller machines.
