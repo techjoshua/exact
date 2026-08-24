@@ -37,17 +37,12 @@ export function renderSsrProgram(
 		return { fallback: materializeProgramFallback(vnode, owner) };
 	const { program } = invocation;
 	if (program.ssr) {
-		const target = acquireGeneratedSsrTarget(context);
-		try {
-			target.prepare(invocation, renderChildren);
-			program.ssr(target);
-			if (!target.prepared) return { fallback: materializeProgramFallback(vnode, owner) };
-			return typeof target.output === 'string'
-				? { html: target.output }
-				: { segments: target.output };
-		} finally {
-			target.release();
-		}
+		const target = new GeneratedSsrTarget(context, invocation, renderChildren);
+		program.ssr(target);
+		if (!target.prepared) return { fallback: materializeProgramFallback(vnode, owner) };
+		return typeof target.output === 'string'
+			? { html: target.output }
+			: { segments: target.output.segments };
 	}
 	return { fallback: materializeProgramFallback(vnode, owner) };
 }
@@ -62,38 +57,16 @@ type DeferredSsrSegment = string | readonly Child[];
  * runtime rediscover component topology from an operation table.
  */
 class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
-	readonly values: unknown[] = [];
-	active = false;
-	invocation!: ExactRenderProgramInvocation;
-	next?: GeneratedSsrTarget;
-	output: string | DeferredSsrSegment[] = [];
+	readonly #values: unknown[] = [];
+	output: string | { readonly segments: DeferredSsrSegment[]; staticCharacters: number };
 	prepared = true;
-	renderChildren?: (children: readonly Child[]) => string;
-	staticCharacters = 0;
 
-	constructor(private readonly context: SsrContext) {}
-
-	/** Initializes one generated writer without allocating an invocation result wrapper. */
-	prepare(
-		invocation: ExactRenderProgramInvocation,
-		renderChildren: ((children: readonly Child[]) => string) | undefined
-	): void {
-		this.invocation = invocation;
-		this.renderChildren = renderChildren;
-		this.output = renderChildren ? '' : [];
-		this.staticCharacters = 0;
-		this.prepared = true;
-	}
-
-	/** Releases invocation references while retaining only the reusable receiver. */
-	release(): void {
-		this.invocation = undefined!;
-		this.renderChildren = undefined;
-		this.values.length = 0;
-		this.output = [];
-		this.staticCharacters = 0;
-		this.prepared = true;
-		this.active = false;
+	constructor(
+		private readonly context: SsrContext,
+		private readonly invocation: ExactRenderProgramInvocation,
+		private readonly renderChildren?: (children: readonly Child[]) => string
+	) {
+		this.output = renderChildren ? '' : { segments: [], staticCharacters: 0 };
 	}
 
 	prepareText(index: number): void {
@@ -103,7 +76,7 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 			this.prepared = false;
 			return;
 		}
-		this.values[index] = value;
+		this.#values[index] = value;
 	}
 
 	prepareChild(index: number): void {
@@ -113,7 +86,7 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 			this.prepared = false;
 			return;
 		}
-		this.values[index] = value;
+		this.#values[index] = value;
 	}
 
 	prepareAttribute(index: number): void {
@@ -123,7 +96,7 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 			this.prepared = false;
 			return;
 		}
-		this.values[index] = value;
+		this.#values[index] = value;
 	}
 
 	begin(nodeCount: number, slotCount: number): void {
@@ -142,15 +115,15 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 			this.output = appendBoundedHtml(this.context, this.output, value);
 			return;
 		}
-		this.staticCharacters += value.length;
-		if (this.staticCharacters > this.context.maxOutputBytes)
+		this.output.staticCharacters += value.length;
+		if (this.output.staticCharacters > this.context.maxOutputBytes)
 			throw new SsrOutputLimitError(this.context.maxOutputBytes);
-		if (value !== '') this.output.push(value);
+		if (value !== '') this.output.segments.push(value);
 	}
 
 	text(index: number, id: string, markerless?: true): void {
 		if (!this.prepared) return;
-		const value = this.values[index];
+		const value = this.#values[index];
 		const rendered =
 			value === null || value === undefined || value === false || value === true
 				? ''
@@ -164,7 +137,7 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 
 	child(index: number, id: string): void {
 		if (!this.prepared) return;
-		const children = normalizeRenderResult(this.values[index] as Child | Child[]);
+		const children = normalizeRenderResult(this.#values[index] as Child | Child[]);
 		if (this.renderChildren) {
 			const rendered = this.renderChildren(children);
 			this.static(
@@ -175,33 +148,22 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 			return;
 		}
 		if (this.context.markers) this.static(`<!--exact:dynamic:${exactMarkerId(id)}-->`);
-		if (typeof this.output !== 'string') this.output.push(children);
+		if (typeof this.output !== 'string') this.output.segments.push(children);
 		if (this.context.markers) this.static(`<!--/exact:dynamic:${exactMarkerId(id)}-->`);
 	}
 
 	keyedChild(index: number): void {
 		if (!this.prepared) return;
-		const children = normalizeRenderResult(this.values[index] as Child | Child[]);
+		const children = normalizeRenderResult(this.#values[index] as Child | Child[]);
 		if (this.renderChildren) this.static(this.renderChildren(children));
-		else if (typeof this.output !== 'string') this.output.push(children);
+		else if (typeof this.output !== 'string') this.output.segments.push(children);
 	}
 
 	attribute(index: number, name: string, tag: string): void {
 		if (!this.prepared) return;
-		this.static(renderAttrs({ [name]: this.values[index] }, false, tag, this.context));
+		this.static(renderAttrs({ [name]: this.#values[index] }, false, tag, this.context));
 	}
 }
-
-function acquireGeneratedSsrTarget(context: SsrContext): GeneratedSsrTarget {
-	let target = context.generatedSsrTarget;
-	if (!target) target = context.generatedSsrTarget = new GeneratedSsrTarget(context);
-	while (target.active) target = target.next ??= new GeneratedSsrTarget(context);
-	target.active = true;
-	return target;
-}
-
-/** Request-local compiler-program serializer retained only while its SSR context lives. @internal */
-export type ReusableGeneratedSsrTarget = GeneratedSsrTarget;
 
 /** Handles a render-program string node while leaving every other vnode untouched. */
 export function renderSsrProgramString(
