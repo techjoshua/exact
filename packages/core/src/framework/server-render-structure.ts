@@ -10,6 +10,7 @@ export {
 	compiledRenderProgramCacheSize,
 	createCompiledRenderProgram,
 	createPreparedRenderProgram,
+	createPreparedServerRenderProgram,
 	prepareCompiledRenderProgram,
 	readRenderProgram,
 	readRenderProgramSlot,

@@ -131,7 +131,7 @@ func TestUTF16PackageEnhancementBoundaryConversion(t *testing.T) {
 	}
 }
 
-func TestSessionEmitsGeneratedServerRenderProgramsWithLazyRegionFallback(t *testing.T) {
+func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
@@ -145,7 +145,7 @@ func TestSessionEmitsGeneratedServerRenderProgramsWithLazyRegionFallback(t *test
 	}
 	for _, expected := range []string{
 		`from "@exactjs/core/framework/server-render-structure"`,
-		"createPreparedRenderProgram",
+		"createPreparedServerRenderProgram",
 		"prepareCompiledRenderProgram",
 		"version: 4",
 		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
@@ -154,13 +154,12 @@ func TestSessionEmitsGeneratedServerRenderProgramsWithLazyRegionFallback(t *test
 		`const __exactValue_0 = __exactSsr.prepareText(__exactInvocation, 0)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_0,`,
 		`, true)`,
-		"() => __exactVNode(\"span\"",
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	for _, omitted := range []string{"template:", "slots:", "nodes:", "bindings:", "parts:", "ssrParts:", "ssrOperations:"} {
+	for _, omitted := range []string{"template:", "slots:", "nodes:", "bindings:", "parts:", "ssrParts:", "ssrOperations:", "() => __exactVNode(\"span\""} {
 		if strings.Contains(response.Code, omitted) {
 			t.Fatalf("generated server program retained %q topology metadata:\n%s", omitted, response.Code)
 		}
@@ -392,7 +391,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		"createPreparedRenderProgram",
+		"createPreparedServerRenderProgram",
 		`const __exactValue_0 = __exactSsr.prepareAttribute(__exactInvocation, 0)`,
 		`__exactSsr.attribute(__exactContext, __exactOutput, __exactValue_0, "disabled", "button", __exactCharacters)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
@@ -477,8 +476,11 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 	if server.Error != "" {
 		t.Fatal(server.Error)
 	}
-	if !strings.Contains(server.Code, `__exactVNode("section"`) {
-		t.Fatalf("server artifact did not retain recursive structural rendering:\n%s", server.Code)
+	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
+		!strings.Contains(server.Code, `__exactSsr.static(__exactOutput, "<section>")`) ||
+		!strings.Contains(server.Code, `__exactSsr.child(`) ||
+		strings.Contains(server.Code, `__exactVNode("section"`) {
+		t.Fatalf("server artifact did not compile recursive structural rendering:\n%s", server.Code)
 	}
 }
 
@@ -526,8 +528,11 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if server.Error != "" {
 		t.Fatal(server.Error)
 	}
-	if !strings.Contains(server.Code, `__exactVNode("main"`) {
-		t.Fatalf("server artifact did not retain recursive component rendering:\n%s", server.Code)
+	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
+		!strings.Contains(server.Code, `__exactComponentVNode(Detail`) ||
+		!strings.Contains(server.Code, `__exactSsr.child(`) ||
+		strings.Contains(server.Code, `__exactVNode("main"`) {
+		t.Fatalf("server artifact did not compile recursive component rendering:\n%s", server.Code)
 	}
 
 	complete := NewSession().Execute(Request{
@@ -768,11 +773,10 @@ func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "__exactAsyncSiblings(__exactVNode(\"main\"") {
-		t.Fatalf("proven sibling group was not marked:\n%s", response.Code)
-	}
-	if strings.Contains(response.Code, "return () => __exactCreatePreparedRenderProgram") {
-		t.Fatalf("server render program erased sibling independence from the successful path:\n%s", response.Code)
+	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
+		strings.Count(response.Code, "__exactComponentVNode(") < 2 ||
+		strings.Contains(response.Code, "markIndependentAsyncSiblings as") {
+		t.Fatalf("proven sibling group was not captured by the direct server program:\n%s", response.Code)
 	}
 }
 
@@ -797,11 +801,10 @@ func TestSessionKeepsIndependentServerTaskSiblingsOutOfOrderedRenderPrograms(t *
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "__exactAsyncSiblings(__exactVNode(\"main\"") {
-		t.Fatalf("independent server task siblings were not marked:\n%s", response.Code)
-	}
-	if strings.Contains(response.Code, "return () => __exactCreatePreparedRenderProgram") {
-		t.Fatalf("ordered server render program serialized independent task siblings:\n%s", response.Code)
+	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
+		strings.Count(response.Code, "__exactIssueServerComponent(") < 2 ||
+		strings.Contains(response.Code, "markIndependentAsyncSiblings as") {
+		t.Fatalf("independent server task siblings were not eagerly issued by the compiled program:\n%s", response.Code)
 	}
 }
 
@@ -828,11 +831,11 @@ func TestSessionKeepsNestedIndependentServerTaskSiblingsOutOfOrderedRenderProgra
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `__exactAsyncSiblings(__exactVNode("section"`) {
-		t.Fatalf("nested independent server task siblings were not marked:\n%s", response.Code)
-	}
-	if strings.Contains(response.Code, "return () => __exactCreatePreparedRenderProgram") {
-		t.Fatalf("ordered server render program serialized nested independent task siblings:\n%s", response.Code)
+	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
+		strings.Count(response.Code, "__exactIssueServerComponent(") < 2 ||
+		!strings.Contains(response.Code, `__exactSsr.static(__exactOutput, "</h1><section>")`) ||
+		strings.Contains(response.Code, "markIndependentAsyncSiblings as") {
+		t.Fatalf("nested independent server task siblings were not eagerly issued by the compiled program:\n%s", response.Code)
 	}
 }
 

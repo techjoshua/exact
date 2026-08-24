@@ -163,11 +163,12 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	if _, explicit := lowering.explicitServerIsland(identityNode); explicit {
 		return nil
 	}
-	// The current render-program ABI serializes dynamic component slots in authored order and
-	// cannot carry the compiler's stronger sibling-independence proof. Preserve the direct VNode
-	// form when any nested host owns such a group; checking only the program root silently
-	// serialized task siblings below otherwise unrelated static or scalar content.
-	if lowering.target == TargetServer && lowering.containsIndependentAsyncSiblings(children) {
+	// Generic component frames retain reactive stabilization semantics. Until their task surface is
+	// compiler-closed, preserve the VNode representation that carries sibling independence through
+	// the generic renderer. Direct frames capture every slot while child issuance is active below.
+	if lowering.target == TargetServer &&
+		!lowering.directServerArtifactComponent(identityNode) &&
+		lowering.containsIndependentAsyncSiblings(children) {
 		return nil
 	}
 	parentNamespace, certain := lowering.renderProgramParentNamespace(identityNode)
@@ -260,8 +261,12 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		lowering.factory.NewIdentifier(programName),
 		lowering.renderProgramReaders(runtimeReaders),
 	}
-	if lowering.target != TargetClient ||
-		lowering.contractProjection == ComponentContractProjectionComplete {
+	closedDirectServer := lowering.target == TargetServer &&
+		lowering.interop == nil &&
+		lowering.directServerArtifactComponent(identityNode)
+	if (lowering.target != TargetClient ||
+		lowering.contractProjection == ComponentContractProjectionComplete) &&
+		!closedDirectServer {
 		// Server and universal artifacts can enter React-compatible SSR or recover one malformed
 		// region locally. A client artifact already has root-level hydration recovery, so retaining
 		// a duplicate generic VNode factory for every compiler-closed region only adds parse, heap,
@@ -277,7 +282,17 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		}
 		arguments = append(arguments, propertyWriter)
 	}
-	return lowering.call(lowering.names.preparedRenderProgram, arguments)
+	prepared := lowering.names.preparedRenderProgram
+	if lowering.target == TargetServer && lowering.directServerArtifactComponent(identityNode) {
+		prepared = lowering.names.preparedServerProgram
+		arguments = append(
+			arguments[:2],
+			append([]*ast.Node{
+				lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.slots)), ast.TokenFlagsNone),
+			}, arguments[2:]...)...,
+		)
+	}
+	return lowering.call(prepared, arguments)
 }
 
 func (lowering *jsxLowering) containsIndependentAsyncSiblings(children *ast.NodeList) bool {

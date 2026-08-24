@@ -14,6 +14,7 @@ type jsxRuntimeNames struct {
 	keyedElement           string
 	renderProgram          string
 	preparedRenderProgram  string
+	preparedServerProgram  string
 	prepareRenderProgram   string
 	bindProgramText        string
 	bindProgramChild       string
@@ -163,6 +164,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"keyCompiledVNode", lowering.names.keyedElement, 0},
 		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
 		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, 0},
+		{"createPreparedServerRenderProgram", lowering.names.preparedServerProgram, 0},
 		{"prepareCompiledRenderProgram", lowering.names.prepareRenderProgram, 0},
 		{"createCompiledFragment", lowering.names.fragment, 0},
 		{"createCompiledTarget", lowering.names.target, 0},
@@ -637,6 +639,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		keyedElement:           allocate("__exactKeyedVNode"),
 		renderProgram:          allocate("__exactRenderProgram"),
 		preparedRenderProgram:  allocate("__exactPreparedRenderProgram"),
+		preparedServerProgram:  allocate("__exactPreparedServerRenderProgram"),
 		prepareRenderProgram:   allocate("__exactPrepareRenderProgram"),
 		bindProgramText:        allocate("__exactBindProgramText"),
 		bindProgramChild:       allocate("__exactBindProgramChild"),
