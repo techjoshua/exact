@@ -115,6 +115,7 @@ test('summarizes sustained server latency, throughput, and post-GC drift', () =>
 	});
 
 	assert.equal(summary.throughputRequestsPerSecond, 20);
+	assert.equal(summary.transport, 'node-http');
 	assert.equal(summary.latencyMs.p50, 4);
 	assert.equal(summary.ttfbMs.p95, 6);
 	assert.equal(summary.memory.postGcHeapDriftBytes, 2);

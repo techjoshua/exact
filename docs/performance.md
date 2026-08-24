@@ -7,11 +7,14 @@ current client, server, wire, heap, and production-fixture build evidence. It is
 not a machine-independent release budget.
 
 `npm run benchmark:server` complements the isolated framework scenarios with sustained production
-HTTP load against the compiler-closed SSR artifact on Node and Bun. It reports client-visible
-latency and time-to-first-byte percentiles, server render percentiles, throughput, event-loop delay,
-peak RSS and heap, and post-GC memory after each load round. The runner owns and reaps every server
-process; use its results for server-performance claims and retain the isolated fixture for precise
-compiler reachability, readiness, and request-cleanup regressions.
+HTTP load against the compiler-closed SSR artifact. Node uses `node:http`; Bun is measured both
+through its Node compatibility layer and through native `Bun.serve`. Keeping those Bun lanes
+separate prevents compatibility transport overhead from being mistaken for renderer cost or native
+Bun deployment performance. The benchmark reports client-visible latency and time-to-first-byte
+percentiles, server render percentiles, throughput, event-loop delay, peak RSS and heap, and post-GC
+memory after each load round. The runner owns and reaps every server process; use its results for
+server-performance claims and retain the isolated fixture for precise compiler reachability,
+readiness, and request-cleanup regressions.
 
 Server render-program selection must preserve readiness at every nested host, not only at a
 component's returned root. If a planned intrinsic subtree contains compiler-proven independent

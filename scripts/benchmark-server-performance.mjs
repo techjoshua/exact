@@ -11,24 +11,43 @@ const warmupRequests = positiveInteger(process.env.EXACT_SERVER_BENCH_WARMUPS ??
 const rounds = positiveInteger(process.env.EXACT_SERVER_BENCH_ROUNDS ?? '6');
 const roundDurationMs = positiveInteger(process.env.EXACT_SERVER_BENCH_ROUND_MS ?? '2000');
 const requestedRuntime = process.argv.find((value) => value.startsWith('--runtime='))?.slice(10);
-const runtimes = requestedRuntime ? [requestedRuntime] : ['node', 'bun'];
-for (const runtime of runtimes)
-	if (runtime !== 'node' && runtime !== 'bun') throw new Error(`Unknown server runtime ${runtime}`);
+const lanes = [
+	{ id: 'node', runtime: 'node', transport: 'node-http', worker: 'server-load-worker.mjs' },
+	{
+		id: 'bun-portable',
+		runtime: 'bun',
+		transport: 'node-http-compat',
+		worker: 'server-load-worker.mjs'
+	},
+	{
+		id: 'bun-native',
+		runtime: 'bun',
+		transport: 'bun-serve',
+		worker: 'server-load-worker-bun.mjs'
+	}
+];
+const selectedLanes = requestedRuntime
+	? lanes.filter(
+			(lane) =>
+				lane.id === requestedRuntime || (requestedRuntime === 'bun' && lane.runtime === 'bun')
+		)
+	: lanes;
+if (selectedLanes.length === 0) throw new Error(`Unknown server runtime ${requestedRuntime}`);
 
 const temporary = await mkdtemp(path.join(workspace, '.exact-server-performance-'));
 try {
 	process.stdout.write('Building compiler-closed production SSR fixture...\n');
 	const fixtureBuild = await buildServerPerformanceFixture(temporary);
-	const worker = path.join(import.meta.dirname, 'performance', 'server-load-worker.mjs');
 	const results = [];
-	for (const runtime of runtimes) {
+	for (const lane of selectedLanes) {
 		process.stdout.write(
-			`${runtime}: ${rounds} x ${(roundDurationMs / 1_000).toFixed(1)}s at concurrency ${concurrency}...\n`
+			`${lane.id}: ${rounds} x ${(roundDurationMs / 1_000).toFixed(1)}s at concurrency ${concurrency}...\n`
 		);
 		const result = await measureServerLoad({
-			worker,
+			worker: path.join(import.meta.dirname, 'performance', lane.worker),
 			fixture: fixtureBuild.path,
-			runtime,
+			runtime: lane.runtime,
+			transport: lane.transport,
 			concurrency,
 			warmupRequests,
 			rounds,
@@ -36,7 +55,7 @@ try {
 		});
 		results.push(result);
 		process.stdout.write(
-			`${runtime}: ${result.throughputRequestsPerSecond.toFixed(1)} req/s; latency p50 ${result.latencyMs.p50.toFixed(2)}ms p95 ${result.latencyMs.p95.toFixed(2)}ms; heap drift ${result.memory.postGcHeapDriftBytes} bytes\n`
+			`${lane.id}: ${result.throughputRequestsPerSecond.toFixed(1)} req/s; latency p50 ${result.latencyMs.p50.toFixed(2)}ms p95 ${result.latencyMs.p95.toFixed(2)}ms; heap drift ${result.memory.postGcHeapDriftBytes} bytes\n`
 		);
 	}
 	process.stdout.write(

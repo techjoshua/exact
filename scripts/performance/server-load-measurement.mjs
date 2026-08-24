@@ -10,6 +10,7 @@ export async function measureServerLoad({
 	worker,
 	fixture,
 	runtime,
+	transport = runtime === 'bun' ? 'node-http-compat' : 'node-http',
 	concurrency,
 	warmupRequests,
 	rounds,
@@ -56,6 +57,7 @@ export async function measureServerLoad({
 			}
 			return summarizeServerLoad({
 				runtime,
+				transport,
 				moduleEvaluationMs: ready.moduleEvaluationMs,
 				requestSamples,
 				elapsedMs: measuredMs,
@@ -90,6 +92,7 @@ export async function measureServerLoad({
 /** Summarizes client-visible and server-reported measurements from a sustained load window. */
 export function summarizeServerLoad({
 	runtime,
+	transport = runtime === 'bun' ? 'node-http-compat' : 'node-http',
 	moduleEvaluationMs,
 	requestSamples,
 	elapsedMs,
@@ -113,6 +116,7 @@ export function summarizeServerLoad({
 	const postGcMemory = serverSnapshots.map((snapshot) => snapshot.currentMemory);
 	return {
 		runtime,
+		transport,
 		requests: requestSamples.length,
 		errors: 0,
 		throughputRequestsPerSecond: requestSamples.length / (elapsedMs / 1_000),
