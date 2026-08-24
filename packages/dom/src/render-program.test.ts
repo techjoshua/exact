@@ -10,6 +10,7 @@ import {
 import { flushSync, reactive } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { adoptStatic, render, unmount } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
 import { withGenericRenderProgramBindings } from './testing.js';
 
 function RenderProgramOwner(this: Component<{}>) {
@@ -530,6 +531,42 @@ it('claims a variable-width structural child range before later planned elements
 	expect(container.querySelector('section')).toBe(host);
 	expect(container.querySelector('strong')).toBe(nested);
 	expect(nested?.textContent).toBe('client');
+});
+
+it.each([
+	['compiler-owned', '<strong>server</strong>'],
+	[
+		'generic-list',
+		'<!--exact:component:child--><strong>server</strong><!--/exact:component:child-->'
+	]
+])('adopts a %s component boundary inside a component slot', (_lane, componentHtml) => {
+	function Child() {
+		return () => createVNode('strong', {}, 'server');
+	}
+	const vnode = createCompiledRenderProgram(
+		'render-program:adopt-component-slot',
+		() => ({
+			version: 4,
+			id: 'render-program:adopt-component-slot',
+			namespace: 'html',
+			template:
+				'<section><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer>After</footer></section>',
+			slots: [['component', 'child']],
+			bindings: [['component', 0]],
+			nodes: [
+				[0, 'section'],
+				[1, 'footer']
+			]
+		}),
+		[() => createVNode(Child, {})]
+	);
+	const container = document.createElement('div');
+	container.innerHTML = `<!--exact:cell:root--><section><!--exact:dynamic:child-->${componentHtml}<!--/exact:dynamic:child--><footer>After</footer></section><!--/exact:cell:root-->`;
+	const strong = container.querySelector('strong');
+
+	expect(adoptStatic(vnode, container)).toBe(true);
+	expect(container.querySelector('strong')).toBe(strong);
+	expect(container.textContent).toBe('serverAfter');
 });
 
 it('rejects a marked SSR program when its generated hydration claims do not match the DOM', () => {

@@ -40,7 +40,7 @@ export function renderSsrProgram(
 	return { fallback: materializeProgramFallback(vnode, owner) };
 }
 
-type DeferredSsrSegment = string | readonly Child[];
+type DeferredSsrSegment = string | readonly Child[] | VNode;
 
 /**
  * Supplies stateless serialization operations to one compiler-generated server lane.
@@ -63,6 +63,12 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	prepareChild(invocation, index) {
 		const value = unwrap(readRenderProgramSlot(invocation, index));
 		return value instanceof Promise ? unpreparedSsrValue : value;
+	},
+	prepareComponent(invocation, index) {
+		const value = unwrap(readRenderProgramSlot(invocation, index));
+		return value instanceof Promise || !isVNode(value) || typeof value.type !== 'function'
+			? unpreparedSsrValue
+			: value;
 	},
 	prepareAttribute(invocation, index) {
 		const value = unwrap(readRenderProgramSlot(invocation, index));
@@ -114,6 +120,20 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	keyedChild(output, value) {
 		output.push(normalizeRenderResult(value as Child | Child[]));
 	},
+	component(opaqueContext, output, value, id, characters, markerless) {
+		const context = opaqueContext as SsrContext;
+		const opening =
+			context.markers && !markerless ? `<!--exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const closing =
+			context.markers && !markerless ? `<!--/exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const nextCharacters = characters + opening.length + closing.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (opening) output.push(opening);
+		output.push(value as VNode);
+		if (closing) output.push(closing);
+		return nextCharacters;
+	},
 	attribute(opaqueContext, output, value, name, tag, characters) {
 		const context = opaqueContext as SsrContext;
 		const html = renderAttrs({ [name]: value }, false, tag, context);
@@ -131,7 +151,8 @@ export function renderSsrProgramString(
 	vnode: VNode,
 	owner: AnyComponentInstance | undefined,
 	renderFallback: (fallback: VNode) => string,
-	renderChildren: (children: readonly Child[]) => string
+	renderChildren: (children: readonly Child[]) => string,
+	renderOwnedComponent: (component: VNode) => string
 ): string | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
 	const planned = renderSsrProgram(context, vnode, owner);
@@ -140,7 +161,11 @@ export function renderSsrProgramString(
 	return boundedJoin(
 		context,
 		planned.segments!.map((segment) =>
-			typeof segment === 'string' ? segment : renderChildren(segment)
+			typeof segment === 'string'
+				? segment
+				: Array.isArray(segment)
+					? renderChildren(segment)
+					: renderOwnedComponent(segment as VNode)
 		)
 	);
 }
@@ -151,21 +176,24 @@ export function renderSsrProgramChunks(
 	vnode: VNode,
 	owner: AnyComponentInstance | undefined,
 	renderFallback: (fallback: VNode) => Iterable<string>,
-	renderChildren: (children: readonly Child[]) => Iterable<string>
+	renderChildren: (children: readonly Child[]) => Iterable<string>,
+	renderOwnedComponent: (component: VNode) => Iterable<string>
 ): Iterable<string> | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
 	const planned = renderSsrProgram(context, vnode, owner);
 	if (planned.fallback) return renderFallback(planned.fallback);
-	return flattenDeferredSegments(planned.segments!, renderChildren);
+	return flattenDeferredSegments(planned.segments!, renderChildren, renderOwnedComponent);
 }
 
 function* flattenDeferredSegments(
 	segments: readonly DeferredSsrSegment[],
-	renderChildren: (children: readonly Child[]) => Iterable<string>
+	renderChildren: (children: readonly Child[]) => Iterable<string>,
+	renderOwnedComponent: (component: VNode) => Iterable<string>
 ): Iterable<string> {
 	for (const segment of segments) {
 		if (typeof segment === 'string') yield segment;
-		else yield* renderChildren(segment);
+		else if (Array.isArray(segment)) yield* renderChildren(segment);
+		else yield* renderOwnedComponent(segment as VNode);
 	}
 }
 

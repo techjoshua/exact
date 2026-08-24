@@ -480,6 +480,7 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 	}
 	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
 		!strings.Contains(server.Code, `__exactSsr.static(__exactOutput, "<section>")`) ||
+		!strings.Contains(server.Code, `__exactSsr.prepareChild(`) ||
 		!strings.Contains(server.Code, `__exactSsr.child(`) ||
 		strings.Contains(server.Code, `__exactVNode("section"`) {
 		t.Fatalf("server artifact did not compile recursive structural rendering:\n%s", server.Code)
@@ -532,7 +533,9 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
 		!strings.Contains(server.Code, `__exactComponentVNode(Detail`) ||
-		!strings.Contains(server.Code, `__exactSsr.child(`) ||
+		!strings.Contains(server.Code, `__exactSsr.prepareComponent(`) ||
+		!strings.Contains(server.Code, `__exactSsr.component(`) ||
+		strings.Contains(server.Code, `__exactSsr.child(`) ||
 		strings.Contains(server.Code, `__exactVNode("main"`) {
 		t.Fatalf("server artifact did not compile recursive component rendering:\n%s", server.Code)
 	}

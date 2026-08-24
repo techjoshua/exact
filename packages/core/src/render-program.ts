@@ -10,7 +10,7 @@ export type ExactRenderProgramNode = readonly [
 ];
 
 /** Compiler-owned server output containing serialized spans and deferred child ranges. */
-export type ExactRenderProgramSsrOutput = Array<string | readonly unknown[]>;
+export type ExactRenderProgramSsrOutput = Array<string | readonly unknown[] | VNode>;
 
 /** Stateless server operations invoked directly by compiler-generated component wiring. */
 export type ExactRenderProgramSsrOperations = Readonly<{
@@ -22,6 +22,8 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 	prepareText(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reads and validates one recursive child before serialization mutates request state. */
 	prepareChild(invocation: ExactRenderProgramInvocation, index: number): unknown;
+	/** Reads one compiler-proven native component before serialization mutates request state. */
+	prepareComponent(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reads and validates one host value before serialization mutates request state. */
 	prepareAttribute(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reserves the finite region's ownership identities and charges its request limit once. */
@@ -47,6 +49,15 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 	): number;
 	/** Renders one compiler-keyed final-child range without serializing delimiters. */
 	keyedChild(output: ExactRenderProgramSsrOutput, value: unknown): void;
+	/** Publishes one component through its compiler-owned parent slot boundary. */
+	component(
+		context: object,
+		output: ExactRenderProgramSsrOutput,
+		value: unknown,
+		id: string,
+		characters: number,
+		markerless?: true
+	): number;
 	/** Serializes one prepared host value with ordinary SSR attribute semantics. */
 	attribute(
 		context: object,

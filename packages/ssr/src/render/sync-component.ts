@@ -5,6 +5,7 @@ import {
 	type Child,
 	type VNode
 } from '@exactjs/core';
+import { readPreparedExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
 import { componentName, getComponentProps } from './component-vnode.js';
@@ -39,7 +40,8 @@ export function renderSyncComponent(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	hasComponentAncestor: boolean,
-	operations: SyncComponentOperations
+	operations: SyncComponentOperations,
+	omitCompilerOwnedBoundary = false
 ): string {
 	const componentId = operations.componentMarkerId(context, vnode);
 	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
@@ -66,7 +68,8 @@ export function renderSyncComponent(
 				enhancement,
 				documentProbe,
 				hasComponentAncestor,
-				operations
+				operations,
+				omitCompilerOwnedBoundary
 			);
 			if (instance) context.onComponentRendered?.(instance);
 			return output;
@@ -89,7 +92,8 @@ export function renderSyncComponent(
 					enhancement,
 					documentProbe,
 					hasComponentAncestor,
-					operations
+					operations,
+					omitCompilerOwnedBoundary
 				);
 				context.onDirectComponentRendered?.(direct.snapshot);
 				return directOutput;
@@ -119,7 +123,8 @@ export function renderSyncComponent(
 			enhancement,
 			documentProbe,
 			hasComponentAncestor,
-			operations
+			operations,
+			omitCompilerOwnedBoundary
 		);
 	} catch (error) {
 		if (isSsrRenderLimitError(error)) throw error;
@@ -164,9 +169,18 @@ function componentOutput(
 	enhancement: boolean,
 	documentProbe: boolean,
 	hasComponentAncestor: boolean,
-	operations: SyncComponentOperations
+	operations: SyncComponentOperations,
+	omitCompilerOwnedBoundary: boolean
 ): string {
-	if (enhancement || (documentProbe && context.documentRootSeen)) return html;
+	const resumable =
+		readPreparedExactCompiledComponentContract(vnode.type as AnyComponentFunction).continuations
+			.length !== 0;
+	if (
+		enhancement ||
+		(documentProbe && context.documentRootSeen) ||
+		(omitCompilerOwnedBoundary && !resumable)
+	)
+		return html;
 	return hasComponentAncestor
 		? operations.renderResumable(context, vnode, componentId, html, props)
 		: markerPair(context, componentId, () => html);

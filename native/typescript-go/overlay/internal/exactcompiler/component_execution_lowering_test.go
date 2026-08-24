@@ -294,6 +294,40 @@ func TestCompilerClosedMarkedServerRootRetainsMarkerFormatting(t *testing.T) {
 	}
 }
 
+func TestCompilerClosedHydratableRootSelectsPairedRenderer(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-root-hydratable.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { renderToHydratableStringAsync } from "@exactjs/ssr";
+			function Label(props: { label: string }) {
+				return () => <strong>{props.label}</strong>;
+			}
+			export function Page(props: { label: string }) {
+				return () => <main><Label label={props.label} /></main>;
+			}
+			export function render(label: string) {
+				return renderToHydratableStringAsync(<Page label={label} />);
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`renderCompilerClosedToHydratableStringAsync as`,
+		`from "@exactjs/ssr/runtime/compiler-closed"`,
+		`__exactRenderClosedHydratableSsr(__exactComponentVNode(Page`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("compiler-closed hydratable root is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `from "@exactjs/ssr"`) ||
+		strings.Contains(response.Code, `renderToHydratableStringAsync(__exactComponentVNode(Page`) {
+		t.Fatalf("compiler-closed hydratable root retained the universal renderer:\n%s", response.Code)
+	}
+}
+
 func TestUnmarkedClosedRootOmitsOnlyPrivateResumptionFormatting(t *testing.T) {
 	for name, exported := range map[string]string{
 		"private":  "",

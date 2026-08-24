@@ -183,6 +183,37 @@ it('executes structural program slots without colliding with nested marker ident
 	);
 });
 
+it('uses the compiler-owned component slot as the component hydration boundary', async () => {
+	function Child() {
+		return () => createVNode('strong', null, 'child');
+	}
+	const program = createCompiledRenderProgram(
+		'render-program:ssr-component',
+		() => ({
+			version: 4,
+			id: 'render-program:ssr-component',
+			namespace: 'html',
+			ssr(target, context, invocation) {
+				const child = target.prepareComponent(invocation, 0);
+				if (child === target.unprepared) return;
+				target.begin(context, 1, 1, 0);
+				const output = target.output();
+				target.static(output, '<section>');
+				target.component(context, output, child, 'child', 0);
+				target.static(output, '</section>');
+				return output;
+			}
+		}),
+		[() => createVNode(Child, {})]
+	);
+
+	const html = renderToString(program).html;
+	expect(html).toBe(
+		'<section><!--exact:dynamic:child--><strong>child</strong><!--/exact:dynamic:child--></section>'
+	);
+	expect(html).not.toContain('exact:component:');
+});
+
 it('writes a compiler-proven final keyed child without structural delimiters', async () => {
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-keyed-tail',

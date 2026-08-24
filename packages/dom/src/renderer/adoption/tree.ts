@@ -6,6 +6,7 @@ import {
 	Suspense,
 	Target,
 	UnsafeHtml,
+	isVNode,
 	watch,
 	type VNode
 } from '@exactjs/core';
@@ -59,12 +60,13 @@ export function adoptStaticMountedInner(
 	cursor: number,
 	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
-	rangeEnd = nodes.length
+	rangeEnd = nodes.length,
+	omitCompilerOwnedBoundary = false
 ): { mounted: Mounted; next: number } | undefined {
 	vnode = normalizeAdoptionVNode(root, vnode);
 	const scope = takeMaterializedListScope(vnode) ?? createEffectScope(parentScope);
 	if (typeof vnode.type === 'function') {
-		if (root.markerlessHydration) {
+		if (root.markerlessHydration || omitCompilerOwnedBoundary) {
 			const mounted: Mounted = { vnode, dom: undefined as never, scope, children: [] };
 			try {
 				const instance = withEffectScope(scope, () =>
@@ -233,8 +235,32 @@ export function adoptStaticMountedInner(
 			scope,
 			rangeEnd,
 			adoptStaticMountedInner,
-			(rootChildren, childNodes, owner, childScope, childCursor, childEnd) =>
-				adoptStaticChildren(
+			(rootChildren, childNodes, owner, childScope, childCursor, childEnd, component) => {
+				if (component && rootChildren.length === 1 && isVNode(rootChildren[0])) {
+					const first = childNodes[childCursor];
+					if (first instanceof Comment && first.data.startsWith('exact:component:'))
+						return adoptStaticChildren(
+							root,
+							[...rootChildren],
+							childNodes,
+							owner,
+							childScope,
+							childCursor,
+							childEnd
+						);
+					const adopted = adoptStaticMountedInner(
+						root,
+						rootChildren[0],
+						childNodes,
+						childCursor,
+						owner,
+						childScope,
+						childEnd,
+						true
+					);
+					return adopted?.next === childEnd ? [adopted.mounted] : undefined;
+				}
+				return adoptStaticChildren(
 					root,
 					[...rootChildren],
 					childNodes,
@@ -242,7 +268,8 @@ export function adoptStaticMountedInner(
 					childScope,
 					childCursor,
 					childEnd
-				)
+				);
+			}
 		);
 	}
 	if (vnode.type === UnsafeHtml) {

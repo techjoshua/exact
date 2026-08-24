@@ -66,12 +66,19 @@ export function renderVNode(
 	context: SsrContext,
 	vnode: VNode,
 	parent?: AnyComponentInstance,
-	hasComponentAncestor = false
+	hasComponentAncestor = false,
+	omitCompilerOwnedBoundary = false
 ): string {
 	enterSsrTreeDepth(context);
 	try {
 		countSsrNode(context);
-		const html = renderVNodeInner(context, vnode, parent, hasComponentAncestor);
+		const html = renderVNodeInner(
+			context,
+			vnode,
+			parent,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary
+		);
 		assertOutputCharacterBound(context, html);
 		return html;
 	} finally {
@@ -84,7 +91,8 @@ export function renderVNodeInner(
 	context: SsrContext,
 	vnode: VNode,
 	parent?: AnyComponentInstance,
-	hasComponentAncestor = false
+	hasComponentAncestor = false,
+	omitCompilerOwnedBoundary = false
 ): string {
 	const enhanced = activateSsrEnhancements(context, vnode, parent);
 	if (enhanced !== vnode) return renderVNode(context, enhanced, parent, hasComponentAncestor);
@@ -98,7 +106,8 @@ export function renderVNodeInner(
 		vnode,
 		parent,
 		(fallback) => renderVNode(context, fallback, parent, hasComponentAncestor),
-		(children) => renderChildren(context, children, parent, hasComponentAncestor)
+		(children) => renderChildren(context, children, parent, hasComponentAncestor),
+		(component) => renderVNode(context, component, parent, hasComponentAncestor, true)
 	);
 	if (program !== undefined) return program;
 
@@ -203,7 +212,8 @@ export function renderVNodeInner(
 			vnode,
 			parent,
 			hasComponentAncestor,
-			syncComponentOperations
+			syncComponentOperations,
+			omitCompilerOwnedBoundary
 		);
 	}
 

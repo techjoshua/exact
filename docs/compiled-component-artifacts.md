@@ -51,8 +51,9 @@ graph rather than for the whole module: a local direct graph can remain closed e
 component in the module uses a foreign boundary. A graph with a generic, imported, client-owned,
 enhancement-owned, or general-child descendant retains the ordinary renderer.
 
-The compiler also specializes authored `renderToStringAsync()` calls whose local root graph is
-closed and whose options cannot enable foreign React markup. Those calls enter a structure-only
+The compiler also specializes authored `renderToStringAsync()` and
+`renderToHydratableStringAsync()` calls whose local root graph is closed and whose options cannot
+enable foreign React markup. Those calls enter a structure-only
 serializer that accepts generated render programs, scalar and property slots, and transitively
 closed component slots. Dynamic render options, general child expressions, and unsupported graph
 edges leave the authored call on the universal SSR entry point. This proof keeps the broad async
@@ -64,6 +65,11 @@ because an external caller can render them with markers, and non-empty output ex
 the universal entry point because they may replace the rendered value. The unmarked closed lane can
 therefore trust its compiler-produced root directly; plugin-host output processing remains at the
 ordinary renderer boundary for authored or externally transformed values.
+Generated native-component slots preserve their component kind through server serialization. The
+direct lane writes the component inside the parent slot's existing structural range instead of
+adding a redundant component marker pair. Hydration uses that same bounded slot for ownership, while
+still accepting an explicit matching component marker when a generic keyed-list lane rendered the
+slot. Components with continuation activation keep their resumable boundary.
 Server artifacts import structure-only render and task helpers. Durable generic component
 construction, enhancement planning, and native structural-boundary ownership are separately
 installed capabilities selected only by artifacts that can reach those paths. Resumption
