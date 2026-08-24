@@ -97,7 +97,7 @@ export function renderToStringOwned(
 		for (const chunk of renderVNodeChunks(context, validatedVNode, undefined, 1))
 			output.append(chunk);
 	} else output.append(renderVNode(context, validatedVNode, undefined));
-	output.prepend(context.reactResourceHints);
+	output.prepend(context.reactResourceHints ?? []);
 	let chunks = output.finish();
 	if (options.outputExtensions?.length) {
 		const html = processExactOutputSync(
@@ -108,12 +108,12 @@ export function renderToStringOwned(
 		assertOutputWithinLimit(context, html);
 		chunks = [html];
 	}
-	const hydrationTable = context.hydrationTable.value();
+	const hydrationTable = context.hydrationTable?.value();
 	return createChunkedStringResult(
 		chunks,
 		options.state,
 		hydrationTable,
-		context.resourceLinkHeaders,
+		context.resourceLinkHeaders ?? [],
 		context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
 			? context.wallClockSnapshot
 			: undefined

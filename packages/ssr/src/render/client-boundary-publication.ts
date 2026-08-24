@@ -1,6 +1,7 @@
 import { escapeAttr } from '../html.js';
 import { serializeHydrationPayload } from '../hydration.js';
 import type { SsrContext } from '../types.js';
+import { SsrHydrationTable } from './hydration-table.js';
 
 /** Publishes either compact compiler-finite or self-describing client-boundary HTML. */
 export function publishClientBoundary(
@@ -12,7 +13,9 @@ export function publishClientBoundary(
 	finite: boolean,
 	children: string
 ): string {
-	const coordinate = finite ? context.hydrationTable.add(name, id, props) : undefined;
+	const coordinate = finite
+		? (context.hydrationTable ??= new SsrHydrationTable()).add(name, id, props)
+		: undefined;
 	const identity = coordinate
 		? ` data-xh="${coordinate}"`
 		: ` data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"`;

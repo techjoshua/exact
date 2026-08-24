@@ -170,7 +170,7 @@ export async function renderVNodeAsyncInner(
 
 	if (vnode.type === Suspense) {
 		const identity = markerId(context, 'suspense', undefined, vnode.key);
-		const prepared = context.preparedEnhancementSuspense.get(vnode);
+		const prepared = context.preparedEnhancementSuspense?.get(vnode);
 		if (prepared) {
 			try {
 				return await markerPair(context, suspenseStatusMarkerId(identity, prepared.status), () =>
@@ -241,7 +241,7 @@ export async function renderVNodeAsyncInner(
 		return renderComponentAsync(context, vnode, parent, options);
 	}
 
-	const contributed = context.targetContributions.get(vnode);
+	const contributed = context.targetContributions?.get(vnode);
 	const hostInput = contributed ? { ...vnode, props: contributed } : vnode;
 	if (independentSiblings && hostInput !== vnode) markIndependentAsyncSiblings(hostInput);
 	const host = enterHost(context, hostInput);

@@ -26,10 +26,10 @@ export async function renderComponentAsync(
 	options: SsrRenderOptions
 ): Promise<string> {
 	const componentId = componentMarkerId(context, vnode);
-	const enhancement = context.enhancementVNodes.has(vnode);
+	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	try {
-		const prepared = context.preparedEnhancementComponents.get(vnode);
+		const prepared = context.preparedEnhancementComponents?.get(vnode);
 		if (prepared) {
 			if (documentProbe) resetDocumentProbe(context);
 			const html = await renderChildrenAsync(

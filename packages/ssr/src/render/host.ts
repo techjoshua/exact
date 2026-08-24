@@ -11,7 +11,7 @@ export function renderElement(
 	vnode: VNode,
 	parent?: AnyComponentInstance
 ): string {
-	const contributed = context.targetContributions.get(vnode);
+	const contributed = context.targetContributions?.get(vnode);
 	if (contributed) vnode = { ...vnode, props: contributed };
 	const host = enterHost(context, vnode);
 	const hostVNode = host.vnode;
@@ -183,12 +183,12 @@ export function registerReactImagePreload(
 	)
 		return;
 	const key = `image:${src}`;
-	if (context.reactResourceKeys.has(key)) return;
-	context.reactResourceKeys.add(key);
+	if (context.reactResourceKeys?.has(key)) return;
+	(context.reactResourceKeys ??= new Set()).add(key);
 	const crossOrigin = unwrap(props.crossOrigin);
 	const suffix =
 		crossOrigin === undefined ? '' : ` crossorigin="${escapeAttr(String(crossOrigin))}"`;
-	context.reactResourceHints.push(
+	(context.reactResourceHints ??= []).push(
 		`<link rel="preload" as="image" href="${escapeAttr(src)}"${suffix}/>`
 	);
 }

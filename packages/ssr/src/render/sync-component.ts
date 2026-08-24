@@ -40,12 +40,12 @@ export function renderSyncComponent(
 	operations: SyncComponentOperations
 ): string {
 	const componentId = operations.componentMarkerId(context, vnode);
-	const enhancement = context.enhancementVNodes.has(vnode);
+	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	let instance: AnyComponentInstance | undefined;
 	let output!: string;
 	try {
-		const prepared = context.preparedEnhancementComponents.get(vnode);
+		const prepared = context.preparedEnhancementComponents?.get(vnode);
 		if (prepared) {
 			instance = prepared.instance;
 			if (documentProbe) resetDocumentProbe(context);

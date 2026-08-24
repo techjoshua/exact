@@ -207,6 +207,13 @@ request scheduler starts ready child tasks up to its bound before awaiting the f
 Framework-owned resumption observers are buffered and replayed in authored order; user
 component-instance observers retain the serial lane because their timing is observable.
 
+Request context storage is capability-lazy. Resource hints, hydration publication, enhancement
+planning, target routing, and prepared-boundary collections allocate only after the rendered tree
+uses that feature. Direct task frames store compiler-numbered output ports in indexed arrays and
+small path pairs; waiter and subscriber sets appear only when another task actually consumes the
+output. A task whose output is rendered but never forwarded therefore pays for neither generic
+maps nor dependency subscriber collections.
+
 Server compilation also selects runtime modules rather than importing the universal component
 barrel. Compiler-closed output imports structure-only VNode and render-program operations plus
 server task helpers. A generic component artifact explicitly installs durable component execution,

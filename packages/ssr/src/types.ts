@@ -323,12 +323,12 @@ export type SsrContext = {
 	maxTreeNodes: number;
 	traversedNodes: number;
 	maxOutputBytes: number;
-	reactResourceHints: string[];
-	reactResourceKeys: Set<string>;
+	reactResourceHints?: string[];
+	reactResourceKeys?: Set<string>;
 	dynamicComponentArtifacts?: RenderToStringOptions['dynamicComponentArtifacts'];
 	maxDynamicComponentPreloads: number;
 	dynamicComponentPreloads: number;
-	resourceLinkHeaders: string[];
+	resourceLinkHeaders?: string[];
 	onEarlyHints?: RenderToStringOptions['onEarlyHints'];
 	selectValue?: unknown;
 	allowUnsafeHtml: boolean;
@@ -340,21 +340,21 @@ export type SsrContext = {
 	documentBodySeen: boolean;
 	hostStack: string[];
 	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
-	unavailableEnhancements: Set<string>;
+	unavailableEnhancements?: Set<string>;
 	/** Generated ordinary component vnodes whose internal SSR boundary is not authored hydration data. */
-	enhancementVNodes: WeakSet<VNode>;
+	enhancementVNodes?: WeakSet<VNode>;
 	/** Authored boundaries whose logical subtree has an SSR enhancement route plan. */
-	plannedEnhancementBoundaries: WeakSet<VNode>;
+	plannedEnhancementBoundaries?: WeakSet<VNode>;
 	/** `_target` boundaries whose logical children have been prepared once. */
-	plannedTargetBoundaries: WeakSet<VNode>;
+	plannedTargetBoundaries?: WeakSet<VNode>;
 	/** `_target` boundaries whose owned layer has been applied to the active target. */
-	appliedTargetBoundaries: WeakSet<VNode>;
+	appliedTargetBoundaries?: WeakSet<VNode>;
 	/** Effective layered props contributed to resolved semantic intrinsic targets. */
-	targetContributions: WeakMap<VNode, Record<string, unknown>>;
+	targetContributions?: WeakMap<VNode, Record<string, unknown>>;
 	/** Resolved intrinsic targets and their merged enhancement declarations. */
-	enhancementTargets: WeakMap<VNode, readonly EnhancementEntry[]>;
+	enhancementTargets?: WeakMap<VNode, readonly EnhancementEntry[]>;
 	/** Component work materialized once while resolving a logical enhancement target. */
-	preparedEnhancementComponents: WeakMap<
+	preparedEnhancementComponents?: WeakMap<
 		VNode,
 		{
 			readonly instance?: AnyComponentInstance;
@@ -364,9 +364,9 @@ export type SsrContext = {
 		}
 	>;
 	/** Dynamic/list children materialized while resolving an enhancement target. */
-	preparedEnhancementChildren: WeakMap<VNode, readonly Child[]>;
+	preparedEnhancementChildren?: WeakMap<VNode, readonly Child[]>;
 	/** Suspense candidate selected while resolving an enhancement route. */
-	preparedEnhancementSuspense: WeakMap<
+	preparedEnhancementSuspense?: WeakMap<
 		VNode,
 		{
 			readonly children: readonly Child[];
@@ -376,7 +376,7 @@ export type SsrContext = {
 		}
 	>;
 	/** Request-local scheduled frames started from compiler-proven child reachability. */
-	preparedDirectScheduledComponents: WeakMap<
+	preparedDirectScheduledComponents?: WeakMap<
 		VNode,
 		import('./render/direct-component.js').PreparedDirectScheduledSsrComponent
 	>;
@@ -395,7 +395,7 @@ export type SsrContext = {
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
 	asyncFrame: boolean;
 	/** Response-local compiler-finite boundary table. */
-	hydrationTable: import('./render/hydration-table.js').SsrHydrationTable;
+	hydrationTable?: import('./render/hydration-table.js').SsrHydrationTable;
 	/** Reusable immutable plan cache selected by the rendered root component. */
 	rootExecutionBlueprint?: import('./render/root-execution-cache.js').SsrRootExecutionBlueprint;
 };

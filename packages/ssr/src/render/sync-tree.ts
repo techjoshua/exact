@@ -119,7 +119,7 @@ export function renderVNodeInner(
 
 	if (vnode.type === Suspense) {
 		const identity = markerId(context, 'suspense', undefined, vnode.key);
-		const prepared = context.preparedEnhancementSuspense.get(vnode);
+		const prepared = context.preparedEnhancementSuspense?.get(vnode);
 		if (prepared) {
 			try {
 				return markerPair(context, suspenseStatusMarkerId(identity, prepared.status), () =>
