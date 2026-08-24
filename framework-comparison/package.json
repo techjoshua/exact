@@ -33,6 +33,7 @@
 		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck"
 	},
 	"dependencies": {
+		"@exactjs/bun-adapter": "^0.1.0",
 		"@exactjs/compiler": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",

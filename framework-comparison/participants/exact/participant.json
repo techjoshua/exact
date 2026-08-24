@@ -6,6 +6,7 @@
 	"status": "scaffolded",
 	"tracks": ["controlled-service"],
 	"runtime": "node-24",
+	"ssrTransports": { "node": "node-http", "bun": "bun-fetch" },
 	"commands": {
 		"build": "npm run build:exact -w @exactjs/framework-comparison-suite",
 		"start": "npm run dev:exact -w @exactjs/framework-comparison-suite"

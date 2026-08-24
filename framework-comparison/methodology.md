@@ -95,15 +95,18 @@ profile.
 ### Isolated SSR profile
 
 The SSR track starts one production participant per child process so framework heap, RSS, external
-memory, and CPU are not mixed with the controlled fixture service or another framework. The worker
-imports the production server artifact directly and owns its listener; it does not start a shell,
-package manager, or descendant application process. Shutdown first uses the worker's control endpoint,
-then terminates only that exact child if graceful cleanup misses its deadline.
+memory, and CPU are not mixed with the controlled fixture service or another framework. Participant
+metadata declares the production transport used for each runtime. The worker imports that target-local
+server artifact directly and owns its listener; it does not start a shell, package manager, or descendant
+application process. Shutdown first uses the worker's control endpoint, then terminates only that exact
+child if graceful cleanup misses its deadline.
 
 Every measured route obtains the same immutable session and incident snapshot from the controlled
 service before rendering `/incidents/inc-101`. Client-observed TTFB and full-body time therefore describe
-the complete SSR route, while worker-observed first-byte and completion phases make framework-owned work
-visible without adding code to a participant. Sequential requests use warm keep-alive connections.
+the complete SSR route. A Node HTTP worker records response first-byte and finish phases; a native Fetch
+worker records handler completion when its immutable `Response` becomes ready. The report records this
+worker-measurement contract beside the transport so unlike internal phases are not mistaken for equivalent
+socket events. Sequential requests use warm keep-alive connections.
 Concurrent results are reported as individual latency percentiles and per-wave throughput percentiles;
 aggregate process CPU is normalized by completed requests because overlapping requests cannot be assigned
 independent process-CPU intervals safely.
@@ -118,9 +121,10 @@ cannot be accepted as an SSR sample.
 CPU lanes read cumulative process counters without forcing collection. Forced collection is confined to
 the separate retention lane, so benchmark bookkeeping is not charged to framework request CPU.
 
-Node and Bun results are separate runtime rows over the same production artifacts. Runtime comparisons
-must not combine their samples or present Bun executing Node-oriented output as a claim about a dedicated
-Bun build adapter.
+Node and Bun results are separate runtime rows over target-local production artifacts. A framework's
+native runtime integration is part of the comparison rather than normalized away. Frameworks without a
+native Bun host may use Bun's explicitly reported `node-http-compat` transport; that diagnostic must not
+be described as native Bun support.
 
 ## Complexity dimensions
 

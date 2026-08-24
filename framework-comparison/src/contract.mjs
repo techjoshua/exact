@@ -70,6 +70,11 @@ export function validateParticipant(value) {
 	requireString(value.commands.build, 'participant.commands.build');
 	requireString(value.commands.start, 'participant.commands.start');
 	requireArray(value.sourceRoots, 'participant.sourceRoots');
+	requireObject(value.ssrTransports, 'participant.ssrTransports');
+	if (value.ssrTransports.node !== 'node-http')
+		throw new Error('participant.ssrTransports.node must be node-http');
+	if (!['node-http-compat', 'bun-fetch'].includes(value.ssrTransports.bun))
+		throw new Error('participant.ssrTransports.bun must be node-http-compat or bun-fetch');
 }
 
 /** Validates the independent framework-specialist decision that gates publishable measurements. */

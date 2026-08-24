@@ -1,10 +1,13 @@
-import { createServer } from 'node:http';
 import { PerformanceObserver, monitorEventLoopDelay, performance } from 'node:perf_hooks';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { startSsrBenchmarkHost } from './ssr-benchmark-host.mjs';
+import { usesNativeBunServer } from './ssr-benchmark-transport.mjs';
 
 const participantId = process.argv[2];
 const requestedPort = Number(process.argv[3] ?? 0);
+const runtimeId = process.argv[4];
+const transport = process.argv[5];
 const suiteRoot = resolve(import.meta.dirname, '..');
 const serviceUrl = process.env.COMPARISON_SERVICE_URL ?? 'http://127.0.0.1:4310';
 const protocolPrefix = 'EXACT_SSR_BENCHMARK:';
@@ -15,48 +18,59 @@ const eventLoopDelay =
 		: undefined;
 const garbageCollection = { count: 0, durationMs: 0 };
 const garbageCollectionObserver = createGarbageCollectionObserver();
-const sockets = new Set();
 let shuttingDown = false;
 
-if (!participantId) throw new Error('SSR benchmark worker requires a participant id');
+if (!participantId || !runtimeId || !transport)
+	throw new Error('SSR benchmark worker requires participant, runtime, and transport identities');
+if (usesNativeBunServer(transport) && runtimeId !== 'bun')
+	throw new Error(`Native Bun transport cannot run under ${runtimeId}`);
 
 eventLoopDelay?.enable();
 
 const participant = await createParticipantHandler(participantId);
-const server = createServer((request, response) => {
-	const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
-	if (pathname.startsWith('/__exact-benchmark/')) {
-		void handleControlRequest(pathname, response);
-		return;
+const host = await startSsrBenchmarkHost({
+	transport,
+	port: requestedPort,
+	handleNodeControl: handleNodeControlRequest,
+	handleFetchControl: handleFetchControlRequest,
+	handleFetchRequest: measureFetchRequest,
+	handleNodeRequest(request, response) {
+		measureNodeRequest(response);
+		try {
+			const result = participant.handle(request, response);
+			if (result && typeof result.then === 'function')
+				void result.catch((error) => failNodeResponse(response, error));
+		} catch (error) {
+			failNodeResponse(response, error);
+		}
 	}
-	measureRequest(response);
-	try {
-		const result = participant.handle(request, response);
-		if (result && typeof result.then === 'function')
-			void result.catch((error) => failResponse(response, error));
-	} catch (error) {
-		failResponse(response, error);
-	}
 });
-
-server.on('connection', (socket) => {
-	sockets.add(socket);
-	socket.once('close', () => sockets.delete(socket));
-});
-
-await new Promise((resolveListen, reject) => {
-	server.once('error', reject);
-	server.listen(requestedPort, '127.0.0.1', resolveListen);
-});
-const address = server.address();
-if (!address || typeof address === 'string') throw new Error('SSR worker has no TCP address');
-publish({ type: 'ready', participantId, pid: process.pid, port: address.port });
+publish({ type: 'ready', participantId, pid: process.pid, port: host.port, transport });
 
 process.once('SIGINT', () => void shutdown('SIGINT'));
 process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 /** Creates the production SSR request handler without starting a descendant process. */
 async function createParticipantHandler(id) {
+	if (usesNativeBunServer(transport)) {
+		if (id !== 'exact')
+			throw new Error(`Participant ${id} declares bun-fetch without a native benchmark entry`);
+		const entry = resolve(
+			suiteRoot,
+			'participants',
+			'exact',
+			'dist-bun-server',
+			'bun-server-entry.js'
+		);
+		const { renderParticipantBunResponse } = await import(pathToFileURL(entry).href);
+		return {
+			async handle(request) {
+				const initialData = await loadInitialData();
+				return renderParticipantBunResponse(initialData, new URL(request.url).pathname);
+			},
+			async close() {}
+		};
+	}
 	if (id === 'exact' || id === 'react') {
 		const entry = resolve(suiteRoot, 'participants', id, 'dist-server', 'server-entry.js');
 		const { renderParticipant } = await import(pathToFileURL(entry).href);
@@ -115,8 +129,8 @@ async function loadInitialData() {
 	return { ...(await sessionResponse.json()), ...(await incidentsResponse.json()) };
 }
 
-/** Instruments first-byte and completion phases without changing framework response behavior. */
-function measureRequest(response) {
+/** Instruments Node response first-byte and socket-completion phases. */
+function measureNodeRequest(response) {
 	const startedAt = performance.now();
 	const cpuStarted = process.cpuUsage();
 	let firstByteAt;
@@ -152,16 +166,37 @@ function measureRequest(response) {
 	});
 }
 
-/** Serves process telemetry and deterministic lifecycle control outside measured request lanes. */
-async function handleControlRequest(pathname, response) {
+/** Measures native Fetch handler work through creation of its immutable Response. */
+async function measureFetchRequest(request) {
+	const startedAt = performance.now();
+	const cpuStarted = process.cpuUsage();
+	try {
+		const response = await participant.handle(request);
+		recordRequestStatistics(startedAt, cpuStarted);
+		return response;
+	} catch (error) {
+		recordRequestStatistics(startedAt, cpuStarted);
+		return new Response(errorMessage(error), {
+			status: 500,
+			headers: { 'content-type': 'text/plain; charset=utf-8' }
+		});
+	}
+}
+
+/** Records one handler completion against the worker-local timing and CPU counters. */
+function recordRequestStatistics(startedAt, cpuStarted) {
+	const completedAt = performance.now();
+	const cpu = process.cpuUsage(cpuStarted);
+	statistics.firstByteMs.push(completedAt - startedAt);
+	statistics.totalMs.push(completedAt - startedAt);
+	statistics.userCpuMs.push(cpu.user / 1_000);
+	statistics.systemCpuMs.push(cpu.system / 1_000);
+}
+
+/** Serves process telemetry and deterministic lifecycle control through Node HTTP. */
+async function handleNodeControlRequest(pathname, response) {
 	if (pathname === '/__exact-benchmark/reset') {
-		statistics.firstByteMs.length = 0;
-		statistics.totalMs.length = 0;
-		statistics.userCpuMs.length = 0;
-		statistics.systemCpuMs.length = 0;
-		eventLoopDelay?.reset();
-		garbageCollection.count = 0;
-		garbageCollection.durationMs = 0;
+		resetTelemetry();
 		writeJson(response, { ok: true });
 		return;
 	}
@@ -181,6 +216,38 @@ async function handleControlRequest(pathname, response) {
 	}
 	response.writeHead(404, { 'content-type': 'application/json' });
 	response.end('{"error":"unknown benchmark control"}');
+}
+
+/** Serves process telemetry and deterministic lifecycle control through native Fetch responses. */
+async function handleFetchControlRequest(pathname) {
+	if (pathname === '/__exact-benchmark/reset') {
+		resetTelemetry();
+		return jsonFetchResponse({ ok: true });
+	}
+	if (pathname === '/__exact-benchmark/snapshot') {
+		await collectGarbage();
+		return jsonFetchResponse(telemetry());
+	}
+	if (pathname === '/__exact-benchmark/telemetry') return jsonFetchResponse(telemetry());
+	if (pathname === '/__exact-benchmark/shutdown') {
+		setTimeout(() => void shutdown('control'), 0);
+		return jsonFetchResponse({ ok: true });
+	}
+	return new Response('{"error":"unknown benchmark control"}', {
+		status: 404,
+		headers: { 'content-type': 'application/json' }
+	});
+}
+
+/** Clears request-lane telemetry without affecting application or host ownership. */
+function resetTelemetry() {
+	statistics.firstByteMs.length = 0;
+	statistics.totalMs.length = 0;
+	statistics.userCpuMs.length = 0;
+	statistics.systemCpuMs.length = 0;
+	eventLoopDelay?.reset();
+	garbageCollection.count = 0;
+	garbageCollection.durationMs = 0;
 }
 
 /** Reads cumulative process counters without injecting collection work into a measured lane. */
@@ -226,20 +293,19 @@ async function shutdown(reason) {
 	eventLoopDelay?.disable();
 	garbageCollectionObserver?.disconnect();
 	const forcedExit = setTimeout(() => {
-		for (const socket of sockets) socket.destroy();
+		void host.forceClose();
 		process.exitCode = 1;
 	}, 2_000);
 	forcedExit.unref?.();
 	try {
 		await participant.close();
-		server.closeIdleConnections?.();
-		await new Promise((resolveClose) => server.close(() => resolveClose()));
+		await host.close();
 		publish({ type: 'closed', participantId, reason });
 		clearTimeout(forcedExit);
 		process.exit(0);
 	} catch (error) {
 		publish({ type: 'close-error', participantId, error: errorMessage(error) });
-		for (const socket of sockets) socket.destroy();
+		await host.forceClose();
 		process.exit(1);
 	}
 }
@@ -266,7 +332,7 @@ function nanosecondsToMilliseconds(value) {
 	return Number.isFinite(value) ? value / 1_000_000 : null;
 }
 
-function failResponse(response, error) {
+function failNodeResponse(response, error) {
 	if (!response.headersSent)
 		response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
 	response.end(errorMessage(error));
@@ -278,6 +344,12 @@ function writeJson(response, value) {
 		'content-type': 'application/json; charset=utf-8'
 	});
 	response.end(JSON.stringify(value));
+}
+
+function jsonFetchResponse(value) {
+	return Response.json(value, {
+		headers: { 'cache-control': 'no-store' }
+	});
 }
 
 function documentHtml(id, rendered, initialData) {
