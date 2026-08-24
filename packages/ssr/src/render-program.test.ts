@@ -161,6 +161,57 @@ it('executes structural program slots without colliding with nested marker ident
 	);
 });
 
+it('isolates pooled serializers across nested and concurrent render programs', async () => {
+	const inner = (value: string) =>
+		createCompiledRenderProgram(
+			`render-program:pooled-inner:${value}`,
+			() => ({
+				version: 3,
+				id: `render-program:pooled-inner:${value}`,
+				namespace: 'html',
+				ssr(target) {
+					target.prepareText(0);
+					target.begin(1, 1);
+					target.static('<strong>');
+					target.text(0, 'inner', true);
+					target.static('</strong>');
+				}
+			}),
+			[() => value]
+		);
+	const outer = (value: string) =>
+		createCompiledRenderProgram(
+			`render-program:pooled-outer:${value}`,
+			() => ({
+				version: 3,
+				id: `render-program:pooled-outer:${value}`,
+				namespace: 'html',
+				ssr(target) {
+					target.prepareChild(0);
+					target.begin(1, 1);
+					target.static('<section>');
+					target.child(0, 'nested');
+					target.static('</section>');
+				}
+			}),
+			[() => inner(value)]
+		);
+
+	expect(renderToString(outer('sync'), { markers: false }).html).toBe(
+		'<section><strong>sync</strong></section>'
+	);
+	await expect(
+		Promise.all(
+			['a', 'b', 'c', 'd'].map((value) => renderToStringAsync(outer(value), { markers: false }))
+		)
+	).resolves.toEqual(
+		['a', 'b', 'c', 'd'].map((value) => ({
+			html: `<section><strong>${value}</strong></section>`,
+			state: undefined
+		}))
+	);
+});
+
 it('writes a compiler-proven final keyed child without structural delimiters', async () => {
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-keyed-tail',
