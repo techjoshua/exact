@@ -16,7 +16,7 @@ test('the root build prepares package-export prerequisites before building depen
 	);
 	assert.equal(
 		manifest.scripts['build:bun-prerequisites'],
-		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/intl -w @exactjs/request -w @exactjs/testing'
+		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/request && npm run build -w @exactjs/intl && npm run build -w @exactjs/testing && npm run build -w @exactjs/microfrontends'
 	);
 	assert.match(manifest.scripts['test:bun'], /^npm run build:bun-prerequisites && /);
 	assert.equal(
