@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { performance } from 'node:perf_hooks';
+import { PerformanceObserver, monitorEventLoopDelay, performance } from 'node:perf_hooks';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -9,10 +9,18 @@ const suiteRoot = resolve(import.meta.dirname, '..');
 const serviceUrl = process.env.COMPARISON_SERVICE_URL ?? 'http://127.0.0.1:4310';
 const protocolPrefix = 'EXACT_SSR_BENCHMARK:';
 const statistics = { firstByteMs: [], totalMs: [], userCpuMs: [], systemCpuMs: [] };
+const eventLoopDelay =
+	typeof monitorEventLoopDelay === 'function'
+		? monitorEventLoopDelay({ resolution: 1 })
+		: undefined;
+const garbageCollection = { count: 0, durationMs: 0 };
+const garbageCollectionObserver = createGarbageCollectionObserver();
 const sockets = new Set();
 let shuttingDown = false;
 
 if (!participantId) throw new Error('SSR benchmark worker requires a participant id');
+
+eventLoopDelay?.enable();
 
 const participant = await createParticipantHandler(participantId);
 const server = createServer((request, response) => {
@@ -151,6 +159,9 @@ async function handleControlRequest(pathname, response) {
 		statistics.totalMs.length = 0;
 		statistics.userCpuMs.length = 0;
 		statistics.systemCpuMs.length = 0;
+		eventLoopDelay?.reset();
+		garbageCollection.count = 0;
+		garbageCollection.durationMs = 0;
 		writeJson(response, { ok: true });
 		return;
 	}
@@ -178,6 +189,16 @@ function telemetry() {
 		pid: process.pid,
 		cpu: process.cpuUsage(),
 		memory: process.memoryUsage(),
+		eventLoopDelayMs: eventLoopDelay
+			? {
+					p50: nanosecondsToMilliseconds(eventLoopDelay.percentile(50)),
+					p75: nanosecondsToMilliseconds(eventLoopDelay.percentile(75)),
+					p95: nanosecondsToMilliseconds(eventLoopDelay.percentile(95)),
+					p99: nanosecondsToMilliseconds(eventLoopDelay.percentile(99)),
+					max: nanosecondsToMilliseconds(eventLoopDelay.max)
+				}
+			: null,
+		garbageCollection: { ...garbageCollection },
 		statistics: {
 			firstByteMs: [...statistics.firstByteMs],
 			totalMs: [...statistics.totalMs],
@@ -202,6 +223,8 @@ async function collectGarbage() {
 async function shutdown(reason) {
 	if (shuttingDown) return;
 	shuttingDown = true;
+	eventLoopDelay?.disable();
+	garbageCollectionObserver?.disconnect();
 	const forcedExit = setTimeout(() => {
 		for (const socket of sockets) socket.destroy();
 		process.exitCode = 1;
@@ -219,6 +242,28 @@ async function shutdown(reason) {
 		for (const socket of sockets) socket.destroy();
 		process.exit(1);
 	}
+}
+
+/** Observes runtime collections without forcing collection inside measured request lanes. */
+function createGarbageCollectionObserver() {
+	if (typeof PerformanceObserver !== 'function') return undefined;
+	try {
+		const observer = new PerformanceObserver((entries) => {
+			for (const entry of entries.getEntries()) {
+				garbageCollection.count += 1;
+				garbageCollection.durationMs += entry.duration;
+			}
+		});
+		observer.observe({ entryTypes: ['gc'] });
+		return observer;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Converts the event-loop histogram's nanosecond values to milliseconds. */
+function nanosecondsToMilliseconds(value) {
+	return Number.isFinite(value) ? value / 1_000_000 : null;
 }
 
 function failResponse(response, error) {

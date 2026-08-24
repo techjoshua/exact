@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
 	cpuMillisecondsPerRequest,
+	parseSsrConcurrencyLevels,
 	retainedBytesPerRequest,
 	summarizeSsrSamples,
 	summarizeWorkerRequests
@@ -48,12 +49,19 @@ describe('SSR benchmark statistics', () => {
 			{
 				firstByteMs: { p50: 3, p75: 5, p95: 6, p99: 6 },
 				totalMs: { p50: 6, p75: 8, p95: 9, p99: 9 },
+				deliveryMs: { p50: 3, p75: 3, p95: 3, p99: 3 },
 				cpuBatchSize: 5,
 				userCpuPerRequestMs: { p50: 2, p75: 4, p95: 4, p99: 4 },
 				systemCpuPerRequestMs: { p50: 1, p75: 2, p95: 2, p99: 2 },
 				totalCpuPerRequestMs: { p50: 3, p75: 6, p95: 6, p99: 6 }
 			}
 		);
+	});
+
+	it('normalizes selected saturation levels', () => {
+		assert.deepEqual(parseSsrConcurrencyLevels('16,1,4,16'), [1, 4, 16]);
+		assert.deepEqual(parseSsrConcurrencyLevels(undefined), [1, 4, 8, 16, 32, 64]);
+		assert.throws(() => parseSsrConcurrencyLevels('1,0,4'), /positive integers/);
 	});
 
 	it('rejects meaningless CPU normalization', () => {
