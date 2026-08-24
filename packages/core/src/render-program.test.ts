@@ -4,6 +4,7 @@ import {
 	compiledRenderProgramCacheSize,
 	createCompiledRenderProgram,
 	createPreparedRenderProgram,
+	createPreparedServerRenderProgram,
 	prepareCompiledRenderProgram,
 	readRenderProgram,
 	readRenderProgramSlot
@@ -79,6 +80,34 @@ describe('compiled render-program cache', () => {
 		expect(invocation.program).toBe(prepared);
 		expect(compiledRenderProgramCacheSize()).toBe(0);
 		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
+	});
+
+	it('captures server slots eagerly in authored order', () => {
+		const descriptor = prepareCompiledRenderProgram({
+			...program('server-eager'),
+			slots: [
+				['text', 'first', [0]],
+				['text', 'second', [1]]
+			] as const,
+			bindings: [
+				['text', 0],
+				['text', 1]
+			] as const
+		});
+		const reads: number[] = [];
+		const vnode = createPreparedServerRenderProgram(
+			descriptor,
+			(index) => {
+				reads.push(index);
+				return index === 0 ? 'first' : 'second';
+			},
+			2
+		);
+		const invocation = readRenderProgram(vnode)!;
+		expect(reads).toEqual([0, 1]);
+		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
+		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
+		expect(reads).toEqual([0, 1]);
 	});
 
 	it('rejects precompiled render programs from an incompatible ABI', () => {

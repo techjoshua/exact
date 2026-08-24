@@ -179,12 +179,16 @@ func TestServerDirectFrameOwnsCompiledKeyedListFallbackWithoutListRuntime(t *tes
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	for _, expected := range []string{`lane: "direct"`, `abi: 1`, "this.map"} {
+	for _, expected := range []string{
+		`lane: "direct"`, `abi: 1`, `createPreparedServerRenderProgram as`,
+		`keyCompiledVNode as`,
+	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct list frame is missing %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `@exactjs/core/runtime/lists`) {
+	if strings.Contains(response.Code, `@exactjs/core/runtime/lists`) ||
+		strings.Contains(response.Code, "this.map") {
 		t.Fatalf("direct server list retained durable list runtime:\n%s", response.Code)
 	}
 }
@@ -215,6 +219,7 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 		`from "@exactjs/core/framework/server-render-structure"`,
 		`render: __exactImplementation_Page_1`, `setupProps: [`, `"request"`,
 		`issueServerComponentVNode as`, `__exactIssueServerComponent(__exactComponentVNode(Page`,
+		`createPreparedServerRenderProgram as`,
 		`activateServerComponentTaskForHost as`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -224,7 +229,8 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 	for _, forbidden := range []string{
 		`defineTask as`, `bindTaskForHost as`, `activateTaskForHost as`,
 		`@exactjs/core/runtime/component-execution`, `@exactjs/ssr/runtime/generic-components`,
-		`execution:`, `slices:`, `createServerSlot as`,
+		`execution:`, `slices:`, `createServerSlot as`, `markIndependentAsyncSiblings as`,
+		`createCompiledVNode as`,
 	} {
 		if strings.Contains(response.Code, forbidden) {
 			t.Fatalf("scheduled direct server component retained generic runtime %q:\n%s", forbidden, response.Code)

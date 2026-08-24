@@ -200,6 +200,8 @@ type ExactRenderProgramReaders =
 export type ExactRenderProgramInvocation = Readonly<{
 	program: BrandedRenderProgram;
 	readers: ExactRenderProgramReaders;
+	/** Server-only values captured while compiler-issued child work can still start eagerly. */
+	eagerValues?: readonly unknown[];
 	/** Compiler-emitted direct property-group writers indexed by the binding descriptor. */
 	propertyWriter?: (group: number, apply: (name: string, value: unknown) => void) => void;
 	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
@@ -276,6 +278,34 @@ export function createPreparedRenderProgram(
 	};
 }
 
+/**
+ * Captures compiler-known server slots while the enclosing component issuance scope is active.
+ * This preserves eager sibling task execution without retaining lazy reader closures through the
+ * later HTML traversal. Client and hydration artifacts continue to use lazy readers.
+ */
+export function createPreparedServerRenderProgram(
+	branded: BrandedRenderProgram,
+	readers: ExactRenderProgramReaders,
+	slotCount: number,
+	fallback?: () => VNode
+): VNode {
+	const eagerValues = new Array<unknown>(slotCount);
+	for (let index = 0; index < slotCount; index++)
+		eagerValues[index] = typeof readers === 'function' ? readers(index) : readers[index]?.();
+	const domain = currentComponentDomain();
+	return {
+		type: RenderProgram,
+		props: {
+			program: branded,
+			readers: [],
+			eagerValues,
+			...(fallback ? { fallback } : {})
+		},
+		children: [],
+		...(domain ? { domain } : {})
+	};
+}
+
 /** Reads the invocation carried by the compiler-only render-program VNode kind. */
 export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | undefined {
 	if (vnode.type !== RenderProgram) return undefined;
@@ -287,6 +317,7 @@ export function readRenderProgramSlot(
 	invocation: ExactRenderProgramInvocation,
 	index: number
 ): unknown {
+	if (invocation.eagerValues) return invocation.eagerValues[index];
 	return typeof invocation.readers === 'function'
 		? invocation.readers(index)
 		: invocation.readers[index]!();

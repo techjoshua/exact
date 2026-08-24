@@ -198,12 +198,14 @@ generated transition slices and disposable port storage. They do not construct a
 component instance, effect scope, state proxy, lifecycle sidecars, or the generic component
 capability graph. State initialization and task mutations remain direct JavaScript writes against
 that frame rather than allocating reactive-write closures or resolving runtime state paths.
-Cancellation-aware awaits and timers use focused request-signal operations without constructing a
-durable task frame. The compiler preserves proven independent server children as direct calls instead
-of selecting an ordered render-program representation that would erase readiness information. Each
-known scheduled child VNode issues its frame while the generated parent render function creates it;
-the renderer does not walk the resulting host tree to rediscover task-bearing components. The
-request scheduler starts ready child tasks up to its bound before awaiting the first settlement.
+Cancellable awaits and timers use focused request-signal operations without constructing a
+durable task frame. For a compiler-closed direct component, the generated server program captures
+all known child slots synchronously while its request-local issuance scope is active. Each known
+scheduled child therefore issues its frame before authored-order HTML publication begins, without
+constructing the surrounding intrinsic VNode tree or asking the renderer to rediscover task-bearing
+components. Generic or context-owning components retain lazy slot reads and their stabilization
+semantics. The request scheduler starts ready child tasks up to its bound before awaiting the first
+settlement.
 Framework-owned resumption observers are buffered and replayed in authored order; user
 component-instance observers retain the serial lane because their timing is observable.
 
