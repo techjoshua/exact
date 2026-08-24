@@ -234,7 +234,10 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			}
 			return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
 		}
-		if _, exists := lowering.functionTasks[node.Pos()]; exists {
+		if task, exists := lowering.functionTasks[node.Pos()]; exists {
+			if lowering.target == TargetServer && task.Placement == "client" {
+				return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
+			}
 			return nil
 		}
 	}
@@ -244,6 +247,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			AsVariableDeclarationList().
 			Declarations.Nodes
 		setupTasks := len(declarations) != 0
+		retainClientPlaceholder := false
 		for _, declarationNode := range declarations {
 			declaration := declarationNode.AsVariableDeclaration()
 			if declaration.Initializer == nil {
@@ -254,13 +258,20 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 				setupTasks = false
 				break
 			}
-			if _, setup := lowering.functionTasks[declaration.Initializer.Pos()]; !setup {
+			task, setup := lowering.functionTasks[declaration.Initializer.Pos()]
+			if !setup {
 				setupTasks = false
 				break
 			}
+			if lowering.target == TargetServer && task.Placement == "client" {
+				retainClientPlaceholder = true
+			}
 		}
 		if setupTasks {
-			return nil
+			if !retainClientPlaceholder {
+				return nil
+			}
+			return lowering.visitor.VisitEachChild(node)
 		}
 		if transformed := lowering.omitElidedDerivedDeclarations(node); transformed != nil {
 			return transformed
@@ -360,7 +371,16 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 				}
 				return lowering.lowerInvokedTaskValue(declaration, task, nil)
 			}
-			if _, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists {
+			if task, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists {
+				if lowering.target == TargetServer && task.Placement == "client" {
+					return lowering.factory.UpdateVariableDeclaration(
+						declaration,
+						name,
+						declaration.ExclamationToken,
+						declaration.Type,
+						lowering.inertClientTaskCallable(),
+					)
+				}
 				return nil
 			}
 		}

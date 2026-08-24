@@ -6780,6 +6780,47 @@ func TestSessionProjectsClientTaskDefinitionsToInertServerCallbacks(t *testing.T
 	}
 }
 
+func TestSessionRetainsReferencedClientTaskPlaceholderThroughServerViewHelper(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:                          "client-task-view-helper-server-projection.tsx",
+		Kind:                        "compile",
+		Target:                      TargetServer,
+		ServerComponents:            true,
+		ComponentContractProjection: ComponentContractProjectionServerRender,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State = {}> { state: State; }
+			function renderView(operations: { select(id: string): void }) {
+				return <button onClick={() => operations.select("incident-1")}>select</button>;
+			}
+			export function RouteShell(this: Component<{ selected: string }>) {
+				const select = (id: string, _task: TaskContext = TaskContext.client()) => {
+					this.state.selected = id;
+					history.pushState({}, "", "/" + id);
+				};
+				const unused = (_task: TaskContext = TaskContext.client()) => {
+					window.alert("unused");
+				};
+				return () => renderView({ select });
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `const select = () => void 0`) ||
+		!strings.Contains(response.Code, `renderView({ select })`) {
+		t.Fatalf("server view helper lost its inert client callback:\n%s", response.Code)
+	}
+	for _, omitted := range []string{
+		`const unused`, `history.pushState`, `window.alert`, `TaskContext.client`,
+	} {
+		if strings.Contains(response.Code, omitted) {
+			t.Fatalf("server view helper retained projected client work %q:\n%s", omitted, response.Code)
+		}
+	}
+}
+
 func TestSessionAllowsDormantBrowserInteractionCallbacksForServerTarget(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "interaction-server-projection.tsx", Kind: "compile", Target: TargetServer,

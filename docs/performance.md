@@ -609,7 +609,9 @@ durable reactive activation because those dependencies can change after hydratio
 Target projection also closes over deferred client work before runtime imports are selected. A
 client-placed function task that remains referenced by server-rendered component props becomes an
 inert callable value; its TaskContext default, browser body, task definition, and durable host do
-not enter the server artifact. Canonical mount, activate, and deactivate registrations are erased
+not enter the server artifact. The same rule applies when the callback travels through a
+server-rendered view helper rather than appearing directly on JSX; unreferenced placeholders are
+removed after projection. Canonical mount, activate, and deactivate registrations are erased
 with their callback dependency graphs because those phases cannot run during SSR. Server-relevant
 render, unmount, and owned-resource cleanup remain intact. Runtime ABI and side-effect imports are
 then computed from the projected transitions and lifecycle surface rather than the target-neutral
