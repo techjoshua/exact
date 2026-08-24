@@ -147,12 +147,12 @@ func TestSessionEmitsGeneratedServerRenderProgramsWithLazyRegionFallback(t *test
 		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 3",
-		`ssr: __exactSsr =>`,
-		`__exactSsr.begin(2, 1)`,
-		`__exactSsr.static("<span><strong>")`,
-		`const __exactValue_0 = __exactSsr.prepareText(0)`,
-		`__exactSsr.text(__exactValue_0,`,
+		"version: 4",
+		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
+		`__exactSsr.begin(__exactContext, 2, 1, 30)`,
+		`__exactSsr.static(__exactOutput, "<span><strong>")`,
+		`const __exactValue_0 = __exactSsr.prepareText(__exactInvocation, 0)`,
+		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_0,`,
 		`, true)`,
 		"() => __exactVNode(\"span\"",
 	} {
@@ -347,7 +347,7 @@ func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		strings.Contains(response.Code, `slots: [["text"`) ||
 		!strings.Contains(response.Code, `() => __exactVNode("span"`) ||
-		!strings.Contains(response.Code, `ssr: __exactSsr =>`) ||
+		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
 		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") {
@@ -372,7 +372,7 @@ func TestSessionUsesDirectStructuralClaimsWithCompleteMetadata(t *testing.T) {
 		strings.Contains(response.Code, "ssrOperations:") ||
 		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0, true)`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
-		!strings.Contains(response.Code, `ssr: __exactSsr =>`) ||
+		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
 		strings.Contains(response.Code, `["component"`) ||
 		!strings.Contains(response.Code, `() => __exactVNode("span"`) {
 		t.Fatalf("complete metadata artifact omitted direct structural execution or recovery:\n%s", response.Code)
@@ -393,10 +393,10 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
-		`const __exactValue_0 = __exactSsr.prepareAttribute(0)`,
-		`__exactSsr.attribute(__exactValue_0, "disabled", "button")`,
-		`__exactSsr.text(__exactValue_1,`,
-		`__exactSsr.static("<button class=\"action\"")`,
+		`const __exactValue_0 = __exactSsr.prepareAttribute(__exactInvocation, 0)`,
+		`__exactSsr.attribute(__exactContext, __exactOutput, __exactValue_0, "disabled", "button", __exactCharacters)`,
+		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
+		`__exactSsr.static(__exactOutput, "<button class=\"action\"")`,
 		`class=\"action\"`,
 		`__exactSlot === 0 ? props.disabled : props.label`,
 	} {
@@ -729,10 +729,10 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `namespace: "svg", ssr: __exactSsr =>`) ||
-		!strings.Contains(response.Code, `__exactSsr.static("<path class=\"route\"")`) ||
-		!strings.Contains(response.Code, `__exactSsr.attribute(__exactValue_0, "d", "path")`) ||
-		strings.Contains(response.Code, `__exactSsr.attribute(__exactValue_0, "d", "svg")`) {
+	if !strings.Contains(response.Code, `namespace: "svg", ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
+		!strings.Contains(response.Code, `__exactSsr.static(__exactOutput, "<path class=\"route\"")`) ||
+		!strings.Contains(response.Code, `__exactSsr.attribute(__exactContext, __exactOutput, __exactValue_0, "d", "path", __exactCharacters)`) ||
+		strings.Contains(response.Code, `__exactSsr.attribute(__exactContext, __exactOutput, __exactValue_0, "d", "svg", __exactCharacters)`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
 }

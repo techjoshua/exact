@@ -25,15 +25,18 @@ it('writes compiler-owned scalar programs without redundant hydration delimiters
 		() => {
 			constructions++;
 			return {
-				version: 3,
+				version: 4,
 				id: 'render-program:ssr',
 				namespace: 'html',
-				ssr(target) {
-					const value = target.prepareText(0);
-					target.begin(1, 1);
-					target.static('<span data-exact-id="planned">');
-					target.text(value, 'value', true);
-					target.static('</span>');
+				ssr(target, context, invocation) {
+					const value = target.prepareText(invocation, 0);
+					if (value === target.unprepared) return;
+					target.begin(context, 1, 1, 0);
+					const output: Array<string | readonly unknown[]> = [];
+					target.static(output, '<span data-exact-id="planned">');
+					target.text(context, output, value, 'value', 0, true);
+					target.static(output, '</span>');
+					return output;
 				}
 			};
 		},
@@ -62,16 +65,20 @@ it('preflights generated server slots before selecting the local fallback', () =
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-preflight',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:ssr-preflight',
 			namespace: 'html',
-			ssr(target) {
-				const value = target.prepareText(0);
-				target.prepareText(1);
-				target.begin(2, 2);
-				target.static('<span>');
-				target.text(value, 'value');
-				target.static('</span>');
+			ssr(target, context, invocation) {
+				const value = target.prepareText(invocation, 0);
+				if (value === target.unprepared) return;
+				const second = target.prepareText(invocation, 1);
+				if (second === target.unprepared) return;
+				target.begin(context, 2, 2, 0);
+				const output: Array<string | readonly unknown[]> = [];
+				target.static(output, '<span>');
+				target.text(context, output, value, 'value', 0);
+				target.static(output, '</span>');
+				return output;
 			}
 		}),
 		[
@@ -94,19 +101,24 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-props',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:ssr-props',
 			namespace: 'html',
-			ssr(target) {
-				const className = target.prepareAttribute(0);
-				const disabled = target.prepareAttribute(1);
-				const onClick = target.prepareAttribute(2);
-				target.begin(1, 3);
-				target.static('<button data-exact-id="planned"');
-				target.attribute(className, 'className', 'button');
-				target.attribute(disabled, 'disabled', 'button');
-				target.attribute(onClick, 'onClick', 'button');
-				target.static('>Save</button>');
+			ssr(target, context, invocation) {
+				const className = target.prepareAttribute(invocation, 0);
+				if (className === target.unprepared) return;
+				const disabled = target.prepareAttribute(invocation, 1);
+				if (disabled === target.unprepared) return;
+				const onClick = target.prepareAttribute(invocation, 2);
+				if (onClick === target.unprepared) return;
+				target.begin(context, 1, 3, 0);
+				const output: Array<string | readonly unknown[]> = [];
+				target.static(output, '<button data-exact-id="planned"');
+				target.attribute(context, output, className, 'className', 'button', 0);
+				target.attribute(context, output, disabled, 'disabled', 'button', 0);
+				target.attribute(context, output, onClick, 'onClick', 'button', 0);
+				target.static(output, '>Save</button>');
+				return output;
 			}
 		}),
 		[() => ['primary', { active: true }], () => true, () => () => undefined],
@@ -124,15 +136,18 @@ it('executes structural program slots without colliding with nested marker ident
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-structural',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:ssr-structural',
 			namespace: 'html',
-			ssr(target) {
-				const child = target.prepareChild(0);
-				target.begin(1, 1);
-				target.static('<section>');
-				target.child(child, 'child');
-				target.static('</section>');
+			ssr(target, context, invocation) {
+				const child = target.prepareChild(invocation, 0);
+				if (child === target.unprepared) return;
+				target.begin(context, 1, 1, 0);
+				const output: Array<string | readonly unknown[]> = [];
+				target.static(output, '<section>');
+				target.child(context, output, child, 'child', 0);
+				target.static(output, '</section>');
+				return output;
 			}
 		}),
 		[() => createVNode(Child, {})],
@@ -165,15 +180,18 @@ it('writes a compiler-proven final keyed child without structural delimiters', a
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-keyed-tail',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:ssr-keyed-tail',
 			namespace: 'html',
-			ssr(target) {
-				const child = target.prepareChild(0);
-				target.begin(1, 1);
-				target.static('<ul>');
-				target.keyedChild(child);
-				target.static('</ul>');
+			ssr(target, context, invocation) {
+				const child = target.prepareChild(invocation, 0);
+				if (child === target.unprepared) return;
+				target.begin(context, 1, 1, 0);
+				const output: Array<string | readonly unknown[]> = [];
+				target.static(output, '<ul>');
+				target.keyedChild(output, child);
+				target.static(output, '</ul>');
+				return output;
 			}
 		}),
 		[
@@ -199,7 +217,7 @@ it('materializes marker-mode program fallbacks inside their component scope', as
 			createCompiledRenderProgram(
 				'render-program:ssr-owned-fallback',
 				() => ({
-					version: 3,
+					version: 4,
 					id: 'render-program:ssr-owned-fallback',
 					namespace: 'html',
 					template: '<span>owned</span>',

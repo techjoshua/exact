@@ -40,7 +40,9 @@ element, managing a range, or running one selected task policy. They do not redi
 component's topology or interpret a universal component plan when the artifact already knows it.
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
 value directly to its serialization operation; the runtime does not rebuild a per-region slot
-table merely to replay the compiler's ordering.
+table or allocate a receiver merely to replay the compiler's ordering. Render-program ABI version
+4 identifies this direct stateless-operation contract so older precompiled writers cannot be
+silently executed with the incompatible calling convention.
 Server artifacts import structure-only render and task helpers. Durable generic component
 construction, enhancement planning, and native structural-boundary ownership are separately
 installed capabilities selected only by artifacts that can reach those paths. Resumption

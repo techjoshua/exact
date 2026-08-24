@@ -62,7 +62,7 @@ describe('compiled render-program hydration index', () => {
 
 describe('compiler-wired render-program claims', () => {
 	const scalarProgram: ExactRenderProgram = {
-		version: 3,
+		version: 4,
 		id: 'direct-scalar',
 		namespace: 'html',
 		template: '<p><!---->\ue000exact:0\ue001<!----></p>',
@@ -121,7 +121,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<section><!--variable--><span>Static</span><button>Save</button></section>';
 		const program: ExactRenderProgram = {
-			version: 3,
+			version: 4,
 			id: 'direct-element-path',
 			namespace: 'html',
 			template: '<main><section><span>Static</span><button>Save</button></section></main>',
@@ -144,7 +144,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('section');
 		root.innerHTML = '<article>Variable</article><form><textarea></textarea></form>';
 		const program: ExactRenderProgram = {
-			version: 3,
+			version: 4,
 			id: 'direct-element-reverse-path',
 			namespace: 'html',
 			template: '<section><form><textarea></textarea></form></section>',
@@ -197,7 +197,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<!--exact:dynamic:detail--><!--/exact:dynamic:detail-->';
 		const program: ExactRenderProgram = {
-			version: 3,
+			version: 4,
 			id: 'direct-high-component-slot',
 			namespace: 'html',
 			template: '<main><!--exact:dynamic:detail--><!--/exact:dynamic:detail--></main>',
@@ -218,7 +218,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<article>detail</article>';
 		const program: ExactRenderProgram = {
-			version: 3,
+			version: 4,
 			id: 'direct-marker-free-component-tail',
 			namespace: 'html',
 			template: '<main></main>',

@@ -21,7 +21,7 @@ describe('compiler-generated dirty updates', () => {
 		const label = document.createTextNode('');
 		const updates = vi.fn();
 		const program = prepareCompiledRenderProgram({
-			version: 3,
+			version: 4,
 			id: 'direct-dirty-update',
 			namespace: 'html',
 			template: '<p>\ue000exact:0\ue001 \ue000exact:1\ue001</p>',
@@ -88,7 +88,7 @@ describe('compiler-generated dirty updates', () => {
 
 		for (let index = 0; index < 2; index++) {
 			const program = prepareCompiledRenderProgram({
-				version: 3,
+				version: 4,
 				id: `component-update-${index}`,
 				namespace: 'html',
 				template: '<p></p>',

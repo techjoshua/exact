@@ -199,7 +199,7 @@ describe('hydration-only root capability', () => {
 		const program = createCompiledRenderProgram(
 			'root-marked-program',
 			() => ({
-				version: 3,
+				version: 4,
 				id: 'root-marked-program',
 				namespace: 'html',
 				template: '<span data-exact-id="program-root">\ue000exact:0\ue001</span>',
@@ -235,20 +235,22 @@ describe('hydration-only root capability', () => {
 			{ id: 'b', label: 'Beta', kind: 'secondary' }
 		];
 		const rowProgram = prepareCompiledRenderProgram({
-			version: 3,
+			version: 4,
 			id: 'markerless-ssr-row',
 			namespace: 'html',
 			template: '<li data-testid="row"></li>',
 			root: ['li'],
 			work: [1, 0],
 			directClaims: true,
-			ssr(target) {
-				target.begin(1, 0);
-				target.static('<li data-testid="row"></li>');
+			ssr(target, context) {
+				target.begin(context, 1, 0, 0);
+				const output: Array<string | readonly unknown[]> = [];
+				target.static(output, '<li data-testid="row"></li>');
+				return output;
 			}
 		});
 		const program = prepareCompiledRenderProgram({
-			version: 3,
+			version: 4,
 			id: 'markerless-ssr-children',
 			namespace: 'html',
 			template:
@@ -268,14 +270,18 @@ describe('hydration-only root capability', () => {
 				bindCompiledProgramKeyedChild(target, 0);
 				bindCompiledProgramProperties(target, 0, 1);
 			},
-			ssr(target) {
-				const child = target.prepareChild(0);
-				target.begin(6, 2);
+			ssr(target, context, invocation) {
+				const child = target.prepareChild(invocation, 0);
+				if (child === target.unprepared) return;
+				const output: Array<string | readonly unknown[]> = [];
+				target.begin(context, 6, 2, 0);
 				target.static(
+					output,
 					'<section><select><option value="all">All</option><option value="primary">Primary</option></select><ul>'
 				);
-				target.keyedChild(child);
-				target.static('</ul></section>');
+				target.keyedChild(output, child);
+				target.static(output, '</ul></section>');
+				return output;
 			}
 		});
 		const App = createExactFrameworkFixtureArtifact(function App(this: Component<{}>) {
