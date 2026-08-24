@@ -12,7 +12,6 @@ import {
 	type VNode
 } from '@exactjs/core';
 import {
-	RenderProgram,
 	ServerBoundary,
 	ServerSlot,
 	getCellVNode,
@@ -57,7 +56,6 @@ import {
 	activateSsrEnhancementsAsync,
 	applySsrTargetContributionsAsync
 } from './enhancement-execution-capability.js';
-import { renderSsrProgram } from './render-program.js';
 import { canRenderIndependentChildren, renderIndependentChildren } from './async-independent.js';
 import { renderComponentAsync } from './component-async.js';
 import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
@@ -152,30 +150,6 @@ export async function renderVNodeAsyncInner(
 			renderVNodeAsync(context, inner, parent, options, hasComponentAncestor)
 		);
 	}
-	if (vnode.type === RenderProgram) {
-		const planned = renderSsrProgram(context, vnode, parent);
-		if (planned.fallback)
-			return renderVNodeAsync(context, planned.fallback, parent, options, hasComponentAncestor);
-		const html: string[] = [];
-		for (const segment of planned.segments!) {
-			html.push(
-				typeof segment === 'string'
-					? segment
-					: Array.isArray(segment)
-						? await renderChildrenAsync(context, segment, parent, options, hasComponentAncestor)
-						: await renderVNodeAsync(
-								context,
-								segment as VNode,
-								parent,
-								options,
-								hasComponentAncestor,
-								true
-							)
-			);
-		}
-		return boundedJoin(context, html);
-	}
-
 	if (vnode.type === Text) {
 		return escapeText(String(unwrap(vnode.props.value) ?? ''));
 	}

@@ -46,7 +46,9 @@ silently executed with the incompatible calling convention. Server artifacts ret
 prepared invocation directly to the SSR component lane; they do not allocate a render-program
 VNode and send it back through ordinary child normalization and kind dispatch. Durable fallback
 components likewise preserve raw compiler output until SSR has selected that invocation or the
-ordinary child path. Direct server components capture
+ordinary child path. The SSR walkers therefore do not retain a second executor for client
+render-program VNodes; reaching one is an invalid target artifact rather than a compatibility
+selection. Direct server components capture
 compiler-known child slots during request-local task issuance, allowing independent child work to
 start before the writer publishes those slots in authored order. Generic components retain lazy
 slot evaluation where reactive stabilization remains observable. A compiler-closed server region

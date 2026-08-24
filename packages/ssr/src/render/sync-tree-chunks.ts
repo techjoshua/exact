@@ -49,7 +49,7 @@ import {
 } from './logical-children.js';
 import { dynamicMarkerId } from './marker-identity.js';
 import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
-import { renderPreparedSsrProgramChunks, renderSsrProgramChunks } from './render-program.js';
+import { renderPreparedSsrProgramChunks } from './render-program.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
 import { renderDirectSsrComponent } from './direct-component.js';
 import type { DirectSsrComponentContent } from './direct-component.js';
@@ -81,22 +81,6 @@ export function* renderVNodeChunks(
 		yield* marked(id, () =>
 			renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1, hasComponentAncestor)
 		);
-		return;
-	}
-	const programChunks = renderSsrProgramChunks(
-		context,
-		vnode,
-		parent,
-		(fallback) => renderVNodeChunks(context, fallback, parent, depth + 1, hasComponentAncestor),
-		function* (children) {
-			for (const child of children)
-				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
-		},
-		(component) =>
-			renderVNodeChunks(context, component, parent, depth + 1, hasComponentAncestor, true)
-	);
-	if (programChunks) {
-		yield* programChunks;
 		return;
 	}
 	if (vnode.type === Text) {

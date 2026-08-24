@@ -1,5 +1,4 @@
 import { isVNode, type AnyComponentInstance, type Child, type VNode } from '@exactjs/core';
-import { RenderProgram } from '@exactjs/core/framework/server-render-structure';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText } from '../html.js';
 import type { SsrContext } from '../types.js';
@@ -15,7 +14,6 @@ import {
 	enterSsrTreeDepth,
 	leaveSsrTreeDepth
 } from './limits.js';
-import { renderSsrProgram } from './render-program.js';
 
 /** Boundary facts carried only by compiler-closed component publication. */
 export type CompilerClosedPublication = Readonly<{
@@ -87,36 +85,7 @@ export async function renderCompilerClosedVNode(
 	try {
 		countSsrNode(context);
 		let html: string;
-		if (vnode.type === RenderProgram) {
-			const planned = renderSsrProgram(context, vnode, parent);
-			if (planned.fallback)
-				throw new TypeError('Compiler-closed SSR artifact selected a generic render fallback');
-			const segments: string[] = [];
-			for (const segment of planned.segments!)
-				segments.push(
-					typeof segment === 'string'
-						? segment
-						: Array.isArray(segment)
-							? await renderCompilerClosedChildren(
-									context,
-									segment,
-									parent,
-									options,
-									publish,
-									hasComponentAncestor
-								)
-							: await renderCompilerClosedVNode(
-									context,
-									segment as VNode,
-									parent,
-									options,
-									publish,
-									hasComponentAncestor,
-									true
-								)
-				);
-			html = boundedJoin(context, segments);
-		} else if (typeof vnode.type === 'function') {
+		if (typeof vnode.type === 'function') {
 			const rendered = await renderDirectSsrComponentOutput(
 				context,
 				vnode,

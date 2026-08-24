@@ -5,13 +5,11 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive/framework/values';
-import { RenderProgram, ServerSlot } from '@exactjs/core/framework/render-structure';
+import { ServerSlot } from '@exactjs/core/framework/render-structure';
 import type { ExactRenderProgramSsrOperations } from '@exactjs/core/framework/render-structure';
 import type { ExactPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
-	readRenderProgram,
 	readRenderProgramSlot,
-	renderProgramFallback,
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/framework/render-structure';
 import { escapeText } from '../html.js';
@@ -19,22 +17,6 @@ import { exactMarkerId, renderAttrs } from '../markup.js';
 import { boundedJoin, countSsrNodes, SsrOutputLimitError } from './limits.js';
 import type { Child, SsrContext } from '../types.js';
 import { withRenderProgramOwner } from './render-program-owner-capability.js';
-
-/** Executes the compiler-native scalar subset or selects its lazy generic fallback. */
-export function renderSsrProgram(
-	context: SsrContext,
-	vnode: VNode,
-	owner?: AnyComponentInstance
-): {
-	readonly html?: string;
-	readonly segments?: readonly DeferredSsrSegment[];
-	readonly fallback?: VNode;
-} {
-	const invocation = readRenderProgram(vnode);
-	if (!invocation || context.reactMarkup)
-		return { fallback: materializeProgramFallback(vnode, owner) };
-	return executeSsrProgram(context, invocation, owner);
-}
 
 /** Executes a compiler-closed server invocation without constructing or dispatching a VNode. */
 export function renderPreparedSsrProgram(
@@ -170,46 +152,6 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	}
 });
 
-/** Handles a render-program string node while leaving every other vnode untouched. */
-export function renderSsrProgramString(
-	context: SsrContext,
-	vnode: VNode,
-	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => string,
-	renderChildren: (children: readonly Child[]) => string,
-	renderOwnedComponent: (component: VNode) => string
-): string | undefined {
-	if (vnode.type !== RenderProgram) return undefined;
-	const planned = renderSsrProgram(context, vnode, owner);
-	if (planned.fallback) return renderFallback(planned.fallback);
-	if (planned.html !== undefined) return planned.html;
-	return boundedJoin(
-		context,
-		planned.segments!.map((segment) =>
-			typeof segment === 'string'
-				? segment
-				: Array.isArray(segment)
-					? renderChildren(segment)
-					: renderOwnedComponent(segment as VNode)
-		)
-	);
-}
-
-/** Handles a render-program chunk node without buffering its generic fallback. */
-export function renderSsrProgramChunks(
-	context: SsrContext,
-	vnode: VNode,
-	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => Iterable<string>,
-	renderChildren: (children: readonly Child[]) => Iterable<string>,
-	renderOwnedComponent: (component: VNode) => Iterable<string>
-): Iterable<string> | undefined {
-	if (vnode.type !== RenderProgram) return undefined;
-	const planned = renderSsrProgram(context, vnode, owner);
-	if (planned.fallback) return renderFallback(planned.fallback);
-	return flattenDeferredSegments(planned.segments!, renderChildren, renderOwnedComponent);
-}
-
 /** Serializes one direct compiler-issued server invocation into a bounded string. */
 export function renderPreparedSsrProgramString(
 	context: SsrContext,
@@ -257,14 +199,6 @@ function* flattenDeferredSegments(
 		else if (Array.isArray(segment)) yield* renderChildren(segment);
 		else yield* renderOwnedComponent(segment as VNode);
 	}
-}
-
-/** Re-enters the component owner while a marker-mode fallback allocates reactive VNodes. */
-function materializeProgramFallback(vnode: VNode, owner: AnyComponentInstance | undefined): VNode {
-	const fallback = withRenderProgramOwner(owner, () => renderProgramFallback(vnode));
-	if (!fallback)
-		throw new Error('Client-only compiler render programs cannot execute through SSR fallback');
-	return fallback;
 }
 
 function materializeInvocationFallback(
