@@ -38,6 +38,9 @@ universal function as a substitute for compilation.
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the
 component's topology or interpret a universal component plan when the artifact already knows it.
+Generated server writers preflight each dynamic input into a compiler-named local and pass that
+value directly to its serialization operation; the runtime does not rebuild a per-region slot
+table merely to replay the compiler's ordering.
 Server artifacts import structure-only render and task helpers. Durable generic component
 construction, enhancement planning, and native structural-boundary ownership are separately
 installed capabilities selected only by artifacts that can reach those paths. Resumption

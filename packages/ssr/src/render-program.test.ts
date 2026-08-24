@@ -29,10 +29,10 @@ it('writes compiler-owned scalar programs without redundant hydration delimiters
 				id: 'render-program:ssr',
 				namespace: 'html',
 				ssr(target) {
-					target.prepareText(0);
+					const value = target.prepareText(0);
 					target.begin(1, 1);
 					target.static('<span data-exact-id="planned">');
-					target.text(0, 'value', true);
+					target.text(value, 'value', true);
 					target.static('</span>');
 				}
 			};
@@ -66,11 +66,11 @@ it('preflights generated server slots before selecting the local fallback', () =
 			id: 'render-program:ssr-preflight',
 			namespace: 'html',
 			ssr(target) {
-				target.prepareText(0);
+				const value = target.prepareText(0);
 				target.prepareText(1);
 				target.begin(2, 2);
 				target.static('<span>');
-				target.text(0, 'value');
+				target.text(value, 'value');
 				target.static('</span>');
 			}
 		}),
@@ -98,14 +98,14 @@ it('serializes planned host slots with ordinary SSR attribute semantics', () => 
 			id: 'render-program:ssr-props',
 			namespace: 'html',
 			ssr(target) {
-				target.prepareAttribute(0);
-				target.prepareAttribute(1);
-				target.prepareAttribute(2);
+				const className = target.prepareAttribute(0);
+				const disabled = target.prepareAttribute(1);
+				const onClick = target.prepareAttribute(2);
 				target.begin(1, 3);
 				target.static('<button data-exact-id="planned"');
-				target.attribute(0, 'className', 'button');
-				target.attribute(1, 'disabled', 'button');
-				target.attribute(2, 'onClick', 'button');
+				target.attribute(className, 'className', 'button');
+				target.attribute(disabled, 'disabled', 'button');
+				target.attribute(onClick, 'onClick', 'button');
 				target.static('>Save</button>');
 			}
 		}),
@@ -128,10 +128,10 @@ it('executes structural program slots without colliding with nested marker ident
 			id: 'render-program:ssr-structural',
 			namespace: 'html',
 			ssr(target) {
-				target.prepareChild(0);
+				const child = target.prepareChild(0);
 				target.begin(1, 1);
 				target.static('<section>');
-				target.child(0, 'child');
+				target.child(child, 'child');
 				target.static('</section>');
 			}
 		}),
@@ -169,10 +169,10 @@ it('writes a compiler-proven final keyed child without structural delimiters', a
 			id: 'render-program:ssr-keyed-tail',
 			namespace: 'html',
 			ssr(target) {
-				target.prepareChild(0);
+				const child = target.prepareChild(0);
 				target.begin(1, 1);
 				target.static('<ul>');
-				target.keyedChild(0);
+				target.keyedChild(child);
 				target.static('</ul>');
 			}
 		}),

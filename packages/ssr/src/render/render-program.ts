@@ -57,7 +57,6 @@ type DeferredSsrSegment = string | readonly Child[];
  * runtime rediscover component topology from an operation table.
  */
 class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
-	readonly #values: unknown[] = [];
 	output: string | { readonly segments: DeferredSsrSegment[]; staticCharacters: number };
 	prepared = true;
 
@@ -69,34 +68,34 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 		this.output = renderChildren ? '' : { segments: [], staticCharacters: 0 };
 	}
 
-	prepareText(index: number): void {
-		if (!this.prepared) return;
+	prepareText(index: number): unknown {
+		if (!this.prepared) return undefined;
 		const value = unwrap(readRenderProgramSlot(this.invocation, index));
 		if (value instanceof Promise || isVNode(value) || Array.isArray(value)) {
 			this.prepared = false;
-			return;
+			return undefined;
 		}
-		this.#values[index] = value;
+		return value;
 	}
 
-	prepareChild(index: number): void {
-		if (!this.prepared) return;
+	prepareChild(index: number): unknown {
+		if (!this.prepared) return undefined;
 		const value = unwrap(readRenderProgramSlot(this.invocation, index));
 		if (value instanceof Promise) {
 			this.prepared = false;
-			return;
+			return undefined;
 		}
-		this.#values[index] = value;
+		return value;
 	}
 
-	prepareAttribute(index: number): void {
-		if (!this.prepared) return;
+	prepareAttribute(index: number): unknown {
+		if (!this.prepared) return undefined;
 		const value = unwrap(readRenderProgramSlot(this.invocation, index));
 		if (value instanceof Promise) {
 			this.prepared = false;
-			return;
+			return undefined;
 		}
-		this.#values[index] = value;
+		return value;
 	}
 
 	begin(nodeCount: number, slotCount: number): void {
@@ -121,9 +120,8 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 		if (value !== '') this.output.segments.push(value);
 	}
 
-	text(index: number, id: string, markerless?: true): void {
+	text(value: unknown, id: string, markerless?: true): void {
 		if (!this.prepared) return;
-		const value = this.#values[index];
 		const rendered =
 			value === null || value === undefined || value === false || value === true
 				? ''
@@ -135,9 +133,9 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 		);
 	}
 
-	child(index: number, id: string): void {
+	child(value: unknown, id: string): void {
 		if (!this.prepared) return;
-		const children = normalizeRenderResult(this.#values[index] as Child | Child[]);
+		const children = normalizeRenderResult(value as Child | Child[]);
 		if (this.renderChildren) {
 			const rendered = this.renderChildren(children);
 			this.static(
@@ -152,16 +150,16 @@ class GeneratedSsrTarget implements ExactRenderProgramSsrTarget {
 		if (this.context.markers) this.static(`<!--/exact:dynamic:${exactMarkerId(id)}-->`);
 	}
 
-	keyedChild(index: number): void {
+	keyedChild(value: unknown): void {
 		if (!this.prepared) return;
-		const children = normalizeRenderResult(this.#values[index] as Child | Child[]);
+		const children = normalizeRenderResult(value as Child | Child[]);
 		if (this.renderChildren) this.static(this.renderChildren(children));
 		else if (typeof this.output !== 'string') this.output.segments.push(children);
 	}
 
-	attribute(index: number, name: string, tag: string): void {
+	attribute(value: unknown, name: string, tag: string): void {
 		if (!this.prepared) return;
-		this.static(renderAttrs({ [name]: this.#values[index] }, false, tag, this.context));
+		this.static(renderAttrs({ [name]: value }, false, tag, this.context));
 	}
 }
 

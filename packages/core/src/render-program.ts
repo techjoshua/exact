@@ -12,23 +12,23 @@ export type ExactRenderProgramNode = readonly [
 /** Focused server operations invoked in compiler-generated component order. */
 export type ExactRenderProgramSsrTarget = Readonly<{
 	/** Reads and validates one compiler-known scalar before serialization mutates request state. */
-	prepareText(index: number): void;
+	prepareText(index: number): unknown;
 	/** Reads and validates one recursive child before serialization mutates request state. */
-	prepareChild(index: number): void;
+	prepareChild(index: number): unknown;
 	/** Reads and validates one host value before serialization mutates request state. */
-	prepareAttribute(index: number): void;
+	prepareAttribute(index: number): unknown;
 	/** Reserves the finite region's ownership identities and charges its request limit once. */
 	begin(nodeCount: number, slotCount: number): void;
 	/** Appends compiler-owned static markup under the request output limit. */
 	static(value: string): void;
 	/** Writes one prepared escaped scalar and its delimiters when required. */
-	text(index: number, id: string, markerless?: true): void;
+	text(value: unknown, id: string, markerless?: true): void;
 	/** Recursively renders one prepared structural or component child. */
-	child(index: number, id: string): void;
+	child(value: unknown, id: string): void;
 	/** Renders one compiler-keyed final-child range without serializing delimiters. */
-	keyedChild(index: number): void;
+	keyedChild(value: unknown): void;
 	/** Serializes one prepared host value with ordinary SSR attribute semantics. */
-	attribute(index: number, name: string, tag: string): void;
+	attribute(value: unknown, name: string, tag: string): void;
 }>;
 
 /** Component-specific server execution emitted by the compiler. */
