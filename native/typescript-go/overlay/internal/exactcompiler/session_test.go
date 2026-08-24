@@ -206,6 +206,26 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	}
 }
 
+func TestSessionInitializesRenderProgramsBeforeTopLevelMounts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-entry.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			import { render } from "@exactjs/dom";
+			function App() { return () => <main><strong>ready</strong></main>; }
+			render(<App />, document.body);
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	program := strings.Index(response.Code, "const __exact_render_program_1")
+	mount := strings.LastIndex(response.Code, "render(")
+	if program < 0 || mount < 0 || program > mount {
+		t.Fatalf("render program was not initialized before the top-level mount:\n%s", response.Code)
+	}
+}
+
 func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-state-updates.tsx", Kind: "compile", Target: TargetClient,
