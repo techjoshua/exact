@@ -105,7 +105,8 @@ function assertCompilerClosedServerBundle(source) {
 		'function clientBoundaryProps',
 		'function* renderClientBoundaryChunks',
 		'function orderEnhancementEntries',
-		'function applyPreparedTargetTree'
+		'function applyPreparedTargetTree',
+		'__exactExecution_'
 	]) {
 		if (source.includes(signature))
 			throw new Error(`Compiler-closed server bundle retained generic runtime ${signature}`);
@@ -116,7 +117,12 @@ async function buildFixture(entry, outputDirectory, entryFileName, options) {
 	await build({
 		configFile: false,
 		logLevel: 'warn',
-		plugins: [exact({ target: options.target })],
+		plugins: [
+			exact({
+				target: options.target,
+				...(options.target === 'server' ? { renderMode: 'server-render' } : {})
+			})
+		],
 		build: {
 			...(options.ssr ? { ssr: entry } : {}),
 			outDir: outputDirectory,

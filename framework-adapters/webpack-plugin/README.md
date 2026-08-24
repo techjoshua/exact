@@ -18,6 +18,8 @@ available when an existing rule needs explicit loader composition.
 For browser builds, set `renderMode: 'hydrate'` when the entry adopts SSR HTML or
 `renderMode: 'client'` when it only performs fresh mounts. The default `universal` contract remains
 available when one output must support either mode.
+For an SSR-only server entry, set `renderMode: 'server-render'` to omit continuation-dispatch
+executors. Keep the default for a server bundle that also handles continuation requests.
 
 ## What the plugin handles
 

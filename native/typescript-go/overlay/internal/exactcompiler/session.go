@@ -78,7 +78,8 @@ func (s *Session) Execute(request Request) Response {
 	}
 	if request.ComponentContractProjection != ComponentContractProjectionComplete &&
 		request.ComponentContractProjection != ComponentContractProjectionHydrate &&
-		request.ComponentContractProjection != ComponentContractProjectionClient {
+		request.ComponentContractProjection != ComponentContractProjectionClient &&
+		request.ComponentContractProjection != ComponentContractProjectionServerRender {
 		response.Error = fmt.Sprintf(
 			"unsupported component contract projection %q",
 			request.ComponentContractProjection,

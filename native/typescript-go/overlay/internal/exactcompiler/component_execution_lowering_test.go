@@ -317,6 +317,33 @@ func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T)
 	if strings.Contains(client.Code, "resumption:") {
 		t.Fatalf("client-only projection retained hydration resumption metadata:\n%s", client.Code)
 	}
+
+	serverRender := NewSession().Execute(Request{
+		ID: "server-render.tsx", Kind: "compile", Target: TargetServer,
+		ComponentContractProjection: ComponentContractProjectionServerRender,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			export function Loader(this: Component<{ value: number }>) {
+				async function load(_task: TaskContext = TaskContext.server().blocking()) {
+					this.state.value = await Promise.resolve(1);
+				}
+				load();
+				return () => <output>{this.state.value}</output>;
+			}
+		`,
+	})
+	if serverRender.Error != "" || len(serverRender.Diagnostics) != 0 {
+		t.Fatalf("server render projection failed: %s %#v", serverRender.Error, serverRender.Diagnostics)
+	}
+	for _, expected := range []string{`role: "render"`, "executors: []", "definition:", `lane: "direct"`} {
+		if !strings.Contains(serverRender.Code, expected) {
+			t.Fatalf("server render projection is missing %q:\n%s", expected, serverRender.Code)
+		}
+	}
+	if strings.Contains(serverRender.Code, "execute: async") {
+		t.Fatalf("server render projection retained a continuation dispatch executor:\n%s", serverRender.Code)
+	}
 }
 
 func TestComponentExecutionPropagatesAggregateOutputSourcesThroughChildProps(t *testing.T) {

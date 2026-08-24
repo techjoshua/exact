@@ -196,7 +196,7 @@ export type ExactComponentContract = Readonly<{
 	/** Partition-aware component artifact contract. Version 1 artifacts are not adopted. */
 	version: 2;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	role: 'client' | 'executor';
+	role: 'client' | 'render' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];
 	continuations: readonly ExactComponentContinuationContract[];
 	executors: readonly ExactComponentContinuationExecutorContract[];

@@ -459,7 +459,7 @@ func rootComponentContractAttachment(
 		)
 	}
 	executors := contractArray(factory)
-	if target == TargetServer {
+	if target == TargetServer && projection != ComponentContractProjectionServerRender {
 		executors = continuationExecutorMetadata(
 			factory,
 			componentFunction,
@@ -470,6 +470,8 @@ func rootComponentContractAttachment(
 	role := "executor"
 	if target == TargetClient {
 		role = "client"
+	} else if projection == ComponentContractProjectionServerRender {
+		role = "render"
 	}
 	projectedContinuations := continuationMetadata(factory, componentContinuations, target == TargetClient)
 	projectedBoundaries := componentBoundaryMetadata(factory, component, boundaries)

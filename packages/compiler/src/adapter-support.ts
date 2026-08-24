@@ -33,6 +33,24 @@ export type ExactBuildModuleSelectionOptions = Readonly<{
 	compileTestModules?: boolean;
 }>;
 
+/** Rendering mode understood consistently by every build-tool adapter. */
+export type ExactBuildRenderMode = 'universal' | 'client' | 'hydrate' | 'server-render';
+
+/** Selects and validates the component-contract facet for one physical build target. */
+export function exactComponentContractProjection(
+	target: 'client' | 'server',
+	mode: ExactBuildRenderMode | undefined
+): import('./contracts/transform.js').ComponentContractProjection {
+	if (target === 'server') {
+		if (mode === undefined || mode === 'universal') return 'complete';
+		if (mode === 'server-render') return 'server-render';
+		throw new TypeError(`Client render mode ${mode} cannot compile a server target`);
+	}
+	if (mode === 'server-render')
+		throw new TypeError('Server render mode cannot compile a client target');
+	return mode === undefined || mode === 'universal' ? 'complete' : mode;
+}
+
 /**
  * Creates a stateful reporter that emits only newly introduced diagnostics.
  *

@@ -1,5 +1,6 @@
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
+import type { ExactBuildRenderMode } from '@exactjs/compiler/adapter-support';
 import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
@@ -13,8 +14,8 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 /** Configures the eXact Bun plugin. */
 export type ExactBunPluginOptions = {
 	target?: TransformTarget;
-	/** Retains only the component-contract fields needed by this browser rendering mode. */
-	renderMode?: 'universal' | 'client' | 'hydrate';
+	/** Retains only the component-contract fields needed by this execution mode. */
+	renderMode?: ExactBuildRenderMode;
 	clientCondition?: string;
 	serverCondition?: string;
 	include?: FilterPattern;

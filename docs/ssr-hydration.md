@@ -157,6 +157,10 @@ same executable component semantics while leaving analysis-only state, task, and
 inventories in the compiler's build result instead of emitted JavaScript. Client-only projection
 also omits component resumption records. The default `universal` mode preserves the complete
 contract when a build cannot commit to one browser rendering mode.
+An SSR-only server entry can use `target: 'server'` with `renderMode: 'server-render'`. That facet
+retains compiled setup, dependency-ready tasks, rendering, and resumption publication while omitting
+the executors used only by later continuation requests. A server that also composes an executor
+contract must keep the default complete server mode or build a separate executor entry.
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.

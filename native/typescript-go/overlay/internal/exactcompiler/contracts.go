@@ -20,9 +20,10 @@ type Target string
 type ComponentContractProjection string
 
 const (
-	ComponentContractProjectionComplete ComponentContractProjection = "complete"
-	ComponentContractProjectionHydrate  ComponentContractProjection = "hydrate"
-	ComponentContractProjectionClient   ComponentContractProjection = "client"
+	ComponentContractProjectionComplete     ComponentContractProjection = "complete"
+	ComponentContractProjectionHydrate      ComponentContractProjection = "hydrate"
+	ComponentContractProjectionClient       ComponentContractProjection = "client"
+	ComponentContractProjectionServerRender ComponentContractProjection = "server-render"
 )
 
 const (

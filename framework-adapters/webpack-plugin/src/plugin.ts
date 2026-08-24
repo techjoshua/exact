@@ -5,6 +5,7 @@ import {
 	type TransformTarget
 } from '@exactjs/compiler';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
+import type { ExactBuildRenderMode } from '@exactjs/compiler/adapter-support';
 import type { ExactComponentAuthorizationAudit } from '@exactjs/component-library-policy';
 import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import { type ExactProfileEvent, type ExactProfileSink } from '@exactjs/instrumentation';
@@ -74,8 +75,8 @@ export {
 /** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
 	target?: TransformTarget;
-	/** Retains only the component-contract fields needed by this browser rendering mode. */
-	renderMode?: 'universal' | 'client' | 'hydrate';
+	/** Retains only the component-contract fields needed by this execution mode. */
+	renderMode?: ExactBuildRenderMode;
 	clientCondition?: string;
 	serverCondition?: string;
 	include?: FilterPattern;

@@ -192,6 +192,11 @@ export function RuntimesPage(this: Component<{}>) {
 					of guessing that generated and authored line numbers still correspond.
 				</p>
 				<IntegrationTable caption="Build integrations" integrations={buildIntegrations} />
+				<p>
+					An SSR-only server entry can set <code>renderMode: 'server-render'</code> to omit
+					continuation-dispatch executors. Keep the default server mode when the same bundle also
+					handles continuation requests.
+				</p>
 				<h3>Build paired Vite targets together</h3>
 				<p>
 					When an application has separate browser and server Vite configs, build them in one
