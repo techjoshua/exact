@@ -181,6 +181,8 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
 		!strings.Contains(response.Code, `from "@exactjs/core/runtime/render"`) ||
+		!strings.Contains(response.Code, `function Planned(this: object, props:`) ||
+		!strings.Contains(response.Code, `], this)`) ||
 		!strings.Contains(response.Code, "directClaims: true") ||
 		!strings.Contains(response.Code, `__exactBeginProgramClaims(__exactBindingTarget, "span", "html", 1, 1)`) ||
 		!strings.Contains(response.Code, "__exactClaimProgramText") ||
@@ -715,6 +717,9 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	if !strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
 		!strings.Contains(response.Code, `__exactApply("value", props.option)`) {
 		t.Fatalf("closed client output omitted the direct property writer:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `], this, undefined, (__exactGroup, __exactApply) =>`) {
+		t.Fatalf("closed client property writer omitted its authored component owner:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactSlot === 0 ? undefined`) ||
 		strings.Contains(response.Code, `__exactSlot === 1 ? undefined`) {
@@ -1319,8 +1324,12 @@ func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 		}
 		panel := findComponent(t, response.Analysis.Components, "Panel")
 		inline := findComponent(t, response.Analysis.Components, "Inline")
+		panelSignature := `const __exactImplementation_Panel_1 = function Panel()`
+		if target == TargetClient {
+			panelSignature = `const __exactImplementation_Panel_1 = function Panel(this: object)`
+		}
 		for _, expected := range []string{
-			`const __exactImplementation_Panel_1 = function Panel()`,
+			panelSignature,
 			`[Symbol.for("@exactjs/component")]: "` + panel.ID + `"`,
 			`[Symbol.for("@exactjs/component")]: "` + inline.ID + `"`,
 			`[__exactComponentContract_1]: {`,
@@ -1401,7 +1410,7 @@ func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *te
 	ready := findComponent(t, response.Analysis.Components, "Ready")
 	for _, expected := range []string{
 		`const entries = { ready: Ready }`,
-		`function Ready()`,
+		`function Ready(this: object)`,
 		`[Symbol.for("@exactjs/component")]: "` + ready.ID + `"`,
 		`instantiate: Ready`,
 	} {
@@ -1712,7 +1721,7 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract")`,
-		`const __exactImplementation_Button_1 = function Button()`,
+		`const __exactImplementation_Button_1 = function Button(this: object)`,
 		`export const Button =`,
 		`Object.assign(__exactImplementation_Button_1, {`,
 		`[Symbol.for("@exactjs/component")]: "` + component.ID + `"`,
@@ -1900,7 +1909,7 @@ func TestSessionEmitsClientRootContractForComponentValue(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`export const Button = (() => {`,
-		`const __exactComponentImplementation_1 = () =>`,
+		`const __exactComponentImplementation_1 = function (this: object)`,
 		`return Object.assign(__exactComponentImplementation_1`,
 		`implementation: __exactComponentImplementation_1`,
 		`[__exactComponentContract_1]:`,

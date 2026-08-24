@@ -322,7 +322,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			if len(modifiers) != 0 {
 				nextModifiers = lowering.factory.NewModifierList(modifiers)
 			}
-			return lowering.factory.UpdateFunctionDeclaration(
+			updated := lowering.factory.UpdateFunctionDeclaration(
 				visited,
 				nextModifiers,
 				visited.AsteriskToken,
@@ -333,6 +333,20 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 				visited.FullSignature,
 				visited.Body,
 			)
+			if lowering.target != TargetServer && node.Parent != nil && ast.IsSourceFile(node.Parent) {
+				return lowering.withCompiledComponentThisParameter(updated.AsFunctionDeclaration())
+			}
+			return updated
+		}
+	}
+	if lowering.target != TargetServer && ast.IsFunctionDeclaration(node) &&
+		node.Parent != nil && ast.IsSourceFile(node.Parent) {
+		name := node.Name()
+		if name != nil {
+			if _, exists := lowering.components[name.Text()]; exists {
+				visited := lowering.visitor.VisitEachChild(node).AsFunctionDeclaration()
+				return lowering.withCompiledComponentThisParameter(visited)
+			}
 		}
 	}
 	if ast.IsVariableDeclaration(node) {
@@ -363,6 +377,16 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 					declaration.Type,
 					lowering.clientComponentValueStub(component),
 				)
+			}
+		}
+		if lowering.target != TargetServer && name != nil && ast.IsIdentifier(name) &&
+			declaration.Initializer != nil && componentVariableIsModuleLevel(node) {
+			if component, exists := lowering.components[name.Text()]; exists &&
+				component.Start == declaration.Initializer.Pos() &&
+				(ast.IsArrowFunction(declaration.Initializer) ||
+					ast.IsFunctionExpression(declaration.Initializer)) {
+				visited := lowering.visitor.VisitEachChild(node).AsVariableDeclaration()
+				return lowering.withCompiledComponentValueThisParameter(visited)
 			}
 		}
 		if transformed := lowering.lowerDerivedDeclaration(node); transformed != nil {
@@ -415,4 +439,106 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	default:
 		return lowering.visitor.VisitEachChild(node)
 	}
+}
+
+func componentVariableIsModuleLevel(declaration *ast.Node) bool {
+	list := declaration.Parent
+	if list == nil || list.Parent == nil || !ast.IsVariableStatement(list.Parent) {
+		return false
+	}
+	return list.Parent.Parent != nil && ast.IsSourceFile(list.Parent.Parent)
+}
+
+func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
+	declaration *ast.VariableDeclaration,
+) *ast.Node {
+	initializer := declaration.Initializer
+	var implementation *ast.Node
+	if ast.IsArrowFunction(initializer) {
+		arrow := initializer.AsArrowFunction()
+		body := arrow.Body
+		if !ast.IsBlock(body) {
+			body = lowering.factory.NewBlock(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.factory.NewReturnStatement(body),
+				}),
+				true,
+			)
+		}
+		implementation = lowering.factory.NewFunctionExpression(
+			arrow.Modifiers(),
+			nil,
+			nil,
+			arrow.TypeParameters,
+			lowering.compiledComponentParameters(arrow.Parameters),
+			arrow.Type,
+			arrow.FullSignature,
+			body,
+		)
+	} else {
+		function := initializer.AsFunctionExpression()
+		implementation = lowering.factory.UpdateFunctionExpression(
+			function,
+			function.Modifiers(),
+			function.AsteriskToken,
+			function.Name(),
+			function.TypeParameters,
+			lowering.compiledComponentParameters(function.Parameters),
+			function.Type,
+			function.FullSignature,
+			function.Body,
+		)
+	}
+	return lowering.factory.UpdateVariableDeclaration(
+		declaration,
+		declaration.Name(),
+		declaration.ExclamationToken,
+		declaration.Type,
+		implementation,
+	)
+}
+
+// withCompiledComponentThisParameter gives generated owner references a concrete type even when a
+// stateless authored component did not need to declare `this`. The parameter is erased from
+// JavaScript and makes the compiler-owned instance requirement explicit in generated TypeScript.
+func (lowering *jsxLowering) withCompiledComponentThisParameter(
+	declaration *ast.FunctionDeclaration,
+) *ast.Node {
+	parameters := lowering.compiledComponentParameters(declaration.Parameters)
+	if parameters == declaration.Parameters {
+		return declaration.AsNode()
+	}
+	return lowering.factory.UpdateFunctionDeclaration(
+		declaration,
+		declaration.Modifiers(),
+		declaration.AsteriskToken,
+		declaration.Name(),
+		declaration.TypeParameters,
+		parameters,
+		declaration.Type,
+		declaration.FullSignature,
+		declaration.Body,
+	)
+}
+
+func (lowering *jsxLowering) compiledComponentParameters(parameters *ast.NodeList) *ast.NodeList {
+	nodes := parameters.Nodes
+	if len(nodes) != 0 {
+		name := nodes[0].Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() == "this" {
+			return parameters
+		}
+	}
+	thisParameter := lowering.factory.NewParameterDeclaration(
+		nil,
+		nil,
+		lowering.factory.NewIdentifier("this"),
+		nil,
+		lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword),
+		nil,
+	)
+	next := make([]*ast.Node, 0, len(nodes)+1)
+	next = append(next, thisParameter)
+	next = append(next, nodes...)
+	return lowering.factory.NewNodeList(next)
 }

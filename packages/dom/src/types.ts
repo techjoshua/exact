@@ -49,6 +49,9 @@ export type Mounted = {
 		/** Component structural slots encoded as a number until an unusually high index needs a set. */
 		readonly componentSlots?: number | ReadonlySet<number>;
 		readonly root: Root;
+		/** Durable authored owner used by compiler-generated state update wiring. */
+		readonly bindingOwner?: AnyComponentInstance;
+		/** Semantic parent used for contexts and structural child construction. */
 		readonly parentInstance?: AnyComponentInstance;
 		/** Last effective planned props, grouped by their target element. */
 		props?: Map<Element, Record<string, unknown>>;

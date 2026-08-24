@@ -8,9 +8,6 @@ export {
 export { renderInstance } from '../component/render.js';
 export { RenderProgram, ServerBoundary, ServerSlot } from '../symbols.js';
 export {
-	clearCompiledRenderPrograms,
-	compiledRenderProgramCacheSize,
-	createCompiledRenderProgram,
 	createPreparedRenderProgram,
 	prepareCompiledRenderProgram,
 	readRenderProgram,

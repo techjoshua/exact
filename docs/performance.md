@@ -149,7 +149,10 @@ Numeric mutation versions identify the fields that actually changed, and the gen
 calls only operations whose region target is currently mounted. Region replacement clears its
 indexed target, while final component teardown releases the shared reaction. This avoids both
 dependency-collection passes and one retained reaction per binding without adding another scheduler
-turn. Expressions with nested, dynamically indexed, or otherwise incomplete dependencies retain
+turn. Each invocation also carries its compiler-known durable update owner separately from its
+semantic component parent. A transparent enhancement can therefore remain the context parent of
+authored descendants without redirecting the enclosed region's generated state updates to the
+enhancement instance. Expressions with nested, dynamically indexed, or otherwise incomplete dependencies retain
 their independent tracked reaction. This is generated component control flow, not an opcode tape:
 the runtime supplies focused claim, subscription, and DOM mutation operations but does not interpret
 a general update plan. Closed client output emits each property group as one direct writer

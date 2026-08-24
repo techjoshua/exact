@@ -17,14 +17,26 @@ import {
 import {
 	createCompiledTarget,
 	createDynamicChild,
-	createExpression
+	createExpression,
+	createPreparedRenderProgram,
+	prepareCompiledRenderProgram,
+	type ExactRenderProgramBindingTarget
 } from '@exactjs/core/runtime/render';
 import { markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
+import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-objects';
+import { createEffectScope } from '@exactjs/reactive/framework/runtime';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 import { inspectDomRoot } from './testing.js';
 import { createVNode } from './test-support/native-vnode.js';
+import {
+	applyCompiledProgramText,
+	beginCompiledProgramClaims,
+	bindCompiledComponentUpdate,
+	bindCompiledProgramText,
+	claimCompiledProgramText
+} from './runtime/render-program.js';
 
 const identity = '@test/motion#motion';
 
@@ -215,6 +227,63 @@ describe('renderer enhancements', () => {
 
 		expect(container.innerHTML).toBe('<section><div><output>updated</output></div></section>');
 		expect(consumerSetups).toHaveBeenCalledOnce();
+	});
+
+	it('keeps compiled updates owned by the authored component through a direct enhancement', () => {
+		const token = createContext<string>('@test/compiled-update-enhancement-owner');
+		const Provider = markTestComponent(function Provider(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			this.setContext(token, 'provided');
+			return () => createCompiledTarget({ className: 'provided' }, props.children);
+		});
+		markExactEnhancementContexts(Provider, { provides: [token] });
+		const updates = {
+			bindings: [['count', 1, 0]] as const,
+			apply(targets: readonly (object | undefined)[], dirtyLow: number) {
+				if ((dirtyLow & 1) !== 0 && targets[0])
+					applyCompiledProgramText(targets[0] as ExactRenderProgramBindingTarget, 0);
+			}
+		};
+		const program = prepareCompiledRenderProgram({
+			version: 4,
+			id: '@test/compiled-update-enhancement-owner',
+			namespace: 'html',
+			template: '<output><!---->\ue000exact:0\ue001<!----></output>',
+			directClaims: true,
+			bind(target) {
+				if (beginCompiledProgramClaims(target, 'output', 'html', 1, 1)) {
+					claimCompiledProgramText(target, 0, 0, true);
+					return;
+				}
+				bindCompiledProgramText(target, 0, true);
+				bindCompiledComponentUpdate(target, 0, updates);
+			}
+		});
+		const ownerScope = createEffectScope();
+		const state = indexedReactiveObjects<{ count: number }>(['count']);
+		state.count = 0;
+		const owner = { state, scope: ownerScope };
+		const container = document.createElement('div');
+
+		render(
+			createVNode(
+				'section',
+				{
+					__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				},
+				createPreparedRenderProgram(program, [() => state.count], owner)
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Provider]]) }
+		);
+		expect(container.innerHTML).toBe('<section class="provided"><output>0</output></section>');
+
+		state.count = 1;
+		flushSync();
+		expect(container.querySelector('output')?.textContent).toBe('1');
+		ownerScope.stop();
 	});
 
 	it('nests direct enhancement providers through fragment and intrinsic targets', () => {

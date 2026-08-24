@@ -20,6 +20,8 @@ describe('compiler-generated dirty updates', () => {
 		const count = document.createTextNode('');
 		const label = document.createTextNode('');
 		const updates = vi.fn();
+		const ownerScope = createEffectScope();
+		const owner = { state, scope: ownerScope } as unknown as AnyComponentInstance;
 		const program = prepareCompiledRenderProgram({
 			version: 4,
 			id: 'direct-dirty-update',
@@ -33,11 +35,13 @@ describe('compiler-generated dirty updates', () => {
 				if (dirtyLow & 2) applyCompiledProgramText(target, 1);
 			}
 		});
-		const vnode = createPreparedRenderProgram(program, [() => state.count, () => state.label]);
+		const vnode = createPreparedRenderProgram(
+			program,
+			[() => state.count, () => state.label],
+			owner
+		);
 		const invocation = readRenderProgram(vnode)!;
 		const scope = createEffectScope();
-		const ownerScope = createEffectScope();
-		const owner = { state, scope: ownerScope } as unknown as AnyComponentInstance;
 		const mounted = {
 			scope,
 			renderProgram: {
@@ -96,7 +100,7 @@ describe('compiler-generated dirty updates', () => {
 				bind() {},
 				update: updates[index]
 			});
-			const invocation = readRenderProgram(createPreparedRenderProgram(program, []))!;
+			const invocation = readRenderProgram(createPreparedRenderProgram(program, [], owner))!;
 			const mounted = {
 				scope: createEffectScope(ownerScope),
 				renderProgram: {

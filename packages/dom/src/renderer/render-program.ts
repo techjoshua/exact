@@ -39,6 +39,7 @@ export function mountRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
+	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
 	// A browser renderer can receive only client or complete compiler artifacts. Server-only
 	// descriptors are excluded by artifact partitioning and cannot be authored through the brand.
 	const program = invocation.program as ExactDomRenderProgram;
@@ -63,12 +64,13 @@ export function mountRenderProgram(
 			slotNodes,
 			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
+			bindingOwner,
 			parentInstance
 		}
 	};
-	if (parentInstance) {
-		if (programIndex) ownProgramNodes(table!, programIndex, parentInstance);
-		else ownDirectProgramNodes(direct?.elements, parentInstance);
+	if (bindingOwner) {
+		if (programIndex) ownProgramNodes(table!, programIndex, bindingOwner);
+		else ownDirectProgramNodes(direct?.elements, bindingOwner);
 	}
 	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
 		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
@@ -97,6 +99,7 @@ export function adoptRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
+	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
 	const program = invocation.program as ExactDomRenderProgram;
 	if (!(dom instanceof Element)) return undefined;
 	const direct = claimCompiledRenderProgram(program, dom, 'ssr');
@@ -124,12 +127,13 @@ export function adoptRenderProgram(
 			slotNodes,
 			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
+			bindingOwner,
 			parentInstance
 		}
 	};
 	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
-	if (programIndex) ownProgramNodes(table!, programIndex, parentInstance);
-	else ownDirectProgramNodes(direct?.elements, parentInstance);
+	if (programIndex) ownProgramNodes(table!, programIndex, bindingOwner);
+	else ownDirectProgramNodes(direct?.elements, bindingOwner);
 	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
 		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
 		else releaseDirectProgramNodeOwners(direct?.elements);
