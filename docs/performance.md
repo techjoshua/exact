@@ -575,6 +575,14 @@ through the generic fallback. Hydrate-only client artifacts omit server markup a
 Complete rendering-mode-neutral artifacts retain the table representation as an explicit
 compatibility boundary.
 
+For `renderToStringAsync()` roots whose complete local component graph has direct server writers,
+the compiler selects a narrower string entry point as well. Its serializer consumes the generated
+program segments directly and coordinates only the direct component slots named by the graph. The
+selection is transitive and conservative: imported or generic descendants, client boundaries,
+general child slots, dynamic render options, and React-markup mode keep the universal async VNode
+dispatcher. Production bundle checks reject that dispatcher when the server load fixture qualifies
+for the closed lane.
+
 Compiler-created synchronous setup computations are also target-specialized. On the server their
 already-known dependency expressions feed the generated computation directly in authored order;
 the artifact does not construct a task definition, reactive dependency wrapper, readiness watcher,

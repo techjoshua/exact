@@ -51,6 +51,8 @@ type jsxLowering struct {
 	partitionPlan                PartitionPlan
 	dynamicComponents            map[int]dynamicComponentUseKind
 	componentLocalization        bool
+	externalImports              externalImportBindings
+	closedServerWriters          map[string]struct{}
 	listCapabilityUsed           bool
 	renderProgramChildDepth      int
 	renderProgramListDepth       int
@@ -112,6 +114,7 @@ func lowerExactJSX(
 		ast.NodeVisitorHooks{},
 	)
 	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
+	transformed = lowering.lowerCompilerClosedSsrCalls(transformed)
 	if lowering.target == TargetClient &&
 		lowering.contractProjection == ComponentContractProjectionHydrate {
 		components := make([]Component, 0, len(lowering.components))

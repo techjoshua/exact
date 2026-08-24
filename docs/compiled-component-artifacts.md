@@ -45,9 +45,19 @@ table or allocate a receiver merely to replay the compiler's ordering. Render-pr
 silently executed with the incompatible calling convention. Direct server components capture
 compiler-known child slots during request-local task issuance, allowing independent child work to
 start before the writer publishes those slots in authored order. Generic components retain lazy
-slot evaluation where reactive stabilization remains observable. A compiler-closed server target
-without JSX interoperability omits the region's generic VNode recovery factory entirely; targets
-that can enter foreign markup semantics retain that explicit compatibility fallback.
+slot evaluation where reactive stabilization remains observable. A compiler-closed server region
+omits its generic VNode recovery factory. JSX interoperability is decided at the rendered component
+graph rather than for the whole module: a local direct graph can remain closed even when another
+component in the module uses a foreign boundary. A graph with a generic, imported, client-owned,
+enhancement-owned, or general-child descendant retains the ordinary renderer.
+
+The compiler also specializes authored `renderToStringAsync()` calls whose local root graph is
+closed and whose options cannot enable foreign React markup. Those calls enter a structure-only
+serializer that accepts generated render programs, scalar and property slots, and transitively
+closed component slots. Dynamic render options, general child expressions, and unsupported graph
+edges leave the authored call on the universal SSR entry point. This proof keeps the broad async
+VNode dispatcher out of simple production server bundles without creating a second author-facing
+render API.
 Server artifacts import structure-only render and task helpers. Durable generic component
 construction, enhancement planning, and native structural-boundary ownership are separately
 installed capabilities selected only by artifacts that can reach those paths. Resumption

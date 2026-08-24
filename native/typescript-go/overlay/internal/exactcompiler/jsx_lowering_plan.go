@@ -91,6 +91,8 @@ func (plan jsxLoweringPlan) prepare(
 		recordedClientIslands:    make(map[string]struct{}),
 		serverTaskSlices:         make(map[string]string),
 		componentLocalization:    plan.componentLocalization,
+		externalImports:          collectExternalImportBindings(sourceFile, plan.typeChecker),
+		closedServerWriters:      make(map[string]struct{}),
 	}
 	lowering.indexCollectionMaps()
 	return lowering, true

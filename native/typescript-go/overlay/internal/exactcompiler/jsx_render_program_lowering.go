@@ -179,6 +179,11 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil, parentNamespace) {
 		return nil
 	}
+	if lowering.target == TargetServer && compilerClosedRenderProgram(build) {
+		if owner, exists := lowering.directServerComponentOwner(identityNode); exists {
+			lowering.closedServerWriters[owner] = struct{}{}
+		}
+	}
 	build.serverSegments = append(build.serverSegments, build.serverSegment.String())
 	programID := exactStableID(
 		lowering.sourceFile.FileName(),
@@ -293,6 +298,32 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		)
 	}
 	return lowering.call(prepared, arguments)
+}
+
+// compilerClosedRenderProgram accepts only slots whose value kind is statically represented by
+// the narrow renderer. General child expressions can produce structural/runtime VNodes that need
+// the universal dispatcher, even though their surrounding intrinsic tree has a render program.
+func compilerClosedRenderProgram(build *renderProgramBuild) bool {
+	for _, slot := range build.slots {
+		if slot.kind == "child" {
+			return false
+		}
+	}
+	return true
+}
+
+func (lowering *jsxLowering) directServerComponentOwner(node *ast.Node) (string, bool) {
+	name := ""
+	width := int(^uint(0) >> 1)
+	for candidate, component := range lowering.components {
+		if !component.DirectServer || node.Pos() < component.Start ||
+			node.End() > component.Start+component.Length || component.Length >= width {
+			continue
+		}
+		name = candidate
+		width = component.Length
+	}
+	return name, name != ""
 }
 
 func (lowering *jsxLowering) containsIndependentAsyncSiblings(children *ast.NodeList) bool {

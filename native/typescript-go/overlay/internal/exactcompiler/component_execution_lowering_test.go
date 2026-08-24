@@ -238,6 +238,118 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 	}
 }
 
+func TestCompilerClosedServerRootSelectsNarrowStringRenderer(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-root.tsx", Kind: "compile", Target: TargetServer,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptComponent",
+		},
+		Source: `
+			import { renderToStringAsync } from "@exactjs/ssr";
+			function Label(props: { label: string }) {
+				return () => <strong>{props.label}</strong>;
+			}
+			export function Page(props: { label: string }) {
+				return () => <main><Label label={props.label} /></main>;
+			}
+			export function render(label: string) {
+				return renderToStringAsync(<Page label={label} />, { markers: false });
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`renderCompilerClosedToStringAsync as`,
+		`from "@exactjs/ssr/runtime/compiler-closed"`,
+		`__exactRenderClosedSsr(__exactComponentVNode(Page`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("compiler-closed root is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `from "@exactjs/ssr"`) ||
+		strings.Contains(response.Code, `renderToStringAsync(__exactComponentVNode(Page`) {
+		t.Fatalf("compiler-closed root retained the universal renderer:\n%s", response.Code)
+	}
+}
+
+func TestCompilerClosedServerRootRetainsUniversalRendererForGenericDescendant(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-root-generic-child.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { renderToStringAsync } from "@exactjs/ssr";
+			declare class Component { getContext(token: unknown): unknown }
+			function ContextChild(this: Component) {
+				this.getContext(Symbol.for("request"));
+				return () => <strong>ready</strong>;
+			}
+			export function Page() { return () => <main><ContextChild /></main>; }
+			export function render() { return renderToStringAsync(<Page />); }
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+		!strings.Contains(response.Code, `renderToStringAsync(__exactComponentVNode(Page`) {
+		t.Fatalf("generic descendant incorrectly selected the narrow renderer:\n%s", response.Code)
+	}
+}
+
+func TestCompilerClosedServerRootRetainsUniversalRendererForGeneralChildSlot(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-root-general-child.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { renderToStringAsync } from "@exactjs/ssr";
+			export function Page(props: { content: unknown }) {
+				return () => <main>{props.content}</main>;
+			}
+			export function render(content: unknown) {
+				return renderToStringAsync(<Page content={content} />);
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+		!strings.Contains(response.Code, `renderToStringAsync(__exactComponentVNode(Page`) {
+		t.Fatalf("general child slot incorrectly selected the narrow renderer:\n%s", response.Code)
+	}
+}
+
+func TestCompilerClosedServerRootRetainsUniversalRendererForDynamicMarkupOptions(t *testing.T) {
+	for name, options := range map[string]string{
+		"dynamic":  "options",
+		"enabled":  "{ reactMarkup: true }",
+		"spread":   "{ ...options, markers: false }",
+		"computed": `{ ["reactMarkup"]: false }`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			response := NewSession().Execute(Request{
+				ID: "server-root-" + name + ".tsx", Kind: "compile", Target: TargetServer,
+				Source: `
+					import { renderToStringAsync } from "@exactjs/ssr";
+					export function Page() { return () => <main>ready</main>; }
+					export function render(options: { reactMarkup?: boolean; markers?: boolean }) {
+						return renderToStringAsync(<Page />, ` + options + `);
+					}
+				`,
+			})
+			if response.Error != "" || len(response.Diagnostics) != 0 {
+				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+			}
+			if strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+				!strings.Contains(response.Code, `renderToStringAsync(__exactComponentVNode(Page`) {
+				t.Fatalf("%s render options incorrectly selected the narrow renderer:\n%s", name, response.Code)
+			}
+		})
+	}
+}
+
 func TestServerGenericExecutionImportsItsOwnRuntimeCapability(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-generic-execution.tsx", Kind: "compile", Target: TargetServer,
