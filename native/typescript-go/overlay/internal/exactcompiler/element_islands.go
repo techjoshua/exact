@@ -460,9 +460,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 		if ast.IsJsxSpreadAttribute(property) {
 			if members, finite := island.finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {
-					value := lowering.factory.NewPropertyAccessExpression(
-						props, nil, lowering.factory.NewIdentifier(member.name), ast.NodeFlagsNone,
-					)
+					value := lowering.propertyAccess(props, member.name)
 					if interactiveJSXAttribute(member.name) {
 						value = lowering.finiteSpreadPropertyValue(&member)
 					}
@@ -515,12 +513,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 			lowering.clientIslandAttributeReadsState(island, attribute.Initializer.AsJsxExpression().Expression) {
 			value = lowering.jsxAttributeInitializer(attribute, tag, name, true)
 		} else {
-			value = lowering.factory.NewPropertyAccessExpression(
-				props,
-				nil,
-				lowering.factory.NewIdentifier(name),
-				ast.NodeFlagsNone,
-			)
+			value = lowering.propertyAccess(props, name)
 		}
 		properties = append(
 			properties,

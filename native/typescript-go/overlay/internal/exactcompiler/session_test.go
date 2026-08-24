@@ -2398,6 +2398,31 @@ __fixtureTask2();
 	}
 }
 
+func TestSessionUsesElementAccessForNamespacedClientIslandProps(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:                          "conditional-class-island.tsx",
+		Kind:                        "compile",
+		Target:                      TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		ServerComponents:            true,
+		Diagnostics:                 "syntax",
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			export function Row(props: { active: boolean }) {
+				const load = async (_task: TaskContext = TaskContext.server()) => loadPrivate();
+				load();
+				return () => <button className:active={props.active} onClick={() => undefined}>Open</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `"className:active": props["className:active"]`) {
+		t.Fatalf("namespaced island prop did not use valid element access:\n%s", response.Code)
+	}
+}
+
 func TestSessionLowersFormBindingInsideGeneratedIntrinsicIsland(t *testing.T) {
 	source := `
 			import { TaskContext } from "@exactjs/core";
