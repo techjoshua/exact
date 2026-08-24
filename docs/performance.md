@@ -581,7 +581,9 @@ renderer. Asynchronous and streaming renderers execute the same generated calls 
 prepared child value to their ordinary async or chunk renderer; they do not reconstruct the host
 through the generic fallback. Hydrate-only client artifacts omit server markup and execution.
 Complete rendering-mode-neutral artifacts retain the table representation as an explicit
-compatibility boundary.
+compatibility boundary. When one module contains both direct and generic server components, its
+generated imports preserve those lanes independently: generic components retain reactive render
+helpers while direct components obtain the server-only prepared-program constructor.
 
 For `renderToStringAsync()` roots whose complete local component graph has direct server writers,
 the compiler selects a narrower string entry point as well. Its serializer consumes the generated
