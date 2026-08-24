@@ -5,6 +5,8 @@ import {
 	isVNode,
 	normalizeRenderResult,
 	withComponentDomain,
+	type AnyComponentFunction,
+	type AnyComponentInstance,
 	type Child,
 	type ReactiveValue,
 	type VNode
@@ -16,9 +18,11 @@ import {
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
+import { componentHtml } from './component-output.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { drainTasks } from './context.js';
 import { getComponentProps } from './component-vnode.js';
+import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { prepareComponentProps } from './component-props.js';
 import {
 	resolveSsrComponentExecution,
@@ -64,6 +68,99 @@ export type DirectIssuedRender = Readonly<{
 	children: Child[];
 	preparation?: DirectScheduledPreparation;
 }>;
+
+/** Serializes one compiler-proven direct component without entering generic component ownership. */
+export async function renderDirectSsrComponentVNode(
+	context: SsrContext,
+	vnode: VNode,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	componentId: string,
+	flags: { enhancement: boolean; documentProbe: boolean },
+	renderChildren: (
+		children: readonly Child[],
+		parent: AnyComponentInstance | undefined
+	) => Promise<string>
+): Promise<string | undefined> {
+	const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
+	const rawProps = getComponentProps(vnode);
+	const scheduled = await (takePreparedDirectScheduledSsrComponent(context, vnode) ??
+		createDirectScheduledSsrComponent(context, blueprint, rawProps, options));
+	if (scheduled) {
+		const constructionCheckpoint = context.onComponentAttemptCheckpoint?.();
+		try {
+			context.onDirectComponentCreated?.(scheduled.snapshot);
+			const maxPasses = options.maxTaskPasses ?? 10;
+			for (let pass = 0; pass < maxPasses; pass++) {
+				const renderCheckpoint = context.onComponentAttemptCheckpoint?.();
+				const issued = await scheduled.render();
+				let renderPrimary: unknown = noPrimaryFailure;
+				try {
+					const html = await renderChildren(issued.children, parent);
+					if (await scheduled.drain()) {
+						context.onComponentAttemptRollback?.(renderCheckpoint);
+						continue;
+					}
+					const output = componentHtml(
+						context,
+						vnode,
+						parent,
+						componentId,
+						html,
+						scheduled.props,
+						flags
+					);
+					context.onDirectComponentRendered?.(scheduled.snapshot);
+					return output;
+				} catch (error) {
+					renderPrimary = error;
+					context.onComponentAttemptRollback?.(renderCheckpoint);
+					throw error;
+				} finally {
+					if (issued.preparation)
+						await disposeAsyncPreservingPrimary(
+							() => Promise.resolve(issued.preparation![Symbol.asyncDispose]()),
+							renderPrimary
+						);
+				}
+			}
+			throw new Error(
+				`eXact direct scheduled SSR component did not stabilize after ${maxPasses} render passes`
+			);
+		} catch (error) {
+			context.onComponentAttemptRollback?.(constructionCheckpoint);
+			throw error;
+		} finally {
+			await scheduled[Symbol.asyncDispose]();
+		}
+	}
+	const direct = await renderDirectSsrComponent(context, blueprint, rawProps, options);
+	if (!direct) return undefined;
+	const checkpoint = context.onComponentAttemptCheckpoint?.();
+	try {
+		context.onDirectComponentCreated?.(direct.snapshot);
+		let directPrimary: unknown = noPrimaryFailure;
+		let html: string;
+		try {
+			html = await renderChildren(direct.children, parent);
+		} catch (error) {
+			directPrimary = error;
+			throw error;
+		} finally {
+			if (direct.preparation)
+				await disposeAsyncPreservingPrimary(
+					() => Promise.resolve(direct.preparation![Symbol.asyncDispose]()),
+					directPrimary
+				);
+		}
+		const output = componentHtml(context, vnode, parent, componentId, html, direct.props, flags);
+		context.onDirectComponentRendered?.(direct.snapshot);
+		return output;
+	} catch (error) {
+		context.onComponentAttemptRollback?.(checkpoint);
+		throw error;
+	}
+}
 
 /**
  * Executes a compiler-classified synchronous component without constructing durable client

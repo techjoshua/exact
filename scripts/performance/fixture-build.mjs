@@ -106,6 +106,8 @@ function assertCompilerClosedServerBundle(source) {
 		'function* renderClientBoundaryChunks',
 		'function orderEnhancementEntries',
 		'function applyPreparedTargetTree',
+		'function renderVNodeAsync',
+		'function renderGenericSsrComponent',
 		'__exactExecution_'
 	]) {
 		if (source.includes(signature))

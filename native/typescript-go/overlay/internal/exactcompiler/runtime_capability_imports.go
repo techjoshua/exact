@@ -99,6 +99,7 @@ type jsxRuntimeNames struct {
 	interop                string
 	timeActivation         string
 	createTimeActivation   string
+	renderClosedSsr        string
 }
 
 func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
@@ -147,6 +148,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/ssr/runtime/structural-boundaries"},
 		{module: "@exactjs/ssr/runtime/resumption-boundaries"},
 		{module: "@exactjs/ssr/runtime/enhancements"},
+		{module: "@exactjs/ssr/runtime/compiler-closed"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -219,6 +221,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"claimCompiledProgramProperty", lowering.names.claimProgramProperty, 18},
 		{"enterCompiledProgramElement", lowering.names.enterProgramElement, 18},
 		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, 18},
+		{"renderCompilerClosedToStringAsync", lowering.names.renderClosedSsr, 28},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -724,5 +727,6 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		interop:                allocate("__exactInteropComponent"),
 		timeActivation:         allocate("__exactTimeRange"),
 		createTimeActivation:   allocate("__exactCreateTimeActivation"),
+		renderClosedSsr:        allocate("__exactRenderClosedSsr"),
 	}
 }

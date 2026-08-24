@@ -6,16 +6,11 @@ import { componentMarkerId } from './component-markers.js';
 import { componentName, getComponentProps } from './component-vnode.js';
 import { componentHtml } from './component-output.js';
 import { handleSsrConstructionError } from './construction-error-capability.js';
-import {
-	createDirectScheduledSsrComponent,
-	renderDirectSsrComponent,
-	takePreparedDirectScheduledSsrComponent
-} from './direct-component.js';
+import { renderDirectSsrComponentVNode } from './direct-component.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { renderGenericSsrComponent } from './generic-component-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderInterruption } from './limits.js';
-import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
 
 /** Renders a direct compiler artifact or delegates an explicitly selected generic component. */
@@ -43,90 +38,21 @@ export async function renderComponentAsync(
 				documentProbe
 			});
 		}
+		const direct = await renderDirectSsrComponentVNode(
+			context,
+			vnode,
+			parent,
+			options,
+			componentId,
+			{ enhancement, documentProbe },
+			async (children, owner) => {
+				if (documentProbe) resetDocumentProbe(context);
+				return renderChildrenAsync(context, children, owner, options);
+			}
+		);
+		if (direct !== undefined) return direct;
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 		const rawProps = getComponentProps(vnode);
-		const scheduled = await (takePreparedDirectScheduledSsrComponent(context, vnode) ??
-			createDirectScheduledSsrComponent(context, blueprint, rawProps, options));
-		if (scheduled) {
-			const constructionCheckpoint = context.onComponentAttemptCheckpoint?.();
-			try {
-				context.onDirectComponentCreated?.(scheduled.snapshot);
-				const maxPasses = options.maxTaskPasses ?? 10;
-				for (let pass = 0; pass < maxPasses; pass++) {
-					const renderCheckpoint = context.onComponentAttemptCheckpoint?.();
-					if (documentProbe) resetDocumentProbe(context);
-					const issued = await scheduled.render();
-					let renderPrimary: unknown = noPrimaryFailure;
-					try {
-						const html = await renderChildrenAsync(context, issued.children, parent, options);
-						if (await scheduled.drain()) {
-							context.onComponentAttemptRollback?.(renderCheckpoint);
-							continue;
-						}
-						const output = componentHtml(
-							context,
-							vnode,
-							parent,
-							componentId,
-							html,
-							scheduled.props,
-							{ enhancement, documentProbe }
-						);
-						context.onDirectComponentRendered?.(scheduled.snapshot);
-						return output;
-					} catch (error) {
-						renderPrimary = error;
-						context.onComponentAttemptRollback?.(renderCheckpoint);
-						throw error;
-					} finally {
-						if (issued.preparation)
-							await disposeAsyncPreservingPrimary(
-								() => Promise.resolve(issued.preparation![Symbol.asyncDispose]()),
-								renderPrimary
-							);
-					}
-				}
-				throw new Error(
-					`eXact direct scheduled SSR component did not stabilize after ${maxPasses} render passes`
-				);
-			} catch (error) {
-				context.onComponentAttemptRollback?.(constructionCheckpoint);
-				throw error;
-			} finally {
-				await scheduled[Symbol.asyncDispose]();
-			}
-		}
-		const direct = await renderDirectSsrComponent(context, blueprint, rawProps, options);
-		if (direct) {
-			const checkpoint = context.onComponentAttemptCheckpoint?.();
-			try {
-				context.onDirectComponentCreated?.(direct.snapshot);
-				if (documentProbe) resetDocumentProbe(context);
-				let directPrimary: unknown = noPrimaryFailure;
-				let html: string;
-				try {
-					html = await renderChildrenAsync(context, direct.children, parent, options);
-				} catch (error) {
-					directPrimary = error;
-					throw error;
-				} finally {
-					if (direct.preparation)
-						await disposeAsyncPreservingPrimary(
-							() => Promise.resolve(direct.preparation![Symbol.asyncDispose]()),
-							directPrimary
-						);
-				}
-				const output = componentHtml(context, vnode, parent, componentId, html, direct.props, {
-					enhancement,
-					documentProbe
-				});
-				context.onDirectComponentRendered?.(direct.snapshot);
-				return output;
-			} catch (error) {
-				context.onComponentAttemptRollback?.(checkpoint);
-				throw error;
-			}
-		}
 		return await renderGenericSsrComponent({
 			context,
 			vnode,
