@@ -138,6 +138,7 @@ func lowerExactJSX(
 		}
 	}
 	componentUpdateNames := lowering.emitComponentUpdateDefinitions()
+	sourceStatementCount := len(transformed.Statements.Nodes)
 	if len(lowering.clientDefinitions) != 0 {
 		statements := append(
 			[]*ast.Node(nil),
@@ -155,7 +156,7 @@ func lowerExactJSX(
 	interopImport := lowering.interopImport(transformed.AsNode())
 	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+1)
 	insertion := 0
-	for insertion < len(transformed.Statements.Nodes) &&
+	for insertion < sourceStatementCount &&
 		isDirectiveStatement(transformed.Statements.Nodes[insertion]) {
 		statements = append(statements, transformed.Statements.Nodes[insertion])
 		insertion++
@@ -164,7 +165,20 @@ func lowerExactJSX(
 	if interopImport != nil {
 		statements = append(statements, interopImport)
 	}
-	statements = append(statements, transformed.Statements.Nodes[insertion:]...)
+	definitionInsertion := insertion
+	for definitionInsertion < sourceStatementCount {
+		statement := transformed.Statements.Nodes[definitionInsertion]
+		if !ast.IsImportDeclaration(statement) && !isDirectiveStatement(statement) {
+			break
+		}
+		definitionInsertion++
+	}
+	statements = append(statements, transformed.Statements.Nodes[insertion:definitionInsertion]...)
+	// Generated render and update programs must be initialized before authored module work can
+	// synchronously mount a component. Appending them after a top-level render() call leaves their
+	// const bindings in the temporal dead zone during the component's first render.
+	statements = append(statements, transformed.Statements.Nodes[sourceStatementCount:]...)
+	statements = append(statements, transformed.Statements.Nodes[definitionInsertion:sourceStatementCount]...)
 	result := factory.UpdateSourceFile(
 		transformed,
 		factory.NewNodeList(statements),
