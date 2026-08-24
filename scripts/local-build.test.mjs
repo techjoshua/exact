@@ -12,7 +12,7 @@ test('the root build prepares package-export prerequisites before building depen
 	);
 	assert.equal(
 		manifest.scripts['build:prerequisites'],
-		'npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer -w @exactjs/dom'
+		'npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer -w @exactjs/dom -w @exactjs/ssr'
 	);
 	assert.equal(
 		manifest.scripts['build:bun-prerequisites'],
@@ -47,14 +47,14 @@ test('the root build includes the enhancement playground and its component libra
 	}
 });
 
-test('shipping artifact generation builds the theme metadata it consumes', async () => {
+test('shipping artifact generation builds the target artifacts it consumes', async () => {
 	const manifest = JSON.parse(
 		await readFile(path.resolve('apps/shipping-calculator/package.json'), 'utf8')
 	);
 
 	assert.equal(
 		manifest.scripts.pregenerate,
-		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/theme'
+		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/request && npm run build -w @exactjs/theme'
 	);
 });
 
