@@ -1625,6 +1625,9 @@ func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *
 		strings.Contains(childResponse.Code, `"className:active"`) {
 		t.Fatalf("server island fallback did not lower its conditional class:\n%s", childResponse.Code)
 	}
+	if strings.Contains(childResponse.Code, "onClick") {
+		t.Fatalf("paired server rendering retained client-only interaction work:\n%s", childResponse.Code)
+	}
 	if strings.Contains(childResponse.Code, "createServerBoundary") ||
 		strings.Contains(childResponse.Code, "Child_ExactClient_1") {
 		t.Fatalf("paired server rendering partitioned a locally hydrated interaction:\n%s", childResponse.Code)
