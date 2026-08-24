@@ -1,5 +1,4 @@
 import {
-	type AnyComponentFunction,
 	type AnyStateComponentFunction,
 	ErrorContext,
 	createErrorContext,
@@ -66,13 +65,8 @@ export {
 export * from './shared.js';
 
 import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../internals.js';
-import { markCompatibilityAdapter, reactCompatibilityArtifactTarget } from './adapter-identity.js';
-
-const adapterCaches: Readonly<Record<'client' | 'server', WeakMap<object, AnyComponentFunction>>> =
-	{
-		client: new WeakMap(),
-		server: new WeakMap()
-	};
+import { markCompatibilityAdapter } from './adapter-identity.js';
+import { currentReactAdapterCache } from './adapter-cache.js';
 
 /**
  * Returns the stable eXact component adapter for a React type.
@@ -86,8 +80,7 @@ export function adaptReactType<P>(
 	type: ReactComponentType<P> | AnyStateComponentFunction<P>
 ): ComponentFunction<Record<string, unknown>, P> {
 	const identity = type as object;
-	const target = reactCompatibilityArtifactTarget();
-	const adapterCache = adapterCaches[target];
+	const { target, cache: adapterCache } = currentReactAdapterCache();
 	const cached = adapterCache.get(identity);
 	if (cached) return cached as ComponentFunction<Record<string, unknown>, P>;
 	if (typeof type === 'function' && isExactComponent(type)) {

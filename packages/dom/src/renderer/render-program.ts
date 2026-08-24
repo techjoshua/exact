@@ -8,27 +8,30 @@ import {
 	type ExactTableRenderProgram
 } from '@exactjs/core/runtime/render';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
-import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
-import type { Mounted, RenderProgramChildAnchor, Root } from '../types.js';
+import { setElementOwner, setNodeOwner } from '../ownership.js';
+import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
 import { materializeProgramTemplate } from './render-program-template.js';
 import { adoptProgramChildSlots } from './render-program-children.js';
 import {
-	claimProgramChildSlot,
-	claimProgramTextSlot,
 	indexProgramHydration,
 	markedProgramRange,
 	matchesProgramIdentity,
 	programElement,
-	programNodeAtPath,
 	type ProgramHydrationIndex
 } from './render-program-hydration.js';
 import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
 import { bindRenderProgram } from './render-program-bindings.js';
 import { claimCompiledRenderProgram } from './render-program-claims.js';
+import {
+	claimGenericHydrationSlots,
+	claimGenericMountSlots,
+	ownDirectProgramNodes,
+	releaseDirectProgramNodeOwners,
+	validRenderProgramSlotNodes
+} from './render-program-slot-claims.js';
 
 const elementNode = 1;
-const textNode = 3;
 
 /** Mounts a branded program, or reports that its generic region fallback is required. */
 export function mountRenderProgram(
@@ -52,7 +55,7 @@ export function mountRenderProgram(
 	const table = tableProgram(invocation);
 	const programIndex = direct ? undefined : indexProgramHydration(dom);
 	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
-	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
+	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
@@ -116,7 +119,7 @@ export function adoptRenderProgram(
 	const programIndex = direct ? undefined : indexProgramHydration(dom);
 	if (programIndex && !validateGenericProgramNodes(table!, programIndex)) return undefined;
 	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
-	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
+	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
@@ -273,7 +276,7 @@ function adoptMarkedRenderProgram(
 	if (hydrationIndex && !validateGenericProgramNodes(table!, hydrationIndex)) return undefined;
 	const slotNodes =
 		direct?.slotNodes ?? claimGenericHydrationSlots(table!, programRoot, hydrationIndex!);
-	if (!direct && !validSlotNodes(invocation, slotNodes)) return undefined;
+	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom: range.start ?? programRoot,
@@ -345,72 +348,6 @@ function validateGenericProgramNodes(
 			plan[2] ?? program.namespace
 		)
 	);
-}
-
-function claimGenericMountSlots(
-	program: ExactTableRenderProgram,
-	root: Element,
-	index: ProgramHydrationIndex
-): readonly (Node | undefined)[] {
-	return program.slots.map((slot) => {
-		if (slot[0] === 'text') return programNodeAtPath(root, slot[2]);
-		if (slot[0] === 'child' || slot[0] === 'component')
-			return claimProgramChildSlot(index, slot[1]);
-		const owner = program.nodes[slot[1]];
-		return owner ? programElement(index, owner[0]) : undefined;
-	});
-}
-
-function claimGenericHydrationSlots(
-	program: ExactTableRenderProgram,
-	root: Element,
-	index: ProgramHydrationIndex
-): readonly (Node | undefined)[] {
-	return program.slots.map((slot) => {
-		if (slot[0] === 'text') return claimProgramTextSlot(root, index, slot[1]);
-		if (slot[0] === 'child' || slot[0] === 'component')
-			return claimProgramChildSlot(index, slot[1]);
-		const owner = program.nodes[slot[1]];
-		return owner ? programElement(index, owner[0]) : undefined;
-	});
-}
-
-function releaseDirectProgramNodeOwners(
-	elements: readonly (Element | undefined)[] | undefined
-): void {
-	if (!elements) return;
-	for (const element of elements) {
-		if (!element) continue;
-		clearNodeOwner(element);
-		clearElementOwner(element);
-	}
-}
-
-function ownDirectProgramNodes(
-	elements: readonly (Element | undefined)[] | undefined,
-	owner: AnyComponentInstance
-): void {
-	if (!elements) return;
-	for (const element of elements) {
-		if (!element) continue;
-		setNodeOwner(element, owner);
-		setElementOwner(element, owner);
-	}
-}
-
-function validSlotNodes(
-	invocation: ExactRenderProgramInvocation,
-	nodes: readonly (Node | RenderProgramChildAnchor | undefined)[]
-): boolean {
-	return nodes.every((node, index) => {
-		if (!(node instanceof Node)) return false;
-		const kind = invocation.program.slots?.[index]?.[0];
-		return kind === 'text'
-			? node?.nodeType === textNode
-			: kind === 'child' || kind === 'component'
-				? node instanceof Comment
-				: node?.nodeType === elementNode;
-	});
 }
 
 function tableProgram(
