@@ -18,7 +18,9 @@ that fits the response.
 
 String results retain request-owned chunks internally and join lazily when their public HTML is
 read. Request response helpers pass those chunks directly to capable Node adapters; exact UTF-8
-output limits are charged incrementally without constructing an encoded validation copy.
+output limits are charged incrementally without constructing an encoded validation copy. Fetch-native
+adapters can claim the same chunks as a platform-encoded Blob, so Bun does not pass SSR output
+through Node compatibility streams.
 
 Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate` and the matching
 compiler-generated client artifacts. Component inputs included in hydration must be deterministic

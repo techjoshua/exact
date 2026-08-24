@@ -100,7 +100,8 @@ const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-adapter',
-		coverage: 'Bun.serve handler with release-gating integration coverage in the Bun runtime.',
+		coverage:
+			'Bun.serve handler with native Blob-backed SSR output and release-gating integration coverage.',
 		application: 'Add @exactjs/bun-plugin separately when Bun also performs the build.'
 	},
 	{

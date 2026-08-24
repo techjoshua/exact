@@ -3,6 +3,7 @@ import { RequestContext } from '@exactjs/request';
 import {
 	defineExactOperationContract,
 	defineExactBoundaryContract,
+	exactResponseBodyOf,
 	handleExactRequest
 } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
@@ -73,7 +74,11 @@ describe('@exactjs/ssr request-context', () => {
 
 		expect(response.status).toBe(201);
 		expect(response.headers['x-rendered']).toBe('yes');
-		expect(response.body).toBe('<p>app:/account:GET</p>');
+		const chunks: string[] = [];
+		await exactResponseBodyOf(response)?.writeTo((chunk) => {
+			chunks.push(chunk);
+		});
+		expect(chunks.join('')).toBe('<p>app:/account:GET</p>');
 		await runtime.dispose?.();
 	});
 

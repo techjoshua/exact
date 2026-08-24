@@ -280,20 +280,20 @@ export async function renderExactRequestToHtmlResponse(
 				contexts: context.contexts?.componentValues,
 				signal: renderSignal(context.signal, options.signal)
 			};
-			let body: string;
+			let body: readonly string[];
 			let preloadLinks: readonly string[] | undefined;
 			if (options.hydration === false) {
 				const rendered = await renderToStringAsync(vnode, renderOptions);
-				body = rendered.html;
+				body = htmlChunksOf(rendered) ?? [rendered.html];
 				preloadLinks = rendered.preloadLinks;
 			} else {
 				const rendered = await renderToHydratableStringAsync(vnode, renderOptions);
-				body = rendered.htmlWithHydration;
+				body = hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration];
 				preloadLinks = rendered.preloadLinks;
 			}
-			return {
-				status: options.status ?? 200,
-				headers: withPreloadLinks(
+			return createExactBufferedResponse(
+				options.status ?? 200,
+				withPreloadLinks(
 					{
 						'content-type': options.contentType ?? 'text/html; charset=utf-8',
 						...(options.headers ?? {})
@@ -301,7 +301,7 @@ export async function renderExactRequestToHtmlResponse(
 					preloadLinks
 				),
 				body
-			};
+			);
 		},
 		request.platformRequest ?? request
 	);
