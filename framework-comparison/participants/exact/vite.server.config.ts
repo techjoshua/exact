@@ -5,7 +5,7 @@ import type { Plugin } from 'vite';
 /** Builds the eXact server-rendering entry independently from its browser artifact. */
 export default {
 	root: fileURLToPath(new URL('.', import.meta.url)),
-	plugins: [exact({ target: 'server' }), rejectUnusedServerContexts()],
+	plugins: [exact({ target: 'server', renderMode: 'server-render' }), rejectUnusedServerContexts()],
 	build: {
 		ssr: 'src/server-entry.tsx',
 		outDir: 'dist-server',

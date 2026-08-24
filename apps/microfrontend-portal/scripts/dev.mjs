@@ -37,7 +37,7 @@ const pageVite = await createViteServer({
 	appType: 'spa',
 	logLevel: 'info',
 	resolve: { alias: sharedAlias() },
-	plugins: [exact({ applicationRoot: pageRoot })],
+	plugins: [exact({ applicationRoot: pageRoot, renderMode: 'client' })],
 	server: { middlewareMode: true }
 });
 
@@ -81,7 +81,7 @@ async function remoteAssets(name, port) {
 		appType: 'spa',
 		logLevel: 'info',
 		resolve: { alias: sharedAlias() },
-		plugins: [exact({ applicationRoot })],
+		plugins: [exact({ applicationRoot, renderMode: 'client' })],
 		server: { host: '127.0.0.1', port, strictPort: true, cors: true }
 	});
 	await server.listen();

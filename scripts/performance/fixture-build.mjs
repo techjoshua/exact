@@ -120,7 +120,7 @@ async function buildFixture(entry, outputDirectory, entryFileName, options) {
 		plugins: [
 			exact({
 				target: options.target,
-				...(options.target === 'server' ? { renderMode: 'server-render' } : {})
+				renderMode: options.target === 'server' ? 'server-render' : 'client'
 			})
 		],
 		build: {
