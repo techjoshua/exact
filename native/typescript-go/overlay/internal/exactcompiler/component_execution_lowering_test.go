@@ -224,7 +224,7 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 	for _, forbidden := range []string{
 		`defineTask as`, `bindTaskForHost as`, `activateTaskForHost as`,
 		`@exactjs/core/runtime/component-execution`, `@exactjs/ssr/runtime/generic-components`,
-		`execution:`, `slices:`,
+		`execution:`, `slices:`, `createServerSlot as`,
 	} {
 		if strings.Contains(response.Code, forbidden) {
 			t.Fatalf("scheduled direct server component retained generic runtime %q:\n%s", forbidden, response.Code)
