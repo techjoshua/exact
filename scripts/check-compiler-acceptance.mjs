@@ -116,10 +116,10 @@ async function checkShipping(page, origin) {
 	await page.goto(origin, { waitUntil: 'networkidle' });
 	await page.getByRole('heading', { name: 'Find the right way to send it.' }).waitFor();
 	await page.getByRole('heading', { name: 'DOOP Standard' }).waitFor();
-	await expectEventually(
-		async () => exactStatuses.some((status) => status === 200),
-		'shipping did not perform its initial __exact request'
-	);
+	if (exactStatuses.length)
+		throw new Error(
+			`shipping redundantly refreshed its server-rendered revision: ${exactStatuses}`
+		);
 	const initialRequests = exactStatuses.length;
 	await page.getByLabel('To ZIP').fill('97209');
 	await expectEventually(
