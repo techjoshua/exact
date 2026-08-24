@@ -255,6 +255,49 @@ it('writes a compiler-proven final keyed child without structural delimiters', a
 	expect(await readStreamText(renderToStream(root))).toBe(html);
 });
 
+it('executes nested prepared server programs without stringifying their invocation', async () => {
+	const inner = createCompiledRenderProgram(
+		'nested:inner',
+		() => ({
+			version: 4,
+			id: 'nested:inner',
+			namespace: 'html',
+			ssr(target, context) {
+				target.begin(context, 1, 0, 23);
+				const output = target.output();
+				target.static(output, '<strong>nested</strong>');
+				return output;
+			}
+		}),
+		[]
+	);
+	const outer = createCompiledRenderProgram(
+		'nested:outer',
+		() => ({
+			version: 4,
+			id: 'nested:outer',
+			namespace: 'html',
+			ssr(target, context, invocation) {
+				const value = target.prepareChild(invocation, 0);
+				if (value === target.unprepared) return;
+				target.begin(context, 1, 1, 11);
+				const output = target.output();
+				target.static(output, '<section>');
+				target.keyedChild(output, value);
+				target.static(output, '</section>');
+				return output;
+			}
+		}),
+		[() => [inner]]
+	);
+	const root = programRoot(outer);
+	const expected = '<section><strong>nested</strong></section>';
+
+	expect(renderToString(root, { markers: false }).html).toBe(expected);
+	expect((await renderToStringAsync(root, { markers: false })).html).toBe(expected);
+	expect(await readStreamText(renderToStream(root, { markers: false }))).toBe(expected);
+});
+
 it('materializes marker-mode program fallbacks inside their component scope', async () => {
 	let fallbackScope: EffectScope | undefined;
 	const program = prepareCompiledRenderProgram({

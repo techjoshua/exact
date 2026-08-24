@@ -57,10 +57,12 @@ import {
 	applySsrTargetContributionsAsync
 } from './enhancement-execution-capability.js';
 import { canRenderIndependentChildren, renderIndependentChildren } from './async-independent.js';
+import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import { renderComponentAsync } from './component-async.js';
 import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
 import { renderVNode } from './sync-tree.js';
 import { renderNativeSuspenseAsync } from './structural-boundary-capability.js';
+import { renderPreparedSsrProgram } from './render-program.js';
 
 /** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
@@ -91,6 +93,29 @@ export async function renderChildAsync(
 	options: RenderToStringOptions,
 	hasComponentAncestor = false
 ): Promise<string> {
+	const program = readPreparedServerRenderProgram(child);
+	if (program) {
+		const planned = renderPreparedSsrProgram(context, program, parent);
+		if (planned.fallback)
+			return renderVNodeAsync(context, planned.fallback, parent, options, hasComponentAncestor);
+		const output: string[] = [];
+		for (const segment of planned.segments!)
+			output.push(
+				typeof segment === 'string'
+					? segment
+					: Array.isArray(segment)
+						? await renderChildrenAsync(context, segment, parent, options, hasComponentAncestor)
+						: await renderVNodeAsync(
+								context,
+								segment as VNode,
+								parent,
+								options,
+								hasComponentAncestor,
+								true
+							)
+			);
+		return boundedJoin(context, output);
+	}
 	if (isVNode(child))
 		return renderVNodeAsync(context, child, parent, options, hasComponentAncestor);
 	countSsrNode(context);
