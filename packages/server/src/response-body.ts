@@ -12,8 +12,12 @@ export type ExactResponseBodyWriter = (chunk: string) => void | Promise<void>;
 export interface ExactResponseBody {
 	/** Claims and writes the body without encoding it into a Web stream first. */
 	writeTo(write: ExactResponseBodyWriter): Promise<void>;
+	/** Claims and joins the body for direct response consumers. */
+	toText(): string;
 	/** Claims the body as a lazily encoded Web stream. */
 	toReadableStream(): ReadableStream<Uint8Array>;
+	/** Claims the body as a platform-encoded Blob without joining buffered chunks. */
+	toBlob(): Blob;
 	/** Releases an unclaimed body without materializing it. */
 	cancel(reason?: unknown): Promise<void>;
 }
@@ -32,10 +36,13 @@ export function createExactBufferedResponse(
 	const source = new BufferedResponseBody(body);
 	const response = {
 		status,
-		headers,
-		body: ''
+		headers
 	} as ExactResponseWithBody;
 	Object.defineProperty(response, exactResponseBody, { value: source });
+	Object.defineProperty(response, 'body', {
+		enumerable: true,
+		get: () => source.toText()
+	});
 	Object.defineProperty(response, 'stream', {
 		enumerable: true,
 		get: () => source.toReadableStream()
@@ -50,6 +57,7 @@ export function exactResponseBodyOf(response: ExactResponseLike): ExactResponseB
 
 class BufferedResponseBody implements ExactResponseBody {
 	private body: string | readonly string[] | undefined;
+	private text: string | undefined;
 	private stream: ReadableStream<Uint8Array> | undefined;
 
 	constructor(body: string | readonly string[]) {
@@ -67,6 +75,13 @@ class BufferedResponseBody implements ExactResponseBody {
 			const pending = write(chunk);
 			if (pending) await pending;
 		}
+	}
+
+	toText(): string {
+		if (this.text !== undefined) return this.text;
+		const body = this.claim();
+		this.text = typeof body === 'string' ? body : body.join('');
+		return this.text;
 	}
 
 	toReadableStream(): ReadableStream<Uint8Array> {
@@ -89,6 +104,11 @@ class BufferedResponseBody implements ExactResponseBody {
 			{ highWaterMark: 0 }
 		);
 		return this.stream;
+	}
+
+	toBlob(): Blob {
+		const body = this.claim();
+		return new Blob(typeof body === 'string' ? [body] : [...body]);
 	}
 
 	async cancel(): Promise<void> {

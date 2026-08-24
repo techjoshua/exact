@@ -1,5 +1,5 @@
-import { defineExactOperationContract } from '@exactjs/server';
-import { createExactBunHandler } from './index.js';
+import { createExactBufferedResponse, defineExactOperationContract } from '@exactjs/server';
+import { createExactBunHandler, exactResponseToBunResponse } from './index.js';
 
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
 
@@ -23,16 +23,7 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 				ping: () => ({ state: { runtime: 'bun' } })
 			}
 		});
-		const bun = (
-			globalThis as unknown as {
-				Bun: {
-					serve(options: { port: number; fetch(request: Request): Response | Promise<Response> }): {
-						url: URL;
-						stop(force?: boolean): Promise<void>;
-					};
-				};
-			}
-		).Bun;
+		const bun = bunRuntime();
 		const server = bun.serve({ port: 0, fetch: handler });
 		try {
 			const response = await fetch(new URL('/__exact', server.url), {
@@ -51,7 +42,42 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 			await server.stop();
 		}
 	});
+
+	testApi.it('serves compiler-buffered SSR chunks through Bun native HTTP', async () => {
+		const bun = bunRuntime();
+		const server = bun.serve({
+			port: 0,
+			fetch: () =>
+				exactResponseToBunResponse(
+					createExactBufferedResponse(200, { 'content-type': 'text/html' }, [
+						'<main>',
+						'Ready',
+						'</main>'
+					])
+				)
+		});
+		try {
+			const response = await fetch(server.url);
+			testApi.expect(response.headers.get('content-type')).toBe('text/html');
+			testApi.expect(await response.text()).toBe('<main>Ready</main>');
+		} finally {
+			await server.stop();
+		}
+	});
 });
+
+function bunRuntime() {
+	return (
+		globalThis as unknown as {
+			Bun: {
+				serve(options: { port: number; fetch(request: Request): Response | Promise<Response> }): {
+					url: URL;
+					stop(force?: boolean): Promise<void>;
+				};
+			};
+		}
+	).Bun;
+}
 
 function stateAction(id: string) {
 	return defineExactOperationContract(id, {
