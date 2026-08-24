@@ -22,13 +22,12 @@ import { readStreamText } from './test-support/streams.js';
 const createCompiledRenderProgram = (
 	_cacheKey: string,
 	createProgram: () => Parameters<typeof prepareCompiledRenderProgram>[0],
-	readers: Parameters<typeof createPreparedServerRenderProgram>[1],
-	fallback?: Parameters<typeof createPreparedServerRenderProgram>[3]
+	readers: readonly (() => unknown)[] | ((index: number) => unknown),
+	fallback?: Parameters<typeof createPreparedServerRenderProgram>[2]
 ) =>
 	createPreparedServerRenderProgram(
 		prepareCompiledRenderProgram(createProgram()),
-		readers,
-		Array.isArray(readers) ? readers.length : 0,
+		Array.isArray(readers) ? readers.map((reader) => reader()) : [],
 		fallback
 	);
 
@@ -261,7 +260,7 @@ it('materializes marker-mode program fallbacks inside their component scope', as
 	});
 	function ProgramOwner() {
 		return () =>
-			createPreparedServerRenderProgram(program, [], 0, () => {
+			createPreparedServerRenderProgram(program, [], () => {
 				fallbackScope = createEffectScope();
 				return createCompiledVNode('span', null, 'owned');
 			});

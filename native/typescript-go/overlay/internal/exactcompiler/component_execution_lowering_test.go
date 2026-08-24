@@ -188,7 +188,8 @@ func TestServerDirectFrameOwnsCompiledKeyedListFallbackWithoutListRuntime(t *tes
 		}
 	}
 	if strings.Contains(response.Code, `@exactjs/core/runtime/lists`) ||
-		strings.Contains(response.Code, "this.map") {
+		strings.Contains(response.Code, "this.map") ||
+		strings.Contains(response.Code, "(__exactSlot) =>") {
 		t.Fatalf("direct server list retained durable list runtime:\n%s", response.Code)
 	}
 }

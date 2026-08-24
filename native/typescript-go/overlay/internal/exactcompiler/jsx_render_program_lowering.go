@@ -294,14 +294,34 @@ func (lowering *jsxLowering) lowerRenderProgram(
 	prepared := lowering.names.preparedRenderProgram
 	if lowering.target == TargetServer && lowering.directServerArtifactComponent(identityNode) {
 		prepared = lowering.names.preparedServerProgram
-		arguments = append(
-			arguments[:2],
-			append([]*ast.Node{
-				lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.slots)), ast.TokenFlagsNone),
-			}, arguments[2:]...)...,
-		)
+		arguments[1] = lowering.renderProgramServerValues(runtimeReaders)
 	}
 	return lowering.call(prepared, arguments)
+}
+
+// renderProgramServerValues evaluates compiler-ordered slots directly in the generated component.
+// The former reader dispatcher existed only long enough for the runtime to call it once per slot;
+// emitting its values removes that closure and duplicate invocation-local array construction.
+func (lowering *jsxLowering) renderProgramServerValues(readers []*ast.Node) *ast.Node {
+	values := make([]*ast.Node, len(readers))
+	for index, reader := range readers {
+		if reader == nil {
+			values[index] = lowering.factory.NewIdentifier("undefined")
+			continue
+		}
+		if ast.IsArrowFunction(reader) && !ast.IsBlock(reader.AsArrowFunction().Body) {
+			values[index] = reader.AsArrowFunction().Body
+			continue
+		}
+		values[index] = lowering.factory.NewCallExpression(
+			reader,
+			nil,
+			nil,
+			lowering.factory.NewNodeList(nil),
+			ast.NodeFlagsNone,
+		)
+	}
+	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
 }
 
 // compilerClosedRenderProgram accepts only slots whose value kind is statically represented by

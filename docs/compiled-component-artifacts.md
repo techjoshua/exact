@@ -72,7 +72,9 @@ still accepting an explicit matching component marker when a generic keyed-list 
 slot. Components with continuation activation keep their resumable boundary.
 Server artifacts import structure-only render and task helpers. Durable generic component
 construction, enhancement planning, and native structural-boundary ownership are separately
-installed capabilities selected only by artifacts that can reach those paths. Resumption
+installed capabilities selected only by artifacts that can reach those paths. A direct server
+artifact evaluates its compiler-ordered render slots into the prepared invocation directly rather
+than creating a one-use runtime slot dispatcher. Resumption
 publication is a distinct server capability: a compiled continuation component can publish its
 request-local resumption envelope without retaining client-boundary traversal or generic component
 construction. The server keeps readable path-keyed records in its result API while serializing

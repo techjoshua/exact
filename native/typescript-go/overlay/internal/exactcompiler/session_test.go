@@ -399,13 +399,14 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
 		`__exactSsr.static(__exactOutput, "<button class=\"action\"")`,
 		`class=\"action\"`,
-		`__exactSlot === 0 ? props.disabled : props.label`,
+		`__exactPreparedServerRenderProgram(__exact_render_program_1, [props.disabled, props.label])`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `"className", "button"`) {
+	if strings.Contains(response.Code, `"className", "button"`) ||
+		strings.Contains(response.Code, `(__exactSlot) =>`) {
 		t.Fatalf("static class was retained as generated attribute work:\n%s", response.Code)
 	}
 }

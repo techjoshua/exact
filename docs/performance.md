@@ -587,7 +587,9 @@ use their enclosing structural range, instead of duplicating those boundaries.
 Closed server component artifacts carry generated SSR execution rather than a compact interpreted
 tape. The compiler emits slot preparation and the exact static, text, child, and attribute
 calls in source order; server-only descriptors omit the client template and all generic topology
-tables. Structural child and component calls delegate only their owned value to the ordinary child
+tables. Direct server components also emit their ordered slot values as an array expression; they
+do not allocate a temporary slot-dispatch closure for the runtime to call once per slot and discard.
+Structural child and component calls delegate only their owned value to the ordinary child
 renderer. Asynchronous and streaming renderers execute the same generated calls and defer only each
 prepared child value to their ordinary async or chunk renderer; they do not reconstruct the host
 through the generic fallback. Hydrate-only client artifacts omit server markup and execution.
