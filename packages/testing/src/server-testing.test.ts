@@ -160,6 +160,7 @@ describe('server component testing', () => {
 		});
 
 		expect(view.resumptions).toEqual([activation]);
+		if (!view.hydrationScript) throw new Error('SSR resumption render omitted hydration state');
 		const container = document.createElement('div');
 		container.innerHTML = view.hydrationScript;
 		expect(readExactHydrationConfig(container).resumptions).toEqual([activation]);

@@ -13,6 +13,7 @@ import {
 	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
 import { createPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { renderToStream, renderToString, renderToStringAsync } from './index.js';
@@ -32,9 +33,11 @@ const createCompiledRenderProgram = (
 	);
 
 const programRoot = (program: ReturnType<typeof createCompiledRenderProgram>) => {
-	const Root: Component = function ProgramRoot() {
+	const Root = createExactFrameworkFixtureArtifact(function ProgramRoot(
+		this: Component<Record<string, never>>
+	) {
 		return () => program as never;
-	};
+	}, 'fixture:ssr-render-program-root');
 	return createVNode(Root, {});
 };
 
