@@ -230,6 +230,8 @@ type ContractComponent = AnyExactComponentCallable & {
 	[exactComponentType]?: string;
 };
 
+const compatibilityCapabilities = ['compatibility', 'collections', 'dynamic-components'] as const;
+
 /**
  * Constructs the explicit target-local artifact used only at a foreign component boundary.
  * Native eXact authoring must use compiler-produced artifacts instead.
@@ -239,11 +241,7 @@ export function createExactCompatibilityArtifact<T extends AnyExactComponentCall
 	identity: string,
 	target: 'client' | 'server'
 ): T {
-	return attachRuntimeBoundaryArtifact(component, identity, target, [
-		'compatibility',
-		'collections',
-		'dynamic-components'
-	]);
+	return attachRuntimeBoundaryArtifact(component, identity, target, compatibilityCapabilities);
 }
 
 /** Constructs the narrow artifact for a framework-owned boundary over an opaque runtime VNode. */
