@@ -197,7 +197,9 @@ through the generated SSR function; its lazy compatibility fallback calls one sh
 list operation that creates no controller, registration, cache, or durable owner. Authored
 `this.map()` ownership and components that require capabilities not yet projected into a direct
 server slice remain on the generic lane; classification alone never weakens their ownership
-semantics.
+semantics. The renderer carries component ancestry separately from durable instance ownership, so
+a resumable descendant still publishes its client activation boundary when every server ancestor
+uses a request-local direct frame.
 
 Compiler-closed scheduled server components use the same request-local frame plus only their
 generated transition slices and disposable port storage. They do not construct a durable

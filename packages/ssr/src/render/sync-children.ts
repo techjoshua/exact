@@ -10,13 +10,14 @@ import { renderVNode } from './sync-tree.js';
 export function renderChildren(
 	context: SsrContext,
 	children: readonly Child[],
-	parent?: AnyComponentInstance
+	parent?: AnyComponentInstance,
+	hasComponentAncestor = false
 ): string {
 	const html: string[] = [];
 	let previousWasText = false;
 	for (const child of children) {
 		let rendered: string;
-		if (isVNode(child)) rendered = renderVNode(context, child, parent);
+		if (isVNode(child)) rendered = renderVNode(context, child, parent, hasComponentAncestor);
 		else {
 			countSsrNode(context);
 			if (child === null || child === undefined || child === false || child === true) rendered = '';

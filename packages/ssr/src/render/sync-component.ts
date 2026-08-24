@@ -20,7 +20,8 @@ export type SyncComponentOperations = Readonly<{
 	renderChildren(
 		context: SsrContext,
 		children: readonly Child[],
-		parent?: AnyComponentInstance
+		parent?: AnyComponentInstance,
+		hasComponentAncestor?: boolean
 	): string;
 	componentMarkerId(context: SsrContext, vnode: VNode): string;
 	renderResumable(
@@ -37,6 +38,7 @@ export function renderSyncComponent(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
+	hasComponentAncestor: boolean,
 	operations: SyncComponentOperations
 ): string {
 	const componentId = operations.componentMarkerId(context, vnode);
@@ -52,17 +54,18 @@ export function renderSyncComponent(
 			const html = operations.renderChildren(
 				context,
 				prepared.children,
-				prepared.failed ? parent : (instance ?? parent)
+				prepared.failed ? parent : (instance ?? parent),
+				true
 			);
 			output = componentOutput(
 				context,
 				vnode,
-				parent,
 				componentId,
 				html,
 				prepared.props,
 				enhancement,
 				documentProbe,
+				hasComponentAncestor,
 				operations
 			);
 			if (instance) context.onComponentRendered?.(instance);
@@ -76,16 +79,16 @@ export function renderSyncComponent(
 			try {
 				context.onDirectComponentCreated?.(direct.snapshot);
 				if (documentProbe) resetDocumentProbe(context);
-				const html = operations.renderChildren(context, direct.children, parent);
+				const html = operations.renderChildren(context, direct.children, parent, true);
 				const directOutput = componentOutput(
 					context,
 					vnode,
-					parent,
 					componentId,
 					html,
 					direct.props,
 					enhancement,
 					documentProbe,
+					hasComponentAncestor,
 					operations
 				);
 				context.onDirectComponentRendered?.(direct.snapshot);
@@ -110,19 +113,24 @@ export function renderSyncComponent(
 		output = componentOutput(
 			context,
 			vnode,
-			parent,
 			componentId,
 			generic.html,
 			generic.props,
 			enhancement,
 			documentProbe,
+			hasComponentAncestor,
 			operations
 		);
 	} catch (error) {
 		if (isSsrRenderLimitError(error)) throw error;
 		const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
 		const html = fallback
-			? operations.renderChildren(context, normalizeRenderResult(fallback()), parent)
+			? operations.renderChildren(
+					context,
+					normalizeRenderResult(fallback()),
+					parent,
+					hasComponentAncestor
+				)
 			: '';
 		output =
 			enhancement || (documentProbe && context.documentRootSeen)
@@ -150,16 +158,16 @@ export function* renderRootComponentChunks(
 function componentOutput(
 	context: SsrContext,
 	vnode: VNode,
-	parent: AnyComponentInstance | undefined,
 	componentId: string,
 	html: string,
 	props: Record<string, unknown>,
 	enhancement: boolean,
 	documentProbe: boolean,
+	hasComponentAncestor: boolean,
 	operations: SyncComponentOperations
 ): string {
 	if (enhancement || (documentProbe && context.documentRootSeen)) return html;
-	return parent
+	return hasComponentAncestor
 		? operations.renderResumable(context, vnode, componentId, html, props)
 		: markerPair(context, componentId, () => html);
 }

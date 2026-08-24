@@ -6,11 +6,7 @@ import {
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { RenderProgram } from '@exactjs/core/framework/render-structure';
-import type {
-	ExactRenderProgramInvocation,
-	ExactRenderProgramSsrOperations,
-	ExactRenderProgramSsrOutput
-} from '@exactjs/core/framework/render-structure';
+import type { ExactRenderProgramSsrOperations } from '@exactjs/core/framework/render-structure';
 import {
 	readRenderProgram,
 	readRenderProgramSlot,

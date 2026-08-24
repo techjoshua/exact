@@ -195,6 +195,71 @@ describe('@exactjs/ssr component resumption', () => {
 		expect(rendered.hydrationScript).not.toContain('private');
 	});
 
+	it('publishes resumable children beneath direct server component frames', async () => {
+		const implementation = function InteractiveChild(this: Component<{ count: number }>) {
+			this.state.count = 1;
+			return () => createVNode('button', null, String(this.state.count));
+		};
+		const InteractiveChild = Object.assign(implementation, {
+			[exactComponentType]: 'component:InteractiveChild',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [
+					{
+						id: 'implementation:InteractiveChild',
+						name: 'InteractiveChild',
+						role: 'root' as const,
+						implementation
+					}
+				],
+				continuations: [
+					{
+						id: 'task:interactive-child',
+						componentId: 'component:InteractiveChild',
+						kind: 'task' as const,
+						readiness: 'nonblocking' as const,
+						dependencies: [],
+						stateReads: [],
+						stateWrites: [],
+						publicContexts: [],
+						serverContexts: [],
+						contextWrites: [],
+						serverContextWrites: [],
+						boundaries: []
+					}
+				],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:InteractiveChild',
+					statePaths: ['count'],
+					valueCaptures: [],
+					contexts: [],
+					boundaries: []
+				}
+			}
+		});
+		const directRoot = (classification: 'synchronous' | 'scheduled') =>
+			directResumableFixture(
+				`Direct${classification}`,
+				[],
+				function DirectRoot() {
+					return () => createVNode('main', null, createVNode(InteractiveChild, {}));
+				},
+				classification
+			);
+
+		const synchronous = renderToHydratableString(createVNode(directRoot('synchronous'), {}));
+		const scheduled = await renderToHydratableStringAsync(createVNode(directRoot('scheduled'), {}));
+
+		for (const rendered of [synchronous, scheduled]) {
+			expect(rendered.html).toContain('data-exact-client-name="InteractiveChild"');
+			expect(rendered.html).toContain('data-exact-client-resumption="true"');
+		}
+	});
+
 	it('does not promote state-only resumptions into islands or evaluate ignored reactive children', async () => {
 		let childEvaluations = 0;
 		const ignoredChild = computed(() => {
@@ -460,7 +525,8 @@ function directResumableFixture<Props extends Record<string, unknown>>(
 	implementation: (
 		this: { state: Record<string, unknown> },
 		props: Props
-	) => () => ReturnType<typeof createVNode>
+	) => () => ReturnType<typeof createVNode>,
+	classification: 'synchronous' | 'scheduled' = 'synchronous'
 ) {
 	const componentId = `component:${name}`;
 	return Object.assign(implementation, {
@@ -488,7 +554,7 @@ function directResumableFixture<Props extends Record<string, unknown>>(
 				state: statePaths,
 				server: {
 					version: 1 as const,
-					classification: 'synchronous' as const,
+					classification,
 					lane: 'direct' as const,
 					setupProps: [],
 					render: implementation

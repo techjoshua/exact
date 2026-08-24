@@ -1,4 +1,4 @@
-import type { AnyComponentInstance, VNode } from '@exactjs/core';
+import type { VNode } from '@exactjs/core';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
 import { renderResumableComponentBoundary } from './resumption-boundary-capability.js';
@@ -7,15 +7,14 @@ import { renderResumableComponentBoundary } from './resumption-boundary-capabili
 export function componentHtml(
 	context: SsrContext,
 	vnode: VNode,
-	parent: AnyComponentInstance | undefined,
 	componentId: string,
 	html: string,
 	props: Record<string, unknown>,
-	flags: { enhancement: boolean; documentProbe: boolean }
+	flags: { enhancement: boolean; documentProbe: boolean; hasComponentAncestor: boolean }
 ): string {
 	return flags.enhancement || (flags.documentProbe && context.documentRootSeen)
 		? html
-		: parent
+		: flags.hasComponentAncestor
 			? renderResumableComponentBoundary(context, vnode, componentId, html, props)
 			: markerPair(context, componentId, () => html);
 }

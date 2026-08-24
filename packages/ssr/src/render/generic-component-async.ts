@@ -27,7 +27,8 @@ export async function renderGenericComponentAsync({
 	rawProps,
 	componentId,
 	enhancement,
-	documentProbe
+	documentProbe,
+	hasComponentAncestor
 }: GenericSsrComponentInput): Promise<string> {
 	let instance: AnyComponentInstance | undefined;
 	let primary: unknown = noPrimaryFailure;
@@ -75,7 +76,7 @@ export async function renderGenericComponentAsync({
 			let renderPrimary: unknown = noPrimaryFailure;
 			let html: string;
 			try {
-				html = await renderChildrenAsync(context, issued.children, instance, options);
+				html = await renderChildrenAsync(context, issued.children, instance, options, true);
 			} catch (error) {
 				renderPrimary = error;
 				throw error;
@@ -89,9 +90,10 @@ export async function renderGenericComponentAsync({
 			if (pending) await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 			flushSync();
 			if (!invalidated)
-				return componentHtml(context, vnode, parent, componentId, html, componentProps, {
+				return componentHtml(context, vnode, componentId, html, componentProps, {
 					enhancement,
-					documentProbe
+					documentProbe,
+					hasComponentAncestor
 				});
 		}
 		throw new Error(`eXact async SSR component did not stabilize after ${maxPasses} render passes`);

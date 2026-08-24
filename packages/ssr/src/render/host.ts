@@ -9,7 +9,8 @@ import { renderChildren } from './sync-tree.js';
 export function renderElement(
 	context: SsrContext,
 	vnode: VNode,
-	parent?: AnyComponentInstance
+	parent?: AnyComponentInstance,
+	hasComponentAncestor = false
 ): string {
 	const contributed = context.targetContributions?.get(vnode);
 	if (contributed) vnode = { ...vnode, props: contributed };
@@ -30,7 +31,7 @@ export function renderElement(
 			if (tag === 'select')
 				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
-				content = renderChildren(context, hostVNode.children, parent);
+				content = renderChildren(context, hostVNode.children, parent, hasComponentAncestor);
 			} finally {
 				context.selectValue = previousSelect;
 			}
