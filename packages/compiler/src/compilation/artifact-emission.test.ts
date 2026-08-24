@@ -538,8 +538,12 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(workspaceClient).toContain('./workspace-view.exact.client.js');
 		expect(workspaceViewClient).toContain('__exactClaimProgramKeyedChild');
 		expect(workspaceViewClient).toContain('directClaims: true');
-		expect(workspaceViewClient).not.toContain('ssr: __exactSsr =>');
-		expect(workspaceViewServer).toContain('ssr: __exactSsr =>');
+		expect(workspaceViewClient).not.toContain(
+			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
+		);
+		expect(workspaceViewServer).toContain(
+			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
+		);
 		expect(workspaceViewClient).not.toContain('() => __exactVNode("div"');
 		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
 		expect(workspaceViewClient).not.toContain('this.map(');

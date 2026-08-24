@@ -32,7 +32,7 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 	const vnode = createCompiledRenderProgram(
 		'render-program:test',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:test',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
@@ -56,7 +56,7 @@ it('mounts and patches a static compiler program without reactive bindings', () 
 		createCompiledRenderProgram(
 			'render-program:static',
 			() => ({
-				version: 3,
+				version: 4,
 				id: 'render-program:static',
 				namespace: 'html',
 				template: '<p data-exact-id="static" class="message">Ready</p>',
@@ -82,7 +82,7 @@ it('materializes repeated program templates without sharing live DOM', () => {
 		createCompiledRenderProgram(
 			'render-program:repeated-template',
 			() => ({
-				version: 3,
+				version: 4,
 				id: 'render-program:repeated-template',
 				namespace: 'html',
 				template: '<p data-exact-id="repeated">Repeated</p>',
@@ -112,7 +112,7 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 	const vnode = createCompiledRenderProgram(
 		'render-program:props',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:props',
 			namespace: 'html',
 			template: '<button data-exact-id="planned-button">Save</button>',
@@ -149,7 +149,7 @@ it('applies a controlled select value after slotted option values', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:select-value-order',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:select-value-order',
 			namespace: 'html',
 			template:
@@ -190,7 +190,7 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:svg',
 			namespace: 'svg',
 			template: '<svg data-exact-id="svg"><circle data-exact-id="circle"></circle></svg>',
@@ -215,7 +215,7 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg-path',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:svg-path',
 			namespace: 'svg',
 			template: '<path data-exact-id="route"></path>',
@@ -239,7 +239,7 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 		createCompiledRenderProgram(
 			'render-program:patched-event',
 			() => ({
-				version: 3,
+				version: 4,
 				id: 'render-program:patched-event',
 				namespace: 'html',
 				template: '<button data-exact-id="patched">Run</button>',
@@ -263,7 +263,7 @@ it('evaluates an initial planned slot exactly once', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:single-read',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:single-read',
 			namespace: 'html',
 			template: '<span data-exact-id="single-read">\ue000exact:0\ue001</span>',
@@ -291,7 +291,7 @@ it('refreshes only the compiled slot group whose dependency changed', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:independent-slots',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:independent-slots',
 			namespace: 'html',
 			template:
@@ -335,7 +335,7 @@ it('preserves static text between compiler-separated scalar slots', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:adjacent-scalars',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:adjacent-scalars',
 			namespace: 'html',
 			template:
@@ -366,7 +366,7 @@ it('retracks replacement readers when a compiled program invocation is patched',
 		createCompiledRenderProgram(
 			'render-program:replacement-dependency',
 			() => ({
-				version: 3,
+				version: 4,
 				id: 'render-program:replacement-dependency',
 				namespace: 'html',
 				template: '<span data-exact-id="replacement">\ue000exact:0\ue001</span>',
@@ -397,7 +397,7 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 	const vnode = createCompiledRenderProgram(
 		'render-program:shape-fallback',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:shape-fallback',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
@@ -418,7 +418,7 @@ it('claims marked SSR nodes through compiler-generated hydration calls without i
 	const vnode = createCompiledRenderProgram(
 		'render-program:hydration-plan',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:hydration-plan',
 			namespace: 'html',
 			template:
@@ -462,7 +462,7 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 	const vnode = createCompiledRenderProgram(
 		'render-program:child-slot',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:child-slot',
 			namespace: 'html',
 			template:
@@ -494,7 +494,7 @@ it('claims a variable-width structural child range before later planned elements
 	const vnode = createCompiledRenderProgram(
 		'render-program:adopt-child-slot',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:adopt-child-slot',
 			namespace: 'html',
 			template:
@@ -525,7 +525,7 @@ it('rejects a marked SSR program when its generated hydration claims do not matc
 	const vnode = createCompiledRenderProgram(
 		'render-program:invalid-hydration-plan',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:invalid-hydration-plan',
 			namespace: 'html',
 			template:

@@ -9,30 +9,61 @@ export type ExactRenderProgramNode = readonly [
 	namespace?: 'html' | 'svg' | 'mathml'
 ];
 
-/** Focused server operations invoked in compiler-generated component order. */
-export type ExactRenderProgramSsrTarget = Readonly<{
+/** Compiler-owned server output containing serialized spans and deferred child ranges. */
+export type ExactRenderProgramSsrOutput = Array<string | readonly unknown[]>;
+
+/** Stateless server operations invoked directly by compiler-generated component wiring. */
+export type ExactRenderProgramSsrOperations = Readonly<{
+	/** Private sentinel returned when a slot requires the explicit generic fallback. */
+	unprepared: symbol;
+	/** Allocates the typed invocation-local output owned by the generated writer. */
+	output(): ExactRenderProgramSsrOutput;
 	/** Reads and validates one compiler-known scalar before serialization mutates request state. */
-	prepareText(index: number): unknown;
+	prepareText(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reads and validates one recursive child before serialization mutates request state. */
-	prepareChild(index: number): unknown;
+	prepareChild(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reads and validates one host value before serialization mutates request state. */
-	prepareAttribute(index: number): unknown;
+	prepareAttribute(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reserves the finite region's ownership identities and charges its request limit once. */
-	begin(nodeCount: number, slotCount: number): void;
+	begin(context: object, nodeCount: number, slotCount: number, staticCharacters: number): void;
 	/** Appends compiler-owned static markup under the request output limit. */
-	static(value: string): void;
+	static(output: ExactRenderProgramSsrOutput, value: string): void;
 	/** Writes one prepared escaped scalar and its delimiters when required. */
-	text(value: unknown, id: string, markerless?: true): void;
+	text(
+		context: object,
+		output: ExactRenderProgramSsrOutput,
+		value: unknown,
+		id: string,
+		characters: number,
+		markerless?: true
+	): number;
 	/** Recursively renders one prepared structural or component child. */
-	child(value: unknown, id: string): void;
+	child(
+		context: object,
+		output: ExactRenderProgramSsrOutput,
+		value: unknown,
+		id: string,
+		characters: number
+	): number;
 	/** Renders one compiler-keyed final-child range without serializing delimiters. */
-	keyedChild(value: unknown): void;
+	keyedChild(output: ExactRenderProgramSsrOutput, value: unknown): void;
 	/** Serializes one prepared host value with ordinary SSR attribute semantics. */
-	attribute(value: unknown, name: string, tag: string): void;
+	attribute(
+		context: object,
+		output: ExactRenderProgramSsrOutput,
+		value: unknown,
+		name: string,
+		tag: string,
+		characters: number
+	): number;
 }>;
 
 /** Component-specific server execution emitted by the compiler. */
-export type ExactRenderProgramSsrWriter = (target: ExactRenderProgramSsrTarget) => void;
+export type ExactRenderProgramSsrWriter = (
+	operations: ExactRenderProgramSsrOperations,
+	context: object,
+	invocation: ExactRenderProgramInvocation
+) => ExactRenderProgramSsrOutput | undefined;
 
 /** Compact text slot: kind, fallback identity, template path, and marker-free SSR proof. */
 export type ExactRenderProgramTextSlot = readonly [
@@ -85,7 +116,7 @@ export type ExactRenderProgramUpdater = (
 ) => void;
 
 type ExactRenderProgramBase = Readonly<{
-	version: 3;
+	version: 4;
 	id: string;
 	namespace: 'html' | 'svg' | 'mathml';
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
@@ -219,6 +250,8 @@ export function createCompiledRenderProgram(
  * can reach this compiler-only operation.
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
+	if ((program as { version: number }).version !== 4)
+		throw new TypeError('Unsupported eXact render-program ABI; expected version 4');
 	return program as BrandedRenderProgram;
 }
 

@@ -40,7 +40,7 @@ it('reconciles compiler-keyed program children without list or item marker range
 	const vnode = createCompiledRenderProgram(
 		'render-program:direct-keyed-array',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:direct-keyed-array',
 			namespace: 'html',
 			template: '<ul><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
@@ -74,7 +74,7 @@ it('reconciles compiler-keyed program children without list or item marker range
 it('owns a final compiler-keyed child lane without structural marker nodes', () => {
 	const state = reactive({ items: [{ id: 'a' }, { id: 'b' }] });
 	const program = prepareCoreRenderProgram({
-		version: 3,
+		version: 4,
 		id: 'render-program:markerless-keyed-tail',
 		namespace: 'html',
 		template: '<ul></ul>',
@@ -114,7 +114,7 @@ it('observes in-place collection mutations through a compiler-owned list lane', 
 	const vnode = createCompiledRenderProgram(
 		'render-program:list-slot',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:list-slot',
 			namespace: 'html',
 			template:
@@ -152,7 +152,7 @@ it('observes an indexed-state collection without a parent-path source', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:indexed-list-slot',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:indexed-list-slot',
 			namespace: 'html',
 			template: '<ul><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
@@ -195,7 +195,7 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 	const vnode = createCompiledRenderProgram(
 		'render-program:component-slot',
 		() => ({
-			version: 3,
+			version: 4,
 			id: 'render-program:component-slot',
 			namespace: 'html',
 			template:
@@ -222,7 +222,7 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 it('tracks and applies one compiler-owned property writer operation', () => {
 	const state = reactive({ count: 0 });
 	const program = prepareCompiledRenderProgram({
-		version: 3,
+		version: 4,
 		id: 'render-program:property-writer',
 		namespace: 'html',
 		template: '<button data-exact-id="writer"></button>',
