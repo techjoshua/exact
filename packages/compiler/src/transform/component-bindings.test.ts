@@ -3,6 +3,19 @@ import path from 'node:path';
 import { transformSource } from '../compilation/transformation.js';
 
 describe('@exactjs/compiler component value/callback bindings', () => {
+	it('gives module-level arrow components a bindable generated owner', () => {
+		const result = transformSource(
+			`export const Panel = () => () => <button type="button">Ready</button>;`,
+			{
+				filename: path.resolve('src/fixtures/arrow-component.tsx'),
+				generatedValidation: 'semantic'
+			}
+		);
+
+		expect(result.code).toContain('function (this: object)');
+		expect(result.code).toContain('[], this,');
+	});
+
 	it('lowers shorthand through the ordinary reactive value and state-write callback path', () => {
 		const result = transformSource(
 			`

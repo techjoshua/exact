@@ -200,6 +200,8 @@ type ExactRenderProgramReaders =
 export type ExactRenderProgramInvocation = Readonly<{
 	program: BrandedRenderProgram;
 	readers: ExactRenderProgramReaders;
+	/** Durable component instance whose compiler-generated update table owns this region. */
+	owner?: object;
 	/** Server-only values captured while compiler-issued child work can still start eagerly. */
 	eagerValues?: readonly unknown[];
 	/** Compiler-emitted direct property-group writers indexed by the binding descriptor. */
@@ -207,40 +209,6 @@ export type ExactRenderProgramInvocation = Readonly<{
 	/** Generic recovery retained only when the artifact can execute outside the closed client path. */
 	fallback?: () => VNode;
 }>;
-
-const programs = new Map<string, BrandedRenderProgram>();
-const maximumCachedPrograms = 2_048;
-
-/** Clears compiler artifacts retained by an obsolete build/HMR generation. */
-export function clearCompiledRenderPrograms(): void {
-	programs.clear();
-}
-
-/** Returns cache occupancy for framework diagnostics and bounded-cache tests. */
-export function compiledRenderProgramCacheSize(): number {
-	return programs.size;
-}
-
-/**
- * Creates a branded compiled render result. The revision-specific cache key
- * constructs the immutable descriptor once without retaining stale HMR output.
- * This helper is compiler-facing; renderers reject authored objects because
- * the brand is module-private.
- */
-export function createCompiledRenderProgram(
-	cacheKey: string,
-	createProgram: () => ExactRenderProgram,
-	readers: ExactRenderProgramReaders,
-	fallback?: () => VNode
-): VNode {
-	let prepared = programs.get(cacheKey);
-	if (!prepared) {
-		prepared = prepareCompiledRenderProgram(createProgram());
-		programs.set(cacheKey, prepared);
-		if (programs.size > maximumCachedPrograms) programs.delete(programs.keys().next().value!);
-	}
-	return createPreparedRenderProgram(prepared, readers, fallback);
-}
 
 /**
  * Registers one compiler-emitted descriptor without copying its trusted executable data.
@@ -261,6 +229,7 @@ export function prepareCompiledRenderProgram(program: ExactRenderProgram): Brand
 export function createPreparedRenderProgram(
 	branded: BrandedRenderProgram,
 	readers: ExactRenderProgramReaders,
+	owner: object,
 	fallback?: () => VNode,
 	propertyWriter?: (group: number, apply: (name: string, value: unknown) => void) => void
 ): VNode {
@@ -270,6 +239,7 @@ export function createPreparedRenderProgram(
 		props: {
 			program: branded,
 			readers,
+			owner,
 			...(fallback ? { fallback } : {}),
 			...(propertyWriter ? { propertyWriter } : {})
 		},
@@ -312,7 +282,7 @@ export function readRenderProgram(vnode: VNode): ExactRenderProgramInvocation | 
 	return vnode.props as ExactRenderProgramInvocation;
 }
 
-/** Evaluates one invocation-local slot through either legacy readers or a combined dispatcher. */
+/** Evaluates one invocation-local slot through per-slot readers or a combined dispatcher. */
 export function readRenderProgramSlot(
 	invocation: ExactRenderProgramInvocation,
 	index: number

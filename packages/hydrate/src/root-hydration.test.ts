@@ -5,12 +5,12 @@ import { createDerived, type Component } from '@exactjs/core';
 import {
 	createCompiledVNode,
 	createDynamicChild,
+	createFrameworkFixtureComponentInstance,
 	createPreparedRenderProgram,
 	keyCompiledVNode,
 	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
-import { createCompiledRenderProgram as createCoreRenderProgram } from '@exactjs/core/runtime/render';
 import {
 	beginCompiledProgramClaims,
 	bindCompiledProgramProperties,
@@ -27,16 +27,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { hydrate, hydrateAfterNavigation } from './root.js';
 import { createVNode } from './test-support/native-vnode.js';
 
-const createCompiledRenderProgram: typeof createCoreRenderProgram = (
-	cacheKey,
-	createProgram,
-	readers,
-	fallback
+function RenderProgramOwner(this: Component<{}>) {
+	return () => null;
+}
+const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgramOwner, {});
+
+const createCompiledRenderProgram = (
+	_cacheKey: string,
+	createProgram: () => Parameters<typeof prepareCompiledRenderProgram>[0],
+	readers: Parameters<typeof createPreparedRenderProgram>[1],
+	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
 ) =>
-	createCoreRenderProgram(
-		cacheKey,
-		() => withGenericRenderProgramBindings(createProgram()),
+	createPreparedRenderProgram(
+		prepareCompiledRenderProgram(withGenericRenderProgramBindings(createProgram())),
 		readers,
+		renderProgramOwner,
 		fallback
 	);
 
@@ -284,7 +289,9 @@ describe('hydration-only root capability', () => {
 				return output;
 			}
 		});
-		const App = createExactFrameworkFixtureArtifact(function App(this: Component<{}>) {
+		const App = createExactFrameworkFixtureArtifact(function App(
+			this: Component<{ kind: string }>
+		) {
 			this.state.kind = 'all';
 			const filtered = createDerived(() =>
 				items.filter((item) => this.state.kind === 'all' || item.kind === this.state.kind)
@@ -297,9 +304,10 @@ describe('hydration-only root capability', () => {
 							filtered
 								.get()
 								.map((item) =>
-									keyCompiledVNode(createPreparedRenderProgram(rowProgram, []), item.id)
+									keyCompiledVNode(createPreparedRenderProgram(rowProgram, [], this), item.id)
 								)
 					],
+					this,
 					undefined,
 					(_group, write) => {
 						write('value', this.state.kind);

@@ -1,21 +1,32 @@
 /** @vitest-environment jsdom */
-import { createCompiledVNode, createServerBoundary } from '@exactjs/core/runtime/render';
-import { createCompiledRenderProgram as createCoreRenderProgram } from '@exactjs/core/runtime/render';
+import type { Component } from '@exactjs/core';
+import {
+	createCompiledVNode,
+	createFrameworkFixtureComponentInstance,
+	createPreparedRenderProgram,
+	createServerBoundary,
+	prepareCompiledRenderProgram as prepareCoreRenderProgram
+} from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { adoptStatic, render, unmount } from './index.js';
 import { withGenericRenderProgramBindings } from './testing.js';
 
-const createCompiledRenderProgram: typeof createCoreRenderProgram = (
-	cacheKey,
-	createProgram,
-	readers,
-	fallback
+function RenderProgramOwner(this: Component<{}>) {
+	return () => null;
+}
+const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgramOwner, {});
+
+const createCompiledRenderProgram = (
+	_cacheKey: string,
+	createProgram: () => Parameters<typeof prepareCoreRenderProgram>[0],
+	readers: Parameters<typeof createPreparedRenderProgram>[1],
+	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
 ) =>
-	createCoreRenderProgram(
-		cacheKey,
-		() => withGenericRenderProgramBindings(createProgram()),
+	createPreparedRenderProgram(
+		prepareCoreRenderProgram(withGenericRenderProgramBindings(createProgram())),
 		readers,
+		renderProgramOwner,
 		fallback
 	);
 

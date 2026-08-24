@@ -6,9 +6,6 @@ export { isFiniteClientBoundary, markFiniteClientBoundary } from '../hydration-b
 export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from '../ssr-independence.js';
 export { RenderProgram, ServerBoundary, ServerSlot } from '../symbols.js';
 export {
-	clearCompiledRenderPrograms,
-	compiledRenderProgramCacheSize,
-	createCompiledRenderProgram,
 	createPreparedRenderProgram,
 	createPreparedServerRenderProgram,
 	prepareCompiledRenderProgram,

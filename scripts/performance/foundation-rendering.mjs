@@ -1,11 +1,14 @@
 import {
 	activateTaskForHost,
-	createCompiledRenderProgram,
 	createVNode,
 	defineTask,
-	exactComponentType,
 	markIndependentAsyncSiblings
 } from '../../packages/core/dist/index.js';
+import { createExactFrameworkFixtureArtifact } from '../../packages/core/dist/framework/component-contracts.js';
+import {
+	createPreparedServerRenderProgram,
+	prepareCompiledRenderProgram
+} from '../../packages/core/dist/framework/server-render-structure.js';
 import { renderToString, renderToStringAsync } from '../../packages/ssr/dist/index.js';
 import {
 	elapsedAsync,
@@ -25,7 +28,7 @@ function IoPanel(props) {
 	);
 	return () => createVNode('output', null, this.state.ready ? 'ready' : 'waiting');
 }
-Object.defineProperty(IoPanel, exactComponentType, { value: 'performance:IoPanel' });
+createExactFrameworkFixtureArtifact(IoPanel, 'performance:IoPanel');
 
 function CpuPanel(props) {
 	this.state.value = 0;
@@ -39,7 +42,7 @@ function CpuPanel(props) {
 	);
 	return () => createVNode('output', null, this.state.value);
 }
-Object.defineProperty(CpuPanel, exactComponentType, { value: 'performance:CpuPanel' });
+createExactFrameworkFixtureArtifact(CpuPanel, 'performance:CpuPanel');
 
 /** Compares generic SSR with the accepted compiler-owned render-program subset. */
 export function measureRenderPlan() {
@@ -85,26 +88,22 @@ function createBenchmarkProgram(count, fallback) {
 		{ length: count },
 		(_, index) => `<span>Row ${index}</span>`
 	).join('')}</main>`;
-	return createCompiledRenderProgram(
-		'performance:static-500',
-		() => ({
-			version: 1,
+	return createPreparedServerRenderProgram(
+		prepareCompiledRenderProgram({
+			version: 4,
 			id: 'performance:static-500',
 			namespace: 'html',
 			template,
-			parts: [template],
 			slots: [],
-			nodes: [
-				{ id: 'root', path: [], tag: 'main', namespace: 'html' },
-				...Array.from({ length: count }, (_, index) => ({
-					id: `row:${index}`,
-					path: [index],
-					tag: 'span',
-					namespace: 'html'
-				}))
-			]
+			ssr(target, context) {
+				target.begin(context, count + 1, 0, 0);
+				const output = [];
+				target.static(output, template);
+				return output;
+			}
 		}),
 		[],
+		0,
 		() => fallback
 	);
 }

@@ -1,8 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-	clearCompiledRenderPrograms,
-	compiledRenderProgramCacheSize,
-	createCompiledRenderProgram,
 	createPreparedRenderProgram,
 	createPreparedServerRenderProgram,
 	prepareCompiledRenderProgram,
@@ -10,9 +7,6 @@ import {
 	readRenderProgramSlot
 } from './render-program.js';
 import { RenderProgram } from './symbols.js';
-import { createVNode } from './vnode.js';
-
-const fallback = () => createVNode('span', null);
 
 const program = (id: string) => ({
 	version: 4 as const,
@@ -24,47 +18,27 @@ const program = (id: string) => ({
 	nodes: []
 });
 
-describe('compiled render-program cache', () => {
-	beforeEach(clearCompiledRenderPrograms);
-
+describe('compiled render programs', () => {
 	it('shares the render-program discriminator across separately loaded artifacts', () => {
 		expect(RenderProgram).toBe(Symbol.for('exact.render-program'));
 	});
 
-	it('shares immutable programs within a generation and supports explicit invalidation', () => {
-		createCompiledRenderProgram('revision:1', () => program('first'), [() => 'a'], fallback);
-		createCompiledRenderProgram('revision:1', () => program('ignored'), [() => 'b'], fallback);
-		expect(compiledRenderProgramCacheSize()).toBe(1);
-		clearCompiledRenderPrograms();
-		expect(compiledRenderProgramCacheSize()).toBe(0);
-	});
-
-	it('bounds obsolete HMR revisions', () => {
-		for (let revision = 0; revision < 2_100; revision++)
-			createCompiledRenderProgram(
-				`revision:${revision}`,
-				() => program(String(revision)),
-				[() => revision],
-				fallback
-			);
-		expect(compiledRenderProgramCacheSize()).toBe(2_048);
-	});
-
 	it('reads compiler-combined slots through one dispatcher', () => {
-		const vnode = createCompiledRenderProgram(
-			'revision:combined',
-			() => ({
-				...program('combined'),
-				slots: [
-					['text', 'first', [0]],
-					['text', 'second', [1]]
-				] as const,
-				bindings: [
-					['text', 0],
-					['text', 1]
-				] as const
-			}),
-			(index) => (index === 0 ? 'first' : 'second')
+		const descriptor = prepareCompiledRenderProgram({
+			...program('combined'),
+			slots: [
+				['text', 'first', [0]],
+				['text', 'second', [1]]
+			] as const,
+			bindings: [
+				['text', 0],
+				['text', 1]
+			] as const
+		});
+		const vnode = createPreparedRenderProgram(
+			descriptor,
+			(index) => (index === 0 ? 'first' : 'second'),
+			{}
 		);
 		const invocation = readRenderProgram(vnode)!;
 		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
@@ -74,11 +48,10 @@ describe('compiled render-program cache', () => {
 	it('joins readers to the exact compiler-registered descriptor without cloning it', () => {
 		const descriptor = program('prepared');
 		const prepared = prepareCompiledRenderProgram(descriptor);
-		const vnode = createPreparedRenderProgram(prepared, [() => 'value']);
+		const vnode = createPreparedRenderProgram(prepared, [() => 'value'], {});
 		const invocation = readRenderProgram(vnode)!;
 		expect(prepared).toBe(descriptor);
 		expect(invocation.program).toBe(prepared);
-		expect(compiledRenderProgramCacheSize()).toBe(0);
 		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
 	});
 
@@ -138,6 +111,7 @@ describe('compiled render-program cache', () => {
 					throw new Error('slot reader should not run');
 				}
 			],
+			{},
 			undefined,
 			writer
 		);

@@ -44,14 +44,14 @@ describe('compiler-closed server component execution', () => {
 				left,
 				consumeSlice,
 				'consume-left',
-				(value: string) => void consumed.push(value),
+				(value: string, _task) => void consumed.push(value),
 				serverComponentExecutionValueForHost(left, 'value', 'stale') as string
 			);
 			activateServerComponentTaskForHost(
 				right,
 				consumeSlice,
 				'consume-right',
-				(value: string) => void consumed.push(value),
+				(value: string, _task) => void consumed.push(value),
 				serverComponentExecutionValueForHost(right, 'value', 'stale') as string
 			);
 			await Promise.all([...leftSettlements, ...rightSettlements]);
@@ -75,7 +75,9 @@ describe('compiler-closed server component execution', () => {
 		);
 		activateServerComponentTaskForHost(host, valueSlice, 'pending', async (task) => {
 			observedSignal = task.signal;
-			task.cleanup(() => cleanupCalls++);
+			task.cleanup(() => {
+				cleanupCalls++;
+			});
 			await new Promise<void>((_resolve, reject) =>
 				task.signal.addEventListener('abort', () => reject(task.signal.reason), { once: true })
 			);

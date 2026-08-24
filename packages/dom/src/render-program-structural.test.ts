@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
 import { Fragment, createVNode, type Component } from '@exactjs/core';
 import {
-	createCompiledRenderProgram as createCoreRenderProgram,
 	createCompiledComponentVNode,
 	createCompiledVNode,
 	createExpression,
+	createFrameworkFixtureComponentInstance,
 	keyCompiledVNode,
 	createPreparedRenderProgram,
 	prepareCompiledRenderProgram as prepareCoreRenderProgram
@@ -20,16 +20,21 @@ import {
 import { jsx } from './test-support/native-vnode.js';
 import { withGenericRenderProgramBindings } from './testing.js';
 
-const createCompiledRenderProgram: typeof createCoreRenderProgram = (
-	cacheKey,
-	createProgram,
-	readers,
-	fallback
+function RenderProgramOwner(this: Component<{}>) {
+	return () => null;
+}
+const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgramOwner, {});
+
+const createCompiledRenderProgram = (
+	_cacheKey: string,
+	createProgram: () => Parameters<typeof prepareCoreRenderProgram>[0],
+	readers: Parameters<typeof createPreparedRenderProgram>[1],
+	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
 ) =>
-	createCoreRenderProgram(
-		cacheKey,
-		() => withGenericRenderProgramBindings(createProgram()),
+	createPreparedRenderProgram(
+		prepareCoreRenderProgram(withGenericRenderProgramBindings(createProgram())),
 		readers,
+		renderProgramOwner,
 		fallback
 	);
 const prepareCompiledRenderProgram: typeof prepareCoreRenderProgram = (program) =>
@@ -88,12 +93,16 @@ it('owns a final compiler-keyed child lane without structural marker nodes', () 
 			bindCompiledProgramKeyedChild(target, 0);
 		}
 	});
-	const vnode = createPreparedRenderProgram(program, [
-		() =>
-			state.items.map((item) =>
-				keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
-			)
-	]);
+	const vnode = createPreparedRenderProgram(
+		program,
+		[
+			() =>
+				state.items.map((item) =>
+					keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
+				)
+		],
+		renderProgramOwner
+	);
 	const container = document.createElement('div');
 	render(vnode, container);
 	const original = [...container.querySelectorAll('li')];
@@ -236,6 +245,7 @@ it('tracks and applies one compiler-owned property writer operation', () => {
 	const vnode = createPreparedRenderProgram(
 		program,
 		[() => undefined, () => undefined],
+		renderProgramOwner,
 		undefined,
 		(_group, apply) => {
 			apply('title', String(state.count));

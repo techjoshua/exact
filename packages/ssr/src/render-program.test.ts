@@ -6,17 +6,31 @@ import {
 	type TaskContext
 } from '@exactjs/core';
 import {
-	createDynamicChild,
 	createCompiledVNode,
+	createDynamicChild,
 	createServerSlot,
-	keyCompiledVNode
+	keyCompiledVNode,
+	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
-import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
+import { createPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { renderToStream, renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
 import { readStreamText } from './test-support/streams.js';
+
+const createCompiledRenderProgram = (
+	_cacheKey: string,
+	createProgram: () => Parameters<typeof prepareCompiledRenderProgram>[0],
+	readers: Parameters<typeof createPreparedServerRenderProgram>[1],
+	fallback?: Parameters<typeof createPreparedServerRenderProgram>[3]
+) =>
+	createPreparedServerRenderProgram(
+		prepareCompiledRenderProgram(createProgram()),
+		readers,
+		Array.isArray(readers) ? readers.length : 0,
+		fallback
+	);
 
 it('writes compiler-owned scalar programs without redundant hydration delimiters', () => {
 	let constructions = 0;
@@ -49,18 +63,10 @@ it('writes compiler-owned scalar programs without redundant hydration delimiters
 		'<span data-exact-id="planned">&lt;safe&gt;</span>'
 	);
 	expect(renderToString(program).html).toBe('<span data-exact-id="planned">&lt;safe&gt;</span>');
-	createCompiledRenderProgram(
-		'render-program:ssr',
-		() => {
-			throw new Error('cached program descriptor was reconstructed');
-		},
-		[() => 'second'],
-		() => createCompiledVNode('span', null, 'second')
-	);
 	expect(constructions).toBe(1);
 });
 
-it('preflights generated server slots before selecting the local fallback', () => {
+it('captures every generated server slot before selecting the local fallback', () => {
 	let reads = 0;
 	const program = createCompiledRenderProgram(
 		'render-program:ssr-preflight',
@@ -87,14 +93,15 @@ it('preflights generated server slots before selecting the local fallback', () =
 				return createCompiledVNode('em', null, 'unsupported text');
 			},
 			() => {
-				throw new Error('preflight continued after selecting the fallback');
+				reads++;
+				return 'second';
 			}
 		],
 		() => createCompiledVNode('span', null, 'fallback')
 	);
 
 	expect(renderToString(program, { markers: false }).html).toBe('<span>fallback</span>');
-	expect(reads).toBe(1);
+	expect(reads).toBe(2);
 });
 
 it('serializes planned host slots with ordinary SSR attribute semantics', () => {
@@ -212,25 +219,21 @@ it('writes a compiler-proven final keyed child without structural delimiters', a
 
 it('materializes marker-mode program fallbacks inside their component scope', async () => {
 	let fallbackScope: EffectScope | undefined;
+	const program = prepareCompiledRenderProgram({
+		version: 4,
+		id: 'render-program:ssr-owned-fallback',
+		namespace: 'html',
+		template: '<span>owned</span>',
+		slots: [],
+		bindings: [],
+		nodes: [['owned', 'span']]
+	});
 	function ProgramOwner() {
 		return () =>
-			createCompiledRenderProgram(
-				'render-program:ssr-owned-fallback',
-				() => ({
-					version: 4,
-					id: 'render-program:ssr-owned-fallback',
-					namespace: 'html',
-					template: '<span>owned</span>',
-					slots: [],
-					bindings: [],
-					nodes: [['owned', 'span']]
-				}),
-				[],
-				() => {
-					fallbackScope = createEffectScope();
-					return createCompiledVNode('span', null, 'owned');
-				}
-			);
+			createPreparedServerRenderProgram(program, [], 0, () => {
+				fallbackScope = createEffectScope();
+				return createCompiledVNode('span', null, 'owned');
+			});
 	}
 
 	const rendered = await renderToStringAsync(createVNode(ProgramOwner, {}));

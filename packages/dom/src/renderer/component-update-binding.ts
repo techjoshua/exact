@@ -41,7 +41,8 @@ export function bindCompiledComponentUpdate(
 	updates: ExactCompiledComponentUpdateContract
 ): void {
 	const context = target as ProgramBindingTarget;
-	const owner = context.mounted.renderProgram?.parentInstance;
+	const owner =
+		context.mounted.renderProgram?.bindingOwner ?? context.mounted.renderProgram?.parentInstance;
 	if (!owner) {
 		context.valid = false;
 		return;

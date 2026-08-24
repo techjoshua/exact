@@ -266,6 +266,9 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		lowering.factory.NewIdentifier(programName),
 		lowering.renderProgramReaders(runtimeReaders),
 	}
+	if lowering.target != TargetServer {
+		arguments = append(arguments, lowering.factory.NewThisExpression())
+	}
 	closedDirectServer := lowering.target == TargetServer &&
 		lowering.interop == nil &&
 		lowering.directServerArtifactComponent(identityNode)
@@ -282,7 +285,8 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		arguments = append(arguments, lowering.arrow(fallback))
 	}
 	if propertyWriter != nil {
-		if len(arguments) == 2 {
+		if (lowering.target == TargetServer && len(arguments) == 2) ||
+			(lowering.target != TargetServer && len(arguments) == 3) {
 			arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
 		}
 		arguments = append(arguments, propertyWriter)
