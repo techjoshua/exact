@@ -201,6 +201,21 @@ func (lowering *jsxLowering) explicitServerIsland(
 	if !exists || lowering.target != TargetServer {
 		return clientElementIsland{}, false
 	}
+	if !lowering.serverComponents {
+		var opening *ast.Node
+		switch {
+		case ast.IsJsxElement(identityNode):
+			opening = identityNode.AsJsxElement().OpeningElement
+		case ast.IsJsxSelfClosingElement(identityNode):
+			opening = identityNode
+		default:
+			return clientElementIsland{}, false
+		}
+		tag := openingTag(opening)
+		if jsxIntrinsic(sourceText(lowering.sourceFile, tag)) || lowering.localExactComponentTag(tag) {
+			return clientElementIsland{}, false
+		}
+	}
 	if island.component.Placement == "isomorphic" &&
 		lowering.componentRetainsContinuation(island.component.ID) {
 		return clientElementIsland{}, false
@@ -417,7 +432,7 @@ func (lowering *jsxLowering) exactCoreVNodeTag(tag *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) lowerFragment(fragment *ast.JsxFragment) *ast.Node {
-	if lowering.target == TargetServer {
+	if lowering.target == TargetServer && lowering.serverComponents {
 		if island, exists := lowering.clientIslands[fragment.AsNode()]; exists {
 			return lowering.lowerServerClientFragment(fragment.AsNode(), fragment.Children, island)
 		}

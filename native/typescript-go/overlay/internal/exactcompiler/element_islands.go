@@ -871,21 +871,37 @@ func (lowering *jsxLowering) serverIslandFallback(
 ) *ast.Node {
 	tag := openingTag(opening)
 	tagText := sourceText(lowering.sourceFile, tag)
+	intrinsic := jsxIntrinsic(tagText)
 	properties := lowering.serverIslandAttributeProperties(
 		opening.Attributes(),
 		true,
 		lowering.elementID(identityNode),
 		finiteSpreads,
 	)
+	var emittedTag *ast.Node
+	if intrinsic {
+		emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
+	} else {
+		emittedTag = lowering.visitor.VisitNode(tag)
+		if lowering.interop != nil &&
+			!lowering.localExactComponentTag(tag) &&
+			!lowering.exactCoreVNodeTag(tag) {
+			emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
+		}
+	}
 	arguments := []*ast.Node{
-		lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone),
+		emittedTag,
 		lowering.factory.NewObjectLiteralExpression(
 			lowering.factory.NewNodeList(properties),
 			false,
 		),
 	}
 	arguments = append(arguments, lowering.children(children)...)
-	return lowering.call(lowering.names.element, arguments)
+	helper := lowering.names.element
+	if !intrinsic && lowering.localExactComponentTag(tag) {
+		helper = lowering.names.componentElement
+	}
+	return lowering.call(helper, arguments)
 }
 
 func (lowering *jsxLowering) serverIslandAttributeProperties(
@@ -913,7 +929,19 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 	if attributes == nil {
 		return properties
 	}
+	conditionalClasses := jsxHasConditionalClassName(attributes)
+	classNameEmitted := false
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if conditionalClasses && jsxClassNameContribution(property) {
+			if !classNameEmitted {
+				properties = append(properties, lowering.property(
+					lowering.factory.NewIdentifier("className"),
+					lowering.lowerClassNameValue(attributes, false),
+				))
+				classNameEmitted = true
+			}
+			continue
+		}
 		if ast.IsJsxSpreadAttribute(property) {
 			if members, finite := finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {
