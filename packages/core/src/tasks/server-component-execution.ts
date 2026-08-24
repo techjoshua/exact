@@ -39,7 +39,15 @@ type MutableServerExecutionFrame = {
 	disposed: boolean;
 };
 
-const frames = new WeakMap<object, MutableServerExecutionFrame>();
+type ServerExecutionHost = { readonly state?: object } & {
+	[serverExecutionFrame]?: MutableServerExecutionFrame;
+};
+
+/**
+ * Realm-stable request-frame identity shared by separately evaluated copies of the core package.
+ * The frame remains owned by its request-local host and is removed when that request is disposed.
+ */
+const serverExecutionFrame = Symbol.for('@exactjs/server-component-execution-frame');
 const serverDependencyBrand = Symbol('exact.server-component-dependency');
 
 type ServerComponentDependency = Readonly<{
@@ -112,7 +120,7 @@ export function serverComponentExecutionValueForHost<T>(
 	path: string | readonly string[],
 	value: T
 ): T | ServerComponentDependency {
-	const frame = frames.get(host);
+	const frame = executionFrameForHost(host);
 	if (!frame) return value;
 	const paths = typeof path === 'string' ? [path] : path;
 	for (const candidate of paths) {
@@ -130,7 +138,7 @@ export function serverComponentExecutionValueForHost<T>(
  * universal task lanes.
  */
 export function createServerComponentExecutionFrame(
-	host: { readonly state?: object },
+	host: ServerExecutionHost,
 	options: ServerExecutionOptions
 ): ServerComponentExecutionFrame {
 	const frame: MutableServerExecutionFrame = {
@@ -142,7 +150,10 @@ export function createServerComponentExecutionFrame(
 		active: [],
 		disposed: false
 	};
-	frames.set(host, frame);
+	Object.defineProperty(host, serverExecutionFrame, {
+		configurable: true,
+		value: frame
+	});
 	return Object.freeze({
 		run<T>(work: () => T): T {
 			if (frame.disposed) throw new Error('Server component execution frame has been disposed');
@@ -156,7 +167,8 @@ export function createServerComponentExecutionFrame(
 			for (let port = 0; port < frame.ports.length; port++)
 				if (frame.ports[port]?.status === 'pending') failPort(frame, port, reason);
 			await Promise.allSettled(frame.active);
-			frames.delete(host);
+			// A stale disposer must not detach a newer frame installed on the same request host.
+			if (host[serverExecutionFrame] === frame) delete host[serverExecutionFrame];
 			frame.ports.length = 0;
 			frame.paths.length = 0;
 			frame.active.length = 0;
@@ -172,7 +184,7 @@ export function activateServerComponentTaskForHost<Args extends unknown[], Resul
 	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
 	...authored: Args
 ): void {
-	const frame = frames.get(host);
+	const frame = executionFrameForHost(host);
 	if (!frame || frame.disposed)
 		throw new Error('Compiled server task requires an active server component execution frame');
 	for (const [port, path] of slice[1]) {
@@ -183,6 +195,11 @@ export function activateServerComponentTaskForHost<Args extends unknown[], Resul
 	frame.active.push(settlement);
 	void settlement.catch(() => undefined);
 	if (slice[2] === 'blocking') frame.options.observe(settlement);
+}
+
+/** Reads the request-owned frame without retaining the host outside its request lifetime. */
+function executionFrameForHost(host: object): MutableServerExecutionFrame | undefined {
+	return (host as ServerExecutionHost)[serverExecutionFrame];
 }
 
 function executeSlice<Args extends unknown[], Result>(
@@ -285,9 +302,7 @@ function registerOutputPath(frame: MutableServerExecutionFrame, path: string, po
 function waitForSlot(slot: OutputSlot): Promise<unknown> {
 	if (slot.status === 'available') return Promise.resolve(slot.value);
 	if (slot.status === 'failed') return Promise.reject(slot.error);
-	return new Promise((resolve, reject) =>
-		(slot.waiters ??= new Set()).add({ resolve, reject })
-	);
+	return new Promise((resolve, reject) => (slot.waiters ??= new Set()).add({ resolve, reject }));
 }
 
 function publishPort(frame: MutableServerExecutionFrame, port: number, value: unknown): void {

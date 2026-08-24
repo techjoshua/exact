@@ -57,6 +57,15 @@ omits later continuation-dispatch executors; combined server bundles retain the 
 Compiler-owned vnode discriminators use realm-stable ABI identities so separately loaded
 precompiled libraries and renderer modules agree on generated execution boundaries during
 development as well as in deduplicated production bundles.
+Compiler-closed server task frames follow the same rule: the renderer attaches the frame to its
+request-local host with a realm-stable, non-enumerable identity, and disposal removes it. Generated
+artifacts can therefore find their own request's frame even when a development module graph loads
+another copy of core, without introducing a process-wide request registry or cross-request
+retention.
+Static SSR capability installers use a versioned realm registry for the same development-module
+interop reason. That registry contains only module-lifetime functions selected by reachable server
+artifacts; request state and component instances never enter it, and omitting an installer still
+lets bundlers remove the corresponding implementation from specialized targets.
 
 ## Migration inventory
 

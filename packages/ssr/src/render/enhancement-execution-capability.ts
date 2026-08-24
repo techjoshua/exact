@@ -1,23 +1,16 @@
 import type { VNode } from '@exactjs/core';
 import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
+import { realmSsrCapability, registerRealmSsrCapability } from './realm-capability.js';
 
 type EnhancementExecutionCapability = Readonly<{
-	activate(
-		context: SsrContext,
-		vnode: VNode,
-		parent: AnyComponentInstance | undefined
-	): VNode;
+	activate(context: SsrContext, vnode: VNode, parent: AnyComponentInstance | undefined): VNode;
 	activateAsync(
 		context: SsrContext,
 		vnode: VNode,
 		parent: AnyComponentInstance | undefined,
 		options: RenderToStringOptions & { taskDeadline?: number }
 	): Promise<VNode>;
-	applyTarget(
-		context: SsrContext,
-		vnode: VNode,
-		parent: AnyComponentInstance | undefined
-	): void;
+	applyTarget(context: SsrContext, vnode: VNode, parent: AnyComponentInstance | undefined): void;
 	applyTargetAsync(
 		context: SsrContext,
 		vnode: VNode,
@@ -26,13 +19,13 @@ type EnhancementExecutionCapability = Readonly<{
 	): Promise<void>;
 }>;
 
-let capability: EnhancementExecutionCapability | undefined;
+const capabilityName = 'enhancement-execution';
 
 /** Installs SSR enhancement execution for artifacts that contain enhancement operations. */
 export function registerSsrEnhancementExecutionCapability(
 	next: EnhancementExecutionCapability
 ): void {
-	capability = next;
+	registerRealmSsrCapability(capabilityName, next);
 }
 
 /** Activates enhancements when the compiler selected their SSR capability. */
@@ -41,6 +34,7 @@ export function activateSsrEnhancements(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined
 ): VNode {
+	const capability = realmSsrCapability<EnhancementExecutionCapability>(capabilityName);
 	return capability?.activate(context, vnode, parent) ?? vnode;
 }
 
@@ -51,6 +45,7 @@ export async function activateSsrEnhancementsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<VNode> {
+	const capability = realmSsrCapability<EnhancementExecutionCapability>(capabilityName);
 	return capability?.activateAsync(context, vnode, parent, options) ?? vnode;
 }
 
@@ -60,6 +55,7 @@ export function applySsrTargetContributions(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined
 ): void {
+	const capability = realmSsrCapability<EnhancementExecutionCapability>(capabilityName);
 	capability?.applyTarget(context, vnode, parent);
 }
 
@@ -70,5 +66,6 @@ export async function applySsrTargetContributionsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<void> {
+	const capability = realmSsrCapability<EnhancementExecutionCapability>(capabilityName);
 	await capability?.applyTargetAsync(context, vnode, parent, options);
 }

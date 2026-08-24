@@ -69,6 +69,10 @@ describe('compiler-closed server component execution', () => {
 		let cleanupCalls = 0;
 		let observedSignal: AbortSignal | undefined;
 		const frame = createServerComponentExecutionFrame(host, { observe: () => undefined });
+		expect(Object.keys(host)).toEqual(['state']);
+		expect(Object.getOwnPropertySymbols(host)).toContain(
+			Symbol.for('@exactjs/server-component-execution-frame')
+		);
 		activateServerComponentTaskForHost(host, valueSlice, 'pending', async (task) => {
 			observedSignal = task.signal;
 			task.cleanup(() => cleanupCalls++);
@@ -80,6 +84,9 @@ describe('compiler-closed server component execution', () => {
 		expect(observedSignal?.aborted).toBe(true);
 		expect(cleanupCalls).toBe(1);
 		expect(serverComponentExecutionValueForHost(host, 'value', 'released')).toBe('released');
+		expect(Object.getOwnPropertySymbols(host)).not.toContain(
+			Symbol.for('@exactjs/server-component-execution-frame')
+		);
 	});
 
 	it('scopes compiler VNode issuance synchronously and restores nested issuers', () => {
