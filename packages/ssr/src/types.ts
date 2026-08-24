@@ -380,6 +380,8 @@ export type SsrContext = {
 		VNode,
 		import('./render/direct-component.js').PreparedDirectScheduledSsrComponent
 	>;
+	/** Compiler-program serializer retained only for this request and reused by sibling regions. */
+	generatedSsrTarget?: import('./render/render-program.js').ReusableGeneratedSsrTarget;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
 	/** Immutable wall-clock sample shared by the request render. */

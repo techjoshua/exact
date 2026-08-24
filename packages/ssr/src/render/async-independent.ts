@@ -137,6 +137,7 @@ function isolatedSsrFrame(
 		preparedEnhancementChildren: new WeakMap(),
 		preparedEnhancementSuspense: new WeakMap(),
 		preparedDirectScheduledComponents: context.preparedDirectScheduledComponents,
+		generatedSsrTarget: undefined,
 		onComponentCreated: (instance) => created.push(instance),
 		onComponentRendered: (instance) => rendered.push(instance),
 		onDirectComponentCreated: (snapshot) => directCreated.push(snapshot),
