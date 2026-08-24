@@ -675,6 +675,7 @@ func componentResumptionMetadata(
 		ComponentID: component.ID,
 		Client: ClientResumptionRecord{
 			StatePaths:    []string{},
+			StateInputs:   []StateInput{},
 			ValueCaptures: []string{},
 			Contexts:      []string{},
 			Boundaries:    []string{},
@@ -715,6 +716,11 @@ func componentResumptionMetadata(
 		),
 		contractProperty(
 			factory,
+			"stateInputs",
+			stateInputMetadata(factory, record.Client.StateInputs),
+		),
+		contractProperty(
+			factory,
 			"valueCaptures",
 			stringMetadata(factory, record.Client.ValueCaptures),
 		),
@@ -729,6 +735,21 @@ func componentResumptionMetadata(
 			stringMetadata(factory, record.Client.Boundaries),
 		),
 	)
+}
+
+func stateInputMetadata(factory *printer.NodeFactory, values []StateInput) *ast.Node {
+	entries := make([]*ast.Node, 0, len(values))
+	for _, value := range values {
+		if value.StatePath == "" || value.PropPath == "" {
+			continue
+		}
+		entries = append(entries, contractArray(
+			factory,
+			contractString(factory, value.StatePath),
+			contractString(factory, value.PropPath),
+		))
+	}
+	return contractArray(factory, entries...)
 }
 
 func stringMetadata(

@@ -236,6 +236,7 @@ func (s *Session) Execute(request Request) Response {
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
+	applyNormalizedSetupAssignmentExecutions(stateWrites, setupAssignmentExecutions, normalization)
 	preliminaryEnhancements := collectEnhancementImports(
 		sourceFile,
 		generation.checker,
@@ -420,6 +421,7 @@ func (s *Session) Execute(request Request) Response {
 		tasks,
 		operations,
 		stateReads,
+		stateWrites,
 		policy,
 		boundaries,
 		clientIslands,

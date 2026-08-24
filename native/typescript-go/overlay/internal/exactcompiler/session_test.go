@@ -107,6 +107,15 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 	}
 }
 
+func TestConflictingStateInputsAreNotPublished(t *testing.T) {
+	inputs := appendUniqueStateInput(nil, StateInput{StatePath: "items", PropPath: "initial.items"})
+	inputs = appendUniqueStateInput(inputs, StateInput{StatePath: "items", PropPath: "fallback.items"})
+	inputs = appendUniqueStateInput(inputs, StateInput{StatePath: "items", PropPath: "initial.items"})
+	if valid := validStateInputs(inputs); len(valid) != 0 {
+		t.Fatalf("conflicting state inputs remained eligible for publication: %#v", valid)
+	}
+}
+
 func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	response := NewSession().Execute(Request{Kind: "version"})
 	if response.ProtocolVersion != ProtocolVersion ||
@@ -2787,7 +2796,7 @@ __fixtureTask4();
 	}
 	for _, expected := range []string{
 		`__exactVNode("section"`,
-		`__exactVNode("div"`,
+		`__exactPreparedServerRenderProgram(__exact_render_program_2`,
 		`__exactComponentVNode(ServerSummary`,
 		"loadSummary",
 	} {
@@ -4986,6 +4995,48 @@ __fixtureTask22();
 	if resumption.ComponentID != component.ID ||
 		!equalStrings(resumption.Client.StatePaths, []string{"count"}) {
 		t.Fatalf("unexpected resumption contract: %#v", resumption)
+	}
+}
+
+func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "queue.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Queue(
+				this: Component<{ items: string[]; selected: string }>,
+				props: { initial?: { items: string[] }; selected: string }
+			) {
+				this.state.items = props.initial?.items ?? [];
+				this.state.selected = props.selected;
+				return () => <output>{this.state.items.length}:{this.state.selected}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Analysis.Resumptions) != 1 {
+		t.Fatalf("unexpected resumptions: %#v", response.Analysis.Resumptions)
+	}
+	inputs := response.Analysis.Resumptions[0].Client.StateInputs
+	if len(inputs) != 2 ||
+		inputs[0] != (StateInput{StatePath: "items", PropPath: "initial.items"}) ||
+		inputs[1] != (StateInput{StatePath: "selected", PropPath: "selected"}) {
+		t.Fatalf("unexpected state inputs: %#v resumption=%#v writes=%#v\n%s", inputs, response.Analysis.Resumptions[0], response.Analysis.StateWrites, response.Code)
+	}
+	for _, expected := range []string{
+		`stateInputs: [`,
+		`"items",`,
+		`"initial.items"`,
+		`"selected",`,
+		`"selected"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("server contract is missing %q:\n%s", expected, response.Code)
+		}
 	}
 }
 

@@ -8,7 +8,7 @@ import type {
 	GenericSyncSsrChunkResult
 } from './generic-component-capability.js';
 import { createGenericSsrComponentInstance } from './generic-component-instance.js';
-import { readDirectSsrContent } from './direct-component.js';
+import { readDirectSsrContent } from './direct-component-content.js';
 import { renderPreparedSsrProgramString } from './render-program.js';
 
 /** Executes synchronous durable instances only for compiler-classified generic artifacts. */
@@ -33,9 +33,11 @@ export function renderGenericComponentSync({
 		let invalidated = false;
 		let html: string;
 		try {
-			const content = readDirectSsrContent(renderInstanceOutput(instance, () => {
-				invalidated = true;
-			}));
+			const content = readDirectSsrContent(
+				renderInstanceOutput(instance, () => {
+					invalidated = true;
+				})
+			);
 			html = content.program
 				? renderPreparedSsrProgramString(
 						context,

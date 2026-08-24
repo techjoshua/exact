@@ -449,7 +449,8 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('__exactHydration: "interaction"');
 		expect(server).toContain('Panel_ExactClient_1');
-		expect(server).toContain('__exactVNode("div"');
+		expect(server).toContain('<div class=\\"summary\\">');
+		expect(server).toContain('__exactSsr.component(');
 		expect(server).toContain('__exactComponentVNode(ServerSummary');
 		expect(server).toContain('readFile');
 		expect(

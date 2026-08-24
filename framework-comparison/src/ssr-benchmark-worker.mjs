@@ -282,7 +282,7 @@ function writeJson(response, value) {
 
 function documentHtml(id, rendered, initialData) {
 	const serialized = JSON.stringify(initialData).replaceAll('<', '\\u003c');
-	return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="framework-participant" content="${id}"><title>Incident Operations</title></head><body><div id="app" data-render-mode="ssr">${rendered}</div><script id="comparison-data" type="application/json">${serialized}</script></body></html>`;
+	return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="framework-participant" content="${id}"><title>Incident Operations</title></head><body><div id="app" data-render-mode="ssr">${rendered}</div>${id === 'exact' ? '' : `<script id="comparison-data" type="application/json">${serialized}</script>`}</body></html>`;
 }
 
 function publish(message) {

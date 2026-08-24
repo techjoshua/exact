@@ -49,7 +49,7 @@ export type * from './process-activation-contracts.js';
 export type * from './process-state-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.35.0';
+export const nativeCompilerProtocolVersion = '1.36.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{

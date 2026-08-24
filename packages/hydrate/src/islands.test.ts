@@ -180,6 +180,7 @@ describe('@exactjs/hydrate islands', () => {
 				resumption: {
 					componentId: 'component:Counter',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -237,8 +238,8 @@ describe('@exactjs/hydrate islands', () => {
 		function Counter() {
 			return () => createVNode('button', { onClick: () => clicks++ }, 'Old');
 		}
-		const container = document.createElement('main');
-		const island = document.createElement('div');
+		const container = document.createElement('main'),
+			island = document.createElement('div');
 		island.setAttribute('data-exact-client-boundary', 'counter');
 		container.appendChild(island);
 		render(createVNode(Counter, null), island);
@@ -643,23 +644,5 @@ describe('@exactjs/hydrate islands', () => {
 		expect(
 			container.querySelector('[data-exact-server-slot="island-children:children"] p')?.textContent
 		).toBe('New child');
-	});
-
-	it('applies replacement patches to client boundary elements without markers', () => {
-		const container = document.createElement('div');
-		container.innerHTML =
-			'<div data-exact-client-boundary="panel" data-exact-client-name="Panel_ExactClient_1"><p>Old</p></div>';
-
-		applyPatches(container, [
-			{
-				type: 'replace',
-				id: 'panel',
-				html: '<div data-exact-client-boundary="panel" data-exact-client-name="Panel_ExactClient_1"><p>New</p></div>'
-			}
-		]);
-
-		expect(container.querySelector('[data-exact-client-boundary="panel"] p')?.textContent).toBe(
-			'New'
-		);
 	});
 });

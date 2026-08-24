@@ -24,6 +24,11 @@ Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate`
 compiler-generated client artifacts. Component inputs included in hydration must be deterministic
 and serializable.
 
+For a component root whose request data arrives through props, set `publishRootProps: true` and
+read those props with `readPublishedRootProps()` from `@exactjs/hydrate/root` before constructing
+the client root. Compiler-proven state initialized directly from those props is then published only
+once; derived or subsequently changed state remains in its component resumption record.
+
 Generated server entries pass their bundle-local enhancement catalog through render
 options. Available declarations run as ordinary server components; absent optional capabilities
 leave authored output unchanged and warn once per identity.

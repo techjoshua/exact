@@ -121,6 +121,8 @@ export type ExactComponentBoundaryContract = Readonly<{
 export type ExactComponentResumptionContract = Readonly<{
 	componentId: string;
 	statePaths: readonly string[];
+	/** State path and root-prop path pairs that client setup can reconstruct. */
+	stateInputs: readonly (readonly [statePath: string, propPath: string])[];
 	valueCaptures: readonly string[];
 	contexts: readonly string[];
 	boundaries: readonly string[];

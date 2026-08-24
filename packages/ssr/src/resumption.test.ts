@@ -70,6 +70,37 @@ describe('@exactjs/ssr component resumption', () => {
 		expect(rendered.hydrationScript).not.toContain('private');
 	});
 
+	it('publishes root props once when compiled setup reconstructs the same state', () => {
+		const PublishedCounter = directResumableFixture(
+			'PublishedCounter',
+			['count'],
+			function PublishedCounter(
+				this: { state: Record<string, unknown> },
+				props: { count: number }
+			) {
+				this.state.count = props.count;
+				return () => createVNode('output', null, String(this.state.count));
+			},
+			'synchronous',
+			[['count', 'count']]
+		);
+
+		const rendered = renderToHydratableString(createVNode(PublishedCounter, { count: 4 }), {
+			publishRootProps: true
+		});
+
+		expect(rendered.state).toEqual({ count: 4 });
+		expect(rendered.resumptions).toEqual([
+			{
+				componentId: 'component:PublishedCounter',
+				values: {},
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+		expect(rendered.hydrationScript.match(/"count"/g)).toHaveLength(1);
+	});
+
 	it('discards resumptions from invalidated synchronous render attempts', () => {
 		const childImplementation = function Snapshot(
 			this: Component<{ value: number }>,
@@ -92,6 +123,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:Snapshot',
 					statePaths: ['value'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -167,6 +199,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:Counter',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -235,6 +268,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:InteractiveChild',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -293,6 +327,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:StateOnly',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -356,6 +391,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:ContinuationOwner',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -432,6 +468,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:StreamedCounter',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -497,6 +534,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:Provider',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: ['Status'],
 					boundaries: []
@@ -526,7 +564,8 @@ function directResumableFixture<Props extends Record<string, unknown>>(
 		this: { state: Record<string, unknown> },
 		props: Props
 	) => () => ReturnType<typeof createVNode>,
-	classification: 'synchronous' | 'scheduled' = 'synchronous'
+	classification: 'synchronous' | 'scheduled' = 'synchronous',
+	stateInputs: readonly (readonly [string, string])[] = []
 ) {
 	const componentId = `component:${name}`;
 	return Object.assign(implementation, {
@@ -563,6 +602,7 @@ function directResumableFixture<Props extends Record<string, unknown>>(
 			resumption: {
 				componentId,
 				statePaths,
+				stateInputs,
 				valueCaptures: [],
 				contexts: [],
 				boundaries: []

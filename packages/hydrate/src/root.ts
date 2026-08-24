@@ -3,6 +3,7 @@ import type { CoreHydrationRoot, HydrateOptions } from './types.js';
 import { hydrateWithClient } from './runtime/hydration.js';
 import { createHydrationOnlyClient } from './runtime/root-client.js';
 import { resolveRootHydrateOptions } from './root-config.js';
+export { readPublishedRootProps } from './root-config.js';
 import { assertCurrentDocumentContainer } from './runtime/current-document.js';
 
 /**
