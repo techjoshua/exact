@@ -42,7 +42,7 @@ export function isExactComponentContract(
 			value.placement === 'server' ||
 			value.placement === 'isomorphic' ||
 			value.placement === 'unknown') &&
-		(value.role === 'client' || value.role === 'executor') &&
+		(value.role === 'client' || value.role === 'render' || value.role === 'executor') &&
 		Array.isArray(value.implementations) &&
 		value.implementations.every(isImplementation) &&
 		Array.isArray(value.continuations) &&

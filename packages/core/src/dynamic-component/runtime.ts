@@ -207,6 +207,7 @@ function validateCandidate(candidate: AnyDynamicComponentCandidate): void {
 		);
 	const contract = readPreparedExactCompiledComponentContract(candidate);
 	if (
+		contract.role === 'render' ||
 		contract.role === 'executor' ||
 		contract.placement === 'server' ||
 		contract.executors.length !== 0 ||

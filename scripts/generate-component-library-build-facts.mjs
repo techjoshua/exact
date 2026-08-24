@@ -159,7 +159,7 @@ async function writeCompiledBuildFacts() {
 				components.push({
 					id,
 					placement: contract.placement,
-					artifactTargets: [contract.role === 'executor' ? 'server' : 'client']
+					artifactTargets: [contract.role === 'client' ? 'client' : 'server']
 				});
 				exports.push({
 					subpath,

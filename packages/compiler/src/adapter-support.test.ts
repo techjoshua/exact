@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	createExactDiagnosticReporter,
+	exactComponentContractProjection,
 	exactEnhancementFacadeImports,
 	exactEnhancementFacadeRequest,
 	exactAvailableEnhancementFacadeSource,
@@ -16,6 +17,18 @@ import {
 } from './adapter-support.js';
 
 describe('build adapter support', () => {
+	it('selects target-specific component contract facets', () => {
+		expect(exactComponentContractProjection('client', undefined)).toBe('complete');
+		expect(exactComponentContractProjection('client', 'hydrate')).toBe('hydrate');
+		expect(exactComponentContractProjection('server', undefined)).toBe('complete');
+		expect(exactComponentContractProjection('server', 'server-render')).toBe('server-render');
+		expect(() => exactComponentContractProjection('client', 'server-render')).toThrow(
+			/Server render mode/
+		);
+		expect(() => exactComponentContractProjection('server', 'client')).toThrow(
+			/Client render mode/
+		);
+	});
 	it('emits deterministic application-bundle enhancement registrations', () => {
 		const code = prependExactEnhancementRegistrations('export const view = 1;', [
 			{

@@ -53,6 +53,23 @@ describe('@exactjs/webpack-plugin', () => {
 		expect(result?.code).not.toContain('render: "returned-function"');
 	});
 
+	it('projects SSR-only server contracts without continuation executors', () => {
+		const result = transformExactWebpackSource(
+			`import { TaskContext } from '@exactjs/core';
+			export function Loader() {
+				async function load(_task: TaskContext = TaskContext.server()) { return 1; }
+				load();
+				return () => <output>ready</output>;
+			}`,
+			'/src/Loader.tsx',
+			{ target: 'server', renderMode: 'server-render' }
+		);
+
+		expect(result?.code).toContain('role: "render"');
+		expect(result?.code).toContain('executors: []');
+		expect(result?.code).not.toContain('execute: async');
+	});
+
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-webpack-enhancement-'));
 		const entry = path.join(root, 'entry.tsx');
@@ -128,8 +145,8 @@ describe('@exactjs/webpack-plugin', () => {
 
 		expect(client?.code).toContain('window.addEventListener');
 		expect(client?.code).toContain('__exactComponentContract');
-		expect(server?.code).toContain('window.addEventListener');
-		expect(server?.code).toContain('__exactRegisterLifecycle(this, "mount"');
+		expect(server?.code).not.toContain('window.addEventListener');
+		expect(server?.code).not.toContain('__exactRegisterLifecycle(this, "mount"');
 		expect(server?.code).toContain('__exactComponentContract');
 	});
 

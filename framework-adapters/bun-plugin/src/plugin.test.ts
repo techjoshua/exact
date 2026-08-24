@@ -74,6 +74,23 @@ describe('@exactjs/bun-plugin', () => {
 		expect(result?.code).not.toContain('render: "returned-function"');
 	});
 
+	it('projects SSR-only server contracts without continuation executors', () => {
+		const result = transformExactBunSource(
+			`import { TaskContext } from '@exactjs/core';
+			export function Loader() {
+				async function load(_task: TaskContext = TaskContext.server()) { return 1; }
+				load();
+				return () => <output>ready</output>;
+			}`,
+			'/src/Loader.tsx',
+			{ target: 'server', renderMode: 'server-render' }
+		);
+
+		expect(result?.code).toContain('role: "render"');
+		expect(result?.code).toContain('executors: []');
+		expect(result?.code).not.toContain('execute: async');
+	});
+
 	it('keeps routing shells isomorphic while projecting client lifecycle work by target', () => {
 		const source = `import type { Component } from '@exactjs/core';
 		export function RouteShell(this: Component) {
@@ -89,8 +106,8 @@ describe('@exactjs/bun-plugin', () => {
 
 		expect(client?.code).toContain('window.addEventListener');
 		expect(client?.code).toContain('__exactComponentContract');
-		expect(server?.code).toContain('window.addEventListener');
-		expect(server?.code).toContain('__exactRegisterLifecycle(this, "mount"');
+		expect(server?.code).not.toContain('window.addEventListener');
+		expect(server?.code).not.toContain('__exactRegisterLifecycle(this, "mount"');
 		expect(server?.code).toContain('__exactComponentContract');
 	});
 

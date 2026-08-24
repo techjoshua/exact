@@ -28,6 +28,9 @@ client component artifacts.
 Set `renderMode: 'hydrate'` for a browser bundle that adopts SSR HTML, or `renderMode: 'client'`
 for a fresh-mount-only browser bundle. These modes prune unused emitted contract fields; the
 default `universal` behavior preserves the complete contract.
+For an SSR-only server entry, combine `target: 'server'` with `renderMode: 'server-render'` to omit
+later continuation-dispatch executors. Keep the default for a server bundle that also calls
+`composeExactExecutorContract()` or handles continuation requests.
 
 ## What the plugin handles
 

@@ -61,7 +61,7 @@ export type NativeCompilerRequest = Readonly<{
 	buildKey?: string;
 	configFile?: string;
 	target?: 'default' | 'client' | 'server';
-	componentContractProjection?: 'complete' | 'hydrate' | 'client';
+	componentContractProjection?: 'complete' | 'hydrate' | 'client' | 'server-render';
 	serverComponents?: boolean;
 	preserveComponentHoisting?: boolean;
 	diagnostics?: 'syntax' | 'semantic';

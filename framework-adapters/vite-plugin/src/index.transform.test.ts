@@ -105,6 +105,24 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(client?.code).not.toContain('resumption:');
 	});
 
+	it('projects SSR-only server contracts without continuation executors', () => {
+		const source = `import { TaskContext } from '@exactjs/core';
+			export function Loader() {
+				async function load(_task: TaskContext = TaskContext.server()) { return 1; }
+				load();
+				return () => <output>ready</output>;
+			}`;
+		const rendered = exact({
+			reactCompatibility: false,
+			target: 'server',
+			renderMode: 'server-render'
+		}).transform(source, '/src/Loader.tsx');
+
+		expect(rendered?.code).toContain('role: "render"');
+		expect(rendered?.code).toContain('executors: []');
+		expect(rendered?.code).not.toContain('execute: async');
+	});
+
 	it('runs optional intl analysis before ordinary compilation and extracts descriptors', async () => {
 		const extracted: unknown[] = [];
 		const clientRequirements: unknown[] = [];
