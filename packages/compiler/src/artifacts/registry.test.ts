@@ -241,14 +241,15 @@ describe('@exactjs/compiler: registries', () => {
 		expect(client).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(client).not.toContain('export function Panel_ExactClient_1');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
-		expect(server).toContain('createServerBoundary as');
+		expect(server).not.toContain('createServerBoundary as');
 		expect(server).toContain(
 			'const __exactImplementation_Panel_1 = function Panel(this: Component<'
 		);
 		expect(server).toContain('definition:');
 		expect(server).toContain('instantiate: __exactImplementation_Panel_1');
 		expect(server).toContain('export { Panel as Panel_ExactServer_1 }');
-		expect(server).toContain('"Panel_ExactClient_1"');
+		expect(server).toContain('statePaths: [');
+		expect(server).toContain('"count"');
 		expect(server).toContain('className: "primary"');
 		expect(server).toContain('title: this.state.count');
 		expect(server).not.toContain('onClick');

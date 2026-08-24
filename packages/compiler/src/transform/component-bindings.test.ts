@@ -102,7 +102,8 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		expect(server.code).not.toContain('modal:isOpen');
 		expect(server.code).not.toContain('__exactModalOpen');
 		expect(server.code).not.toContain('@exactjs/dom/runtime/modal');
-		expect(server.code).toContain('"__exactState": { open: this.state.open }');
+		expect(server.code).toContain('statePaths: [');
+		expect(server.code).toContain('"open"');
 	});
 
 	it('rejects invalid or multiply owned modal dialog bindings', () => {

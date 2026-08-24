@@ -863,6 +863,13 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 			}
 			continue
 		}
+		// Server render programs preserve the DOM structure that the paired client
+		// artifact hydrates, but client-owned behavior has no server serialization
+		// semantics. Excluding it here also prevents per-request construction of
+		// event handlers and ref callbacks that the SSR writer would discard.
+		if lowering.target == TargetServer && interactiveJSXAttribute(name) {
+			continue
+		}
 		if ast.IsJsxNamespacedName(attribute.Name()) {
 			return false
 		}
