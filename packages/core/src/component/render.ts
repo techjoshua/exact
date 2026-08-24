@@ -4,11 +4,7 @@ import type { AnyComponentInstance, Child, RenderResult } from './contracts.js';
 
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
-import {
-	createErrorReport,
-	handleComponentError,
-	handleComponentSuspension
-} from './errors.js';
+import { createErrorReport, handleComponentError, handleComponentSuspension } from './errors.js';
 import { normalizeRenderResult } from '../vnode.js';
 import { componentDomainInspection, withComponentDomain } from './domain.js';
 import { componentRenderHandlers } from './lifecycle-handlers.js';

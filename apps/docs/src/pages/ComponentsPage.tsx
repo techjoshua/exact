@@ -330,8 +330,8 @@ export function ComponentsPage(this: Component<{}>) {
 					</p>
 					<code>this.onMount()</code>
 					<p>
-						Registers client-mounted work with an abort signal; the server artifact does not evaluate
-						its handler.
+						Registers client-mounted work with an abort signal; the server artifact does not
+						evaluate its handler.
 					</p>
 					<code>this.onUnmount()</code>
 					<p>Registers teardown or final bookkeeping.</p>

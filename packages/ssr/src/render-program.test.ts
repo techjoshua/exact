@@ -68,7 +68,9 @@ it('writes compiler-owned scalar programs without redundant hydration delimiters
 	expect(renderToString(programRoot(program), { markers: false }).html).toBe(
 		'<span data-exact-id="planned">&lt;safe&gt;</span>'
 	);
-	expect(renderToString(programRoot(program)).html).toContain('<span data-exact-id="planned">&lt;safe&gt;</span>');
+	expect(renderToString(programRoot(program)).html).toContain(
+		'<span data-exact-id="planned">&lt;safe&gt;</span>'
+	);
 	expect(constructions).toBe(1);
 });
 
@@ -106,7 +108,9 @@ it('captures every generated server slot before selecting the local fallback', (
 		() => createCompiledVNode('span', null, 'fallback')
 	);
 
-	expect(renderToString(programRoot(program), { markers: false }).html).toBe('<span>fallback</span>');
+	expect(renderToString(programRoot(program), { markers: false }).html).toBe(
+		'<span>fallback</span>'
+	);
 	expect(reads).toBe(2);
 });
 

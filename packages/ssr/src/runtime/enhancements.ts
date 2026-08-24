@@ -1,7 +1,4 @@
-import {
-	activateSsrEnhancements,
-	activateSsrEnhancementsAsync
-} from '../render/enhancements.js';
+import { activateSsrEnhancements, activateSsrEnhancementsAsync } from '../render/enhancements.js';
 import { registerSsrEnhancementExecutionCapability } from '../render/enhancement-execution-capability.js';
 import {
 	applySsrTargetContributions,
