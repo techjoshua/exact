@@ -28,6 +28,9 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
    silently rewriting historical results.
 9. Every sampled metric is summarized at p50, p75, p95, and p99 with the same nearest-rank convention. Reports
    must not substitute a smaller hand-picked metric or percentile set for an architectural comparison.
+10. Production client resources must be discoverable from the document head through the framework's idiomatic
+    module script, preload, or equivalent mechanism. A participant must not delay discovery until after its SSR
+    body merely because its application document uses a less efficient template.
 
 ## Performance dimensions
 

@@ -1,8 +1,16 @@
 import { expect, test } from '@playwright/test';
 
 const participants = [
-	{ id: 'exact-native', url: 'http://127.0.0.1:4501' },
-	{ id: 'react-native', url: 'http://127.0.0.1:4502' }
+	{
+		id: 'exact-native',
+		url: 'http://127.0.0.1:4501',
+		earlyClientResource: /<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc=)[^>]*>/i
+	},
+	{
+		id: 'react-native',
+		url: 'http://127.0.0.1:4502',
+		earlyClientResource: /<link\b(?=[^>]*\brel="modulepreload")(?=[^>]*\bhref=)[^>]*>/i
+	}
 ];
 
 for (const participant of participants) {
@@ -17,6 +25,9 @@ for (const participant of participants) {
 			const serverPage = await noScript.newPage();
 			const response = await serverPage.goto(`${participant.url}/incidents/inc-101`);
 			expect(response?.headers()['x-comparison-render']).toBe('ssr');
+			const documentHtml = (await response?.text()) ?? '';
+			const documentHead = documentHtml.slice(0, documentHtml.indexOf('</head>'));
+			expect(documentHead).toMatch(participant.earlyClientResource);
 			await expect(
 				serverPage.getByRole('heading', { name: 'Delayed fulfillment events' })
 			).toBeVisible();
