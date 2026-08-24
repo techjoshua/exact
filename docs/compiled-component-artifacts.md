@@ -75,7 +75,9 @@ construction, enhancement planning, and native structural-boundary ownership are
 installed capabilities selected only by artifacts that can reach those paths. Resumption
 publication is a distinct server capability: a compiled continuation component can publish its
 request-local resumption envelope without retaining client-boundary traversal or generic component
-construction. SSR enhancement activation and `_target` composition are likewise installed only by
+construction. The server keeps readable path-keyed records in its result API while serializing
+values as compiler-indexed pairs; hydration expands them only through the matching prepared
+component contract. SSR enhancement activation and `_target` composition are likewise installed only by
 server artifacts that emit enhancement operations. Client-only artifacts never select SSR,
 resumption, or continuation capabilities;
 SSR-only, hydratable, continuation, and mixed artifacts each import their own analyzed lane.

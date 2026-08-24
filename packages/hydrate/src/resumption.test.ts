@@ -49,6 +49,33 @@ function resumablePage(id: string, label: string) {
 }
 
 describe('@exactjs/hydrate component resumption', () => {
+	it('expands compiler-indexed wire values against the receiving component contract', () => {
+		const Counter = resumablePage('component:Counter', 'client');
+		const resolver = createComponentResumptionResolver(() => [
+			{
+				componentId: 'component:Counter',
+				values: { '@0': 'ready' },
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+
+		expect(resolver(Counter)?.values).toEqual({ label: 'ready' });
+	});
+
+	it('rejects a compact wire index outside the receiving component contract', () => {
+		const Counter = resumablePage('component:Counter', 'client');
+		const resolver = createComponentResumptionResolver(() => [
+			{
+				componentId: 'component:Counter',
+				values: { '@1': 'undeclared' },
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+
+		expect(() => resolver(Counter)).toThrow('index is outside component component:Counter');
+	});
 	it('matches SSR activations by component type while preserving per-type order and rollback', () => {
 		const First = resumablePage('component:First', 'first');
 		const Second = resumablePage('component:Second', 'second');

@@ -18,7 +18,8 @@ import { hasOnlyKeys } from './validation.js';
 import {
 	isEndpointRoutes,
 	isRecord,
-	normalizeComponentResumptions,
+	normalizeComponentResumptionRegistrations,
+	normalizeSerializedComponentResumptions,
 	normalizeContinuationMap,
 	positiveLimit
 } from './config-validation.js';
@@ -30,7 +31,7 @@ export function defineExactHydrationRegistration(
 	registration: ExactHydrationRegistrationInput
 ): ExactHydrationRegistration {
 	const continuations = normalizeContinuationMap(registration.continuations);
-	const resumptions = normalizeComponentResumptions(registration.resumptions);
+	const resumptions = normalizeComponentResumptionRegistrations(registration.resumptions);
 	const {
 		continuations: _serializedContinuations,
 		resumptions: _serializedResumptions,
@@ -145,7 +146,7 @@ function safelyNormalizeContinuationMap(value: unknown) {
 
 function safelyNormalizeComponentResumptions(value: unknown) {
 	try {
-		return normalizeComponentResumptions(value);
+		return normalizeSerializedComponentResumptions(value);
 	} catch {
 		return undefined;
 	}
