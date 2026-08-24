@@ -213,6 +213,11 @@ uses that feature. Direct task frames store compiler-numbered output ports in in
 small path pairs; waiter and subscriber sets appear only when another task actually consumes the
 output. A task whose output is rendered but never forwarded therefore pays for neither generic
 maps nor dependency subscriber collections.
+Closed render-to-string artifacts also serialize their compiler-owned plain boundary state without
+linking the reactive keyed-collection registry or dependency-tracking stack. JSON shape and size
+validation remain mandatory. Generic reactive component artifacts explicitly install keyed-state
+encoding and tracking suppression, while the public hydratable-rendering API retains reactive
+collection encoding for explicitly supplied application state.
 
 Server compilation also selects runtime modules rather than importing the universal component
 barrel. Compiler-closed output imports structure-only VNode and render-program operations plus

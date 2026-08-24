@@ -2,6 +2,9 @@ import './structural-boundaries.js';
 import '../render/construction-errors.js';
 import '../render/generic-render-program-owner.js';
 import '@exactjs/core/runtime/component-tasks';
+import { encodeReactiveProtocolValue } from '@exactjs/reactive/framework/protocol';
+import { peek } from '@exactjs/reactive/framework/tracking';
+import { registerHydrationProtocolEncoder } from '../hydration-encoding-capability.js';
 import { renderGenericComponentAsync } from '../render/generic-component-async.js';
 import {
 	renderGenericComponentSync,
@@ -14,6 +17,7 @@ import {
 	prepareSsrTargetBoundaryAsync
 } from '../render/enhancement-planning.js';
 import { registerSsrEnhancementPlanningCapability } from '../render/enhancement-planning-capability.js';
+import { registerSsrReactivePeek } from '../render/reactive-tracking-capability.js';
 import {
 	registerGenericSsrComponentRenderer,
 	registerGenericSyncSsrChunkRenderer,
@@ -21,6 +25,8 @@ import {
 } from '../render/generic-component-capability.js';
 
 registerGenericSsrComponentRenderer(renderGenericComponentAsync);
+registerHydrationProtocolEncoder(encodeReactiveProtocolValue);
+registerSsrReactivePeek(peek);
 registerGenericSyncSsrComponentRenderer(renderGenericComponentSync);
 registerGenericSyncSsrChunkRenderer(renderGenericComponentSyncChunks);
 registerSsrEnhancementPlanningCapability({

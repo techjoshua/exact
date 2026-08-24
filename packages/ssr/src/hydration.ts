@@ -1,8 +1,9 @@
-import { encodeReactiveProtocolValue } from '@exactjs/core';
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
+import { encodeReactiveProtocolValue } from '@exactjs/reactive/framework/protocol';
 import { escapeAttr } from './html.js';
+import { encodeHydrationProtocolValue } from './hydration-encoding-capability.js';
 import type { HydrationScriptOptions } from './types.js';
 
 /** Renders the JSON script tag consumed by the hydration client. */
@@ -37,7 +38,9 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 		maxNodes: options.maxHydrationNodes
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
-	const payload = serializeHydrationPayload(compactHydrationMetadata(payloadValue));
+	const payload = serializeEncodedHydrationPayload(
+		encodeReactiveProtocolValue(compactHydrationMetadata(payloadValue))
+	);
 	if (
 		new TextEncoder().encode(payload).byteLength >
 		positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)
@@ -147,7 +150,11 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 /** Serializes hydration JSON while escaping script-breaking characters. */
 export function serializeHydrationPayload(payload: Record<string, unknown>): string {
-	return JSON.stringify(encodeReactiveProtocolValue(payload))
+	return serializeEncodedHydrationPayload(encodeHydrationProtocolValue(payload));
+}
+
+function serializeEncodedHydrationPayload(payload: unknown): string {
+	return JSON.stringify(payload)
 		.replace(/</g, '\\u003C')
 		.replace(/\u2028/g, '\\u2028')
 		.replace(/\u2029/g, '\\u2029');
