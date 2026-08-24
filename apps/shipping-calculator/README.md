@@ -48,7 +48,10 @@ Real-provider credentials and OAuth tokens remain on the server.
 
 The server-rendered page also owns an `@exactjs/theme` scope. Generated theme values drive its
 application palette, surfaces, status tones, controls, and system appearance while route-map and
-calculator layout remain application-owned.
+calculator layout remain application-owned. The static Census base map ships as a cacheable SVG;
+the component renders only the changing route overlay and does not repeat server-provided rates
+when the client activates. Production builds precompress JavaScript, CSS, and SVG assets so the
+sample server can negotiate Brotli or gzip without compressing inside the request path.
 
 The app compares rates only; it does not buy labels or generate tracking numbers. Review each
 carrier's current API and display terms before operating a public comparison service.
