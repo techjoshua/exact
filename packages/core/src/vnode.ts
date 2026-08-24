@@ -94,10 +94,19 @@ export function createCompiledComponentVNode(
  * otherwise-unshared allocation avoids cloning every keyed item while keeping authored keys out
  * of component props.
  */
-export function keyCompiledVNode(vnode: VNode, value: unknown): VNode {
+export function keyCompiledVNode<Value>(vnode: Value, value: unknown): Value {
 	const key = unwrap(value);
 	if (key === null || key === undefined) throw new Error('Compiled keyed lists require a key');
-	(vnode as { key?: string }).key = String(key);
+	// Server render programs carry no client identity. Their authored key has already served
+	// compile-time collection planning and does not belong in HTML output.
+	if (
+		vnode !== null &&
+		typeof vnode === 'object' &&
+		'type' in vnode &&
+		'props' in vnode &&
+		'children' in vnode
+	)
+		(vnode as { key?: string }).key = String(key);
 	return vnode;
 }
 

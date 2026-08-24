@@ -267,14 +267,16 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		lowering.renderProgramReaders(runtimeReaders),
 	}
 	if lowering.target != TargetServer {
-		arguments = append(arguments, lowering.factory.NewThisExpression())
+		owner := lowering.factory.NewIdentifier("undefined")
+		if lowering.hasLexicalComponentReceiver(identityNode) {
+			owner = lowering.factory.NewThisExpression()
+		}
+		arguments = append(arguments, owner)
 	}
-	closedDirectServer := lowering.target == TargetServer &&
-		lowering.interop == nil &&
-		lowering.directServerArtifactComponent(identityNode)
+	closedServerArtifact := lowering.target == TargetServer
 	if (lowering.target != TargetClient ||
 		lowering.contractProjection == ComponentContractProjectionComplete) &&
-		!closedDirectServer {
+		!closedServerArtifact {
 		// Server and universal artifacts can enter React-compatible SSR or recover one malformed
 		// region locally. A client artifact already has root-level hydration recovery, so retaining
 		// a duplicate generic VNode factory for every compiler-closed region only adds parse, heap,
@@ -292,11 +294,45 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		arguments = append(arguments, propertyWriter)
 	}
 	prepared := lowering.names.preparedRenderProgram
-	if lowering.target == TargetServer && lowering.directServerArtifactComponent(identityNode) {
+	if lowering.target == TargetServer {
 		prepared = lowering.names.preparedServerProgram
 		arguments[1] = lowering.renderProgramServerValues(runtimeReaders)
 	}
 	return lowering.call(prepared, arguments)
+}
+
+// Reports whether `this` reaches the JSX through arrows from a component receiver.
+func (lowering *jsxLowering) hasLexicalComponentReceiver(node *ast.Node) bool {
+	component, componentOwned := lowering.componentContaining(node)
+	for current := node.Parent; current != nil; current = current.Parent {
+		if ast.IsArrowFunction(current) {
+			if componentOwned && current.Parent != nil && ast.IsVariableDeclaration(current.Parent) {
+				name := current.Parent.Name()
+				if name != nil && callableNameText(name) == component.Name {
+					return true
+				}
+			}
+			continue
+		}
+		if ast.IsFunctionLike(current) {
+			for _, parameter := range current.Parameters() {
+				name := parameter.Name()
+				if name != nil &&
+					(name.Kind == ast.KindThisKeyword || ast.IsIdentifier(name) && name.Text() == "this") {
+					return true
+				}
+			}
+			if !componentOwned {
+				return false
+			}
+			name := current.Name()
+			if name == nil && current.Parent != nil && ast.IsVariableDeclaration(current.Parent) {
+				name = current.Parent.Name()
+			}
+			return name != nil && callableNameText(name) == component.Name
+		}
+	}
+	return false
 }
 
 // renderProgramServerValues evaluates compiler-ordered slots directly in the generated component.

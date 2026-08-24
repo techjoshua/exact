@@ -100,6 +100,10 @@ func (lowering *jsxLowering) serverTaskSlice(
 		}),
 		false,
 	)
+	slice = lowering.factory.NewAsExpression(
+		slice,
+		lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("const"), nil),
+	)
 	definition := lowering.factory.NewVariableStatement(
 		nil,
 		lowering.factory.NewVariableDeclarationList(

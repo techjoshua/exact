@@ -236,6 +236,28 @@ func applySetupAssignmentExecutions(
 	}
 }
 
+// Applies authored setup classification while analysis still uses normalized source offsets.
+func applyNormalizedSetupAssignmentExecutions(
+	writes []StateWrite,
+	executions []setupAssignmentExecution,
+	source normalizedSource,
+) {
+	for index := range writes {
+		write := &writes[index]
+		if write.Operation != "assignment" {
+			continue
+		}
+		start, length := source.authoredSpan(write.Start, write.Length)
+		for _, execution := range executions {
+			if write.Component == execution.component &&
+				start < execution.end && execution.start < start+length {
+				write.SetupExecution = execution.execution
+				break
+			}
+		}
+	}
+}
+
 func planComponentComputationEdits(
 	sourceFile *ast.SourceFile,
 	component *ast.Node,

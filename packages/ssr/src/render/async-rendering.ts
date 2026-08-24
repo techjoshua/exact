@@ -16,6 +16,7 @@ import { renderVNodeAsync } from './async-tree.js';
 import { shouldEmitDocumentHydration } from './document-hydration.js';
 import { createSsrContext, drainTasks } from './context.js';
 import { hydrationScriptOptions } from './hydration-options.js';
+import { rootComponentIdentity, rootPropsOptions } from './root-props.js';
 import { renderToStringOwned } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
@@ -71,12 +72,17 @@ export async function renderToHydratableStringAsync(
 	vnode: VNode,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
 ): Promise<HydratableStringResult> {
-	const capture = createSsrResumptionCapture(options);
+	const prepared = rootPropsOptions(vnode, options);
+	const capture = createSsrResumptionCapture(
+		prepared,
+		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootComponentIdentity(vnode)
+	);
 	const result = await renderToStringAsync(vnode, capture.options);
 	const resumptions = capture.records();
-	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
+	const emittedResumptions = resumptions.length ? resumptions : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(options, result, emittedResumptions),
+		hydrationScriptOptions(prepared, result, emittedResumptions),
 		capture.layouts()
 	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);

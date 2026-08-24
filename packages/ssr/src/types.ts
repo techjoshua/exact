@@ -125,6 +125,8 @@ export type HydrationScriptOptions = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
+	/** Publishes the rendered root component props as the single client bootstrap input. */
+	publishRootProps?: boolean;
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
@@ -405,6 +407,7 @@ export type DirectSsrComponentSnapshot = Readonly<{
 	componentId: string;
 	contract: ExactCompiledComponentContract;
 	state: Record<string, unknown>;
+	props: Record<string, unknown>;
 }>;
 
 export type {

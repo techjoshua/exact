@@ -26,6 +26,17 @@ const rootConfigKeys = [
 	'componentAuthorization'
 ] as const;
 
+interface ParsedRootConfigCacheEntry {
+	readonly source: string;
+	readonly maxBytes: number | undefined;
+	readonly maxDepth: number | undefined;
+	readonly maxNodes: number | undefined;
+	readonly config: ExactHydrationConfig;
+}
+
+const rootConfigScriptCache = new WeakMap<Element, HTMLScriptElement>();
+const parsedRootConfigCache = new WeakMap<HTMLScriptElement, ParsedRootConfigCacheEntry>();
+
 /** Resolves the field inventory consumed by the hydration-only client entry. */
 export function resolveRootHydrateOptions(
 	container: Element,
@@ -75,6 +86,9 @@ function readRootConfig(
 	limits: ExactHydrationConfigLimits = {},
 	maxDomNodes?: number
 ): ExactHydrationConfig {
+	const cached = rootConfigScriptCache.get(container);
+	if (cached && cached.id === '__exact_hydration' && scriptBelongsToContainer(cached, container))
+		return parseRootConfig(cached, limits);
 	const root = container.getRootNode() as Node;
 	const documentRoot = root.nodeType === 9 ? (root as Document) : root.ownerDocument;
 	const indexed = documentRoot?.getElementById('__exact_hydration');
@@ -94,9 +108,33 @@ function readRootConfig(
 	}
 	for (let cursor: Element | null = container; cursor; cursor = cursor.parentElement) {
 		const script = scripts.find((candidate) => cursor!.contains(candidate));
-		if (script) return parseRootConfig(script, limits);
+		if (script) {
+			rootConfigScriptCache.set(container, script);
+			return parseRootConfig(script, limits);
+		}
 	}
-	return scripts[0] ? parseRootConfig(scripts[0], limits) : {};
+	if (!scripts[0]) return {};
+	rootConfigScriptCache.set(container, scripts[0]);
+	return parseRootConfig(scripts[0], limits);
+}
+
+function scriptBelongsToContainer(script: HTMLScriptElement, container: Element): boolean {
+	if (script.getRootNode() !== container.getRootNode()) return false;
+	for (let cursor: Element | null = container; cursor; cursor = cursor.parentElement) {
+		if (cursor.contains(script)) return true;
+	}
+	return false;
+}
+
+/** Reads the server-published component-root props before constructing the client root VNode. */
+export function readPublishedRootProps<Props extends Record<string, unknown>>(
+	container: Element,
+	limits?: ExactHydrationConfigLimits,
+	maxDomNodes?: number
+): Props {
+	const value = readRootConfig(container, limits, maxDomNodes).state;
+	if (!isRecord(value)) throw new TypeError('Missing or malformed eXact published root props');
+	return value as Props;
 }
 
 function parseRootConfig(
@@ -105,6 +143,14 @@ function parseRootConfig(
 ): HydrateOptions {
 	try {
 		const source = script.textContent ?? '{}';
+		const cached = parsedRootConfigCache.get(script);
+		if (
+			cached?.source === source &&
+			cached.maxBytes === limits.maxBytes &&
+			cached.maxDepth === limits.maxDepth &&
+			cached.maxNodes === limits.maxNodes
+		)
+			return cached.config;
 		const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
 		if (source.length > maxBytes || utf8ByteLength(source) > maxBytes) return {};
 		const value = decodeBoundedReactiveProtocolValue(
@@ -131,7 +177,7 @@ function parseRootConfig(
 			resumptions = undefined;
 		}
 		const hydrationTable = normalizeRootHydrationTable(record.h);
-		return {
+		const config: ExactHydrationConfig = {
 			...(typeof record.pluginRegistryFingerprint === 'string'
 				? { pluginRegistryFingerprint: record.pluginRegistryFingerprint }
 				: {}),
@@ -147,6 +193,14 @@ function parseRootConfig(
 			...(buildKey ? { buildKey } : {}),
 			...(componentAuthorization ? { componentAuthorization } : {})
 		};
+		parsedRootConfigCache.set(script, {
+			source,
+			maxBytes: limits.maxBytes,
+			maxDepth: limits.maxDepth,
+			maxNodes: limits.maxNodes,
+			config
+		});
+		return config;
 	} catch {
 		return {};
 	}

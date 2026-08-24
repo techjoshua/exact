@@ -245,7 +245,7 @@ export function prepareCompiledRenderProgram(program: ExactRenderProgram): Brand
 export function createPreparedRenderProgram(
 	branded: BrandedRenderProgram,
 	readers: ExactRenderProgramReaders,
-	owner: object,
+	owner?: object,
 	fallback?: () => VNode,
 	propertyWriter?: (group: number, apply: (name: string, value: unknown) => void) => void
 ): VNode {

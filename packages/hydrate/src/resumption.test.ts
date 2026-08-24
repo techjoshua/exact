@@ -39,6 +39,7 @@ function resumablePage(id: string, label: string) {
 			resumption: {
 				componentId: id,
 				statePaths: ['label'],
+				stateInputs: [],
 				valueCaptures: [],
 				contexts: [],
 				boundaries: []
@@ -146,6 +147,7 @@ describe('@exactjs/hydrate component resumption', () => {
 				resumption: {
 					componentId: 'component:PreHydrationShell',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -227,6 +229,7 @@ describe('@exactjs/hydrate component resumption', () => {
 				resumption: {
 					componentId: 'component:Search',
 					statePaths: ['query', 'result'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -316,6 +319,7 @@ describe('@exactjs/hydrate component resumption', () => {
 				resumption: {
 					componentId: 'component:Provider',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: ['Status'],
 					boundaries: []

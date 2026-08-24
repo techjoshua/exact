@@ -196,6 +196,27 @@ resolved immutable inputs into client construction. Static scalar DOM props bypa
 construction; compiler expressions and supported composite class or `srcdoc` values retain observed
 bindings.
 
+An application whose root component receives its initial request data as props can opt into one
+authoritative bootstrap copy:
+
+```tsx
+// server
+const result = renderToHydratableString(<App initialData={data} path={url.pathname} />, {
+	publishRootProps: true
+});
+
+// client
+const props = readPublishedRootProps<AppProps>(container);
+hydrateAfterNavigation(<App {...props} />, container);
+```
+
+`publishRootProps` requires a component root and cannot be combined with a separate hydration
+`state`. The compiler records direct setup assignments such as
+`this.state.items = props.initialData.items`. SSR omits that resumable state value only when the
+published prop path and final state value are identical. Derived, mutated, ambiguous, or nested
+component state remains in its ordinary component resumption record. Reading the props and later
+resolving hydration options reuse the same bounded decode.
+
 The `@exactjs/hydrate/root` entry uses a bounded hydration-only field projection. Operation
 endpoints, continuations, islands, and transports belong to the complete runtime; their presence in
 a root-only document configuration fails closed. Build identity, component authorization,

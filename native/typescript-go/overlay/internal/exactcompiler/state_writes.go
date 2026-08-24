@@ -56,6 +56,7 @@ func collectStateAnalysis(
 			continue
 		}
 		componentAliases := collectComponentStateAliases(candidate, typeChecker)
+		propsSymbol := componentPropsSymbol(candidate.node, typeChecker)
 		aliases = append(aliases, componentAliases.facts...)
 		reads = append(
 			reads,
@@ -88,6 +89,7 @@ func collectStateAnalysis(
 					target,
 					path,
 				),
+				InputPath: stateWriteInputPath(node, propsSymbol, typeChecker),
 			})
 			return true
 		})
@@ -102,6 +104,71 @@ func collectStateAnalysis(
 		return reads[left].Start < reads[right].Start
 	})
 	return aliases, reads, writes
+}
+
+// Returns the checker identity of the component's ordinary props parameter.
+func componentPropsSymbol(component *ast.Node, typeChecker *checker.Checker) *ast.Symbol {
+	for _, parameter := range component.Parameters() {
+		name := parameter.Name()
+		if name == nil || !ast.IsIdentifier(name) || name.Text() == "this" {
+			continue
+		}
+		return typeChecker.GetSymbolAtLocation(name)
+	}
+	return nil
+}
+
+// Recognizes the conservative setup form `this.state.x = props.y ?? fallback`.
+// Runtime publication still verifies identity before omitting the state value.
+func stateWriteInputPath(
+	write *ast.Node,
+	propsSymbol *ast.Symbol,
+	typeChecker *checker.Checker,
+) string {
+	if propsSymbol == nil || !ast.IsAssignmentExpression(write, false) {
+		return ""
+	}
+	value := write.AsBinaryExpression().Right
+	for value != nil && ast.IsParenthesizedExpression(value) {
+		value = value.AsParenthesizedExpression().Expression
+	}
+	if value != nil && ast.IsBinaryExpression(value) &&
+		value.AsBinaryExpression().OperatorToken.Kind == ast.KindQuestionQuestionToken {
+		value = value.AsBinaryExpression().Left
+	}
+	segments := []string{}
+	for value != nil {
+		for ast.IsParenthesizedExpression(value) {
+			value = value.AsParenthesizedExpression().Expression
+		}
+		switch {
+		case ast.IsPropertyAccessExpression(value):
+			access := value.AsPropertyAccessExpression()
+			name := access.Name()
+			if name == nil || !ast.IsIdentifier(name) {
+				return ""
+			}
+			segments = append([]string{name.Text()}, segments...)
+			value = access.Expression
+		case ast.IsElementAccessExpression(value):
+			access := value.AsElementAccessExpression()
+			argument := access.ArgumentExpression
+			if argument == nil || !ast.IsStringLiteral(argument) {
+				return ""
+			}
+			segments = append([]string{argument.Text()}, segments...)
+			value = access.Expression
+		case ast.IsIdentifier(value):
+			symbol := typeChecker.GetSymbolAtLocation(value)
+			if symbol == nil || ast.GetSymbolId(symbol) != ast.GetSymbolId(propsSymbol) || len(segments) == 0 {
+				return ""
+			}
+			return strings.Join(segments, ".")
+		default:
+			return ""
+		}
+	}
+	return ""
 }
 
 // unsupportedStateWriteDiagnostics rejects mutation forms whose runtime

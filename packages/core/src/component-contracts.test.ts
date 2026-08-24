@@ -97,6 +97,7 @@ describe('@exactjs/core component contracts', () => {
 				resumption: {
 					componentId: 'component:Page',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: ['boundary:Page']
@@ -389,6 +390,7 @@ describe('@exactjs/core component contracts', () => {
 				resumption: {
 					componentId: 'component:Other',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []

@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.35.0"
+const ProtocolVersion = "1.36.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -395,6 +395,7 @@ type StateWrite struct {
 	RootDepth       int               `json:"-"`
 	DynamicSegments map[int]*ast.Node `json:"-"`
 	Interaction     bool              `json:"-"`
+	InputPath       string            `json:"-"`
 }
 
 // ValueCallbackBinding preserves one authored paired JSX binding across
@@ -649,10 +650,17 @@ type ServerRenderRecord struct {
 
 // ClientResumptionRecord contains the durable browser-visible resume contract.
 type ClientResumptionRecord struct {
-	StatePaths    []string `json:"statePaths"`
-	ValueCaptures []string `json:"valueCaptures"`
-	Contexts      []string `json:"contexts"`
-	Boundaries    []string `json:"boundaries"`
+	StatePaths    []string     `json:"statePaths"`
+	StateInputs   []StateInput `json:"stateInputs"`
+	ValueCaptures []string     `json:"valueCaptures"`
+	Contexts      []string     `json:"contexts"`
+	Boundaries    []string     `json:"boundaries"`
+}
+
+// StateInput identifies state reconstructed by client setup from the published root props.
+type StateInput struct {
+	StatePath string `json:"statePath"`
+	PropPath  string `json:"propPath"`
 }
 
 // ComponentResumption separates server activation from client resume data.
@@ -1045,6 +1053,9 @@ func normalizedResumptions(values []ComponentResumption) []ComponentResumption {
 		)
 		values[index].Client.StatePaths = nonNilSlice(
 			values[index].Client.StatePaths,
+		)
+		values[index].Client.StateInputs = nonNilSlice(
+			values[index].Client.StateInputs,
 		)
 		values[index].Client.ValueCaptures = nonNilSlice(
 			values[index].Client.ValueCaptures,

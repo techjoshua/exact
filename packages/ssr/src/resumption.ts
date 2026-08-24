@@ -26,7 +26,11 @@ export type SsrResumptionLayout = Readonly<{
 }>;
 
 /** Captures compiler-selected state and settled work in deterministic construction order. */
-export function createSsrResumptionCapture(options: RenderToStringOptions): {
+export function createSsrResumptionCapture(
+	options: RenderToStringOptions,
+	publishedRootProps?: Readonly<Record<string, unknown>>,
+	rootComponentId?: string
+): {
 	options: RenderToStringOptions;
 	records(): readonly ComponentResumptionActivation[];
 	layouts(): ReadonlyMap<string, SsrResumptionLayout>;
@@ -35,6 +39,8 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 	const layouts = new Map<string, SsrResumptionLayout>();
 	const recordsByInstance = new WeakMap<AnyComponentInstance, MutableResumption>();
 	const recordsByDirectFrame = new WeakMap<DirectSsrComponentSnapshot, MutableResumption>();
+	const rootInputRecords = new WeakSet<MutableResumption>();
+	let rootInputClaimed = false;
 	const reserveDirect = (snapshot: DirectSsrComponentSnapshot): void => {
 		const resumption = snapshot.contract.resumption;
 		if (!resumption) return;
@@ -44,6 +50,10 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 			contexts: {},
 			settledContinuations: []
 		};
+		if (!rootInputClaimed && snapshot.componentId === rootComponentId) {
+			rootInputRecords.add(record);
+			rootInputClaimed = true;
+		}
 		layouts.set(snapshot.componentId, {
 			statePaths: resumption.statePaths,
 			contexts: resumption.contexts
@@ -55,10 +65,14 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 		const resumption = snapshot.contract.resumption;
 		const record = recordsByDirectFrame.get(snapshot);
 		if (!resumption || !record) return;
-		for (const path of resumption.statePaths) {
-			const found = readPath(snapshot.state, path);
-			if (found.present && found.value !== undefined) record.values[path] = found.value;
-		}
+		captureStateValues(
+			record,
+			rootInputRecords.has(record),
+			snapshot.state,
+			snapshot.props,
+			resumption,
+			publishedRootProps
+		);
 	};
 	return {
 		options: {
@@ -93,6 +107,10 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 						contexts: {},
 						settledContinuations: []
 					};
+					if (!rootInputClaimed && exactComponentIdentity(instance.type) === rootComponentId) {
+						rootInputRecords.add(record);
+						rootInputClaimed = true;
+					}
 					records.push(record);
 					recordsByInstance.set(instance, record);
 				}
@@ -102,10 +120,14 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 				const record = recordsByInstance.get(instance);
 				const contract = readPreparedExactCompiledComponentContract(instance.type);
 				if (record && contract.resumption) {
-					for (const path of contract.resumption.statePaths) {
-						const found = readPath(instance.state, path);
-						if (found.present && found.value !== undefined) record.values[path] = found.value;
-					}
+					captureStateValues(
+						record,
+						rootInputRecords.has(record),
+						instance.state,
+						instance.props,
+						contract.resumption,
+						publishedRootProps
+					);
 					record.contexts = componentContinuationContextValues(
 						instance,
 						contract.resumption.contexts
@@ -121,6 +143,37 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 		records: () => records,
 		layouts: () => layouts
 	};
+}
+
+function captureStateValues(
+	record: MutableResumption,
+	rootInput: boolean,
+	state: unknown,
+	props: unknown,
+	resumption: {
+		statePaths: readonly string[];
+		stateInputs: readonly (readonly [string, string])[];
+	},
+	publishedRootProps: Readonly<Record<string, unknown>> | undefined
+): void {
+	const inputs = new Map(resumption.stateInputs);
+	for (const path of resumption.statePaths) {
+		const found = readPath(state, path);
+		if (!found.present || found.value === undefined) continue;
+		const propPath = inputs.get(path);
+		if (rootInput && publishedRootProps && propPath) {
+			const local = readPath(props, propPath);
+			const published = readPath(publishedRootProps, propPath);
+			if (
+				local.present &&
+				published.present &&
+				Object.is(found.value, local.value) &&
+				Object.is(local.value, published.value)
+			)
+				continue;
+		}
+		record.values[path] = found.value;
+	}
 }
 
 /** Reads one own-property state path without invoking accessors. */

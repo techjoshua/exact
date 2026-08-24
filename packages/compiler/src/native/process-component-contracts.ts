@@ -56,6 +56,7 @@ export type NativeCompilerComponentResumption = Readonly<{
 	}>;
 	client: Readonly<{
 		statePaths: readonly string[];
+		stateInputs: readonly Readonly<{ statePath: string; propPath: string }>[];
 		valueCaptures: readonly string[];
 		contexts: readonly string[];
 		boundaries: readonly string[];

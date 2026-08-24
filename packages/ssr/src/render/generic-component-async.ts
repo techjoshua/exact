@@ -6,10 +6,8 @@ import { renderChildrenAsync, renderVNodeAsync } from './async-tree.js';
 import { componentHtml } from './component-output.js';
 import { prepareComponentProps } from './component-props.js';
 import { drainTasks } from './context.js';
-import {
-	renderDirectSsrContent,
-	renderIssuedServerComponentChildren
-} from './direct-component.js';
+import { renderIssuedServerComponentChildren } from './direct-component.js';
+import { renderDirectSsrContent } from './direct-component-content.js';
 import type { GenericSsrComponentInput } from './generic-component-capability.js';
 import {
 	disposeAsyncPreservingPrimary,
@@ -83,10 +81,8 @@ export async function renderGenericComponentAsync({
 					context,
 					issued.content,
 					instance,
-					(children, owner) =>
-						renderChildrenAsync(context, children, owner, options, true),
-					(component, owner) =>
-						renderVNodeAsync(context, component, owner, options, true, true)
+					(children, owner) => renderChildrenAsync(context, children, owner, options, true),
+					(component, owner) => renderVNodeAsync(context, component, owner, options, true, true)
 				);
 			} catch (error) {
 				renderPrimary = error;

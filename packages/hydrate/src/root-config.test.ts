@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest';
-import { resolveRootHydrateOptions } from './root-config.js';
+import { describe, expect, it, vi } from 'vitest';
+import { readPublishedRootProps, resolveRootHydrateOptions } from './root-config.js';
 
 describe('hydration-only config projection', () => {
 	it('reads only root hydration fields through the bounded decoder', () => {
@@ -17,6 +17,29 @@ describe('hydration-only config projection', () => {
 			state: { ready: true },
 			wallClockSnapshot: 42
 		});
+	});
+
+	it('reads the authoritative published root props from hydration state', () => {
+		const container = configContainer({ state: { initialData: { incidents: [1, 2] } } });
+		expect(readPublishedRootProps(container)).toEqual({
+			initialData: { incidents: [1, 2] }
+		});
+		expect(() => readPublishedRootProps(configContainer({ state: 'invalid' }))).toThrow(
+			'Missing or malformed eXact published root props'
+		);
+	});
+
+	it('reuses the bounded root decode when root props are read before hydration', () => {
+		const container = configContainer({ state: { ready: true } });
+		const parse = vi.spyOn(JSON, 'parse');
+		try {
+			const props = readPublishedRootProps(container);
+			const options = resolveRootHydrateOptions(container, {});
+			expect(options.state).toBe(props);
+			expect(parse).toHaveBeenCalledTimes(1);
+		} finally {
+			parse.mockRestore();
+		}
 	});
 
 	it('fails closed when complete-runtime transport fields enter the narrow artifact', () => {

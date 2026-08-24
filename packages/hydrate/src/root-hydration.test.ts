@@ -11,6 +11,7 @@ import {
 	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
 	beginCompiledProgramClaims,
 	bindCompiledProgramProperties,
@@ -31,19 +32,6 @@ function RenderProgramOwner(this: Component<{}>) {
 	return () => null;
 }
 const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgramOwner, {});
-
-const createCompiledRenderProgram = (
-	_cacheKey: string,
-	createProgram: () => Parameters<typeof prepareCompiledRenderProgram>[0],
-	readers: Parameters<typeof createPreparedRenderProgram>[1],
-	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
-) =>
-	createPreparedRenderProgram(
-		prepareCompiledRenderProgram(withGenericRenderProgramBindings(createProgram())),
-		readers,
-		renderProgramOwner,
-		fallback
-	);
 
 describe('hydration-only root capability', () => {
 	it('gives visible SSR content a rendering opportunity before passive hydration', async () => {
@@ -201,33 +189,50 @@ describe('hydration-only root capability', () => {
 
 	it('adopts marked compiler render programs without materializing their generic cells', () => {
 		let fallbacks = 0;
-		const program = createCompiledRenderProgram(
-			'root-marked-program',
-			() => ({
+		const descriptor = prepareCompiledRenderProgram(
+			withGenericRenderProgramBindings({
 				version: 4,
 				id: 'root-marked-program',
 				namespace: 'html',
 				template: '<span data-exact-id="program-root">\ue000exact:0\ue001</span>',
 				slots: [['text', 'program-text', [0]]],
 				bindings: [['text', 0]],
-				nodes: [['program-root', 'span', 'html']]
-			}),
-			[() => 'ready'],
-			() => {
-				fallbacks++;
-				return createCompiledVNode(
-					'span',
-					{ 'data-exact-id': 'program-root' },
-					createDynamicChild(() => 'ready', 'program-text')
-				);
-			}
+				nodes: [['program-root', 'span', 'html']],
+				ssr(target, context, invocation) {
+					const value = target.prepareText(invocation, 0);
+					if (value === target.unprepared) return;
+					const output: Array<string | readonly unknown[]> = [];
+					target.begin(context, 1, 1, 44);
+					target.static(output, '<span data-exact-id="program-root">');
+					target.text(context, output, value, 'program-text', 44);
+					target.static(output, '</span>');
+					return output;
+				}
+			})
 		);
+		const componentId = '@exactjs/hydrate:root-marked-program';
+		const ClientApp = createExactFrameworkFixtureArtifact(function ClientApp() {
+			return () =>
+				createPreparedRenderProgram(descriptor, [() => 'ready'], renderProgramOwner, () => {
+					fallbacks++;
+					return createCompiledVNode(
+						'span',
+						{ 'data-exact-id': 'program-root' },
+						createDynamicChild(() => 'ready', 'program-text')
+					);
+				});
+		}, componentId);
+		const ServerApp = createExactFrameworkFixtureArtifact(function ServerApp() {
+			return () => createPreparedServerRenderProgram(descriptor, ['ready']);
+		}, componentId);
+		const clientVNode = createVNode(ClientApp, null);
+		const serverVNode = createVNode(ServerApp, null);
 		const container = document.createElement('main');
-		container.innerHTML = renderToString(program).html;
+		container.innerHTML = renderToString(serverVNode).html;
 		const span = container.querySelector('span');
 		const fallbackCount = fallbacks;
 
-		const root = hydrate(program, container);
+		const root = hydrate(clientVNode, container);
 
 		expect(container.querySelector('span')).toBe(span);
 		expect(fallbacks).toBe(fallbackCount);
@@ -289,6 +294,7 @@ describe('hydration-only root capability', () => {
 				return output;
 			}
 		});
+		const componentId = '@exactjs/hydrate:markerless-ssr-children';
 		const App = createExactFrameworkFixtureArtifact(function App(
 			this: Component<{ kind: string }>
 		) {
@@ -316,10 +322,18 @@ describe('hydration-only root capability', () => {
 						});
 					}
 				);
-		}, '@exactjs/hydrate:markerless-ssr-children');
+		}, componentId);
+		const ServerApp = createExactFrameworkFixtureArtifact(function ServerApp() {
+			return () =>
+				createPreparedServerRenderProgram(program, [
+					items.map((item) =>
+						keyCompiledVNode(createPreparedServerRenderProgram(rowProgram, []), item.id)
+					)
+				]);
+		}, componentId);
 		const vnode = createVNode(App, null);
 		const container = document.createElement('main');
-		container.innerHTML = renderToString(vnode).html;
+		container.innerHTML = renderToString(createVNode(ServerApp, null)).html;
 		const serverItems = [...container.querySelectorAll('[data-testid="row"]')];
 
 		const root = hydrate(vnode, container, { onMismatch: 'throw' });

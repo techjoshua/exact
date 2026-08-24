@@ -216,12 +216,21 @@ function isResumption(value: unknown): value is ExactComponentResumptionContract
 		hasOnlyContractKeys(value, [
 			'componentId',
 			'statePaths',
+			'stateInputs',
 			'valueCaptures',
 			'contexts',
 			'boundaries'
 		]) &&
 		isContractString(value.componentId) &&
 		isSafeContractStringList(value.statePaths) &&
+		Array.isArray(value.stateInputs) &&
+		value.stateInputs.every(
+			(input) =>
+				Array.isArray(input) &&
+				input.length === 2 &&
+				isContractString(input[0]) &&
+				isContractString(input[1])
+		) &&
 		isSafeContractStringList(value.valueCaptures) &&
 		isSafeContractStringList(value.contexts) &&
 		isSafeContractStringList(value.boundaries)
