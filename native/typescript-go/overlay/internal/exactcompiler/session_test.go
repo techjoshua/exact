@@ -1579,6 +1579,55 @@ func TestSessionRetainsImportedExactComponentsWithoutJSXInteropAdapter(t *testin
 	}
 }
 
+func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *testing.T) {
+	root := t.TempDir()
+	child := filepath.Join(root, "child.tsx")
+	childSource := `
+		export function Child(this: Component<{ active: boolean }>, props: { label: string }) {
+			this.state.active = false;
+			return () => <button className:active={this.state.active} onClick={() => this.state.active = true}>{props.label}</button>;
+		}
+	`
+	if err := os.WriteFile(child, []byte(childSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(root, "entry.tsx")
+	response := NewSession().Execute(Request{
+		ID: entry, Root: root, Kind: "compile", Target: TargetServer,
+		ComponentContractProjection: ComponentContractProjectionServerRender,
+		Diagnostics:                 "syntax",
+		Source: `
+			import { Child } from "./child.js";
+			export function Parent() {
+				return () => <main><Child label="ready" /></main>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactComponentVNode(Child,`) ||
+		strings.Contains(response.Code, `__exactVNode("Child",`) {
+		t.Fatalf("server-render projection lost the imported component identity:\n%s", response.Code)
+	}
+	childResponse := NewSession().Execute(Request{
+		ID: child, Root: root, Kind: "compile", Target: TargetServer,
+		ComponentContractProjection: ComponentContractProjectionServerRender,
+		Diagnostics:                 "syntax", Source: childSource,
+	})
+	if childResponse.Error != "" {
+		t.Fatal(childResponse.Error)
+	}
+	if !strings.Contains(childResponse.Code, `className: [{ "active": this.state.active }]`) ||
+		strings.Contains(childResponse.Code, `"className:active"`) {
+		t.Fatalf("server island fallback did not lower its conditional class:\n%s", childResponse.Code)
+	}
+	if strings.Contains(childResponse.Code, "createServerBoundary") ||
+		strings.Contains(childResponse.Code, "Child_ExactClient_1") {
+		t.Fatalf("paired server rendering partitioned a locally hydrated interaction:\n%s", childResponse.Code)
+	}
+}
+
 func TestSessionDoesNotAdaptCoreVNodeSymbolsAsReactComponents(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "suspense.tsx",
