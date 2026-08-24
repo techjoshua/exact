@@ -3,9 +3,37 @@ package exactcompiler
 import "github.com/microsoft/typescript-go/internal/ast"
 
 type serverLocalCandidate struct {
-	symbol ast.SymbolId
-	start  int
-	end    int
+	symbol              ast.SymbolId
+	name                string
+	start               int
+	end                 int
+	ownerStart          int
+	ownerEnd            int
+	inertClientCallable bool
+}
+
+func (lowering *jsxLowering) serverProjectionClientCallable(node *ast.Node) bool {
+	work := node
+	if ast.IsVariableDeclaration(node) {
+		work = node.AsVariableDeclaration().Initializer
+	}
+	if work == nil || (!ast.IsFunctionDeclaration(work) && !ast.IsArrowFunction(work) &&
+		!ast.IsFunctionExpression(work)) {
+		return false
+	}
+	if task, exists := lowering.functionTasks[work.Pos()]; exists && task.Placement == "client" {
+		return true
+	}
+	facets, valid := functionTaskPolicy(work, lowering.sourceFile, lowering.externalImports)
+	if !valid {
+		return false
+	}
+	for _, facet := range facets {
+		if facet == "client" {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) directServerArtifactComponent(node *ast.Node) bool {
@@ -84,7 +112,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 		var name *ast.Node
 		switch {
 		case ast.IsFunctionDeclaration(node):
-			if _, task := lowering.functionTasks[node.Pos()]; task {
+			if task, exists := lowering.functionTasks[node.Pos()]; exists && task.Placement != "client" {
 				return false
 			}
 			name = node.Name()
@@ -94,7 +122,7 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 				!serverProjectionElidableInitializer(declaration.Initializer) {
 				return true
 			}
-			if _, task := lowering.functionTasks[declaration.Initializer.Pos()]; task {
+			if task, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists && task.Placement != "client" {
 				return true
 			}
 			name = declaration.Name()
@@ -105,8 +133,15 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 			return true
 		}
 		if symbol := lowering.checker.GetSymbolAtLocation(name); symbol != nil {
-			candidates[ast.GetSymbolId(symbol)] = serverLocalCandidate{
-				symbol: ast.GetSymbolId(symbol), start: node.Pos(), end: node.End(),
+			symbolID := ast.GetSymbolId(symbol)
+			candidates[symbolID] = serverLocalCandidate{
+				symbol:              symbolID,
+				name:                name.Text(),
+				start:               node.Pos(),
+				end:                 node.End(),
+				ownerStart:          components[owner].node.Pos(),
+				ownerEnd:            components[owner].node.End(),
+				inertClientCallable: lowering.serverProjectionClientCallable(node),
 			}
 		}
 		return true
@@ -114,20 +149,26 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 	if len(candidates) == 0 {
 		return root
 	}
+	sourceSymbols := make(map[int]ast.SymbolId)
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		shorthandValue := node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent)
+		if !ast.IsIdentifier(node) || node.Parent == nil ||
+			(ast.IsDeclarationName(node) && !shorthandValue) || isStaticPropertyName(node) {
+			return true
+		}
+		if symbol := lowering.checker.GetSymbolAtLocation(node); symbol != nil {
+			sourceSymbols[node.Pos()] = ast.GetSymbolId(symbol)
+		}
+		return true
+	})
 
 	dependencies := make(map[ast.SymbolId]map[ast.SymbolId]struct{})
 	roots := make(map[ast.SymbolId]struct{})
+	rootNames := make(map[string]struct{})
 	walkNode(root, func(node *ast.Node) bool {
+		shorthandValue := node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent)
 		if !ast.IsIdentifier(node) || node.Parent == nil ||
-			ast.IsDeclarationName(node) || isStaticPropertyName(node) {
-			return true
-		}
-		symbol := lowering.checker.GetSymbolAtLocation(node)
-		if symbol == nil {
-			return true
-		}
-		used := ast.GetSymbolId(symbol)
-		if _, candidate := candidates[used]; !candidate {
+			(ast.IsDeclarationName(node) && !shorthandValue) || isStaticPropertyName(node) {
 			return true
 		}
 		owner := ast.SymbolId(0)
@@ -140,14 +181,41 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 			}
 		}
 		if owner == 0 {
-			roots[used] = struct{}{}
+			rootNames[node.Text()] = struct{}{}
+		}
+		usedSymbols := make([]ast.SymbolId, 0, 1)
+		if symbol := lowering.checker.GetSymbolAtLocation(node); symbol != nil {
+			usedSymbols = append(usedSymbols, ast.GetSymbolId(symbol))
+		} else if used := sourceSymbols[node.Pos()]; used != 0 {
+			usedSymbols = append(usedSymbols, used)
+		} else {
+			// Transformed shorthand properties can be synthetic nodes without a checker symbol or
+			// authored position. Preserve every same-name local in the containing component rather
+			// than incorrectly proving one unreachable; later bundling can still remove ambiguity.
+			for symbol, candidate := range candidates {
+				if candidate.name == node.Text() && node.Pos() >= candidate.ownerStart &&
+					node.Pos() < candidate.ownerEnd {
+					usedSymbols = append(usedSymbols, symbol)
+				}
+			}
+		}
+		if len(usedSymbols) == 0 {
 			return true
 		}
-		if owner != used {
-			if dependencies[owner] == nil {
-				dependencies[owner] = make(map[ast.SymbolId]struct{})
+		for _, used := range usedSymbols {
+			if _, candidate := candidates[used]; !candidate {
+				continue
 			}
-			dependencies[owner][used] = struct{}{}
+			if owner == 0 {
+				roots[used] = struct{}{}
+				continue
+			}
+			if owner != used {
+				if dependencies[owner] == nil {
+					dependencies[owner] = make(map[ast.SymbolId]struct{})
+				}
+				dependencies[owner][used] = struct{}{}
+			}
 		}
 		return true
 	})
@@ -169,12 +237,17 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 		}
 	}
 	removable := make(map[int]struct{})
+	inertClientCallables := make(map[int]struct{})
 	for symbol, candidate := range candidates {
-		if _, keep := reachable[symbol]; !keep {
+		_, keepSymbol := reachable[symbol]
+		_, keepName := rootNames[candidate.name]
+		if !keepSymbol && !keepName {
 			removable[candidate.start] = struct{}{}
+		} else if candidate.inertClientCallable {
+			inertClientCallables[candidate.start] = struct{}{}
 		}
 	}
-	if len(removable) == 0 {
+	if len(removable) == 0 && len(inertClientCallables) == 0 {
 		return root
 	}
 	var visitor *ast.NodeVisitor
@@ -183,20 +256,49 @@ func (lowering *jsxLowering) omitUnreachableServerComponentLocals(root *ast.Node
 			if _, remove := removable[node.Pos()]; remove {
 				return lowering.factory.NewEmptyStatement()
 			}
+			if _, inert := inertClientCallables[node.Pos()]; inert {
+				declaration := node.AsFunctionDeclaration()
+				return lowering.factory.NewVariableStatement(
+					nil,
+					lowering.factory.NewVariableDeclarationList(
+						lowering.factory.NewNodeList([]*ast.Node{
+							lowering.factory.NewVariableDeclaration(
+								declaration.Name(), nil, nil, lowering.inertClientTaskCallable(),
+							),
+						}),
+						ast.NodeFlagsConst,
+					),
+				)
+			}
 		}
 		if ast.IsVariableStatement(node) {
 			statement := node.AsVariableStatement()
 			list := statement.DeclarationList.AsVariableDeclarationList()
 			declarations := make([]*ast.Node, 0, len(list.Declarations.Nodes))
+			changed := false
 			for _, declaration := range list.Declarations.Nodes {
 				if _, remove := removable[declaration.Pos()]; !remove {
-					declarations = append(declarations, visitor.VisitEachChild(declaration))
+					if _, inert := inertClientCallables[declaration.Pos()]; inert {
+						value := declaration.AsVariableDeclaration()
+						declarations = append(declarations, lowering.factory.UpdateVariableDeclaration(
+							value,
+							value.Name(),
+							value.ExclamationToken,
+							value.Type,
+							lowering.inertClientTaskCallable(),
+						))
+						changed = true
+					} else {
+						declarations = append(declarations, visitor.VisitEachChild(declaration))
+					}
+				} else {
+					changed = true
 				}
 			}
 			if len(declarations) == 0 {
 				return lowering.factory.NewEmptyStatement()
 			}
-			if len(declarations) != len(list.Declarations.Nodes) {
+			if changed {
 				return lowering.factory.UpdateVariableStatement(
 					statement,
 					statement.Modifiers(),
