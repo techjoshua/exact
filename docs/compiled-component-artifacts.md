@@ -48,7 +48,9 @@ VNode and send it back through ordinary child normalization and kind dispatch. D
 components likewise preserve raw compiler output until SSR has selected that invocation or the
 ordinary child path. The SSR walkers therefore do not retain a second executor for client
 render-program VNodes; reaching one is an invalid target artifact rather than a compatibility
-selection. Direct server components capture
+selection. Prepared server invocations can also appear as compiler-owned children inside a
+dynamic or keyed range; those ranges execute the same direct server ABI instead of coercing the
+invocation as authored data. Direct server components capture
 compiler-known child slots during request-local task issuance, allowing independent child work to
 start before the writer publishes those slots in authored order. Generic components retain lazy
 slot evaluation where reactive stabilization remains observable. A compiler-closed server region

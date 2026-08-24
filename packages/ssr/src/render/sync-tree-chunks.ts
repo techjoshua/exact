@@ -17,6 +17,7 @@ import {
 	getCellVNode,
 	isCellVNode
 } from '@exactjs/core/framework/render-structure';
+import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText, voidElements } from '../html.js';
 import { exactMarkerId, markerId, renderAttrs, suspenseStatusMarkerId } from '../markup.js';
@@ -332,7 +333,23 @@ export function* renderChildChunks(
 	depth: number,
 	hasComponentAncestor = false
 ): Generator<string> {
-	if (isVNode(child)) yield* renderVNodeChunks(context, child, parent, depth, hasComponentAncestor);
+	const program = readPreparedServerRenderProgram(child);
+	if (program)
+		yield* renderPreparedSsrProgramChunks(
+			context,
+			program,
+			parent,
+			(fallback) => renderVNodeChunks(context, fallback, parent, depth, hasComponentAncestor),
+			(children) =>
+				(function* () {
+					for (const nested of children)
+						yield* renderChildChunks(context, nested, parent, depth, hasComponentAncestor);
+				})(),
+			(component) =>
+				renderVNodeChunks(context, component, parent, depth, hasComponentAncestor, true)
+		);
+	else if (isVNode(child))
+		yield* renderVNodeChunks(context, child, parent, depth, hasComponentAncestor);
 	else {
 		countSsrNode(context);
 		if (child === null || child === undefined || child === false || child === true) return;
