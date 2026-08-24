@@ -144,6 +144,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/core/framework/server-component-execution"},
 		{module: "@exactjs/ssr/runtime/generic-components"},
 		{module: "@exactjs/ssr/runtime/structural-boundaries"},
+		{module: "@exactjs/ssr/runtime/resumption-boundaries"},
 	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
@@ -346,7 +347,10 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			containsIdentifier(root, lowering.names.serverSlot) ||
 			containsIdentifier(root, lowering.names.keyedServerSlot))
 	serverStructuralBoundariesUsed := lowering.target == TargetServer &&
-		containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker)
+		(containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker) ||
+			containsIdentifier(root, lowering.names.boundary))
+	serverResumptionBoundariesUsed := lowering.target == TargetServer &&
+		len(lowering.continuationComponents) != 0
 	targetUsed := lowering.target != TargetServer &&
 		(containsIdentifier(root, lowering.names.target) ||
 			containsCompiledTargetCall(lowering.sourceFile, lowering.checker))
@@ -375,7 +379,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 				(group.module == "@exactjs/core/runtime/lifecycle" && lifecycleUsed) ||
 				(group.module == "@exactjs/core/runtime/component-reactivity" && componentReactivityUsed) ||
 				(group.module == "@exactjs/ssr/runtime/generic-components" && genericServerRuntimeUsed) ||
-				(group.module == "@exactjs/ssr/runtime/structural-boundaries" && serverStructuralBoundariesUsed) {
+				(group.module == "@exactjs/ssr/runtime/structural-boundaries" && serverStructuralBoundariesUsed) ||
+				(group.module == "@exactjs/ssr/runtime/resumption-boundaries" && serverResumptionBoundariesUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,

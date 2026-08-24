@@ -1,4 +1,5 @@
 import './structural-boundaries.js';
+import './resumption-boundaries.js';
 import '../render/construction-errors.js';
 import '../render/generic-render-program-owner.js';
 import '@exactjs/core/runtime/component-tasks';

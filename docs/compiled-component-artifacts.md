@@ -40,7 +40,11 @@ element, managing a range, or running one selected task policy. They do not redi
 component's topology or interpret a universal component plan when the artifact already knows it.
 Server artifacts import structure-only render and task helpers. Durable generic component
 construction, enhancement planning, and native structural-boundary ownership are separately
-installed capabilities selected only by artifacts that can reach those paths.
+installed capabilities selected only by artifacts that can reach those paths. Resumption
+publication is a distinct server capability: a compiled continuation component can publish its
+request-local resumption envelope without retaining client-boundary traversal or generic component
+construction. Client-only artifacts never select SSR, resumption, or continuation capabilities;
+SSR-only, hydratable, continuation, and mixed artifacts each import their own analyzed lane.
 Compiler-owned vnode discriminators use realm-stable ABI identities so separately loaded
 precompiled libraries and renderer modules agree on generated execution boundaries during
 development as well as in deduplicated production bundles.
