@@ -144,6 +144,7 @@ func TestSessionEmitsGeneratedServerRenderProgramsWithLazyRegionFallback(t *test
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
+		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedRenderProgram",
 		"prepareCompiledRenderProgram",
 		"version: 3",
@@ -179,6 +180,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
+		!strings.Contains(response.Code, `from "@exactjs/core/runtime/render"`) ||
 		!strings.Contains(response.Code, "directClaims: true") ||
 		!strings.Contains(response.Code, `__exactBeginProgramClaims(__exactBindingTarget, "span", "html", 1, 1)`) ||
 		!strings.Contains(response.Code, "__exactClaimProgramText") ||

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { computed, flushSync, reactive, unwrap } from '@exactjs/reactive';
+import { createForwardedExpression } from './component/reactive-vnodes.js';
 import {
 	createCompiledComponentVNode,
 	createCompiledVNode,
-	createForwardedExpression,
 	isCellVNode,
 	keyCompiledVNode
 } from './vnode.js';

@@ -108,7 +108,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	renderRuntimeModule := "@exactjs/core/runtime/render"
 	taskRuntimeModule := "@exactjs/core/runtime/tasks"
 	if lowering.target == TargetServer {
-		renderRuntimeModule = "@exactjs/core/framework/render-structure"
+		renderRuntimeModule = "@exactjs/core/framework/server-render-structure"
+		for _, component := range lowering.components {
+			if component.Placement != "client" && !component.DirectServer {
+				renderRuntimeModule = "@exactjs/core/framework/render-structure"
+				break
+			}
+		}
 		taskRuntimeModule = "@exactjs/core/framework/server-task-helpers"
 	}
 	groups := []importGroup{

@@ -8,7 +8,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { getCellVNode, isCellVNode } from '@exactjs/core/framework/render-structure';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrContext } from '../types.js';
 import { chargeEnhancementPlanning } from './enhancement-limits.js';
 import { resolveSsrLogicalChildren } from './logical-children.js';

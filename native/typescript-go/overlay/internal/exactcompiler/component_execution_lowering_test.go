@@ -212,6 +212,7 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`classification: "scheduled"`, `lane: "direct"`,
+		`from "@exactjs/core/framework/server-render-structure"`,
 		`render: __exactImplementation_Page_1`, `setupProps: [`, `"request"`,
 		`issueServerComponentVNode as`, `__exactIssueServerComponent(__exactComponentVNode(Page`,
 		`activateServerComponentTaskForHost as`,
@@ -259,6 +260,10 @@ func TestServerGenericExecutionImportsItsOwnRuntimeCapability(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, `lane: "generic"`) {
 		t.Fatalf("context-owning server component did not select the generic lane:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `from "@exactjs/core/framework/render-structure"`) ||
+		strings.Contains(response.Code, `from "@exactjs/core/framework/server-render-structure"`) {
+		t.Fatalf("generic server component did not retain its reactive render lane:\n%s", response.Code)
 	}
 }
 

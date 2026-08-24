@@ -95,7 +95,10 @@ function assertCompilerClosedServerBundle(source) {
 		'createTaskOwnerRecord',
 		'setScheduledWorkContextCapture',
 		'createReactiveBase',
-		'createErrorContextWithLimit'
+		'createErrorContextWithLimit',
+		'function computed',
+		'function flushSync',
+		'function withEffectScope'
 	]) {
 		if (source.includes(signature))
 			throw new Error(`Compiler-closed server bundle retained generic runtime ${signature}`);

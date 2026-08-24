@@ -1,5 +1,5 @@
 import { type AnyComponentInstance, isVNode } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText } from '../html.js';
 import type { Child, SsrContext } from '../types.js';
 import { boundedJoin, countSsrNode } from './limits.js';

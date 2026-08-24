@@ -173,6 +173,14 @@ module-level input/output slices emitted from the canonical component dataflow g
 execution consumes those constants rather than serializing or rebuilding a generic plan. Synchronous,
 scheduled, and dynamic components therefore have an explicit bundle boundary for progressively
 removing generic component and task infrastructure without changing the authored component model.
+Runtime selection remains target- and capability-specific. Client-only output retains durable
+reactive expressions, DOM updates, events, tasks, lifecycle, refs, and contexts because those
+values can change after initial mounting. A compiler-closed server module instead imports eager
+structural expression operations and omits the reactive scheduler and effect-scope implementation.
+If any server-reachable component in the module requires generic ownership, the compiler selects
+the reactive server entry for that module rather than weakening its behavior. Hydrated applications
+therefore receive a closed server facet and the corresponding durable client facet; the server
+optimization is not a compilerless or server-only component model.
 When the compiler proves that a synchronous server component needs only its generated render
 artifact, it selects the direct lane. SSR invokes that artifact against a small request-local state
 frame and never constructs a durable component instance, reactive scope, task owner, or lifecycle

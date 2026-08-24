@@ -18,7 +18,7 @@ import {
 	getCellVNode,
 	isCellVNode
 } from '@exactjs/core/framework/render-structure';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText, voidElements } from '../html.js';
 import {
 	exactMarkerId,

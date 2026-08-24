@@ -3,7 +3,8 @@ import {
 	exactComponentIdentity,
 	readPreparedExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
-import { isReactive, isReactiveValue, peek, unwrap } from '@exactjs/reactive';
+import { peek } from '@exactjs/reactive/framework/tracking';
+import { isReactive, isReactiveValue, unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';
