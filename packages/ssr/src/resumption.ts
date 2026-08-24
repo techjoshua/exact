@@ -10,7 +10,7 @@ import {
 } from '@exactjs/core/framework/component-contracts';
 import type { RenderToStringOptions } from './types.js';
 import type { DirectSsrComponentSnapshot } from './types.js';
-import { readReactiveOwnProperty } from '@exactjs/reactive';
+import { readReactiveOwnProperty } from '@exactjs/reactive/framework/indexed-objects';
 
 type MutableResumption = {
 	componentId: string;

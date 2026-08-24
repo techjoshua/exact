@@ -37,9 +37,6 @@ export {
 	createCompiledTarget,
 	createCompiledVNode,
 	createCellVNode,
-	createDynamicChild,
-	createExpression,
-	createForwardedExpression,
 	keyCompiledVNode,
 	createKeyedServerSlot,
 	createServerBoundary,
@@ -47,3 +44,8 @@ export {
 	getCellVNode,
 	isCellVNode
 } from '../vnode.js';
+export {
+	createDynamicChild,
+	createExpression,
+	createForwardedExpression
+} from '../component/reactive-vnodes.js';

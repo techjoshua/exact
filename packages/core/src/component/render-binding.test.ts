@@ -1,6 +1,6 @@
 import { unwrap } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { createExpression } from '../vnode.js';
+import { createExpression } from './reactive-vnodes.js';
 import { exactComponentContract, exactComponentType } from '../component-contracts.js';
 import type { Component, ComponentFunction } from './contracts.js';
 import { renderInstance } from './render.js';

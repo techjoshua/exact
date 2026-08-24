@@ -1,5 +1,6 @@
 import * as exactCore from '@exactjs/core';
 import * as exactRenderStructure from '@exactjs/core/framework/render-structure';
+import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
 import * as exactServerComponentExecution from '@exactjs/core/framework/server-component-execution';
 import * as exactServerTaskHelpers from '@exactjs/core/framework/server-task-helpers';
 import { createVNode } from '@exactjs/core';
@@ -55,6 +56,7 @@ it('issues nested independent server tasks before authored-order serialization',
 	const modules: Record<string, unknown> = {
 		'@exactjs/core': exactCore,
 		'@exactjs/core/framework/render-structure': exactRenderStructure,
+		'@exactjs/core/framework/server-render-structure': exactServerRenderStructure,
 		'@exactjs/core/framework/server-component-execution': exactServerComponentExecution,
 		'@exactjs/core/framework/server-task-helpers': exactServerTaskHelpers,
 		'@exactjs/core/runtime/reactivity': exactCore,

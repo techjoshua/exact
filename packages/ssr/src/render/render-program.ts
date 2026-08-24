@@ -2,10 +2,9 @@ import {
 	type AnyComponentInstance,
 	isVNode,
 	normalizeRenderResult,
-	unwrap,
-	withComponentDomain,
 	type VNode
 } from '@exactjs/core';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { RenderProgram } from '@exactjs/core/framework/render-structure';
 import type {
 	ExactRenderProgramInvocation,
@@ -16,11 +15,11 @@ import {
 	readRenderProgramSlot,
 	renderProgramFallback
 } from '@exactjs/core/framework/render-structure';
-import { withEffectScope } from '@exactjs/reactive';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
 import { appendBoundedHtml, countSsrNodes, SsrOutputLimitError } from './limits.js';
 import type { Child, SsrContext } from '../types.js';
+import { withRenderProgramOwner } from './render-program-owner-capability.js';
 
 /** Executes the compiler-native scalar subset or selects its lazy generic fallback. */
 export function renderSsrProgram(
@@ -205,11 +204,7 @@ function* flattenDeferredSegments(
 
 /** Re-enters the component owner while a marker-mode fallback allocates reactive VNodes. */
 function materializeProgramFallback(vnode: VNode, owner: AnyComponentInstance | undefined): VNode {
-	const fallback = !owner
-		? renderProgramFallback(vnode)
-		: withEffectScope(owner.scope, () =>
-				withComponentDomain(owner.domain, () => renderProgramFallback(vnode))
-			);
+	const fallback = withRenderProgramOwner(owner, () => renderProgramFallback(vnode));
 	if (!fallback)
 		throw new Error('Client-only compiler render programs cannot execute through SSR fallback');
 	return fallback;

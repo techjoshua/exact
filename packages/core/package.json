@@ -64,6 +64,10 @@
 			"types": "./dist/framework/render-structure.d.ts",
 			"default": "./dist/framework/render-structure.js"
 		},
+		"./framework/server-render-structure": {
+			"types": "./dist/framework/server-render-structure.d.ts",
+			"default": "./dist/framework/server-render-structure.js"
+		},
 		"./framework/server-task-helpers": {
 			"types": "./dist/framework/server-task-helpers.d.ts",
 			"default": "./dist/framework/server-task-helpers.js"

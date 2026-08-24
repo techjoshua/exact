@@ -1,5 +1,5 @@
 import { isVNode, normalizeDocumentVNode, type VNode } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr, escapeText, voidElements } from '../html.js';
 import { renderAttrs } from '../markup.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';

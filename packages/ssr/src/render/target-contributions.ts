@@ -10,7 +10,7 @@ import {
 	mergeTargetClassContributions,
 	mergeTargetTokenContributions
 } from '@exactjs/core/framework/target-contributions';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 import { ssrEnhancementPlanningCapability } from './enhancement-planning-capability.js';
 import { resolveSsrTargetBoundary } from './enhancement-routing.js';

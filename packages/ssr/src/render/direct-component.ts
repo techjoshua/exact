@@ -4,18 +4,17 @@ import {
 	createVNode,
 	isVNode,
 	normalizeRenderResult,
-	unwrap,
 	withComponentDomain,
 	type Child,
 	type ReactiveValue,
 	type VNode
 } from '@exactjs/core';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import {
 	createServerComponentExecutionFrame,
 	withServerComponentVNodeIssuer,
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
-import { flushSync } from '@exactjs/reactive';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { drainTasks } from './context.js';
@@ -183,9 +182,6 @@ function constructDirectScheduledSsrComponent(
 			const rerender = pending.size !== 0;
 			if (!rerender) return false;
 			await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
-			// Output publication schedules dependent setup work through the reactive scheduler.
-			// Drain it before deciding whether this render attempt is stable.
-			flushSync();
 			return true;
 		},
 		[Symbol.asyncDispose]: () => execution[Symbol.asyncDispose]()

@@ -6,7 +6,7 @@ import {
 	reserveElementId,
 	sanitizeUrlAttribute
 } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
 import type { RefBinding } from '@exactjs/core';

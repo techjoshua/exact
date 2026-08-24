@@ -17,7 +17,7 @@ import {
 	getCellVNode,
 	isCellVNode
 } from '@exactjs/core/framework/render-structure';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText, voidElements } from '../html.js';
 import { exactMarkerId, markerId, renderAttrs, suspenseStatusMarkerId } from '../markup.js';
 import { SsrTreeDepthError, boundedJoin, countSsrNode, isSsrRenderLimitError } from './limits.js';

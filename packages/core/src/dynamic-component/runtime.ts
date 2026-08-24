@@ -12,7 +12,8 @@ import type {
 	ComponentFunction,
 	VNode
 } from '../component/contracts.js';
-import { createDynamicChild, createVNode } from '../vnode.js';
+import { createDynamicChild } from '../component/reactive-vnodes.js';
+import { createVNode } from '../vnode.js';
 import { dynamicComponentResolverFor } from './creation.js';
 import type {
 	AnyDynamicComponentCandidate,
