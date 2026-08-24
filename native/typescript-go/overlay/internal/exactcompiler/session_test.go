@@ -151,7 +151,8 @@ func TestSessionEmitsGeneratedServerRenderProgramsWithLazyRegionFallback(t *test
 		`ssr: __exactSsr =>`,
 		`__exactSsr.begin(2, 1)`,
 		`__exactSsr.static("<span><strong>")`,
-		`__exactSsr.text(0,`,
+		`const __exactValue_0 = __exactSsr.prepareText(0)`,
+		`__exactSsr.text(__exactValue_0,`,
 		`, true)`,
 		"() => __exactVNode(\"span\"",
 	} {
@@ -392,8 +393,9 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedRenderProgram",
-		`__exactSsr.attribute(0, "disabled", "button")`,
-		`__exactSsr.text(1,`,
+		`const __exactValue_0 = __exactSsr.prepareAttribute(0)`,
+		`__exactSsr.attribute(__exactValue_0, "disabled", "button")`,
+		`__exactSsr.text(__exactValue_1,`,
 		`__exactSsr.static("<button class=\"action\"")`,
 		`class=\"action\"`,
 		`__exactSlot === 0 ? props.disabled : props.label`,
@@ -402,7 +404,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `__exactSsr.attribute(0, "className"`) {
+	if strings.Contains(response.Code, `"className", "button"`) {
 		t.Fatalf("static class was retained as generated attribute work:\n%s", response.Code)
 	}
 }
@@ -729,8 +731,8 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	}
 	if !strings.Contains(response.Code, `namespace: "svg", ssr: __exactSsr =>`) ||
 		!strings.Contains(response.Code, `__exactSsr.static("<path class=\"route\"")`) ||
-		!strings.Contains(response.Code, `__exactSsr.attribute(0, "d", "path")`) ||
-		strings.Contains(response.Code, `__exactSsr.attribute(0, "d", "svg")`) {
+		!strings.Contains(response.Code, `__exactSsr.attribute(__exactValue_0, "d", "path")`) ||
+		strings.Contains(response.Code, `__exactSsr.attribute(__exactValue_0, "d", "svg")`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
 }

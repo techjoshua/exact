@@ -12,21 +12,24 @@ import (
 func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBuild) *ast.Node {
 	target := lowering.factory.NewIdentifier("__exactSsr")
 	statements := make([]*ast.Node, 0, len(build.serverSlots)*2+2)
-	call := func(method string, arguments ...*ast.Node) {
+	callExpression := func(method string, arguments ...*ast.Node) *ast.Node {
 		callee := lowering.factory.NewPropertyAccessExpression(
 			target,
 			nil,
 			lowering.factory.NewIdentifier(method),
 			ast.NodeFlagsNone,
 		)
+		return lowering.factory.NewCallExpression(
+			callee,
+			nil,
+			nil,
+			lowering.factory.NewNodeList(arguments),
+			ast.NodeFlagsNone,
+		)
+	}
+	call := func(method string, arguments ...*ast.Node) {
 		statements = append(statements, lowering.factory.NewExpressionStatement(
-			lowering.factory.NewCallExpression(
-				callee,
-				nil,
-				nil,
-				lowering.factory.NewNodeList(arguments),
-				ast.NodeFlagsNone,
-			),
+			callExpression(method, arguments...),
 		))
 	}
 	stringLiteral := func(value string) *ast.Node {
@@ -35,6 +38,7 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 	numberLiteral := func(value int) *ast.Node {
 		return lowering.factory.NewNumericLiteral(strconv.Itoa(value), ast.TokenFlagsNone)
 	}
+	values := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
 		method := "prepareAttribute"
 		if slot.kind == "text" {
@@ -42,7 +46,22 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		} else if slot.kind == "child" || slot.kind == "component" {
 			method = "prepareChild"
 		}
-		call(method, numberLiteral(index))
+		value := lowering.factory.NewIdentifier("__exactValue_" + strconv.Itoa(index))
+		values[index] = value
+		statements = append(statements, lowering.factory.NewVariableStatement(
+			nil,
+			lowering.factory.NewVariableDeclarationList(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.factory.NewVariableDeclaration(
+						value,
+						nil,
+						nil,
+						callExpression(method, numberLiteral(index)),
+					),
+				}),
+				ast.NodeFlagsConst,
+			),
+		))
 	}
 	call("begin", numberLiteral(len(build.nodes)), numberLiteral(len(build.slots)))
 	for position, slotIndex := range build.serverSlots {
@@ -50,24 +69,24 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 			call("static", stringLiteral(part))
 		}
 		slot := build.slots[slotIndex]
-		index := numberLiteral(slotIndex)
+		value := values[slotIndex]
 		switch slot.kind {
 		case "text":
-			arguments := []*ast.Node{index, stringLiteral(slot.id)}
+			arguments := []*ast.Node{value, stringLiteral(slot.id)}
 			if build.markerlessTextSlot(slotIndex) {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
 			call("text", arguments...)
 		case "child", "component":
 			if slot.markerlessTail {
-				call("keyedChild", index)
+				call("keyedChild", value)
 			} else {
-				call("child", index, stringLiteral(slot.id))
+				call("child", value, stringLiteral(slot.id))
 			}
 		default:
 			call(
 				"attribute",
-				index,
+				value,
 				stringLiteral(slot.name),
 				stringLiteral(build.nodes[slot.node].tag),
 			)

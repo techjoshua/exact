@@ -269,12 +269,12 @@ describe('hydration-only root capability', () => {
 				bindCompiledProgramProperties(target, 0, 1);
 			},
 			ssr(target) {
-				target.prepareChild(0);
+				const child = target.prepareChild(0);
 				target.begin(6, 2);
 				target.static(
 					'<section><select><option value="all">All</option><option value="primary">Primary</option></select><ul>'
 				);
-				target.keyedChild(0);
+				target.keyedChild(child);
 				target.static('</ul></section>');
 			}
 		});
