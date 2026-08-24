@@ -49,9 +49,6 @@ resumption, or continuation capabilities;
 SSR-only, hydratable, continuation, and mixed artifacts each import their own analyzed lane.
 An SSR-render contract facet retains request-local task readiness and resumption publication but
 omits later continuation-dispatch executors; combined server bundles retain the complete facet.
-Within one SSR request, generated render writers reuse request-local serialization receivers across
-sibling regions. Concurrent requests and compiler-proven independent sibling frames never share a
-receiver, so the allocation reduction does not create cross-request state.
 Compiler-owned vnode discriminators use realm-stable ABI identities so separately loaded
 precompiled libraries and renderer modules agree on generated execution boundaries during
 development as well as in deduplicated production bundles.
