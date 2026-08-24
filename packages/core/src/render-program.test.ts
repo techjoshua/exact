@@ -55,7 +55,7 @@ describe('compiled render programs', () => {
 		expect(readRenderProgramSlot(invocation, 0)).toBe('value');
 	});
 
-	it('captures server slots eagerly in authored order', () => {
+	it('retains compiler-evaluated server slots without a reader dispatcher', () => {
 		const descriptor = prepareCompiledRenderProgram({
 			...program('server-eager'),
 			slots: [
@@ -67,20 +67,10 @@ describe('compiled render programs', () => {
 				['text', 1]
 			] as const
 		});
-		const reads: number[] = [];
-		const vnode = createPreparedServerRenderProgram(
-			descriptor,
-			(index) => {
-				reads.push(index);
-				return index === 0 ? 'first' : 'second';
-			},
-			2
-		);
+		const vnode = createPreparedServerRenderProgram(descriptor, ['first', 'second']);
 		const invocation = readRenderProgram(vnode)!;
-		expect(reads).toEqual([0, 1]);
 		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
 		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
-		expect(reads).toEqual([0, 1]);
 	});
 
 	it('rejects precompiled render programs from an incompatible ABI', () => {

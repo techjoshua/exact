@@ -266,13 +266,9 @@ export function createPreparedRenderProgram(
  */
 export function createPreparedServerRenderProgram(
 	branded: BrandedRenderProgram,
-	readers: ExactRenderProgramReaders,
-	slotCount: number,
+	eagerValues: readonly unknown[],
 	fallback?: () => VNode
 ): VNode {
-	const eagerValues = new Array<unknown>(slotCount);
-	for (let index = 0; index < slotCount; index++)
-		eagerValues[index] = typeof readers === 'function' ? readers(index) : readers[index]?.();
 	const domain = currentComponentDomain();
 	return {
 		type: RenderProgram,
