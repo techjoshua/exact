@@ -2,12 +2,24 @@ import { type VNode } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import { processExactOutput } from '@exactjs/plugin-host/runtime';
 import type { RenderToStringOptions, RenderToStringResult } from './types.js';
+import { componentHtml } from './render/component-output.js';
+import { componentMarkerId } from './render/component-markers.js';
 import { renderCompilerClosedVNode } from './render/compiler-closed-tree.js';
+import type { DirectSsrComponentPublisher } from './render/direct-component.js';
 import { createSsrContext } from './render/context.js';
 import { assertOutputWithinLimit, withTaskDeadline } from './render/limits.js';
 import { SsrOutputBuffer } from './render/output-buffer.js';
 import { createChunkedStringResult } from './render/output-result.js';
 import { attachSsrRootExecutionBlueprint } from './render/root-execution-cache.js';
+
+const publishMarkedComponent: DirectSsrComponentPublisher = (context, child, parent, html, props) =>
+	componentHtml(context, child, parent, componentMarkerId(context, child), html, props, {
+		enhancement: false,
+		documentProbe: context.documentProbe
+	});
+
+const publishUnmarkedComponent: DirectSsrComponentPublisher = (_context, _child, _parent, html) =>
+	html;
 
 /**
  * Compiler-only async string entrypoint for a statically proven direct component root.
@@ -18,35 +30,65 @@ export async function renderCompilerClosedToStringAsync(
 	vnode: VNode,
 	options: RenderToStringOptions = {}
 ): Promise<RenderToStringResult> {
-	const renderOptions = withTaskDeadline(options);
 	const validatedVNode = (await processExactOutput(
 		vnode,
 		{ kind: 'vnode', signal: options.signal },
 		options.outputExtensions ?? []
 	)) as VNode;
-	const context = createSsrContext(renderOptions);
-	attachSsrRootExecutionBlueprint(context, validatedVNode);
-	const output = new SsrOutputBuffer(context.maxOutputBytes);
-	output.append(await renderCompilerClosedVNode(context, validatedVNode, undefined, renderOptions));
-	output.prepend(context.reactResourceHints ?? []);
-	let chunks = output.finish();
+	const output = await renderCompilerClosedOutput(validatedVNode, options, publishMarkedComponent);
 	if (options.outputExtensions?.length) {
 		const html = (await processExactOutput(
-			chunks.length === 1 ? chunks[0]! : chunks.join(''),
+			output.chunks.length === 1 ? output.chunks[0]! : output.chunks.join(''),
 			{ kind: 'html', signal: options.signal },
 			options.outputExtensions
 		)) as string;
-		assertOutputWithinLimit(context, html);
-		chunks = [html];
+		assertOutputWithinLimit(output.context, html);
+		output.chunks = [html];
 	}
-	const hydrationTable = context.hydrationTable?.value();
+	return createCompilerClosedStringResult(output, options);
+}
+
+/** Compiler-only entrypoint for a closed root whose call site disables component markers. */
+export async function renderCompilerClosedUnmarkedToStringAsync(
+	vnode: VNode,
+	options: RenderToStringOptions = {}
+): Promise<RenderToStringResult> {
+	const renderOptions = { ...options, markers: false };
+	const output = await renderCompilerClosedOutput(vnode, renderOptions, publishUnmarkedComponent);
+	return createCompilerClosedStringResult(output, renderOptions);
+}
+
+type CompilerClosedOutput = {
+	context: ReturnType<typeof createSsrContext>;
+	chunks: readonly string[];
+};
+
+async function renderCompilerClosedOutput(
+	vnode: VNode,
+	options: RenderToStringOptions,
+	publish: DirectSsrComponentPublisher
+): Promise<CompilerClosedOutput> {
+	const renderOptions = withTaskDeadline(options);
+	const context = createSsrContext(renderOptions);
+	attachSsrRootExecutionBlueprint(context, vnode);
+	const output = new SsrOutputBuffer(context.maxOutputBytes);
+	output.append(await renderCompilerClosedVNode(context, vnode, undefined, renderOptions, publish));
+	output.prepend(context.reactResourceHints ?? []);
+	return { context, chunks: output.finish() };
+}
+
+function createCompilerClosedStringResult(
+	output: CompilerClosedOutput,
+	options: RenderToStringOptions
+): RenderToStringResult {
+	const hydrationTable = output.context.hydrationTable?.value();
 	return createChunkedStringResult(
-		chunks,
+		output.chunks,
 		options.state,
 		hydrationTable,
-		context.resourceLinkHeaders ?? [],
-		context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
-			? context.wallClockSnapshot
+		output.context.resourceLinkHeaders ?? [],
+		output.context.componentDomain && componentDomainUsesWallClock(output.context.componentDomain)
+			? output.context.wallClockSnapshot
 			: undefined
 	);
 }

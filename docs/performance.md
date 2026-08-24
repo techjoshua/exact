@@ -584,7 +584,13 @@ program segments directly and coordinates only the direct component slots named 
 selection is transitive and conservative: imported or generic descendants, client boundaries,
 general child slots, dynamic render options, and React-markup mode keep the universal async VNode
 dispatcher. Production bundle checks reject that dispatcher when the server load fixture qualifies
-for the closed lane.
+for the closed lane. When a private graph is rendered only by a local call with literal
+`markers: false`, the selected publisher returns the generated HTML directly and the bundle check
+also rejects component-marker, hydration-payload, and resumption-envelope formatters. Exported
+components and calls with non-empty output extensions retain the corresponding general capability.
+Because that selected root is compiler-produced and has no output extension, its hot path also
+omits plugin-host output processing; unproven and externally transformed values continue through
+the general validation boundary.
 
 Compiler-created synchronous setup computations are also target-specialized. On the server their
 already-known dependency expressions feed the generated computation directly in authored order;

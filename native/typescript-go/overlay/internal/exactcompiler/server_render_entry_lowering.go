@@ -20,13 +20,16 @@ func (lowering *jsxLowering) lowerCompilerClosedSsrCalls(
 		call := updated.AsCallExpression()
 		if !lowering.compilerClosedSsrCallee(call.Expression) || call.Arguments == nil ||
 			len(call.Arguments.Nodes) == 0 ||
-			!lowering.compilerClosedRootVNode(call.Arguments.Nodes[0]) ||
-			!compilerClosedNativeRenderOptions(call.Arguments.Nodes[1:]) {
+			!lowering.compilerClosedRootVNode(call.Arguments.Nodes[0]) {
+			return updated
+		}
+		helper, safe := lowering.compilerClosedRenderHelper(call.Arguments.Nodes[1:])
+		if !safe {
 			return updated
 		}
 		return lowering.factory.UpdateCallExpression(
 			call,
-			lowering.factory.NewIdentifier(lowering.names.renderClosedSsr),
+			lowering.factory.NewIdentifier(helper),
 			call.QuestionDotToken,
 			call.TypeArguments,
 			call.Arguments,
@@ -36,34 +39,45 @@ func (lowering *jsxLowering) lowerCompilerClosedSsrCalls(
 	return visitor.VisitEachChild(root.AsNode()).AsSourceFile()
 }
 
-func compilerClosedNativeRenderOptions(arguments []*ast.Node) bool {
+func (lowering *jsxLowering) compilerClosedRenderHelper(arguments []*ast.Node) (string, bool) {
 	if len(arguments) == 0 {
-		return true
+		return lowering.names.renderClosedSsr, true
 	}
 	if len(arguments) != 1 {
-		return false
+		return "", false
 	}
 	options := arguments[0]
 	if !ast.IsObjectLiteralExpression(options) {
-		return false
+		return "", false
 	}
+	unmarked := false
 	for _, property := range options.AsObjectLiteralExpression().Properties.Nodes {
 		if !ast.IsPropertyAssignment(property) {
-			return false
+			return "", false
 		}
 		assignment := property.AsPropertyAssignment()
 		name, certain := staticRenderOptionName(assignment.Name())
 		if !certain {
-			return false
+			return "", false
 		}
-		if name != "reactMarkup" {
-			continue
-		}
-		if assignment.Initializer.Kind != ast.KindFalseKeyword {
-			return false
+		switch name {
+		case "reactMarkup":
+			if assignment.Initializer.Kind != ast.KindFalseKeyword {
+				return "", false
+			}
+		case "markers":
+			unmarked = assignment.Initializer.Kind == ast.KindFalseKeyword
+		case "outputExtensions":
+			if !ast.IsArrayLiteralExpression(assignment.Initializer) ||
+				len(assignment.Initializer.AsArrayLiteralExpression().Elements.Nodes) != 0 {
+				return "", false
+			}
 		}
 	}
-	return true
+	if unmarked {
+		return lowering.names.renderClosedUnmarkedSsr, true
+	}
+	return lowering.names.renderClosedSsr, true
 }
 
 func staticRenderOptionName(node *ast.Node) (string, bool) {
@@ -101,6 +115,11 @@ func (lowering *jsxLowering) compilerClosedRootVNode(node *ast.Node) bool {
 		return false
 	}
 	call := node.AsCallExpression()
+	if ast.IsIdentifier(call.Expression) &&
+		call.Expression.Text() == lowering.names.issueServerComponent && call.Arguments != nil &&
+		len(call.Arguments.Nodes) == 1 {
+		return lowering.compilerClosedRootVNode(call.Arguments.Nodes[0])
+	}
 	if !ast.IsIdentifier(call.Expression) ||
 		call.Expression.Text() != lowering.names.componentElement || call.Arguments == nil ||
 		len(call.Arguments.Nodes) == 0 || !ast.IsIdentifier(call.Arguments.Nodes[0]) {

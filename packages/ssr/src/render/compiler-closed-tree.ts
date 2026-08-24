@@ -3,8 +3,10 @@ import { RenderProgram } from '@exactjs/core/framework/server-render-structure';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText } from '../html.js';
 import type { SsrContext } from '../types.js';
-import { componentMarkerId } from './component-markers.js';
-import { renderDirectSsrComponentVNode } from './direct-component.js';
+import {
+	renderDirectSsrComponentOutput,
+	type DirectSsrComponentPublisher
+} from './direct-component.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import {
 	assertOutputCharacterBound,
@@ -20,12 +22,13 @@ export async function renderCompilerClosedChildren(
 	context: SsrContext,
 	children: readonly Child[],
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	publish: DirectSsrComponentPublisher
 ): Promise<string> {
 	const html: string[] = [];
 	let previousWasText = false;
 	for (const child of children) {
-		const rendered = await renderCompilerClosedChild(context, child, parent, options);
+		const rendered = await renderCompilerClosedChild(context, child, parent, options, publish);
 		const text = !isVNode(child) && rendered !== '';
 		if (context.textSeparators && text && previousWasText) html.push('<!-- -->');
 		if (rendered !== '') html.push(rendered);
@@ -38,9 +41,10 @@ async function renderCompilerClosedChild(
 	context: SsrContext,
 	child: Child,
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	publish: DirectSsrComponentPublisher
 ): Promise<string> {
-	if (isVNode(child)) return renderCompilerClosedVNode(context, child, parent, options);
+	if (isVNode(child)) return renderCompilerClosedVNode(context, child, parent, options, publish);
 	countSsrNode(context);
 	if (child === null || child === undefined || child === false || child === true) return '';
 	return escapeText(String(unwrap(child)));
@@ -51,7 +55,8 @@ export async function renderCompilerClosedVNode(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
+	options: SsrRenderOptions,
+	publish: DirectSsrComponentPublisher
 ): Promise<string> {
 	enterSsrTreeDepth(context);
 	try {
@@ -66,19 +71,19 @@ export async function renderCompilerClosedVNode(
 				segments.push(
 					typeof segment === 'string'
 						? segment
-						: await renderCompilerClosedChildren(context, segment, parent, options)
+						: await renderCompilerClosedChildren(context, segment, parent, options, publish)
 				);
 			html = boundedJoin(context, segments);
 		} else if (typeof vnode.type === 'function') {
-			const componentId = componentMarkerId(context, vnode);
-			const rendered = await renderDirectSsrComponentVNode(
+			const rendered = await renderDirectSsrComponentOutput(
 				context,
 				vnode,
 				parent,
 				options,
-				componentId,
-				{ enhancement: false, documentProbe: context.documentProbe },
-				(children, owner) => renderCompilerClosedChildren(context, children, owner, options)
+				(children, owner) =>
+					renderCompilerClosedChildren(context, children, owner, options, publish),
+				publish,
+				undefined
 			);
 			if (rendered === undefined)
 				throw new TypeError('Compiler-closed SSR root reached a generic component artifact');
