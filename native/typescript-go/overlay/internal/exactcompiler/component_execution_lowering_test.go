@@ -439,6 +439,39 @@ func TestServerGenericExecutionImportsItsOwnRuntimeCapability(t *testing.T) {
 	}
 }
 
+func TestMixedServerExecutionImportsDirectAndGenericRenderCapabilities(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "mixed-server-execution.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> {
+				state: State;
+				getContext(token: unknown): unknown;
+			}
+			export function GenericPage(this: Component<{ value: string }>) {
+				this.getContext(Symbol.for("request"));
+				return () => <output>{this.state.value}</output>;
+			}
+			export function DirectPage(props: { value: string }) {
+				return () => <output>{props.value}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`from "@exactjs/core/framework/render-structure"`,
+		`import { createPreparedServerRenderProgram as __exactPreparedServerRenderProgram } from "@exactjs/core/framework/server-render-structure"`,
+		`import "@exactjs/ssr/runtime/generic-components"`,
+		`lane: "generic"`,
+		`lane: "direct"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("mixed server component module is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";

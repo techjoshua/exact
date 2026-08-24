@@ -108,10 +108,11 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		module     string
 		specifiers []*ast.Node
 	}
+	const serverRenderRuntimeModule = "@exactjs/core/framework/server-render-structure"
 	renderRuntimeModule := "@exactjs/core/runtime/render"
 	taskRuntimeModule := "@exactjs/core/runtime/tasks"
 	if lowering.target == TargetServer {
-		renderRuntimeModule = "@exactjs/core/framework/server-render-structure"
+		renderRuntimeModule = serverRenderRuntimeModule
 		for _, component := range lowering.components {
 			if component.Placement != "client" && !component.DirectServer {
 				renderRuntimeModule = "@exactjs/core/framework/render-structure"
@@ -151,6 +152,14 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{module: "@exactjs/ssr/runtime/enhancements"},
 		{module: "@exactjs/ssr/runtime/compiler-closed"},
 	}
+	preparedServerProgramGroup := 0
+	if lowering.target == TargetServer &&
+		renderRuntimeModule != serverRenderRuntimeModule {
+		groups = append(groups, importGroup{
+			module: serverRenderRuntimeModule,
+		})
+		preparedServerProgramGroup = len(groups) - 1
+	}
 	add := func(group int, imported string, local string) {
 		groups[group].specifiers = append(
 			groups[group].specifiers,
@@ -166,7 +175,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
 		{"keyCompiledVNode", lowering.names.keyedElement, 0},
 		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, 0},
-		{"createPreparedServerRenderProgram", lowering.names.preparedServerProgram, 0},
+		{"createPreparedServerRenderProgram", lowering.names.preparedServerProgram, preparedServerProgramGroup},
 		{"prepareCompiledRenderProgram", lowering.names.prepareRenderProgram, 0},
 		{"createCompiledFragment", lowering.names.fragment, 0},
 		{"createCompiledTarget", lowering.names.target, 0},
