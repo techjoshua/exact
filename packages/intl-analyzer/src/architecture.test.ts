@@ -16,6 +16,9 @@ import {
 import { prepareIntlActivation } from '@exactjs/intl/internal';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
+// This fixture constructs cross-package component VNodes from source instead of consuming the
+// package compiler output that normally selects the generic server capability.
+import '@exactjs/ssr/runtime/generic-components';
 import { describe, expect, it } from 'vitest';
 import { analyzeIntlSource } from './index.js';
 

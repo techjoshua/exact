@@ -2,6 +2,7 @@ export {
 	componentDomainInspection,
 	componentDomainLogging,
 	componentDomainResumption,
+	componentDomainTarget,
 	componentDomainWallClockSnapshot,
 	componentDomainUsesWallClock,
 	createFrameworkComponentDomain,

@@ -8,6 +8,7 @@ import { render } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
+import '@exactjs/ssr/runtime/generic-components';
 import { describe, expect, it } from 'vitest';
 import { ThemeContext, ThemeScopeEnhancement } from './components.js';
 

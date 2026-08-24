@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import '../runtime/lifecycle.js';
+import '../runtime/collections.js';
 
-import { exactComponentContract, exactComponentType } from '../component-contracts.js';
+import {
+	createExactCompatibilityArtifact,
+	exactComponentContract,
+	exactComponentType
+} from '../component-contracts.js';
+import { createFrameworkComponentDomain } from './domain.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
@@ -73,6 +79,26 @@ describe('compiled component capability construction', () => {
 			return () => null;
 		}, {});
 		expect(taskOwnerForHost(instance)).toBeDefined();
+		instance.unmount();
+	});
+
+	it('executes a target-local server compatibility adapter once', () => {
+		const adapter = createExactCompatibilityArtifact(
+			function CompatibilityAdapter(this: Component<{}>) {
+				return () => null;
+			},
+			'@exactjs/core:test-server-compatibility',
+			'server'
+		);
+		const instance = createComponentInstance(
+			adapter,
+			{},
+			undefined,
+			undefined,
+			createFrameworkComponentDomain({ executionRoot: 'server-test', target: 'server' })
+		);
+
+		expect(instance.runtimeABI).toBe(15);
 		instance.unmount();
 	});
 

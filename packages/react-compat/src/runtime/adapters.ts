@@ -66,9 +66,13 @@ export {
 export * from './shared.js';
 
 import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../internals.js';
-import { markCompatibilityAdapter } from './adapter-identity.js';
+import { markCompatibilityAdapter, reactCompatibilityArtifactTarget } from './adapter-identity.js';
 
-const adapterCache = new WeakMap<object, AnyComponentFunction>();
+const adapterCaches: Readonly<Record<'client' | 'server', WeakMap<object, AnyComponentFunction>>> =
+	{
+		client: new WeakMap(),
+		server: new WeakMap()
+	};
 
 /**
  * Returns the stable eXact component adapter for a React type.
@@ -82,6 +86,8 @@ export function adaptReactType<P>(
 	type: ReactComponentType<P> | AnyStateComponentFunction<P>
 ): ComponentFunction<Record<string, unknown>, P> {
 	const identity = type as object;
+	const target = reactCompatibilityArtifactTarget();
+	const adapterCache = adapterCaches[target];
 	const cached = adapterCache.get(identity);
 	if (cached) return cached as ComponentFunction<Record<string, unknown>, P>;
 	if (typeof type === 'function' && isExactComponent(type)) {
@@ -121,18 +127,22 @@ export function adaptReactType<P>(
 				return createVNode(component, snapshot);
 			};
 		} as ComponentFunction<Record<string, never>, Record<string, unknown>>;
-		const markedBoundaryAdapter = markCompatibilityAdapter(boundaryAdapter);
+		const markedBoundaryAdapter = markCompatibilityAdapter(boundaryAdapter, target);
 		adapterCache.set(identity, markedBoundaryAdapter);
 		return markedBoundaryAdapter as ComponentFunction<Record<string, unknown>, P>;
 	}
 	if (isReactClassType(type)) {
 		const classAdapter = markCompatibilityAdapter(
-			createClassAdapter(type as ReactClassType<Record<string, unknown>>)
+			createClassAdapter(type as ReactClassType<Record<string, unknown>>),
+			target
 		);
 		adapterCache.set(identity, classAdapter);
 		return classAdapter as ComponentFunction<Record<string, unknown>, P>;
 	}
-	const adapter = markCompatibilityAdapter(createFunctionAdapter(type as AnyReactComponentType));
+	const adapter = markCompatibilityAdapter(
+		createFunctionAdapter(type as AnyReactComponentType),
+		target
+	);
 	adapterCache.set(identity, adapter);
 	return adapter as ComponentFunction<Record<string, unknown>, P>;
 }

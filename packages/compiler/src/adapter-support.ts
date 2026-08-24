@@ -14,6 +14,8 @@ export {
 	materializeExactPhysicalEnhancementFacades,
 	type ExactPhysicalEnhancementFacade
 } from './compilation/physical-enhancement-facades.js';
+export { composeExactSourceMaps, isExactSourceMap } from './source-maps.js';
+export type { ExactSourceMap } from './types.js';
 
 /** A compiler diagnostic shape that build-tool integrations can report. */
 export type ExactBuildDiagnostic = Readonly<{

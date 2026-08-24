@@ -23,7 +23,8 @@ executors. Keep the default for a server bundle that also handles continuation r
 
 ## What the plugin handles
 
-The plugin installs the compiler loader, applies client or server export conditions, reports
+The plugin installs the compiler loader, emits executable JavaScript from TypeScript and TSX,
+applies client or server export conditions, reports
 diagnostics, supports source maps and watch invalidation, verifies browser isolation, and can
 configure React compatibility.
 

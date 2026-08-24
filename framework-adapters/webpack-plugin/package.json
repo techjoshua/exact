@@ -34,7 +34,8 @@
 		"@exactjs/plugin-api": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0",
 		"@exactjs/react-compat": "^0.1.0",
-		"@exactjs/react-dom-compat": "^0.1.0"
+		"@exactjs/react-dom-compat": "^0.1.0",
+		"esbuild": "0.27.2"
 	},
 	"peerDependencies": {
 		"webpack": "^5.0.0"

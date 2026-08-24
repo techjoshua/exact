@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { describe, expect, it, vi } from 'vitest';
 import { runComponentInteraction } from '@exactjs/core';
-import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { createFrameworkFixtureComponentInstance } from '@exactjs/core/runtime/render';
 import {
 	createExactRouter,
 	generatePath,
@@ -127,7 +127,7 @@ describe('renderer-neutral router core', () => {
 				{ id: 'next', path: '/next', loader: () => gate }
 			]
 		});
-		const owner = createComponentInstance(() => () => null, {});
+		const owner = createFrameworkFixtureComponentInstance(() => () => null, {});
 		let settled = false;
 		const interaction = runComponentInteraction(
 			owner,

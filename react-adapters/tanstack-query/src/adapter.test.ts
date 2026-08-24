@@ -1,5 +1,8 @@
 import { type Component } from '@exactjs/core';
-import { createComponentInstance } from '@exactjs/core/runtime/render';
+import {
+	createComponentInstance,
+	createFrameworkFixtureComponentInstance
+} from '@exactjs/core/runtime/render';
 import { createElement } from '@exactjs/react-compat';
 import { toExactNode } from '@exactjs/react-compat/exact';
 import { flushSync } from '@exactjs/reactive';
@@ -21,7 +24,7 @@ describe('@exactjs/tanstack-query', () => {
 	it('shares an opaque QueryClient through the native provider', () => {
 		const client = new QueryClient();
 		const provider = createComponentInstance(ExactQueryClientProvider, { client });
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				expect(this.getContext(QueryClientContext)).toBe(client);
 				return () => null;
@@ -41,7 +44,7 @@ describe('@exactjs/tanstack-query', () => {
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 		const provider = createComponentInstance(ExactQueryClientProvider, { client });
 		let query!: ExactQuerySource<number, Error, number, number, string[]>;
-		const child = createComponentInstance(
+		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				query = createComponentQuery(this, { queryKey: ['value'], queryFn: async () => 42 });
 				return () => null;
