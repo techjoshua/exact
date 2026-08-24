@@ -3,6 +3,7 @@ import {
 	createPreparedRenderProgram,
 	createPreparedServerRenderProgram,
 	prepareCompiledRenderProgram,
+	readPreparedServerRenderProgram,
 	readRenderProgram,
 	readRenderProgramSlot
 } from './render-program.js';
@@ -67,8 +68,9 @@ describe('compiled render programs', () => {
 				['text', 1]
 			] as const
 		});
-		const vnode = createPreparedServerRenderProgram(descriptor, ['first', 'second']);
-		const invocation = readRenderProgram(vnode)!;
+		const prepared = createPreparedServerRenderProgram(descriptor, ['first', 'second']);
+		const invocation = readPreparedServerRenderProgram(prepared)!;
+		expect(prepared).not.toHaveProperty('type');
 		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
 		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
 	});

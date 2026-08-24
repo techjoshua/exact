@@ -5,7 +5,7 @@ export {
 	createFrameworkFixtureComponentInstance,
 	reparentComponentInstance
 } from '../component/runtime.js';
-export { renderInstance } from '../component/render.js';
+export { renderInstance, renderInstanceOutput } from '../component/render.js';
 export { RenderProgram, ServerBoundary, ServerSlot } from '../symbols.js';
 export {
 	createPreparedRenderProgram,

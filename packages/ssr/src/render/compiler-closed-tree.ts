@@ -124,6 +124,16 @@ export async function renderCompilerClosedVNode(
 				options,
 				(children, owner) =>
 					renderCompilerClosedChildren(context, children, owner, options, publish, true),
+				(component, owner) =>
+					renderCompilerClosedVNode(
+						context,
+						component,
+						owner,
+						options,
+						publish,
+						true,
+						true
+					),
 				publish,
 				{ hasComponentAncestor, omitCompilerOwnedBoundary }
 			);

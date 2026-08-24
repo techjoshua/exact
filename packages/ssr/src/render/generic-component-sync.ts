@@ -1,5 +1,5 @@
 import { type AnyEnhancementComponentFunction } from '@exactjs/core';
-import { renderInstance } from '@exactjs/core/runtime/render';
+import { renderInstanceOutput } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import type {
 	GenericSyncSsrComponentInput,
@@ -8,6 +8,8 @@ import type {
 	GenericSyncSsrChunkResult
 } from './generic-component-capability.js';
 import { createGenericSsrComponentInstance } from './generic-component-instance.js';
+import { readDirectSsrContent } from './direct-component.js';
+import { renderPreparedSsrProgramString } from './render-program.js';
 
 /** Executes synchronous durable instances only for compiler-classified generic artifacts. */
 export function renderGenericComponentSync({
@@ -31,10 +33,19 @@ export function renderGenericComponentSync({
 		let invalidated = false;
 		let html: string;
 		try {
-			const children = renderInstance(instance, () => {
+			const content = readDirectSsrContent(renderInstanceOutput(instance, () => {
 				invalidated = true;
-			});
-			html = operations.renderChildren(context, children, instance, true);
+			}));
+			html = content.program
+				? renderPreparedSsrProgramString(
+						context,
+						content.program,
+						instance,
+						(fallback) => operations.renderVNode(context, fallback, instance, true),
+						(children) => operations.renderChildren(context, children, instance, true),
+						(component) => operations.renderVNode(context, component, instance, true, true)
+					)
+				: operations.renderChildren(context, content.children, instance, true);
 		} catch (error) {
 			context.onComponentAttemptRollback?.(checkpoint);
 			throw error;
@@ -65,7 +76,7 @@ export function renderGenericComponentSyncChunks({
 	context.onComponentCreated?.(instance);
 	return {
 		instance,
-		children: renderInstance(instance, () => undefined),
+		content: readDirectSsrContent(renderInstanceOutput(instance, () => undefined)),
 		props: rawProps
 	};
 }
