@@ -16,6 +16,13 @@ memory after each load round. The runner owns and reaps every server process; us
 server-performance claims and retain the isolated fixture for precise compiler reachability,
 readiness, and request-cleanup regressions.
 
+The cross-framework `npm run measure:ssr` lane additionally records a concurrency saturation curve
+at 1, 4, 8, 16, 32, and 64 simultaneous requests. Worker timing separates time through first-byte
+publication from response composition and delivery, while event-loop-delay and garbage-collection
+telemetry expose stalls that aggregate CPU counters cannot attribute. These finite local-loopback
+waves compare identical framework routes; they are not a substitute for externally generated
+capacity testing on deployment hardware.
+
 Server render-program selection must preserve readiness at every nested host, not only at a
 component's returned root. If a planned intrinsic subtree contains compiler-proven independent
 server-component siblings, server compilation keeps that subtree on the direct issuance lane so

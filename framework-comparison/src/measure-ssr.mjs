@@ -8,6 +8,7 @@ import { performance } from 'node:perf_hooks';
 import { startComparisonServer } from './server.mjs';
 import {
 	cpuMillisecondsPerRequest,
+	parseSsrConcurrencyLevels,
 	retainedBytesPerRequest,
 	summarizeSsrSamples,
 	summarizeWorkerRequests
@@ -24,6 +25,10 @@ const warmupCount = positiveInteger(process.env.COMPARISON_SSR_WARMUPS, 10);
 const startupSampleCount = positiveInteger(process.env.COMPARISON_SSR_STARTUP_SAMPLES, 5);
 const concurrency = positiveInteger(process.env.COMPARISON_SSR_CONCURRENCY, 16);
 const concurrencyWaves = positiveInteger(process.env.COMPARISON_SSR_CONCURRENCY_WAVES, 8);
+const saturationConcurrency = parseSsrConcurrencyLevels(
+	process.env.COMPARISON_SSR_SATURATION_CONCURRENCY
+);
+const saturationWaves = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WAVES, 12);
 const retentionBatches = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCHES, 5);
 const retentionBatchSize = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCH_SIZE, 50);
 const participants = [
@@ -67,7 +72,7 @@ try {
 		}
 	}
 	const report = {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		kind: 'framework-comparison-ssr-run',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
@@ -79,6 +84,8 @@ try {
 			startupSampleCount,
 			concurrency,
 			concurrencyWaves,
+			saturationConcurrency,
+			saturationWaves,
 			retentionBatches,
 			retentionBatchSize,
 			percentiles: ['p50', 'p75', 'p95', 'p99'],
@@ -89,6 +96,7 @@ try {
 		limitations: [
 			'Latency uses warm keep-alive requests over unthrottled local loopback.',
 			'Every SSR route loads the same fixture through the controlled service before rendering.',
+			'Saturation levels measure finite local-loopback waves rather than an externally generated maximum-load plateau.',
 			'Post-GC slopes are leak signals across a bounded run, not proof of unbounded retention.',
 			'Bun compatibility is measured against the same Node-oriented production artifacts.'
 		]
@@ -122,19 +130,18 @@ async function measureParticipant(runtime, participantId) {
 		const sequentialAfter = await telemetry(worker);
 		validateResponses(participantId, sequentialSamples);
 
-		await control(worker, 'reset');
-		const concurrentBefore = await telemetry(worker);
-		const concurrentSamples = [];
-		const throughput = [];
-		for (let wave = 0; wave < concurrencyWaves; wave += 1) {
-			const startedAt = performance.now();
-			const samples = await runConcurrentRequests(worker.url, concurrency, concurrency);
-			const elapsedMs = performance.now() - startedAt;
-			concurrentSamples.push(...samples);
-			throughput.push((samples.length / elapsedMs) * 1_000);
-		}
-		const concurrentAfter = await telemetry(worker);
-		validateResponses(participantId, concurrentSamples);
+		const concurrent = await measureConcurrentLane(
+			worker,
+			participantId,
+			concurrency,
+			concurrencyWaves
+		);
+		const saturation = {};
+		for (const level of saturationConcurrency)
+			saturation[level] =
+				level === concurrency
+					? concurrent
+					: await measureConcurrentLane(worker, participantId, level, saturationWaves);
 
 		await control(worker, 'reset');
 		const retention = [{ requests: 0, ...(await snapshot(worker)) }];
@@ -147,19 +154,8 @@ async function measureParticipant(runtime, participantId) {
 			startupMs: summarizeSsrSamples(startupMs),
 			startupSamplesMs: startupMs,
 			sequential: summarizeLane(sequentialSamples, sequentialBefore, sequentialAfter, sampleCount),
-			concurrent: {
-				concurrency,
-				waves: concurrencyWaves,
-				requests: concurrentSamples.length,
-				client: summarizeClientSamples(concurrentSamples),
-				worker: summarizeConcurrentWorker(concurrentAfter.statistics),
-				requestsPerSecond: summarizeSsrSamples(throughput),
-				cpuPerRequest: cpuMillisecondsPerRequest(
-					concurrentBefore.cpu,
-					concurrentAfter.cpu,
-					concurrentSamples.length
-				)
-			},
+			concurrent,
+			saturation,
 			retention: summarizeRetention(retention),
 			response: responseIdentity(sequentialSamples)
 		};
@@ -168,12 +164,41 @@ async function measureParticipant(runtime, participantId) {
 	}
 }
 
+/** Measures one bounded concurrency level with independent CPU and scheduler telemetry. */
+async function measureConcurrentLane(worker, participantId, level, waves) {
+	await control(worker, 'reset');
+	const before = await telemetry(worker);
+	const samples = [];
+	const throughput = [];
+	for (let wave = 0; wave < waves; wave += 1) {
+		const startedAt = performance.now();
+		const waveSamples = await runConcurrentRequests(worker.url, level, level);
+		throughput.push((waveSamples.length / (performance.now() - startedAt)) * 1_000);
+		samples.push(...waveSamples);
+	}
+	const after = await telemetry(worker);
+	validateResponses(participantId, samples);
+	return {
+		concurrency: level,
+		waves,
+		requests: samples.length,
+		client: summarizeClientSamples(samples),
+		worker: summarizeWorkerRequests(after.statistics),
+		requestsPerSecond: summarizeSsrSamples(throughput),
+		cpuPerRequest: cpuMillisecondsPerRequest(before.cpu, after.cpu, samples.length),
+		eventLoopDelayMs: after.eventLoopDelayMs,
+		garbageCollection: after.garbageCollection
+	};
+}
+
 function summarizeLane(samples, before, after, requests) {
 	return {
 		requests,
 		client: summarizeClientSamples(samples),
 		worker: summarizeWorkerRequests(after.statistics),
 		cpuPerRequest: cpuMillisecondsPerRequest(before.cpu, after.cpu, requests),
+		eventLoopDelayMs: after.eventLoopDelayMs,
+		garbageCollection: after.garbageCollection,
 		memoryBefore: before.memory,
 		memoryAfter: after.memory
 	};
@@ -184,13 +209,6 @@ function summarizeClientSamples(samples) {
 		ttfbMs: summarizeSsrSamples(samples.map((sample) => sample.ttfbMs)),
 		totalMs: summarizeSsrSamples(samples.map((sample) => sample.totalMs)),
 		responseBytes: summarizeSsrSamples(samples.map((sample) => sample.bytes))
-	};
-}
-
-function summarizeConcurrentWorker(statistics) {
-	return {
-		firstByteMs: summarizeSsrSamples(statistics.firstByteMs),
-		totalMs: summarizeSsrSamples(statistics.totalMs)
 	};
 }
 

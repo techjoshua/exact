@@ -35,11 +35,22 @@ export function summarizeWorkerRequests(statistics) {
 	return {
 		firstByteMs: summarizeSsrSamples(statistics.firstByteMs),
 		totalMs: summarizeSsrSamples(statistics.totalMs),
+		deliveryMs: summarizeSsrSamples(
+			statistics.totalMs.map((total, index) => total - statistics.firstByteMs[index])
+		),
 		cpuBatchSize: 5,
 		userCpuPerRequestMs: summarizeSsrSamples(cpuBatches.map((sample) => sample.userMs)),
 		systemCpuPerRequestMs: summarizeSsrSamples(cpuBatches.map((sample) => sample.systemMs)),
 		totalCpuPerRequestMs: summarizeSsrSamples(cpuBatches.map((sample) => sample.totalMs))
 	};
+}
+
+/** Parses, sorts, and deduplicates the positive concurrency levels selected for a saturation run. */
+export function parseSsrConcurrencyLevels(value, fallback = [1, 4, 8, 16, 32, 64]) {
+	const source = value === undefined ? fallback : value.split(',').map(Number);
+	if (!source.length || source.some((level) => !Number.isInteger(level) || level <= 0))
+		throw new TypeError(`SSR concurrency levels must be positive integers, received ${value}`);
+	return [...new Set(source)].sort((left, right) => left - right);
 }
 
 /** Groups coarse process CPU ticks before normalizing them to one request. */
