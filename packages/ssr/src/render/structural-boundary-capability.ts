@@ -1,7 +1,7 @@
 import type { AnyComponentInstance, Child, VNode } from '@exactjs/core';
 import type { SsrContext } from '../types.js';
 import type { SsrRenderOptions } from './entrypoints.js';
-import { realmSsrCapability, registerRealmSsrCapability } from './realm-capability.js';
+import { realmSsrCapabilities } from './realm-capability.js';
 
 /** Completed native Suspense presentation and its selected content state. */
 export type SsrSuspenseResult = Readonly<{
@@ -45,7 +45,7 @@ const capabilityName = 'structural-boundary';
 export function registerSsrStructuralBoundaryCapability(
 	next: SsrStructuralBoundaryCapability
 ): void {
-	registerRealmSsrCapability(capabilityName, next);
+	realmSsrCapabilities[capabilityName] = next;
 }
 
 /** Renders a synchronous native Suspense boundary through its selected capability. */
@@ -70,7 +70,9 @@ export function renderNativeSuspenseAsync(
 }
 
 function requiredCapability(): SsrStructuralBoundaryCapability {
-	const capability = realmSsrCapability<SsrStructuralBoundaryCapability>(capabilityName);
+	const capability = realmSsrCapabilities[capabilityName] as
+		| SsrStructuralBoundaryCapability
+		| undefined;
 	if (!capability)
 		throw new TypeError(
 			'SSR structural boundary execution requires its compiler-selected runtime capability'
