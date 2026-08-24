@@ -564,9 +564,13 @@ because they do not carry a compiler-generated claim lane.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
 the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
-ownership to the claimed `Text` node. Structural child and component markers remain when a later
-sibling requires an explicit variable-width boundary; scalar bindings already retain their exact
-node and do not need a second permanent range representation. Within a compiled keyed-child range,
+ownership to the claimed `Text` node. Structural child markers remain when a later sibling requires
+an explicit variable-width boundary. A native component emitted directly by a generated component
+slot uses that slot's structural delimiters, or the parent end for a final keyed slot, instead of
+emitting a second component-marker pair. If the same slot executes through a generic list lane, its
+explicit component marker remains authoritative; hydration recognizes that bounded form before
+using the direct markerless claim. Scalar bindings already retain their exact node and do not need
+a second permanent range representation. Within a compiled keyed-child range,
 inferred list, item, and cell markers are never emitted. Any compiler-proven final structural child
 or component omits its outer structural pair and uses the parent plus end-of-children as its retained
 range. A finite conditional Fragment
@@ -592,8 +596,10 @@ compatibility boundary. When one module contains both direct and generic server 
 generated imports preserve those lanes independently: generic components retain reactive render
 helpers while direct components obtain the server-only prepared-program constructor.
 
-For `renderToStringAsync()` roots whose complete local component graph has direct server writers,
-the compiler selects a narrower string entry point as well. Its serializer consumes the generated
+For `renderToStringAsync()` and `renderToHydratableStringAsync()` roots whose complete local
+component graph has direct server writers, the compiler selects a narrower entry point as well. The
+hydratable lane retains resumption capture and the hydration publication while avoiding the
+universal async VNode dispatcher. Its serializer consumes the generated
 program segments directly and coordinates only the direct component slots named by the graph. The
 selection is transitive and conservative: imported or generic descendants, client boundaries,
 general child slots, dynamic render options, and React-markup mode keep the universal async VNode

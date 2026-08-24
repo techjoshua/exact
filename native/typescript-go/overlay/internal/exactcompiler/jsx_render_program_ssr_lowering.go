@@ -52,8 +52,10 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		method := "prepareAttribute"
 		if slot.kind == "text" {
 			method = "prepareText"
-		} else if slot.kind == "child" || slot.kind == "component" {
+		} else if slot.kind == "child" {
 			method = "prepareChild"
+		} else if slot.kind == "component" {
+			method = "prepareComponent"
 		}
 		value := lowering.factory.NewIdentifier("__exactValue_" + strconv.Itoa(index))
 		values[index] = value
@@ -138,12 +140,18 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
 			assignCall("text", arguments...)
-		case "child", "component":
+		case "child":
 			if slot.markerlessTail {
 				call("keyedChild", output, value)
 			} else {
 				assignCall("child", context, output, value, stringLiteral(slot.id), characters)
 			}
+		case "component":
+			arguments := []*ast.Node{context, output, value, stringLiteral(slot.id), characters}
+			if slot.markerlessTail {
+				arguments = append(arguments, lowering.factory.NewTrueExpression())
+			}
+			assignCall("component", arguments...)
 		default:
 			assignCall(
 				"attribute",

@@ -63,7 +63,8 @@ export function* renderVNodeChunks(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	depth: number,
-	hasComponentAncestor = false
+	hasComponentAncestor = false,
+	omitCompilerOwnedBoundary = false
 ): Generator<string> {
 	if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
 	countSsrNode(context);
@@ -89,7 +90,9 @@ export function* renderVNodeChunks(
 		function* (children) {
 			for (const child of children)
 				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
-		}
+		},
+		(component) =>
+			renderVNodeChunks(context, component, parent, depth + 1, hasComponentAncestor, true)
 	);
 	if (programChunks) {
 		yield* programChunks;
@@ -200,7 +203,15 @@ export function* renderVNodeChunks(
 		return;
 	}
 	if (typeof vnode.type === 'function') {
-		yield* renderComponentChunks(context, vnode, parent, depth, hasComponentAncestor, marked);
+		yield* renderComponentChunks(
+			context,
+			vnode,
+			parent,
+			depth,
+			hasComponentAncestor,
+			marked,
+			omitCompilerOwnedBoundary
+		);
 		return;
 	}
 
@@ -236,7 +247,8 @@ function* renderComponentChunks(
 	parent: AnyComponentInstance | undefined,
 	depth: number,
 	hasComponentAncestor: boolean,
-	marked: ReturnType<typeof createSsrChunkMarker>
+	marked: ReturnType<typeof createSsrChunkMarker>,
+	omitCompilerOwnedBoundary: boolean
 ): Generator<string> {
 	const component = vnode.type as AnyEnhancementComponentFunction;
 	const blueprint = resolveSsrComponentExecution(context, component);
@@ -286,7 +298,7 @@ function* renderComponentChunks(
 		if (enhancement) yield* rendered();
 		else if (context.documentProbe && context.hostStack.length === 0)
 			yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
-		else if (hasComponentAncestor && blueprint.contract?.resumption)
+		else if (hasComponentAncestor && blueprint.contract.continuations.length)
 			yield renderResumableComponentBoundary(
 				context,
 				vnode,
@@ -294,6 +306,7 @@ function* renderComponentChunks(
 				boundedJoin(context, [...rendered()]),
 				componentProps
 			);
+		else if (omitCompilerOwnedBoundary) yield* rendered();
 		else yield* marked(componentId, rendered);
 		if (directSnapshot) context.onDirectComponentRendered?.(directSnapshot);
 	} catch (error) {

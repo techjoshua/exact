@@ -17,13 +17,19 @@ import {
 } from './limits.js';
 import { renderSsrProgram } from './render-program.js';
 
+/** Boundary facts carried only by compiler-closed component publication. */
+export type CompilerClosedPublication = Readonly<{
+	hasComponentAncestor: boolean;
+	omitCompilerOwnedBoundary: boolean;
+}>;
+
 /** Serializes a compiler-closed child list without loading the universal async VNode dispatcher. */
 export async function renderCompilerClosedChildren(
 	context: SsrContext,
 	children: readonly Child[],
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
-	publish: DirectSsrComponentPublisher<boolean>,
+	publish: DirectSsrComponentPublisher<CompilerClosedPublication>,
 	hasComponentAncestor = false
 ): Promise<string> {
 	const html: string[] = [];
@@ -50,7 +56,7 @@ async function renderCompilerClosedChild(
 	child: Child,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
-	publish: DirectSsrComponentPublisher<boolean>,
+	publish: DirectSsrComponentPublisher<CompilerClosedPublication>,
 	hasComponentAncestor: boolean
 ): Promise<string> {
 	if (isVNode(child))
@@ -73,8 +79,9 @@ export async function renderCompilerClosedVNode(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
-	publish: DirectSsrComponentPublisher<boolean>,
-	hasComponentAncestor = false
+	publish: DirectSsrComponentPublisher<CompilerClosedPublication>,
+	hasComponentAncestor = false,
+	omitCompilerOwnedBoundary = false
 ): Promise<string> {
 	enterSsrTreeDepth(context);
 	try {
@@ -89,14 +96,24 @@ export async function renderCompilerClosedVNode(
 				segments.push(
 					typeof segment === 'string'
 						? segment
-						: await renderCompilerClosedChildren(
-								context,
-								segment,
-								parent,
-								options,
-								publish,
-								hasComponentAncestor
-							)
+						: Array.isArray(segment)
+							? await renderCompilerClosedChildren(
+									context,
+									segment,
+									parent,
+									options,
+									publish,
+									hasComponentAncestor
+								)
+							: await renderCompilerClosedVNode(
+									context,
+									segment as VNode,
+									parent,
+									options,
+									publish,
+									hasComponentAncestor,
+									true
+								)
 				);
 			html = boundedJoin(context, segments);
 		} else if (typeof vnode.type === 'function') {
@@ -108,7 +125,7 @@ export async function renderCompilerClosedVNode(
 				(children, owner) =>
 					renderCompilerClosedChildren(context, children, owner, options, publish, true),
 				publish,
-				hasComponentAncestor
+				{ hasComponentAncestor, omitCompilerOwnedBoundary }
 			);
 			if (rendered === undefined)
 				throw new TypeError('Compiler-closed SSR root reached a generic component artifact');

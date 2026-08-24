@@ -107,14 +107,22 @@ export async function renderVNodeAsync(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
-	hasComponentAncestor = false
+	hasComponentAncestor = false,
+	omitCompilerOwnedBoundary = false
 ): Promise<string> {
 	if (canRenderSsrSubtreeSynchronously(context, vnode))
-		return renderVNode(context, vnode, parent, hasComponentAncestor);
+		return renderVNode(context, vnode, parent, hasComponentAncestor, omitCompilerOwnedBoundary);
 	enterSsrTreeDepth(context);
 	try {
 		countSsrNode(context);
-		const html = await renderVNodeAsyncInner(context, vnode, parent, options, hasComponentAncestor);
+		const html = await renderVNodeAsyncInner(
+			context,
+			vnode,
+			parent,
+			options,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary
+		);
 		assertOutputCharacterBound(context, html);
 		return html;
 	} finally {
@@ -128,7 +136,8 @@ export async function renderVNodeAsyncInner(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
-	hasComponentAncestor = false
+	hasComponentAncestor = false,
+	omitCompilerOwnedBoundary = false
 ): Promise<string> {
 	const independentSiblings = hasIndependentAsyncSiblings(vnode);
 	const enhanced = await activateSsrEnhancementsAsync(context, vnode, parent, options);
@@ -152,7 +161,16 @@ export async function renderVNodeAsyncInner(
 			html.push(
 				typeof segment === 'string'
 					? segment
-					: await renderChildrenAsync(context, segment, parent, options, hasComponentAncestor)
+					: Array.isArray(segment)
+						? await renderChildrenAsync(context, segment, parent, options, hasComponentAncestor)
+						: await renderVNodeAsync(
+								context,
+								segment as VNode,
+								parent,
+								options,
+								hasComponentAncestor,
+								true
+							)
 			);
 		}
 		return boundedJoin(context, html);
@@ -270,7 +288,14 @@ export async function renderVNodeAsyncInner(
 	}
 
 	if (typeof vnode.type === 'function') {
-		return renderComponentAsync(context, vnode, parent, options, hasComponentAncestor);
+		return renderComponentAsync(
+			context,
+			vnode,
+			parent,
+			options,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary
+		);
 	}
 
 	const contributed = context.targetContributions?.get(vnode);

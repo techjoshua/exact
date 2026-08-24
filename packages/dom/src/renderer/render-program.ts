@@ -94,7 +94,8 @@ export function adoptRenderProgram(
 		parentInstance: AnyComponentInstance,
 		scope: EffectScope,
 		cursor: number,
-		end: number
+		end: number,
+		compilerOwnedComponent?: boolean
 	) => Mounted[] | undefined
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
@@ -189,7 +190,8 @@ export function adoptRenderProgramOrFallback(
 		parentInstance: AnyComponentInstance,
 		scope: EffectScope,
 		cursor: number,
-		end: number
+		end: number,
+		compilerOwnedComponent?: boolean
 	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const marked = adoptMarkedRenderProgram(
@@ -231,7 +233,8 @@ function adoptMarkedRenderProgram(
 		parentInstance: AnyComponentInstance,
 		scope: EffectScope,
 		cursor: number,
-		end: number
+		end: number,
+		compilerOwnedComponent?: boolean
 	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(vnode);

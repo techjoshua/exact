@@ -1,32 +1,46 @@
 import { type VNode } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import { processExactOutput } from '@exactjs/plugin-host/runtime';
-import type { RenderToStringOptions, RenderToStringResult } from './types.js';
+import type {
+	HydratableStringResult,
+	HydrationScriptOptions,
+	RenderToStringOptions,
+	RenderToStringResult
+} from './types.js';
+import { renderHydrationScript } from './hydration.js';
+import { createSsrResumptionCapture } from './resumption.js';
 import { componentHtml } from './render/component-output.js';
 import { componentMarkerId } from './render/component-markers.js';
-import { renderCompilerClosedVNode } from './render/compiler-closed-tree.js';
+import {
+	renderCompilerClosedVNode,
+	type CompilerClosedPublication
+} from './render/compiler-closed-tree.js';
 import type { DirectSsrComponentPublisher } from './render/direct-component.js';
 import { createSsrContext } from './render/context.js';
 import { assertOutputWithinLimit, withTaskDeadline } from './render/limits.js';
 import { SsrOutputBuffer } from './render/output-buffer.js';
-import { createChunkedStringResult } from './render/output-result.js';
+import {
+	createChunkedHydratableResult,
+	createChunkedStringResult
+} from './render/output-result.js';
 import { attachSsrRootExecutionBlueprint } from './render/root-execution-cache.js';
+import { hydrationScriptOptions } from './render/hydration-options.js';
 
-const publishMarkedComponent: DirectSsrComponentPublisher<boolean> = (
+const publishMarkedComponent: DirectSsrComponentPublisher<CompilerClosedPublication> = (
 	context,
 	child,
 	_parent,
 	html,
 	props,
-	hasComponentAncestor
+	publication
 ) =>
 	componentHtml(context, child, componentMarkerId(context, child), html, props, {
 		enhancement: false,
 		documentProbe: context.documentProbe,
-		hasComponentAncestor
+		...publication
 	});
 
-const publishUnmarkedComponent: DirectSsrComponentPublisher<boolean> = (
+const publishUnmarkedComponent: DirectSsrComponentPublisher<CompilerClosedPublication> = (
 	_context,
 	_child,
 	_parent,
@@ -70,6 +84,27 @@ export async function renderCompilerClosedUnmarkedToStringAsync(
 	return createCompilerClosedStringResult(output, renderOptions);
 }
 
+/**
+ * Compiler-only hydratable entrypoint for a statically proven direct component root.
+ * Component and structural markers remain enabled until their owning generated parent proves that
+ * each individual boundary can be claimed without serialized delimiters.
+ */
+export async function renderCompilerClosedToHydratableStringAsync(
+	vnode: VNode,
+	options: RenderToStringOptions & HydrationScriptOptions = {}
+): Promise<HydratableStringResult> {
+	const capture = createSsrResumptionCapture(options);
+	const renderOptions = capture.options;
+	const output = await renderCompilerClosedOutput(vnode, renderOptions, publishMarkedComponent);
+	const result = createCompilerClosedStringResult(output, renderOptions);
+	const captured = capture.records();
+	const resumptions = captured.length ? captured : options.resumptions;
+	const hydrationScript = renderHydrationScript(
+		hydrationScriptOptions(options, result, resumptions)
+	);
+	return createChunkedHydratableResult(result, resumptions, hydrationScript);
+}
+
 type CompilerClosedOutput = {
 	context: ReturnType<typeof createSsrContext>;
 	chunks: readonly string[];
@@ -78,7 +113,7 @@ type CompilerClosedOutput = {
 async function renderCompilerClosedOutput(
 	vnode: VNode,
 	options: RenderToStringOptions,
-	publish: DirectSsrComponentPublisher<boolean>
+	publish: DirectSsrComponentPublisher<CompilerClosedPublication>
 ): Promise<CompilerClosedOutput> {
 	const renderOptions = withTaskDeadline(options);
 	const context = createSsrContext(renderOptions);

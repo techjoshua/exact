@@ -22,7 +22,8 @@ export function adoptProgramChildSlots(
 		parentInstance: AnyComponentInstance,
 		scope: EffectScope,
 		cursor: number,
-		end: number
+		end: number,
+		compilerOwnedComponent?: boolean
 	) => Mounted[] | undefined
 ): boolean {
 	const state = mounted.renderProgram!;
@@ -54,7 +55,8 @@ export function adoptProgramChildSlots(
 					parentInstance,
 					mounted.scope,
 					cursor,
-					endIndex
+					endIndex,
+					slot[0] === 'component'
 				);
 				if (!children) return false;
 				const componentValue = slot[0] === 'component' ? soleVNode(value) : undefined;
@@ -87,7 +89,8 @@ export function adoptProgramChildSlots(
 				parentInstance,
 				mounted.scope,
 				cursor + 1,
-				endIndex
+				endIndex,
+				slot[0] === 'component'
 			);
 			if (!children) return false;
 			const childSlots = (state.childSlots ??= []);

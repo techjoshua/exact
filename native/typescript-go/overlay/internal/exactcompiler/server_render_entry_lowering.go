@@ -18,12 +18,13 @@ func (lowering *jsxLowering) lowerCompilerClosedSsrCalls(
 			return updated
 		}
 		call := updated.AsCallExpression()
-		if !lowering.compilerClosedSsrCallee(call.Expression) || call.Arguments == nil ||
+		exportName, supported := lowering.compilerClosedSsrCallee(call.Expression)
+		if !supported || call.Arguments == nil ||
 			len(call.Arguments.Nodes) == 0 ||
 			!lowering.compilerClosedRootVNode(call.Arguments.Nodes[0]) {
 			return updated
 		}
-		helper, safe := lowering.compilerClosedRenderHelper(call.Arguments.Nodes[1:])
+		helper, safe := lowering.compilerClosedRenderHelper(exportName, call.Arguments.Nodes[1:])
 		if !safe {
 			return updated
 		}
@@ -39,8 +40,14 @@ func (lowering *jsxLowering) lowerCompilerClosedSsrCalls(
 	return visitor.VisitEachChild(root.AsNode()).AsSourceFile()
 }
 
-func (lowering *jsxLowering) compilerClosedRenderHelper(arguments []*ast.Node) (string, bool) {
+func (lowering *jsxLowering) compilerClosedRenderHelper(
+	exportName string,
+	arguments []*ast.Node,
+) (string, bool) {
 	if len(arguments) == 0 {
+		if exportName == "renderToHydratableStringAsync" {
+			return lowering.names.renderClosedHydratableSsr, true
+		}
 		return lowering.names.renderClosedSsr, true
 	}
 	if len(arguments) != 1 {
@@ -74,6 +81,9 @@ func (lowering *jsxLowering) compilerClosedRenderHelper(arguments []*ast.Node) (
 			}
 		}
 	}
+	if exportName == "renderToHydratableStringAsync" {
+		return lowering.names.renderClosedHydratableSsr, true
+	}
 	if unmarked {
 		return lowering.names.renderClosedUnmarkedSsr, true
 	}
@@ -90,7 +100,7 @@ func staticRenderOptionName(node *ast.Node) (string, bool) {
 	return "", false
 }
 
-func (lowering *jsxLowering) compilerClosedSsrCallee(expression *ast.Node) bool {
+func (lowering *jsxLowering) compilerClosedSsrCallee(expression *ast.Node) (string, bool) {
 	var reference externalImportReference
 	var exists bool
 	switch {
@@ -106,8 +116,15 @@ func (lowering *jsxLowering) compilerClosedSsrCallee(expression *ast.Node) bool 
 			}
 		}
 	}
-	return exists && !reference.namespace && reference.moduleSpecifier == "@exactjs/ssr" &&
-		reference.exportName == "renderToStringAsync"
+	if !exists || reference.namespace || reference.moduleSpecifier != "@exactjs/ssr" {
+		return "", false
+	}
+	switch reference.exportName {
+	case "renderToStringAsync", "renderToHydratableStringAsync":
+		return reference.exportName, true
+	default:
+		return "", false
+	}
 }
 
 func (lowering *jsxLowering) compilerClosedRootVNode(node *ast.Node) bool {

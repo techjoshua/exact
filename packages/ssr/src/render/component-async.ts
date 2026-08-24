@@ -18,6 +18,7 @@ type DirectComponentPublication = Readonly<{
 	documentProbe: boolean;
 	enhancement: boolean;
 	hasComponentAncestor: boolean;
+	omitCompilerOwnedBoundary?: boolean;
 }>;
 
 function publishDirectComponent(
@@ -37,7 +38,8 @@ export async function renderComponentAsync(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
-	hasComponentAncestor: boolean
+	hasComponentAncestor: boolean,
+	omitCompilerOwnedBoundary = false
 ): Promise<string> {
 	const componentId = componentMarkerId(context, vnode);
 	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
@@ -69,7 +71,13 @@ export async function renderComponentAsync(
 				return renderChildrenAsync(context, children, owner, options, true);
 			},
 			publishDirectComponent,
-			{ componentId, enhancement, documentProbe, hasComponentAncestor }
+			{
+				componentId,
+				enhancement,
+				documentProbe,
+				hasComponentAncestor,
+				omitCompilerOwnedBoundary
+			}
 		);
 		if (direct !== undefined) return direct;
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);

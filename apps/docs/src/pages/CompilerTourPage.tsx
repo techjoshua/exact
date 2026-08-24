@@ -114,7 +114,8 @@ export function CompilerTourPage(this: Component<{}>) {
 						<strong>Keys preserve list items</strong>
 						<p>
 							The product type&apos;s <code>@exact key</code> annotation preserves rows as results
-							change. SSR can finish the search before the browser adopts the page.
+							change. SSR can finish the search before the browser adopts the page, and generated
+							component slots let it adopt native children without redundant wrapper markup.
 						</p>
 					</div>
 				</div>
