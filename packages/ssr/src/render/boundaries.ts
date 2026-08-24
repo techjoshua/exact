@@ -3,7 +3,6 @@ import {
 	exactComponentIdentity,
 	readPreparedExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
-import { peek } from '@exactjs/reactive/framework/tracking';
 import { isReactive, isReactiveValue, unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
@@ -17,6 +16,7 @@ import type {
 import { renderChildrenAsync } from './async-tree.js';
 import { publishClientBoundary } from './client-boundary-publication.js';
 import { componentName } from './component-vnode.js';
+import { withSsrReactivePeek } from './reactive-tracking-capability.js';
 import { renderChildren } from './sync-tree.js';
 
 /** Transforms server boundary into its required representation. */
@@ -55,7 +55,7 @@ export function renderResumableComponentBoundary(
 	const name =
 		contract.implementations.find((implementation) => implementation.role === 'root')?.name ??
 		componentName(vnode.type);
-	const snapshot = peek(() => snapshotResumptionProps(props));
+	const snapshot = withSsrReactivePeek(() => snapshotResumptionProps(props));
 	const unsafePath = jsonUnsafePath(snapshot);
 	if (unsafePath) throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	const payload = serializeHydrationPayload({ props: snapshot });

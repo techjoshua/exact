@@ -37,6 +37,10 @@
 			"types": "./dist/framework/tracking.d.ts",
 			"default": "./dist/framework/tracking.js"
 		},
+		"./framework/protocol": {
+			"types": "./dist/framework/protocol.d.ts",
+			"default": "./dist/framework/protocol.js"
+		},
 		"./framework/settlement": {
 			"types": "./dist/framework/settlement.d.ts",
 			"default": "./dist/framework/settlement.js"
