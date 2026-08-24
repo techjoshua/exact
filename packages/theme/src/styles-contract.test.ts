@@ -14,7 +14,7 @@ describe('exact-theme/1 stylesheet contract', () => {
 			[]
 		);
 		expect(createHash('sha256').update(stylesheet).digest('hex')).toBe(
-			'de38ddfa78175a5b511768e0642dfb6f8dd34d2f279148b47294e2d180f7333a'
+			'a05cafd6bdc32ddc37a1fe9aa2c73feec54e3d1de5707111612005612c07362d'
 		);
 	});
 
@@ -41,6 +41,15 @@ describe('exact-theme/1 stylesheet contract', () => {
 	it('establishes the generated body typography at every runtime scope', () => {
 		expect(stylesheet).toMatch(
 			/\[data-exact-theme\]\s*\{[^}]*font-family: var\(--exact-theme-font-body\);[^}]*font-size: var\(--exact-theme-font-size-md\);[^}]*line-height: var\(--exact-theme-line-height-body\);/
+		);
+	});
+
+	it('aligns native controls with each resolved scope appearance', () => {
+		expect(stylesheet).toMatch(
+			/\[data-exact-theme\]\[data-exact-theme-appearance='light'\]\s*\{[^}]*color-scheme: light;/
+		);
+		expect(stylesheet).toMatch(
+			/\[data-exact-theme\]\[data-exact-theme-appearance='dark'\]\s*\{[^}]*color-scheme: dark;/
 		);
 	});
 

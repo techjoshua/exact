@@ -229,6 +229,52 @@ describe('renderer enhancements', () => {
 		expect(consumerSetups).toHaveBeenCalledOnce();
 	});
 
+	it('composes multiple direct target contributors around one authored intrinsic', () => {
+		const outerToken = createContext<string>('@test/direct-enhancement-outer');
+		const innerToken = createContext<string>('@test/direct-enhancement-inner');
+		const Outer = markTestComponent(function Outer(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			this.setContext(outerToken, 'outer');
+			return () => createCompiledTarget({ lang: 'fr' }, props.children);
+		});
+		const Inner = markTestComponent(function Inner(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			this.setContext(innerToken, 'inner');
+			return () => createCompiledTarget({ className: 'themed' }, props.children);
+		});
+		markExactEnhancementContexts(Outer, { provides: [outerToken] });
+		markExactEnhancementContexts(Inner, { provides: [innerToken] });
+		const container = document.createElement('div');
+		const outerIdentity = '@test/direct-enhancement-outer#outer';
+		const innerIdentity = '@test/direct-enhancement-inner#inner';
+
+		render(
+			createVNode('input', {
+				id: 'search',
+				__exactEnhancements: createEnhancementMarker([
+					{ identity: outerIdentity, props: {} },
+					{ identity: innerIdentity, props: {} }
+				])
+			}),
+			container,
+			{
+				enhancementCatalog: new Map([
+					[outerIdentity, Outer],
+					[innerIdentity, Inner]
+				])
+			}
+		);
+
+		const input = container.querySelector('input');
+		expect(input?.id).toBe('search');
+		expect(input?.className).toBe('themed');
+		expect(input?.lang).toBe('fr');
+	});
+
 	it('keeps compiled updates owned by the authored component through a direct enhancement', () => {
 		const token = createContext<string>('@test/compiled-update-enhancement-owner');
 		const Provider = markTestComponent(function Provider(

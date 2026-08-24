@@ -107,6 +107,19 @@ describe('@exactjs/dom events-errors', () => {
 		expect(eventHandlers.get(buttons[1]!)?.has(directInteractionKey('click'))).toBe(false);
 	});
 
+	it('runs a task-free component library event without a durable task owner', () => {
+		const container = document.createElement('div');
+		const handler = vi.fn();
+		function LibraryButton(this: Component<{}>) {
+			return () => jsx('button', { onClick: handler, children: 'Toggle' });
+		}
+
+		render(jsx(LibraryButton, {}), container);
+		container.querySelector('button')!.click();
+
+		expect(handler).toHaveBeenCalledOnce();
+	});
+
 	it('runs binding listeners before delegated user handlers and removes them on unmount', () => {
 		const container = document.createElement('div');
 		const calls: string[] = [];

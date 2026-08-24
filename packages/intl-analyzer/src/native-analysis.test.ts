@@ -213,6 +213,33 @@ describe('native intl analyzer', () => {
 		expect(result.companions?.[0]).toMatchObject({ generation: 4, descriptorIndexes: [0] });
 	});
 
+	it('moves peer target capabilities onto a reconstructed message target', () => {
+		const source = `import * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement' };
+		export function Notice() { return () => <p theme:surface="sunken" intl:message>Translated</p>; }`;
+		const result = analyzer.analyzeSource(source, {
+			filename: 'C:/app/src/Notice.tsx',
+			owner: '@app/example',
+			sourceLocale: 'en-US'
+		});
+
+		expect(result.code.match(/theme:surface="sunken"/gu)).toHaveLength(1);
+		expect(result.code).toContain('__intlContent => <p theme:surface="sunken">{__intlContent}</p>');
+	});
+
+	it('keeps peer target capabilities on targets translated only through properties', () => {
+		const source = `import * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement' };
+		export function Search() { return () => <input theme:field placeholder="Search messages" intl:placeholder />; }`;
+		const result = analyzer.analyzeSource(source, {
+			filename: 'C:/app/src/Search.tsx',
+			owner: '@app/example',
+			sourceLocale: 'en-US'
+		});
+
+		expect(result.code.match(/theme:field/gu)).toHaveLength(1);
+		expect(result.code).toContain('theme:field');
+		expect(result.code).toContain('__exactIntl:placeholder=');
+	});
+
 	it('analyzes explicit intl-role components through the same prepared message IR', () => {
 		const source = `import { IntlMessage, IntlUnit } from '@exactjs/intl';
 		export function View(name: string, distance: number) { return () => <><IntlMessage name="navigation">Hello {name}</IntlMessage><IntlUnit unit="distance-road">{distance} miles</IntlUnit></>; }`;

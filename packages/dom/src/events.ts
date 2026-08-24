@@ -3,6 +3,7 @@ import {
 	batch,
 	createErrorReport,
 	handleComponentError,
+	hasComponentTaskOwner,
 	observeComponentAsync,
 	runCompiledComponentInteraction,
 	runDirectCompiledComponentInteraction,
@@ -132,7 +133,7 @@ export function runEventInteraction<Result>(
 	direct = false
 ): Result | PromiseLike<Result> {
 	if (!owner) return work();
-	if (direct)
+	if (direct || !hasComponentTaskOwner(owner))
 		return runDirectCompiledComponentInteraction(
 			owner,
 			'event',
@@ -163,11 +164,12 @@ function runInteractiveEvent<Result>(
 	direct = false
 ): Result | PromiseLike<Result> {
 	let interaction: InteractionScope | undefined;
+	const useLazyInteraction = owner !== undefined && !hasComponentTaskOwner(owner);
 	try {
 		const result = runWithPriority('interactive', () =>
 			(direct ? publishBatch : batch)(() =>
 				owner
-					? direct
+					? direct || useLazyInteraction
 						? runDirectCompiledComponentInteraction(
 								owner,
 								'event',

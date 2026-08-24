@@ -52,6 +52,22 @@ describe('component interactions', () => {
 		).toBe(42);
 	});
 
+	it('materializes an interaction-scoped owner when task-free code unexpectedly starts work', async () => {
+		const owner = {
+			id: 'lazy-interaction-owner',
+			type: function LazyInteractionOwner() {},
+			mounted: true,
+			parent: undefined,
+			ambientContexts: undefined,
+			contexts: new Map<symbol, unknown>()
+		};
+		const child = defineTask({}, async () => undefined);
+
+		await runDirectCompiledComponentInteraction(owner as never, 'event', 1, 'interactive', () =>
+			child()
+		);
+	});
+
 	it('accepts a root-proven disabled trace lane without resolving component logging', () => {
 		const owner = {
 			id: 'root-untraced-owner',
