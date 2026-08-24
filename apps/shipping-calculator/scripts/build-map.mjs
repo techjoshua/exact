@@ -1,8 +1,8 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const input = path.resolve(process.argv[2] ?? '.tmp/cb_2025_us_state_20m/cb_2025_us_state_20m.shp');
-const output = path.resolve(process.argv[3] ?? 'src/data/us-state-paths.ts');
+const output = path.resolve(process.argv[3] ?? 'public/assets/us-states.svg');
 const shp = await readFile(input);
 const records = readDbf(await readFile(input.replace(/\.shp$/i, '.dbf')));
 const shapes = readShapes(shp);
@@ -22,11 +22,30 @@ const states = shapes
 	})
 	.sort((left, right) => left.fips.localeCompare(right.fips));
 
-const source =
-	`/** Generated from the U.S. Census Bureau 2025 1:20m state cartographic boundaries. */\n` +
-	`export const usStatePaths = ${JSON.stringify(states)} as const;\n`;
+const source = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 370">
+	<style>
+		.state { fill: #f0ece6; stroke: #817970; stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+		.special { fill: #dce8e9; }
+		@media (prefers-color-scheme: dark) {
+			.state { fill: #292724; stroke: #77716a; }
+			.special { fill: #26383c; }
+		}
+	</style>
+	${states.map((state) => `<path class="state${['02', '15', '72'].includes(state.fips) ? ' special' : ''}" data-state="${state.abbreviation}" d="${state.d}"><title>${escapeXml(state.name)}</title></path>`).join('\n\t')}
+</svg>
+`;
+await mkdir(path.dirname(output), { recursive: true });
 await writeFile(output, source, 'utf8');
 console.log(`Generated ${states.length} map paths in ${path.relative(process.cwd(), output)}`);
+
+function escapeXml(value) {
+	return value
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;')
+		.replaceAll('"', '&quot;');
+}
 
 function readDbf(buffer) {
 	const count = buffer.readUInt32LE(4);

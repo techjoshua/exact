@@ -7,7 +7,7 @@
 		"pregenerate": "npm run build -w @exactjs/compiler && npm run build -w @exactjs/theme",
 		"generate": "node scripts/generate-artifacts.mjs",
 		"dev": "npm run generate && node scripts/dev.mjs",
-		"build:client": "vite build",
+		"build:client": "vite build && node scripts/compress-client-assets.mjs",
 		"build:server": "vite build --config vite.server.config.ts",
 		"build": "npm run generate && npm run build:client && npm run build:server",
 		"start": "node dist/server/start.js",

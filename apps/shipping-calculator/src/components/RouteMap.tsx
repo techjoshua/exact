@@ -1,5 +1,4 @@
 import type { Component } from '@exactjs/core';
-import { usStatePaths } from '../data/us-state-paths.js';
 import type { RouteResult } from '../types.js';
 
 type MapPoint = {
@@ -23,40 +22,41 @@ export function RouteMap(this: Component<{}>, { route, origin, destination }: Ro
 
 	return () => (
 		<div className="map-wrap">
-			<svg
-				className="route-map"
-				viewBox="0 0 800 370"
-				role="img"
-				aria-label={
-					start && end
-						? `Approximate route from ${origin} to ${destination}`
-						: 'Approximate United States route map; one or both ZIP codes are unavailable'
-				}
-			>
-				<g className="map-states">
-					{usStatePaths.map((state) => (
-						<path
-							className={['land', 'state', `state-${state.abbreviation.toLowerCase()}`]}
-							d={state.d}
-						>
-							<title>{state.name}</title>
-						</path>
-					))}
-				</g>
-				{arc ? <path className="route-arc" d={arc} /> : null}
-				{start ? (
-					<>
-						<circle className="map-point origin" cx={start.x} cy={start.y} r="6" />
-						<circle className="map-halo" cx={start.x} cy={start.y} r="12" />
-					</>
-				) : null}
-				{end ? (
-					<>
-						<circle className="map-point destination" cx={end.x} cy={end.y} r="6" />
-						<circle className="map-halo" cx={end.x} cy={end.y} r="12" />
-					</>
-				) : null}
-			</svg>
+			<div className="map-canvas">
+				<img
+					className="route-map-base"
+					src="/assets/us-states.svg"
+					alt=""
+					width="800"
+					height="370"
+					loading="lazy"
+					decoding="async"
+				/>
+				<svg
+					className="route-map"
+					viewBox="0 0 800 370"
+					role="img"
+					aria-label={
+						start && end
+							? `Approximate route from ${origin} to ${destination}`
+							: 'Approximate United States route map; one or both ZIP codes are unavailable'
+					}
+				>
+					{arc ? <path className="route-arc" d={arc} /> : null}
+					{start ? (
+						<>
+							<circle className="map-point origin" cx={start.x} cy={start.y} r="6" />
+							<circle className="map-halo" cx={start.x} cy={start.y} r="12" />
+						</>
+					) : null}
+					{end ? (
+						<>
+							<circle className="map-point destination" cx={end.x} cy={end.y} r="6" />
+							<circle className="map-halo" cx={end.x} cy={end.y} r="12" />
+						</>
+					) : null}
+				</svg>
+			</div>
 			{!start || !end ? (
 				<p className="map-unavailable">Map location unavailable for one or both ZIP codes.</p>
 			) : null}
