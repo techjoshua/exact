@@ -47,7 +47,7 @@
 		"check:core-api": "node scripts/check-core-api-ownership.mjs",
 		"check:security-audit": "node scripts/check-security-audit.mjs",
 		"check:sample-builds": "npm run build:kanban && npm run build:workbench && npm run build:sudoku && npm run build:puzzle-generator && npm run build:microfrontends && npm run build:intl && npm run verify -w @exactjs/docs",
-		"test:packages": "vitest run --config vitest.config.ts packages framework-adapters react-adapters plugins component-libraries --testTimeout=30000",
+		"test:packages": "vitest run --config vitest.packages.config.ts packages framework-adapters react-adapters plugins component-libraries --testTimeout=30000",
 		"test:coverage": "npm run test:coverage --workspaces --if-present",
 		"typecheck": "npm run generate:app-artifacts && tsc6 -b --pretty && npm run typecheck -w @exactjs/sample-puzzle-generator",
 		"typecheck:typescript7": "npm run generate:app-artifacts && tsc -b --pretty && npm run typecheck -w @exactjs/sample-puzzle-generator",

@@ -20,6 +20,7 @@ export type ComponentDomainOptions = ComponentDomainIdentity;
 
 /** Framework-owned capabilities attached without expanding the public domain shape. */
 export type ComponentDomainCapabilities = Readonly<{
+	target?: 'client' | 'server';
 	dispatchContinuation?: ComponentContinuationDispatcher;
 	resumeComponent?: (type: AnyComponentFunction) => ComponentResumptionActivation | undefined;
 	inspection?: ExactRuntimeInspectionOwner;
@@ -63,6 +64,7 @@ export function createFrameworkComponentDomain(
 		? { logger: options.logger, componentOverride: false }
 		: undefined;
 	const capabilities: StoredComponentDomainCapabilities = Object.freeze({
+		...(options.target ? { target: options.target } : {}),
 		...(options.dispatchContinuation ? { dispatchContinuation: options.dispatchContinuation } : {}),
 		...(options.resumeComponent ? { resumeComponent: options.resumeComponent } : {}),
 		...(options.inspection ? { inspection: options.inspection } : {}),
@@ -74,6 +76,11 @@ export function createFrameworkComponentDomain(
 	});
 	domainCapabilities.set(domain, capabilities);
 	return domain;
+}
+
+/** Returns the execution target selected by a framework-owned component root. */
+export function componentDomainTarget(domain: ComponentDomain): 'client' | 'server' {
+	return domainCapabilities.get(domain)?.target ?? 'client';
 }
 
 /** Resolves the shared logger lane for a framework-owned root. */

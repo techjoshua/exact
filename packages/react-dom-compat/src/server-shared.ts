@@ -13,6 +13,7 @@ import {
 	renderToString as renderExactToString,
 	renderToStringAsync as renderExactToStringAsync
 } from '@exactjs/ssr';
+import '@exactjs/ssr/runtime/generic-components';
 
 /** Configures server render. */
 export interface ServerRenderOptions {

@@ -84,6 +84,7 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		enhancementCatalog: options.enhancementCatalog,
 		componentContexts: options.contexts,
 		componentDomain: createFrameworkComponentDomain({
+			target: 'server',
 			executionRoot: options.inspection?.executionRoot ?? options.executionRoot ?? 'page',
 			...(options.inspection ? { inspection: options.inspection } : {}),
 			wallClockSnapshot

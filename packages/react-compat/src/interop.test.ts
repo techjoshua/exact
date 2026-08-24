@@ -4,8 +4,13 @@ import {
 	createExactFrameworkFixtureArtifact,
 	exactComponentContract,
 	exactComponentType,
+	readExactCompiledComponentContract,
 	type AnyExactComponentCallable
 } from '@exactjs/core/framework/component-contracts';
+import {
+	createFrameworkComponentDomain,
+	withComponentDomain
+} from '@exactjs/core/framework/component-domains';
 import '@exactjs/core/runtime/contexts';
 import { describe, expect, it } from 'vitest';
 import { adaptReactComponent } from './exact.js';
@@ -31,6 +36,26 @@ const fixture = <T extends AnyExactComponentCallable>(component: T): T =>
 	createExactFrameworkFixtureArtifact(component, `@exactjs/react-compat:test:${++nextFixture}`);
 
 describe('eXact and React context interop', () => {
+	it('creates distinct target-local adapters from the active execution domain', () => {
+		const ReactPanel = () => createElement('span', null, 'panel');
+		const client = adaptReactComponent(ReactPanel);
+		const serverDomain = createFrameworkComponentDomain({
+			executionRoot: 'react-server-fixture',
+			target: 'server'
+		});
+		const server = withComponentDomain(serverDomain, () => adaptReactComponent(ReactPanel));
+
+		expect(server).not.toBe(client);
+		expect(readExactCompiledComponentContract(client)).toMatchObject({
+			placement: 'client',
+			definition: { abi: 14 }
+		});
+		expect(readExactCompiledComponentContract(server)).toMatchObject({
+			placement: 'server',
+			definition: { abi: 15 }
+		});
+	});
+
 	it('profiles render and commit work through an explicit compatibility scope', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 		const component = createComponentInstance(

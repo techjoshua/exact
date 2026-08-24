@@ -405,7 +405,7 @@ describe('@exactjs/bun-plugin', () => {
 				text: async () => 'const view = <span />;'
 			})
 		).resolves.toMatchObject({
-			contents: expect.stringContaining('__exactVNode("span"'),
+			contents: expect.stringContaining('createPreparedServerRenderProgram'),
 			loader: 'tsx'
 		});
 		expect(

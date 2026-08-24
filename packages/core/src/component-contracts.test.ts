@@ -36,7 +36,7 @@ describe('@exactjs/core component contracts', () => {
 			role: 'client',
 			definition: {
 				instantiate: Component,
-				capabilities: ['compatibility', 'dynamic-components']
+				capabilities: ['compatibility', 'collections', 'dynamic-components']
 			}
 		});
 		expect(() =>

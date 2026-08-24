@@ -4,6 +4,7 @@ import {
 	type ExactWebpackPluginOptions
 } from './plugin.js';
 import { exactWebpackLoaderBridge, type ExactWebpackLoaderBridgeCarrier } from './loader-bridge.js';
+import { transpileExactWebpackResult } from './loader-transpilation.js';
 
 type ExactWebpackLoaderOptions = ExactWebpackPluginOptions & { __exactSessionId?: string };
 
@@ -33,8 +34,18 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 		bridge?.intlReady(),
 		bridge?.validate,
 		bridge?.packageEnhancements()
-	).then(
-		(result) => callback(null, result?.code ?? source, result?.map ?? null),
-		(error) => callback(error instanceof Error ? error : new Error(String(error)))
-	);
+	)
+		.then(
+			async (result) => {
+				if (!result) return callback(null, source, null);
+				const executable = await transpileExactWebpackResult(
+					result,
+					this.resourcePath ?? 'input.tsx',
+					options.sourceMap !== false
+				);
+				callback(null, executable.code, executable.map);
+			},
+			(error) => callback(error instanceof Error ? error : new Error(String(error)))
+		)
+		.catch((error: unknown) => callback(error instanceof Error ? error : new Error(String(error))));
 }

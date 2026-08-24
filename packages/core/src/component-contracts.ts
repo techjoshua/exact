@@ -5,6 +5,7 @@ import type {
 } from './component-definition-contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
 import { validatedComponentContract } from './component-contract/contract-cache.js';
+import { compiledComponentRenderABI, generalComponentABI } from './component/compiled-abi.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
@@ -240,6 +241,7 @@ export function createExactCompatibilityArtifact<T extends AnyExactComponentCall
 ): T {
 	return attachRuntimeBoundaryArtifact(component, identity, target, [
 		'compatibility',
+		'collections',
 		'dynamic-components'
 	]);
 }
@@ -264,7 +266,7 @@ export function createExactFrameworkFixtureArtifact<T extends AnyExactComponentC
 	const existing = (component as ContractComponent)[exactComponentContract];
 	if (existing?.definition) return component;
 	if (existing && !existing.definition) {
-		const fixture = runtimeBoundaryDefinition(component, ['interactions', 'tasks']);
+		const fixture = runtimeBoundaryDefinition(component, ['interactions', 'tasks'], 'client');
 		Object.defineProperties(component, {
 			[exactComponentType]: {
 				configurable: false,
@@ -301,7 +303,7 @@ function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
 	if (target !== 'client' && target !== 'server')
 		throw new TypeError('eXact runtime artifacts require a target-local artifact target');
 	const implementationId = `${identity}:implementation`;
-	const definition = runtimeBoundaryDefinition(component, capabilities);
+	const definition = runtimeBoundaryDefinition(component, capabilities, target);
 	const contract: ExactComponentContract = {
 		version: 2,
 		placement: target,
@@ -329,10 +331,13 @@ function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
 
 function runtimeBoundaryDefinition(
 	component: AnyExactComponentCallable,
-	capabilities: ExactCompiledComponentDefinitionContract['capabilities']
+	capabilities: ExactCompiledComponentDefinitionContract['capabilities'],
+	target: 'client' | 'server'
 ): ExactCompiledComponentDefinitionContract {
 	return {
 		version: 1,
+		abi:
+			target === 'server' ? generalComponentABI | compiledComponentRenderABI : generalComponentABI,
 		instantiate: component,
 		state: [],
 		tasks: [],
