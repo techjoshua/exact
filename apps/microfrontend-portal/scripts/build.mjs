@@ -55,7 +55,7 @@ async function buildClient(name, outDir, emptyOutDir, onRemoteEntries) {
 		configFile: false,
 		logLevel: 'warn',
 		resolve: { alias: sharedAlias() },
-		plugins: [exact({ applicationRoot, onRemoteEntries })],
+		plugins: [exact({ applicationRoot, onRemoteEntries, renderMode: 'client' })],
 		build: { outDir, emptyOutDir, assetsInlineLimit: 0 }
 	});
 }
