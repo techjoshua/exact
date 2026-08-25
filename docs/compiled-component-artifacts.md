@@ -49,6 +49,11 @@ component's topology or interpret a universal component plan when the artifact a
 Browser-target artifacts carry only their specialized template, claims, readers, bindings, and
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
+All compiler-proven direct updates belong to the component artifact. The compiler emits as many
+32-operation mask words as the component requires; a large component does not fall back to a
+runtime lane registry, per-region subscriptions, or a render-program updater. JSX outside a native
+component can use ordinary expression bindings, but it cannot manufacture a second implicit
+component update owner.
 When a render arrow returns an otherwise unstructured value such as `props.children`, the client
 artifact marks that authored render function as its component-range output operation. The existing
 component boundary owns its dependency subscription and child reconciliation; the artifact does
@@ -186,11 +191,13 @@ Client construction is linked by the artifact rather than inferred by the runtim
 imports one target-local constructor and stores it in each component definition. An artifact with
 no lifecycle, runtime-managed list, or task ownership selects the compact render record: state,
 props, scope, render operation, activity state, and inspection identity only. Artifacts that
-declare any of those durable capabilities select the full ownership record. The common mounting
+own tasks or interactions without lifecycle and list ownership select the task record, which adds
+only task ownership and teardown. Artifacts that declare lifecycle or list ownership select the
+full durable record. The common mounting
 entry invokes the linked constructor without importing either implementation or branching on ABI
-bits. Both records implement the same observable component-instance contract and share
-process-local diagnostic identity, but the compact lane cannot accidentally allocate unused
-controllers, task state, or list cleanup machinery.
+bits. All three records implement the same observable component-instance contract and share
+process-local diagnostic identity, but each narrower lane cannot accidentally allocate capabilities
+owned only by a wider record.
 Compiler-closed server artifacts instead link a fail-closed construction entry: they execute their
 generated request-local frame and do not retain either durable client record merely to populate a
 contract field. Sending such an artifact through generic instance construction is an error.

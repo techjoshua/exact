@@ -23,7 +23,6 @@ export function withGenericRenderProgramBindings(program: ExactRenderProgram): E
 		template: program.template,
 		...(program.listBindings ? { listBindings: true as const } : {}),
 		...(program.keyedChildren === undefined ? {} : { keyedChildren: program.keyedChildren }),
-		...(program.update ? { update: program.update } : {}),
 		...(program.ssr ? { ssr: program.ssr } : {})
 	};
 	if (program.nodes.length === 1 && program.slots.length === 0)

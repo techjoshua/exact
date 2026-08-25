@@ -9,9 +9,6 @@ export {
 	bindCompiledProgramText
 } from '../renderer/render-program-bindings.js';
 
-/** Compatibility binding for pre-component-ABI generated update programs. */
-export { bindCompiledProgramState } from '../renderer/component-update-lanes.js';
-
 /** Compiler-selected component-wide dirty update binding. */
 export { bindCompiledComponentUpdate } from '../renderer/component-update-binding.js';
 

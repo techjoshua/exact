@@ -153,6 +153,10 @@ operations. Each finite region registers its generated operation function with t
 component definition. The artifact carries one fixed dependency/mask table and one generated
 component updater; each mounted region contributes only its compiler-assigned target index. Every
 region in that component therefore shares one dependency subscription and mutation-version table.
+The ordinary case keeps two inline 32-bit mask words. When a component contains more than 64 direct
+operations, the compiler extends that same artifact with the exact number of additional words; only
+instances of that component allocate the corresponding typed mask storage. Capacity never selects
+the removed runtime `WeakMap`/lane graph or a set of per-region reactions.
 Numeric mutation versions identify the fields that actually changed, and the generated updater
 calls only operations whose region target is currently mounted. Region replacement clears its
 indexed target, while final component teardown releases the shared reaction. This avoids both
@@ -550,9 +554,11 @@ conservative general path.
 
 The same ABI selects instance storage. Components without lifecycle, runtime-list, or task bits use
 a compact render record and therefore have no lifecycle controllers, task capability/state, or
-list-disposal branches. Components that declare one of those ownership surfaces use the durable
-record. This selection happens before setup, so the compact path reduces construction and retained
-shape rather than merely leaving universal fields undefined after allocation.
+list-disposal branches. A task- or interaction-owning component without lifecycle/list behavior uses
+the task record, adding only task ownership and teardown. Components that declare lifecycle or list
+ownership use the durable record. This selection happens before setup, so each narrower path reduces
+construction and retained shape rather than merely leaving universal fields undefined after
+allocation.
 
 The compiler also selects the authored component surface itself. The base durable instance owns only
 the state machine and its always-valid context operations. Canonical lifecycle registration and

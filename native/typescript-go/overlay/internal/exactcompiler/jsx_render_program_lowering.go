@@ -1128,6 +1128,10 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		if target, updates, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
 			componentTarget = &target
 			componentUpdates = updates
+		} else {
+			// Direct state operations are component-owned. JSX outside a compiled component retains
+			// ordinary expression bindings rather than materializing a second update runtime.
+			directUpdates = nil
 		}
 	}
 	if lowering.target != TargetServer {
@@ -1173,9 +1177,6 @@ func (lowering *jsxLowering) renderProgramLiteral(
 				value = array(indexes)
 			}
 			members = append(members, property("keyedChildren", value))
-		}
-		if len(directUpdates) != 0 && componentTarget == nil {
-			members = append(members, property("update", lowering.directRenderProgramUpdater(directUpdates)))
 		}
 		if lowering.contractProjection == ComponentContractProjectionComplete {
 			members = append(members, property("ssr", lowering.directRenderProgramSsrWriter(build)))

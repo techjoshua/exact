@@ -119,13 +119,6 @@ export type ExactRenderProgramBindingTarget = object;
 /** Direct client claim and binding topology emitted as executable compiler wiring. */
 export type ExactRenderProgramBinder = (target: ExactRenderProgramBindingTarget) => void;
 
-/** Component-specific dirty update wiring emitted for compiler-proven direct dependencies. */
-export type ExactRenderProgramUpdater = (
-	target: ExactRenderProgramBindingTarget,
-	dirtyLow: number,
-	dirtyHigh: number
-) => void;
-
 type ExactRenderProgramBase = Readonly<{
 	version: 4;
 	id: string;
@@ -134,8 +127,6 @@ type ExactRenderProgramBase = Readonly<{
 	listBindings?: true;
 	/** Compiler-keyed child slots, encoded as a compact bit mask or explicit indexes. */
 	keyedChildren?: number | readonly number[];
-	/** Applies only operations selected by compiler-assigned dirty bits. */
-	update?: ExactRenderProgramUpdater;
 }>;
 
 /** Closed client program whose executable lanes own topology instead of descriptor tables. */
