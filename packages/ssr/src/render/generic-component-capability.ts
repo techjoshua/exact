@@ -4,7 +4,7 @@ import type { SsrContext } from '../types.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 import type { SyncComponentOperations } from './sync-component.js';
-import { realmSsrCapabilities } from './realm-capability.js';
+import { ssrCapabilities } from './capability-registry.js';
 
 /** Inputs needed to execute one durable component through asynchronous generic SSR. */
 export type GenericSsrComponentInput = Readonly<{
@@ -67,24 +67,24 @@ const syncChunkCapability = 'generic-component-sync-chunks';
 
 /** Installs the generic component fallback selected by a compiler-produced server artifact. */
 export function registerGenericSsrComponentRenderer(next: GenericSsrComponentRenderer): void {
-	realmSsrCapabilities[asyncCapability] = next;
+	ssrCapabilities[asyncCapability] = next;
 }
 
 /** Installs the synchronous generic fallback selected by a compiler-produced server artifact. */
 export function registerGenericSyncSsrComponentRenderer(
 	next: GenericSyncSsrComponentRenderer
 ): void {
-	realmSsrCapabilities[syncCapability] = next;
+	ssrCapabilities[syncCapability] = next;
 }
 
 /** Installs the streaming synchronous generic fallback for compiler-selected artifacts. */
 export function registerGenericSyncSsrChunkRenderer(next: GenericSyncSsrChunkRenderer): void {
-	realmSsrCapabilities[syncChunkCapability] = next;
+	ssrCapabilities[syncChunkCapability] = next;
 }
 
 /** Invokes the generic lane only when a reachable artifact explicitly installed it. */
 export function renderGenericSsrComponent(input: GenericSsrComponentInput): Promise<string> {
-	const renderer = realmSsrCapabilities[asyncCapability] as GenericSsrComponentRenderer | undefined;
+	const renderer = ssrCapabilities[asyncCapability] as GenericSsrComponentRenderer | undefined;
 	if (!renderer)
 		throw new TypeError(
 			'Generic SSR component execution requires its compiler-selected runtime capability'
@@ -96,7 +96,7 @@ export function renderGenericSsrComponent(input: GenericSsrComponentInput): Prom
 export function renderGenericSyncSsrComponent(
 	input: GenericSyncSsrComponentInput
 ): GenericSyncSsrComponentResult {
-	const syncRenderer = realmSsrCapabilities[syncCapability] as
+	const syncRenderer = ssrCapabilities[syncCapability] as
 		| GenericSyncSsrComponentRenderer
 		| undefined;
 	if (!syncRenderer)
@@ -110,7 +110,7 @@ export function renderGenericSyncSsrComponent(
 export function renderGenericSyncSsrComponentChunks(
 	input: GenericSyncSsrChunkInput
 ): GenericSyncSsrChunkResult {
-	const syncChunkRenderer = realmSsrCapabilities[syncChunkCapability] as
+	const syncChunkRenderer = ssrCapabilities[syncChunkCapability] as
 		| GenericSyncSsrChunkRenderer
 		| undefined;
 	if (!syncChunkRenderer)

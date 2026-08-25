@@ -149,7 +149,7 @@ function materializeSync(
 			);
 			context.onComponentCreated?.(instance);
 			let stabilized = false;
-			for (let pass = 0; pass < 25; pass++) {
+			for (let pass = 0; pass < context.maxTaskPasses; pass++) {
 				let invalidated = false;
 				children = renderInstance(instance, () => {
 					invalidated = true;
@@ -164,7 +164,9 @@ function materializeSync(
 				}
 			}
 			if (!stabilized)
-				throw new Error('eXact SSR component did not stabilize after 25 render passes');
+				throw new Error(
+					`eXact SSR component did not stabilize after ${context.maxTaskPasses} render passes`
+				);
 		} catch (error) {
 			if (isSsrRenderLimitError(error)) throw error;
 			failed = true;
@@ -257,7 +259,7 @@ async function materializeAsync(
 				)
 			);
 			context.onComponentCreated?.(instance);
-			const maxPasses = options.maxTaskPasses ?? 10;
+			const maxPasses = context.maxTaskPasses;
 			if (pending) await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
 			let stabilized = false;
 			for (let pass = 0; pass < maxPasses; pass++) {

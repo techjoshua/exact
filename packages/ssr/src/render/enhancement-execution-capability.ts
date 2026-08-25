@@ -1,6 +1,6 @@
 import type { VNode } from '@exactjs/core';
 import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
-import { realmSsrCapabilities } from './realm-capability.js';
+import { ssrCapabilities } from './capability-registry.js';
 
 type EnhancementExecutionCapability = Readonly<{
 	activate(context: SsrContext, vnode: VNode, parent: AnyComponentInstance | undefined): VNode;
@@ -25,7 +25,7 @@ const capabilityName = 'enhancement-execution';
 export function registerSsrEnhancementExecutionCapability(
 	next: EnhancementExecutionCapability
 ): void {
-	realmSsrCapabilities[capabilityName] = next;
+	ssrCapabilities[capabilityName] = next;
 }
 
 /** Activates enhancements when the compiler selected their SSR capability. */
@@ -34,7 +34,7 @@ export function activateSsrEnhancements(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined
 ): VNode {
-	const capability = realmSsrCapabilities[capabilityName] as
+	const capability = ssrCapabilities[capabilityName] as
 		| EnhancementExecutionCapability
 		| undefined;
 	return capability?.activate(context, vnode, parent) ?? vnode;
@@ -47,7 +47,7 @@ export async function activateSsrEnhancementsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<VNode> {
-	const capability = realmSsrCapabilities[capabilityName] as
+	const capability = ssrCapabilities[capabilityName] as
 		| EnhancementExecutionCapability
 		| undefined;
 	return capability?.activateAsync(context, vnode, parent, options) ?? vnode;
@@ -59,7 +59,7 @@ export function applySsrTargetContributions(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined
 ): void {
-	const capability = realmSsrCapabilities[capabilityName] as
+	const capability = ssrCapabilities[capabilityName] as
 		| EnhancementExecutionCapability
 		| undefined;
 	capability?.applyTarget(context, vnode, parent);
@@ -72,7 +72,7 @@ export async function applySsrTargetContributionsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<void> {
-	const capability = realmSsrCapabilities[capabilityName] as
+	const capability = ssrCapabilities[capabilityName] as
 		| EnhancementExecutionCapability
 		| undefined;
 	await capability?.applyTargetAsync(context, vnode, parent, options);

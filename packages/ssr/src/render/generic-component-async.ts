@@ -64,9 +64,9 @@ export async function renderGenericComponentAsync({
 		);
 		options.onComponentCreated?.(instance);
 		if (!blueprint.contract.execution && pending)
-			await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
+			await drainTasks(pending, context.maxTaskPasses, options.signal, options.taskDeadline);
 		let invalidated = false;
-		const maxPasses = options.maxTaskPasses ?? 10;
+		const maxPasses = context.maxTaskPasses;
 		for (let pass = 0; pass < maxPasses; pass++) {
 			invalidated = false;
 			const issued = await renderIssuedServerComponentChildren(context, options, () =>

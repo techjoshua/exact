@@ -320,6 +320,8 @@ export type SsrContext = {
 	reactMarkup: boolean | 18 | 19;
 	nextId: number;
 	logger?: Logger;
+	/** Request-local stabilization and task-drain pass budget. */
+	maxTaskPasses: number;
 	maxTreeDepth: number;
 	traversalDepth: number;
 	maxTreeNodes: number;
