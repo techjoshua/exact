@@ -149,7 +149,10 @@ their explicit compatibility adapter.
 The compiler discovers function declarations and function-valued variable
 declarations. An uppercase function that contains JSX is a component by
 convention. A typed `this: Component<...>` receiver or use of the component
-protocol also identifies component ownership.
+protocol also identifies component ownership. Durable component definitions
+belong at module scope so every emitted target and package export receives one
+stable artifact identity. Use a component-body-local PascalCase view arrow for
+a lexical micro-component; a nested durable component declaration is rejected.
 
 ### Return forms
 

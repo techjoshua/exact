@@ -162,7 +162,9 @@ export function ComponentsPage(this: Component<{}>) {
 					A component-body-local, PascalCase view arrow is a micro-component. It captures the owning
 					component&apos;s <code>this</code>, may compose other micro-components in scope, and
 					receives no separate component identity, state, lifecycle, or task scope. Module-level
-					shared or bound render callables are not component views.
+					shared or bound render callables are not component views. Define durable components at
+					module scope; nested durable component declarations cannot receive a stable artifact for
+					every build target and are rejected.
 				</p>
 				<p>
 					Lexical capabilities remain attributed to that owner. A reusable micro-component may, for

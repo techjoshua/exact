@@ -534,6 +534,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, dynamicComponents.diagnostics...)
+	response.Diagnostics = append(response.Diagnostics, nestedComponentDiagnostics(sourceFile)...)
 	response.Diagnostics = append(response.Diagnostics, partitionPlanDiagnostics(partitionPlan)...)
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, timeDiagnostics(sourceFile, generation.checker, enhancementImports)...)

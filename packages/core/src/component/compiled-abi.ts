@@ -10,6 +10,6 @@ export const compiledComponentListsABI = 4;
 /** The component needs task, interaction, or compatibility execution ownership. */
 export const compiledComponentTasksABI = 8;
 
-/** Conservative ABI used by framework fixtures and artifacts produced before ABI specialization. */
+/** Complete capability ABI used by explicitly constructed framework-owned boundary artifacts. */
 export const generalComponentABI =
 	compiledComponentLifecycleABI | compiledComponentListsABI | compiledComponentTasksABI;

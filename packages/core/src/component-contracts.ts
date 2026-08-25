@@ -175,7 +175,7 @@ export type ExactCompiledComponentDefinitionContract = Readonly<{
 	version: 1;
 	instantiate: AnyExactComponentCallable;
 	/** Compact compiler/runtime ABI bits used to omit impossible construction and disposal work. */
-	abi?: number;
+	abi: number;
 	/** Component-wide dirty-state routing emitted only for compiler-proven direct DOM updates. */
 	updates?: ExactCompiledComponentUpdateContract;
 	/** Stable top-level state slots used by the compiled component-state facade. */

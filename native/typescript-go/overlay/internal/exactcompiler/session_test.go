@@ -2430,6 +2430,26 @@ func TestSessionPreservesPotentiallyEffectfulServerSetupReads(t *testing.T) {
 	}
 }
 
+func TestSessionPreservesComputedPropertyEffectsDuringServerProjection(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-setup-computed-property.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare function recordSetup(): string;
+			export function Panel() {
+				const callback = () => undefined;
+				const handlers = { [recordSetup()]: callback };
+				return () => <button onClick={() => handlers.ready?.()}>Ready</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "recordSetup()") {
+		t.Fatalf("server projection erased a computed property-name effect:\n%s", response.Code)
+	}
+}
+
 func TestSessionEmitsCompleteInteractiveComponentInClientArtifact(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:               "panel.tsx",
@@ -6520,7 +6540,7 @@ func TestSessionBuildsLocalComponentRenderSubgraphs(t *testing.T) {
 	}
 }
 
-func TestSessionKeepsNestedSameNamedComponentsDistinct(t *testing.T) {
+func TestSessionRejectsNestedDurableComponentsBeforeArtifactEmission(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",
 		Kind: "compile",
@@ -6538,14 +6558,17 @@ func TestSessionKeepsNestedSameNamedComponentsDistinct(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	cards := 0
-	for _, component := range response.Analysis.Components {
-		if component.Name == "Card" {
-			cards++
+	if len(response.Analysis.Components) != 2 {
+		t.Fatalf("nested durable definitions lost independent analysis identity: %#v", response.Analysis.Components)
+	}
+	diagnostics := 0
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "EXACT2216" {
+			diagnostics++
 		}
 	}
-	if cards != 2 {
-		t.Fatalf("nested same-named components were collapsed: %#v", response.Analysis.Components)
+	if diagnostics != 2 {
+		t.Fatalf("nested durable definitions did not receive independent diagnostics: %#v", response.Diagnostics)
 	}
 }
 

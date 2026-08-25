@@ -82,11 +82,10 @@ function isDefinition(value: unknown): boolean {
 		]) &&
 		value.version === 1 &&
 		typeof value.instantiate === 'function' &&
-		(value.abi === undefined ||
-			(typeof value.abi === 'number' &&
-				Number.isSafeInteger(value.abi) &&
-				value.abi >= 0 &&
-				value.abi <= 15)) &&
+		typeof value.abi === 'number' &&
+		Number.isSafeInteger(value.abi) &&
+		value.abi >= 0 &&
+		value.abi <= 15 &&
 		(value.updates === undefined || isComponentUpdates(value.updates)) &&
 		(value.state === undefined || isSafeContractStringList(value.state)) &&
 		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&
