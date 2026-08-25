@@ -41,9 +41,8 @@ import {
 } from './compiled-abi.js';
 import { ComponentRuntimeSurface } from './runtime-surface.js';
 import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
+import { allocateComponentInstanceId } from './instance-identity.js';
 export { reparentComponentInstance } from './ownership.js';
-
-let nextComponentId = 1;
 
 /** Shared-prototype implementation of one durable component instance. */
 export class ComponentInstanceImpl<State extends object, Props extends Record<string, unknown>>
@@ -92,7 +91,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.runtimeABI = contract.definition.abi;
 		this.taskCapability =
 			this.runtimeABI & compiledComponentTasksABI ? componentTaskCapability() : undefined;
-		this.id = `c${nextComponentId++}`;
+		this.id = allocateComponentInstanceId();
 		this.inspection = componentDomainInspection(domain);
 		this.scope = createEffectScope(undefined, (error) => {
 			handleComponentError(this, createErrorReport(error, 'reactive', this, 'watch'));

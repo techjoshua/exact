@@ -12,6 +12,12 @@ import type {
 } from './contracts.js';
 import { pageComponentDomain } from './domain.js';
 import { ComponentInstanceImpl } from './runtime.js';
+import { RenderComponentInstance } from './render-instance.js';
+import {
+	compiledComponentLifecycleABI,
+	compiledComponentListsABI,
+	compiledComponentTasksABI
+} from './compiled-abi.js';
 
 let nextFrameworkFixtureId = 0;
 
@@ -27,6 +33,15 @@ export function createComponentInstance<
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
 	const contract = readPreparedExactCompiledComponentContract(type);
+	if ((contract.definition.abi & durableComponentABI) === 0)
+		return new RenderComponentInstance(
+			type,
+			rawProps,
+			parent,
+			ambientContexts,
+			domain,
+			contract
+		);
 	return new ComponentInstanceImpl(
 		type,
 		contract.definition.instantiate as ComponentFunction<State, Props>,
@@ -38,6 +53,9 @@ export function createComponentInstance<
 		contract
 	);
 }
+
+const durableComponentABI =
+	compiledComponentLifecycleABI | compiledComponentListsABI | compiledComponentTasksABI;
 
 /** Creates an artifact-backed instance for low-level framework tests. */
 export function createFrameworkFixtureComponentInstance<
