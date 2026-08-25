@@ -8,8 +8,11 @@ import { createErrorReport, handleComponentError, handleComponentSuspension } fr
 import { normalizeRenderResult } from '../vnode.js';
 import { componentDomainInspection, withComponentDomain } from './domain.js';
 import { componentRenderHandlers } from './lifecycle-handlers.js';
-import { compiledComponentLifecycleABI, compiledComponentRenderABI } from './compiled-abi.js';
-import { isCompiledComponentOutput, readCompiledComponentOutput } from './reactive-vnodes.js';
+import {
+	compiledComponentLifecycleABI,
+	compiledComponentRangeOutputABI,
+	compiledComponentRenderABI
+} from './compiled-abi.js';
 
 /** Renders once for a compiler-owned program or retains the general watched fallback. */
 export function renderInstance(instance: AnyComponentInstance, onInvalidate: () => void): Child[] {
@@ -56,18 +59,10 @@ export function renderInstanceOutput(
 			instance.endRender();
 		}
 	};
-	if (instance.runtimeABI & compiledComponentRenderABI) {
+	if (instance.runtimeABI & compiledComponentRangeOutputABI) {
+		instance.renderStop = watch(render, observedInvalidate, { scope: instance.scope });
+	} else if (instance.runtimeABI & compiledComponentRenderABI) {
 		render();
-		if (isCompiledComponentOutput(output)) {
-			const compiledOutput = output;
-			instance.renderStop = watch(
-				() => {
-					output = readCompiledComponentOutput(compiledOutput);
-				},
-				observedInvalidate,
-				{ scope: instance.scope }
-			);
-		}
 	} else {
 		instance.renderStop = watch(render, observedInvalidate, { scope: instance.scope });
 	}

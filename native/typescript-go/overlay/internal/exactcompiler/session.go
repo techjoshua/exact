@@ -606,7 +606,7 @@ func (s *Session) Execute(request Request) Response {
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
 	intlPlan := planIntlOperations(sourceFile, generation.checker)
-	transformed, componentUpdates := lowerExactJSX(
+	transformed, componentUpdates, componentRangeOutputs := lowerExactJSX(
 		sourceFile,
 		emitContext.Factory,
 		jsxLoweringPlan{
@@ -632,6 +632,9 @@ func (s *Session) Execute(request Request) Response {
 			componentLocalization: intlPlan.componentLocalization,
 		},
 	)
+	for index := range components {
+		_, components[index].ClientRangeOutput = componentRangeOutputs[components[index].Name]
+	}
 	transformed = lowerIntlOperations(
 		transformed,
 		emitContext.Factory,

@@ -404,8 +404,12 @@ func componentRuntimeABI(
 	compiledRender bool,
 ) int {
 	abi := 0
-	if compiledRender {
+	rangeOutput := compiledRender && component.ClientRangeOutput
+	if compiledRender && !rangeOutput {
 		abi |= componentABICompiledRender
+	}
+	if rangeOutput {
+		abi |= componentABIRangeOutput
 	}
 	if hasLifecycle {
 		abi |= componentABILifecycle

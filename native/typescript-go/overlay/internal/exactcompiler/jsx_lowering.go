@@ -67,7 +67,7 @@ type jsxLowering struct {
 	renderProgramDefinitionNodes []namedRenderProgramDefinition
 	componentUpdates             map[string]*componentUpdateBuild
 	declarativeRenderDepth       int
-	dynamicRenderExpressions     map[int]struct{}
+	componentRangeOutputs        map[string]struct{}
 	timeActivation               string
 	timeActivationAdopted        bool
 	timePlanNode                 *ast.Node
@@ -118,15 +118,15 @@ func lowerExactJSX(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
 	plan jsxLoweringPlan,
-) (*ast.SourceFile, map[string]string) {
+) (*ast.SourceFile, map[string]string, map[string]struct{}) {
 	lowering, required := plan.prepare(sourceFile, factory)
 	if !required {
-		return sourceFile, nil
+		return sourceFile, nil, nil
 	}
 	transformed := lowering.lowerAuthoredTree(sourceFile)
 	transformed = lowering.projectTargetTree(transformed)
 	transformed, componentUpdateNames, sourceStatementCount := lowering.prepareDefinitions(transformed)
-	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames
+	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames, lowering.componentRangeOutputs
 }
 
 func (lowering *jsxLowering) lowerAuthoredTree(sourceFile *ast.SourceFile) *ast.SourceFile {
@@ -249,15 +249,6 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if lowering.target == TargetClient {
 		if read := lowering.lowerIndexedStateRead(node); read != nil {
 			return read
-		}
-		if _, dynamic := lowering.dynamicRenderExpressions[node.Pos()]; dynamic {
-			delete(lowering.dynamicRenderExpressions, node.Pos())
-			emitted := lowering.visitor.VisitEachChild(node)
-			closure := lowering.reactiveClosure(node)
-			if closure == nil {
-				closure = lowering.arrow(emitted)
-			}
-			return lowering.call(lowering.names.componentRangeOutput, []*ast.Node{closure})
 		}
 	}
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {
