@@ -69,10 +69,14 @@ export async function renderGenericComponentAsync({
 		const maxPasses = context.maxTaskPasses;
 		for (let pass = 0; pass < maxPasses; pass++) {
 			invalidated = false;
-			const issued = await renderIssuedServerComponentChildren(context, options, () =>
-				renderInstanceOutput(instance!, () => {
-					invalidated = true;
-				})
+			const issued = await renderIssuedServerComponentChildren(
+				context,
+				options,
+				() =>
+					renderInstanceOutput(instance!, () => {
+						invalidated = true;
+					}),
+				instance
 			);
 			let renderPrimary: unknown = noPrimaryFailure;
 			let html: string;

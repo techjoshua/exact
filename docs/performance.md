@@ -194,10 +194,12 @@ If any server-reachable component in the module requires generic ownership, the 
 the reactive server entry for that module rather than weakening its behavior. Hydrated applications
 therefore receive a closed server facet and the corresponding durable client facet; the server
 optimization is not a compilerless or server-only component model.
-When the compiler proves that a synchronous server component needs only its generated render
-artifact, it selects the direct lane. SSR invokes that artifact against a small request-local state
+When the compiler proves that a synchronous server component needs no durable ownership, it selects
+the direct lane. SSR invokes that artifact against a small request-local state
 frame and never constructs a durable component instance, reactive scope, task owner, or lifecycle
-registry. Compiler-selected state paths are published from that frame for hydration resumption only
+registry. A context-bearing frame adds only a logical parent, ambient-context reference, and local
+map; descendant serialization uses that frame so nearest-provider lookup remains exact across
+direct and durable components. Compiler-selected state paths are published from that frame for hydration resumption only
 after descendant output succeeds. Expression props are read once into the direct frame instead of
 creating the general readonly props proxy. A compiler-keyed list normally writes its item VNodes
 through the generated SSR function; its lazy compatibility fallback calls one shared request-local
@@ -218,8 +220,8 @@ durable task frame. For a compiler-closed direct component, the generated server
 all known child slots synchronously while its request-local issuance scope is active. Each known
 scheduled child therefore issues its frame before authored-order HTML publication begins, without
 constructing the surrounding intrinsic VNode tree or asking the renderer to rediscover task-bearing
-components. Generic or context-owning components retain lazy slot reads and their stabilization
-semantics. The request scheduler starts ready child tasks up to its bound before awaiting the first
+components. Generic components retain lazy slot reads and their stabilization semantics. The
+request scheduler starts ready child tasks up to its bound before awaiting the first
 settlement.
 Framework-owned resumption observers are buffered and replayed in authored order; user
 component-instance observers retain the serial lane because their timing is observable.

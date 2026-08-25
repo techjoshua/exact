@@ -11,6 +11,7 @@ import {
 	createExactCompatibilityArtifact,
 	createExactCompiledDynamicBoundaryArtifact
 } from './component-contract/runtime-artifacts.js';
+import { allCompiledComponentABI } from './component/compiled-abi.js';
 
 describe('@exactjs/core component contracts', () => {
 	const construct = () => undefined;
@@ -378,7 +379,13 @@ describe('@exactjs/core component contracts', () => {
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: { version: 1 as const, instantiate, construct, abi: 64, capabilities: [] }
+				definition: {
+					version: 1 as const,
+					instantiate,
+					construct,
+					abi: allCompiledComponentABI + 1,
+					capabilities: []
+				}
 			}
 		});
 

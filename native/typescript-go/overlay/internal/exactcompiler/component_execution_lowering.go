@@ -32,7 +32,7 @@ func planComponentTargets(
 		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
 		hasLifecycle := component.Surface.ServerLifecycle
 		unsupportedSurface := component.Surface.Logging || component.Surface.Localization ||
-			component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
+			component.Surface.Reactivity || component.Surface.Refs ||
 			component.Surface.ServerLifecycle
 		abi := componentRuntimeABI(
 			*component,
@@ -42,7 +42,8 @@ func planComponentTargets(
 			usesCompatibility,
 			component.CompiledRender,
 		)
-		directABI := componentABICompiledRender | componentABITasks | componentABICollections
+		directABI := componentABICompiledRender | componentABITasks | componentABICollections |
+			componentABIContexts
 		tasksSupported := true
 		for _, task := range tasks {
 			if task.Component == component.Name && !directServerTaskSupported(task) {
@@ -50,8 +51,7 @@ func planComponentTargets(
 				break
 			}
 		}
-		directServer := component.CompiledRender &&
-			(!hasResumption || directResumption) && !usesCompatibility &&
+		directServer := (!hasResumption || directResumption) && !usesCompatibility &&
 			!component.DynamicComponents && !unsupportedSurface && tasksSupported && abi&^directABI == 0
 		component.TargetPlan = ComponentTargetPlan{
 			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
@@ -143,13 +143,13 @@ func componentDefinitionMetadata(
 	continuations []Continuation,
 	hasResumption bool,
 	serverPublicationName string,
+	serverFrame *ast.Node,
 	directResumption bool,
 	hasInteractions bool,
 	compatibility bool,
 	dynamicComponents bool,
 	collections bool,
 	runtimeABI int,
-	unsupportedServerSurface bool,
 	directServer bool,
 	server bool,
 	compact bool,
@@ -181,6 +181,9 @@ func componentDefinitionMetadata(
 	}
 	if collections {
 		capabilities = append(capabilities, "collections")
+	}
+	if runtimeABI&componentABIContexts != 0 {
+		capabilities = append(capabilities, "contexts")
 	}
 	reactive := make([]*ast.Node, 0, len(execution.Reactive))
 	for _, binding := range execution.Reactive {
@@ -214,6 +217,7 @@ func componentDefinitionMetadata(
 				directServer,
 				dynamicComponents,
 				serverPublicationName,
+				serverFrame,
 			),
 		))
 	}
@@ -237,6 +241,7 @@ func serverComponentExecutionMetadata(
 	direct bool,
 	dynamic bool,
 	publicationName string,
+	frame *ast.Node,
 ) *ast.Node {
 	classification := "synchronous"
 	if dynamic {
@@ -262,6 +267,9 @@ func serverComponentExecutionMetadata(
 		properties = append(properties,
 			contractProperty(factory, "render", instantiate),
 		)
+		if frame != nil {
+			properties = append(properties, contractProperty(factory, "frame", frame))
+		}
 	}
 	if publicationName != "" {
 		properties = append(properties, contractProperty(factory, "publication", contractObject(
@@ -422,6 +430,9 @@ func componentRuntimeABI(
 	}
 	if component.Collections {
 		abi |= componentABICollections
+	}
+	if component.Surface.Contexts {
+		abi |= componentABIContexts
 	}
 	return abi
 }

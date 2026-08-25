@@ -549,7 +549,7 @@ func TestIsomorphicContinuationEmitsPreparedServerPublication(t *testing.T) {
 	}
 }
 
-func TestCompilerClosedServerRootRetainsUniversalRendererForGenericDescendant(t *testing.T) {
+func TestCompilerClosedServerRootIncludesDirectContextDescendant(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-root-generic-child.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
@@ -566,9 +566,47 @@ func TestCompilerClosedServerRootRetainsUniversalRendererForGenericDescendant(t 
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
-		!strings.Contains(response.Code, `renderToStringAsync(__exactComponentVNode(Page`) {
-		t.Fatalf("generic descendant incorrectly selected the narrow renderer:\n%s", response.Code)
+	if !strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+		strings.Contains(response.Code, `renderToStringAsync(__exactComponentVNode(Page`) ||
+		strings.Contains(response.Code, `lane: "generic"`) {
+		t.Fatalf("direct context descendant did not select the narrow renderer:\n%s", response.Code)
+	}
+}
+
+func TestManualVNodeServerOutputUsesDirectFrameWithoutClaimingClosedTopology(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-root-manual-vnode.ts", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { createVNode } from "@exactjs/core";
+			import { renderToStringAsync } from "@exactjs/ssr";
+			export function Page(props: { value: string }) {
+				return () => createVNode("main", null, props.value);
+			}
+			export function render(value: string) {
+				return renderToStringAsync(createVNode(Page, { value }));
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`lane: "direct"`,
+		`rejectDirectServerComponentConstruction as`,
+		`renderToStringAsync(createVNode(Page, { value }))`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("manual VNode direct artifact is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, excluded := range []string{
+		`lane: "generic"`,
+		`@exactjs/ssr/runtime/generic-components`,
+		`renderCompilerClosedToStringAsync as`,
+	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("manual VNode direct artifact retained %q:\n%s", excluded, response.Code)
+		}
 	}
 }
 
@@ -624,7 +662,7 @@ func TestCompilerClosedServerRootRetainsUniversalRendererForDynamicMarkupOptions
 	}
 }
 
-func TestServerGenericExecutionImportsItsOwnRuntimeCapability(t *testing.T) {
+func TestServerContextExecutionUsesDirectRequestLocalFrame(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-generic-execution.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
@@ -646,17 +684,27 @@ func TestServerGenericExecutionImportsItsOwnRuntimeCapability(t *testing.T) {
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	const capability = `import "@exactjs/ssr/runtime/generic-components"`
-	if !strings.Contains(response.Code, capability) {
-		t.Fatalf("generic server component did not import %q:\n%s", capability, response.Code)
+	for _, excluded := range []string{
+		`import "@exactjs/ssr/runtime/generic-components"`,
+		`import "@exactjs/core/runtime/contexts"`,
+		`lane: "generic"`,
+	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("direct server context component retained %q:\n%s", excluded, response.Code)
+		}
 	}
-	if !strings.Contains(response.Code, `lane: "generic"`) {
-		t.Fatalf("context-owning server component did not select the generic lane:\n%s", response.Code)
+	if !strings.Contains(response.Code, `lane: "direct"`) {
+		t.Fatalf("context-bearing server component did not select the direct lane:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `createDirectSsrContextFrame as`) ||
+		!strings.Contains(response.Code, `from "@exactjs/ssr/runtime/direct-context-frame"`) ||
+		!strings.Contains(response.Code, `frame: __exactDirectSsrContextFrame`) {
+		t.Fatalf("direct server context component omitted its focused capability:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, `createPreparedServerRenderProgram`) ||
 		!strings.Contains(response.Code, `from "@exactjs/core/framework/server-render-structure"`) ||
 		strings.Contains(response.Code, `createPreparedRenderProgram`) {
-		t.Fatalf("generic server component did not use the compiler-owned server writer lane:\n%s", response.Code)
+		t.Fatalf("direct server context component did not use the compiler-owned server writer lane:\n%s", response.Code)
 	}
 }
 
@@ -666,10 +714,10 @@ func TestMixedServerExecutionImportsDirectAndGenericRenderCapabilities(t *testin
 		Source: `
 			declare class Component<State> {
 				state: State;
-				getContext(token: unknown): unknown;
+				log: { info(message: string): void };
 			}
 			export function GenericPage(this: Component<{ value: string }>) {
-				this.getContext(Symbol.for("request"));
+				this.log.info("rendering");
 				return () => <output>{this.state.value}</output>;
 			}
 			export function DirectPage(props: { value: string }) {

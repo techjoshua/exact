@@ -99,7 +99,7 @@ discovery waterfall without building or flattening a request-wide plan. Explicit
 boundaries keep the ordinary drain-before-render path, and structural render reachability still prevents inactive
 branches or unselected dynamic components from starting work.
 
-A compiler-closed scheduled component executes on a request-local state frame, settles pending
+A direct scheduled component executes on a request-local state frame, settles pending
 props that ordinary construction or rendering consumes, and preserves dependency provenance only
 for compiler-proven task-exclusive inputs. The generated `deferredTaskProps` list is the complete
 authority for that distinction; SSR does not reconstruct it from the generic execution graph.
@@ -109,9 +109,15 @@ directly; request cancellation wraps only the awaits and owned timers that need 
 calls in the server artifact, so their setup tasks can enter the bounded scheduler while the parent
 creates their VNodes and before the first sibling settles. Each request owns and disposes its frames, task generations, cancellation, and buffered
 resumption snapshots; immutable component contracts and prepared indexes are the only cross-request
-state. Compiler-closed artifacts also omit the generic reactive error context. A direct construction
+state. Direct artifacts also omit the generic reactive error context. A direct construction
 failure propagates through the request unless the reachable artifact graph explicitly installs the
 generic component/error-boundary capability.
+
+Context providers and consumers do not require that generic component capability. Their direct
+frames form a request-local logical parent chain and store only contexts actually published by the
+component. This preserves nearest-provider and ambient-request lookup while allowing forwarded
+children or manually constructed VNodes to retain the universal serializer when their output
+topology is not compiler-closed.
 
 After output extensions choose the rendered root, SSR reuses a root-keyed immutable contract
 blueprint for components reached beneath that root, including dynamic components on first use. It

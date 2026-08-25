@@ -147,6 +147,20 @@ request-local host with a realm-stable, non-enumerable identity, and disposal re
 artifacts can therefore find their own request's frame even when a development module graph loads
 another copy of core, without introducing a process-wide request registry or cross-request
 retention.
+
+Direct component execution and compiler-closed serialization are separate proofs. A component
+whose authored output forwards children or constructs VNodes through a typed helper can still run
+on a compact request-local frame, even when the universal serializer must inspect that output.
+Only a root whose complete reachable output graph has generated server writers selects the
+compiler-closed renderer. This lets libraries publish flexible component output without forcing a
+durable SSR component instance or overstating what the compiler knows about the resulting tree.
+
+Context-bearing direct frames carry only their logical parent, request ambient contexts, and a
+local context map. Generated `getContext()`, `hasContext()`, and `setContext()` calls therefore keep
+normal nearest-provider semantics across direct and durable descendants without allocating an
+effect scope, state proxy, lifecycle registry, or generic context capability. The frame is passed
+as the descendant owner during serialization and is discarded with its request.
+
 Static SSR capability installers use one bundle-local ESM registry. It contains only
 module-lifetime functions selected by reachable server artifacts; request state and component
 instances never enter it, and omitting an installer still lets bundlers remove the corresponding

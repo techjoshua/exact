@@ -80,6 +80,10 @@
 			"types": "./dist/framework/component-lifecycle.d.ts",
 			"default": "./dist/framework/component-lifecycle.js"
 		},
+		"./framework/server-component-contexts": {
+			"types": "./dist/framework/server-component-contexts.d.ts",
+			"default": "./dist/framework/server-component-contexts.js"
+		},
 		"./framework/protocol-records": {
 			"types": "./dist/framework/protocol-records.d.ts",
 			"default": "./dist/framework/protocol-records.js"
