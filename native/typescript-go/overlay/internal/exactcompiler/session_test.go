@@ -4199,6 +4199,37 @@ __fixtureTask10();
 	}
 }
 
+func TestSessionRetainsAndReadsDerivedChainInsideInteraction(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "derived-interaction.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function View(this: Component<{ count: number }>) {
+				const doubled = this.state.count * 2;
+				const label = ` + "`value:${doubled}`" + `;
+				const increment = () => {
+					this.state.count++;
+					consume(label);
+				};
+				return () => <button title={label} onClick={increment}>{doubled}:{label}</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`const doubled = __exactDerived(() => this.state.count * 2)`,
+		"const label = __exactDerived(() => `value:${doubled.get()}`)",
+		`consume(label.get())`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("native derived interaction output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestSessionTracksStateAliasesAndStopsAfterReassignment(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",

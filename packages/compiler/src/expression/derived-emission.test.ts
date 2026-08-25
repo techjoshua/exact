@@ -37,6 +37,28 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('fullName.get()');
 	});
 
+	it('retains and reads a multi-level derived chain inside an interaction', () => {
+		const output = transform(`
+      function View(this: Component<{ count: number }>) {
+        const doubled = this.state.count * 2;
+        const label = \`value:\${doubled}\`;
+        const increment = () => {
+          this.state.count++;
+          consume(label);
+        };
+        return () => (
+          <button title={label} onClick={increment}>
+            {doubled}:{label}
+          </button>
+        );
+      }
+    `);
+
+		expect(output).toContain('const doubled = __exactDerived(() => this.state.count * 2);');
+		expect(output).toContain('const label = __exactDerived(() => `value:${doubled.get()}`);');
+		expect(output).toContain('consume(label.get());');
+	});
+
 	it('retains an identity-bearing derived value with one view consumer', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {

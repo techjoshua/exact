@@ -443,6 +443,18 @@ the graph. Keep a derived declaration in the component body when several consume
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
+A derived read is synchronously current through the complete dependency chain. After state is
+written, an event, task, or library callback may read a retained downstream value immediately; it
+does not need to flush the global scheduler first. The runtime settles only that value's potentially
+stale upstream graph. DOM bindings and other consequences remain coalesced at their assigned
+scheduler priority. Equal intermediate results are propagation barriers, so a downstream
+calculation or binding does not run merely because a more distant source was written.
+
+The runtime reports a direct or indirect first-class computed cycle as
+`eXact reactive computation cycle detected` before exhausting the JavaScript stack. Compiler
+diagnostics still reject setup-derived state cycles that are visible statically; runtime detection
+covers dynamic branches and values composed through library boundaries.
+
 Generated reactive callbacks sample a retained derived cell once when an
 authored expression reads it repeatedly. Consequently, ordinary TypeScript
 narrowing remains valid for expressions such as

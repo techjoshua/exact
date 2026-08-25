@@ -50,6 +50,13 @@ Deferred work changes when a generation runs. `blocking` changes whether the
 nearest readiness boundary waits for it. Neither option changes where the task
 runs unless a placement facet is also present.
 
+Computed-value settlement and reaction publication are distinct. A synchronous derived read
+settles only the upstream computed graph needed to return a current value; it does not flush DOM
+bindings, tasks, unrelated computations, or lower-priority work. During an ordinary scheduler
+turn, queued computations settle before reactions. A computation already settled by a direct read
+is removed from its own queued entry, while unrelated queued work keeps its priority. Result
+equality stops checked descendants and their reactions when an effective value did not change.
+
 ## Async component lowering
 
 An async component may await ordinary operations whose results flow into
