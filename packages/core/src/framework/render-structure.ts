@@ -37,6 +37,7 @@ export {
 	isCellVNode
 } from '../vnode.js';
 export {
+	createCompiledComponentOutput,
 	createDynamicChild,
 	createExpression,
 	createForwardedExpression

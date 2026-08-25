@@ -50,10 +50,12 @@ Browser-target artifacts carry only their specialized template, claims, readers,
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
 When a render arrow returns an otherwise unstructured value such as `props.children`, the client
-artifact emits one explicit dynamic range for that expression. The durable component render still
-runs once; only the compiler-declared range observes and replaces the forwarded value. Such
-components do not retain the component-wide watched-render fallback merely because they have no JSX
-element of their own.
+artifact emits a compiler-owned component-output reader. The existing component boundary owns its
+dependency subscription and child reconciliation; the artifact does not allocate a nested generic
+dynamic VNode or emit another marker pair. Dependency changes still publish even when the resulting
+VNode is structurally equal, because ownership refreshes such as a remote-domain replacement are
+semantic operations rather than value memoization. Such components do not retain the universal
+watched-render fallback merely because they have no JSX element of their own.
 Framework-owned renderer roots likewise use an explicit compiled render operation. The renderer
 invokes that operation when the public root value changes, so no compilerless component watcher or
 additional dynamic marker is required around the application.

@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { transform } from './index.js';
 
 describe('compiled transparent component', () => {
-	it('updates its compiler-owned dynamic range without a component render watcher', () => {
+	it('updates its compiler-owned component range without a nested dynamic marker', () => {
 		const source = `
 			export function Transparent(props: { value: string }) {
 				return () => props.value;
@@ -24,16 +24,18 @@ describe('compiled transparent component', () => {
 			target: 'client'
 		});
 		expect(compiled).toContain('abi: 1');
-		expect(compiled).toContain('createDynamicChild as __exactDynamic');
+		expect(compiled).toContain('createCompiledComponentOutput as __exactComponentRangeOutput');
 
 		const Transparent = executeCompiledComponent(compiled, 'Transparent');
 		const container = document.createElement('div');
 		render(createVNode(Transparent, { value: 'before' }), container);
 		expect(container.textContent).toBe('before');
+		expect(container.innerHTML).not.toContain('exact:dynamic');
 
 		render(createVNode(Transparent, { value: 'after' }), container);
 		flushSync();
 		expect(container.textContent).toBe('after');
+		expect(container.innerHTML).not.toContain('exact:dynamic');
 		unmount(container);
 	});
 });
