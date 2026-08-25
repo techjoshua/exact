@@ -13,6 +13,16 @@ import { expect, it, vi } from 'vitest';
 import { adoptStatic, render, unmount } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
 import { withGenericRenderProgramBindings } from './testing.js';
+import {
+	beginCompiledProgramClaims,
+	bindCompiledProgramProperties,
+	bindCompiledProgramText,
+	claimCompiledProgramElementPath,
+	claimCompiledProgramProperty,
+	claimCompiledProgramText,
+	enterCompiledProgramElement,
+	leaveCompiledProgramElement
+} from './runtime/render-program.js';
 
 function RenderProgramOwner(this: Component<{}>) {
 	return () => null;
@@ -23,13 +33,12 @@ const createCompiledRenderProgram = (
 	_cacheKey: string,
 	createProgram: () => Parameters<typeof prepareCoreRenderProgram>[0],
 	readers: Parameters<typeof createPreparedRenderProgram>[1],
-	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
+	_fallback?: () => unknown
 ) =>
 	createPreparedRenderProgram(
 		prepareCoreRenderProgram(withGenericRenderProgramBindings(createProgram())),
 		readers,
-		renderProgramOwner,
-		fallback
+		renderProgramOwner
 	);
 
 it('fails closed with the unsupported compiler boundary identity', () => {
@@ -406,7 +415,7 @@ it('retracks replacement readers when a compiled program invocation is patched',
 	expect(container.textContent).toBe('tracked');
 });
 
-it('falls back locally when an initial text slot violates its scalar contract', () => {
+it('fails closed when an initial text slot violates its scalar contract', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:shape-fallback',
 		() => ({
@@ -423,34 +432,38 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
-	expect(container.querySelector('[data-exact-id="fallback"]')?.textContent).toBe('fallback');
+	expect(container.querySelector('[data-exact-id="fallback"]')).toBeNull();
+	expect(container.textContent).toContain('Compiler-closed render program could not be mounted');
 });
 
 it('claims marked SSR nodes through compiler-generated hydration calls without indexing the subtree', () => {
 	const state = reactive({ label: '', disabled: false });
-	const vnode = createCompiledRenderProgram(
-		'render-program:hydration-plan',
-		() => ({
+	const program = prepareCoreRenderProgram({
 			version: 4,
 			id: 'render-program:hydration-plan',
 			namespace: 'html',
 			template:
 				'<section data-exact-id="root"><button data-exact-id="button">\ue000exact:0\ue001</button></section>',
-			slots: [
-				['property', 1, 'disabled'],
-				['text', 'label', [0, 0]]
-			],
-			bindings: [
-				['text', 1],
-				['properties', [0]]
-			],
-			nodes: [
-				[0, 'section'],
-				[1, 'button']
-			]
-		}),
+			directClaims: true,
+			bind(target) {
+				if (beginCompiledProgramClaims(target, 'section', 'html', 2, 2)) {
+					claimCompiledProgramElementPath(target, 1, 1, 'button');
+					claimCompiledProgramProperty(target, 0, 1);
+					enterCompiledProgramElement(target, 1);
+					claimCompiledProgramText(target, 1, 0, 'label');
+					leaveCompiledProgramElement(target);
+					return;
+				}
+				bindCompiledProgramText(target, 1);
+				bindCompiledProgramProperties(target, 0, 0);
+			}
+		});
+	const vnode = createPreparedRenderProgram(
+		program,
 		[() => state.disabled, () => state.label],
-		() => createCompiledVNode('section', {}, createCompiledVNode('button', {}, state.label))
+		renderProgramOwner,
+		undefined,
+		(_group, apply) => apply('disabled', state.disabled)
 	);
 	const container = document.createElement('div');
 	container.innerHTML =

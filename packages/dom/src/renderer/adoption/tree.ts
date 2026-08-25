@@ -31,7 +31,7 @@ import { adoptStaticChildren, adoptStaticChildrenRange, closingMarkerIndex } fro
 import { adoptKeyedListChildren } from './keyed.js';
 import { normalizeAdoptionVNode } from './normalization.js';
 import { adoptComponent } from './component.js';
-import { adoptRenderProgramOrFallback } from '../render-program.js';
+import { adoptCompiledRenderProgram } from '../render-program.js';
 import { dynamicChildren } from '../dynamic.js';
 import { adoptStaticLeaf } from './leaf.js';
 
@@ -122,16 +122,14 @@ export function adoptStaticMountedInner(
 		return { mounted, next: endIndex + 1 };
 	}
 	if (vnode.type === RenderProgram) {
-		return adoptRenderProgramOrFallback(
+		return adoptCompiledRenderProgram(
 			root,
 			vnode,
 			nodes,
 			cursor,
 			parentInstance,
-			parentScope,
 			scope,
 			rangeEnd,
-			adoptStaticMountedInner,
 			(rootChildren, childNodes, owner, childScope, childCursor, childEnd, component) => {
 				if (component && rootChildren.length === 1 && isVNode(rootChildren[0])) {
 					const first = childNodes[childCursor];

@@ -53,7 +53,7 @@ import { createElement, createMarker } from '../root-support.js';
 import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { requireStructuralBoundaryCapability } from '../structural-capability.js';
 import { requireDomEnhancementCapability } from '../enhancement-capability.js';
-import { fallbackRenderProgram, mountRenderProgram } from '../render-program.js';
+import { mountRenderProgram } from '../render-program.js';
 import { mountDynamic } from '../dynamic.js';
 import {
 	mountChildren,
@@ -175,8 +175,6 @@ export function mountInner(
 	if (vnode.type === RenderProgram) {
 		const planned = mountRenderProgram(root, vnode, scope, parentInstance);
 		if (planned) return planned;
-		const fallback = fallbackRenderProgram(vnode);
-		if (fallback) return mountInner(root, fallback, scope, parentInstance, parentNode);
 		throw new Error('Compiler-closed render program could not be mounted');
 	}
 

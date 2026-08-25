@@ -29,13 +29,12 @@ const createCompiledRenderProgram = (
 	_cacheKey: string,
 	createProgram: () => Parameters<typeof prepareCoreRenderProgram>[0],
 	readers: Parameters<typeof createPreparedRenderProgram>[1],
-	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
+	_fallback?: () => unknown
 ) =>
 	createPreparedRenderProgram(
 		prepareCoreRenderProgram(withGenericRenderProgramBindings(createProgram())),
 		readers,
-		renderProgramOwner,
-		fallback
+		renderProgramOwner
 	);
 const prepareCompiledRenderProgram: typeof prepareCoreRenderProgram = (program) =>
 	prepareCoreRenderProgram(withGenericRenderProgramBindings(program));

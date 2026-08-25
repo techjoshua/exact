@@ -3256,8 +3256,9 @@ func TestSessionCollectsNamespacedJSXAttributes(t *testing.T) {
 
 func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			function Card(this: Component<{ active: boolean; disabled: boolean }>, props: { className?: unknown }) {
 				return () => (
@@ -3274,10 +3275,10 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`className: [`,
-		`{ "active": __exactExpression(() => this.state.active) }`,
-		`__exactExpression(() => props.className)`,
-		`{ "disabled": __exactExpression(() => !this.state.disabled) }`,
+		`__exactApply("className", [`,
+		`{ "active": __exactReadState(this.state, 0) as any }`,
+		`props.className`,
+		`{ "disabled": !(__exactReadState(this.state, 1) as any) }`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("conditional class output is missing %q:\n%s", expected, response.Code)
@@ -3287,7 +3288,8 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 		strings.Contains(response.Code, `"className:disabled"`) {
 		t.Fatalf("conditional class namespace escaped into output:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `["class", 0, "className"]`) {
+	if !strings.Contains(response.Code, `__exactClaimProgramProperty(__exactBindingTarget, 0, 0)`) ||
+		strings.Contains(response.Code, `__exactGroup === 1`) {
 		t.Fatalf("conditional classes were not represented as one planned class operation:\n%s", response.Code)
 	}
 }
@@ -3296,12 +3298,13 @@ func TestSessionFoldsStaticConditionalClassNames(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
+		Target: TargetClient,
 		Source: `const view = <div className="card" className:selected />;`,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `className: "card selected"`) {
+	if !strings.Contains(response.Code, `__exactApply("className", "card selected")`) {
 		t.Fatalf("static class contributions were not folded:\n%s", response.Code)
 	}
 }
@@ -3697,8 +3700,9 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 
 func TestSessionLowersLexicalMicroComponentsWithoutDurableIdentity(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "micro-components.tsx",
-		Kind: "compile",
+		ID:     "micro-components.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			declare class Component<State> { state: State }
 			function Article(this: Component<{ copyrightText: string }>) {
@@ -3719,7 +3723,7 @@ func TestSessionLowersLexicalMicroComponentsWithoutDurableIdentity(t *testing.T)
 	}
 	for _, expected := range []string{
 		`const Footer = (props: {`,
-		`__exactVNode("footer"`,
+		`__exactPreparedRenderProgram(__exact_render_program_1`,
 		`const Page = () => __exactVNode("article",`,
 		`Footer({ prefix: "Copyright: " })`,
 		`return () => Page({});`,
@@ -4592,8 +4596,9 @@ __fixtureTask17();
 
 func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "view.tsx",
-		Kind: "compile",
+		ID:     "view.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			declare function handler(name: string): (event: Event) => void;
 			export function view() {
@@ -4606,8 +4611,8 @@ func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 	}
 	if !strings.Contains(
 		response.Code,
-		`"__exactDirectInteraction:onInput": handler("value")`,
-	) || strings.Contains(response.Code, `"__exactDirectInteraction:onInput": __exactExpression`) {
+		`__exactApply("__exactDirectInteraction:onInput", handler("value"))`,
+	) || strings.Contains(response.Code, `__exactExpression(() => handler("value"))`) {
 		t.Fatalf("event handler factory was emitted as a reactive value:\n%s", response.Code)
 	}
 }
@@ -6144,8 +6149,9 @@ func TestSessionLowersKeyedMapsDeclaredInImportedTypes(t *testing.T) {
 
 func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			const rows = [{ id: "first" }] as const;
 			export function List() {
@@ -6158,7 +6164,7 @@ func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *test
 	}
 	if !strings.Contains(response.Code, "rows.map((row) => __exactPreparedRenderProgram") ||
 		!strings.Contains(response.Code, "__exactSlot => __exactSlot === 0 ? row.id : row.id") ||
-		!strings.Contains(response.Code, "title: row.id }, row.id") {
+		!strings.Contains(response.Code, `__exactApply("title", row.id)`) {
 		t.Fatalf("declarative collection did not preserve direct values: %s", response.Code)
 	}
 	if strings.Contains(response.Code, "__exactExpression(() => row.id)") ||

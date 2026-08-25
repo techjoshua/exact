@@ -1,5 +1,8 @@
 import { isVNode, unwrap } from '@exactjs/core';
-import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
+import type {
+	ExactRenderProgramBindingTarget,
+	ExactRenderProgramSlot
+} from '@exactjs/core/runtime/render';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render';
 import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
@@ -183,16 +186,12 @@ function retainBinding(context: ProgramBindingTarget, apply: () => void): void {
 /** Binds a fallback property group retained only by explicit generic support artifacts. */
 export function bindGenericProgramProperties(
 	target: ExactRenderProgramBindingTarget,
-	indexes: readonly number[]
+	indexes: readonly number[],
+	slots: readonly ExactRenderProgramSlot[]
 ): void {
 	const context = target as ProgramBindingTarget;
 	const state = context.mounted.renderProgram!;
 	const element = state.slotNodes[indexes[0]!] as Element;
-	const slots = state.invocation.program.slots;
-	if (!slots) {
-		context.valid = false;
-		return;
-	}
 	retainBinding(context, () => {
 		const previous = (state.props ??= new Map<Element, Record<string, unknown>>());
 		const next: Record<string, unknown> = {};
@@ -217,10 +216,11 @@ export function bindGenericProgramProperties(
 export function bindCompatibleProgramProperties(
 	target: ExactRenderProgramBindingTarget,
 	group: number,
-	indexes: readonly number[]
+	indexes: readonly number[],
+	slots: readonly ExactRenderProgramSlot[]
 ): void {
 	const context = target as ProgramBindingTarget;
 	if (context.mounted.renderProgram!.invocation.propertyWriter)
 		bindCompiledProgramProperties(target, group, indexes[0]!);
-	else bindGenericProgramProperties(target, indexes);
+	else bindGenericProgramProperties(target, indexes, slots);
 }
