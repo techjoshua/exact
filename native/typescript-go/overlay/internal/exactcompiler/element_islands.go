@@ -101,7 +101,7 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 	constructor := lowering.names.constructRenderComponent
 	if island.interaction {
 		abi |= componentABITasks
-		constructor = lowering.names.constructDurableComponent
+		constructor = lowering.names.constructTaskComponent
 	}
 	role := "client-island"
 	contract := contractObject(factory, true,

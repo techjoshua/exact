@@ -182,6 +182,7 @@ describe('installed eXact component package artifacts', () => {
 						'./framework/server-task-helpers': './index.js',
 						'./runtime/render': './index.js',
 						'./runtime/component-construction/render': './index.js',
+						'./runtime/component-construction/task': './index.js',
 						'./runtime/component-construction/durable': './index.js',
 						'./runtime/component-construction/direct-server': './index.js',
 						'./runtime/reactivity': './index.js',
@@ -197,6 +198,7 @@ describe('installed eXact component package artifacts', () => {
 				`
       export function createServerBoundary() { return null; }
 			export function constructRenderComponentInstance() { return null; }
+			export function constructTaskComponentInstance() { return null; }
 			export function constructDurableComponentInstance() { return null; }
 			export function rejectDirectServerComponentConstruction() { return null; }
     `

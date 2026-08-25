@@ -1420,6 +1420,7 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
 			interface Component<State> {
 				state: State;
 				onMount(handler: () => void): void;
@@ -1431,19 +1432,26 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 				this.onMount(() => undefined);
 				return () => <aside />;
 			}
+			function TaskPanel(this: Component<{}>) {
+				function refresh(_task: TaskContext = TaskContext.client()) {}
+				return () => <button onClick={refresh}>Refresh</button>;
+			}
 		`,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
 	if strings.Count(response.Code, `abi: 1`) != 1 ||
-		strings.Count(response.Code, `abi: 3`) != 1 {
-		t.Fatalf("component runtime ABI did not distinguish direct and lifecycle paths:\n%s", response.Code)
+		strings.Count(response.Code, `abi: 3`) != 1 ||
+		strings.Count(response.Code, `abi: 9`) != 1 {
+		t.Fatalf("component runtime ABI did not distinguish render, lifecycle, and task paths:\n%s", response.Code)
 	}
 	for _, expected := range []string{
 		`constructRenderComponentInstance as __exactConstructRenderComponent`,
+		`constructTaskComponentInstance as __exactConstructTaskComponent`,
 		`constructDurableComponentInstance as __exactConstructDurableComponent`,
 		`construct: __exactConstructRenderComponent`,
+		`construct: __exactConstructTaskComponent`,
 		`construct: __exactConstructDurableComponent`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2437,8 +2445,8 @@ func TestSessionEmitsOnlyFiniteClientIslandForServerOwnedSetup(t *testing.T) {
 		t.Fatalf("client artifact omitted the finite interactive island:\n%s", response.Code)
 	}
 	for _, expected := range []string{
-		"constructDurableComponentInstance as __exactConstructDurableComponent",
-		"construct: __exactConstructDurableComponent",
+		"constructTaskComponentInstance as __exactConstructTaskComponent",
+		"construct: __exactConstructTaskComponent",
 		"abi: 9",
 	} {
 		if !strings.Contains(response.Code, expected) {

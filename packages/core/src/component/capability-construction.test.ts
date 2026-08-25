@@ -16,6 +16,8 @@ import {
 import { RenderComponentInstance } from './render-instance.js';
 import { constructRenderComponentInstance } from './render-instance-construction.js';
 import { constructDurableComponentInstance } from './durable-instance-construction.js';
+import { TaskComponentInstance } from './task-instance.js';
+import { constructTaskComponentInstance } from './task-instance-construction.js';
 
 describe('compiled component capability construction', () => {
 	it('releases component-owned resources with the durable instance', () => {
@@ -134,7 +136,7 @@ describe('compiled component capability construction', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
-					construct: constructDurableComponentInstance,
+					construct: constructTaskComponentInstance,
 					abi: 8,
 					state: [],
 					tasks: ['setup'],
@@ -146,9 +148,46 @@ describe('compiled component capability construction', () => {
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
 		const instance = createComponentInstance(TaskPanel, {});
-		expect(instance).toBeInstanceOf(ComponentInstanceImpl);
+		expect(instance).toBeInstanceOf(TaskComponentInstance);
+		expect(instance).not.toBeInstanceOf(ComponentInstanceImpl);
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
+	});
+
+	it('releases task ownership when task-only construction fails', () => {
+		let constructing: Component<{}> | undefined;
+		const implementation = function FailingTaskPanel(this: Component<{}>) {
+			constructing = this;
+			throw new Error('setup failed');
+		};
+		const FailingTaskPanel = Object.assign(implementation, {
+			[exactComponentType]: 'component:FailingTaskPanel',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					construct: constructTaskComponentInstance,
+					abi: 8,
+					state: [],
+					tasks: ['setup'],
+					reactive: [],
+					render: 'returned-function' as const,
+					capabilities: ['tasks'] as const
+				}
+			}
+		}) as ComponentFunction<{}, Record<string, unknown>>;
+
+		expect(() => createComponentInstance(FailingTaskPanel, {})).toThrow('setup failed');
+		expect(constructing).toBeDefined();
+		expect(taskOwnerForHost(constructing!)?.disposed).toBe(true);
 	});
 });
 import '../runtime/component-tasks.js';

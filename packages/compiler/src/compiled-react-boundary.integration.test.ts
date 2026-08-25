@@ -7,6 +7,7 @@ import { createVNode } from '@exactjs/core';
 import * as exactRenderRuntime from '@exactjs/core/runtime/render';
 import * as exactDurableConstructionRuntime from '@exactjs/core/runtime/component-construction/durable';
 import * as exactRenderConstructionRuntime from '@exactjs/core/runtime/component-construction/render';
+import * as exactTaskConstructionRuntime from '@exactjs/core/runtime/component-construction/task';
 import * as exactReactivityRuntime from '@exactjs/core/runtime/reactivity';
 import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
 import * as exactTaskRuntime from '@exactjs/core/runtime/tasks';
@@ -115,6 +116,7 @@ function compileMixedApp(target: 'client' | 'server'): CompiledMixedApp {
 		'@exactjs/core': exactCore,
 		'@exactjs/core/runtime/component-construction/durable': exactDurableConstructionRuntime,
 		'@exactjs/core/runtime/component-construction/render': exactRenderConstructionRuntime,
+		'@exactjs/core/runtime/component-construction/task': exactTaskConstructionRuntime,
 		'@exactjs/core/framework/render-structure': exactRenderRuntime,
 		'@exactjs/core/framework/server-render-structure': exactServerRenderStructure,
 		'@exactjs/core/framework/server-task-helpers': exactCore,
