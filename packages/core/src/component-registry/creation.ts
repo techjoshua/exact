@@ -41,9 +41,11 @@ type RuntimeLazyEntry = {
  * callback returns, and the returned definition is copied into a frozen null-prototype record.
  */
 export function createComponentRegistry<const Definition extends ComponentRegistryDefinition>(
-	define: (builder: ComponentRegistryBuilder) => Definition
+	_define: (builder: ComponentRegistryBuilder) => Definition
 ): ComponentRegistry<Definition> {
-	return createRegistry(undefined, undefined, define);
+	throw new Error(
+		'createComponentRegistry() is source syntax and must be compiled before execution'
+	);
 }
 
 /**
@@ -68,10 +70,10 @@ export function createCompiledComponentRegistry<
 }
 
 function createRegistry<const Definition extends ComponentRegistryDefinition>(
-	id: string | undefined,
-	name: string | undefined,
+	id: string,
+	name: string,
 	define: (builder: ComponentRegistryBuilder) => Definition,
-	target?: 'client' | 'server'
+	target: 'client' | 'server'
 ): ComponentRegistry<Definition> {
 	if (typeof define !== 'function')
 		throw new TypeError('createComponentRegistry() requires a definition callback');
@@ -137,9 +139,9 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 		} as AnyComponentFunction;
 		Object.defineProperty(facade, 'name', {
 			configurable: true,
-			value: `${name ?? 'ComponentRegistry'}.${key}${id ? `#${id}` : ''}`
+			value: `${name}.${key}#${id}`
 		});
-		if (id && target) attachRegistryFacadeArtifact(facade, id, key, target, lazy !== undefined);
+		attachRegistryFacadeArtifact(facade, id, key, target, lazy !== undefined);
 		const entry: ComponentRegistryEntryRuntime = {
 			registry: runtime,
 			key,
@@ -225,8 +227,8 @@ export function inspectComponentRegistry(
 	const runtime = registryValues.get(registry as object);
 	if (!runtime) throw new TypeError('inspectComponentRegistry() requires a component registry');
 	return Object.freeze({
-		...(runtime.id ? { id: runtime.id } : {}),
-		...(runtime.name ? { name: runtime.name } : {}),
+		id: runtime.id,
+		name: runtime.name,
 		entries: Object.freeze(
 			[...runtime.entries.values()].map((entry) =>
 				Object.freeze({

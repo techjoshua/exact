@@ -96,15 +96,15 @@ export type ComponentRegistryEntryRuntime = {
 
 /** Runtime metadata for one immutable registry value. */
 export type ComponentRegistryRuntime = {
-	readonly id?: string;
-	readonly name?: string;
+	readonly id: string;
+	readonly name: string;
 	readonly entries: ReadonlyMap<string, ComponentRegistryEntryRuntime>;
 };
 
 /** Immutable diagnostic view of one compiler-owned component registry. */
 export type ComponentRegistryInspection = Readonly<{
-	id?: string;
-	name?: string;
+	id: string;
+	name: string;
 	entries: readonly Readonly<{
 		key: string;
 		mode: 'eager' | 'lazy';

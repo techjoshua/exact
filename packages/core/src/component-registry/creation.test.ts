@@ -32,10 +32,15 @@ function Secondary(this: Component<Record<string, never>>, props: MessageProps) 
 
 describe('component registries', () => {
 	it('creates a frozen null-prototype registry with stable key-specific facades', () => {
-		const View = createComponentRegistry(() => ({
-			primary: Primary,
-			secondary: Primary
-		}));
+		const View = createCompiledComponentRegistry(
+			'test:stable-facades',
+			'StableView',
+			'server',
+			() => ({
+				primary: Primary,
+				secondary: Primary
+			})
+		);
 
 		expect(Object.getPrototypeOf(View)).toBeNull();
 		expect(Object.isFrozen(View)).toBe(true);
@@ -107,14 +112,22 @@ describe('component registries', () => {
 				primary: Primary
 			}))
 		).toThrow('target-local artifact target');
-		expect(() => createComponentRegistry(() => ({}))).toThrow('at least one');
+		expect(() => createComponentRegistry(() => ({ primary: Primary }))).toThrow(
+			'must be compiled before execution'
+		);
 		expect(() =>
-			createComponentRegistry(
+			createCompiledComponentRegistry(
+				'registry-id',
+				'View',
+				'client',
 				() => ({ constructor: Primary }) as unknown as { safe: typeof Primary }
 			)
 		).toThrow('prototype-safe');
 		expect(() =>
-			createComponentRegistry(
+			createCompiledComponentRegistry(
+				'registry-id',
+				'View',
+				'client',
 				() => ({ invalid: 1 }) as unknown as { invalid: AnyComponentFunction }
 			)
 		).toThrow('expected a component');
@@ -123,7 +136,7 @@ describe('component registries', () => {
 	it('deduplicates lazy loads and keeps lazy() scoped to definition execution', async () => {
 		const load = vi.fn(async () => Secondary);
 		let escaped: ((load: () => Promise<typeof Secondary>) => unknown) | undefined;
-		const View = createComponentRegistry((builder) => {
+		const View = createCompiledComponentRegistry('test:deduplicate', 'View', 'client', (builder) => {
 			escaped = builder.lazy;
 			return {
 				primary: Primary,
@@ -138,7 +151,7 @@ describe('component registries', () => {
 
 	it('clears failed lazy loads for explicit retry and validates callable shape', async () => {
 		let attempt = 0;
-		const View = createComponentRegistry(({ lazy }) => ({
+		const View = createCompiledComponentRegistry('test:retry', 'View', 'client', ({ lazy }) => ({
 			retry: lazy(async () => {
 				if (attempt++ === 0) throw new Error('temporary');
 				return Secondary;
@@ -155,7 +168,7 @@ describe('component registries', () => {
 	});
 
 	it('renders a correlated heterogeneous selection without losing props', () => {
-		const View = createComponentRegistry(() => ({
+		const View = createCompiledComponentRegistry('test:selection', 'View', 'client', () => ({
 			primary: Primary,
 			secondary: Secondary
 		}));
