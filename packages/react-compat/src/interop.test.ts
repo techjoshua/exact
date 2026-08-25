@@ -1,12 +1,12 @@
 import { createContext, createVNode, type Component } from '@exactjs/core';
 import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
 import {
-	createExactFrameworkFixtureArtifact,
 	exactComponentContract,
 	exactComponentType,
 	readExactCompiledComponentContract,
 	type AnyExactComponentCallable
 } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import {
 	createFrameworkComponentDomain,
 	withComponentDomain

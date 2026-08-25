@@ -8,7 +8,7 @@ import {
 	keyCompiledVNode,
 	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { createPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
 	beginCompiledProgramClaims,

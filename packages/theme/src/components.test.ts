@@ -2,7 +2,7 @@
 import '@exactjs/dom/framework/enhancements';
 import { Fragment, createEnhancementNode, createVNode, type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import '@exactjs/core/runtime/contexts';
 import { render } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';

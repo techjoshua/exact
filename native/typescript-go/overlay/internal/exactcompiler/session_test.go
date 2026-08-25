@@ -6329,6 +6329,8 @@ func TestSessionSpecializesDirectServerAwaitAndTimeout(t *testing.T) {
 		}
 	}
 	for _, excluded := range []string{
+		`import { TaskContext, taskTimeout`,
+		`import { taskTimeout`,
 		`taskAwait as __exactTaskAwait`,
 		`taskTimeout as __exactTaskTimeout`,
 		`@exactjs/core/runtime/reactivity`,
@@ -6338,6 +6340,9 @@ func TestSessionSpecializesDirectServerAwaitAndTimeout(t *testing.T) {
 		if strings.Contains(response.Code, excluded) {
 			t.Fatalf("direct server task output retained %q:\n%s", excluded, response.Code)
 		}
+	}
+	if !strings.Contains(response.Code, `import { type TaskContext, type Component } from "@exactjs/core"`) {
+		t.Fatalf("direct server task output did not convert consumed policy syntax to type-only imports:\n%s", response.Code)
 	}
 }
 

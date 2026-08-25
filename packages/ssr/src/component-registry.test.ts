@@ -1,9 +1,7 @@
 import { Suspense, type Component } from '@exactjs/core';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
-import {
-	createExactFrameworkFixtureArtifact,
-	readExactCompiledComponentContract
-} from '@exactjs/core/framework/component-contracts';
+import { readExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderToString, renderToStringAsync } from './index.js';

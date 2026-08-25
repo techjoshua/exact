@@ -8,14 +8,14 @@ import {
 	readExactCompiledComponentContract
 } from '../component-contracts.js';
 import { isVNode } from '../vnode.js';
+import { createCompiledComponentRegistry } from './creation.js';
 import {
-	createComponentRegistry,
-	createCompiledComponentRegistry,
 	hasComponent,
 	inspectComponentRegistry,
 	preloadComponent,
 	renderComponent
-} from './creation.js';
+} from './operations.js';
+import { createComponentRegistry } from './syntax.js';
 import type { ComponentSelection, KeyOf } from './contracts.js';
 
 type MessageProps = {

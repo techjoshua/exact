@@ -100,13 +100,13 @@ export {
 	type ExactRuntimeInspectionOwnerOptions
 } from './component/inspection.js';
 export { markExactInspectionSource } from './component/inspection-source.js';
+export { createComponentRegistry } from './component-registry/syntax.js';
 export {
-	createComponentRegistry,
 	hasComponent,
 	inspectComponentRegistry,
 	preloadComponent,
 	renderComponent
-} from './component-registry/creation.js';
+} from './component-registry/operations.js';
 export type {
 	ComponentProps,
 	ComponentRegistry,

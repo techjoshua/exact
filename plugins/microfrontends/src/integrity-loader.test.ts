@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { loadExactRemoteModule } from './client.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';

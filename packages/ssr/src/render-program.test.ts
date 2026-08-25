@@ -13,7 +13,7 @@ import {
 	prepareCompiledRenderProgram
 } from '@exactjs/core/runtime/render';
 import { createPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
 import { renderToStream, renderToString, renderToStringAsync } from './index.js';

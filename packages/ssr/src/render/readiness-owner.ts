@@ -5,7 +5,7 @@ import {
 	type Component,
 	type ReadinessCoordinator
 } from '@exactjs/core';
-import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 
 /** Bridges one asynchronous SSR Suspense pass to the component readiness contexts. */
 export const SsrReadinessOwner = createExactInternalOwnerArtifact(

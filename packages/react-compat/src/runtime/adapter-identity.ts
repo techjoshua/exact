@@ -1,5 +1,5 @@
 import type { AnyComponentFunction } from '@exactjs/core';
-import { createExactCompatibilityArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactCompatibilityArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import {
 	componentDomainTarget,
 	currentComponentDomain

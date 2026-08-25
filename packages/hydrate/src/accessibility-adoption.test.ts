@@ -4,7 +4,7 @@
 import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
 import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';

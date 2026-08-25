@@ -11,10 +11,10 @@ import {
 	type TaskContext
 } from '@exactjs/core';
 import {
-	createExactFrameworkFixtureArtifact,
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
