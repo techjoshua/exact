@@ -6,6 +6,11 @@ import type {
 import type { TaskContext } from './tasks/contracts.js';
 import { validatedComponentContract } from './component-contract/contract-cache.js';
 import { compiledComponentRenderABI, generalComponentABI } from './component/compiled-abi.js';
+import {
+	addUniqueExecutor,
+	addUniqueImplementation,
+	addUniqueJson
+} from './component-contract/composition-support.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
@@ -399,12 +404,7 @@ export function exactComponentIdentity(component: AnyExactComponentCallable): st
 	throw new Error('Native eXact components require compiler-owned identity');
 }
 
-/**
- * Composes imported component contracts into duplicate-checked runtime indexes.
- *
- * Importing the component is the activation boundary: only implementations and
- * operations reachable from the supplied roots enter the result.
- */
+/** Composes reachable imported component contracts into duplicate-checked runtime indexes. */
 export function composeExactComponentContracts(
 	components: readonly AnyExactComponentCallable[],
 	role: ExactComponentContract['role']
@@ -477,38 +477,4 @@ function composeComponentContracts(
 		executions,
 		definitions
 	});
-}
-
-/** Adds one generated continuation implementation while rejecting ambiguous authority. */
-function addUniqueExecutor(
-	target: Record<string, ExactComponentContinuationExecutorContract>,
-	executor: ExactComponentContinuationExecutorContract
-): void {
-	const previous = target[executor.id];
-	if (
-		previous &&
-		(previous.componentId !== executor.componentId || previous.execute !== executor.execute)
-	)
-		throw new Error(`Conflicting eXact component continuation executor ${executor.id}`);
-	target[executor.id] = executor;
-}
-
-/** Adds one implementation while rejecting ID or runtime-name collisions. */
-function addUniqueImplementation(
-	target: Record<string, AnyExactComponentCallable>,
-	key: string,
-	implementation: AnyExactComponentCallable
-): void {
-	const previous = target[key];
-	if (previous && previous !== implementation)
-		throw new Error(`Conflicting eXact component implementation ${key}`);
-	target[key] = implementation;
-}
-
-/** Adds immutable JSON-shaped metadata while rejecting conflicting identities. */
-function addUniqueJson<T>(target: Record<string, T>, key: string, value: T, kind: string): void {
-	const previous = target[key];
-	if (previous && JSON.stringify(previous) !== JSON.stringify(value))
-		throw new Error(`Conflicting eXact component ${kind} ${key}`);
-	target[key] = value;
 }

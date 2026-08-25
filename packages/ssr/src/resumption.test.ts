@@ -21,6 +21,7 @@ import { renderResumableComponentBoundary } from './render/resumption-boundaries
 import { createSsrContext } from './render/context.js';
 import { readRemainingStreamEvents } from './test-support/streams.js';
 import { createVNode } from './test-support/native-vnode.js';
+import { directResumableFixture } from './test-support/direct-resumable-fixture.js';
 
 describe('@exactjs/ssr component resumption', () => {
 	it('captures direct-frame state in parent-before-child construction order', () => {
@@ -578,58 +579,3 @@ describe('@exactjs/ssr component resumption', () => {
 		]);
 	});
 });
-
-/** Attaches the smallest prepared contract used by direct-frame resumption fixtures. */
-function directResumableFixture<Props extends Record<string, unknown>>(
-	name: string,
-	statePaths: readonly string[],
-	implementation: (
-		this: { state: Record<string, unknown> },
-		props: Props
-	) => () => ReturnType<typeof createVNode>,
-	classification: 'synchronous' | 'scheduled' = 'synchronous',
-	stateInputs: readonly (readonly [string, string])[] = []
-) {
-	const componentId = `component:${name}`;
-	return Object.assign(implementation, {
-		[exactComponentType]: componentId,
-		[exactComponentContract]: {
-			version: 2 as const,
-			placement: 'isomorphic' as const,
-			role: 'client' as const,
-			implementations: [
-				{
-					id: `implementation:${name}`,
-					name,
-					role: 'root' as const,
-					implementation
-				}
-			],
-			continuations: [],
-			executors: [],
-			boundaries: [],
-			definition: {
-				version: 1 as const,
-				instantiate: implementation,
-				abi: 1,
-				capabilities: ['resumption'] as const,
-				state: statePaths,
-				server: {
-					version: 1 as const,
-					classification,
-					lane: 'direct' as const,
-					deferredTaskProps: [],
-					render: implementation
-				}
-			},
-			resumption: {
-				componentId,
-				statePaths,
-				stateInputs,
-				valueCaptures: [],
-				contexts: [],
-				boundaries: []
-			}
-		}
-	});
-}

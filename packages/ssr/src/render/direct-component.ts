@@ -1,16 +1,11 @@
 import {
-	Fragment,
 	attachSuppressedCleanupFailure,
-	createVNode,
 	isVNode,
-	withComponentDomain,
 	type AnyComponentFunction,
 	type AnyComponentInstance,
 	type Child,
-	type ReactiveValue,
 	type VNode
 } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive/framework/values';
 import {
 	createServerComponentExecutionFrame,
 	withServerComponentVNodeIssuer,
@@ -31,14 +26,13 @@ import {
 	renderDirectSsrContent,
 	type DirectSsrComponentContent
 } from './direct-component-content.js';
+import {
+	createDirectSsrComponentFrame,
+	directSsrProps,
+	inComponentDomain
+} from './direct-component-support.js';
 
 export type { DirectSsrComponentContent } from './direct-component-content.js';
-
-/** Minimal request-local receiver for compiler-proven synchronous server components. */
-type DirectSsrComponentFrame = Readonly<{
-	state: Record<string, unknown>;
-	map: typeof directSsrMap;
-}>;
 
 /** Completed setup and render result awaiting successful descendant serialization. */
 export type DirectSsrComponentResult = Readonly<{
@@ -227,7 +221,7 @@ export function renderDirectSsrComponent(
 	const server = blueprint.contract.definition.server;
 	if (server?.lane !== 'direct' || server.classification !== 'synchronous' || !server.render)
 		return undefined;
-	const frame: DirectSsrComponentFrame = { state: {}, map: directSsrMap };
+	const frame = createDirectSsrComponentFrame();
 	const props = directSsrProps(rawProps);
 	const render = inComponentDomain(context, () => server.render!.call(frame, props));
 	if (typeof render !== 'function')
@@ -277,7 +271,7 @@ function constructDirectScheduledSsrComponent(
 	options: SsrRenderOptions
 ): DirectScheduledSsrComponent | Promise<never> {
 	const server = blueprint.contract.definition.server!;
-	const frame: DirectSsrComponentFrame = { state: {}, map: directSsrMap };
+	const frame = createDirectSsrComponentFrame();
 	const pending = new Set<Promise<unknown>>();
 	const execution: ServerComponentExecutionFrame = createServerComponentExecutionFrame(frame, {
 		observe(settlement) {
@@ -420,35 +414,4 @@ function resolveMaybe<T, U>(
 	return value && typeof (value as Promise<T>).then === 'function'
 		? Promise.resolve(value).then(project)
 		: project(value as T);
-}
-
-/** Materializes a compiler-generated keyed-list fallback without caches or retained registration. */
-function directSsrMap<T>(
-	collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-	key: (item: T) => string,
-	render: (item: T) => VNode,
-	id?: string
-): VNode {
-	return createVNode(Fragment, {
-		key: id,
-		list: { collection: unwrap(collection) as Iterable<T>, key, render }
-	});
-}
-
-/** Resolves compiler-emitted expression props without allocating the general readonly proxy. */
-function directSsrProps(rawProps: Record<string, unknown>): Record<string, unknown> {
-	let resolved = rawProps;
-	for (const key of Object.keys(rawProps)) {
-		// Component children are an owned VNode graph, matching the general props passthrough rule.
-		if (key === 'children') continue;
-		const value = unwrap(rawProps[key]);
-		if (Object.is(value, rawProps[key])) continue;
-		if (resolved === rawProps) resolved = { ...rawProps };
-		resolved[key] = value;
-	}
-	return resolved;
-}
-
-function inComponentDomain<T>(context: SsrContext, work: () => T): T {
-	return context.componentDomain ? withComponentDomain(context.componentDomain, work) : work();
 }
