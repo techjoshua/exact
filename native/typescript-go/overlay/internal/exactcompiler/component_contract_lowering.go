@@ -43,6 +43,7 @@ func lowerComponentContracts(
 	descriptorName := allocateGeneratedName(used, "__exactComponentContract")
 	constructors := componentConstructorImports{
 		renderName:             allocateGeneratedName(used, "__exactConstructRenderComponent"),
+		taskName:               allocateGeneratedName(used, "__exactConstructTaskComponent"),
 		durableName:            allocateGeneratedName(used, "__exactConstructDurableComponent"),
 		directServerName:       allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
 		directContextFrameName: allocateGeneratedName(used, "__exactDirectSsrContextFrame"),
@@ -182,10 +183,12 @@ func lowerComponentContracts(
 
 type componentConstructorImports struct {
 	renderName             string
+	taskName               string
 	durableName            string
 	directServerName       string
 	directContextFrameName string
 	renderUsed             bool
+	taskUsed               bool
 	durableUsed            bool
 	directServerUsed       bool
 	directContextFrameUsed bool
@@ -203,6 +206,10 @@ func (imports *componentConstructorImports) selectConstructor(
 	if abi&(componentABILifecycle|componentABILists|componentABITasks) == 0 {
 		imports.renderUsed = true
 		return factory.NewIdentifier(imports.renderName)
+	}
+	if abi&(componentABILifecycle|componentABILists) == 0 && abi&componentABITasks != 0 {
+		imports.taskUsed = true
+		return factory.NewIdentifier(imports.taskName)
 	}
 	imports.durableUsed = true
 	return factory.NewIdentifier(imports.durableName)
@@ -242,6 +249,14 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 			"constructRenderComponentInstance",
 			imports.renderName,
 			"@exactjs/core/runtime/component-construction/render",
+		))
+	}
+	if imports.taskUsed {
+		declarations = append(declarations, componentConstructorImport(
+			factory,
+			"constructTaskComponentInstance",
+			imports.taskName,
+			"@exactjs/core/runtime/component-construction/task",
 		))
 	}
 	if imports.durableUsed {

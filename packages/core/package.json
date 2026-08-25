@@ -112,6 +112,10 @@
 			"types": "./dist/runtime/component-construction/render.d.ts",
 			"default": "./dist/runtime/component-construction/render.js"
 		},
+		"./runtime/component-construction/task": {
+			"types": "./dist/runtime/component-construction/task.d.ts",
+			"default": "./dist/runtime/component-construction/task.js"
+		},
 		"./runtime/component-construction/durable": {
 			"types": "./dist/runtime/component-construction/durable.d.ts",
 			"default": "./dist/runtime/component-construction/durable.js"
