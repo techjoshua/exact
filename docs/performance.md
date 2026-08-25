@@ -547,6 +547,12 @@ to avoid capability-name scans, task lookups, lifecycle-map probes, and list-con
 the component cannot exercise. Framework test fixtures and compatibility artifacts retain the
 conservative general path.
 
+The same ABI selects instance storage. Components without lifecycle, runtime-list, or task bits use
+a compact render record and therefore have no lifecycle controllers, task capability/state, or
+list-disposal branches. Components that declare one of those ownership surfaces use the durable
+record. This selection happens before setup, so the compact path reduces construction and retained
+shape rather than merely leaving universal fields undefined after allocation.
+
 The compiler also selects the authored component surface itself. The base durable instance owns only
 the state machine and its always-valid context operations. Canonical lifecycle registration and
 resource ownership calls lower directly to focused kernel operations; they neither install nor look

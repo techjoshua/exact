@@ -165,6 +165,14 @@ component-wide render watcher or advertise unused lifecycle, list, or task owner
 keys select the direct synchronous frame and forward immediately to their fixed implementation.
 Only a lazy server key retains the dynamic generic lane while its loader can suspend.
 
+Client construction also consumes the artifact ABI before allocating an instance record. An
+artifact with no lifecycle, runtime-managed list, or task ownership receives the compact render
+record: state, props, scope, render operation, activity state, and inspection identity only.
+Artifacts that declare any of those durable capabilities retain the full ownership record. Both
+records implement the same observable component-instance contract and share process-local
+diagnostic identity, but the compact lane cannot accidentally allocate unused controllers, task
+state, or list cleanup machinery.
+
 ## Runtime inventory
 
 | Existing path                                     | Classification                    | Required replacement                                                          |

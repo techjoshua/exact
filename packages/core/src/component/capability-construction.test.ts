@@ -8,7 +8,12 @@ import { createFrameworkComponentDomain } from './domain.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
-import { createComponentInstance, createFrameworkFixtureComponentInstance } from './runtime.js';
+import {
+	ComponentInstanceImpl,
+	createComponentInstance,
+	createFrameworkFixtureComponentInstance
+} from './runtime.js';
+import { RenderComponentInstance } from './render-instance.js';
 
 describe('compiled component capability construction', () => {
 	it('releases component-owned resources with the durable instance', () => {
@@ -65,6 +70,7 @@ describe('compiled component capability construction', () => {
 
 		const instance = createComponentInstance(StaticPanel, {});
 		expect(instance.runtimeABI).toBe(0);
+		expect(instance).toBeInstanceOf(RenderComponentInstance);
 		expect(taskOwnerForHost(instance)).toBeUndefined();
 		instance.unmount();
 	});
@@ -136,6 +142,7 @@ describe('compiled component capability construction', () => {
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
 		const instance = createComponentInstance(TaskPanel, {});
+		expect(instance).toBeInstanceOf(ComponentInstanceImpl);
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
 	});
