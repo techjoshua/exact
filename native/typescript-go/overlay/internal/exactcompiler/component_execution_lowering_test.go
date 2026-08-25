@@ -329,6 +329,33 @@ func TestCompilerClosedMarkedServerRootRetainsMarkerFormatting(t *testing.T) {
 	}
 }
 
+func TestCompilerClosedServerRootInsideNestedArrowSelectsNarrowRenderer(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-root-nested-arrow.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { renderToStringAsync } from "@exactjs/ssr";
+			export function Page(props: { value: number }) {
+				return () => <main>{props.value}</main>;
+			}
+			export function renderMany(values: number[], markers: boolean) {
+				return Promise.all(values.map((value) =>
+					renderToStringAsync(<Page value={value} />, {
+						markers,
+						maxAsyncSsrConcurrency: 4
+					})
+				));
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+		strings.Contains(response.Code, `from "@exactjs/ssr"`) {
+		t.Fatalf("nested compiler-closed root retained the universal renderer:\n%s", response.Code)
+	}
+}
+
 func TestCompilerClosedHydratableRootSelectsPairedRenderer(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-root-hydratable.tsx", Kind: "compile", Target: TargetServer,

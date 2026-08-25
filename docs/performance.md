@@ -615,8 +615,10 @@ hydratable lane retains resumption capture and the hydration publication while a
 universal async VNode dispatcher. Its serializer consumes the generated
 program segments directly and coordinates only the direct component slots named by the graph. The
 selection is transitive and conservative: imported or generic descendants, client boundaries,
-general child slots, dynamic render options, and React-markup mode keep the universal async VNode
-dispatcher. Production bundle checks reject that dispatcher when the server load fixture qualifies
+general child slots, root-replacing output options, and React-markup mode keep the universal async
+VNode dispatcher. A dynamic marker flag remains on the closed marked entrypoint because marker
+publication is already a request-context decision and cannot change the rendered graph. Production
+bundle checks reject that dispatcher when the server load fixture qualifies
 for the closed lane. When a private graph is rendered only by a local call with literal
 `markers: false`, the selected publisher returns the generated HTML directly and the bundle check
 also rejects component-marker, hydration-payload, and resumption-envelope formatters. Exported
