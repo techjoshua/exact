@@ -181,6 +181,7 @@ describe('installed eXact component package artifacts', () => {
 						'./framework/server-render-structure': './index.js',
 						'./framework/server-task-helpers': './index.js',
 						'./runtime/render': './index.js',
+						'./runtime/component-construction': './index.js',
 						'./runtime/reactivity': './index.js',
 						'./runtime/tasks': './index.js',
 						'./runtime/inspection': './index.js',
@@ -193,6 +194,8 @@ describe('installed eXact component package artifacts', () => {
 				path.join(exactCore, 'index.js'),
 				`
       export function createServerBoundary() { return null; }
+			export function constructRenderComponentInstance() { return null; }
+			export function constructDurableComponentInstance() { return null; }
     `
 			);
 			await writeFile(

@@ -136,6 +136,7 @@ func componentExecutionMetadata(
 func componentDefinitionMetadata(
 	factory *printer.NodeFactory,
 	instantiate *ast.Node,
+	construct *ast.Node,
 	execution ComponentExecution,
 	deferredTaskProps []string,
 	stateSlots []string,
@@ -193,6 +194,7 @@ func componentDefinitionMetadata(
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "instantiate", instantiate),
+		contractProperty(factory, "construct", construct),
 		contractProperty(factory, "abi", contractNumber(factory, runtimeABI)),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		contractProperty(factory, "state", stringMetadata(factory, state)),

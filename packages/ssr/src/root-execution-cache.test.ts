@@ -7,6 +7,7 @@ import {
 	type ExactComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { ssrRootExecutionBlueprint } from './render/root-execution-cache.js';
+import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction';
 
 describe('SSR root component blueprint cache', () => {
 	it('reuses root and dynamic contracts while detecting replaced authority', () => {
@@ -56,6 +57,8 @@ function fixtureDefinition(component: (...args: any[]) => any) {
 	return {
 		version: 1 as const,
 		instantiate: component,
+		construct: constructDurableComponentInstance,
+		abi: 8,
 		state: [],
 		tasks: [],
 		reactive: [],

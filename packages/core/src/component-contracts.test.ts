@@ -13,6 +13,7 @@ import {
 } from './component-contract/runtime-artifacts.js';
 
 describe('@exactjs/core component contracts', () => {
+	const construct = () => undefined;
 	it('limits an opaque framework boundary to dynamic rendering and interactions', () => {
 		const Boundary = createExactCompiledDynamicBoundaryArtifact(
 			function Boundary() {},
@@ -243,6 +244,7 @@ describe('@exactjs/core component contracts', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					construct,
 					abi: lane === 'direct' ? 9 : 8,
 					capabilities: [],
 					server
@@ -323,6 +325,7 @@ describe('@exactjs/core component contracts', () => {
 				definition: {
 					version: 1 as const,
 					instantiate,
+					construct,
 					abi: 0,
 					capabilities: [],
 					updates: { bindings: [['count', 1, 0]], apply() {} }
@@ -350,6 +353,7 @@ describe('@exactjs/core component contracts', () => {
 				definition: {
 					version: 1 as const,
 					instantiate,
+					construct,
 					abi: 0,
 					capabilities: [],
 					updates: { bindings: [['count', -1, 0]], apply() {} }
@@ -374,7 +378,7 @@ describe('@exactjs/core component contracts', () => {
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: { version: 1 as const, instantiate, abi: 32, capabilities: [] }
+				definition: { version: 1 as const, instantiate, construct, abi: 32, capabilities: [] }
 			}
 		});
 
@@ -395,7 +399,28 @@ describe('@exactjs/core component contracts', () => {
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: { version: 1 as const, instantiate, capabilities: [] }
+				definition: { version: 1 as const, instantiate, construct, capabilities: [] }
+			}
+		});
+
+		expect(() => readExactCompiledComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
+	});
+
+	it('rejects compiled definitions without compiler-linked construction', () => {
+		const instantiate = () => undefined;
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:MissingConstruction',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: { version: 1 as const, instantiate, abi: 0, capabilities: [] }
 			}
 		});
 

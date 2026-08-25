@@ -139,7 +139,7 @@ end. If variable structure makes neither edge stable, the component retains its 
 claims. Inert static intrinsics are never claimed or assigned individual ownership. The successful
 path does not walk descriptor tables, build an identity map, or rediscover slots. Every claimed tag,
 namespace, scalar sentinel, and structural marker pair is still checked. A stale or malformed plan
-therefore fails closed into the existing hydration recovery path. Complete rendering-mode-neutral
+therefore fails closed into the existing hydration recovery path. Paired client and server
 artifacts combine the same direct client claim lane with a generated SSR writer. The production DOM
 executor accepts only that compiler-specialized client ABI; manually constructed table fixtures are
 converted to the direct ABI by the testing entry point and are not a browser compatibility lane.
@@ -173,11 +173,10 @@ Closed hydrate and client artifacts emit their complete claim and binding topolo
 executor. Its claim lane wires intrinsic and slot identities; its binding lane calls text,
 structural-child, compiler-keyed-child, grouped compatibility-list, and property operations. The DOM
 executor invokes those compiler-authored calls without walking or branching over general node,
-slot, or binding tables. Complete rendering-mode-neutral artifacts retain direct client execution,
-a component-specific server function, and a region recovery factory because the same physical
-artifact may execute through either renderer. They do not make contract-metadata completeness
-select generic successful execution. Closed server artifacts emit only that component-specific SSR
-function: a
+slot, or binding tables. Published packages retain paired direct client execution and
+component-specific server functions; one physical executable artifact is never asked to select
+between render targets. They do not make contract-metadata completeness select generic successful
+execution. Closed server artifacts emit only that component-specific SSR function: a
 generated preparation prefix reads the known slots, then generated calls write static markup,
 text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
@@ -629,8 +628,9 @@ Structural child and component calls delegate only their owned value to the ordi
 renderer. Asynchronous and streaming renderers execute the same generated calls and defer only each
 prepared child value to their ordinary async or chunk renderer; they do not reconstruct the host
 through the generic fallback. Hydrate-only client artifacts omit server markup and execution.
-Complete rendering-mode-neutral artifacts retain the table representation as an explicit
-compatibility boundary. When one module contains both direct and generic server components, its
+Paired package outputs keep client and server execution in separate target-local modules rather
+than retaining a neutral table as a compatibility boundary. When one module contains both direct
+and generic server components, its
 generated imports preserve those lanes independently: generic components retain reactive render
 helpers while direct components obtain the server-only prepared-program constructor.
 

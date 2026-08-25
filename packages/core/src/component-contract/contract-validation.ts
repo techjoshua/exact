@@ -83,6 +83,7 @@ function isDefinition(value: unknown): boolean {
 		hasOnlyContractKeys(value, [
 			'version',
 			'instantiate',
+			'construct',
 			'abi',
 			'updates',
 			'state',
@@ -94,6 +95,7 @@ function isDefinition(value: unknown): boolean {
 		]) &&
 		value.version === 1 &&
 		typeof value.instantiate === 'function' &&
+		typeof value.construct === 'function' &&
 		typeof value.abi === 'number' &&
 		Number.isSafeInteger(value.abi) &&
 		value.abi >= 0 &&

@@ -8,6 +8,7 @@ import {
 	type TaskContext
 } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
+import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction';
 import {
 	exactComponentContract,
 	exactComponentType,
@@ -290,6 +291,7 @@ function compiledComponent<T extends (...args: any[]) => any>(
 						definition: {
 							version: 1 as const,
 							instantiate: component,
+							construct: constructDurableComponentInstance,
 							abi: directScheduled ? 9 : 8,
 							state: [],
 							tasks: ['setup'],

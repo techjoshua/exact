@@ -6,6 +6,7 @@ import {
 	exactComponentType,
 	type ExactComponentContract
 } from '../component-contracts.js';
+import { constructRenderComponentInstance } from '../component/render-instance-construction.js';
 import { createVNode } from '../vnode.js';
 import type {
 	AnyComponentRegistry,
@@ -192,6 +193,7 @@ function attachRegistryFacadeArtifact(
 		definition: Object.freeze({
 			version: 1,
 			instantiate: facade,
+			construct: constructRenderComponentInstance,
 			abi: compiledComponentRenderABI,
 			state: Object.freeze([]),
 			tasks: Object.freeze([]),

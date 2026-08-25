@@ -9,6 +9,7 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
+import { constructRenderComponentInstance } from '@exactjs/core/runtime/component-construction';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
@@ -42,6 +43,7 @@ describe('@exactjs/ssr ownership', () => {
 				definition: {
 					version: 1,
 					instantiate: Direct,
+					construct: constructRenderComponentInstance,
 					abi: 1,
 					capabilities: [],
 					state: ['label'],
@@ -109,6 +111,7 @@ describe('@exactjs/ssr ownership', () => {
 				definition: {
 					version: 1,
 					instantiate: DirectList,
+					construct: constructRenderComponentInstance,
 					abi: 1,
 					capabilities: [],
 					state: [],

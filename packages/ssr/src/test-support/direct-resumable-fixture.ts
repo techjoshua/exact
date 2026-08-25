@@ -2,6 +2,7 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
+import { constructRenderComponentInstance } from '@exactjs/core/runtime/component-construction';
 import { createVNode } from './native-vnode.js';
 
 /** Attaches the smallest prepared contract used by direct-frame resumption fixtures. */
@@ -36,6 +37,7 @@ export function directResumableFixture<Props extends Record<string, unknown>>(
 			definition: {
 				version: 1 as const,
 				instantiate: implementation,
+				construct: constructRenderComponentInstance,
 				abi: 1,
 				capabilities: ['resumption'] as const,
 				state: statePaths,

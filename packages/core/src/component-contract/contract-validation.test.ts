@@ -29,6 +29,7 @@ describe('component contract validation', () => {
 		const definition = {
 			version: 1,
 			instantiate,
+			construct: instantiate,
 			abi: 0,
 			capabilities: [],
 			server: {
