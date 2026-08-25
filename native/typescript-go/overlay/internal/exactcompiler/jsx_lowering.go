@@ -9,6 +9,7 @@ import (
 )
 
 type jsxLowering struct {
+	phase                        jsxLoweringPhase
 	sourceFile                   *ast.SourceFile
 	factory                      *printer.NodeFactory
 	visitor                      *ast.NodeVisitor
@@ -72,6 +73,16 @@ type jsxLowering struct {
 	timeAdoptedSelection         *timeAdoptedRange
 }
 
+type jsxLoweringPhase uint8
+
+const (
+	jsxLoweringPrepared jsxLoweringPhase = iota
+	jsxLoweringVisited
+	jsxLoweringProjected
+	jsxLoweringDefinitionsReady
+	jsxLoweringAssembled
+)
+
 // omitsComponentFromClient distinguishes a complete client-rendering artifact from the
 // same-build hydration projection. A mixed component can require client code solely for finite
 // interactive ranges; hydration retains those ranges but must not rerun server-owned setup.
@@ -108,13 +119,26 @@ func lowerExactJSX(
 	if !required {
 		return sourceFile, nil
 	}
+	transformed := lowering.lowerAuthoredTree(sourceFile)
+	transformed = lowering.projectTargetTree(transformed)
+	transformed, componentUpdateNames, sourceStatementCount := lowering.prepareDefinitions(transformed)
+	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames
+}
+
+func (lowering *jsxLowering) lowerAuthoredTree(sourceFile *ast.SourceFile) *ast.SourceFile {
+	lowering.advancePhase(jsxLoweringPrepared, jsxLoweringVisited)
 	lowering.visitor = ast.NewNodeVisitor(
 		lowering.visit,
-		&factory.NodeFactory,
+		&lowering.factory.NodeFactory,
 		ast.NodeVisitorHooks{},
 	)
-	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
-	transformed = lowering.lowerCompilerClosedSsrCalls(transformed)
+	return lowering.lowerCompilerClosedSsrCalls(
+		lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile(),
+	)
+}
+
+func (lowering *jsxLowering) projectTargetTree(transformed *ast.SourceFile) *ast.SourceFile {
+	lowering.advancePhase(jsxLoweringVisited, jsxLoweringProjected)
 	if lowering.target == TargetClient &&
 		lowering.contractProjection == ComponentContractProjectionHydrate {
 		components := make([]Component, 0, len(lowering.components))
@@ -131,7 +155,13 @@ func lowerExactJSX(
 		}
 	}
 	transformed = lowering.omitUnreachableServerComponentLocals(transformed.AsNode()).AsSourceFile()
-	transformed = lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
+	return lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
+}
+
+func (lowering *jsxLowering) prepareDefinitions(
+	transformed *ast.SourceFile,
+) (*ast.SourceFile, map[string]string, int) {
+	lowering.advancePhase(jsxLoweringProjected, jsxLoweringDefinitionsReady)
 	for _, definition := range lowering.renderProgramDefinitionNodes {
 		if containsIdentifier(transformed.AsNode(), definition.name) {
 			lowering.clientDefinitions = append(lowering.clientDefinitions, definition.node)
@@ -145,13 +175,21 @@ func lowerExactJSX(
 			transformed.Statements.Nodes...,
 		)
 		statements = append(statements, lowering.clientDefinitions...)
-		transformed = factory.UpdateSourceFile(
+		transformed = lowering.factory.UpdateSourceFile(
 			transformed,
-			factory.NewNodeList(statements),
+			lowering.factory.NewNodeList(statements),
 			transformed.EndOfFileToken,
 		).AsSourceFile()
 		ast.SetParentInChildren(transformed.AsNode())
 	}
+	return transformed, componentUpdateNames, sourceStatementCount
+}
+
+func (lowering *jsxLowering) assembleModule(
+	transformed *ast.SourceFile,
+	sourceStatementCount int,
+) *ast.SourceFile {
+	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
 	runtimeImports := lowering.runtimeImports(transformed.AsNode())
 	interopImport := lowering.interopImport(transformed.AsNode())
 	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+1)
@@ -179,13 +217,20 @@ func lowerExactJSX(
 	// const bindings in the temporal dead zone during the component's first render.
 	statements = append(statements, transformed.Statements.Nodes[sourceStatementCount:]...)
 	statements = append(statements, transformed.Statements.Nodes[definitionInsertion:sourceStatementCount]...)
-	result := factory.UpdateSourceFile(
+	result := lowering.factory.UpdateSourceFile(
 		transformed,
-		factory.NewNodeList(statements),
+		lowering.factory.NewNodeList(statements),
 		transformed.EndOfFileToken,
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
-	return result, componentUpdateNames
+	return result
+}
+
+func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLoweringPhase) {
+	if lowering.phase != expected {
+		panic("invalid JSX lowering phase order")
+	}
+	lowering.phase = next
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
