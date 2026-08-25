@@ -11,7 +11,7 @@ import {
 	withServerComponentVNodeIssuer,
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
-import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
+import type { SsrContext } from '../types.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { drainTasks } from './context.js';
 import { getComponentProps } from './component-vnode.js';
@@ -21,63 +21,31 @@ import {
 	resolveSsrComponentExecution,
 	type SsrComponentExecutionBlueprint
 } from './root-execution-cache.js';
-import {
-	readDirectSsrContent,
-	renderDirectSsrContent,
-	type DirectSsrComponentContent
-} from './direct-component-content.js';
+import { readDirectSsrContent, renderDirectSsrContent } from './direct-component-content.js';
 import {
 	createDirectSsrComponentFrame,
+	directSsrContextOwner,
 	directSsrProps,
-	inComponentDomain
+	inComponentDomain,
+	type DirectSsrComponentFrameConstructor
 } from './direct-component-support.js';
+import type {
+	DirectIssuedRender,
+	DirectScheduledSsrComponent,
+	DirectSsrComponentPublisher,
+	DirectSsrComponentResult,
+	PreparedDirectScheduledSsrComponent
+} from './direct-component-contracts.js';
 
 export type { DirectSsrComponentContent } from './direct-component-content.js';
-
-/** Completed setup and render result awaiting successful descendant serialization. */
-export type DirectSsrComponentResult = Readonly<{
-	content: DirectSsrComponentContent;
-	preparation?: DirectScheduledPreparation;
-	props: Record<string, unknown>;
-	snapshot: DirectSsrComponentSnapshot;
-}>;
-
-/** Request-local scheduled component whose task graph is drained between render attempts. */
-export type DirectScheduledSsrComponent = AsyncDisposable &
-	Readonly<{
-		props: Record<string, unknown>;
-		snapshot: DirectSsrComponentSnapshot;
-		render(): DirectIssuedRender | Promise<DirectIssuedRender>;
-		/** Returns whether blocking work existed and the completed output must be rendered again. */
-		drain(): Promise<boolean>;
-	}>;
-
-/** Request-local scheduled frame issued before its serial HTML position is published. */
-export type PreparedDirectScheduledSsrComponent = Readonly<{
-	component: Promise<DirectScheduledSsrComponent | undefined>;
-	consumed: boolean;
-	vnode: VNode;
-}>;
-
-/** Cleanup boundary for eagerly issued compiler-proven descendant task frames. */
-export type DirectScheduledPreparation = AsyncDisposable;
-
-/** Render output paired with ownership for child work issued during VNode materialization. */
-export type DirectIssuedRender = Readonly<{
-	content: DirectSsrComponentContent;
-	preparation?: DirectScheduledPreparation;
-}>;
-
-/** Publishes stabilized direct-component HTML through the formatting selected by its renderer. */
-export type DirectSsrComponentPublisher<Publication = undefined> = (
-	context: SsrContext,
-	vnode: VNode,
-	parent: AnyComponentInstance | undefined,
-	html: string,
-	props: Record<string, unknown>,
-	snapshot: DirectSsrComponentSnapshot,
-	publication: Publication
-) => string;
+export type {
+	DirectIssuedRender,
+	DirectScheduledPreparation,
+	DirectScheduledSsrComponent,
+	DirectSsrComponentPublisher,
+	DirectSsrComponentResult,
+	PreparedDirectScheduledSsrComponent
+} from './direct-component-contracts.js';
 
 /** Executes one compiler-proven direct component without entering generic component ownership. */
 export async function renderDirectSsrComponentOutput<Publication>(
@@ -99,7 +67,7 @@ export async function renderDirectSsrComponentOutput<Publication>(
 	const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 	const rawProps = getComponentProps(vnode);
 	const scheduled = await (takePreparedDirectScheduledSsrComponent(context, vnode) ??
-		createDirectScheduledSsrComponent(context, blueprint, rawProps, options));
+		createDirectScheduledSsrComponent(context, blueprint, rawProps, parent, options));
 	if (scheduled) {
 		const constructionCheckpoint = context.onComponentAttemptCheckpoint?.();
 		try {
@@ -113,7 +81,7 @@ export async function renderDirectSsrComponentOutput<Publication>(
 					const html = await renderDirectSsrContent(
 						context,
 						issued.content,
-						parent,
+						scheduled.owner,
 						renderChildren,
 						renderOwnedComponent
 					);
@@ -154,7 +122,7 @@ export async function renderDirectSsrComponentOutput<Publication>(
 			await scheduled[Symbol.asyncDispose]();
 		}
 	}
-	const direct = await renderDirectSsrComponent(context, blueprint, rawProps, options);
+	const direct = await renderDirectSsrComponent(context, blueprint, rawProps, parent, options);
 	if (!direct) return undefined;
 	const checkpoint = context.onComponentAttemptCheckpoint?.();
 	try {
@@ -165,7 +133,7 @@ export async function renderDirectSsrComponentOutput<Publication>(
 			html = await renderDirectSsrContent(
 				context,
 				direct.content,
-				parent,
+				direct.owner,
 				renderChildren,
 				renderOwnedComponent
 			);
@@ -198,41 +166,58 @@ export async function renderDirectSsrComponentOutput<Publication>(
 
 /**
  * Executes a compiler-classified synchronous component without constructing durable client
- * ownership. The compiler excludes lifecycle, task, context, authored-list, and dynamic
- * capabilities from this lane; encountering a non-function result is therefore an artifact defect.
+ * ownership. The request-local frame supports compiler-known state, contexts, lists, and scheduled
+ * tasks; lifecycle, dynamic selection, and other durable surfaces remain separately classified.
+ * Encountering a non-function result is therefore an artifact defect.
  */
 export function renderDirectSsrComponent(
 	context: SsrContext,
 	blueprint: SsrComponentExecutionBlueprint,
-	rawProps: Record<string, unknown>
+	rawProps: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined
 ): DirectSsrComponentResult | undefined;
 export function renderDirectSsrComponent(
 	context: SsrContext,
 	blueprint: SsrComponentExecutionBlueprint,
 	rawProps: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): DirectSsrComponentResult | Promise<DirectSsrComponentResult> | undefined;
 export function renderDirectSsrComponent(
 	context: SsrContext,
 	blueprint: SsrComponentExecutionBlueprint,
 	rawProps: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
 	options?: SsrRenderOptions
 ): DirectSsrComponentResult | Promise<DirectSsrComponentResult> | undefined {
 	const server = blueprint.contract.definition.server;
 	if (server?.lane !== 'direct' || server.classification !== 'synchronous' || !server.render)
 		return undefined;
-	const frame = createDirectSsrComponentFrame();
+	const createFrame: DirectSsrComponentFrameConstructor =
+		(server.frame as DirectSsrComponentFrameConstructor | undefined) ??
+		createDirectSsrComponentFrame;
+	const frame = createFrame(
+		context,
+		blueprint.contract.definition.instantiate,
+		blueprint.componentId,
+		parent
+	);
+	const owner = server.frame ? directSsrContextOwner(frame) : parent;
 	const props = directSsrProps(rawProps);
 	const render = inComponentDomain(context, () => server.render!.call(frame, props));
 	if (typeof render !== 'function')
 		throw new TypeError('Compiled synchronous server component did not return its render function');
 	const rendered = options
-		? renderIssuedServerComponentChildren(context, options, () =>
-				inComponentDomain(context, () => render())
+		? renderIssuedServerComponentChildren(
+				context,
+				options,
+				() => inComponentDomain(context, () => render()),
+				owner
 			)
 		: { content: readDirectSsrContent(inComponentDomain(context, () => render())) };
 	return resolveMaybe(rendered, ({ content, preparation }) => ({
 		content,
+		owner,
 		...(preparation ? { preparation } : {}),
 		props,
 		snapshot: {
@@ -253,6 +238,7 @@ export function createDirectScheduledSsrComponent(
 	context: SsrContext,
 	blueprint: SsrComponentExecutionBlueprint,
 	rawProps: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): DirectScheduledSsrComponent | Promise<DirectScheduledSsrComponent | undefined> | undefined {
 	const server = blueprint.contract.definition.server;
@@ -260,7 +246,7 @@ export function createDirectScheduledSsrComponent(
 		return undefined;
 	const preparedProps = prepareComponentProps(rawProps, server.deferredTaskProps, options.signal);
 	return resolveMaybe(preparedProps, (props) =>
-		constructDirectScheduledSsrComponent(context, blueprint, props, options)
+		constructDirectScheduledSsrComponent(context, blueprint, props, parent, options)
 	);
 }
 
@@ -268,10 +254,20 @@ function constructDirectScheduledSsrComponent(
 	context: SsrContext,
 	blueprint: SsrComponentExecutionBlueprint,
 	props: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): DirectScheduledSsrComponent | Promise<never> {
 	const server = blueprint.contract.definition.server!;
-	const frame = createDirectSsrComponentFrame();
+	const createFrame: DirectSsrComponentFrameConstructor =
+		(server.frame as DirectSsrComponentFrameConstructor | undefined) ??
+		createDirectSsrComponentFrame;
+	const frame = createFrame(
+		context,
+		blueprint.contract.definition.instantiate,
+		blueprint.componentId,
+		parent
+	);
+	const owner = server.frame ? directSsrContextOwner(frame) : parent;
 	const pending = new Set<Promise<unknown>>();
 	const execution: ServerComponentExecutionFrame = createServerComponentExecutionFrame(frame, {
 		observe(settlement) {
@@ -300,6 +296,7 @@ function constructDirectScheduledSsrComponent(
 		return Promise.resolve(execution[Symbol.asyncDispose]()).then(() => Promise.reject(error));
 	}
 	return Object.freeze({
+		owner,
 		props,
 		snapshot: {
 			componentId: blueprint.componentId,
@@ -308,8 +305,11 @@ function constructDirectScheduledSsrComponent(
 			props
 		},
 		render: () =>
-			renderIssuedServerComponentChildren(context, options, () =>
-				inComponentDomain(context, () => (render as () => Child | Child[])())
+			renderIssuedServerComponentChildren(
+				context,
+				options,
+				() => inComponentDomain(context, () => (render as () => Child | Child[])()),
+				owner
 			),
 		async drain() {
 			const rerender = pending.size !== 0;
@@ -339,7 +339,8 @@ export function takePreparedDirectScheduledSsrComponent(
 export function renderIssuedServerComponentChildren(
 	context: SsrContext,
 	options: SsrRenderOptions,
-	render: () => unknown
+	render: () => unknown,
+	owner: AnyComponentInstance | undefined
 ): DirectIssuedRender | Promise<DirectIssuedRender> {
 	const prepared: PreparedDirectScheduledSsrComponent[] = [];
 	try {
@@ -354,6 +355,7 @@ export function renderIssuedServerComponentChildren(
 					context,
 					resolveSsrComponentExecution(context, candidate.type),
 					getComponentProps(candidate),
+					owner,
 					options
 				);
 			} catch (error) {

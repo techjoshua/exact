@@ -9,4 +9,5 @@ const (
 	componentABITasks          = 8
 	componentABICollections    = 16
 	componentABIRangeOutput    = 32
+	componentABIContexts       = 64
 )

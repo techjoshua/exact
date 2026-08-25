@@ -119,7 +119,8 @@ function isDefinition(value: unknown): boolean {
 				'interactions',
 				'compatibility',
 				'dynamic-components',
-				'collections'
+				'collections',
+				'contexts'
 			].includes(capability)
 		)
 	);
@@ -135,6 +136,7 @@ function isServerExecution(value: unknown): boolean {
 			'lane',
 			'deferredTaskProps',
 			'render',
+			'frame',
 			'publication'
 		]) &&
 		value.version === 1 &&
@@ -143,6 +145,7 @@ function isServerExecution(value: unknown): boolean {
 			value.classification === 'dynamic') &&
 		(value.lane === 'direct' || value.lane === 'generic') &&
 		(value.deferredTaskProps === undefined || isSafeContractStringList(value.deferredTaskProps)) &&
+		(value.frame === undefined || (value.lane === 'direct' && typeof value.frame === 'function')) &&
 		(value.publication === undefined ||
 			(isContractRecord(value.publication) &&
 				hasOnlyContractKeys(value.publication, ['kind', 'name']) &&

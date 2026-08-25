@@ -2,9 +2,14 @@ import {
 	Fragment,
 	createVNode,
 	withComponentDomain,
+	type AnyComponentFunction,
+	type AnyComponentInstance,
+	type ContextToken,
+	type Reactive,
 	type ReactiveValue,
 	type VNode
 } from '@exactjs/core';
+import type { ComponentContextOwner } from '@exactjs/core/framework/server-component-contexts';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrContext } from '../types.js';
 
@@ -14,9 +19,35 @@ export type DirectSsrComponentFrame = Readonly<{
 	map: typeof directSsrMap;
 }>;
 
+/** Context-bearing direct frame linked only into artifacts that use the component context API. */
+export type DirectSsrContextFrame = DirectSsrComponentFrame &
+	ComponentContextOwner &
+	Readonly<{
+		type: AnyComponentFunction;
+		id: string;
+		mounted: false;
+		contextTokens: Map<symbol, ContextToken<unknown>>;
+		hasContext(token: ContextToken<unknown>): boolean;
+		getContext<T>(token: ContextToken<T>): Reactive<T>;
+		setContext<T>(token: ContextToken<T>, value: T): void;
+	}>;
+
+/** Artifact-linked constructor for one target-specialized direct server frame. */
+export type DirectSsrComponentFrameConstructor = (
+	context: SsrContext,
+	type: AnyComponentFunction,
+	componentId: string,
+	parent: AnyComponentInstance | undefined
+) => DirectSsrComponentFrame;
+
 /** Creates the request-local receiver shared by synchronous and scheduled direct lanes. */
 export function createDirectSsrComponentFrame(): DirectSsrComponentFrame {
 	return { state: {}, map: directSsrMap };
+}
+
+/** Adapts a compiler-linked context frame to the renderer's logical ownership boundary. */
+export function directSsrContextOwner(frame: DirectSsrComponentFrame): AnyComponentInstance {
+	return frame as unknown as AnyComponentInstance;
 }
 
 /** Resolves compiler-emitted expression props without allocating the general readonly proxy. */

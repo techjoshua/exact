@@ -42,9 +42,10 @@ func lowerComponentContracts(
 	used := sourceIdentifiers(sourceFile)
 	descriptorName := allocateGeneratedName(used, "__exactComponentContract")
 	constructors := componentConstructorImports{
-		renderName:       allocateGeneratedName(used, "__exactConstructRenderComponent"),
-		durableName:      allocateGeneratedName(used, "__exactConstructDurableComponent"),
-		directServerName: allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
+		renderName:             allocateGeneratedName(used, "__exactConstructRenderComponent"),
+		durableName:            allocateGeneratedName(used, "__exactConstructDurableComponent"),
+		directServerName:       allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
+		directContextFrameName: allocateGeneratedName(used, "__exactDirectSsrContextFrame"),
 	}
 	statements := make(
 		[]*ast.Node,
@@ -180,12 +181,14 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
-	renderName       string
-	durableName      string
-	directServerName string
-	renderUsed       bool
-	durableUsed      bool
-	directServerUsed bool
+	renderName             string
+	durableName            string
+	directServerName       string
+	directContextFrameName string
+	renderUsed             bool
+	durableUsed            bool
+	directServerUsed       bool
+	directContextFrameUsed bool
 }
 
 func (imports *componentConstructorImports) selectConstructor(
@@ -255,6 +258,14 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 			"rejectDirectServerComponentConstruction",
 			imports.directServerName,
 			"@exactjs/core/runtime/component-construction/direct-server",
+		))
+	}
+	if imports.directContextFrameUsed {
+		declarations = append(declarations, componentConstructorImport(
+			factory,
+			"createDirectSsrContextFrame",
+			imports.directContextFrameName,
+			"@exactjs/ssr/runtime/direct-context-frame",
 		))
 	}
 	return declarations
@@ -588,9 +599,6 @@ func rootComponentContractAttachment(
 	directResumption := hasResumption && directServerResumptionSupported(component.ID, resumptions)
 	hasInteractions := target == TargetClient && component.Interactions
 	hasLifecycle := component.Lifecycle
-	unsupportedServerSurface := component.Surface.Logging || component.Surface.Localization ||
-		component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
-		component.Surface.ServerLifecycle
 	if target == TargetServer {
 		// Mount/activation registrations are absent from the projected server function.
 		// Only lifecycle phases that can run during SSR require the lifecycle ABI there.
@@ -603,6 +611,11 @@ func rootComponentContractAttachment(
 	serverPublicationName := ""
 	if target == TargetServer && hasResumption && len(componentContinuations) != 0 {
 		serverPublicationName = component.Name
+	}
+	var serverFrame *ast.Node
+	if target == TargetServer && component.TargetPlan.DirectServer && component.Surface.Contexts {
+		constructors.directContextFrameUsed = true
+		serverFrame = factory.NewIdentifier(constructors.directContextFrameName)
 	}
 	runtimeABI := componentRuntimeABI(
 		component,
@@ -653,13 +666,13 @@ func rootComponentContractAttachment(
 				runtimeContinuations,
 				hasResumption,
 				serverPublicationName,
+				serverFrame,
 				directResumption,
 				hasInteractions,
 				usesCompatibility,
 				component.DynamicComponents,
 				component.Collections,
 				runtimeABI,
-				unsupportedServerSurface,
 				component.TargetPlan.DirectServer,
 				target == TargetServer,
 				projection != ComponentContractProjectionComplete,

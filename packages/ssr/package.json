@@ -25,6 +25,10 @@
 			"types": "./dist/runtime/generic-components.d.ts",
 			"default": "./dist/runtime/generic-components.js"
 		},
+		"./runtime/direct-context-frame": {
+			"types": "./dist/runtime/direct-context-frame.d.ts",
+			"default": "./dist/runtime/direct-context-frame.js"
+		},
 		"./runtime/structural-boundaries": {
 			"types": "./dist/runtime/structural-boundaries.d.ts",
 			"default": "./dist/runtime/structural-boundaries.js"

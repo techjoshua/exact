@@ -253,8 +253,9 @@ function* renderComponentChunks(
 	} else
 		try {
 			componentProps = getComponentProps(vnode);
-			const direct = renderDirectSsrComponent(context, blueprint, componentProps);
+			const direct = renderDirectSsrComponent(context, blueprint, componentProps, parent);
 			if (direct) {
+				childParent = direct.owner;
 				if (direct.content.program) {
 					directProgram = direct.content.program;
 					children = [];

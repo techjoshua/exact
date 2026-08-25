@@ -5,6 +5,7 @@
 		"lists": 4,
 		"tasks": 8,
 		"collections": 16,
-		"rangeOutput": 32
+		"rangeOutput": 32,
+		"contexts": 64
 	}
 }

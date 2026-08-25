@@ -399,6 +399,16 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		contextsUsed = contextsUsed || component.Surface.Contexts
 		componentReactivityUsed = componentReactivityUsed || component.Surface.Reactivity
 	}
+	if lowering.target == TargetServer {
+		// Direct server frames implement the compiler-known context surface themselves. Install the
+		// durable context capability only when a context-bearing component remains on the generic lane.
+		contextsUsed = false
+		for _, component := range lowering.components {
+			if component.Surface.Contexts && component.TargetPlan.GenericServerRuntime {
+				contextsUsed = true
+			}
+		}
+	}
 	executionUsed := lowering.contractProjection != ComponentContractProjectionHydrate
 	if executionUsed {
 		executionUsed = false

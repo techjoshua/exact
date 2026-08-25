@@ -84,7 +84,7 @@ export function renderSyncComponent(
 		}
 		const componentProps = getComponentProps(vnode);
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
-		const direct = renderDirectSsrComponent(context, blueprint, componentProps);
+		const direct = renderDirectSsrComponent(context, blueprint, componentProps, parent);
 		if (direct) {
 			const checkpoint = context.onComponentAttemptCheckpoint?.();
 			try {
@@ -94,12 +94,12 @@ export function renderSyncComponent(
 					? renderPreparedSsrProgramString(
 							context,
 							direct.content.program,
-							parent,
-							(fallback) => operations.renderVNode(context, fallback, parent, true),
-							(children) => operations.renderChildren(context, children, parent, true),
-							(component) => operations.renderVNode(context, component, parent, true, true)
+							direct.owner,
+							(fallback) => operations.renderVNode(context, fallback, direct.owner, true),
+							(children) => operations.renderChildren(context, children, direct.owner, true),
+							(component) => operations.renderVNode(context, component, direct.owner, true, true)
 						)
-					: operations.renderChildren(context, direct.content.children, parent, true);
+					: operations.renderChildren(context, direct.content.children, direct.owner, true);
 				const directOutput = componentOutput(
 					context,
 					vnode,
