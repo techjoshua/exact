@@ -4,7 +4,8 @@ import {
 	currentEffectScope,
 	effectScopeWorkPriority,
 	registerEffectScopeReaction,
-	releaseEffectScopeReaction
+	releaseEffectScopeReaction,
+	withEffectScope
 } from './internal/scopes.js';
 
 import {
@@ -15,43 +16,39 @@ import {
 	removeQueuedComputation
 } from './internal/scheduler.js';
 
-import { reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
+import { iterateKey, reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
 
-import { isReactiveValue, unwrap } from './internal/values.js';
+import { isReactive, isReactiveValue, unwrap } from './internal/values.js';
 
 import type {
+	Dep,
 	EffectScopeImpl,
 	Reaction,
-	Reactive,
-	ReactiveOptions,
 	ReactiveRef,
 	ReactiveValue,
 	StopHandle,
 	WatchOptions
 } from './internal/types.js';
 
-import { createReactive } from './proxy/create.js';
+import { proxyRefs } from './proxy/state.js';
 
-import { defaultReactiveOptions, proxyRefs } from './proxy/state.js';
-
-import { hasChanged, isReactiveContainer } from './change-detection.js';
+import { hasChanged } from './change-detection.js';
 
 const inactiveWatch: StopHandle = () => undefined;
+const collectionRefs = new WeakMap<object, ReactiveRef<object>>();
 
 /** Configures framework ownership notification for a watcher that may retire after execution. */
 export type RetainedWatchOptions = WatchOptions & {
 	/** Runs once when the watcher releases its dependencies and scope registration. */
 	onRelease?(): void;
+	/** Returns the shared reaction object for framework owners instead of allocating a handle. */
+	owned?: boolean;
 };
 
-/** Creates a reactive proxy that tracks reads and notifies watchers when writable state changes. */
-export function reactive<T extends object>(
-	value: T,
-	options: ReactiveOptions = defaultReactiveOptions
-): Reactive<T> {
-	if (!isReactiveContainer(unwrap(value))) return value as Reactive<T>;
-	return createReactive(value, options) as Reactive<T>;
-}
+/** Framework-owned retained reaction whose shared stop method avoids a per-binding handle closure. */
+export type OwnedRetainedWatch = Readonly<{
+	stop(): void;
+}>;
 
 /** Creates a lazy derived reactive value that recomputes when one of its tracked dependencies changes. */
 export function computed<T>(compute: () => T): ReactiveValue<T> {
@@ -167,81 +164,21 @@ export function watch(
  */
 export function watchRetained(
 	fn: () => void,
+	scheduler: (() => void) | undefined,
+	options: RetainedWatchOptions & { owned: true }
+): OwnedRetainedWatch | undefined;
+export function watchRetained(
+	fn: () => void,
+	scheduler?: () => void,
+	options?: RetainedWatchOptions
+): StopHandle | undefined;
+export function watchRetained(
+	fn: () => void,
 	scheduler?: () => void,
 	options: RetainedWatchOptions = {}
-): StopHandle | undefined {
+): StopHandle | OwnedRetainedWatch | undefined {
 	const scope = resolveObservationScope(options);
-	const handleError = (error: unknown): void => {
-		const onError = options.onError ?? scope?.onError;
-		if (!onError) throw error;
-		onError(error);
-	};
-	const reaction: Reaction = {
-		active: true,
-		scheduled: false,
-		pendingPriority: undefined,
-		scope,
-		deps: new Set(),
-		run() {
-			if (!reaction.active) return;
-			if (reaction.scope && !reaction.scope.active) {
-				reaction.stop();
-				return;
-			}
-			reaction.scheduled = false;
-			reaction.pendingPriority = undefined;
-			try {
-				runTracked(reaction, fn);
-				if (reaction.deps.size === 0) reaction.stop();
-			} catch (error) {
-				handleError(error);
-			}
-		},
-		schedule() {
-			if (!reaction.active) return;
-			if (reaction.scope && !reaction.scope.active) {
-				reaction.stop();
-				return;
-			}
-			const priority = effectScopeWorkPriority(reaction.scope, currentWorkPriority());
-			if (reaction.scheduled) {
-				if (
-					reaction.pendingPriority !== undefined &&
-					isHigherWorkPriority(priority, reaction.pendingPriority)
-				) {
-					reaction.pendingPriority = priority;
-					if (scheduler) scheduler();
-					else queueReaction(reaction, priority);
-				}
-				return;
-			}
-			reaction.scheduled = true;
-			reaction.pendingPriority = priority;
-			try {
-				options.onSchedule?.();
-				if (scheduler) {
-					scheduler();
-					return;
-				}
-				queueReaction(reaction);
-			} catch (error) {
-				// A failed scheduler did not arrange for run() to clear this bit. Reset it
-				// so a later dependency change can retry rather than wedging the watcher.
-				reaction.scheduled = false;
-				reaction.pendingPriority = undefined;
-				handleError(error);
-			}
-		},
-		stop() {
-			if (!reaction.active) return;
-			reaction.active = false;
-			reaction.scheduled = false;
-			reaction.pendingPriority = undefined;
-			cleanupReaction(reaction);
-			if (reaction.scope) releaseEffectScopeReaction(reaction.scope, reaction);
-			options.onRelease?.();
-		}
-	};
+	const reaction = new RetainedReaction(fn, scheduler, options, scope);
 
 	if (scope) registerEffectScopeReaction(scope, reaction);
 	try {
@@ -253,7 +190,95 @@ export function watchRetained(
 		reaction.stop();
 		throw error;
 	}
-	return reaction.active ? reaction.stop : undefined;
+	return reaction.active ? (options.owned ? reaction : () => reaction.stop()) : undefined;
+}
+
+/** Shared executor for retained watchers; instances store data rather than method closures. */
+class RetainedReaction implements Reaction {
+	active = true;
+	scheduled = false;
+	pendingPriority: Reaction['pendingPriority'];
+	readonly deps = new Set<Dep>();
+
+	constructor(
+		private readonly fn: () => void,
+		private readonly scheduler: (() => void) | undefined,
+		options: RetainedWatchOptions,
+		readonly scope: EffectScopeImpl | undefined
+	) {
+		this.onSchedule = options.onSchedule;
+		this.onError = options.onError;
+		this.onRelease = options.onRelease;
+	}
+
+	private readonly onSchedule: (() => void) | undefined;
+	private readonly onError: ((error: unknown) => void) | undefined;
+	private readonly onRelease: (() => void) | undefined;
+
+	run(): void {
+		if (!this.active) return;
+		if (this.scope && !this.scope.active) {
+			this.stop();
+			return;
+		}
+		this.scheduled = false;
+		this.pendingPriority = undefined;
+		try {
+			withEffectScope(this.scope, () => runTracked(this, this.fn));
+			if (this.deps.size === 0) this.stop();
+		} catch (error) {
+			this.handleError(error);
+		}
+	}
+
+	schedule(): void {
+		if (!this.active) return;
+		if (this.scope && !this.scope.active) {
+			this.stop();
+			return;
+		}
+		const priority = effectScopeWorkPriority(this.scope, currentWorkPriority());
+		if (this.scheduled) {
+			if (
+				this.pendingPriority !== undefined &&
+				isHigherWorkPriority(priority, this.pendingPriority)
+			) {
+				this.pendingPriority = priority;
+				if (this.scheduler) this.scheduler();
+				else queueReaction(this, priority);
+			}
+			return;
+		}
+		this.scheduled = true;
+		this.pendingPriority = priority;
+		try {
+			if (this.onSchedule) withEffectScope(this.scope, this.onSchedule);
+			if (this.scheduler) this.scheduler();
+			else queueReaction(this);
+		} catch (error) {
+			// A failed scheduler did not arrange for run() to clear this bit. Reset it
+			// so a later dependency change can retry rather than wedging the watcher.
+			this.scheduled = false;
+			this.pendingPriority = undefined;
+			this.handleError(error);
+		}
+	}
+
+	stop(): void {
+		if (!this.active) return;
+		this.active = false;
+		this.scheduled = false;
+		this.pendingPriority = undefined;
+		cleanupReaction(this);
+		if (this.scope) releaseEffectScopeReaction(this.scope, this);
+		this.onRelease?.();
+	}
+
+	private handleError(error: unknown): void {
+		const onError = this.onError ?? this.scope?.onError;
+		if (!onError) throw error;
+		onError(error);
+	}
 }
 
 /** Subscribes directly to a reactive reference without running a dependency collection pass. */
@@ -262,18 +287,39 @@ export function subscribe<T>(
 	callback: () => void,
 	options: WatchOptions = {}
 ): StopHandle {
+	return subscribeToDependencies(new Set([getDep(source.target, source.key)]), callback, options);
+}
+
+/** Subscribes one coalesced reaction to compiler-selected keys on a shared target. */
+export function subscribeKeys(
+	target: object,
+	keys: readonly PropertyKey[],
+	callback: () => void,
+	options: WatchOptions = {}
+): StopHandle {
+	const dependencies = new Set<Dep>();
+	for (const key of keys) dependencies.add(getDep(target, key));
+	if (dependencies.size === 0) return inactiveWatch;
+	return subscribeToDependencies(dependencies, callback, options);
+}
+
+// One reaction belongs to every selected dep so a transaction schedules the callback exactly once.
+function subscribeToDependencies(
+	dependencies: Set<Dep>,
+	callback: () => void,
+	options: WatchOptions
+): StopHandle {
 	const scope = resolveObservationScope(options);
 	const handleError = (error: unknown): void => {
 		const onError = options.onError ?? scope?.onError;
 		if (!onError) throw error;
 		onError(error);
 	};
-	const dep = getDep(source.target, source.key);
 	const reaction: Reaction = {
 		active: true,
 		scheduled: false,
 		pendingPriority: undefined,
-		deps: new Set([dep]),
+		deps: dependencies,
 		run() {
 			reaction.scheduled = false;
 			reaction.pendingPriority = undefined;
@@ -282,7 +328,7 @@ export function subscribe<T>(
 				return;
 			}
 			try {
-				callback();
+				withEffectScope(scope, callback);
 			} catch (error) {
 				handleError(error);
 			}
@@ -316,7 +362,7 @@ export function subscribe<T>(
 		}
 	};
 
-	dep.add(reaction);
+	for (const dependency of dependencies) dependency.add(reaction);
 	if (scope) registerEffectScopeReaction(scope, reaction);
 	return reaction.stop;
 }
@@ -342,4 +388,27 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
 	}
 
 	return undefined;
+}
+
+/** Returns the structural dependency source for a reactive iterable collection. */
+export function collectionRef<T extends object>(value: T): ReactiveRef<T> | undefined {
+	const existing = ref(value);
+	if (existing) return existing;
+	if (!isReactive(value)) return undefined;
+	let source = collectionRefs.get(value) as ReactiveRef<T> | undefined;
+	if (source) return source;
+	const target = unwrap(value) as object;
+	source = {
+		target,
+		key: iterateKey,
+		get() {
+			track(target, iterateKey);
+			return value;
+		},
+		set() {
+			throw new TypeError('Cannot replace a collection through its structural reference');
+		}
+	};
+	collectionRefs.set(value, source as ReactiveRef<object>);
+	return source;
 }

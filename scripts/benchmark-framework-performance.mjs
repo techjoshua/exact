@@ -16,10 +16,19 @@ import {
 const workspace = path.resolve(import.meta.dirname, '..');
 const samples = positiveInteger(process.env.EXACT_FRAMEWORK_BENCH_SAMPLES ?? '5', 'samples', 1);
 const warmups = positiveInteger(process.env.EXACT_FRAMEWORK_BENCH_WARMUPS ?? '2', 'warmups', 0);
+const buildSampleCount = positiveInteger(
+	process.env.EXACT_FRAMEWORK_BENCH_BUILD_SAMPLES ?? String(samples),
+	'build samples',
+	1
+);
 const nodeOnly = process.argv.includes('--node-only');
 const keepTemporary = process.argv.includes('--keep-temporary');
 const outputArgument = argument('output') ?? process.env.EXACT_FRAMEWORK_BENCH_OUTPUT;
 const scenarioFilter = argument('scenario') ?? process.env.EXACT_FRAMEWORK_BENCH_SCENARIO;
+const workerRuntime =
+	argument('worker-runtime') ?? process.env.EXACT_FRAMEWORK_BENCH_RUNTIME ?? 'node';
+if (workerRuntime !== 'node' && workerRuntime !== 'bun')
+	throw new Error(`Unknown performance worker runtime ${workerRuntime}`);
 const outputPath = outputArgument ? path.resolve(workspace, outputArgument) : undefined;
 const temporary = await mkdtemp(path.join(workspace, '.exact-performance-'));
 const worker = path.join(import.meta.dirname, 'performance', 'framework-worker.mjs');
@@ -30,10 +39,10 @@ try {
 		'Building compiler-owned performance fixtures through the Vite adapter...\n'
 	);
 	const fixtureBuild = await buildPerformanceFixtures(temporary);
-	const buildSamples = [{ elapsedMs: fixtureBuild.elapsedMs, bytes: fixtureBuild.bytes }];
-	for (let index = 1; index < samples; index++)
-		buildSamples.push(await runBuildWorker(buildWorker));
-	const buildSummary = summarizeBuildSamples(buildSamples);
+	const buildMeasurements = [{ elapsedMs: fixtureBuild.elapsedMs, bytes: fixtureBuild.bytes }];
+	for (let index = 1; index < buildSampleCount; index++)
+		buildMeasurements.push(await runBuildWorker(buildWorker));
+	const buildSummary = summarizeBuildSamples(buildMeasurements);
 	process.stdout.write(
 		`production fixture build: median ${buildSummary.elapsedMs.median.toFixed(1)}ms; p95 ${buildSummary.elapsedMs.p95.toFixed(1)}ms\n`
 	);
@@ -54,12 +63,16 @@ try {
 	const nodeResults = [];
 	for (const scenario of nodeScenarios) {
 		const fixture = scenario.startsWith('server.')
-			? fixtureBuild.paths.server
+			? scenario === 'server.ssr-task-readiness'
+				? fixtureBuild.paths.serverDirect
+				: fixtureBuild.paths.server
 			: fixtureBuild.paths.client;
 		const scenarioSamples = [];
 		process.stdout.write(`${scenario}: `);
 		for (let index = 0; index < samples; index++) {
-			scenarioSamples.push(await runFrameworkWorker(worker, scenario, fixture, warmups));
+			scenarioSamples.push(
+				await runFrameworkWorker(worker, scenario, fixture, warmups, workerRuntime)
+			);
 			process.stdout.write('.');
 		}
 		const summary = summarizeScenario(scenario, scenarioSamples);
@@ -79,9 +92,11 @@ try {
 		buildIdentity: repositoryIdentity(),
 		environment: {
 			node: process.version,
+			workerRuntime,
 			platform: `${platform()} ${release()}`,
 			cpu: cpus()[0]?.model ?? 'unknown',
 			samples,
+			buildSamples: buildSampleCount,
 			warmups,
 			chromium: chromium?.browser ?? null
 		},

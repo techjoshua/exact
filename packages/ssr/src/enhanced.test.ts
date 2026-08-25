@@ -1,5 +1,5 @@
-import { createEnhancementMarker, type Child, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createEnhancementNode, type Child, type Component } from '@exactjs/core';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './enhanced.js';
@@ -8,7 +8,7 @@ import { createVNode } from './test-support/native-vnode.js';
 describe('enhanced SSR facade', () => {
 	it('supplies the application-bundle catalog by default', () => {
 		const identity = '@exactjs/ssr:enhanced-facade';
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
@@ -19,7 +19,7 @@ describe('enhanced SSR facade', () => {
 		const output = renderToString(
 			createVNode(
 				'button',
-				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'Save'
 			),
 			{ markers: false }

@@ -4,7 +4,6 @@ import type {
 	CompiledEnhancementNode,
 	ContextToken,
 	EnhancementEntry,
-	EnhancementMarker,
 	RenderResult
 } from './component/contracts.js';
 
@@ -70,13 +69,6 @@ export function createEnhancementNode(
 	});
 }
 
-/**
- * Creates the legacy marker shape while preserving the canonical enhancement-node semantics.
- * @deprecated Compiler output now calls createEnhancementNode.
- */
-export const createEnhancementMarker: (entries: readonly EnhancementEntry[]) => EnhancementMarker =
-	createEnhancementNode;
-
 /** Copies an object while omitting a compiler-proven finite set of namespaced enhancement keys. */
 export function omitKnownProps(
 	value: Readonly<Record<PropertyKey, unknown>>,
@@ -88,10 +80,10 @@ export function omitKnownProps(
 }
 
 /**
- * Attaches context effects for a compilerless component capability.
+ * Attaches context effects to an explicit runtime-created compatibility or test capability.
  *
  * Native compilation emits the same token-identity contract from `setContext`, `getContext`, and
- * `hasContext` analysis. This helper exists for packages distributed as ordinary TypeScript output.
+ * `hasContext` analysis. Native component packages should publish compiler-produced artifacts.
  */
 export function markExactEnhancementContexts<Component extends AnyComponentFunction>(
 	component: Component,

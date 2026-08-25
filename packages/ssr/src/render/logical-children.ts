@@ -9,8 +9,8 @@ import {
 	type Child,
 	type VNode
 } from '@exactjs/core';
-import { ServerSlot } from '@exactjs/core/runtime/render';
-import { unwrap } from '@exactjs/reactive';
+import { ServerSlot } from '@exactjs/core/framework/render-structure';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrContext } from '../types.js';
 import { registerDynamicComponentPreload } from './resource-hints.js';
 
@@ -26,11 +26,11 @@ export function resolveSsrActivityChildren(
 	vnode: VNode,
 	cache = false
 ): readonly Child[] {
-	const prepared = context.preparedEnhancementChildren.get(vnode);
+	const prepared = context.preparedEnhancementChildren?.get(vnode);
 	if (prepared) return prepared;
 	const children =
 		normalizeActivityMode(unwrap(vnode.props.mode)) === 'active' ? vnode.children : [];
-	if (cache) context.preparedEnhancementChildren.set(vnode, children);
+	if (cache) (context.preparedEnhancementChildren ??= new WeakMap()).set(vnode, children);
 	return children;
 }
 
@@ -49,10 +49,10 @@ export function resolveSsrDynamicChildren(
 		);
 		return [];
 	}
-	const prepared = context.preparedEnhancementChildren.get(vnode);
+	const prepared = context.preparedEnhancementChildren?.get(vnode);
 	if (prepared) return prepared;
 	const children = normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]);
-	if (cache) context.preparedEnhancementChildren.set(vnode, children);
+	if (cache) (context.preparedEnhancementChildren ??= new WeakMap()).set(vnode, children);
 	return children;
 }
 
@@ -71,14 +71,14 @@ export function resolveSsrFragmentChildren(
 		  }
 		| undefined;
 	if (!list) return { children: vnode.children, list: false };
-	const prepared = context.preparedEnhancementChildren.get(vnode);
+	const prepared = context.preparedEnhancementChildren?.get(vnode);
 	if (prepared) return { children: prepared, list: true };
 	const collection = list.source ? list.source.get() : list.collection;
 	const children = [...collection].map((item) => {
 		const child = list.render(item);
 		return { ...child, key: String(list.key(item)) };
 	});
-	if (cache) context.preparedEnhancementChildren.set(vnode, children);
+	if (cache) (context.preparedEnhancementChildren ??= new WeakMap()).set(vnode, children);
 	return { children, list: true };
 }
 

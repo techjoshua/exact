@@ -40,6 +40,7 @@ import { renderSignal } from './signals.js';
 import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderVNode, renderVNodeChunks } from './sync-tree.js';
+import { rootComponentIdentity, rootPropsOptions } from './root-props.js';
 import { SsrOutputBuffer } from './output-buffer.js';
 import {
 	createChunkedHydratableResult,
@@ -97,7 +98,7 @@ export function renderToStringOwned(
 		for (const chunk of renderVNodeChunks(context, validatedVNode, undefined, 1))
 			output.append(chunk);
 	} else output.append(renderVNode(context, validatedVNode, undefined));
-	output.prepend(context.reactResourceHints);
+	output.prepend(context.reactResourceHints ?? []);
 	let chunks = output.finish();
 	if (options.outputExtensions?.length) {
 		const html = processExactOutputSync(
@@ -108,12 +109,12 @@ export function renderToStringOwned(
 		assertOutputWithinLimit(context, html);
 		chunks = [html];
 	}
-	const hydrationTable = context.hydrationTable.value();
+	const hydrationTable = context.hydrationTable?.value();
 	return createChunkedStringResult(
 		chunks,
 		options.state,
 		hydrationTable,
-		context.resourceLinkHeaders,
+		context.resourceLinkHeaders ?? [],
 		context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
 			? context.wallClockSnapshot
 			: undefined
@@ -125,12 +126,18 @@ export function renderToHydratableString(
 	vnode: VNode,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
 ): HydratableStringResult {
-	const capture = createSsrResumptionCapture(options);
+	const prepared = rootPropsOptions(vnode, options);
+	const capture = createSsrResumptionCapture(
+		prepared,
+		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootComponentIdentity(vnode)
+	);
 	const result = renderToString(vnode, capture.options);
 	const resumptions = capture.records();
-	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
+	const emittedResumptions = resumptions.length ? resumptions : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(options, result, emittedResumptions)
+		hydrationScriptOptions(prepared, result, emittedResumptions),
+		capture.layouts()
 	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
@@ -273,20 +280,20 @@ export async function renderExactRequestToHtmlResponse(
 				contexts: context.contexts?.componentValues,
 				signal: renderSignal(context.signal, options.signal)
 			};
-			let body: string;
+			let body: readonly string[];
 			let preloadLinks: readonly string[] | undefined;
 			if (options.hydration === false) {
 				const rendered = await renderToStringAsync(vnode, renderOptions);
-				body = rendered.html;
+				body = htmlChunksOf(rendered) ?? [rendered.html];
 				preloadLinks = rendered.preloadLinks;
 			} else {
 				const rendered = await renderToHydratableStringAsync(vnode, renderOptions);
-				body = rendered.htmlWithHydration;
+				body = hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration];
 				preloadLinks = rendered.preloadLinks;
 			}
-			return {
-				status: options.status ?? 200,
-				headers: withPreloadLinks(
+			return createExactBufferedResponse(
+				options.status ?? 200,
+				withPreloadLinks(
 					{
 						'content-type': options.contentType ?? 'text/html; charset=utf-8',
 						...(options.headers ?? {})
@@ -294,7 +301,7 @@ export async function renderExactRequestToHtmlResponse(
 					preloadLinks
 				),
 				body
-			};
+			);
 		},
 		request.platformRequest ?? request
 	);

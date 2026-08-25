@@ -4,7 +4,7 @@ import {
 	findNodeOwnerInstance,
 	walkDomSubtree,
 	type DomWorkBudget
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import { readExactPartitionDiscriminator } from '@exactjs/dom/framework/hydration';
 import type {
 	ExactPartitionAuthority,

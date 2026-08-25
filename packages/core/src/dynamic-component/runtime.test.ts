@@ -3,7 +3,7 @@ import { createEffectScope, flushSync, reactive, unwrap, withEffectScope } from 
 import {
 	exactComponentContract,
 	exactComponentType,
-	markExactComponent
+	createExactFrameworkFixtureArtifact
 } from '../component-contracts.js';
 import { pageComponentDomain, withComponentDomain } from '../component/domain.js';
 import type { Component } from '../component/contracts.js';
@@ -17,7 +17,7 @@ import {
 function Panel(this: Component<{}>) {
 	return () => 'panel';
 }
-markExactComponent(Panel, 'fixture:panel');
+createExactFrameworkFixtureArtifact(Panel, 'fixture:panel');
 
 describe('dynamic component boundaries', () => {
 	it('requires an owning component setup domain', () => {
@@ -127,11 +127,46 @@ describe('dynamic component boundaries', () => {
 				}
 			}
 		);
+		createExactFrameworkFixtureArtifact(ServerPanel, 'fixture:server-panel');
 		const scope = createEffectScope();
 		const vnode = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({
 				id: 'fixture:server-rejected',
 				source: () => ServerPanel,
+				props: {}
+			})
+		);
+		expect(vnode.props.__exactDynamicComponent).toMatchObject({
+			status: 'failed',
+			error: expect.objectContaining({ message: expect.stringContaining('server execution') })
+		});
+		scope.stop();
+	});
+
+	it('rejects isomorphic server-render artifacts from client dynamic selection', () => {
+		const ServerRenderPanel = Object.assign(
+			function ServerRenderPanel() {
+				return () => 'server';
+			},
+			{
+				[exactComponentType]: 'fixture:server-render-panel',
+				[exactComponentContract]: {
+					version: 2 as const,
+					placement: 'isomorphic' as const,
+					role: 'render' as const,
+					implementations: [],
+					continuations: [],
+					executors: [],
+					boundaries: []
+				}
+			}
+		);
+		createExactFrameworkFixtureArtifact(ServerRenderPanel, 'fixture:server-render-panel');
+		const scope = createEffectScope();
+		const vnode = withEffectScope(scope, () =>
+			createCompiledDynamicComponent({
+				id: 'fixture:server-render-rejected',
+				source: () => ServerRenderPanel,
 				props: {}
 			})
 		);

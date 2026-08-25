@@ -109,6 +109,9 @@ export function nativeModuleAnalysis(
 			},
 			client: {
 				statePaths: [...resumption.client.statePaths],
+				stateInputs: resumption.client.stateInputs.map(
+					(input) => [input.statePath, input.propPath] as [string, string]
+				),
 				valueCaptures: [...resumption.client.valueCaptures],
 				contexts: [...resumption.client.contexts],
 				boundaries: [...resumption.client.boundaries]

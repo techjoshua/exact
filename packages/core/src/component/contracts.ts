@@ -4,7 +4,7 @@ import type {
 	ReactiveRef,
 	ReactiveValue,
 	StopHandle
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 
 import type { ComponentLog } from '../logging.js';
 import type { ComponentReactiveValue, IterableItem } from './value-contracts.js';
@@ -393,6 +393,8 @@ export interface Component<State extends object> {
 	onDeactivate(handler: LifecycleHandler): void;
 	onUnmount(handler: LifecycleHandler): void;
 	onRender(handler: RenderEventHandler): void;
+	/** Owns a disposable resource until this durable component instance is released. */
+	own<T extends Disposable | AsyncDisposable | { dispose(): unknown }>(resource: T): T;
 }
 
 /** Existential component capability used before a full runtime instance has been constructed. */
@@ -414,6 +416,8 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	readonly mounted: boolean;
 	readonly scope: EffectScope;
 	readonly renderFunction: RenderFunction;
+	/** Compiler-selected hot-path capabilities; zero is a valid fully specialized ABI. */
+	readonly runtimeABI: number;
 	renderStop?: StopHandle;
 	mountController?: AbortController;
 	activationController?: AbortController;

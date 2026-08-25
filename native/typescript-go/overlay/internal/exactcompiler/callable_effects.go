@@ -23,7 +23,7 @@ var browserReceiverType = regexp.MustCompile(
 )
 
 var universalCallRoots = map[string]struct{}{
-	"Array": {}, "BigInt": {}, "Boolean": {}, "Date": {}, "Error": {},
+	"Array": {}, "atob": {}, "BigInt": {}, "Boolean": {}, "btoa": {}, "Date": {}, "Error": {},
 	"Intl": {}, "JSON": {}, "Map": {}, "Math": {}, "Number": {}, "Object": {},
 	"Promise": {}, "Reflect": {}, "RegExp": {}, "Set": {}, "String": {},
 	"Symbol": {}, "URL": {}, "URLSearchParams": {}, "WeakMap": {}, "WeakSet": {},

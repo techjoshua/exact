@@ -12,20 +12,20 @@ describe('shipping client workspace', () => {
 		document.body.innerHTML = '';
 	});
 
-	it('runs its request task and reruns after a form input changes', async () => {
+	it('keeps the SSR result until a form input changes', async () => {
 		const fetch = successfulActionFetch();
 		const request = normalizeDraft(defaultDraft);
 		const initial = emptyInitialModel(defaultDraft, request, false);
 		const { client, root } = mountWorkspace(initial, fetch);
 
-		await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
-		const initialCalls = fetch.mock.calls.length;
+		await new Promise((resolve) => setTimeout(resolve, 550));
+		expect(fetch).not.toHaveBeenCalled();
 
 		const destination = root.querySelector<HTMLInputElement>('input[name="destinationZip"]');
 		expect(destination).not.toBeNull();
 		destination!.value = '97209';
 		destination!.dispatchEvent(new InputEvent('input', { bubbles: true }));
-		await vi.waitFor(() => expect(fetch.mock.calls.length).toBeGreaterThan(initialCalls));
+		await vi.waitFor(() => expect(fetch).toHaveBeenCalled(), { timeout: 2_000 });
 		client.dispose();
 	});
 
@@ -44,7 +44,10 @@ describe('shipping client workspace', () => {
 				quotes: []
 			}
 		];
-		const { client } = mountWorkspace(initial, fetch);
+		const { client, root } = mountWorkspace(initial, fetch);
+		const destination = root.querySelector<HTMLInputElement>('input[name="destinationZip"]')!;
+		destination.value = '97209';
+		destination.dispatchEvent(new InputEvent('input', { bubbles: true }));
 
 		await vi.waitFor(
 			() =>
@@ -74,9 +77,11 @@ describe('shipping client workspace', () => {
 		const initial = emptyInitialModel(defaultDraft, request, false);
 		const { client, root } = mountWorkspace(initial, fetch);
 
-		await vi.waitFor(() => expect(pending).toHaveLength(2), { timeout: 2_000 });
 		const destination = root.querySelector<HTMLInputElement>('input[name="destinationZip"]')!;
 		destination.value = '97209';
+		destination.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		await vi.waitFor(() => expect(pending).toHaveLength(2), { timeout: 2_000 });
+		destination.value = '94105';
 		destination.dispatchEvent(new InputEvent('input', { bubbles: true }));
 		await vi.waitFor(() => expect(pending).toHaveLength(4), { timeout: 2_000 });
 

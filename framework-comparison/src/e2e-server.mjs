@@ -165,7 +165,7 @@ function documentHtml(participantId, rendered, initialData, clientTags) {
 	</head>
 	<body>
 		<div id="app" data-render-mode="ssr">${rendered}</div>
-		<script id="comparison-data" type="application/json">${serialized}</script>
+		${participantId === 'exact' ? '' : `<script id="comparison-data" type="application/json">${serialized}</script>`}
 	</body>
 </html>`;
 }

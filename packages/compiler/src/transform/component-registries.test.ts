@@ -20,7 +20,21 @@ describe('@exactjs/compiler: component registries', () => {
 		expect(output).toContain('__exactVNode(Widget.grid, {})');
 		expect(output).toContain('__exactVNode(GridAlias, {})');
 		expect(output).toContain('createCompiledComponentRegistry as __exactComponentRegistry');
-		expect(output).toMatch(/__exactComponentRegistry\("x[^"]+", "Widget", \(\) => \(\{/);
+		expect(output).toMatch(/__exactComponentRegistry\("x[^"]+", "Widget", "client", \(\) => \(\{/);
+	});
+
+	it('selects a target-local registry facade artifact', () => {
+		const source = `
+			function Grid() { return () => <p>grid</p>; }
+			const Widget = createComponentRegistry(() => ({ grid: Grid }));
+		`;
+
+		expect(transform(source, { filename: 'Widget.tsx', target: 'client' })).toContain(
+			'"Widget", "client",'
+		);
+		expect(transform(source, { filename: 'Widget.tsx', target: 'server' })).toContain(
+			'"Widget", "server",'
+		);
 	});
 
 	it('turns reactive finite selection into a derived dynamic component range', () => {

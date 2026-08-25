@@ -65,6 +65,8 @@ export function instrumentNativeIntlAnalysis(
 		for (const span of uniqueSpans(region.attributes))
 			if (!spansOverlap(span, region.attribute) && span.length > 0)
 				edits.push({ ...span, replacement: '' });
+		for (const span of uniqueSpans(region.transferred ?? []))
+			if (span.length > 0) edits.push({ ...span, replacement: '' });
 	}
 
 	const declaration =

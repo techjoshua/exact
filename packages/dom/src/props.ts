@@ -9,14 +9,15 @@ import {
 	UnsafeHtml,
 	attachElementIdentity,
 	type RefBinding,
-	type StopHandle,
 	unwrap
 } from '@exactjs/core';
-import { isReactiveValue, type EffectScope } from '@exactjs/reactive';
+import { isReactiveValue, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
 	ensureDelegated,
+	closedInteractionKey,
+	directInteractionKey,
 	eventTypeForProp,
 	requiresDirectListener,
 	runEventInteraction
@@ -25,6 +26,7 @@ import { preserveFocus } from './focus.js';
 import { getModalBindingCapability } from './modal/capability.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
+import { clearPropBinding, releasePropBinding, setPropBinding } from './prop-binding-ownership.js';
 import { bindStyle } from './style.js';
 import type { Root } from './types.js';
 
@@ -39,12 +41,12 @@ export function updateProps(
 ): void {
 	const apply = () => {
 		for (const key of Object.keys(previous)) {
-			if (!(key in next)) setProp(root, element, key, undefined, previous[key], scope);
+			if (!(key in next)) setElementProp(root, element, key, undefined, previous[key], scope);
 		}
 
 		for (const [key, value] of Object.entries(next)) {
 			if (!Object.is(previous[key], value))
-				setProp(root, element, key, value, previous[key], scope);
+				setElementProp(root, element, key, value, previous[key], scope);
 		}
 	};
 	if (preserveUserFocus) preserveFocus(root, apply);
@@ -85,7 +87,8 @@ export function synchronizeFormBinding(element: Element): boolean {
 	return true;
 }
 
-function setProp(
+/** Applies one already-diffed property for compiler-owned and generic DOM lanes. */
+export function setElementProp(
 	root: Root,
 	element: Element,
 	key: string,
@@ -141,10 +144,13 @@ function setProp(
 		return;
 	}
 
-	if (/^on[A-Z]/.test(key)) {
-		const { type, capture } = eventTypeForProp(key);
+	const closedInteraction = key.startsWith('__exactClosedInteraction:');
+	const directInteraction = closedInteraction || key.startsWith('__exactDirectInteraction:');
+	const eventKey = authoredEventKey(key);
+	if (/^on[A-Z]/.test(eventKey)) {
+		const { type, capture } = eventTypeForProp(eventKey);
 		if (capture || requiresDirectListener(type)) {
-			setDirectEventHandler(root, element, key, type, value, capture);
+			setDirectEventHandler(root, element, key, type, value, capture, directInteraction);
 			return;
 		}
 		let handlers = eventHandlers.get(element);
@@ -154,10 +160,18 @@ function setProp(
 		}
 
 		if (typeof value === 'function') {
-			handlers.set(type, value as EventListener);
+			const handler = value as EventListener;
+			handlers.set(type, handler);
+			if (closedInteraction) handlers.set(closedInteractionKey(type), handler);
+			else handlers.delete(closedInteractionKey(type));
+			if (directInteraction && !closedInteraction)
+				handlers.set(directInteractionKey(type), handler);
+			else handlers.delete(directInteractionKey(type));
 			ensureDelegated(root, type, eventContainerFor(root, element));
 		} else {
 			handlers.delete(type);
+			handlers.delete(directInteractionKey(type));
+			handlers.delete(closedInteractionKey(type));
 		}
 		return;
 	}
@@ -184,6 +198,19 @@ function setProp(
 		{ scope, onRelease: () => releasePropBinding(element, key) }
 	);
 	if (stop) setPropBinding(element, key, stop);
+}
+
+/** Identifies authored and compiler-specialized DOM event properties. */
+export function isEventHandlerProp(key: string): boolean {
+	return /^on[A-Z]/.test(authoredEventKey(key));
+}
+
+function authoredEventKey(key: string): string {
+	if (key.startsWith('__exactClosedInteraction:'))
+		return key.slice('__exactClosedInteraction:'.length);
+	if (key.startsWith('__exactDirectInteraction:'))
+		return key.slice('__exactDirectInteraction:'.length);
+	return key;
 }
 
 /** Identifies compiler-owned native-control bindings that enhancements must preserve verbatim. */
@@ -231,7 +258,8 @@ function setDirectEventHandler(
 	key: string,
 	type: string,
 	value: unknown,
-	capture: boolean
+	capture: boolean,
+	directInteraction = false
 ): void {
 	const previous = directEventHandlers.get(element)?.get(key);
 	if (previous) {
@@ -246,10 +274,10 @@ function setDirectEventHandler(
 		preserveFocus(root, () => {
 			try {
 				const owner = findOwnerInstance(element);
+				const invoke = () =>
+					(handler as (this: Element, event: Event) => unknown).call(element, event);
 				const result = batch(() =>
-					runEventInteraction(owner, () =>
-						(handler as (this: Element, event: Event) => unknown).call(element, event)
-					)
+					runEventInteraction(root, owner, invoke, undefined, directInteraction)
 				);
 				observeComponentAsync(owner, result, 'event', type);
 			} catch (error) {
@@ -402,27 +430,4 @@ function isFocusedTextControl(element: Element): boolean {
 		document.activeElement === element &&
 		(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
 	);
-}
-
-function clearPropBinding(element: Element, key: string): void {
-	const bindings = propBindings.get(element);
-	const stop = bindings?.get(key);
-	if (!stop) return;
-	stop();
-	bindings?.delete(key);
-}
-
-function releasePropBinding(element: Element, key: string): void {
-	const bindings = propBindings.get(element);
-	bindings?.delete(key);
-	if (bindings && bindings.size === 0) propBindings.delete(element);
-}
-
-function setPropBinding(element: Element, key: string, stop: StopHandle): void {
-	let bindings = propBindings.get(element);
-	if (!bindings) {
-		bindings = new Map();
-		propBindings.set(element, bindings);
-	}
-	bindings.set(key, stop);
 }

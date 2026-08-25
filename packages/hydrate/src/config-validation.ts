@@ -38,7 +38,7 @@ export function normalizeContinuationMap(
 }
 
 /** Validates and restores compact serialized resumption defaults. */
-export function normalizeComponentResumptions(
+export function normalizeComponentResumptionRegistrations(
 	value: unknown
 ): readonly ComponentResumptionActivation[] | undefined {
 	if (value === undefined) return undefined;
@@ -54,6 +54,49 @@ export function normalizeComponentResumptions(
 			settledContinuations: item.settledContinuations ?? emptyList
 		};
 	});
+}
+
+/** Validates the single compact representation accepted across the document boundary. */
+export function normalizeSerializedComponentResumptions(
+	value: unknown
+): readonly ComponentResumptionActivation[] | undefined {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value)) throw new TypeError('Malformed eXact component resumptions');
+	if (!value.length) return emptyList;
+	return value.map((item, index) => {
+		if (!isIndexedComponentResumption(item))
+			throw new TypeError(`Malformed eXact component resumption ${index}`);
+		return normalizeIndexedResumption(item);
+	});
+}
+
+type IndexedComponentResumption = readonly [
+	componentId: string,
+	values?: readonly (readonly [field: number | string, value: unknown])[],
+	contexts?: readonly (readonly [field: number | string, value: unknown])[],
+	settledContinuations?: readonly string[]
+];
+
+/** Restores an indexed wire tuple while deferring contract-index expansion to component adoption. */
+function normalizeIndexedResumption(
+	item: IndexedComponentResumption
+): ComponentResumptionActivation {
+	return {
+		componentId: item[0],
+		values: indexedRecord(item[1]),
+		contexts: indexedRecord(item[2]),
+		settledContinuations: item[3] ?? emptyList
+	};
+}
+
+function indexedRecord(
+	entries: readonly (readonly [field: number | string, value: unknown])[] | undefined
+): Readonly<Record<string, unknown>> {
+	if (!entries?.length) return emptyRecord;
+	const output = createProtocolRecord<unknown>();
+	for (const [field, value] of entries)
+		output[typeof field === 'number' ? `@${field}` : field] = value;
+	return output;
 }
 
 /** Narrows an unknown protocol value to a plain record shape. */
@@ -167,6 +210,37 @@ function isComponentResumption(value: unknown): value is ExactSerializedComponen
 			(isRecord(record.contexts) && Object.keys(record.contexts).every(safeContextName))) &&
 		(record.settledContinuations === undefined || isStringList(record.settledContinuations))
 	);
+}
+
+function isIndexedComponentResumption(value: unknown): value is IndexedComponentResumption {
+	if (!Array.isArray(value) || value.length < 1 || value.length > 4) return false;
+	if (typeof value[0] !== 'string' || value[0].length === 0) return false;
+	return (
+		indexedPairs(value[1]) &&
+		indexedPairs(value[2]) &&
+		(value[3] === undefined || isStringList(value[3]))
+	);
+}
+
+function indexedPairs(value: unknown): boolean {
+	if (value === undefined) return true;
+	if (!Array.isArray(value)) return false;
+	const fields: Array<number | string> = [];
+	for (const pair of value) {
+		const field = Array.isArray(pair) ? pair[0] : undefined;
+		if (
+			!Array.isArray(pair) ||
+			pair.length !== 2 ||
+			!(
+				(typeof field === 'number' && Number.isSafeInteger(field) && field >= 0) ||
+				(typeof field === 'string' && !field.startsWith('@') && safeResumptionPath(field))
+			) ||
+			fields.includes(field)
+		)
+			return false;
+		fields.push(field);
+	}
+	return true;
 }
 
 function isStatePathList(value: unknown): boolean {

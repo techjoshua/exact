@@ -72,11 +72,15 @@ func appendNativeIntlDescriptor(
 		}
 	}
 	attributes := []intlSpan{{Start: attributeStart, Length: attributeLength}}
+	transferred := []intlSpan{}
 	if target.Kind == "content" {
 		if contentAttributes := intlContentAttributeSpans(opening.Attributes()); len(contentAttributes) > 0 {
 			attributes = offsetIntlSpans(contentAttributes, positionDelta)
 		}
 		attributes = append(attributes, offsetIntlSpans(build.attributes, positionDelta)...)
+		if !explicit {
+			transferred = offsetIntlSpans(intlTransferredAttributeSpans(opening.Attributes()), positionDelta)
+		}
 	}
 	result.Regions = append(result.Regions, intlRegion{
 		DescriptorIndex: descriptorIndex,
@@ -85,10 +89,30 @@ func appendNativeIntlDescriptor(
 		Element:         intlSpan{Start: elementStart, Length: element.End() - parsedElementStart},
 		Attribute:       intlSpan{Start: attributeStart, Length: attributeLength},
 		Attributes:      attributes,
+		Transferred:     transferred,
 		Content:         intlSpan{Start: contentStart + positionDelta, Length: contentEnd - contentStart},
 		Values:          offsetIntlSpans(build.values, positionDelta), Structures: offsetIntlStructures(build.structures, positionDelta),
 		Evidence: offsetIntlEvidence(build.evidence, positionDelta),
 	})
+}
+
+// Content translation reconstructs its intrinsic target. Other namespaced JSX
+// capabilities therefore belong only to that reconstructed target; retaining
+// them on the temporary source target would activate the same enhancement twice.
+func intlTransferredAttributeSpans(attributes *ast.Node) []intlSpan {
+	result := []intlSpan{}
+	if attributes == nil {
+		return result
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if !ast.IsJsxAttribute(property) || !ast.IsJsxNamespacedName(property.AsJsxAttribute().Name()) {
+			continue
+		}
+		if property.AsJsxAttribute().Name().AsJsxNamespacedName().Namespace.Text() != "intl" {
+			result = append(result, intlNodeSpan(property))
+		}
+	}
+	return result
 }
 
 func intlContentAttributeSpans(attributes *ast.Node) []intlSpan {

@@ -1,6 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/lists';
+import '@exactjs/core/runtime/refs';
 import {
 	ErrorContext,
 	LoggerContext,
@@ -196,3 +198,4 @@ describe('eXact conformance', () => {
 		expect(container.textContent).toBe('gone');
 	});
 });
+import '@exactjs/core/runtime/contexts';

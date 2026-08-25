@@ -4,6 +4,8 @@ import type { InitialData } from './types.js';
 
 /** Server-renders the eXact participant from one authoritative controlled-service snapshot. */
 export function renderParticipant(initialData: InitialData, path: string) {
-	const rendered = renderToHydratableString(<IncidentApp initialData={initialData} path={path} />);
+	const rendered = renderToHydratableString(<IncidentApp initialData={initialData} path={path} />, {
+		publishRootProps: true
+	});
 	return rendered.htmlWithHydration;
 }

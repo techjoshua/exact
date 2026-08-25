@@ -16,7 +16,7 @@ await build({
 	root,
 	base: './',
 	configFile: false,
-	plugins: [exact()],
+	plugins: [exact({ renderMode: 'client' })],
 	build: {
 		outDir: buildRoot,
 		emptyOutDir: true,

@@ -10,7 +10,7 @@ import {
 	withComponentDomain,
 	type Component
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { describe, expect, it, vi } from 'vitest';
@@ -164,6 +164,28 @@ describe('component domain rendering', () => {
 		unmount(container);
 	});
 
+	it('retains an inspected root domain across caller-authored updates', () => {
+		const container = document.createElement('div');
+		const inspection = createExactRuntimeInspectionOwner({
+			buildKey: 'stable-inspected-root',
+			executionRoot: 'page'
+		});
+		function Panel(this: Component<{}>, props: { label: string }) {
+			return () => createVNode('button', null, props.label);
+		}
+		const restoreInspection = setExactDomInspectionOwner(inspection);
+		try {
+			render(createCompiledVNode(Panel, { label: 'first' }), container);
+			const first = findNodeOwnerInstance(container.querySelector('button')!);
+			render(createCompiledVNode(Panel, { label: 'second' }), container);
+			expect(findNodeOwnerInstance(container.querySelector('button')!)).toBe(first);
+			expect(container.textContent).toBe('second');
+		} finally {
+			restoreInspection();
+			unmount(container);
+		}
+	});
+
 	it('publishes redaction-safe target contribution ownership to production inspection', () => {
 		const container = document.createElement('div');
 		document.body.append(container);
@@ -216,8 +238,8 @@ describe('component domain rendering', () => {
 			});
 			return () => boundary;
 		}
-		markExactComponent(Panel, 'fixture:inspection-panel');
-		markExactComponent(Host, 'fixture:inspection-host');
+		createExactFrameworkFixtureArtifact(Panel, 'fixture:inspection-panel');
+		createExactFrameworkFixtureArtifact(Host, 'fixture:inspection-host');
 
 		const restoreInspection = setExactDomInspectionOwner(inspection);
 		render(createCompiledVNode(Host, null), container);
@@ -239,3 +261,5 @@ describe('component domain rendering', () => {
 		restoreInspection();
 	});
 });
+import './runtime/target.js';
+import '@exactjs/core/runtime/contexts';

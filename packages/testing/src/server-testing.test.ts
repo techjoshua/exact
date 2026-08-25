@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { activateTaskForHost, createContext, defineTask, type Component } from '@exactjs/core';
+import { readExactHydrationConfig } from '@exactjs/hydrate';
 import { describe, expect, it } from 'vitest';
 
 import { ExactProtocolRecorder, mountClientServerTest, testServerComponent } from './index.js';
@@ -159,7 +160,10 @@ describe('server component testing', () => {
 		});
 
 		expect(view.resumptions).toEqual([activation]);
-		expect(view.hydrationScript).toContain('"PublicStatus":"ready"');
+		if (!view.hydrationScript) throw new Error('SSR resumption render omitted hydration state');
+		const container = document.createElement('div');
+		container.innerHTML = view.hydrationScript;
+		expect(readExactHydrationConfig(container).resumptions).toEqual([activation]);
 	});
 
 	it('records streamed protocol events without consuming the client stream', async () => {

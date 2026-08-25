@@ -13,7 +13,9 @@ func (lowering *jsxLowering) serverPartitionRangeEdge(start int) (PartitionPlanE
 	}
 	best := PartitionPlanEdge{}
 	for _, edge := range lowering.partitionPlan.Edges {
-		if edge.Start != start || placements[edge.Parent] == "server" || placements[edge.Child] != "server" {
+		parentPlacement := placements[edge.Parent]
+		if edge.Start != start || parentPlacement == "server" || placements[edge.Child] != "server" ||
+			(!lowering.serverComponents && parentPlacement != "client") {
 			continue
 		}
 		if best.ID == "" || edge.Length < best.Length {

@@ -2,6 +2,7 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/lists';
 import { Fragment, type Child, type Component } from '@exactjs/core';
 import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
 import { createCompiledVNode, createVNode, jsx, jsxs } from './test-support/native-vnode.js';

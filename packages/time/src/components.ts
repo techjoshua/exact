@@ -1,12 +1,10 @@
 import {
 	createContext,
 	intl,
-	markExactEnhancementContexts,
 	type Child,
 	type Component,
 	type ComponentInstance
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { isHydrationComponentDomain } from '@exactjs/core/framework/component-domains';
 import { unwrap } from '@exactjs/reactive';
 import { isTimeActivation } from './activation.js';
@@ -35,7 +33,16 @@ export interface TimeProviderProps {
 
 /** Publishes an authoritative or simulated clock to descendant time ranges. */
 export function TimeProvider(this: Component<{}>, props: TimeProviderProps) {
-	validateProviderCalendar(props);
+	if (
+		props.weekStartsOn !== undefined &&
+		(!Number.isInteger(props.weekStartsOn) || props.weekStartsOn < 0 || props.weekStartsOn > 6)
+	)
+		throw new TypeError('TimeProvider weekStartsOn must be an integer from 0 through 6');
+	if (props.timeZone || props.calendar)
+		intl.DateTimeFormat('en', {
+			...(props.timeZone ? { timeZone: props.timeZone } : {}),
+			...(props.calendar ? { calendar: props.calendar } : {})
+		});
 	this.setContext(
 		TimeEnvironmentContext,
 		Object.freeze({
@@ -65,31 +72,38 @@ export interface TimeUpdateProps {
 /** Owns mounted registration while returning the authored fallback range unchanged. */
 export function TimeUpdate(this: Component<{}>, props: TimeUpdateProps) {
 	const hydration = isHydrationComponentDomain((this as ComponentInstance<{}>).domain);
-	let mountedActivation: ReturnType<typeof resolveActivation>;
+	const state: { mountedActivation?: ReturnType<typeof resolveActivation> } = {};
 	this.onMount(() => {
 		// Component props can expose object values through a reactive proxy. Retain the same raw
 		// activation identity used during render so a policy update cannot dispose its own range.
-		mountedActivation = resolveActivation(unwrap(props.update));
-		mountedActivation?.mount(resolveTimeEnvironment(this), { deferInitialPublish: hydration });
+		state.mountedActivation = resolveActivation(unwrap(props.update));
+		state.mountedActivation?.mount(resolveTimeEnvironment(this), {
+			deferInitialPublish: hydration
+		});
 	});
-	this.onUnmount(() => mountedActivation?.dispose());
-	this.onDeactivate(() => mountedActivation?.suspend());
-	this.onActivate(() => mountedActivation?.mount(resolveTimeEnvironment(this)));
-	return () => {
-		const value = unwrap(props.update);
-		const activation = resolveActivation(value);
-		if (activation) {
-			activation.configure(activation.policy, activation.plan);
-			const environment = resolveTimeEnvironment(this);
-			if (environment) activation.configureEnvironment(environment);
-			if (mountedActivation && mountedActivation !== activation) {
-				mountedActivation.dispose();
-				mountedActivation = activation;
-				activation.mount(environment);
-			}
+	this.onUnmount(() => state.mountedActivation?.dispose());
+	this.onDeactivate(() => state.mountedActivation?.suspend());
+	this.onActivate(() => state.mountedActivation?.mount(resolveTimeEnvironment(this)));
+	return () => renderTimeUpdate(this, props, state);
+}
+
+function renderTimeUpdate(
+	owner: Component<{}>,
+	props: TimeUpdateProps,
+	state: { mountedActivation?: ReturnType<typeof resolveActivation> }
+): Child | Child[] {
+	const activation = resolveActivation(unwrap(props.update));
+	if (activation) {
+		activation.configure(activation.policy, activation.plan);
+		const environment = resolveTimeEnvironment(owner);
+		if (environment) activation.configureEnvironment(environment);
+		if (state.mountedActivation && state.mountedActivation !== activation) {
+			state.mountedActivation.dispose();
+			state.mountedActivation = activation;
+			activation.mount(environment);
 		}
-		return props.children;
-	};
+	}
+	return props.children;
 }
 
 function resolveTimeEnvironment(owner: Component<{}>): TimeEnvironment | undefined {
@@ -106,21 +120,3 @@ function resolveTimeEnvironment(owner: Component<{}>): TimeEnvironment | undefin
 function resolveActivation(value: unknown) {
 	return isTimeActivation(value) ? value : undefined;
 }
-
-function validateProviderCalendar(props: TimeProviderProps): void {
-	if (
-		props.weekStartsOn !== undefined &&
-		(!Number.isInteger(props.weekStartsOn) || props.weekStartsOn < 0 || props.weekStartsOn > 6)
-	)
-		throw new TypeError('TimeProvider weekStartsOn must be an integer from 0 through 6');
-	if (props.timeZone || props.calendar)
-		intl.DateTimeFormat('en', {
-			...(props.timeZone ? { timeZone: props.timeZone } : {}),
-			...(props.calendar ? { calendar: props.calendar } : {})
-		});
-}
-
-markExactComponent(TimeUpdate, '@exactjs/time:TimeUpdate');
-markExactComponent(TimeProvider, '@exactjs/time:TimeProvider');
-markExactEnhancementContexts(TimeProvider, { provides: [TimeEnvironmentContext] });
-markExactEnhancementContexts(TimeUpdate, { optionallyConsumes: [TimeEnvironmentContext] });

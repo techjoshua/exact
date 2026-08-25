@@ -1,14 +1,37 @@
 /**
  * @vitest-environment jsdom
  */
-import { type Component } from '@exactjs/core';
-import { createCompiledVNode, createDynamicChild } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
-import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
+import { createDerived, type Component } from '@exactjs/core';
+import {
+	createCompiledVNode,
+	createDynamicChild,
+	createFrameworkFixtureComponentInstance,
+	createPreparedRenderProgram,
+	keyCompiledVNode,
+	prepareCompiledRenderProgram
+} from '@exactjs/core/runtime/render';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
+import {
+	beginCompiledProgramClaims,
+	bindCompiledProgramProperties,
+	bindCompiledProgramKeyedChild,
+	claimCompiledProgramElement,
+	claimCompiledProgramKeyedChild,
+	claimCompiledProgramProperty,
+	enterCompiledProgramElement,
+	leaveCompiledProgramElement
+} from '@exactjs/dom/runtime/render-program';
+import { withGenericRenderProgramBindings } from '@exactjs/dom/testing';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate, hydrateAfterNavigation } from './root.js';
 import { createVNode } from './test-support/native-vnode.js';
+
+function RenderProgramOwner(this: Component<{}>) {
+	return () => null;
+}
+const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgramOwner, {});
 
 describe('hydration-only root capability', () => {
 	it('gives visible SSR content a rendering opportunity before passive hydration', async () => {
@@ -166,47 +189,166 @@ describe('hydration-only root capability', () => {
 
 	it('adopts marked compiler render programs without materializing their generic cells', () => {
 		let fallbacks = 0;
-		const program = createCompiledRenderProgram(
-			'root-marked-program',
-			() => ({
-				version: 1,
+		const descriptor = prepareCompiledRenderProgram(
+			withGenericRenderProgramBindings({
+				version: 4,
 				id: 'root-marked-program',
 				namespace: 'html',
 				template: '<span data-exact-id="program-root">\ue000exact:0\ue001</span>',
-				parts: ['<span data-exact-id="program-root">', '</span>'],
-				slots: [{ id: 'program-text', kind: 'text', path: [0] }],
-				nodes: [{ id: 'program-root', path: [], tag: 'span', namespace: 'html' }],
-				ssrParts: ['', '<span data-exact-id="program-root">', '', '</span>', ''],
-				ssrOperations: [
-					{ kind: 'node-open', index: 0 },
-					{ kind: 'slot', index: 0 },
-					{ kind: 'node-close', index: 0 }
-				]
-			}),
-			[() => 'ready'],
-			() => {
-				fallbacks++;
-				return createCompiledVNode(
-					'span',
-					{ 'data-exact-id': 'program-root' },
-					createDynamicChild(() => 'ready', 'program-text')
-				);
-			}
+				slots: [['text', 'program-text', [0]]],
+				bindings: [['text', 0]],
+				nodes: [[0, 'span', 'html']],
+				ssr(target, context, invocation) {
+					const value = target.prepareText(invocation, 0);
+					if (value === target.unprepared) return;
+					const output: Array<string | readonly unknown[]> = [];
+					target.begin(context, 1, 1, 44);
+					target.static(output, '<span data-exact-id="program-root">');
+					target.text(context, output, value, 'program-text', 44);
+					target.static(output, '</span>');
+					return output;
+				}
+			})
 		);
+		const componentId = '@exactjs/hydrate:root-marked-program';
+		const ClientApp = createExactFrameworkFixtureArtifact(function ClientApp() {
+			return () =>
+				createPreparedRenderProgram(descriptor, [() => 'ready'], renderProgramOwner, () => {
+					fallbacks++;
+					return createCompiledVNode(
+						'span',
+						{ 'data-exact-id': 'program-root' },
+						createDynamicChild(() => 'ready', 'program-text')
+					);
+				});
+		}, componentId);
+		const ServerApp = createExactFrameworkFixtureArtifact(function ServerApp() {
+			return () => createPreparedServerRenderProgram(descriptor, ['ready']);
+		}, componentId);
+		const clientVNode = createVNode(ClientApp, null);
+		const serverVNode = createVNode(ServerApp, null);
 		const container = document.createElement('main');
-		container.innerHTML = renderToString(program).html;
+		container.innerHTML = renderToString(serverVNode).html;
 		const span = container.querySelector('span');
 		const fallbackCount = fallbacks;
 
-		const root = hydrate(program, container);
+		const root = hydrate(clientVNode, container);
 
 		expect(container.querySelector('span')).toBe(span);
 		expect(fallbacks).toBe(fallbackCount);
 		root.dispose();
 	});
 
+	it('activates bindings and structural children from a markerless compiled SSR program root', async () => {
+		const items = [
+			{ id: 'a', label: 'Alpha', kind: 'primary' },
+			{ id: 'b', label: 'Beta', kind: 'secondary' }
+		];
+		const rowProgram = prepareCompiledRenderProgram({
+			version: 4,
+			id: 'markerless-ssr-row',
+			namespace: 'html',
+			template: '<li data-testid="row"></li>',
+			root: ['li'],
+			work: [1, 0],
+			directClaims: true,
+			ssr(target, context) {
+				target.begin(context, 1, 0, 0);
+				const output: Array<string | readonly unknown[]> = [];
+				target.static(output, '<li data-testid="row"></li>');
+				return output;
+			}
+		});
+		const program = prepareCompiledRenderProgram({
+			version: 4,
+			id: 'markerless-ssr-children',
+			namespace: 'html',
+			template:
+				'<section><select><option value="all">All</option><option value="primary">Primary</option></select><ul></ul></section>',
+			directClaims: true,
+			keyedChildren: 1,
+			bind(target) {
+				if (beginCompiledProgramClaims(target, 'section', 'html', 6, 2)) {
+					claimCompiledProgramElement(target, 1, 0, 'select');
+					claimCompiledProgramProperty(target, 1, 1);
+					claimCompiledProgramElement(target, 2, 0, 'ul');
+					enterCompiledProgramElement(target, 2);
+					claimCompiledProgramKeyedChild(target, 0, 0);
+					leaveCompiledProgramElement(target);
+					return;
+				}
+				bindCompiledProgramKeyedChild(target, 0);
+				bindCompiledProgramProperties(target, 0, 1);
+			},
+			ssr(target, context, invocation) {
+				const child = target.prepareChild(invocation, 0);
+				if (child === target.unprepared) return;
+				const output: Array<string | readonly unknown[]> = [];
+				target.begin(context, 6, 2, 0);
+				target.static(
+					output,
+					'<section><select><option value="all">All</option><option value="primary">Primary</option></select><ul>'
+				);
+				target.keyedChild(output, child);
+				target.static(output, '</ul></section>');
+				return output;
+			}
+		});
+		const componentId = '@exactjs/hydrate:markerless-ssr-children';
+		const App = createExactFrameworkFixtureArtifact(function App(
+			this: Component<{ kind: string }>
+		) {
+			this.state.kind = 'all';
+			const filtered = createDerived(() =>
+				items.filter((item) => this.state.kind === 'all' || item.kind === this.state.kind)
+			);
+			return () =>
+				createPreparedRenderProgram(
+					program,
+					[
+						() =>
+							filtered
+								.get()
+								.map((item) =>
+									keyCompiledVNode(createPreparedRenderProgram(rowProgram, [], this), item.id)
+								)
+					],
+					this,
+					undefined,
+					(_group, write) => {
+						write('value', this.state.kind);
+						write('__exactBindChange', (event: Event) => {
+							this.state.kind = (event.currentTarget as HTMLSelectElement).value;
+						});
+					}
+				);
+		}, componentId);
+		const ServerApp = createExactFrameworkFixtureArtifact(function ServerApp() {
+			return () =>
+				createPreparedServerRenderProgram(program, [
+					items.map((item) =>
+						keyCompiledVNode(createPreparedServerRenderProgram(rowProgram, []), item.id)
+					)
+				]);
+		}, componentId);
+		const vnode = createVNode(App, null);
+		const container = document.createElement('main');
+		container.innerHTML = renderToString(createVNode(ServerApp, null)).html;
+		const serverItems = [...container.querySelectorAll('[data-testid="row"]')];
+
+		const root = hydrate(vnode, container, { onMismatch: 'throw' });
+
+		expect([...container.querySelectorAll('[data-testid="row"]')]).toEqual(serverItems);
+		const select = container.querySelector('select')!;
+		select.value = 'primary';
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+		await Promise.resolve();
+		expect(container.querySelectorAll('[data-testid="row"]')).toHaveLength(1);
+		root.dispose();
+	});
+
 	it('adopts and owns SSR DOM without exposing optional request methods', () => {
-		const App = markExactComponent(function App(this: Component<{}>) {
+		const App = createExactFrameworkFixtureArtifact(function App(this: Component<{}>) {
 			return () => createVNode('p', { id: 'message' }, 'ready');
 		}, '@exactjs/hydrate:root-only-test');
 		const vnode = createVNode(App, null);

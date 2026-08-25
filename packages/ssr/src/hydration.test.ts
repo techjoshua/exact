@@ -125,7 +125,7 @@ describe('@exactjs/ssr hydration', () => {
 			kind: 'task',
 			readiness: 'nonblocking'
 		});
-		expect(payload.resumptions).toEqual([{ componentId: 'test:refresh' }]);
+		expect(payload.resumptions).toEqual([['test:refresh']]);
 	});
 
 	it('rejects component authorization prepared for another build', () => {

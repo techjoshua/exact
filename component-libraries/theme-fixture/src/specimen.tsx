@@ -1,6 +1,11 @@
 import { createEnhancementNode, createVNode, type Component, type VNode } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
-import { deriveDataColors, ThemeContext, ThemeSurfaceContext } from '@exactjs/theme';
+import {
+	deriveDataColors,
+	ThemeContext,
+	ThemeSurfaceContext,
+	type ResolvedTheme,
+	type ThemeSurfaceBundle
+} from '@exactjs/theme';
 
 const values = [
 	{ label: 'North', points: [18, 33, 27, 48, 42, 61] },
@@ -23,13 +28,10 @@ const separatedControlGroupStyle = {
 	marginBlockStart: 'max(var(--exact-theme-control-gap), 0.25rem)'
 } as const;
 type DepthInteractionState = 'rest' | 'hover' | 'pressed' | 'dragging';
-type SpecimenState = { dragging: boolean; depthInteraction: DepthInteractionState };
+type DepthControlsState = { dragging: boolean; interaction: DepthInteractionState };
 
 /** Portable acceptance specimen containing native controls, text, statuses, selection, and a derived chart. */
-export function ThemeSpecimen(this: Component<SpecimenState>, props: { label: string }) {
-	const theme = this.getContext(ThemeContext);
-	this.state.dragging = false;
-	this.state.depthInteraction = 'rest';
+export function ThemeSpecimen(this: Component<{}>, props: { label: string }) {
 	return () =>
 		enhance(
 			'surface',
@@ -115,78 +117,7 @@ export function ThemeSpecimen(this: Component<SpecimenState>, props: { label: st
 						)
 					)
 				),
-				createVNode(
-					'div',
-					{ className: 'theme-lab-actions' },
-					enhance(
-						'action',
-						{ action: 'primary' },
-						createVNode(
-							'button',
-							{
-								type: 'button',
-								onPointerOver: () => (this.state.depthInteraction = 'hover'),
-								onPointerOut: () => (this.state.depthInteraction = 'rest'),
-								onPointerDown: () => (this.state.depthInteraction = 'pressed'),
-								onPointerUp: () => (this.state.depthInteraction = 'hover'),
-								onPointerCancel: () => (this.state.depthInteraction = 'rest'),
-								onKeyDown: (event: KeyboardEvent) => {
-									if (event.key === 'Enter' || event.key === ' ')
-										this.state.depthInteraction = 'pressed';
-								},
-								onKeyUp: (event: KeyboardEvent) => {
-									if (event.key === 'Enter' || event.key === ' ')
-										this.state.depthInteraction = 'rest';
-								}
-							},
-							'Save changes'
-						)
-					),
-					enhance(
-						'action',
-						{ action: 'secondary' },
-						createVNode('button', { type: 'button' }, 'Preview')
-					),
-					enhance(
-						'action',
-						{ action: 'quiet', tone: 'danger' },
-						createVNode('button', { type: 'button' }, 'Delete')
-					),
-					enhance(
-						'action',
-						{ action: 'secondary' },
-						createVNode('button', { type: 'button', disabled: true }, 'Unavailable')
-					),
-					enhance(
-						'action',
-						{ action: 'secondary', dragging: this.state.dragging },
-						createVNode(
-							'button',
-							{
-								type: 'button',
-								draggable: true,
-								onDragStart: () => {
-									this.state.dragging = true;
-									this.state.depthInteraction = 'dragging';
-								},
-								onDragEnd: () => {
-									this.state.dragging = false;
-									this.state.depthInteraction = 'rest';
-								}
-							},
-							'Drag me'
-						)
-					)
-				),
-				enhance(
-					'text',
-					{ text: 'supporting' },
-					createVNode(
-						'output',
-						{ 'aria-label': 'Current depth demonstration state' },
-						depthStateDescription(theme.current.source.depth, this.state.depthInteraction)
-					)
-				),
+				createVNode(DepthControls, {}),
 				createVNode(
 					'div',
 					{
@@ -212,97 +143,171 @@ export function ThemeSpecimen(this: Component<SpecimenState>, props: { label: st
 		);
 }
 
+/** Owns the specimen's interactive depth demonstration as one compiled reactive range. */
+function DepthControls(this: Component<DepthControlsState>) {
+	const theme = this.getContext(ThemeContext);
+	this.state.dragging = false;
+	this.state.interaction = 'rest';
+	return () => (
+		<>
+			<div className="theme-lab-actions">
+				<button
+					{...enhancementAttributes('action', { action: 'primary' })}
+					type="button"
+					onPointerOver={() => (this.state.interaction = 'hover')}
+					onPointerOut={() => (this.state.interaction = 'rest')}
+					onPointerDown={() => (this.state.interaction = 'pressed')}
+					onPointerUp={() => (this.state.interaction = 'hover')}
+					onPointerCancel={() => (this.state.interaction = 'rest')}
+					onKeyDown={(event: KeyboardEvent) => {
+						if (event.key === 'Enter' || event.key === ' ') this.state.interaction = 'pressed';
+					}}
+					onKeyUp={(event: KeyboardEvent) => {
+						if (event.key === 'Enter' || event.key === ' ') this.state.interaction = 'rest';
+					}}
+				>
+					Save changes
+				</button>
+				<button {...enhancementAttributes('action', { action: 'secondary' })} type="button">
+					Preview
+				</button>
+				<button
+					{...enhancementAttributes('action', { action: 'quiet', tone: 'danger' })}
+					type="button"
+				>
+					Delete
+				</button>
+				<button
+					{...enhancementAttributes('action', { action: 'secondary' })}
+					type="button"
+					disabled
+				>
+					Unavailable
+				</button>
+				<button
+					{...enhancementAttributes('action', { action: 'secondary' })}
+					type="button"
+					draggable
+					data-exact-theme-dragging={this.state.dragging ? 'true' : undefined}
+					onDragStart={() => {
+						this.state.dragging = true;
+						this.state.interaction = 'dragging';
+					}}
+					onDragEnd={() => {
+						this.state.dragging = false;
+						this.state.interaction = 'rest';
+					}}
+				>
+					Drag me
+				</button>
+			</div>
+			<output
+				{...enhancementAttributes('text', { text: 'supporting' })}
+				aria-label="Current depth demonstration state"
+			>
+				{depthStateDescription(theme.current.source.depth, this.state.interaction)}
+			</output>
+		</>
+	);
+}
+
 /** Accessible translucent area chart derived from the nearest theme and surface contexts. */
 export function ThemeAreaChart(this: Component<{}>, props: { label: string }) {
 	const theme = this.getContext(ThemeContext),
 		surface = this.getContext(ThemeSurfaceContext);
-	return () => {
-		const palette = deriveDataColors(theme.current, {
-			kind: 'categorical',
-			count: values.length,
-			surface: surface.bundle
-		});
-		return createVNode(
-			'figure',
-			{ className: 'theme-lab-chart' },
+	return () => themeAreaChartView(props.label, theme.current, surface.bundle);
+}
+
+function themeAreaChartView(
+	label: string,
+	theme: ResolvedTheme,
+	surface: ThemeSurfaceBundle
+): VNode {
+	const palette = deriveDataColors(theme, {
+		kind: 'categorical',
+		count: values.length,
+		surface
+	});
+	return createVNode(
+		'figure',
+		{ className: 'theme-lab-chart' },
+		createVNode(
+			'svg',
+			{ viewBox: '0 0 600 260', role: 'img', 'aria-label': label },
+			createVNode('title', null, label),
+			...[20, 80, 140, 200].map((y) =>
+				createVNode('line', {
+					x1: 30,
+					y1: y,
+					x2: 580,
+					y2: y,
+					stroke: 'var(--exact-theme-surface-border)',
+					'stroke-width': 1
+				})
+			),
+			...values.map((series, index) =>
+				createVNode('path', {
+					d: areaPath(series.points),
+					fill: translucent(palette.colors[index]!, 0.24),
+					stroke: palette.strokes[index],
+					'stroke-width': 4,
+					'stroke-linejoin': 'round'
+				})
+			)
+		),
+		createVNode(
+			'figcaption',
+			null,
+			createVNode('strong', null, 'Quarterly activity'),
 			createVNode(
-				'svg',
-				{ viewBox: '0 0 600 260', role: 'img', 'aria-label': props.label },
-				createVNode('title', null, props.label),
-				...[20, 80, 140, 200].map((y) =>
-					createVNode('line', {
-						x1: 30,
-						y1: y,
-						x2: 580,
-						y2: y,
-						stroke: 'var(--exact-theme-surface-border)',
-						'stroke-width': 1
-					})
-				),
+				'ul',
+				{ className: 'theme-lab-legend' },
 				...values.map((series, index) =>
-					createVNode('path', {
-						d: areaPath(series.points),
-						fill: translucent(palette.colors[index]!, 0.24),
-						stroke: palette.strokes[index],
-						'stroke-width': 4,
-						'stroke-linejoin': 'round'
-					})
+					createVNode(
+						'li',
+						null,
+						createVNode(
+							'span',
+							{
+								className: `theme-lab-pattern pattern-${palette.recommendedPatterns[index]}`,
+								style: `--series:${palette.colors[index]}`
+							},
+							'◆'
+						),
+						`${series.label}: ${series.points.at(-1)}`
+					)
 				)
 			),
 			createVNode(
-				'figcaption',
+				'details',
 				null,
-				createVNode('strong', null, 'Quarterly activity'),
+				createVNode('summary', null, 'View chart data'),
 				createVNode(
-					'ul',
-					{ className: 'theme-lab-legend' },
-					...values.map((series, index) =>
-						createVNode(
-							'li',
-							null,
-							createVNode(
-								'span',
-								{
-									className: `theme-lab-pattern pattern-${palette.recommendedPatterns[index]}`,
-									style: `--series:${palette.colors[index]}`
-								},
-								'◆'
-							),
-							`${series.label}: ${series.points.at(-1)}`
-						)
-					)
-				),
-				createVNode(
-					'details',
-					null,
-					createVNode('summary', null, 'View chart data'),
+					'table',
+					{ style: dataTableStyle },
 					createVNode(
-						'table',
-						{ style: dataTableStyle },
+						'thead',
+						null,
 						createVNode(
-							'thead',
+							'tr',
 							null,
+							themeTableHeader('Series'),
+							...seriesColumns().map(themeTableHeader)
+						)
+					),
+					createVNode(
+						'tbody',
+						null,
+						...values.map((series) =>
 							createVNode(
 								'tr',
 								null,
-								themeTableHeader('Series'),
-								...seriesColumns().map(themeTableHeader)
-							)
-						),
-						createVNode(
-							'tbody',
-							null,
-							...values.map((series) =>
-								createVNode(
-									'tr',
-									null,
-									themeTableHeader(series.label),
-									...series.points.map((point) =>
-										enhance(
-											'text',
-											{ text: 'body' },
-											createVNode('td', { style: dataCellStyle }, point)
-										)
+								themeTableHeader(series.label),
+								...series.points.map((point) =>
+									enhance(
+										'text',
+										{ text: 'body' },
+										createVNode('td', { style: dataCellStyle }, point)
 									)
 								)
 							)
@@ -310,8 +315,8 @@ export function ThemeAreaChart(this: Component<{}>, props: { label: string }) {
 					)
 				)
 			)
-		);
-	};
+		)
+	);
 }
 
 function themeTableHeader(label: string): VNode {
@@ -329,6 +334,14 @@ function enhance(name: string, props: Record<string, unknown>, vnode: VNode): VN
 		},
 		...vnode.children
 	);
+}
+
+function enhancementAttributes(name: string, props: Record<string, unknown>) {
+	return {
+		__exactEnhancements: createEnhancementNode([
+			{ identity: `@exactjs/theme/enhancements#${name}`, props }
+		])
+	};
 }
 function areaPath(points: readonly number[]): string {
 	const coordinates = points.map((point, index) => `${30 + index * 110},${230 - point * 3}`);
@@ -355,6 +368,3 @@ function depthStateDescription(
 			: 'none';
 	return `Depth demo: ${state} → ${shadow}. Hover or press Save changes; drag Drag me.`;
 }
-
-markExactComponent(ThemeSpecimen, '@exactjs/theme-fixture:ThemeSpecimen');
-markExactComponent(ThemeAreaChart, '@exactjs/theme-fixture:ThemeAreaChart');

@@ -93,7 +93,7 @@ func setupExpressionTask(
 			}
 		}
 		resource, ok := taskResourceCandidate(node, sourceFile, typeChecker)
-		if !ok {
+		if !ok || componentOwnsResource(node, candidate.node) {
 			return
 		}
 		ownership := taskResourceOwnership(candidate.node, node, resource, typeChecker)
@@ -130,7 +130,7 @@ func setupValueResourceDiagnostic(
 			return
 		}
 		resource, ok := taskResourceCandidate(node, sourceFile, typeChecker)
-		if !ok {
+		if !ok || componentOwnsResource(node, candidate.node) {
 			return
 		}
 		message = setupResourceEscapeMessage(resource)
@@ -138,6 +138,27 @@ func setupValueResourceDiagnostic(
 		length = node.End() - node.Pos()
 	})
 	return message, start, length
+}
+
+// componentOwnsResource recognizes the durable component ownership boundary.
+// The call returns its input, so declarations retain their authored value while
+// teardown remains tied to the component instance rather than a task frame.
+func componentOwnsResource(node *ast.Node, component *ast.Node) bool {
+	for current := node; current != nil && current != component; current = current.Parent {
+		parent := current.Parent
+		if parent == nil || !ast.IsCallExpression(parent) {
+			continue
+		}
+		call := parent.AsCallExpression()
+		if !ast.IsPropertyAccessExpression(call.Expression) {
+			continue
+		}
+		member := call.Expression.AsPropertyAccessExpression()
+		if member.Name().Text() == "own" && member.Expression.Kind == ast.KindThisKeyword {
+			return true
+		}
+	}
+	return false
 }
 
 func setupResourceTask(component string, statement *ast.Node) Task {

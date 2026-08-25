@@ -78,10 +78,18 @@ export function CompilerTourPage(this: Component<{}>) {
 			<section>
 				<h2>What to notice</h2>
 				<p>
+					A component does not need a <code>.tsx</code> filename when it does not author JSX. The
+					compiler recognizes native components in ordinary TypeScript modules too. Installed eXact
+					libraries can provide precompiled browser and server artifacts, so applications consume
+					the correct target without executing the compiler at runtime.
+				</p>
+				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
 					boundary. Inputs outside it are rejected before any path beneath <code>outDir</code> is
 					derived or written. Client, server, shared, map, and inspection outputs are staged as one
-					publication; a failed commit restores the previous generation.
+					publication; a failed commit restores the previous generation. Transform results report
+					the framework packages imported by the emitted target so a published library build can
+					verify that its package manifest declares every runtime dependency.
 				</p>
 				<p>
 					Editor compiler sessions bound native response time and settle cancellation immediately.
@@ -108,7 +116,8 @@ export function CompilerTourPage(this: Component<{}>) {
 						<strong>Keys preserve list items</strong>
 						<p>
 							The product type&apos;s <code>@exact key</code> annotation preserves rows as results
-							change. SSR can finish the search before the browser adopts the page.
+							change. SSR can finish the search before the browser adopts the page, and generated
+							component slots let it adopt native children without redundant wrapper markup.
 						</p>
 					</div>
 				</div>

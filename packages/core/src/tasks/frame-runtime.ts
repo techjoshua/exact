@@ -1,4 +1,7 @@
-import { setScheduledWorkContextCapture, type ScheduledWorkContext } from '@exactjs/reactive';
+import {
+	setScheduledWorkContextCapture,
+	type ScheduledWorkContext
+} from '@exactjs/reactive/framework/runtime';
 import type { TaskContext, TaskOwner } from './contracts.js';
 import { raceTaskCancellation, TaskCancellation } from './cancellation.js';
 import {
@@ -36,6 +39,8 @@ export type {
 let nextFrameId = 1;
 let currentFrame: TaskFrameRecord | undefined;
 let currentOwner: TaskOwnerRecord | undefined;
+let deferredFrameMaterializer: (() => TaskFrameRecord) | undefined;
+let scheduledWorkCaptureInstalled = false;
 const synchronousFrameErrors = new WeakMap<Promise<unknown>, { readonly error: unknown }>();
 
 /** Creates a durable task owner and its cancellation lifetime. */
@@ -60,6 +65,22 @@ export function currentTaskFrameRecord(): TaskFrameRecord | undefined {
 	return currentFrame;
 }
 
+/** Materializes an interaction frame only when synchronous work requests structural ownership. */
+export function materializeDeferredTaskFrame(): TaskFrameRecord | undefined {
+	return deferredFrameMaterializer?.();
+}
+
+/** Installs the lazy structural parent available to task and navigation operations during work. */
+export function withDeferredTaskFrame<T>(materialize: () => TaskFrameRecord, work: () => T): T {
+	const previous = deferredFrameMaterializer;
+	deferredFrameMaterializer = materialize;
+	try {
+		return work();
+	} finally {
+		deferredFrameMaterializer = previous;
+	}
+}
+
 /** Returns the durable owner supplied by the current framework host. */
 export function currentTaskOwnerRecord(): TaskOwnerRecord | undefined {
 	return currentFrame?.owner ?? currentOwner;
@@ -79,6 +100,7 @@ export function withTaskOwnerRecord<T>(owner: TaskOwnerRecord, work: () => T): T
 /** Runs a synchronous segment with one frame as ambient context. */
 export function withTaskFrameRecord<T>(frame: TaskFrameRecord, work: () => T): T {
 	if (frame.settled) throw new Error('Cannot resume a settled task frame');
+	ensureScheduledWorkContextCapture();
 	const previous = currentFrame;
 	currentFrame = frame;
 	try {
@@ -295,7 +317,7 @@ export function attachTaskFrameSettlement(
 
 /** Adds structural work to the synchronously active task frame, when present. */
 export function joinTask(settlement: PromiseLike<unknown>): void {
-	const frame = currentTaskFrameRecord();
+	const frame = currentTaskFrameRecord() ?? materializeDeferredTaskFrame();
 	if (frame) attachTaskFrameSettlement(frame, settlement);
 }
 
@@ -338,13 +360,17 @@ export function allocateTaskFrameId(): number {
 	return nextFrameId++;
 }
 
-setScheduledWorkContextCapture((priority) => {
-	const parent = currentTaskFrameRecord();
-	if (!parent || !parent.producerOpen || parent.settled) return undefined;
-	if (priority === 'interactive' && uninspectedSynchronousFrames.has(parent))
-		return interactiveReactionContext(parent);
-	return acquireScheduledReactionBatch(parent);
-});
+function ensureScheduledWorkContextCapture(): void {
+	if (scheduledWorkCaptureInstalled) return;
+	scheduledWorkCaptureInstalled = true;
+	setScheduledWorkContextCapture((priority) => {
+		const parent = currentTaskFrameRecord();
+		if (!parent || !parent.producerOpen || parent.settled) return undefined;
+		if (priority === 'interactive' && uninspectedSynchronousFrames.has(parent))
+			return interactiveReactionContext(parent);
+		return acquireScheduledReactionBatch(parent);
+	});
+}
 
 /** Reuses an open interaction producer for consequences drained inside the same DOM callback. */
 function interactiveReactionContext(parent: TaskFrameRecord): ScheduledWorkContext {

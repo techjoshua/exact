@@ -1,10 +1,9 @@
-import { computed, isReactiveValue, peek, unwrap, type ReactiveValue } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { encodeExactMarkerPart } from './protocol.js';
 import {
 	Cell,
-	Dynamic,
 	Fragment,
 	Portal,
 	ServerBoundary,
@@ -35,6 +34,11 @@ export function createVNode(
 		...(enhancements ? { enhancement: enhancements as VNode['enhancement'] } : {}),
 		...(domain ? { domain } : {})
 	};
+}
+
+/** Normalizes any component render result into a flat child array. */
+export function normalizeRenderResult(result: RenderResult): Child[] {
+	return Array.isArray(result) ? normalizeChildren(result) : normalizeChildren([result]);
 }
 
 /** Creates a virtual text node from an arbitrary value. */
@@ -83,6 +87,29 @@ export function createCompiledComponentVNode(
 	return createVNode(type, props, ...children);
 }
 
+/**
+ * Assigns compiler-proven keyed-list identity to a newly created VNode.
+ *
+ * The compiler calls this operation before publishing the VNode to a renderer. Mutating that
+ * otherwise-unshared allocation avoids cloning every keyed item while keeping authored keys out
+ * of component props.
+ */
+export function keyCompiledVNode<Value>(vnode: Value, value: unknown): Value {
+	const key = unwrap(value);
+	if (key === null || key === undefined) throw new Error('Compiled keyed lists require a key');
+	// Server render programs carry no client identity. Their authored key has already served
+	// compile-time collection planning and does not belong in HTML output.
+	if (
+		vnode !== null &&
+		typeof vnode === 'object' &&
+		'type' in vnode &&
+		'props' in vnode &&
+		'children' in vnode
+	)
+		(vnode as { key?: string }).key = String(key);
+	return vnode;
+}
+
 /** Creates a compiled fragment vnode cell from raw children. */
 export function createCompiledFragment(
 	props: Record<string, unknown> | null,
@@ -97,33 +124,6 @@ export function createCompiledTarget(
 	...children: unknown[]
 ): VNode {
 	return createCompiledVNode(Target, props, ...children);
-}
-
-/** Creates a reactive expression wrapper for compiler-generated expression boundaries. */
-export function createExpression<T>(compute: () => T) {
-	return computed(compute);
-}
-
-/**
- * Reuses a compiler-proven reactive value forwarded through component props.
- * Non-reactive initial values retain computed semantics so later prop replacement stays observable.
- */
-export function createForwardedExpression<T>(compute: () => T): T | ReactiveValue<T> {
-	const value = peek(compute);
-	return isReactiveValue(value) ? value : computed(compute);
-}
-
-/** Creates a dynamic child vnode whose render result is computed reactively. */
-export function createDynamicChild(
-	compute: () => RenderResult,
-	markerId?: string,
-	mayReplaceSubtree = true
-): VNode {
-	return createVNode(Dynamic, {
-		value: computed(compute),
-		...(mayReplaceSubtree ? {} : { __exactScalarDynamic: true }),
-		...(markerId ? { __exactMarkerId: markerId } : {})
-	});
 }
 
 /** Creates a logical child subtree whose nodes are placed in another renderer container. */

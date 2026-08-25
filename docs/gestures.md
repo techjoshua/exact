@@ -80,7 +80,7 @@ import gesture from '@exactjs/gestures' with { type: 'exact-enhancement' };
 Here the authored click remains required fallback behavior. The optional wrapper adds reusable
 pointer capture, keyboard movement, cancellation, and cleanup without owning the button's design.
 If the final application excludes the capability, the button still opens the card. Continue to use
-explicit `GestureElement` when gesture behavior itself is required or the caller is compilerless:
+explicit `GestureElement` when gesture behavior itself is required or enhancement attributes are unavailable:
 
 ```tsx
 <GestureElement apply={movable}>

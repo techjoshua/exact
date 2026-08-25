@@ -1,6 +1,7 @@
 import { Accessibility } from '@exactjs/accessibility';
-import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
+import '@exactjs/core/runtime/refs';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
@@ -10,15 +11,13 @@ const identity = '@exactjs/accessibility/enhancements#describedBy';
 
 describe('@exactjs/ssr accessibility enhancement integration', () => {
 	it('reserves one relationship identity before either intrinsic serializes', () => {
-		const Page = markExactComponent(function Page(this: Component<{}>) {
+		const Page = createExactFrameworkFixtureArtifact(function Page(this: Component<{}>) {
 			const help = this.ref(helpKey);
 			return () => [
 				createVNode(
 					'button',
 					{
-						__exactEnhancements: createEnhancementMarker([
-							{ identity, props: { describedBy: help } }
-						])
+						__exactEnhancements: createEnhancementNode([{ identity, props: { describedBy: help } }])
 					},
 					'Delete'
 				),

@@ -57,9 +57,8 @@ globalThis.__exactIntlPruningFixture = Used;
 			}) as unknown as Plugin
 		],
 		build: {
-			ssr: entry,
 			outDir: output,
-			rollupOptions: { external: (id) => id.startsWith('@exactjs/') }
+			rollupOptions: { input: entry, external: (id) => id.startsWith('@exactjs/') }
 		}
 	});
 

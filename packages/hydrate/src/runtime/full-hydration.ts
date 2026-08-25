@@ -1,4 +1,5 @@
 import type { VNode } from '@exactjs/core';
+import { resolveHydrateOptions } from '../config.js';
 import type { HydrateOptions, HydrationRoot } from '../types.js';
 import { createExactClientFromResolvedOptions } from './client.js';
 import { hydrateWithClient } from './hydration.js';
@@ -9,5 +10,11 @@ export function hydrate(
 	container: Element | Document,
 	options: HydrateOptions = {}
 ): HydrationRoot {
-	return hydrateWithClient(vnode, container, options, createExactClientFromResolvedOptions);
+	return hydrateWithClient(
+		vnode,
+		container,
+		options,
+		createExactClientFromResolvedOptions,
+		resolveHydrateOptions
+	);
 }

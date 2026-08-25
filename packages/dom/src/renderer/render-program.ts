@@ -1,21 +1,36 @@
-import { type AnyComponentInstance, isVNode, unwrap, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, type Child, type VNode } from '@exactjs/core';
 import {
 	readRenderProgram,
-	readRenderProgramSlot,
 	renderProgramFallback,
 	type ExactRenderProgram,
-	type ExactRenderProgramInvocation
+	type ExactDomRenderProgram,
+	type ExactRenderProgramInvocation,
+	type ExactTableRenderProgram
 } from '@exactjs/core/runtime/render';
-import { watchRetained } from '@exactjs/reactive/framework/watch';
-import type { EffectScope } from '@exactjs/reactive';
-import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
-import { clearElementProps, updateProps } from '../props.js';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
+import { setElementOwner, setNodeOwner } from '../ownership.js';
 import type { Mounted, Root } from '../types.js';
 import { countDomWork } from './limits.js';
-import { programTemplate } from './render-program-template.js';
+import { materializeProgramTemplate } from './render-program-template.js';
+import { adoptProgramChildSlots } from './render-program-children.js';
+import {
+	indexProgramHydration,
+	markedProgramRange,
+	programElement,
+	type ProgramHydrationIndex
+} from './render-program-hydration.js';
+import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
+import { bindRenderProgram } from './render-program-bindings.js';
+import { claimCompiledRenderProgram } from './render-program-claims.js';
+import {
+	claimGenericHydrationSlots,
+	claimGenericMountSlots,
+	ownDirectProgramNodes,
+	releaseDirectProgramNodeOwners,
+	validRenderProgramSlotNodes
+} from './render-program-slot-claims.js';
 
 const elementNode = 1;
-const textNode = 3;
 
 /** Mounts a branded program, or reports that its generic region fallback is required. */
 export function mountRenderProgram(
@@ -26,26 +41,45 @@ export function mountRenderProgram(
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
-	const template = programTemplate(invocation.program, root.container.ownerDocument);
-	const fragment = template.content.cloneNode(true) as DocumentFragment;
-	if (fragment.childNodes.length !== 1) return undefined;
+	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
+	// A browser renderer can receive only client or complete compiler artifacts. Server-only
+	// descriptors are excluded by artifact partitioning and cannot be authored through the brand.
+	const program = invocation.program as ExactDomRenderProgram;
+	const fragment = materializeProgramTemplate(program, root.container.ownerDocument);
+	if (!fragment.firstChild || fragment.firstChild !== fragment.lastChild) return undefined;
 	const dom = fragment.firstChild!;
-	const slotNodes = invocation.program.slots.map((slot) => nodeAtPath(dom, slot.path));
-	if (!validSlotNodes(invocation, slotNodes)) return undefined;
+	if (!(dom instanceof Element)) return undefined;
+	const direct = claimCompiledRenderProgram(program, dom, 'template');
+	if (program.directClaims && !direct) return undefined;
+	const table = tableProgram(invocation);
+	const programIndex = direct ? undefined : indexProgramHydration(dom);
+	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
+	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot: dom, slotNodes, root }
+		renderProgram: {
+			invocation,
+			programRoot: dom,
+			slotNodes,
+			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
+			root,
+			bindingOwner,
+			parentInstance
+		}
 	};
-	if (parentInstance) ownProgramNodes(invocation.program, dom, parentInstance);
-	if (!bindRenderProgram(mounted)) {
-		releaseProgramNodeOwners(invocation.program, dom);
+	if (bindingOwner) {
+		if (programIndex) ownProgramNodes(table!, programIndex, bindingOwner);
+		else ownDirectProgramNodes(direct?.elements, bindingOwner);
+	}
+	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
+		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
+		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
-	for (let index = 1; index < invocation.program.nodes.length; index++) countDomWork(root);
-	for (const _slot of invocation.program.slots) countDomWork(root);
+	countProgramWork(root, program, direct, false);
 	return mounted;
 }
 
@@ -55,38 +89,66 @@ export function adoptRenderProgram(
 	vnode: VNode,
 	dom: Node,
 	scope: EffectScope,
-	parentInstance: AnyComponentInstance
+	parentInstance: AnyComponentInstance,
+	adoptChildren: (
+		children: readonly Child[],
+		nodes: readonly Node[],
+		parentInstance: AnyComponentInstance,
+		scope: EffectScope,
+		cursor: number,
+		end: number,
+		compilerOwnedComponent?: boolean
+	) => Mounted[] | undefined
 ): Mounted | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
-	const rootNode = invocation.program.nodes[0];
-	if (!rootNode || !matchesProgramElement(dom, rootNode.id, rootNode.tag, rootNode.namespace))
+	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
+	const program = invocation.program as ExactDomRenderProgram;
+	if (!(dom instanceof Element)) return undefined;
+	const direct = claimCompiledRenderProgram(program, dom, 'ssr');
+	if (program.directClaims && !direct) return undefined;
+	const table = tableProgram(invocation);
+	const rootPlan = table?.nodes[0];
+	if (
+		!direct &&
+		(!rootPlan ||
+			!matchesProgramElement(dom, rootPlan[0], rootPlan[1], rootPlan[2] ?? table!.namespace))
+	)
 		return undefined;
-	for (const node of invocation.program.nodes) {
-		const target = nodeAtPath(dom, node.path);
-		if (!matchesProgramElement(target, node.id, node.tag, node.namespace)) return undefined;
-	}
-	const slotNodes = invocation.program.slots.map((slot) => nodeAtPath(dom, slot.path));
-	if (!validSlotNodes(invocation, slotNodes)) return undefined;
+	const programIndex = direct ? undefined : indexProgramHydration(dom);
+	if (programIndex && !validateGenericProgramNodes(table!, programIndex)) return undefined;
+	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
+	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom,
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot: dom, slotNodes, root }
+		renderProgram: {
+			invocation,
+			programRoot: dom,
+			slotNodes,
+			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
+			root,
+			bindingOwner,
+			parentInstance
+		}
 	};
-	ownProgramNodes(invocation.program, dom, parentInstance);
-	if (!bindRenderProgram(mounted)) {
-		releaseProgramNodeOwners(invocation.program, dom);
+	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
+	if (programIndex) ownProgramNodes(table!, programIndex, bindingOwner);
+	else ownDirectProgramNodes(direct?.elements, bindingOwner);
+	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
+		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
+		else releaseDirectProgramNodeOwners(direct?.elements);
 		return undefined;
 	}
-	for (const _node of invocation.program.nodes) countDomWork(root);
+	countProgramWork(root, program, direct, true);
 	return mounted;
 }
 
 function matchesProgramElement(
 	node: Node | undefined,
-	id: string,
+	_id: number,
 	tag: string | undefined,
 	namespace: ExactRenderProgram['namespace']
 ): boolean {
@@ -98,11 +160,7 @@ function matchesProgramElement(
 			: namespace === 'mathml'
 				? 'http://www.w3.org/1998/Math/MathML'
 				: 'http://www.w3.org/1999/xhtml';
-	return (
-		element.localName.toLowerCase() === tag.toLowerCase() &&
-		element.namespaceURI === uri &&
-		element.getAttribute('data-exact-id') === id
-	);
+	return element.localName.toLowerCase() === tag.toLowerCase() && element.namespaceURI === uri;
 }
 
 /** Adopts a program or transfers the untouched range to its generic fallback. */
@@ -123,12 +181,30 @@ export function adoptRenderProgramOrFallback(
 		parentInstance: AnyComponentInstance,
 		parentScope: EffectScope,
 		end?: number
-	) => { mounted: Mounted; next: number } | undefined
+	) => { mounted: Mounted; next: number } | undefined,
+	adoptChildren: (
+		children: readonly Child[],
+		nodes: readonly Node[],
+		parentInstance: AnyComponentInstance,
+		scope: EffectScope,
+		cursor: number,
+		end: number,
+		compilerOwnedComponent?: boolean
+	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
-	const marked = adoptMarkedRenderProgram(root, vnode, nodes, cursor, end, scope, parentInstance);
+	const marked = adoptMarkedRenderProgram(
+		root,
+		vnode,
+		nodes,
+		cursor,
+		end,
+		scope,
+		parentInstance,
+		adoptChildren
+	);
 	if (marked) return marked;
 	const adopted = nodes[cursor]
-		? adoptRenderProgram(root, vnode, nodes[cursor]!, scope, parentInstance)
+		? adoptRenderProgram(root, vnode, nodes[cursor]!, scope, parentInstance, adoptChildren)
 		: undefined;
 	if (adopted) return { mounted: adopted, next: cursor + 1 };
 	scope.stop();
@@ -148,115 +224,91 @@ function adoptMarkedRenderProgram(
 	cursor: number,
 	end: number,
 	scope: EffectScope,
-	parentInstance: AnyComponentInstance
+	parentInstance: AnyComponentInstance,
+	adoptChildren: (
+		children: readonly Child[],
+		nodes: readonly Node[],
+		parentInstance: AnyComponentInstance,
+		scope: EffectScope,
+		cursor: number,
+		end: number,
+		compilerOwnedComponent?: boolean
+	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(vnode);
 	if (!invocation) return undefined;
+	const program = invocation.program as ExactDomRenderProgram;
+	// Universal artifacts retain table-driven bindings for server-safe serialization. The browser
+	// runtime intentionally does not activate that generic table. Select the untouched region
+	// fallback before claiming scalar sentinels so a failed optimized attempt remains atomic.
+	if (!program.bind && program.bindings?.length) return undefined;
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
-	const rootPlan = invocation.program.nodes[0];
+	const table = tableProgram(invocation);
+	const rootNodePlan = table?.nodes[0];
 	let programRoot: Element | undefined;
 	for (let index = range.contentStart; index < range.endIndex; index++) {
 		const node = nodes[index];
 		if (
 			node instanceof Element &&
-			rootPlan &&
-			matchesProgramElement(node, rootPlan.id, rootPlan.tag, rootPlan.namespace)
+			(program.directClaims ||
+				(rootNodePlan &&
+					matchesProgramElement(
+						node,
+						rootNodePlan[0],
+						rootNodePlan[1],
+						rootNodePlan[2] ?? table!.namespace
+					)))
 		) {
 			programRoot = node;
 			break;
 		}
 	}
 	if (!programRoot) return undefined;
-	const indexedElements = indexProgramElements(programRoot);
-	for (const planned of invocation.program.nodes) {
-		const element = indexedElements.get(planned.id);
-		if (!matchesProgramElement(element, planned.id, planned.tag, planned.namespace))
-			return undefined;
-	}
-	const textSlots = indexProgramTextSlots(programRoot);
-	const slotNodes = invocation.program.slots.map((slot) => {
-		if (slot.kind === 'text')
-			return textSlots.get(slot.id.startsWith('exact:') ? slot.id.slice('exact:'.length) : slot.id);
-		const planned = invocation.program.nodes.find((node) => samePath(node.path, slot.path));
-		return planned ? indexedElements.get(planned.id) : undefined;
-	});
-	if (!validSlotNodes(invocation, slotNodes)) return undefined;
+	const direct = claimCompiledRenderProgram(program, programRoot, 'ssr');
+	if (program.directClaims && !direct) return undefined;
+	const hydrationIndex = direct ? undefined : indexProgramHydration(programRoot);
+	if (hydrationIndex && !validateGenericProgramNodes(table!, hydrationIndex)) return undefined;
+	const slotNodes =
+		direct?.slotNodes ?? claimGenericHydrationSlots(table!, programRoot, hydrationIndex!);
+	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
 	const mounted: Mounted = {
 		vnode,
 		dom: range.start ?? programRoot,
 		...(range.start ? { end: nodes[range.endIndex]! } : {}),
+		...(range.start ? { rawNodes: [programRoot] } : {}),
 		scope,
 		children: [],
-		renderProgram: { invocation, programRoot, slotNodes, root }
-	};
-	for (const planned of invocation.program.nodes) {
-		const element = indexedElements.get(planned.id)!;
-		setNodeOwner(element, parentInstance);
-		setElementOwner(element, parentInstance);
-		countDomWork(root);
-	}
-	if (!bindRenderProgram(mounted)) {
-		for (const planned of invocation.program.nodes) {
-			const element = indexedElements.get(planned.id)!;
-			clearNodeOwner(element);
-			clearElementOwner(element);
+		renderProgram: {
+			invocation,
+			programRoot,
+			slotNodes,
+			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
+			root,
+			parentInstance
 		}
+	};
+	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
+	const elements =
+		direct?.elements ?? table!.nodes.map((planned) => programElement(hydrationIndex!, planned[0]));
+	if (direct) {
+		// Compiler-generated claims deliberately omit inert static intrinsics. They remain owned by
+		// the enclosing DOM range and need no per-element bookkeeping of their own.
+		ownDirectProgramNodes(elements, parentInstance);
+		countProgramWork(root, program, direct, true);
+	} else {
+		for (const element of elements) {
+			if (!element) return undefined;
+			setNodeOwner(element, parentInstance);
+			setElementOwner(element, parentInstance);
+			countDomWork(root);
+		}
+	}
+	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
+		releaseDirectProgramNodeOwners(elements);
 		return undefined;
 	}
 	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
-}
-
-/** Resolves the optional outer cell range enclosing a marked render program. */
-function markedProgramRange(
-	nodes: readonly Node[],
-	cursor: number,
-	end: number
-): { start?: Comment; contentStart: number; endIndex: number } | undefined {
-	const start = nodes[cursor];
-	if (!(start instanceof Comment) || !start.data.startsWith('exact:cell:'))
-		return { contentStart: cursor, endIndex: cursor + 1 };
-	for (let index = cursor + 1; index < end; index++) {
-		const candidate = nodes[index];
-		if (candidate instanceof Comment && candidate.data === `/${start.data}`)
-			return { start, contentStart: cursor + 1, endIndex: index };
-	}
-	return undefined;
-}
-
-/** Indexes compiler-owned intrinsic identities inside one program root. */
-function indexProgramElements(root: Element): Map<string, Element> {
-	const elements = new Map<string, Element>();
-	const rootId = root.getAttribute('data-exact-id');
-	if (rootId) elements.set(rootId, root);
-	for (const element of root.querySelectorAll('[data-exact-id]')) {
-		const id = element.getAttribute('data-exact-id');
-		if (id) elements.set(id, element);
-	}
-	return elements;
-}
-
-/** Resolves marked scalar slots and supplies the empty text node omitted by HTML parsing. */
-function indexProgramTextSlots(root: Element): Map<string, Text> {
-	const slots = new Map<string, Text>();
-	const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
-	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-		const marker = node as Comment;
-		if (!marker.data.startsWith('exact:dynamic:')) continue;
-		const id = marker.data.slice('exact:dynamic:'.length);
-		const closing =
-			marker.nextSibling?.nodeType === Node.TEXT_NODE
-				? marker.nextSibling.nextSibling
-				: marker.nextSibling;
-		if (!(closing instanceof Comment) || closing.data !== `/exact:dynamic:${id}`) continue;
-		let text = marker.nextSibling instanceof Text ? marker.nextSibling : undefined;
-		if (!text) {
-			text = root.ownerDocument.createTextNode('');
-			closing.parentNode?.insertBefore(text, closing);
-		}
-		slots.set(id, text);
-	}
-	return slots;
 }
 
 /** Rebinds invocation-local readers when a component publishes the same program again. */
@@ -279,129 +331,40 @@ export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
 	return renderProgramFallback(vnode);
 }
 
-function bindRenderProgram(mounted: Mounted): boolean {
-	mounted.stop?.();
-	const state = mounted.renderProgram!;
-	const previousProps = state.props ?? new Map<Element, Record<string, unknown>>();
-	state.props = previousProps;
-	let released = false;
-	let valid = true;
-	let initialBinding = true;
-	const release = () => {
-		if (released) return;
-		released = true;
-		for (const [element, props] of previousProps) {
-			const ref = props.ref as { fulfill(value: unknown): void } | undefined;
-			ref?.fulfill(undefined);
-			clearElementProps(element);
-		}
-		previousProps.clear();
-		mounted.stop = undefined;
-		state.refresh = undefined;
-	};
-	const apply = () => {
-		const nextProps = new Map<Element, Record<string, unknown>>();
-		for (let index = 0; index < state.slotNodes.length; index++) {
-			const value = unwrap(readRenderProgramSlot(state.invocation, index));
-			const slot = state.invocation.program.slots[index]!;
-			const target = state.slotNodes[index];
-			if (slot.kind !== 'text') {
-				const element = target as Element;
-				let props = nextProps.get(element);
-				if (!props) nextProps.set(element, (props = {}));
-				props[slot.name!] = value;
-				continue;
-			}
-			if (isVNode(value) || Array.isArray(value) || value instanceof Promise) {
-				valid = false;
-				return;
-			}
-			const text =
-				value === null || value === undefined || value === false || value === true
-					? ''
-					: String(value);
-			const node = target as Text;
-			if (node.data !== text) node.data = text;
-		}
-		for (const [element, previous] of previousProps) {
-			if (!nextProps.has(element))
-				updateProps(state.root, element, previous, {}, mounted.scope, !initialBinding);
-		}
-		// Option values must exist before a parent select receives its controlled value. Static
-		// render-program templates deliberately omit slotted values, so DOM order alone cannot
-		// provide the browser's usual option-selection initialization.
-		const orderedProps = [...nextProps].sort(([left], [right]) => {
-			const leftPriority = left instanceof HTMLSelectElement ? 1 : 0;
-			const rightPriority = right instanceof HTMLSelectElement ? 1 : 0;
-			return leftPriority - rightPriority;
-		});
-		for (const [element, next] of orderedProps) {
-			updateProps(
-				state.root,
-				element,
-				previousProps.get(element) ?? {},
-				next,
-				mounted.scope,
-				!initialBinding
-			);
-		}
-		previousProps.clear();
-		for (const [element, props] of nextProps) previousProps.set(element, props);
-		initialBinding = false;
-	};
-	state.refresh = apply;
-	const stop = watchRetained(apply, undefined, { scope: mounted.scope });
-	mounted.stop = () => {
-		stop?.();
-		release();
-	};
-	if (!valid) {
-		mounted.stop();
-		return false;
-	}
-	return true;
-}
-
-function validSlotNodes(
-	invocation: ExactRenderProgramInvocation,
-	nodes: readonly (Node | undefined)[]
+function validateGenericProgramNodes(
+	program: ExactTableRenderProgram,
+	index: ProgramHydrationIndex
 ): boolean {
-	return nodes.every((node, index) =>
-		invocation.program.slots[index]?.kind === 'text'
-			? node?.nodeType === textNode
-			: node?.nodeType === elementNode
+	return program.nodes.every((plan) =>
+		matchesProgramElement(
+			programElement(index, plan[0]),
+			plan[0],
+			plan[1],
+			plan[2] ?? program.namespace
+		)
 	);
 }
 
-function nodeAtPath(root: Node, path: readonly number[]): Node | undefined {
-	let node: Node | undefined = root;
-	for (const index of path) node = node?.childNodes[index];
-	return node;
+function tableProgram(
+	invocation: ExactRenderProgramInvocation
+): ExactTableRenderProgram | undefined {
+	const program = invocation.program;
+	return program.directClaims ? undefined : (program as ExactTableRenderProgram);
 }
 
-/** Compares compiler-owned node paths without allocating a serialized key. */
-function samePath(left: readonly number[], right: readonly number[]): boolean {
-	return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function ownProgramNodes(
-	program: ExactRenderProgram,
-	root: Node,
-	owner: AnyComponentInstance
+function countProgramWork(
+	root: Root,
+	program: ExactDomRenderProgram,
+	direct: ReturnType<typeof claimCompiledRenderProgram>,
+	includeRoot: boolean
 ): void {
-	for (const planned of program.nodes) {
-		const node = nodeAtPath(root, planned.path);
-		if (!node) continue;
-		setNodeOwner(node, owner);
-		if (node.nodeType === elementNode) setElementOwner(node as Element, owner);
+	let work: readonly [number, number];
+	if (direct) work = direct.work;
+	else {
+		if (program.directClaims) return;
+		work = [program.nodes.length, program.slots.length];
 	}
-}
-
-function releaseProgramNodeOwners(program: ExactRenderProgram, root: Node): void {
-	for (const planned of program.nodes) {
-		const node = nodeAtPath(root, planned.path);
-		if (!node) continue;
-		clearNodeOwner(node);
-		if (node.nodeType === elementNode) clearElementOwner(node as Element);
-	}
+	const [nodes, slots] = work;
+	for (let index = includeRoot ? 0 : 1; index < nodes; index++) countDomWork(root);
+	if (!includeRoot) for (let index = 0; index < slots; index++) countDomWork(root);
 }

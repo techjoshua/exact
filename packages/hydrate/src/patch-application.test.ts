@@ -7,6 +7,24 @@ import { applyPatches } from './patches.js';
 import { ndjsonResponse, noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate patch-application', () => {
+	it('applies replacement patches to client boundary elements without markers', () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<div data-exact-client-boundary="panel" data-exact-client-name="Panel_ExactClient_1"><p>Old</p></div>';
+
+		applyPatches(container, [
+			{
+				type: 'replace',
+				id: 'panel',
+				html: '<div data-exact-client-boundary="panel" data-exact-client-name="Panel_ExactClient_1"><p>New</p></div>'
+			}
+		]);
+
+		expect(container.querySelector('[data-exact-client-boundary="panel"] p')?.textContent).toBe(
+			'New'
+		);
+	});
+
 	it('applies text patches to exact marker ranges', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:title-->Old<!--/exact:title-->';

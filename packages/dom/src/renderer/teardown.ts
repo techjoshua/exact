@@ -10,7 +10,7 @@ import { clearElementProps } from '../props.js';
 import { componentMounts } from '../state.js';
 import type { Mounted } from '../types.js';
 import { disposeMountedComponentRoot } from './component-roots.js';
-import { clearTargetedIntrinsicProps } from './target-contributions.js';
+import { clearTargetedIntrinsicProps } from './target-capability.js';
 
 /** Provides the canonical teardown failure value. */
 export const teardownFailure = createCleanupFailure;

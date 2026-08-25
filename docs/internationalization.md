@@ -456,8 +456,9 @@ the formatter through the cache. That component reference also makes the compile
 localization capability registration into the component's own bundle. Components that never use
 `this.intl` therefore omit the formatter pool, while lazy modules and microfrontend bundles carry
 the capability when their own compiled components require it; the shell does not need to predict
-their requirements. Compilerless component definitions can opt in with a side-effect import of
-`@exactjs/core/localization`. Helpers outside components can import the same global facade:
+their requirements. Compatibility integrations that construct framework values outside compiled
+component source can opt in with a side-effect import of `@exactjs/core/localization`. Helpers
+outside components can import the same global facade:
 
 ```ts
 import { intl } from '@exactjs/core';
@@ -519,6 +520,9 @@ eXact namespace, executable binding indexes, formatter options, or proprietary r
 Generic inline-code `equiv`, `canCopy`, and `canDelete` fields form the translator guide. The
 build-owned execution contract remains beside compiled descriptors and is joined to those generic
 codes only after import.
+Catalog import and synchronization accept only this generic current representation. Files carrying
+older eXact binding indexes, proprietary selector attributes, or superseded message keys are
+rejected or treated as obsolete; regenerate their source XLIFF instead of migrating it at runtime.
 
 Message identity hashes the source locale, target, generic text/inline-code pattern, and placeholder
 guide. It deliberately excludes eXact execution metadata, so an internal lowering change does not

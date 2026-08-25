@@ -20,12 +20,15 @@ func analyzeIslandSubtreeActivation(
 	if ast.IsJsxElement(root) {
 		opening = root.AsJsxElement().OpeningElement
 	}
-	decision := analyzeIslandActivation(
-		sourceFile,
-		opening,
-		typeChecker,
-		islandActivationTargetID(sourceFile, root, nodeIDs),
-	)
+	decision := ActivationDecision{Mode: "eager", Reasons: []ActivationReason{}, Targets: []ActivationTarget{}}
+	if !ast.IsJsxFragment(root) {
+		decision = analyzeIslandActivation(
+			sourceFile,
+			opening,
+			typeChecker,
+			islandActivationTargetID(sourceFile, root, nodeIDs),
+		)
+	}
 	walkNode(root, func(candidate *ast.Node) bool {
 		if candidate == opening ||
 			(!ast.IsJsxOpeningElement(candidate) && !ast.IsJsxSelfClosingElement(candidate)) {

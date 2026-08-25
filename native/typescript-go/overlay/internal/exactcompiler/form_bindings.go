@@ -964,6 +964,15 @@ func (lowering *jsxLowering) propertyAccess(
 	value *ast.Node,
 	name string,
 ) *ast.Node {
+	// Namespaced JSX and finite spread keys are valid object keys but not always dot-access names.
+	if !validIdentifier(name) {
+		return lowering.factory.NewElementAccessExpression(
+			value,
+			nil,
+			lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
+			ast.NodeFlagsNone,
+		)
+	}
 	return lowering.factory.NewPropertyAccessExpression(
 		value,
 		nil,

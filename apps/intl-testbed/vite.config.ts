@@ -10,6 +10,7 @@ export default {
 	plugins: [
 		exact({
 			applicationRoot: import.meta.dirname,
+			renderMode: 'client',
 			internationalization: {
 				owner: '@exactjs/sample-intl-testbed',
 				sourceLocale: 'en-US',

@@ -236,9 +236,9 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 					profiledReactions.set(profile, (profiledReactions.get(profile) ?? 0) + 1);
 				}
 				try {
-					const run = () => runWithPriority(queued.priority, reaction.run);
-					if (queued.context) queued.context.run(run);
-					else run();
+					if (queued.context)
+						queued.context.run(() => runReactionWithPriority(queued.priority, reaction));
+					else runReactionWithPriority(queued.priority, reaction);
 				} catch (error) {
 					if (!hasError) firstError = error;
 					hasError = true;
@@ -272,6 +272,15 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 		}
 	}
 	if (hasError) throw firstError;
+}
+
+function runReactionWithPriority(priority: WorkPriority, reaction: Reaction): void {
+	priorityStack.push(priority);
+	try {
+		reaction.run();
+	} finally {
+		priorityStack.pop();
+	}
 }
 
 /** Publishes one stable settlement generation without admitting recursive reconciliation. */

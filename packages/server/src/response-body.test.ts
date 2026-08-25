@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { createExactBufferedResponse, exactResponseBodyOf } from './response-body.js';
 
 describe('buffered eXact response bodies', () => {
+	it('joins chunks only when a direct consumer reads body', () => {
+		const response = createExactBufferedResponse(200, {}, ['<main>', 'rendered', '</main>']);
+
+		expect(response.body).toBe('<main>rendered</main>');
+		expect(response.body).toBe('<main>rendered</main>');
+		expect(() => response.stream).toThrow('already claimed');
+	});
+
 	it('materializes a reusable Web stream view only when requested', async () => {
 		const response = createExactBufferedResponse(200, {}, 'rendered');
 		const first = response.stream;
@@ -20,6 +28,14 @@ describe('buffered eXact response bodies', () => {
 		});
 
 		expect(chunks).toEqual(['<main>', 'rendered', '</main>']);
+		expect(() => response.stream).toThrow('already claimed');
+	});
+
+	it('lets Fetch-native adapters encode buffered chunks without joining them', async () => {
+		const response = createExactBufferedResponse(200, {}, ['<main>', 'rendered', '</main>']);
+		const blob = exactResponseBodyOf(response)?.toBlob();
+
+		expect(await blob?.text()).toBe('<main>rendered</main>');
 		expect(() => response.stream).toThrow('already claimed');
 	});
 

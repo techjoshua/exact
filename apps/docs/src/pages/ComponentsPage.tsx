@@ -143,7 +143,9 @@ export function ComponentsPage(this: Component<{}>) {
 					Each mounted <code>ProfileCard</code> gets its own state, task scope, context boundary,
 					refs, and lifecycle. Props remain parent-owned input. An event can assign state directly
 					because the compiler has already turned the component description into a reactive state
-					machine and connected every consumer of that field.
+					machine and connected every consumer of that field. Event writes publish together; writes
+					made before a later statement throws remain visible. Use <code>batch()</code> around a
+					region only when that region requires synchronous rollback on failure.
 				</p>
 				<p>
 					The returned function is synchronous and contains one view expression. Put declarations
@@ -160,7 +162,9 @@ export function ComponentsPage(this: Component<{}>) {
 					A component-body-local, PascalCase view arrow is a micro-component. It captures the owning
 					component&apos;s <code>this</code>, may compose other micro-components in scope, and
 					receives no separate component identity, state, lifecycle, or task scope. Module-level
-					shared or bound render callables are not component views.
+					shared or bound render callables are not component views. Define durable components at
+					module scope; nested durable component declarations cannot receive a stable artifact for
+					every build target and are rejected.
 				</p>
 				<p>
 					Lexical capabilities remain attributed to that owner. A reusable micro-component may, for
@@ -327,9 +331,16 @@ export function ComponentsPage(this: Component<{}>) {
 						introduction, and presentation.
 					</p>
 					<code>this.onMount()</code>
-					<p>Registers mounted work with an abort signal.</p>
+					<p>
+						Registers client-mounted work with an abort signal; the server artifact does not
+						evaluate its handler.
+					</p>
 					<code>this.onUnmount()</code>
 					<p>Registers teardown or final bookkeeping.</p>
+					<code>this.own()</code>
+					<p>
+						Owns a disposable setup resource until this durable component instance is unmounted.
+					</p>
 					<code>this.onRender()</code>
 					<p>Observes render timing and dependencies.</p>
 					<code>this.log</code>

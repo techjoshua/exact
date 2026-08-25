@@ -67,7 +67,6 @@ export type { IntlUnitForDimension, IntlUnitName } from './unit-definitions.js';
 export { validateIntlPackageMetadata } from './package-metadata.js';
 export {
 	materializeIntlTranslation,
-	projectLegacyIntlTranslation,
 	projectIntlTranslationContract,
 	type IntlTranslationContractProjection
 } from './translation-contract.js';

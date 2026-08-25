@@ -1,4 +1,4 @@
-import type { ReactiveMutationJournal } from '@exactjs/reactive';
+import type { ReactiveMutationJournal } from '@exactjs/reactive/framework/runtime';
 
 import type { AnyComponentInstance } from '../component/contracts.js';
 import type { ComponentTraceSpan } from '../component/performance-trace.js';
@@ -52,4 +52,5 @@ export type InternalTaskOwnerState<Result> = {
 	result: Result | undefined;
 	error: unknown;
 	readonly lanes: Map<unknown, InternalTaskLane<Result>>;
+	lanesVersion: number;
 };

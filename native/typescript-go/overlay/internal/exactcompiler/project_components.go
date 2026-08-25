@@ -293,6 +293,26 @@ func linkProjectComponents(
 	return result
 }
 
+// applyJSXInteropBoundaries keeps foreign, compiler-unproven component values behind the explicit
+// compatibility boundary. The configured client adapter can brand and mount them; a server
+// artifact cannot safely execute that runtime-owned value or promise that its markup is hydratable.
+func applyJSXInteropBoundaries(components []Component) []Component {
+	result := append([]Component(nil), components...)
+	for componentIndex := range result {
+		component := &result[componentIndex]
+		component.RenderEdges = append([]RenderEdge(nil), component.RenderEdges...)
+		for edgeIndex := range component.RenderEdges {
+			edge := &component.RenderEdges[edgeIndex]
+			if edge.ModuleSpecifier == "" || edge.ComponentID != "" {
+				continue
+			}
+			edge.Placement = "client"
+			edge.Boundary = "client"
+		}
+	}
+	return result
+}
+
 func jsxTagResolvesToLocalValue(
 	tag *ast.Node,
 	sourceFile *ast.SourceFile,

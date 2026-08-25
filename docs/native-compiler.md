@@ -1,6 +1,6 @@
 # Native compiler
 
-`@exactjs/compiler` is a JavaScript host for the native `exactc-native` compiler. Parsing,
+`@exactjs/compiler` is the JavaScript process host and public API for the native `exactc` compiler. Parsing,
 checking, eXact analysis, placement, policy enforcement, artifact partitioning, lowering,
 generated-code validation, and printing execute in one persistent TypeScript-Go process.
 After analysis and target transforms settle, the JavaScript artifact host stages the complete
@@ -70,8 +70,8 @@ orchestration. It declares six optional platform packages:
 Each platform package declares npm `os` and `cpu` constraints. npm therefore installs only the
 package matching the current machine. The host package does not contain six executables.
 
-Set `EXACT_NATIVE_COMPILER` only when a hermetic build or compiler-development workflow must
-provide an explicit executable.
+Set `EXACT_COMPILER_EXECUTABLE` only when a hermetic build or compiler-development workflow must
+provide an explicit executable. No deprecated compiler-name environment alias is accepted.
 
 ## Public integration
 
@@ -92,6 +92,13 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
+
+Each transform result reports `runtimeDependencies`, the bare package specifiers that remain in
+the final target-local module after lowering and pruning. Published-package builds validate those
+facts against `dependencies`, `peerDependencies`, and `optionalDependencies`; a generated DOM or
+SSR import can therefore never be hidden behind a development-only workspace installation. The
+monorepo discovers packages requesting target-local compilation from their manifests rather than
+maintaining a second ordered package list.
 
 Precompiled pipelines treat `rootDir` as an output-containment boundary. Every input must resolve
 beneath that root before the compiler derives a path under `outDir`; an outside input fails without
@@ -154,7 +161,7 @@ without adding a compiler-side trust decision.
 
 [`../fixtures/native-compiler-corpus`](../fixtures/native-compiler-corpus) retains focused
 TypeScript and TSX semantic stress cases alongside representative framework applications. The
-release check sends those sources directly through `exactc-native`; there is no executable
+release check sends those sources directly through `exactc`; there is no executable
 JavaScript expression engine or alternate semantic backend. Its tracked wall-time guard normalizes
 the baseline for both the discovered source count and the available native worker count, so CI and
 local runs remain comparable without oversubscribing smaller machines.

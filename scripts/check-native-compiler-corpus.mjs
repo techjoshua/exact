@@ -49,12 +49,12 @@ const sampleCount = positiveInteger(
 	'EXACT_NATIVE_CORPUS_SAMPLES'
 );
 const executable =
-	process.env.EXACT_NATIVE_COMPILER ??
+	process.env.EXACT_COMPILER_EXECUTABLE ??
 	path.join(
 		root,
 		'.tmp',
 		'native-compiler',
-		process.platform === 'win32' ? 'exactc-native.exe' : 'exactc-native'
+		process.platform === 'win32' ? 'exactc.exe' : 'exactc'
 	);
 const corpusInput = {
 	executable,
@@ -158,7 +158,7 @@ await writeFile(
 );
 if (updateBaseline) await writeNativeCompilerCorpusBaseline(root, record);
 console.log(
-	`exactc-native compiled ${fileCount} source files across ${projectCount} projects in ${(elapsedMs / 1_000).toFixed(2)}s with ${result.workers} native workers`
+	`exactc compiled ${fileCount} source files across ${projectCount} projects in ${(elapsedMs / 1_000).toFixed(2)}s with ${result.workers} native workers`
 );
 if (record.baselineRatio !== undefined) {
 	const speedup = 1 / record.baselineRatio;

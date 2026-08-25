@@ -1,6 +1,14 @@
 import type { Component } from '@exactjs/core';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
+import { CodeBlock } from '../CodeBlock.jsx';
+
+const pairedViteBuildSource = `import { buildExactViteApplication } from '@exactjs/vite-plugin/build';
+
+await buildExactViteApplication([
+  'vite.config.ts',
+  'vite.server.config.ts'
+]);`;
 
 type Integration = {
 	/** @exact key */
@@ -92,7 +100,8 @@ const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-adapter',
-		coverage: 'Bun.serve handler with release-gating integration coverage in the Bun runtime.',
+		coverage:
+			'Bun.serve handler with native Blob-backed SSR output and release-gating integration coverage.',
 		application: 'Add @exactjs/bun-plugin separately when Bun also performs the build.'
 	},
 	{
@@ -184,6 +193,18 @@ export function RuntimesPage(this: Component<{}>) {
 					of guessing that generated and authored line numbers still correspond.
 				</p>
 				<IntegrationTable caption="Build integrations" integrations={buildIntegrations} />
+				<p>
+					An SSR-only server entry can set <code>renderMode: 'server-render'</code> to omit
+					continuation-dispatch executors. Keep the default server mode when the same bundle also
+					handles continuation requests.
+				</p>
+				<h3>Build paired Vite targets together</h3>
+				<p>
+					When an application has separate browser and server Vite configs, build them in one
+					process. The two emissions then reuse one native compiler project generation instead of
+					starting and analyzing the project twice.
+				</p>
+				<CodeBlock source={pairedViteBuildSource} language="ts" title="build.mjs" />
 			</section>
 
 			<section>

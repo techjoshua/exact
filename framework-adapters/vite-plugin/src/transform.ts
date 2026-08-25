@@ -10,6 +10,7 @@ import { jsxSourceOwnership, type ResolvedReactCompatibility } from '@exactjs/re
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import {
 	containsExactBuildJsx,
+	exactComponentContractProjection,
 	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath,
@@ -80,7 +81,6 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					moduleType: 'js'
 				}
 			: null;
-	input.recordMicrofrontendModule(code, id);
 	const authoredOwnership = jsxSourceOwnership(filename, code, input.reactCompatibility);
 	const intlAnalysis =
 		internationalization && authoredOwnership !== 'react'
@@ -124,12 +124,10 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				session: input.compilerSession,
 				packageEnhancements: input.packageEnhancements,
 				target: exactTransformTarget(options),
-				componentContractProjection:
-					options.target === 'server' ||
-					options.renderMode === undefined ||
-					options.renderMode === 'universal'
-						? 'complete'
-						: options.renderMode,
+				componentContractProjection: exactComponentContractProjection(
+					exactTransformTarget(options),
+					options.renderMode
+				),
 				serverComponents: options.serverComponents,
 				sourceMap: false,
 				assetRules: options.assetRules,

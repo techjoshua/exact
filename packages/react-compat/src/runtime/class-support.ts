@@ -1,3 +1,4 @@
+import '@exactjs/core/runtime/contexts';
 import {
 	createErrorReport,
 	handleComponentError,

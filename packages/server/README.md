@@ -11,6 +11,9 @@ adapters translate their native request objects into this shared runtime.
 Fetch-compatible adapters pass the native request stream through to the runtime. The runtime
 enforces `limits.maxRequestBytes` while reading and cancels the stream on overflow, so an oversized
 body is rejected before it can be fully buffered.
+Adapter authors should use `handleExactFetchRequest()` for the canonical Fetch-to-eXact request
+translation and `exactResponseToFetchResponse()` for the portable response path. Bun keeps its
+specialized Blob-backed response conversion while sharing the request translation.
 
 Most applications compose a runtime through `@exactjs/ssr` and connect it with the adapter for
 Fetch, Node, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, or a serverless host.

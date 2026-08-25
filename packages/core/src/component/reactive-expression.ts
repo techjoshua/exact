@@ -1,4 +1,4 @@
-import { computed, unwrap, type ReactiveValue } from '@exactjs/reactive';
+import { computed, unwrap, type ReactiveValue } from '@exactjs/reactive/framework/runtime';
 import { isTemplateStringsArray } from './construction.js';
 
 /** Creates the reactive value exposed by the component `reactive` convenience method. */

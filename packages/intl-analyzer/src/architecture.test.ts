@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementMarker, createVNode, type Child } from '@exactjs/core';
+import { createEnhancementNode, createVNode, type Child } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { hydrate } from '@exactjs/hydrate/enhanced';
 import {
@@ -16,6 +16,9 @@ import {
 import { prepareIntlActivation } from '@exactjs/intl/internal';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
+// This fixture constructs cross-package component VNodes from source instead of consuming the
+// package compiler output that normally selects the generic server capability.
+import '@exactjs/ssr/runtime/generic-components';
 import { describe, expect, it } from 'vitest';
 import { analyzeIntlSource } from './index.js';
 
@@ -32,7 +35,7 @@ describe('intl architecture fixture', () => {
 					'section',
 					{
 						id: 'localized',
-						__exactEnhancements: createEnhancementMarker([
+						__exactEnhancements: createEnhancementNode([
 							{ identity: enhancementIdentity, props: { locale: true } }
 						])
 					},
@@ -114,7 +117,7 @@ describe('intl architecture fixture', () => {
 				IntlProvider,
 				{ environment },
 				createVNode('p', {
-					__exactEnhancements: createEnhancementMarker([
+					__exactEnhancements: createEnhancementNode([
 						{ identity: enhancementIdentity, props: { message } }
 					])
 				})
@@ -188,7 +191,7 @@ describe('intl architecture fixture', () => {
 				createVNode('input', {
 					placeholder: fallback,
 					id: 'search',
-					__exactEnhancements: createEnhancementMarker([
+					__exactEnhancements: createEnhancementNode([
 						{ identity: enhancementIdentity, props: { placeholder } }
 					])
 				})

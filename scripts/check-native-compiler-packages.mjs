@@ -37,7 +37,7 @@ for (const [platform, arch] of targets) {
 	if (template.exactNativeTarget?.os !== platform || template.exactNativeTarget?.cpu !== arch) {
 		failures.push(`${target}: exactNativeTarget does not match its directory`);
 	}
-	const expectedExecutable = platform === 'win32' ? 'exactc-native.exe' : 'exactc-native';
+	const expectedExecutable = platform === 'win32' ? 'exactc.exe' : 'exactc';
 	if (!template.files?.includes(expectedExecutable))
 		failures.push(`${target}: files must include ${expectedExecutable}`);
 	if (!template.files?.includes('LICENSE.typescript-go'))

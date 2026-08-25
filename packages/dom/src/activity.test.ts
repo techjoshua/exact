@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import './structural-boundaries.js';
+import '@exactjs/core/runtime/refs';
 import {
 	Activity,
 	Suspense,

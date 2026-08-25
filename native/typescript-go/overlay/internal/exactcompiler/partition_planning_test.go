@@ -70,7 +70,7 @@ func TestPartitionPlanEmitsIndependentServerRangesInsideClientIsland(t *testing.
 	}
 }
 
-func TestPartitionPlanNestsServerRangesInsideExplicitClientComponent(t *testing.T) {
+func TestPartitionPlanDoesNotTreatInteractionActivationAsClientOnlyRendering(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:               "partition-explicit-client.tsx",
 		Kind:             "analyze",
@@ -110,16 +110,16 @@ func TestPartitionPlanNestsServerRangesInsideExplicitClientComponent(t *testing.
 			serverRanges = append(serverRanges, edge)
 		}
 	}
-	if len(serverRanges) != 2 || serverRanges[0].Parent != serverRanges[1].Parent {
-		t.Fatalf("explicit client component did not retain sibling server ranges: %#v", response.Analysis.PartitionPlan)
+	if len(serverRanges) != 2 {
+		t.Fatalf("server-only children lost their independent ranges: %#v", response.Analysis.PartitionPlan)
 	}
-	parent := partitionNodeByID(t, response.Analysis.PartitionPlan, serverRanges[0].Parent)
-	if parent.Placement != "client" {
-		t.Fatalf("server ranges escaped their explicit client region: %#v", parent)
+	clientShell := findComponent(t, response.Analysis.Components, "ClientShell")
+	if clientShell.Placement != "isomorphic" {
+		t.Fatalf("interaction activation prevented server rendering: %#v", clientShell)
 	}
 }
 
-func TestPartitionPlanLowersIndependentServerRangesIntoClientBoundary(t *testing.T) {
+func TestPartitionPlanKeepsInteractiveShellAndServerChildrenInOneServerTree(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:               "partition-lowering.tsx",
 		Kind:             "compile",
@@ -166,23 +166,14 @@ func TestPartitionPlanLowersIndependentServerRangesIntoClientBoundary(t *testing
 		}
 	}
 	if len(ranges) != 2 {
-		t.Fatalf("expected two lowered server ranges: %#v", response.Analysis.PartitionPlan)
+		t.Fatalf("server-only children lost their independent ranges: %#v", response.Analysis.PartitionPlan)
 	}
 	if len(partitionBoundaries) != 2 {
-		t.Fatalf("partition ranges were not projected into artifact contracts: %#v", response.Analysis.Boundaries)
+		t.Fatalf("server-only child ranges lost their partition contracts: %#v", response.Analysis.Boundaries)
 	}
-	for _, boundary := range partitionBoundaries {
-		if boundary.PlanVersion != partitionPlanVersion || boundary.BuildKey == "" ||
-			len(boundary.PatchTargets) != 1 || boundary.PatchTargets[0] != boundary.ID {
-			t.Fatalf("partition boundary omitted exact authority: %#v", boundary)
-		}
-	}
-	for _, expected := range append([]string{
-		`__exactServerSlots: [`, `kind: "partition-range"`, `patchTargets: [`,
-	}, ranges...) {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("partition-derived server boundary omitted %q:\n%s", expected, response.Code)
-		}
+	if !strings.Contains(response.Code, `__exactBoundary("`) ||
+		!strings.Contains(response.Code, `__exactComponentVNode(ClientShell`) {
+		t.Fatalf("server-renderable interactive shell lost its finite element boundary or server tree:\n%s", response.Code)
 	}
 }
 
@@ -340,6 +331,7 @@ func TestPartitionPlanRetainsConditionalBranchPlacement(t *testing.T) {
 				return () => <p>Remote</p>;
 			}
 			function LocalReport() {
+				window.addEventListener("resize", () => undefined);
 				return () => <button onClick={() => undefined}>Local</button>;
 			}
 			export function Reports(this: Component<{ remote: boolean }>) {
@@ -466,6 +458,7 @@ func TestPartitionPlanRetainsFiniteRegistryAlternatives(t *testing.T) {
 		Source: `
 			import { createComponentRegistry, TaskContext, type KeyOf } from "@exactjs/core";
 			function Local() {
+				window.addEventListener("resize", () => undefined);
 				return () => <button onClick={() => undefined}>Local</button>;
 			}
 			function Remote() {
@@ -550,7 +543,7 @@ func TestPartitionPlanLowersKeyedServerItemsIntoRuntimeRanges(t *testing.T) {
 	if client.Error != "" {
 		t.Fatal(client.Error)
 	}
-	if !strings.Contains(client.Code, `props.children`) || strings.Contains(client.Code, `__exactVNode(ServerRow`) {
+	if !strings.Contains(client.Code, `__exactKeyedServerSlot(`) || strings.Contains(client.Code, `__exactVNode(ServerRow`) {
 		t.Fatalf("client keyed range did not retain the server-provided item placeholders:\n%s", client.Code)
 	}
 }
@@ -688,6 +681,7 @@ func TestPartitionPlanRetainsRecursivePlacementAlternation(t *testing.T) {
 		Source: `
 			import { TaskContext } from "@exactjs/core";
 			function ClientShell(props: { children?: unknown }) {
+				window.addEventListener("resize", () => undefined);
 				return () => <div onClick={() => undefined}>{props.children}</div>;
 			}
 			function ServerPanel(props: { children?: unknown }) {
@@ -696,6 +690,7 @@ func TestPartitionPlanRetainsRecursivePlacementAlternation(t *testing.T) {
 				return () => <section>{props.children}</section>;
 			}
 			function ClientControls(props: { children?: unknown }) {
+				window.addEventListener("resize", () => undefined);
 				return () => <nav onClick={() => undefined}>{props.children}</nav>;
 			}
 			function ServerPermissions() {

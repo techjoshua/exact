@@ -83,7 +83,7 @@ describe('intl protocol', () => {
 		).toThrow('unknown message');
 	});
 
-	it('rejects translated formatter capabilities not declared by analysis', () => {
+	it('rejects execution-shaped catalog nodes instead of migrating them', () => {
 		const scalarDescriptor: IntlRuntimeDescriptorV1 = {
 			...descriptor,
 			bindings: [descriptor.bindings[0]!],
@@ -104,7 +104,7 @@ describe('intl protocol', () => {
 				},
 				[scalarDescriptor]
 			)
-		).toThrow('operation absent from its source');
+		).toThrow('.id must be a nonempty string');
 	});
 
 	it('uses a selected language catalog for a regional target locale', () => {
@@ -181,17 +181,16 @@ describe('intl protocol', () => {
 			owner: 'example',
 			messages: {
 				[messageKey]: [
-					{ kind: 'element', binding: 2, value: [{ kind: 'text', value: 'boîte' }] },
+					{ kind: 'element', id: 'n5', value: [{ kind: 'text', value: 'boîte' }] },
 					{ kind: 'text', value: ' : ' },
-					{ kind: 'value', binding: 0 },
+					{ kind: 'placeholder', id: 'n1' },
 					{ kind: 'text', value: ', ' },
 					{
 						kind: 'select',
-						binding: 1,
-						selection: 'plural-cardinal',
+						id: 'n3',
 						cases: [{ key: '=1', value: [{ kind: 'text', value: 'un message' }] }],
 						fallback: [
-							{ kind: 'value', binding: 1 },
+							{ kind: 'placeholder', id: 'n3.f.0' },
 							{ kind: 'text', value: ' messages' }
 						]
 					}
@@ -256,13 +255,12 @@ describe('intl protocol', () => {
 			owner: descriptor.owner,
 			messages: {
 				[descriptor.key]: [
-					{ kind: 'element', binding: 2, value: [{ kind: 'text', value: 'boîte' }] },
+					{ kind: 'element', id: 'n5', value: [{ kind: 'text', value: 'boîte' }] },
 					{ kind: 'text', value },
-					{ kind: 'value', binding: 0 },
+					{ kind: 'placeholder', id: 'n1' },
 					{
 						kind: 'select',
-						binding: 1,
-						selection: 'plural-cardinal',
+						id: 'n3',
 						cases: [],
 						fallback: [{ kind: 'text', value: 'messages' }]
 					}
@@ -332,8 +330,8 @@ describe('intl protocol', () => {
 			owner: 'example',
 			messages: {
 				[messageKey]: [
-					{ kind: 'element', binding: 2, value: [{ kind: 'text', value: 'eins' }] },
-					{ kind: 'element', binding: 2, value: [{ kind: 'text', value: 'zwei' }] }
+					{ kind: 'element', id: 'n5', value: [{ kind: 'text', value: 'eins' }] },
+					{ kind: 'element', id: 'n5', value: [{ kind: 'text', value: 'zwei' }] }
 				]
 			}
 		};
@@ -587,8 +585,7 @@ describe('intl protocol', () => {
 				[ordinalDescriptor.key]: [
 					{
 						kind: 'select',
-						binding: 0,
-						selection: 'plural-ordinal',
+						id: 'n0',
 						cases: [
 							{ key: 'one', value: [{ kind: 'text', value: 'st' }] },
 							{ key: 'two', value: [{ kind: 'text', value: 'nd' }] },

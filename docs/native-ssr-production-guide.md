@@ -25,10 +25,11 @@ same response.
 The request-level progressive HTML helper settles its render into an eXact-owned,
 single-consumer chunk body. Node adapters claim those ordered chunks directly and
 write them to the native response with backpressure, avoiding a redundant final
-join, UTF-8 buffer, and Web `ReadableStream`. Fetch-compatible hosts materialize that stream
-lazily when they read `response.stream`. Reading the stream, writing through the
-Node adapter, and cancellation are mutually exclusive claims; an application
-must choose one transport path for each response.
+join, UTF-8 buffer, and Web `ReadableStream`. Bun claims the same chunks as a native Blob so its
+HTTP stack performs encoding without a Node compatibility stream. Other Fetch-compatible hosts
+materialize a stream lazily when they read `response.stream`. Reading the stream, claiming a Blob,
+writing through the Node adapter, and cancellation are mutually exclusive; an application must
+choose one transport path for each response.
 
 Checked string rendering accounts for UTF-8 bytes as chunks enter the request-owned
 buffer, including surrogate pairs split across chunk boundaries. A final public

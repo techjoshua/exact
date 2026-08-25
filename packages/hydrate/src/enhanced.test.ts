@@ -1,16 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createEnhancementMarker,
-	Fragment,
-	Target,
-	type Child,
-	type Component
-} from '@exactjs/core';
+import { createEnhancementNode, Fragment, Target, type Child, type Component } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
+import '@exactjs/dom/runtime/target';
 import { renderToString } from '@exactjs/ssr';
 import { TimeUpdate } from '@exactjs/time';
 import { createTimeActivation } from '@exactjs/time/internal';
@@ -53,13 +48,11 @@ describe('enhanced hydration facade', () => {
 			createVNode(
 				'time',
 				{
-					__exactEnhancements: createEnhancementMarker([
-						{ identity, props: { update: activation } }
-					])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { update: activation } }])
 				},
 				createDynamicChild(() => String(activation.readEpochMilliseconds()), 'time-sample', false)
 			);
-		const ClockView = markExactComponent(function ClockView() {
+		const ClockView = createExactFrameworkFixtureArtifact(function ClockView() {
 			const activation = createTimeActivation('second', plan);
 			return () => timeVNode(activation);
 		}, '@test/time-hydration');
@@ -92,7 +85,7 @@ describe('enhanced hydration facade', () => {
 
 	it('supplies the application-bundle catalog after adoption', () => {
 		const identity = '@exactjs/hydrate:enhanced-facade';
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
@@ -100,7 +93,7 @@ describe('enhanced hydration facade', () => {
 		}, identity);
 		const vnode = createVNode(
 			'button',
-			{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+			{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 			'Save'
 		);
 		const root = document.createElement('div');
@@ -114,3 +107,4 @@ describe('enhanced hydration facade', () => {
 		expect(root.innerHTML).toContain('<aside data-enhanced="true"><button>Save</button></aside>');
 	});
 });
+import '@exactjs/core/runtime/contexts';

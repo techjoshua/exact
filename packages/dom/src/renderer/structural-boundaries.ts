@@ -1,5 +1,5 @@
 import { normalizeActivityMode, unwrap, type VNode } from '@exactjs/core';
-import { createEffectScope, type EffectScope } from '@exactjs/reactive';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { Mounted, Root } from '../types.js';
 import { patchChildren } from './patching/children.js';

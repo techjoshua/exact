@@ -1,10 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/lists';
+import '@exactjs/core/runtime/refs';
 import {
 	Activity,
 	activateTaskForHost,
 	defineTask,
+	encodeExactMarkerPart,
 	Fragment,
 	Suspense,
 	type Component,
@@ -12,6 +15,7 @@ import {
 	type TaskContext,
 	unsafeHtml
 } from '@exactjs/core';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import { createDynamicChild, createServerSlot } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
 import './structural-boundaries.js';
@@ -35,10 +39,10 @@ describe('DOM adoption modes', () => {
 			return () => createVNode('span', null, 'server');
 		}
 		const container = document.createElement('div');
-		container.innerHTML =
-			'<!--exact:component:Greeting--><span>server</span><!--/exact:component:Greeting-->';
-		const serverSpan = container.querySelector('span');
 		const vnode = createVNode(Greeting, {});
+		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(Greeting))}`;
+		container.innerHTML = `<!--${marker}--><span>server</span><!--/${marker}-->`;
+		const serverSpan = container.querySelector('span');
 
 		expect(adoptComponentRoot(vnode, container)).toBe(true);
 		expect(container.querySelector('span')).toBe(serverSpan);
@@ -186,11 +190,12 @@ describe('DOM adoption modes', () => {
 				);
 		}
 		const container = document.createElement('div');
-		container.innerHTML =
-			'<!--exact:root--><!--exact:component:List--><!--exact:tasks--><!--exact:item:a--><li>A</li><!--/exact:item:a--><!--exact:item:b--><li>B</li><!--/exact:item:b--><!--/exact:tasks--><!--/exact:component:List--><!--/exact:root-->';
+		const vnode = createVNode(List, null);
+		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(List))}`;
+		container.innerHTML = `<!--exact:root--><!--${marker}--><!--exact:tasks--><!--exact:item:a--><li>A</li><!--/exact:item:a--><!--exact:item:b--><li>B</li><!--/exact:item:b--><!--/exact:tasks--><!--/${marker}--><!--/exact:root-->`;
 		const originalB = container.querySelectorAll('li')[1];
 
-		expect(adoptStatic(createVNode(List, null), container)).toBe(true);
+		expect(adoptStatic(vnode, container)).toBe(true);
 		list.state.items.reverse();
 		flushSync();
 		expect(container.querySelectorAll('li')[0]).toBe(originalB);

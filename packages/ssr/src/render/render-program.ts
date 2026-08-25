@@ -1,181 +1,214 @@
 import {
 	type AnyComponentInstance,
 	isVNode,
-	unwrap,
-	withComponentDomain,
+	normalizeRenderResult,
 	type VNode
 } from '@exactjs/core';
-import { RenderProgram } from '@exactjs/core/runtime/render';
+import { unwrap } from '@exactjs/reactive/framework/values';
+import { ServerSlot } from '@exactjs/core/framework/render-structure';
+import type { ExactRenderProgramSsrOperations } from '@exactjs/core/framework/render-structure';
+import type { ExactPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
-	readRenderProgram,
 	readRenderProgramSlot,
-	renderProgramFallback
-} from '@exactjs/core/runtime/render';
-import { withEffectScope } from '@exactjs/reactive';
+	type ExactRenderProgramInvocation
+} from '@exactjs/core/framework/render-structure';
 import { escapeText } from '../html.js';
 import { exactMarkerId, renderAttrs } from '../markup.js';
-import { appendBoundedHtml, countSsrNode } from './limits.js';
-import type { SsrContext } from '../types.js';
+import { boundedJoin, countSsrNodes, SsrOutputLimitError } from './limits.js';
+import type { Child, SsrContext } from '../types.js';
+import { withRenderProgramOwner } from './render-program-owner-capability.js';
 
-/** Executes the compiler-native scalar subset or selects its lazy generic fallback. */
-export function renderSsrProgram(
+/** Executes a compiler-closed server invocation without constructing or dispatching a VNode. */
+export function renderPreparedSsrProgram(
 	context: SsrContext,
-	vnode: VNode,
+	invocation: ExactPreparedServerRenderProgram,
 	owner?: AnyComponentInstance
-): { readonly html?: string; readonly fallback?: VNode } {
-	const invocation = readRenderProgram(vnode);
-	if (!invocation || context.reactMarkup)
-		return { fallback: materializeProgramFallback(vnode, owner) };
+): {
+	readonly segments?: readonly DeferredSsrSegment[];
+	readonly fallback?: VNode;
+} {
+	if (context.reactMarkup) return { fallback: materializeInvocationFallback(invocation, owner) };
+	return executeSsrProgram(context, invocation, owner);
+}
+
+function executeSsrProgram(
+	context: SsrContext,
+	invocation: ExactRenderProgramInvocation,
+	owner?: AnyComponentInstance
+): { readonly segments?: readonly DeferredSsrSegment[]; readonly fallback?: VNode } {
 	const { program } = invocation;
-	if (program.parts.length !== program.slots.length + 1)
-		return { fallback: materializeProgramFallback(vnode, owner) };
-	if (context.markers && !hasValidSsrOperations(program))
-		return { fallback: materializeProgramFallback(vnode, owner) };
-	const values = new Array<unknown>(program.slots.length);
-	for (let index = 0; index < program.slots.length; index++) {
-		const slot = program.slots[index]!;
+	if (program.ssr) {
+		const output = program.ssr(generatedSsrOperations, context, invocation);
+		if (!output) return { fallback: materializeInvocationFallback(invocation, owner) };
+		return { segments: output as DeferredSsrSegment[] };
+	}
+	return { fallback: materializeInvocationFallback(invocation, owner) };
+}
+
+type DeferredSsrSegment = string | readonly Child[] | VNode;
+
+/**
+ * Supplies stateless serialization operations to one compiler-generated server lane.
+ *
+ * A compiler-emitted preparation prefix reads and validates every slot before later generated
+ * calls can mutate the SSR context. This preserves local fallback semantics without making the
+ * runtime rediscover component topology from an operation table.
+ */
+const unpreparedSsrValue = Symbol('exact.ssr.unprepared');
+
+const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
+	unprepared: unpreparedSsrValue,
+	output: () => [],
+	prepareText(invocation, index) {
 		const value = unwrap(readRenderProgramSlot(invocation, index));
-		if (
-			value instanceof Promise ||
-			(slot.kind === 'text' && (isVNode(value) || Array.isArray(value)))
-		)
-			return { fallback: materializeProgramFallback(vnode, owner) };
-		values[index] = value;
-		countSsrNode(context);
+		return value instanceof Promise || isVNode(value) || Array.isArray(value)
+			? unpreparedSsrValue
+			: value;
+	},
+	prepareChild(invocation, index) {
+		const value = unwrap(readRenderProgramSlot(invocation, index));
+		return value instanceof Promise ? unpreparedSsrValue : value;
+	},
+	prepareComponent(invocation, index) {
+		const value = unwrap(readRenderProgramSlot(invocation, index));
+		return value instanceof Promise ||
+			!isVNode(value) ||
+			(typeof value.type !== 'function' && value.type !== ServerSlot)
+			? unpreparedSsrValue
+			: value;
+	},
+	prepareAttribute(invocation, index) {
+		const value = unwrap(readRenderProgramSlot(invocation, index));
+		return value instanceof Promise ? unpreparedSsrValue : value;
+	},
+	begin(opaqueContext, nodeCount, slotCount, staticCharacters) {
+		const context = opaqueContext as SsrContext;
+		// Intrinsic identities are not serialized as cell comments, but their compiler-owned
+		// positions still occupy the shared request identity space. Nested generic/component
+		// rendering must therefore begin after this finite region so its emitted markers match
+		// the client-side ownership graph.
+		context.nextId += nodeCount;
+		countSsrNodes(context, nodeCount - 1 + slotCount);
+		if (staticCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+	},
+	static(output, value) {
+		if (value !== '') output.push(value);
+	},
+	text(opaqueContext, output, value, id, characters, markerless) {
+		const context = opaqueContext as SsrContext;
+		const rendered =
+			value === null || value === undefined || value === false || value === true
+				? ''
+				: escapeText(String(value));
+		const html =
+			context.markers && !markerless
+				? `<!--exact:dynamic:${exactMarkerId(id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(id)}-->`
+				: rendered;
+		const nextCharacters = characters + html.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (html !== '') output.push(html);
+		return nextCharacters;
+	},
+	child(opaqueContext, output, value, id, characters) {
+		const context = opaqueContext as SsrContext;
+		const children = normalizeRenderResult(value as Child | Child[]);
+		const opening = context.markers ? `<!--exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const closing = context.markers ? `<!--/exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const nextCharacters = characters + opening.length + closing.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (opening) output.push(opening);
+		output.push(children);
+		if (closing) output.push(closing);
+		return nextCharacters;
+	},
+	keyedChild(output, value) {
+		output.push(normalizeRenderResult(value as Child | Child[]));
+	},
+	component(opaqueContext, output, value, id, characters, markerless) {
+		const context = opaqueContext as SsrContext;
+		const opening =
+			context.markers && !markerless ? `<!--exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const closing =
+			context.markers && !markerless ? `<!--/exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const nextCharacters = characters + opening.length + closing.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (opening) output.push(opening);
+		output.push(value as VNode);
+		if (closing) output.push(closing);
+		return nextCharacters;
+	},
+	attribute(opaqueContext, output, value, name, tag, characters) {
+		const context = opaqueContext as SsrContext;
+		const html = renderAttrs({ [name]: value }, false, tag, context);
+		const nextCharacters = characters + html.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (html !== '') output.push(html);
+		return nextCharacters;
 	}
-	for (let index = 1; index < program.nodes.length; index++) countSsrNode(context);
-	if (context.markers) return renderMarkedProgram(context, program, values);
-	let html = program.parts[0] ?? '';
-	for (let index = 0; index < values.length; index++) {
-		html = appendBoundedHtml(
-			context,
-			html,
-			renderProgramSlot(context, program, index, values[index])
-		);
-		html = appendBoundedHtml(context, html, program.parts[index + 1] ?? '');
-	}
-	return { html };
-}
+});
 
-function renderMarkedProgram(
+/** Serializes one direct compiler-issued server invocation into a bounded string. */
+export function renderPreparedSsrProgramString(
 	context: SsrContext,
-	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
-	values: readonly unknown[]
-): { readonly html: string } {
-	const parts = program.ssrParts!;
-	const operations = program.ssrOperations!;
-	let html = parts[0] ?? '';
-	const markerBase = context.nextId;
-	for (let position = 0; position < operations.length; position++) {
-		const operation = operations[position]!;
-		if (operation.kind === 'slot') {
-			const slot = program.slots[operation.index]!;
-			const rendered = renderProgramSlot(
-				context,
-				program,
-				operation.index,
-				values[operation.index]
-			);
-			html = appendBoundedHtml(
-				context,
-				html,
-				slot.kind === 'text'
-					? `<!--exact:dynamic:${exactMarkerId(slot.id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(slot.id)}-->`
-					: rendered
-			);
-		} else {
-			const id = `cell:${markerBase + operation.index}`;
-			html = appendBoundedHtml(
-				context,
-				html,
-				operation.kind === 'node-open'
-					? `<!--exact:${id}-->`
-					: operation.kind === 'node-close'
-						? `<!--/exact:${id}-->`
-						: ''
-			);
-		}
-		html = appendBoundedHtml(context, html, parts[position + 1] ?? '');
-	}
-	context.nextId += program.nodes.length;
-	return { html };
-}
-
-function hasValidSsrOperations(
-	program: NonNullable<ReturnType<typeof readRenderProgram>>['program']
-): boolean {
-	if (
-		!program.ssrParts ||
-		!program.ssrOperations ||
-		program.ssrParts.length !== program.ssrOperations.length + 1
-	)
-		return false;
-	for (const operation of program.ssrOperations) {
-		if (!Number.isSafeInteger(operation.index) || operation.index < 0) return false;
-		if (operation.kind === 'slot') {
-			if (operation.index >= program.slots.length) return false;
-		} else if (
-			(operation.kind === 'node-open' || operation.kind === 'node-close') &&
-			operation.index < program.nodes.length
-		) {
-			continue;
-		} else return false;
-	}
-	return true;
-}
-
-function renderProgramSlot(
-	context: SsrContext,
-	program: NonNullable<ReturnType<typeof readRenderProgram>>['program'],
-	index: number,
-	value: unknown
+	invocation: ExactPreparedServerRenderProgram,
+	owner: AnyComponentInstance | undefined,
+	renderFallback: (fallback: VNode) => string,
+	renderChildren: (children: readonly Child[]) => string,
+	renderOwnedComponent: (component: VNode) => string
 ): string {
-	const slot = program.slots[index]!;
-	if (slot.kind === 'text')
-		return value === null || value === undefined || value === false || value === true
-			? ''
-			: escapeText(String(value));
-	if (!slot.name) return '';
-	const node = program.nodes.find((candidate) => samePath(candidate.path, slot.path));
-	return renderAttrs({ [slot.name]: value }, false, node?.tag, context);
+	const planned = renderPreparedSsrProgram(context, invocation, owner);
+	if (planned.fallback) return renderFallback(planned.fallback);
+	return boundedJoin(
+		context,
+		planned.segments!.map((segment) =>
+			typeof segment === 'string'
+				? segment
+				: Array.isArray(segment)
+					? renderChildren(segment)
+					: renderOwnedComponent(segment as VNode)
+		)
+	);
 }
 
-function samePath(left: readonly number[], right: readonly number[]): boolean {
-	return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-/** Handles a render-program string node while leaving every other vnode untouched. */
-export function renderSsrProgramString(
+/** Streams one direct compiler-issued server invocation without a RenderProgram VNode. */
+export function renderPreparedSsrProgramChunks(
 	context: SsrContext,
-	vnode: VNode,
+	invocation: ExactPreparedServerRenderProgram,
 	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => string
-): string | undefined {
-	if (vnode.type !== RenderProgram) return undefined;
-	const planned = renderSsrProgram(context, vnode, owner);
-	return planned.fallback ? renderFallback(planned.fallback) : planned.html!;
+	renderFallback: (fallback: VNode) => Iterable<string>,
+	renderChildren: (children: readonly Child[]) => Iterable<string>,
+	renderOwnedComponent: (component: VNode) => Iterable<string>
+): Iterable<string> {
+	const planned = renderPreparedSsrProgram(context, invocation, owner);
+	if (planned.fallback) return renderFallback(planned.fallback);
+	return flattenDeferredSegments(planned.segments!, renderChildren, renderOwnedComponent);
 }
 
-/** Handles a render-program chunk node without buffering its generic fallback. */
-export function renderSsrProgramChunks(
-	context: SsrContext,
-	vnode: VNode,
-	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => Iterable<string>
-): Iterable<string> | undefined {
-	if (vnode.type !== RenderProgram) return undefined;
-	const planned = renderSsrProgram(context, vnode, owner);
-	return planned.fallback ? renderFallback(planned.fallback) : [planned.html!];
+function* flattenDeferredSegments(
+	segments: readonly DeferredSsrSegment[],
+	renderChildren: (children: readonly Child[]) => Iterable<string>,
+	renderOwnedComponent: (component: VNode) => Iterable<string>
+): Iterable<string> {
+	for (const segment of segments) {
+		if (typeof segment === 'string') yield segment;
+		else if (Array.isArray(segment)) yield* renderChildren(segment);
+		else yield* renderOwnedComponent(segment as VNode);
+	}
 }
 
-/** Re-enters the component owner while a marker-mode fallback allocates reactive VNodes. */
-function materializeProgramFallback(vnode: VNode, owner: AnyComponentInstance | undefined): VNode {
-	const fallback = !owner
-		? renderProgramFallback(vnode)
-		: withEffectScope(owner.scope, () =>
-				withComponentDomain(owner.domain, () => renderProgramFallback(vnode))
-			);
+function materializeInvocationFallback(
+	invocation: ExactRenderProgramInvocation,
+	owner: AnyComponentInstance | undefined
+): VNode {
+	const fallback = withRenderProgramOwner(owner, () => invocation.fallback?.());
 	if (!fallback)
-		throw new Error('Client-only compiler render programs cannot execute through SSR fallback');
+		throw new Error(
+			`Client-only compiler render program ${invocation.program.id} cannot execute through SSR fallback`
+		);
 	return fallback;
 }

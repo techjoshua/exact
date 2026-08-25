@@ -21,7 +21,29 @@ import {
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 
 function remoteBrand(name: string): string {
-	return `Object.assign(${name}, { [Symbol.for("@exactjs/component")]: "test:${name}" });`;
+	return `Object.defineProperties(${name}, {
+  [Symbol.for("@exactjs/component")]: { value: "test:${name}" },
+  [Symbol.for("@exactjs/component-contract")]: { value: {
+    version: 2,
+    placement: "client",
+    role: "client",
+    implementations: [{ id: "test:${name}:implementation", name: "${name}", role: "root", implementation: ${name} }],
+    continuations: [],
+    executors: [],
+    boundaries: [],
+    execution: { version: 1, ports: [], transitions: [], reactive: [] },
+    definition: {
+      version: 1,
+      instantiate: ${name},
+      abi: 8,
+      state: [],
+      tasks: [],
+      reactive: [],
+      render: "returned-function",
+      capabilities: ["interactions", "tasks"]
+    }
+  } }
+});`;
 }
 const probeRegistration = JSON.stringify({
 	continuations: {
@@ -166,6 +188,20 @@ const bindings = Object.freeze({
 	broken: Object.freeze({ clientEntry: brokenEntry })
 });
 
+function stubUnsupportedBuild(): void {
+	vi.stubGlobal(
+		'fetch',
+		vi.fn(async () => ({
+			ok: false,
+			status: 410,
+			headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
+			async json() {
+				return { error: 'exact_build_unsupported' };
+			}
+		}))
+	);
+}
+
 describe('RemoteComponent', () => {
 	beforeAll(() => registerExactRemoteClientBindings(bindings));
 	afterEach(() => {
@@ -223,6 +259,12 @@ describe('RemoteComponent', () => {
 			'non-function component',
 			dataModule(
 				`export default { buildKey: "${buildKey}", root: "area", component: {}, registration: {} };`
+			)
+		],
+		[
+			'identity-only component',
+			dataModule(
+				`function IdentityOnly() {}; Object.assign(IdentityOnly, { [Symbol.for("@exactjs/component")]: "test:identity-only" }); export default { buildKey: "${buildKey}", root: "area", component: IdentityOnly, registration: {} };`
 			)
 		],
 		[
@@ -425,17 +467,7 @@ describe('RemoteComponent', () => {
 	});
 
 	it('coordinates an unsupported-build replacement through the page-owned resolver', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async () => ({
-				ok: false,
-				status: 410,
-				headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
-				async json() {
-					return { error: 'exact_build_unsupported' };
-				}
-			}))
-		);
+		stubUnsupportedBuild();
 		const container = document.createElement('div');
 		render(createVNode(RemoteComponent, { binding: 'retiring' }), container);
 		await waitFor(() => container.textContent === 'Old remote');
@@ -502,17 +534,7 @@ describe('RemoteComponent', () => {
 	});
 
 	it('falls back after one bounded attempt when a resolver returns the unchanged build', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async () => ({
-				ok: false,
-				status: 410,
-				headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
-				async json() {
-					return { error: 'exact_build_unsupported' };
-				}
-			}))
-		);
+		stubUnsupportedBuild();
 		const container = document.createElement('div');
 		render(
 			createVNode(RemoteComponent, {
@@ -532,17 +554,7 @@ describe('RemoteComponent', () => {
 	});
 
 	it('falls back when the page-owned replacement resolver rejects', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async () => ({
-				ok: false,
-				status: 410,
-				headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
-				async json() {
-					return { error: 'exact_build_unsupported' };
-				}
-			}))
-		);
+		stubUnsupportedBuild();
 		const container = document.createElement('div');
 		render(
 			createVNode(RemoteComponent, {

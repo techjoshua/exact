@@ -20,6 +20,7 @@ import {
 	type HydrationScriptOptions,
 	type RenderToStringOptions
 } from '@exactjs/ssr';
+import '@exactjs/ssr/runtime/generic-components';
 
 import type { PropsOf, StateOf } from '../contracts.js';
 

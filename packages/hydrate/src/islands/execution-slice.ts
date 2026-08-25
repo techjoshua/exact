@@ -1,7 +1,8 @@
 import { type AnyComponentFunction } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactComponentContract
+	readPreparedExactComponentContract,
+	type ExactComponentExecutionContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
 
@@ -13,13 +14,13 @@ export function prepareClientIslandExecutionSlice(
 ): ComponentExecutionSlice {
 	const cached = slices.get(component);
 	if (cached) return cached;
-	const contract = readExactComponentContract(component);
+	const contract = readPreparedExactComponentContract(component);
 	if (!contract?.execution) return emptySlice;
 	assertAcyclic(contract.execution);
 	const transitions = new Set(
 		contract.execution.transitions
-			.filter((transition) => transition.activation === 'setup')
-			.map((transition) => transition.id)
+			.filter((transition) => transition[2] === 'setup')
+			.map((transition) => transition[0])
 	);
 	const slice: ComponentExecutionSlice = new Map([
 		[exactComponentIdentity(component), transitions]
@@ -30,24 +31,22 @@ export function prepareClientIslandExecutionSlice(
 
 const emptySlice: ComponentExecutionSlice = new Map();
 
-function assertAcyclic(
-	plan: NonNullable<ReturnType<typeof readExactComponentContract>>['execution']
-): void {
+function assertAcyclic(plan: ExactComponentExecutionContract | undefined): void {
 	if (!plan) return;
 	const producers = new Map<number, string[]>();
 	for (const transition of plan.transitions)
-		for (const output of transition.outputs) {
+		for (const output of transition[7]) {
 			const values = producers.get(output) ?? [];
-			values.push(transition.id);
+			values.push(transition[0]);
 			producers.set(output, values);
 		}
 	const edges = new Map<string, Set<string>>();
 	for (const transition of plan.transitions) {
-		const dependencies = edges.get(transition.id) ?? new Set<string>();
-		for (const input of transition.inputs)
+		const dependencies = edges.get(transition[0]) ?? new Set<string>();
+		for (const input of transition[6])
 			for (const producer of producers.get(input) ?? [])
-				if (producer !== transition.id) dependencies.add(producer);
-		edges.set(transition.id, dependencies);
+				if (producer !== transition[0]) dependencies.add(producer);
+		edges.set(transition[0], dependencies);
 	}
 	const visiting = new Set<string>();
 	const visited = new Set<string>();

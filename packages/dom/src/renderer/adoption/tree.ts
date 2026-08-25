@@ -6,37 +6,31 @@ import {
 	Suspense,
 	Target,
 	UnsafeHtml,
+	isVNode,
 	watch,
 	type VNode
 } from '@exactjs/core';
-import { RenderProgram, isCellVNode, renderInstance } from '@exactjs/core/runtime/render';
-import { createEffectScope, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { RenderProgram, isCellVNode } from '@exactjs/core/runtime/render';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { getOwnedCellVNode } from '../../cells.js';
-import { getListBinding, materializeList, stopReplacedChildren } from '../../children.js';
-import { describeVNodeType } from '../../debug.js';
+import {
+	getListBinding,
+	materializeList,
+	releaseRetiredListScopes,
+	stopReplacedChildren,
+	takeMaterializedListScope
+} from '../../children.js';
 import { afterMountedChildren } from '../../placement.js';
 import type { Mounted, Root } from '../../types.js';
-import { patchChildren, rerenderComponent } from '../patching/children.js';
-import { ownMountedInstance } from '../root-lifecycle.js';
-import { refreshComponentRoot } from '../component-roots.js';
-import { unmountMany, unmountMounted } from '../teardown.js';
+import { patchChildren } from '../patching/children.js';
 import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
-import { refreshTargetBoundary } from '../target-contributions.js';
+import { refreshTargetBoundary } from '../target-capability.js';
 import { requireStructuralBoundaryCapability } from '../structural-capability.js';
-import {
-	componentMarkerBoundary,
-	recoverMismatchedComponentRange,
-	stopFailedAdoption
-} from './identity.js';
-import {
-	adoptStaticChildren,
-	adoptStaticChildrenRange,
-	closingMarkerIndex,
-	createRangeAnchor
-} from './boundaries.js';
+import { stopFailedAdoption } from './identity.js';
+import { adoptStaticChildren, adoptStaticChildrenRange, closingMarkerIndex } from './boundaries.js';
 import { adoptKeyedListChildren } from './keyed.js';
 import { normalizeAdoptionVNode } from './normalization.js';
-import { constructAdoptedComponent } from './construction.js';
+import { adoptComponent } from './component.js';
 import { adoptRenderProgramOrFallback } from '../render-program.js';
 import { dynamicChildren } from '../dynamic.js';
 import { adoptStaticLeaf } from './leaf.js';
@@ -49,108 +43,23 @@ export function adoptStaticMountedInner(
 	cursor: number,
 	parentInstance: AnyComponentInstance,
 	parentScope: EffectScope,
-	rangeEnd = nodes.length
+	rangeEnd = nodes.length,
+	omitCompilerOwnedBoundary = false
 ): { mounted: Mounted; next: number } | undefined {
 	vnode = normalizeAdoptionVNode(root, vnode);
-	const scope = createEffectScope(parentScope);
+	const scope = takeMaterializedListScope(vnode) ?? createEffectScope(parentScope);
 	if (typeof vnode.type === 'function') {
-		if (root.markerlessHydration) {
-			const mounted: Mounted = { vnode, dom: undefined as never, scope, children: [] };
-			try {
-				const instance = withEffectScope(scope, () =>
-					constructAdoptedComponent(vnode, parentInstance, root.ambientContexts)
-				);
-				ownMountedInstance(mounted, instance);
-				const rendered = withEffectScope(scope, () =>
-					renderInstance(instance, () => rerenderComponent(root, mounted))
-				);
-				const adopted = adoptStaticChildrenRange(
-					root,
-					rendered,
-					nodes,
-					instance,
-					scope,
-					false,
-					cursor,
-					rangeEnd
-				);
-				if (!adopted || !adopted.mounts.length) {
-					unmountMounted(mounted);
-					throw new Error(
-						`markerless component ${describeVNodeType(vnode.type)} children did not adopt`
-					);
-				}
-				const first = adopted.mounts[0]!.dom;
-				const lastMount = adopted.mounts[adopted.mounts.length - 1]!;
-				const last = lastMount.end ?? lastMount.dom;
-				const parent = first.parentNode;
-				if (!parent || last.parentNode !== parent) {
-					unmountMany(adopted.mounts);
-					unmountMounted(mounted);
-					throw new Error(
-						`markerless component ${describeVNodeType(vnode.type)} range is disconnected`
-					);
-				}
-				const start = createRangeAnchor(parent);
-				const end = createRangeAnchor(parent);
-				parent.insertBefore(start, first);
-				parent.insertBefore(end, last.nextSibling);
-				mounted.dom = start;
-				mounted.end = end;
-				mounted.children = adopted.mounts;
-				refreshComponentRoot(instance);
-				instance.markMounted();
-				return { mounted, next: adopted.next };
-			} catch (error) {
-				unmountMounted(mounted);
-				throw error;
-			}
-		}
-		const boundary = componentMarkerBoundary(nodes, cursor, vnode.type, rangeEnd);
-		if (!boundary) return stopFailedAdoption(scope);
-		const { start, endIndex } = boundary;
-		if (!boundary.matches) {
-			return recoverMismatchedComponentRange(
-				root,
-				vnode,
-				nodes,
-				cursor,
-				endIndex,
-				parentInstance,
-				parentScope,
-				scope
-			);
-		}
-		const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children: [] };
-		try {
-			const instance = withEffectScope(scope, () =>
-				constructAdoptedComponent(vnode, parentInstance, root.ambientContexts)
-			);
-			ownMountedInstance(mounted, instance);
-			const rendered = withEffectScope(scope, () =>
-				renderInstance(instance, () => rerenderComponent(root, mounted))
-			);
-			const children = adoptStaticChildren(
-				root,
-				rendered,
-				nodes,
-				instance,
-				scope,
-				cursor + 1,
-				endIndex
-			);
-			if (!children) {
-				unmountMounted(mounted);
-				return undefined;
-			}
-			mounted.children = children;
-			refreshComponentRoot(instance);
-			instance.markMounted();
-			return { mounted, next: endIndex + 1 };
-		} catch {
-			unmountMounted(mounted);
-			return undefined;
-		}
+		return adoptComponent(
+			root,
+			vnode,
+			nodes,
+			cursor,
+			parentInstance,
+			parentScope,
+			scope,
+			rangeEnd,
+			omitCompilerOwnedBoundary
+		);
 	}
 	if (isCellVNode(vnode) || vnode.type === Dynamic) {
 		const kind = isCellVNode(vnode) ? 'cell' : 'dynamic';
@@ -222,7 +131,42 @@ export function adoptStaticMountedInner(
 			parentScope,
 			scope,
 			rangeEnd,
-			adoptStaticMountedInner
+			adoptStaticMountedInner,
+			(rootChildren, childNodes, owner, childScope, childCursor, childEnd, component) => {
+				if (component && rootChildren.length === 1 && isVNode(rootChildren[0])) {
+					const first = childNodes[childCursor];
+					if (first instanceof Comment && first.data.startsWith('exact:component:'))
+						return adoptStaticChildren(
+							root,
+							[...rootChildren],
+							childNodes,
+							owner,
+							childScope,
+							childCursor,
+							childEnd
+						);
+					const adopted = adoptStaticMountedInner(
+						root,
+						rootChildren[0],
+						childNodes,
+						childCursor,
+						owner,
+						childScope,
+						childEnd,
+						true
+					);
+					return adopted?.next === childEnd ? [adopted.mounted] : undefined;
+				}
+				return adoptStaticChildren(
+					root,
+					[...rootChildren],
+					childNodes,
+					owner,
+					childScope,
+					childCursor,
+					childEnd
+				);
+			}
 		);
 	}
 	if (vnode.type === UnsafeHtml) {
@@ -319,7 +263,7 @@ export function adoptStaticMountedInner(
 		const children = list
 			? adoptKeyedListChildren(
 					root,
-					materializeList(list),
+					materializeList(list, scope),
 					nodes,
 					parentInstance,
 					scope,
@@ -348,7 +292,7 @@ export function adoptStaticMountedInner(
 			...(vnode.type === Target ? { targetBoundary: {} } : {})
 		};
 		if (vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
-		if (list) {
+		if (list && vnode.props.__exactProgramList !== true) {
 			mounted.stop = watch(
 				() => {
 					const parent = start.parentNode;
@@ -357,12 +301,13 @@ export function adoptStaticMountedInner(
 						root,
 						parent,
 						mounted.children,
-						materializeList(list),
+						materializeList(list, scope),
 						parentInstance,
 						scope,
 						afterMountedChildren(mounted),
 						mounted
 					);
+					releaseRetiredListScopes(list);
 				},
 				undefined,
 				{ scope }

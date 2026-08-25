@@ -1,27 +1,32 @@
 import {
 	createErrorContext,
 	ErrorContext,
+	type AnyComponentInstance,
 	type Component,
 	type ComponentFunction,
 	type ErrorContextValue,
 	type ErrorReport,
 	type VNode
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactDynamicBoundaryArtifact } from '@exactjs/core/framework/component-contracts';
 import { createDefaultErrorView } from '@exactjs/core/framework/error-view';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';
 
 /** Creates a root boundary. */
 export function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
-	return markExactComponent(function RootBoundary(this: Component<{}>, props: { version: number }) {
-		this.setContext(ErrorContext, root.errors);
+	return createExactDynamicBoundaryArtifact(
+		function RootBoundary(this: Component<{}>, props: { version: number }) {
+			(this as AnyComponentInstance).contexts.set(ErrorContext.id, root.errors);
 
-		return () => {
-			void props.version;
-			return root.errors.errors.length ? createRootErrorView(root.errors.errors) : root.current;
-		};
-	}, '@exactjs/dom:RootBoundary');
+			return () => {
+				void props.version;
+				return root.errors.errors.length ? createRootErrorView(root.errors.errors) : root.current;
+			};
+		},
+		'@exactjs/dom:RootBoundary',
+		'client'
+	);
 }
 
 /** Creates a dom error context. */

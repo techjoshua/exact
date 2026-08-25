@@ -1,4 +1,4 @@
-import { computed, type ReactiveValue } from '@exactjs/reactive';
+import { computed, type ReactiveValue } from '@exactjs/reactive/framework/runtime';
 
 /** Creates one shared, lazily evaluated derived component value for compiler output. */
 export function createDerived<T>(compute: () => T): ReactiveValue<T> {

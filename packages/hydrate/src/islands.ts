@@ -13,7 +13,7 @@ import {
 	render,
 	synchronizeFormBinding,
 	walkDomSubtree
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import { captureHydrationDom, restoreFormState } from './adoption/form-state.js';
 import { disposeInteractionHydration, ensureInteractionHydration } from './islands/interaction.js';
 import { isClientIslandLoader, loadClientIsland } from './islands/loading.js';
@@ -278,10 +278,13 @@ function mountIslandBoundaryInSlice(
 	const interaction =
 		boundary.getAttribute('data-exact-client-hydration') === 'interaction' &&
 		boundary.childNodes.length > 0;
+	const eagerAdoption =
+		boundary.getAttribute('data-exact-client-hydration') === 'eager' &&
+		boundary.childNodes.length > 0;
 	const resumption =
 		boundary.getAttribute('data-exact-client-resumption') === 'true' &&
 		boundary.childNodes.length > 0;
-	const adopting = interaction || resumption;
+	const adopting = interaction || eagerAdoption || resumption;
 	const captured = adopting ? captureHydrationDom(boundary, work) : undefined;
 	const checkpoint = adopting ? checkpointComponentResumptions(domain) : 0;
 	const adopted = adopting ? adoptMarkerlessComponentRoot(vnode, boundary, rendererOptions) : false;

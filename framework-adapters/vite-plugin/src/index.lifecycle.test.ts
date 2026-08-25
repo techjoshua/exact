@@ -28,6 +28,27 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 		);
 	});
 
+	it('rejects client compilation in an SSR build and server compilation in a client build', () => {
+		expect(() =>
+			exact({ target: 'client', reactCompatibility: false }).configResolved?.({
+				command: 'build',
+				build: { ssr: 'src/server.ts' }
+			})
+		).toThrow("require exact({ target: 'server' })");
+		expect(() =>
+			exact({ target: 'server', reactCompatibility: false }).configResolved?.({
+				command: 'build',
+				build: { ssr: false }
+			})
+		).toThrow('require Vite build.ssr');
+		expect(() =>
+			exact({ target: 'server', reactCompatibility: false }).configResolved?.({
+				command: 'build',
+				build: { ssr: true }
+			})
+		).not.toThrow();
+	});
+
 	it('honors include and exclude filters', () => {
 		expect(
 			exact({ include: '/src/', reactCompatibility: false }).transform(

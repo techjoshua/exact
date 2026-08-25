@@ -1,13 +1,11 @@
 import {
 	createTaskOwner,
 	defineTask,
-	markExactEnhancementContexts,
 	taskAnimationFrame,
 	unwrap,
 	watch,
 	type Component
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { PhysicsBodyContext, PhysicsWorldContext } from './context.js';
 import type {
 	PhysicsElementProps,
@@ -19,10 +17,7 @@ import { positionAndRotation } from './projections.js';
 import { createPhysicsWorld } from './world.js';
 
 /** Context-producing component that owns one Activity-aware physics frame loop. */
-export const PhysicsWorldComponent = markExactComponent(function PhysicsWorld(
-	this: Component<{}>,
-	props: PhysicsWorldProps
-) {
+export function PhysicsWorldComponent(this: Component<{}>, props: PhysicsWorldProps) {
 	const supplied = unwrap(props.world);
 	const world = supplied ?? createPhysicsWorld(unwrap(props.options));
 	this.setContext(PhysicsWorldContext, world);
@@ -64,13 +59,10 @@ export const PhysicsWorldComponent = markExactComponent(function PhysicsWorld(
 		if (!supplied) world[Symbol.dispose]();
 	});
 	return () => props.children;
-}, '@exactjs/physics:PhysicsWorld');
+}
 
 /** Transparent ordinary component activated for one resolved physics target. */
-export const PhysicsElement = markExactComponent(function PhysicsElement(
-	this: Component<{}>,
-	props: PhysicsElementProps
-) {
+export function PhysicsElement(this: Component<{}>, props: PhysicsElementProps) {
 	const root = this.refs.root<HTMLElement | SVGElement>();
 	if (!this.hasContext(PhysicsWorldContext)) {
 		throw new Error('PhysicsElement requires a PhysicsWorld context');
@@ -115,6 +107,4 @@ export const PhysicsElement = markExactComponent(function PhysicsElement(
 	);
 	this.onUnmount(() => controller[Symbol.dispose]());
 	return () => props.children;
-}, '@exactjs/physics:PhysicsElement');
-
-markExactEnhancementContexts(PhysicsElement, { provides: [PhysicsBodyContext] });
+}

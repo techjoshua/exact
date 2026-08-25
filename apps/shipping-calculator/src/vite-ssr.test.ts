@@ -28,6 +28,11 @@ describe('shipping development SSR graph', () => {
 			);
 			expect(rendered.html).toContain('Find the right way to send it.');
 			expect(rendered.html).toContain('DOOP');
+			expect(rendered.html).toContain('data-exact-client-name="CalculatorWorkspace"');
+			expect(rendered.html).toContain('data-exact-client-resumption="true"');
+			expect(rendered.html).toContain('src="/assets/us-states.svg"');
+			expect(rendered.html).not.toContain('class="land state-');
+			expect(Buffer.byteLength(rendered.html)).toBeLessThan(40 * 1024);
 		} finally {
 			await vite.close();
 		}

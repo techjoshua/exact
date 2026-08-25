@@ -4,7 +4,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
 	plugins: [
 		exactVitest({
-			compiler: { include: /form-behavior\.fixtures\.tsx$/, reactCompatibility: false }
+			compiler: {
+				include: /form-behavior\.fixtures\.tsx$/,
+				reactCompatibility: false
+			}
 		})
 	],
 	test: { environment: 'jsdom' }

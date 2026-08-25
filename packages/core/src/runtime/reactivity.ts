@@ -6,5 +6,5 @@ export {
 	updateReactiveValue,
 	updateReactiveValueWithResult,
 	writeReactiveLazy
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 export { createDerived } from '../component/derived.js';

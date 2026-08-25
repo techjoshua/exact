@@ -72,7 +72,7 @@ export interface MotionElementProps {
 	children?: Child;
 }
 
-/** Compilerless intrinsic motion component props. */
+/** Props accepted by the precompiled intrinsic motion component. */
 export type MotionProps = MotionElementProps &
 	Readonly<{
 		as: string;
@@ -81,7 +81,7 @@ export type MotionProps = MotionElementProps &
 		[key: string]: unknown;
 	}>;
 
-/** Explicit conditional presence policy for compilerless callers. */
+/** Explicit conditional presence policy for the precompiled Presence component. */
 export type PresenceProps = Readonly<{
 	when: boolean;
 	children?: Child | readonly Child[];

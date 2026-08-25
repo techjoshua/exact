@@ -7,7 +7,7 @@ import {
 	markExactInspectionSource,
 	type Component
 } from '../index.js';
-import { createComponentInstance } from '../runtime/render.js';
+import { createFrameworkFixtureComponentInstance } from '../runtime/render.js';
 import { createFrameworkComponentDomain } from './domain.js';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 
@@ -21,7 +21,7 @@ describe('component runtime inspection', () => {
 			buildKey: 'build',
 			executionRoot: 'page'
 		});
-		const instance = createComponentInstance(
+		const instance = createFrameworkFixtureComponentInstance(
 			Counter,
 			{},
 			undefined,
@@ -57,7 +57,7 @@ describe('component runtime inspection', () => {
 			buildKey: 'build',
 			executionRoot: 'page'
 		});
-		const instance = createComponentInstance(
+		const instance = createFrameworkFixtureComponentInstance(
 			Counter,
 			{},
 			undefined,
@@ -91,7 +91,7 @@ describe('component runtime inspection', () => {
 			buildKey: 'build',
 			executionRoot: 'page'
 		});
-		const instance = createComponentInstance(
+		const instance = createFrameworkFixtureComponentInstance(
 			Provider,
 			{},
 			undefined,
@@ -151,7 +151,7 @@ describe('component runtime inspection', () => {
 			redact: (path) => (path.at(-1) === 'token' ? 'secret' : undefined)
 		});
 		owner.attach('session', { publish() {} });
-		const instance = createComponentInstance(
+		const instance = createFrameworkFixtureComponentInstance(
 			Calculator,
 			{},
 			undefined,
@@ -193,7 +193,7 @@ describe('component runtime inspection', () => {
 		}
 		const owner = createExactRuntimeInspectionOwner({ buildKey: 'build', executionRoot: 'page' });
 		owner.attach('session', { publish() {} });
-		const instance = createComponentInstance(
+		const instance = createFrameworkFixtureComponentInstance(
 			Worker,
 			{},
 			undefined,
@@ -215,3 +215,5 @@ describe('component runtime inspection', () => {
 		});
 	});
 });
+import '../runtime/contexts.js';
+import '../runtime/component-tasks.js';

@@ -15,6 +15,10 @@ describe('@exactjs/compiler component computations', () => {
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/inspection');
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/registry');
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/enhancements');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/lists');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/refs');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/lifecycle');
+		expect(staticOutput).not.toContain('@exactjs/core/runtime/component-reactivity');
 
 		const taskOutput = transform(
 			`function Search(this: Component<{ query: string; result?: string }>) {
@@ -28,6 +32,80 @@ describe('@exactjs/compiler component computations', () => {
 		);
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/tasks"');
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/reactivity"');
+		expect(taskOutput).not.toContain('@exactjs/core/runtime/component-reactivity');
+		expect(taskOutput).toContain('__exactDerived(() => this.state.query)');
+	});
+
+	it('imports optional component surface capabilities only when authored', () => {
+		const output = transform(
+			`function Results(this: Component<{}>, props: { values: string[] }) {
+				const field = this.ref(inputRef);
+				return () => <>{this.map(props.values, value => value, value => <p>{value}</p>)}<input ref={field} /></>;
+			}`,
+			{ filename: 'Results.tsx' }
+		);
+		expect(output).toContain('import "@exactjs/core/runtime/lists"');
+		expect(output).toContain('import "@exactjs/core/runtime/refs"');
+
+		const inferredListOutput = transform(
+			`function Results(this: Component<{}>, props: { values: string[] }) {
+				return () => <>{props.values.map(value => <p>{value}</p>)}</>;
+			}`,
+			{ filename: 'InferredResults.tsx' }
+		);
+		expect(inferredListOutput).toContain('import "@exactjs/core/runtime/lists"');
+
+		const lifecycleOutput = transform(
+			`function Clock(this: Component<{}>) {
+				this.onMount(() => undefined);
+				return () => <time />;
+			}`,
+			{ filename: 'Clock.tsx' }
+		);
+		expect(lifecycleOutput).toContain(
+			'import { registerComponentLifecycleHandler as __exactRegisterLifecycle } from "@exactjs/core/framework/component-lifecycle"'
+		);
+		expect(lifecycleOutput).toContain('__exactRegisterLifecycle(this, "mount", () => undefined)');
+		expect(lifecycleOutput).not.toContain('@exactjs/core/runtime/lifecycle');
+
+		const reactiveOutput = transform(
+			`function Total(this: Component<{ value: number }>) {
+				this.reactive(() => this.state.value * 2);
+				return () => <output />;
+			}`,
+			{ filename: 'Total.tsx' }
+		);
+		expect(reactiveOutput).toContain('import "@exactjs/core/runtime/component-reactivity"');
+
+		const loggerOutput = transform(
+			`function Reporter(this: Component<{}>) {
+				const logger = this.log;
+				logger.info('ready');
+				return () => <output />;
+			}`,
+			{ filename: 'Reporter.tsx' }
+		);
+		expect(loggerOutput).toContain('import "@exactjs/core/runtime/logging"');
+
+		const dynamicOutput = transform(
+			`function DynamicSurface(this: Component<{}>, props: { member: keyof Component<{}> }) {
+				const operation = this[props.member];
+				void operation;
+				return () => <output />;
+			}`,
+			{ filename: 'DynamicSurface.tsx' }
+		);
+		for (const capability of [
+			'contexts',
+			'component-reactivity',
+			'lifecycle',
+			'lists',
+			'localization',
+			'logging',
+			'refs'
+		]) {
+			expect(dynamicOutput).toContain(`import "@exactjs/core/runtime/${capability}"`);
+		}
 	});
 
 	it('keeps nullish component-state initialization in setup', () => {
@@ -50,8 +128,8 @@ describe('@exactjs/compiler component computations', () => {
 			{ filename: 'Summary.tsx' }
 		);
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
-		expect(output).toContain('this.reactive(() => this.state.quantity)');
-		expect(output).toContain('this.reactive(() => this.state.price)');
+		expect(output).toContain('__exactDerived(() => this.state.quantity)');
+		expect(output).toContain('__exactDerived(() => this.state.price)');
 		expect(output).toContain('__exactWrite(this.state, ["subtotal"]');
 	});
 
@@ -188,7 +266,7 @@ describe('@exactjs/compiler component computations', () => {
 			{ filename: 'TrySummary.tsx' }
 		);
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
-		expect(output).toContain('this.reactive(() => this.state.input)');
+		expect(output).toContain('__exactDerived(() => this.state.input)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');
@@ -244,7 +322,7 @@ describe('@exactjs/compiler component computations', () => {
 		const task = output.indexOf('__exactActivateTask(this, __exactDefineTask({');
 		expect(initialization).toBeGreaterThanOrEqual(0);
 		expect(task).toBeGreaterThan(initialization);
-		expect(output).toContain('this.reactive(() => this.state.id)');
+		expect(output).toContain('__exactDerived(() => this.state.id)');
 	});
 
 	it('rejects escaping async locals and async feedback cycles', () => {

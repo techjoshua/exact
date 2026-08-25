@@ -1,6 +1,11 @@
 import type { ContextToken } from './component/contracts.js';
+import type {
+	ExactCompiledComponentCapability,
+	ExactCompiledComponentUpdateContract
+} from './component-definition-contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
 import { validatedComponentContract } from './component-contract/contract-cache.js';
+import { compiledComponentRenderABI, generalComponentABI } from './component/compiled-abi.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
@@ -117,6 +122,8 @@ export type ExactComponentBoundaryContract = Readonly<{
 export type ExactComponentResumptionContract = Readonly<{
 	componentId: string;
 	statePaths: readonly string[];
+	/** State path and root-prop path pairs that client setup can reconstruct. */
+	stateInputs: readonly (readonly [statePath: string, propPath: string])[];
 	valueCaptures: readonly string[];
 	contexts: readonly string[];
 	boundaries: readonly string[];
@@ -125,22 +132,23 @@ export type ExactComponentResumptionContract = Readonly<{
 /** Compact target-local execution wiring emitted for one semantic component. */
 export type ExactComponentExecutionContract = Readonly<{
 	version: 1;
-	ports: readonly Readonly<{
-		index: number;
-		kind: 'state' | 'props' | 'context' | 'derived' | 'argument';
-		path: string;
-		direction: 'input' | 'output' | 'inout';
-	}>[];
-	transitions: readonly Readonly<{
-		id: string;
-		taskId: string;
-		activation: 'setup' | 'interaction';
-		placement: 'client' | 'server' | 'isomorphic';
-		readiness: 'blocking' | 'nonblocking';
-		concurrency: 'parallel' | 'latest' | 'queue';
-		inputs: readonly number[];
-		outputs: readonly number[];
-	}>[];
+	/** Port tuple: kind, authored path, direction. Its array position is its index. */
+	ports: readonly (readonly [
+		kind: 'state' | 'props' | 'context' | 'derived' | 'argument',
+		path: string,
+		direction: 'input' | 'output' | 'inout'
+	])[];
+	/** Transition tuple: identity, task, activation, placement, readiness, concurrency, inputs, outputs. */
+	transitions: readonly (readonly [
+		id: string,
+		taskId: string,
+		activation: 'setup' | 'interaction',
+		placement: 'client' | 'server' | 'isomorphic',
+		readiness: 'blocking' | 'nonblocking',
+		concurrency: 'parallel' | 'latest' | 'queue',
+		inputs: readonly number[],
+		outputs: readonly number[]
+	])[];
 	/** Build-inspection inventory omitted from render-mode-projected runtime bundles. */
 	reactive?: readonly Readonly<{
 		name: string;
@@ -150,34 +158,48 @@ export type ExactComponentExecutionContract = Readonly<{
 	}>[];
 }>;
 
+/** Compiler-projected server execution slice consumed without rebuilding the component DAG. */
+export type ExactServerComponentExecutionContract = Readonly<{
+	version: 1;
+	/** Selects the smallest server lane capable of executing the projected component. */
+	classification: 'synchronous' | 'scheduled' | 'dynamic';
+	/** Whether this artifact can bypass durable generic server ownership. State-only resumption and compiler-closed scheduled setup are supported. */
+	lane: 'direct' | 'generic';
+	deferredTaskProps?: readonly string[];
+	/** Direct synchronous setup/render entry emitted only when generic ownership is unnecessary. */
+	render?: AnyExactComponentCallable;
+}>;
+
 /** Canonical compiler description from which one durable state-machine instance is created. */
 export type ExactCompiledComponentDefinitionContract = Readonly<{
 	version: 1;
 	instantiate: AnyExactComponentCallable;
-	/** Build-inspection inventories omitted from render-mode-projected runtime bundles. */
+	/** Compact compiler/runtime ABI bits used to omit impossible construction and disposal work. */
+	abi: number;
+	/** Component-wide dirty-state routing emitted only for compiler-proven direct DOM updates. */
+	updates?: ExactCompiledComponentUpdateContract;
+	/** Stable top-level state slots used by the compiled component-state facade. */
 	state?: readonly string[];
 	tasks?: readonly string[];
 	reactive?: ExactComponentExecutionContract['reactive'];
 	render?: 'returned-function';
-	capabilities: readonly (
-		| 'tasks'
-		| 'continuations'
-		| 'resumption'
-		| 'inspection'
-		| 'registry'
-		| 'enhancements'
-		| 'interactions'
-		| 'compatibility'
-		| 'dynamic-components'
-	)[];
+	capabilities: readonly ExactCompiledComponentCapability[];
+	/** Server-only execution classification and direct dependency slices. */
+	server?: ExactServerComponentExecutionContract;
 }>;
+
+/** One component-owned direct DOM update program shared by every instance of its definition. */
+export type {
+	ExactCompiledComponentCapability,
+	ExactCompiledComponentUpdateContract
+} from './component-definition-contracts.js';
 
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
 	/** Partition-aware component artifact contract. Version 1 artifacts are not adopted. */
 	version: 2;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	role: 'client' | 'executor';
+	role: 'client' | 'render' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];
 	continuations: readonly ExactComponentContinuationContract[];
 	executors: readonly ExactComponentContinuationExecutorContract[];
@@ -186,6 +208,10 @@ export type ExactComponentContract = Readonly<{
 	execution?: ExactComponentExecutionContract;
 	definition?: ExactCompiledComponentDefinitionContract;
 }>;
+
+/** Component contract whose executable definition is guaranteed by the compiler artifact ABI. */
+export type ExactCompiledComponentContract = ExactComponentContract &
+	Readonly<{ definition: ExactCompiledComponentDefinitionContract }>;
 
 /** Composed target-local contracts indexed for runtime use. */
 export type ExactComposedComponentContracts = Readonly<{
@@ -204,19 +230,119 @@ type ContractComponent = AnyExactComponentCallable & {
 	[exactComponentType]?: string;
 };
 
-/** Brands a compilerless framework component with an explicit stable native identity. */
-export function markExactComponent<T extends AnyExactComponentCallable>(
+const compatibilityCapabilities = ['compatibility', 'collections', 'dynamic-components'] as const;
+
+/**
+ * Constructs the explicit target-local artifact used only at a foreign component boundary.
+ * Native eXact authoring must use compiler-produced artifacts instead.
+ */
+export function createExactCompatibilityArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string,
+	target: 'client' | 'server'
+): T {
+	return attachRuntimeBoundaryArtifact(component, identity, target, compatibilityCapabilities);
+}
+
+/** Constructs the narrow artifact for a framework-owned boundary over an opaque runtime VNode. */
+export function createExactDynamicBoundaryArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string,
+	target: 'client' | 'server'
+): T {
+	return attachRuntimeBoundaryArtifact(component, identity, target, [
+		'dynamic-components',
+		'interactions'
+	]);
+}
+
+/** Constructs a complete runtime artifact solely for low-level framework test fixtures. */
+export function createExactFrameworkFixtureArtifact<T extends AnyExactComponentCallable>(
 	component: T,
 	identity: string
 ): T {
-	if (!identity) throw new Error('eXact component identity must be a non-empty string');
-	Object.defineProperty(component, exactComponentType, {
-		configurable: false,
-		enumerable: false,
-		value: identity,
-		writable: false
+	const existing = (component as ContractComponent)[exactComponentContract];
+	if (existing?.definition) return component;
+	if (existing && !existing.definition) {
+		const fixture = runtimeBoundaryDefinition(component, ['interactions', 'tasks'], 'client');
+		Object.defineProperties(component, {
+			[exactComponentType]: {
+				configurable: false,
+				enumerable: false,
+				value: (component as ContractComponent)[exactComponentType] ?? identity
+			},
+			[exactComponentContract]: {
+				configurable: false,
+				enumerable: false,
+				value: { ...existing, definition: fixture }
+			}
+		});
+		return component;
+	}
+	return attachRuntimeBoundaryArtifact(component, identity, 'client', ['interactions', 'tasks']);
+}
+
+/** Constructs an artifact for a framework-owned logical owner with no component topology. */
+export function createExactInternalOwnerArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string,
+	target: 'client' | 'server'
+): T {
+	return attachRuntimeBoundaryArtifact(component, identity, target, []);
+}
+
+function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
+	component: T,
+	identity: string,
+	target: 'client' | 'server',
+	capabilities: ExactCompiledComponentDefinitionContract['capabilities']
+): T {
+	if (!identity) throw new Error('eXact runtime artifact identity must be a non-empty string');
+	if (target !== 'client' && target !== 'server')
+		throw new TypeError('eXact runtime artifacts require a target-local artifact target');
+	const implementationId = `${identity}:implementation`;
+	const definition = runtimeBoundaryDefinition(component, capabilities, target);
+	const contract: ExactComponentContract = {
+		version: 2,
+		placement: target,
+		role: target === 'client' ? 'client' : 'executor',
+		implementations: [
+			{
+				id: implementationId,
+				name: component.name || 'AnonymousBoundary',
+				role: 'root',
+				implementation: component
+			}
+		],
+		continuations: [],
+		executors: [],
+		boundaries: [],
+		execution: { version: 1, ports: [], transitions: [], reactive: [] },
+		definition
+	};
+	Object.defineProperties(component, {
+		[exactComponentType]: { configurable: false, enumerable: false, value: identity },
+		[exactComponentContract]: { configurable: false, enumerable: false, value: contract }
 	});
 	return component;
+}
+
+function runtimeBoundaryDefinition(
+	component: AnyExactComponentCallable,
+	capabilities: ExactCompiledComponentDefinitionContract['capabilities'],
+	target: 'client' | 'server'
+): ExactCompiledComponentDefinitionContract {
+	return {
+		version: 1,
+		abi:
+			target === 'server' ? generalComponentABI | compiledComponentRenderABI : generalComponentABI,
+		instantiate: component,
+		state: [],
+		tasks: [],
+		reactive: [],
+		render: 'returned-function',
+		capabilities
+	};
 }
 
 /** Returns whether a callable carries a valid native eXact component identity. */
@@ -236,6 +362,31 @@ export function readExactComponentContract(
 	return validatedComponentContract(component, contract, componentId);
 }
 
+/** Reads one executable compiler artifact and rejects identity-only native values. */
+export function readExactCompiledComponentContract(
+	component: AnyExactComponentCallable
+): ExactCompiledComponentContract {
+	const contract = readExactComponentContract(component);
+	if (!contract?.definition)
+		throw new TypeError('Native eXact component execution requires a compiled component artifact');
+	return contract as ExactCompiledComponentContract;
+}
+
+/** Reads build-validated compiler metadata without repeating recursive runtime validation. */
+export const readPreparedExactComponentContract = (
+	component: AnyExactComponentCallable
+): ExactComponentContract | undefined => (component as ContractComponent)[exactComponentContract];
+
+/** Reads a build-validated executable compiler artifact. */
+export function readPreparedExactCompiledComponentContract(
+	component: AnyExactComponentCallable
+): ExactCompiledComponentContract {
+	const contract = readPreparedExactComponentContract(component);
+	if (!contract?.definition)
+		throw new TypeError('Native eXact component execution requires a compiled component artifact');
+	return contract as ExactCompiledComponentContract;
+}
+
 /** Returns the stable compiler identity used to pair SSR and client component boundaries. */
 export function exactComponentIdentity(component: AnyExactComponentCallable): string {
 	const identity = (component as ContractComponent)[exactComponentType];
@@ -253,6 +404,22 @@ export function composeExactComponentContracts(
 	components: readonly AnyExactComponentCallable[],
 	role: ExactComponentContract['role']
 ): ExactComposedComponentContracts {
+	return composeComponentContracts(components, role, readExactComponentContract);
+}
+
+/** Composes build-validated compiler metadata without repeating recursive validation. */
+export function composePreparedExactComponentContracts(
+	components: readonly AnyExactComponentCallable[],
+	role: ExactComponentContract['role']
+): ExactComposedComponentContracts {
+	return composeComponentContracts(components, role, readPreparedExactComponentContract);
+}
+
+function composeComponentContracts(
+	components: readonly AnyExactComponentCallable[],
+	role: ExactComponentContract['role'],
+	readContract: (component: AnyExactComponentCallable) => ExactComponentContract | undefined
+): ExactComposedComponentContracts {
 	const implementations: Record<string, AnyExactComponentCallable> = {};
 	const implementationsById: Record<string, AnyExactComponentCallable> = {};
 	const continuations: Record<string, ExactComponentContinuationContract> = {};
@@ -263,7 +430,7 @@ export function composeExactComponentContracts(
 	const definitions: Record<string, ExactCompiledComponentDefinitionContract> = {};
 
 	for (const component of components) {
-		const contract = readExactComponentContract(component);
+		const contract = readContract(component);
 		if (!contract) continue;
 		const componentId = exactComponentIdentity(component);
 		if (contract.role !== role)

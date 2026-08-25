@@ -58,7 +58,7 @@ export function encodeMarkerKey(value: string): string {
 	return encodeExactMarkerPart(value);
 }
 
-/** Decodes marker data emitted by encodeMarkerKey; legacy safe keys pass through. */
+/** Decodes marker data emitted by encodeMarkerKey; directly encoded safe keys pass through. */
 export function decodeMarkerKey(value: string): string {
 	return decodeExactMarkerPart(value);
 }

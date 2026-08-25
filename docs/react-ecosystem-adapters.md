@@ -31,6 +31,11 @@ Changing the root manifest, lockfile, or an active adapter manifest invalidates
 Vite's shared registry. Conflicts and incompatible reachable versions fail the
 build instead of choosing an order-dependent winner.
 
+The compatibility build engine snapshots that registry for one build generation. Build-tool
+integrations using the engine directly must watch its reported `watchFiles` and pass their changes
+to `invalidate()`. Modules that do not lexically reference React or a discovered adapter source
+skip importer-specific graph selection and source parsing.
+
 ## Provider-first migration
 
 Install the native adapter beside the existing React binding. Existing imports

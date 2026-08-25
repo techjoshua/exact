@@ -1,5 +1,4 @@
 import { createContext, createVNode, type Child, type Component, type VNode } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import {
 	parseStoredThemeAppearance,
 	persistThemeAppearance,
@@ -31,20 +30,26 @@ export function ThemeModeToggle(
 	this: Component<Record<string, never>>,
 	props: { appearance: EffectiveThemeAppearance; onToggle(): void }
 ) {
-	return () => {
-		const target = props.appearance === 'dark' ? 'light' : 'dark';
-		return createVNode(
-			'button',
-			{
-				className: 'exact-app-theme-toggle',
-				type: 'button',
-				'aria-label': `Switch to ${target} mode`,
-				title: `Switch to ${target} mode`,
-				onClick: props.onToggle
-			},
-			props.appearance === 'dark' ? sunIcon() : moonIcon()
-		);
-	};
+	return () => renderThemeModeToggle(props);
+}
+
+/** @exact pure */
+function renderThemeModeToggle(props: {
+	appearance: EffectiveThemeAppearance;
+	onToggle(): void;
+}): VNode {
+	const target = props.appearance === 'dark' ? 'light' : 'dark';
+	return createVNode(
+		'button',
+		{
+			className: 'exact-app-theme-toggle',
+			type: 'button',
+			'aria-label': `Switch to ${target} mode`,
+			title: `Switch to ${target} mode`,
+			onClick: props.onToggle
+		},
+		props.appearance === 'dark' ? sunIcon() : moonIcon()
+	);
 }
 
 /** Owns system tracking, shared persistence, theme publication, and the repository-app toggle. */
@@ -93,10 +98,12 @@ export function ThemePreferenceProvider(
 	return () => createVNode('div', {}, ...childrenOf(props.children));
 }
 
+/** @exact pure */
 function childrenOf(children: Child | Child[] | undefined): Child[] {
 	return children === undefined ? [] : Array.isArray(children) ? children : [children];
 }
 
+/** @exact pure */
 function sunIcon(): VNode {
 	return createVNode(
 		'svg',
@@ -108,6 +115,7 @@ function sunIcon(): VNode {
 	);
 }
 
+/** @exact pure */
 function moonIcon(): VNode {
 	return createVNode(
 		'svg',
@@ -115,9 +123,3 @@ function moonIcon(): VNode {
 		createVNode('path', { d: 'M20.2 15.5A8.5 8.5 0 0 1 8.5 3.8 8.5 8.5 0 1 0 20.2 15.5Z' })
 	);
 }
-
-markExactComponent(ThemeModeToggle, '@exactjs/app-theme-preference:ThemeModeToggle');
-markExactComponent(
-	ThemePreferenceProvider,
-	'@exactjs/app-theme-preference:ThemePreferenceProvider'
-);

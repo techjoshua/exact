@@ -1,9 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
-import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';
@@ -15,12 +16,12 @@ const identity = '@exactjs/accessibility/enhancements#labelledBy';
 
 describe('@exactjs/hydrate accessibility identity adoption', () => {
 	it('retains the server relationship and generated target ID while adopting nodes', () => {
-		const Page = markExactComponent(function Page(this: Component<{}>) {
+		const Page = createExactFrameworkFixtureArtifact(function Page(this: Component<{}>) {
 			const label = this.ref(labelKey);
 			return () => [
 				createVNode('span', { ref: label }, 'Account email'),
 				createVNode('input', {
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { labelledBy: label } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { labelledBy: label } }])
 				})
 			];
 		}, '@exactjs/hydrate:accessibility-page');

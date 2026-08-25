@@ -4,6 +4,60 @@ import (
 	"github.com/microsoft/typescript-go/internal/ast"
 )
 
+// lowerComponentLifecycleCall wires canonical authored lifecycle operations directly to the
+// component kernel. Dynamic or extracted member access remains intact and selects the optional
+// compatibility surface during runtime import planning.
+func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.Node {
+	if !ast.IsCallExpression(node) || !lowering.insideComponent(node) {
+		return nil
+	}
+	call := node.AsCallExpression()
+	if call.QuestionDotToken != nil {
+		return nil
+	}
+	name, componentMember, dynamic := componentProtocolMember(call.Expression)
+	if !componentMember || dynamic {
+		return nil
+	}
+	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+2)
+	arguments = append(arguments, lowering.factory.NewThisExpression())
+	helper := ""
+	switch name {
+	case "onMount", "onActivate", "onDeactivate", "onUnmount":
+		// Mount and client activation phases never execute during SSR. Erase the complete
+		// registration expression so its callback and browser-only dependency graph cannot
+		// enter a server artifact. Unmount remains meaningful because SSR owners run request
+		// cleanup, while render and owned resources likewise retain their server semantics.
+		if lowering.target == TargetServer &&
+			(name == "onMount" || name == "onActivate" || name == "onDeactivate") {
+			return lowering.factory.NewVoidExpression(
+				lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
+			)
+		}
+		helper = lowering.names.registerLifecycle
+		phase := map[string]string{
+			"onMount": "mount", "onActivate": "activate", "onDeactivate": "deactivate", "onUnmount": "unmount",
+		}[name]
+		arguments = append(arguments, lowering.factory.NewStringLiteral(phase, ast.TokenFlagsNone))
+	case "onRender":
+		helper = lowering.names.registerRender
+	case "own":
+		helper = lowering.names.ownResource
+	default:
+		return nil
+	}
+	for _, argument := range call.Arguments.Nodes {
+		arguments = append(arguments, lowering.visitor.VisitNode(argument))
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(helper),
+		nil,
+		call.TypeArguments,
+		lowering.factory.NewNodeList(arguments),
+		call.Flags,
+	)
+}
+
 // lowerComponentLogCall preserves the ordinary ComponentLog authoring surface while
 // moving its runtime enablement check ahead of argument evaluation. Optional-call
 // semantics are the important part of this ABI: when the helper returns undefined,
@@ -105,6 +159,10 @@ func (lowering *jsxLowering) lowerComponentRegistryCreation(
 		return nil
 	}
 	name := declaration.Name().Text()
+	registryTarget := "client"
+	if lowering.target == TargetServer {
+		registryTarget = "server"
+	}
 	return lowering.factory.NewCallExpression(
 		lowering.factory.NewIdentifier(lowering.names.componentRegistry),
 		call.QuestionDotToken,
@@ -119,6 +177,7 @@ func (lowering *jsxLowering) lowerComponentRegistryCreation(
 				ast.TokenFlagsNone,
 			),
 			lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
+			lowering.factory.NewStringLiteral(registryTarget, ast.TokenFlagsNone),
 			lowering.visitor.VisitNode(call.Arguments.Nodes[0]),
 		}),
 		call.Flags,
@@ -149,7 +208,7 @@ func (lowering *jsxLowering) omitServerComponentValues(
 			(ast.IsArrowFunction(declaration.Initializer) ||
 				ast.IsFunctionExpression(declaration.Initializer)) {
 			if component, exists := lowering.components[name.Text()]; exists &&
-				componentOmittedFromClient(component, lowering.serverComponents) {
+				lowering.omitsComponentFromClient(component) {
 				lowering.recordClientIslandDefinitions(component)
 				declarations = append(
 					declarations,

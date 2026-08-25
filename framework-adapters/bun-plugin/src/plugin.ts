@@ -280,7 +280,8 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			build.onLoad({ filter: bunLoadFilter(options) }, async (args) => {
 				const source = await readBunLoadSource(args);
 				remoteIntegration?.recordSource(args.path, source);
-				reportDiagnostics(compilerSession.invalidate(args.path), console.warn);
+				const invalidation = compilerSession.invalidate(args.path);
+				if (diagnosticsEnabled) reportDiagnostics(invalidation, console.warn);
 				const result = transformExactBunSource(
 					source,
 					args.path,

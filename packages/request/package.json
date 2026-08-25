@@ -10,20 +10,26 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./node": {
 			"types": "./dist/node.d.ts",
-			"default": "./dist/node.js"
+			"default": "./dist/server/node.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"exactCompiledComponents": [
+		"RequestProvider"
+	],
 	"dependencies": {
-		"@exactjs/core": "^0.1.0"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc -b",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

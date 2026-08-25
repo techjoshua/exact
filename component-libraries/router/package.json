@@ -10,23 +10,35 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./modern": {
 			"types": "./dist/modern.d.ts",
-			"default": "./dist/modern.js"
+			"browser": "./dist/client/modern.js",
+			"default": "./dist/server/modern.js"
 		},
 		"./data": {
 			"types": "./dist/data.d.ts",
-			"default": "./dist/data.js"
+			"browser": "./dist/client/data.js",
+			"default": "./dist/server/data.js"
 		},
 		"./v5": {
 			"types": "./dist/v5.d.ts",
-			"default": "./dist/v5.js"
+			"browser": "./dist/client/v5.js",
+			"default": "./dist/server/v5.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"Link",
+		"Navigate",
+		"NavLink",
+		"Outlet",
+		"Route",
+		"Router"
+	],
 	"sideEffects": false,
 	"exactComponentLibrary": {
 		"protocol": 1,
@@ -35,9 +47,11 @@
 	"dependencies": {
 		"@exactjs/component-library": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
 		"@exactjs/reactive": "^0.1.0",
 		"@exactjs/request": "^0.1.0",
-		"@exactjs/react-compat-adapter-api": "^0.1.0"
+		"@exactjs/react-compat-adapter-api": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"peerDependencies": {
 		"@exactjs/react-compat": "^0.1.0",
@@ -1018,7 +1032,7 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

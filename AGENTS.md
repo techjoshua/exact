@@ -213,7 +213,7 @@ that needs its own server should create and close Vite programmatically in one o
 use `try`/`finally`, as the Theme Lab browser runner does. If a background server is genuinely
 necessary, record its exact PID ownership, stop every process in that owned tree when the task
 finishes or fails, and verify that no task-owned `node`, language-extension runner, or
-`exactc-native` process remains. A shell-command timeout is not cleanup.
+`exactc` process remains. A shell-command timeout is not cleanup.
 
 ## The seat-belt rule for testing
 

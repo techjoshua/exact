@@ -13,19 +13,24 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./enhancements": {
 			"types": "./capability.d.ts",
-			"default": "./dist/enhancements.js"
+			"browser": "./dist/client/enhancements.js",
+			"default": "./dist/server/enhancements.js"
 		},
 		"./language": {
 			"types": "./dist/language.d.ts",
-			"node": "./dist/language.js"
+			"node": "./dist/server/language.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"Accessibility"
+	],
 	"exactComponentLibrary": {
 		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
@@ -56,8 +61,10 @@
 	"dependencies": {
 		"@exactjs/component-library": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
 		"@exactjs/language-extension-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"devDependencies": {
 		"prettier": "^3.6.2"
@@ -65,7 +72,7 @@
 	"scripts": {
 		"generate:aria": "node scripts/generate-aria-data.mjs",
 		"check:aria": "node scripts/generate-aria-data.mjs --check",
-		"build": "npm run check:aria && tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "npm run check:aria && tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "npm run check:aria && vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

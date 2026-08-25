@@ -11,7 +11,6 @@ import { _ } from '@exactjs/jsx';
 import { builtInTemperaments, builtInThemeKeys } from '@exactjs/theme';
 import {
 	type DocsThemeSettings,
-	isThemePreference,
 	ThemeContext,
 	type ThemeContextValue,
 	type ThemeSettingName
@@ -46,7 +45,6 @@ function persistTheme(settings: Readonly<DocsThemeSettings>) {
 		'exact-docs-theme-settings',
 		JSON.stringify({ ...settings, preference: 'system' })
 	);
-	localStorage.removeItem('exact-docs-theme');
 }
 
 function parseSettings(value: string | null): DocsThemeSettings | undefined {
@@ -121,13 +119,6 @@ export function ThemeProvider(
 			Object.assign(state, stored);
 			if (!localStorage.getItem(themeAppearanceStorageKey) && stored.preference !== 'system') {
 				persistThemeAppearance(stored.preference);
-			}
-		} else {
-			const legacyPreference = localStorage.getItem('exact-docs-theme');
-			if (legacyPreference && isThemePreference(legacyPreference)) {
-				state.preference = legacyPreference;
-				persistThemeAppearance(legacyPreference);
-				persistTheme(state);
 			}
 		}
 

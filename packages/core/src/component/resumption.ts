@@ -1,4 +1,4 @@
-import type { Reactive } from '@exactjs/reactive';
+import type { Reactive } from '@exactjs/reactive/framework/runtime';
 import type { ComponentResumptionActivation } from './contracts.js';
 
 /** Applies compiler-selected SSR state paths without replacing client-local setup state. */

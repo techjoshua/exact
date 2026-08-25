@@ -14,6 +14,8 @@ export {
 	materializeExactPhysicalEnhancementFacades,
 	type ExactPhysicalEnhancementFacade
 } from './compilation/physical-enhancement-facades.js';
+export { composeExactSourceMaps, isExactSourceMap } from './source-maps.js';
+export type { ExactSourceMap } from './types.js';
 
 /** A compiler diagnostic shape that build-tool integrations can report. */
 export type ExactBuildDiagnostic = Readonly<{
@@ -32,6 +34,24 @@ export type ExactBuildModuleSelectionOptions = Readonly<{
 	exclude?: ExactBuildFilter;
 	compileTestModules?: boolean;
 }>;
+
+/** Rendering mode understood consistently by every build-tool adapter. */
+export type ExactBuildRenderMode = 'universal' | 'client' | 'hydrate' | 'server-render';
+
+/** Selects and validates the component-contract facet for one physical build target. */
+export function exactComponentContractProjection(
+	target: 'client' | 'server',
+	mode: ExactBuildRenderMode | undefined
+): import('./contracts/transform.js').ComponentContractProjection {
+	if (target === 'server') {
+		if (mode === undefined || mode === 'universal') return 'complete';
+		if (mode === 'server-render') return 'server-render';
+		throw new TypeError(`Client render mode ${mode} cannot compile a server target`);
+	}
+	if (mode === 'server-render')
+		throw new TypeError('Server render mode cannot compile a client target');
+	return mode === undefined || mode === 'universal' ? 'complete' : mode;
+}
 
 /**
  * Creates a stateful reporter that emits only newly introduced diagnostics.
@@ -121,6 +141,9 @@ export function shouldCompileExactBuildModule(
 	if (!isExactBuildSourceModule(id)) return false;
 	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
 	if (!shouldTransformExactBuildModulePath(id, options)) return false;
+	// An explicit include is an ownership declaration, not merely a path prefilter. Compile matching
+	// TypeScript modules even when their component definitions use createVNode instead of JSX.
+	if (options.include) return true;
 	return (
 		containsExactBuildJsx(id, source) ||
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)

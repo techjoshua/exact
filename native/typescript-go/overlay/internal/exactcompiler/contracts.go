@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.35.0"
+const ProtocolVersion = "1.36.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -20,9 +20,10 @@ type Target string
 type ComponentContractProjection string
 
 const (
-	ComponentContractProjectionComplete ComponentContractProjection = "complete"
-	ComponentContractProjectionHydrate  ComponentContractProjection = "hydrate"
-	ComponentContractProjectionClient   ComponentContractProjection = "client"
+	ComponentContractProjectionComplete     ComponentContractProjection = "complete"
+	ComponentContractProjectionHydrate      ComponentContractProjection = "hydrate"
+	ComponentContractProjectionClient       ComponentContractProjection = "client"
+	ComponentContractProjectionServerRender ComponentContractProjection = "server-render"
 )
 
 const (
@@ -200,6 +201,35 @@ type Component struct {
 	Execution           ComponentExecution        `json:"execution"`
 	Interactions        bool                      `json:"-"`
 	DynamicComponents   bool                      `json:"-"`
+	StateSlots          []string                  `json:"-"`
+	Collections         bool                      `json:"-"`
+	CompiledRender      bool                      `json:"-"`
+	Lifecycle           bool                      `json:"-"`
+	Lists               bool                      `json:"-"`
+	Surface             ComponentSurfacePlan      `json:"-"`
+	TargetPlan          ComponentTargetPlan       `json:"-"`
+}
+
+// ComponentSurfacePlan records compiler-observed instance capabilities before lowering rewrites
+// their syntax. Runtime selection must consume these facts rather than scan transformed text.
+type ComponentSurfacePlan struct {
+	Logging         bool
+	Localization    bool
+	Refs            bool
+	Contexts        bool
+	Reactivity      bool
+	ServerLifecycle bool
+}
+
+// ComponentTargetPlan is the compiler's authoritative target-local execution decision. Lowering
+// passes consume this plan instead of independently reconstructing server lanes and projections.
+type ComponentTargetPlan struct {
+	ClientExecution      ComponentExecution
+	ServerExecution      ComponentExecution
+	DeferredTaskProps    []string
+	DirectServer         bool
+	DirectServerFrame    bool
+	GenericServerRuntime bool
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.
@@ -388,6 +418,7 @@ type StateWrite struct {
 	RootDepth       int               `json:"-"`
 	DynamicSegments map[int]*ast.Node `json:"-"`
 	Interaction     bool              `json:"-"`
+	InputPath       string            `json:"-"`
 }
 
 // ValueCallbackBinding preserves one authored paired JSX binding across
@@ -574,6 +605,7 @@ type Task struct {
 	Start                   int                       `json:"start"`
 	Length                  int                       `json:"length"`
 	SyntheticSetup          bool                      `json:"-"`
+	CompilerComputation     bool                      `json:"-"`
 	FunctionDefined         bool                      `json:"functionDefined,omitempty"`
 	WorkStart               int                       `json:"workStart,omitempty"`
 	WorkLength              int                       `json:"workLength,omitempty"`
@@ -641,10 +673,17 @@ type ServerRenderRecord struct {
 
 // ClientResumptionRecord contains the durable browser-visible resume contract.
 type ClientResumptionRecord struct {
-	StatePaths    []string `json:"statePaths"`
-	ValueCaptures []string `json:"valueCaptures"`
-	Contexts      []string `json:"contexts"`
-	Boundaries    []string `json:"boundaries"`
+	StatePaths    []string     `json:"statePaths"`
+	StateInputs   []StateInput `json:"stateInputs"`
+	ValueCaptures []string     `json:"valueCaptures"`
+	Contexts      []string     `json:"contexts"`
+	Boundaries    []string     `json:"boundaries"`
+}
+
+// StateInput identifies state reconstructed by client setup from the published root props.
+type StateInput struct {
+	StatePath string `json:"statePath"`
+	PropPath  string `json:"propPath"`
 }
 
 // ComponentResumption separates server activation from client resume data.
@@ -1038,6 +1077,9 @@ func normalizedResumptions(values []ComponentResumption) []ComponentResumption {
 		values[index].Client.StatePaths = nonNilSlice(
 			values[index].Client.StatePaths,
 		)
+		values[index].Client.StateInputs = nonNilSlice(
+			values[index].Client.StateInputs,
+		)
 		values[index].Client.ValueCaptures = nonNilSlice(
 			values[index].Client.ValueCaptures,
 		)
@@ -1101,19 +1143,20 @@ func (value WorkCounters) since(previous WorkCounters) WorkCounters {
 
 // Response is one newline-delimited result emitted by a Session.
 type Response struct {
-	ID                string                  `json:"id,omitempty"`
-	ProtocolVersion   string                  `json:"protocolVersion"`
-	TypeScriptVersion string                  `json:"typescriptVersion"`
-	BackendVersion    string                  `json:"backendVersion"`
-	Code              string                  `json:"code"`
-	SourceMap         *sourcemap.RawSourceMap `json:"sourceMap,omitempty"`
-	Diagnostics       []Diagnostic            `json:"diagnostics"`
-	Analysis          Analysis                `json:"analysis"`
-	Timings           Timings                 `json:"timings"`
-	Counters          WorkCounters            `json:"counters"`
-	CacheHit          bool                    `json:"cacheHit,omitempty"`
-	Error             string                  `json:"error,omitempty"`
-	Extension         any                     `json:"extension,omitempty"`
+	ID                  string                  `json:"id,omitempty"`
+	ProtocolVersion     string                  `json:"protocolVersion"`
+	TypeScriptVersion   string                  `json:"typescriptVersion"`
+	BackendVersion      string                  `json:"backendVersion"`
+	Code                string                  `json:"code"`
+	RuntimeDependencies []string                `json:"runtimeDependencies,omitempty"`
+	SourceMap           *sourcemap.RawSourceMap `json:"sourceMap,omitempty"`
+	Diagnostics         []Diagnostic            `json:"diagnostics"`
+	Analysis            Analysis                `json:"analysis"`
+	Timings             Timings                 `json:"timings"`
+	Counters            WorkCounters            `json:"counters"`
+	CacheHit            bool                    `json:"cacheHit,omitempty"`
+	Error               string                  `json:"error,omitempty"`
+	Extension           any                     `json:"extension,omitempty"`
 }
 
 // NewResponseVersionFields returns the versions required on every response,

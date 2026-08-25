@@ -27,6 +27,11 @@ export function seedKeyedCollectionMetadata(
 	return rebuildMetadata(collection, key);
 }
 
+/** Releases keyed metadata and every reverse mutation-owner link for one retired collection. */
+export function releaseKeyedCollectionMetadata(collection: unknown[]): void {
+	clearMetadata(collection);
+}
+
 /** Performs the keyed collection metadata domain operation. */
 export function keyedCollectionMetadata(
 	collection: unknown[],

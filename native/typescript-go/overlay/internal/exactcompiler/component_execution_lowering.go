@@ -2,10 +2,79 @@ package exactcompiler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/printer"
 )
+
+// planComponentTargets records the single target-local proof shared by task lowering, contract
+// emission, capability selection, and renderer entry lowering. No later pass should reconstruct
+// these execution or server-lane decisions from component facts.
+func planComponentTargets(
+	sourceFile *ast.SourceFile,
+	components []Component,
+	tasks []Task,
+	resumptions []ComponentResumption,
+	compatibilityEnabled bool,
+) {
+	for index := range components {
+		component := &components[index]
+		componentNode := componentSourceNode(sourceFile, *component)
+		if componentNode == nil {
+			continue
+		}
+		execution := projectComponentExecution(component.Execution, TargetServer)
+		hasResumption := component.Placement == "isomorphic" &&
+			componentHasResumption(component.ID, resumptions)
+		directResumption := hasResumption &&
+			directServerResumptionSupported(component.ID, resumptions)
+		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
+		hasLifecycle := component.Surface.ServerLifecycle
+		unsupportedSurface := component.Surface.Logging || component.Surface.Localization ||
+			component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
+			component.Surface.ServerLifecycle
+		abi := componentRuntimeABI(*component, execution, hasLifecycle, false, usesCompatibility)
+		directABI := componentABICompiledRender | componentABITasks
+		tasksSupported := true
+		for _, task := range tasks {
+			if task.Component == component.Name && !directServerTaskSupported(task) {
+				tasksSupported = false
+				break
+			}
+		}
+		directServer := component.CompiledRender &&
+			(!hasResumption || directResumption) && !usesCompatibility &&
+			!component.DynamicComponents && !unsupportedSurface && tasksSupported && abi&^directABI == 0
+		component.TargetPlan = ComponentTargetPlan{
+			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
+			ServerExecution:      execution,
+			DeferredTaskProps:    deferredServerTaskProps(*component, execution, componentNode, tasks),
+			DirectServer:         directServer,
+			DirectServerFrame:    directServer && len(execution.Transitions) == 0,
+			GenericServerRuntime: component.Placement != "client" && !directServer,
+		}
+	}
+}
+
+func directServerTaskSupported(task Task) bool {
+	if task.Placement == "client" {
+		return true
+	}
+	if directServerSetupComputation(task) {
+		return true
+	}
+	return !task.Invoked && !task.Detached && task.KeyLength == 0 &&
+		(task.Readiness == "" || task.Readiness == "blocking" || !task.Async) &&
+		len(task.Contexts) == 0
+}
+
+func componentTargetExecution(component Component, target Target) ComponentExecution {
+	if target == TargetServer {
+		return component.TargetPlan.ServerExecution
+	}
+	return component.TargetPlan.ClientExecution
+}
 
 // componentExecutionMetadata emits the compact canonical subgraph on both
 // target facets so each runtime can optimize without importing its opposite.
@@ -16,24 +85,23 @@ func componentExecutionMetadata(
 ) *ast.Node {
 	ports := make([]*ast.Node, 0, len(execution.Ports))
 	for _, port := range execution.Ports {
-		ports = append(ports, contractObject(factory, true,
-			contractProperty(factory, "index", contractNumber(factory, port.Index)),
-			contractProperty(factory, "kind", contractString(factory, port.Kind)),
-			contractProperty(factory, "path", contractString(factory, port.Path)),
-			contractProperty(factory, "direction", contractString(factory, port.Direction)),
+		ports = append(ports, contractArray(factory,
+			contractString(factory, port.Kind),
+			contractString(factory, port.Path),
+			contractString(factory, port.Direction),
 		))
 	}
 	transitions := make([]*ast.Node, 0, len(execution.Transitions))
 	for _, transition := range execution.Transitions {
-		transitions = append(transitions, contractObject(factory, true,
-			contractProperty(factory, "id", contractString(factory, transition.ID)),
-			contractProperty(factory, "taskId", contractString(factory, transition.TaskID)),
-			contractProperty(factory, "activation", contractString(factory, transition.Activation)),
-			contractProperty(factory, "placement", contractString(factory, transition.Placement)),
-			contractProperty(factory, "readiness", contractString(factory, transition.Readiness)),
-			contractProperty(factory, "concurrency", contractString(factory, transition.Concurrency)),
-			contractProperty(factory, "inputs", contractNumberArray(factory, transition.Inputs)),
-			contractProperty(factory, "outputs", contractNumberArray(factory, transition.Outputs)),
+		transitions = append(transitions, contractArray(factory,
+			contractString(factory, transition.ID),
+			contractString(factory, transition.TaskID),
+			contractString(factory, transition.Activation),
+			contractString(factory, transition.Placement),
+			contractString(factory, transition.Readiness),
+			contractString(factory, transition.Concurrency),
+			contractNumberArray(factory, transition.Inputs),
+			contractNumberArray(factory, transition.Outputs),
 		))
 	}
 	reactive := make([]*ast.Node, 0, len(execution.Reactive))
@@ -56,27 +124,31 @@ func componentExecutionMetadata(
 	return contractObject(factory, true, properties...)
 }
 
-// componentDefinitionMetadata emits the single compiler-owned description
-// interpreted to create each durable state-machine instance.
+// componentDefinitionMetadata emits the single compiler-owned executable description consumed
+// while creating each durable state-machine instance.
 func componentDefinitionMetadata(
 	factory *printer.NodeFactory,
 	instantiate *ast.Node,
 	execution ComponentExecution,
+	deferredTaskProps []string,
+	stateSlots []string,
 	continuations []Continuation,
 	hasResumption bool,
+	directResumption bool,
 	hasInteractions bool,
 	compatibility bool,
 	dynamicComponents bool,
+	collections bool,
+	runtimeABI int,
+	unsupportedServerSurface bool,
+	directServer bool,
+	server bool,
 	compact bool,
+	updates *ast.Node,
 ) *ast.Node {
-	state := []string{}
+	state := append([]string{}, stateSlots...)
 	tasks := []string{}
 	capabilities := []string{}
-	for _, port := range execution.Ports {
-		if port.Kind == "state" {
-			state = append(state, port.Path)
-		}
-	}
 	for _, transition := range execution.Transitions {
 		tasks = append(tasks, transition.ID)
 	}
@@ -98,6 +170,9 @@ func componentDefinitionMetadata(
 	if dynamicComponents {
 		capabilities = append(capabilities, "dynamic-components")
 	}
+	if collections {
+		capabilities = append(capabilities, "collections")
+	}
 	reactive := make([]*ast.Node, 0, len(execution.Reactive))
 	for _, binding := range execution.Reactive {
 		reactive = append(reactive, contractObject(factory, true,
@@ -110,17 +185,217 @@ func componentDefinitionMetadata(
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "instantiate", instantiate),
+		contractProperty(factory, "abi", contractNumber(factory, runtimeABI)),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
+		contractProperty(factory, "state", stringMetadata(factory, state)),
+	}
+	if updates != nil {
+		properties = append(properties, contractProperty(factory, "updates", updates))
+	}
+	if server {
+		properties = append(properties, contractProperty(
+			factory,
+			"server",
+			serverComponentExecutionMetadata(
+				factory,
+				execution,
+				deferredTaskProps,
+				instantiate,
+				directServer,
+				dynamicComponents,
+			),
+		))
 	}
 	if !compact {
 		properties = append(properties,
-			contractProperty(factory, "state", stringMetadata(factory, state)),
 			contractProperty(factory, "tasks", stringMetadata(factory, tasks)),
 			contractProperty(factory, "reactive", contractArray(factory, reactive...)),
 			contractProperty(factory, "render", contractString(factory, "returned-function")),
 		)
 	}
 	return contractObject(factory, true, properties...)
+}
+
+// serverComponentExecutionMetadata projects activation and dependency slices once at build time.
+// The server renderer consumes this record directly instead of reconstructing a per-request DAG.
+func serverComponentExecutionMetadata(
+	factory *printer.NodeFactory,
+	execution ComponentExecution,
+	deferredTaskProps []string,
+	instantiate *ast.Node,
+	direct bool,
+	dynamic bool,
+) *ast.Node {
+	classification := "synchronous"
+	if dynamic {
+		classification = "dynamic"
+	} else if len(execution.Transitions) != 0 {
+		classification = "scheduled"
+	}
+	lane := "generic"
+	if direct && classification != "dynamic" {
+		lane = "direct"
+	}
+	properties := []*ast.Node{
+		contractProperty(factory, "version", contractNumber(factory, 1)),
+		contractProperty(factory, "classification", contractString(factory, classification)),
+		contractProperty(factory, "lane", contractString(factory, lane)),
+	}
+	if len(deferredTaskProps) != 0 {
+		properties = append(properties,
+			contractProperty(factory, "deferredTaskProps", stringMetadata(factory, deferredTaskProps)),
+		)
+	}
+	if lane == "direct" {
+		properties = append(properties,
+			contractProperty(factory, "render", instantiate),
+		)
+	}
+	return contractObject(factory, true, properties...)
+}
+
+func serverSetupTaskPropNames(execution ComponentExecution) []string {
+	seen := make(map[string]struct{})
+	result := []string{}
+	for _, transition := range execution.Transitions {
+		if transition.Activation != "setup" {
+			continue
+		}
+		for _, input := range transition.Inputs {
+			if input < 0 || input >= len(execution.Ports) || execution.Ports[input].Kind != "props" {
+				continue
+			}
+			path := strings.TrimPrefix(execution.Ports[input].Path, "props.")
+			if separator := strings.IndexByte(path, '.'); separator >= 0 {
+				path = path[:separator]
+			}
+			if path == "" {
+				continue
+			}
+			if _, exists := seen[path]; exists {
+				continue
+			}
+			seen[path] = struct{}{}
+			result = append(result, path)
+		}
+	}
+	return result
+}
+
+// deferredServerTaskProps proves which setup-task inputs are never consumed by ordinary
+// component construction or rendering. Only those props may retain dependency provenance while
+// the component is instantiated; every other pending prop must settle first.
+func deferredServerTaskProps(
+	component Component,
+	execution ComponentExecution,
+	componentNode *ast.Node,
+	tasks []Task,
+) []string {
+	candidates := serverSetupTaskPropNames(execution)
+	if len(candidates) == 0 || componentNode == nil {
+		return candidates
+	}
+	propsName := componentPropsParameterName(componentNode)
+	if propsName == "" {
+		return nil
+	}
+	candidateSet := make(map[string]struct{}, len(candidates))
+	for _, name := range candidates {
+		candidateSet[name] = struct{}{}
+	}
+	taskRanges := make([]SourceSpan, 0, len(tasks)*2)
+	for _, task := range tasks {
+		if task.Component != component.Name || task.Invoked ||
+			(task.Placement != "server" && task.Placement != "isomorphic") {
+			continue
+		}
+		if task.Length > 0 {
+			taskRanges = append(taskRanges, SourceSpan{Start: task.Start, Length: task.Length})
+		}
+		if task.WorkLength > 0 {
+			taskRanges = append(taskRanges, SourceSpan{Start: task.WorkStart, Length: task.WorkLength})
+		}
+	}
+	direct := make(map[string]struct{})
+	walkNode(componentNode, func(node *ast.Node) bool {
+		name, ok := rootPropertyName(node, propsName)
+		if !ok {
+			return true
+		}
+		if _, candidate := candidateSet[name]; !candidate || withinAnySourceSpan(node, taskRanges) {
+			return true
+		}
+		direct[name] = struct{}{}
+		return true
+	})
+	result := make([]string, 0, len(candidates))
+	for _, name := range candidates {
+		if _, usedDirectly := direct[name]; !usedDirectly {
+			result = append(result, name)
+		}
+	}
+	return result
+}
+
+func componentPropsParameterName(componentNode *ast.Node) string {
+	for _, parameter := range componentNode.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() != "this" {
+			return name.Text()
+		}
+	}
+	return ""
+}
+
+func rootPropertyName(node *ast.Node, receiver string) (string, bool) {
+	switch {
+	case ast.IsPropertyAccessExpression(node):
+		member := node.AsPropertyAccessExpression()
+		if ast.IsIdentifier(member.Expression) && member.Expression.Text() == receiver &&
+			member.Name() != nil {
+			return member.Name().Text(), true
+		}
+	case ast.IsElementAccessExpression(node):
+		member := node.AsElementAccessExpression()
+		if ast.IsIdentifier(member.Expression) && member.Expression.Text() == receiver &&
+			member.ArgumentExpression != nil && ast.IsStringLiteral(member.ArgumentExpression) {
+			return member.ArgumentExpression.Text(), true
+		}
+	}
+	return "", false
+}
+
+func withinAnySourceSpan(node *ast.Node, spans []SourceSpan) bool {
+	for _, span := range spans {
+		if node.Pos() >= span.Start && node.End() <= span.Start+span.Length {
+			return true
+		}
+	}
+	return false
+}
+
+// componentRuntimeABI compacts compiler-proven execution needs into the hot construction record.
+func componentRuntimeABI(
+	component Component,
+	execution ComponentExecution,
+	hasLifecycle bool,
+	hasInteractions bool,
+	compatibility bool,
+) int {
+	abi := 0
+	if component.CompiledRender {
+		abi |= componentABICompiledRender
+	}
+	if hasLifecycle {
+		abi |= componentABILifecycle
+	}
+	if component.Lists {
+		abi |= componentABILists
+	}
+	if len(execution.Transitions) != 0 || hasInteractions || compatibility {
+		abi |= componentABITasks
+	}
+	return abi
 }
 
 // projectComponentExecution removes opposite-target transitions and compacts
@@ -132,7 +407,8 @@ func projectComponentExecution(execution ComponentExecution, target Target) Comp
 	outputPorts := make(map[int]struct{})
 	for _, transition := range execution.Transitions {
 		if (target == TargetClient && transition.Placement == "server") ||
-			(target == TargetServer && transition.Placement == "client") {
+			(target == TargetServer &&
+				(transition.Placement == "client" || transition.DirectServerSetup)) {
 			continue
 		}
 		transitions = append(transitions, transition)

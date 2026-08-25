@@ -11,6 +11,7 @@ import {
 	type TaskContext
 } from '@exactjs/core';
 import {
+	createExactFrameworkFixtureArtifact,
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
@@ -25,7 +26,7 @@ function resumablePage(id: string, label: string) {
 		this.state.label = label;
 		return () => createVNode('p', null, this.state.label);
 	};
-	return Object.assign(implementation, {
+	const page = Object.assign(implementation, {
 		[exactComponentType]: id,
 		[exactComponentContract]: {
 			version: 2 as const,
@@ -38,15 +39,44 @@ function resumablePage(id: string, label: string) {
 			resumption: {
 				componentId: id,
 				statePaths: ['label'],
+				stateInputs: [],
 				valueCaptures: [],
 				contexts: [],
 				boundaries: []
 			}
 		}
 	});
+	return createExactFrameworkFixtureArtifact(page, id);
 }
 
 describe('@exactjs/hydrate component resumption', () => {
+	it('expands compiler-indexed wire values against the receiving component contract', () => {
+		const Counter = resumablePage('component:Counter', 'client');
+		const resolver = createComponentResumptionResolver(() => [
+			{
+				componentId: 'component:Counter',
+				values: { '@0': 'ready' },
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+
+		expect(resolver(Counter)?.values).toEqual({ label: 'ready' });
+	});
+
+	it('rejects a compact wire index outside the receiving component contract', () => {
+		const Counter = resumablePage('component:Counter', 'client');
+		const resolver = createComponentResumptionResolver(() => [
+			{
+				componentId: 'component:Counter',
+				values: { '@1': 'undeclared' },
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+
+		expect(() => resolver(Counter)).toThrow('index is outside component component:Counter');
+	});
 	it('matches SSR activations by component type while preserving per-type order and rollback', () => {
 		const First = resumablePage('component:First', 'first');
 		const Second = resumablePage('component:Second', 'second');
@@ -117,6 +147,7 @@ describe('@exactjs/hydrate component resumption', () => {
 				resumption: {
 					componentId: 'component:PreHydrationShell',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -198,6 +229,7 @@ describe('@exactjs/hydrate component resumption', () => {
 				resumption: {
 					componentId: 'component:Search',
 					statePaths: ['query', 'result'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -287,6 +319,7 @@ describe('@exactjs/hydrate component resumption', () => {
 				resumption: {
 					componentId: 'component:Provider',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: ['Status'],
 					boundaries: []
@@ -306,3 +339,4 @@ describe('@exactjs/hydrate component resumption', () => {
 		client.dispose();
 	});
 });
+import '@exactjs/core/runtime/contexts';

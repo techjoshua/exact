@@ -1,4 +1,4 @@
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/runtime';
 import { normalizeClassValue } from '../class-values.js';
 
 /** Merges ordered target class contributions with stable token de-duplication. */

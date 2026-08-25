@@ -45,6 +45,9 @@ type CachedDiscovery = {
 	replacements: readonly ModuleExportReplacement[];
 	watchFiles: readonly string[];
 	hash: string;
+	/** Complete lexical source-module gate for this immutable discovery generation. */
+	candidateReplacements: readonly ModuleExportReplacement[];
+	unsupportedSourceModules: readonly string[];
 };
 
 const discoveryCache = new Map<string, CachedDiscovery>();
@@ -57,16 +60,20 @@ export function createReactCompatibilityBuildEngine(
 	const resolved = resolveReactCompatibility(options, buildRoot);
 	if (!resolved) throw new Error('React compatibility build engine cannot be disabled');
 	let invalidated = false;
+	let activeDiscovery: CachedDiscovery | undefined;
 	const usedAdapters = new Set<string>();
 	const selections = new Map<string, ReactCompatibilitySelection>();
 	const ownershipCache = new Map<string, 'exact' | 'component' | 'unknown' | 'ambiguous'>();
 	const ownershipFiles = new Set<string>();
 	const state = (): CachedDiscovery => {
+		// Build adapters explicitly invalidate watched manifests. Retain one immutable discovery
+		// generation between those events instead of restatting the package graph for every module.
+		if (!invalidated && activeDiscovery) return activeDiscovery;
 		const existing = discoveryCache.get(buildRoot);
 		if (!invalidated && existing && existing.signature === fileSignature(existing.watchFiles)) {
 			discoveryCache.delete(buildRoot);
 			discoveryCache.set(buildRoot, existing);
-			return existing;
+			return (activeDiscovery = existing);
 		}
 		invalidated = false;
 		const graph = createReactCompatPackageGraph(buildRoot);
@@ -83,12 +90,16 @@ export function createReactCompatibilityBuildEngine(
 			graph,
 			replacements,
 			watchFiles,
-			hash
+			hash,
+			candidateReplacements: moduleReplacements([...registry.replacements.values()]),
+			unsupportedSourceModules: Object.freeze(
+				[...new Set(registry.unsupportedSources.map((source) => source.sourceModule))].sort()
+			)
 		};
 		discoveryCache.set(buildRoot, next);
 		while (discoveryCache.size > maximumDiscoveryRoots)
 			discoveryCache.delete(discoveryCache.keys().next().value!);
-		return next;
+		return (activeDiscovery = next);
 	};
 	const engine: ReactCompatibilityBuildEngine = {
 		resolved,
@@ -144,6 +155,24 @@ export function createReactCompatibilityBuildEngine(
 		},
 		transformModule(input) {
 			const current = state();
+			// Most Vite/Rollup modules are unrelated runtime dependencies. Reject them before
+			// importer-specific graph selection or TypeScript parsing while retaining every React
+			// alias, supported adapter source, and unsupported-version diagnostic candidate.
+			if (
+				!containsCandidate(input.source, resolved.aliases, current.candidateReplacements) &&
+				!current.unsupportedSourceModules.some((sourceModule) =>
+					containsModule(input.source, sourceModule)
+				)
+			)
+				return Object.freeze({
+					code: input.source,
+					map: null,
+					changed: false,
+					watchFiles: combinedWatchFiles(current.watchFiles, ownershipFiles),
+					dependencyIds: [],
+					diagnostics: [],
+					registryHash: current.hash
+				});
 			const resolvedReplacements = replacementsForImporter(
 				current.graph,
 				current.registry,
@@ -249,17 +278,6 @@ export function createReactCompatibilityBuildEngine(
 					buildRoot
 				}))
 			];
-			if (!containsCandidate(input.source, resolved.aliases, replacements)) {
-				return Object.freeze({
-					code: input.source,
-					map: null,
-					changed: false,
-					watchFiles: combinedWatchFiles(current.watchFiles, ownershipFiles),
-					dependencyIds: [],
-					diagnostics: Object.freeze(unsupportedDiagnostics),
-					registryHash: current.hash
-				});
-			}
 			const diagnostics = [
 				...unsupportedDiagnostics,
 				...fallbackDiagnostics(input.id, input.source, resolvedReplacements, buildRoot)
@@ -327,6 +345,7 @@ export function createReactCompatibilityBuildEngine(
 				)
 			) {
 				invalidated = true;
+				activeDiscovery = undefined;
 				discoveryCache.delete(buildRoot);
 				ownershipCache.clear();
 			}

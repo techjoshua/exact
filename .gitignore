@@ -16,6 +16,7 @@ apps/*/dist/
 apps/*/*.tsbuildinfo
 framework-comparison/participants/*/dist/
 framework-comparison/participants/*/dist-server/
+framework-comparison/participants/*/dist-bun-server/
 framework-comparison/.svelte-kit/
 framework-comparison/participants/*/.svelte-kit/
 framework-comparison/participants/*/.nuxt/

@@ -62,7 +62,7 @@ export function inspectIntlXliffCatalog(
 			issues.push({
 				code: 'catalog-exact-metadata',
 				key,
-				summary: `Catalog unit ${key} contains legacy eXact runtime metadata; regenerate it.`
+				summary: `Catalog unit ${key} contains unsupported eXact runtime metadata; regenerate it.`
 			});
 		const segment = xmlDescendants(unit, 'segment')[0];
 		const source = segment && xmlChildren(segment, 'source')[0];

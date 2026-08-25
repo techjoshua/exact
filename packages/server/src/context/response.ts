@@ -132,7 +132,7 @@ export function isResponse(value: unknown): value is ExactResponseLike {
 		typeof value === 'object' &&
 		typeof (value as ExactResponseLike).status === 'number' &&
 		typeof (value as ExactResponseLike).headers === 'object' &&
-		typeof (value as ExactResponseLike).body === 'string'
+		'body' in value
 	);
 }
 

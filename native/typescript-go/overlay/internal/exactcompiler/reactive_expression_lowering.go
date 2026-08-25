@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/checker"
 )
 
 func (lowering *jsxLowering) reactiveExpression(
@@ -38,7 +39,8 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		helper,
 		[]*ast.Node{closure},
 	)
-	if paths, direct := lowering.componentExecutionOutputPaths(source); len(paths) != 0 {
+	if paths, direct := lowering.componentExecutionOutputPaths(source); len(paths) != 0 &&
+		lowering.contractProjection != ComponentContractProjectionHydrate {
 		pathValue := lowering.factory.NewStringLiteral(paths[0], ast.TokenFlagsNone)
 		if !direct {
 			values := make([]*ast.Node, len(paths))
@@ -50,7 +52,13 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 				false,
 			)
 		}
-		return lowering.call(lowering.names.componentOutput, []*ast.Node{
+		helper := lowering.names.componentOutput
+		if lowering.directServerArtifactComponent(source) {
+			helper = lowering.names.serverComponentOutput
+		} else if lowering.directServerFrameComponent(source) {
+			return value
+		}
+		return lowering.call(helper, []*ast.Node{
 			lowering.factory.NewThisExpression(),
 			pathValue,
 			value,
@@ -146,6 +154,7 @@ type materializedRenderLocal struct {
 	declaration *ast.Node
 	name        string
 	cached      bool
+	narrowed    bool
 }
 
 // reactiveClosure moves render-local pure calculations into the reactive
@@ -298,13 +307,14 @@ func (lowering *jsxLowering) cachedDerivedLocals(
 				declaration: declaration,
 				name:        localName,
 				cached:      !clockDerived,
+				narrowed:    referenceNarrowsNullish(node, name, lowering.checker),
 			}
 			break
 		}
 		return true
 	})
 	for symbol := range locals {
-		if counts[symbol] < 2 {
+		if counts[symbol] < 2 && !locals[symbol].narrowed {
 			delete(locals, symbol)
 		}
 	}
@@ -333,6 +343,9 @@ func (lowering *jsxLowering) materializedClosure(
 			initializer = lowering.derivedGet(
 				lowering.factory.NewIdentifier(variable.Name().Text()),
 			)
+			if local.narrowed {
+				initializer = lowering.factory.NewNonNullExpression(initializer, ast.NodeFlagsNone)
+			}
 		} else {
 			initializer = lowering.replaceMaterializedReferences(
 				variable.Initializer,
@@ -371,6 +384,21 @@ func (lowering *jsxLowering) materializedClosure(
 			true,
 		),
 	)
+}
+
+func referenceNarrowsNullish(reference *ast.Node, declaration *ast.Node, typeChecker *checker.Checker) bool {
+	declared := typeChecker.GetTypeAtLocation(declaration)
+	narrowed := typeChecker.GetTypeAtLocation(reference)
+	return typeHasNullishMember(declared) && !typeHasNullishMember(narrowed)
+}
+
+func typeHasNullishMember(value *checker.Type) bool {
+	for _, member := range value.Distributed() {
+		if member.Flags()&(checker.TypeFlagsNull|checker.TypeFlagsUndefined) != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) elidedDerivedLocal(
@@ -420,7 +448,18 @@ func (lowering *jsxLowering) materializedName(
 	base := "__exact_" + name + "_"
 	index := 1
 	candidate := base + strconv.Itoa(index)
-	for strings.Contains(lowering.sourceFile.Text(), candidate) {
+	used := func(name string) bool {
+		if strings.Contains(lowering.sourceFile.Text(), name) {
+			return true
+		}
+		for _, existing := range lowering.materializedNames {
+			if existing == name {
+				return true
+			}
+		}
+		return false
+	}
+	for used(candidate) {
 		index++
 		candidate = base + strconv.Itoa(index)
 	}

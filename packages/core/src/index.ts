@@ -23,9 +23,14 @@ export {
 	watch,
 	writeReactive,
 	writeReactiveLazy
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 export { normalizeClassValue } from './class-values.js';
-export type { Reactive, ReactiveValue, StopHandle, WorkPriority } from '@exactjs/reactive';
+export type {
+	Reactive,
+	ReactiveValue,
+	StopHandle,
+	WorkPriority
+} from '@exactjs/reactive/framework/runtime';
 export {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,
@@ -52,9 +57,13 @@ export {
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
 export {
 	currentInteraction,
+	hasComponentTaskOwner,
+	runCompiledComponentInteraction,
+	runDirectCompiledComponentInteraction,
 	runComponentInteraction,
 	traceInteractionPhase,
 	type InteractionPriority,
+	type DeferredInteractionGeneration,
 	type InteractionScope,
 	type InteractionSource
 } from './interaction/execution.js';
@@ -188,7 +197,6 @@ export type {
 } from './dynamic-component/contracts.js';
 export {
 	createEnhancementNode,
-	createEnhancementMarker,
 	exactEnhancementPassThrough,
 	exactEnhancementContexts,
 	isExactEnhancementPassThrough,
@@ -238,8 +246,7 @@ export {
 	createErrorContext,
 	createErrorReport,
 	handleComponentError,
-	handleComponentSuspension,
-	normalizeRenderResult
+	handleComponentSuspension
 } from './component/errors.js';
 export { logFrameworkEvent } from './component/log.js';
 export { sameJsonData, type JsonComparisonOptions } from './json.js';
@@ -307,5 +314,6 @@ export {
 	isVNode,
 	normalizeChildren,
 	normalizeDocumentVNode,
+	normalizeRenderResult,
 	unsafeHtml
 } from './vnode.js';

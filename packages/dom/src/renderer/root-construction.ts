@@ -1,4 +1,5 @@
 import { LoggerContext, type ComponentContextValues, type VNode } from '@exactjs/core';
+import { componentDomainLogging } from '@exactjs/core/framework/component-domains';
 import type { RenderOptions, Root } from '../types.js';
 import { normalizeTreeDepth, normalizeTreeNodes } from './limits.js';
 import { createDomErrorContext, createRootBoundary } from './root-support.js';
@@ -34,11 +35,13 @@ export function createRendererRoot(
 		maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
 		traversedNodes: 0,
 		workDepth: 0,
+		focusTransactionDepth: 0,
 		workBudget: options.workBudget,
 		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
 		onUnsafeHtml: options.onUnsafeHtml,
 		onProfile: options.onProfile,
 		logger: options.logger,
+		componentLogging: current.domain ? componentDomainLogging(current.domain) : undefined,
 		ambientContexts,
 		enhancementCatalog: options.enhancementCatalog,
 		...(construction.mode ? { mode: construction.mode } : {}),

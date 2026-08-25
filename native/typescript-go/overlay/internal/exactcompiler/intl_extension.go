@@ -149,6 +149,7 @@ type intlRegion struct {
 	Element         intlSpan                `json:"element"`
 	Attribute       intlSpan                `json:"attribute"`
 	Attributes      []intlSpan              `json:"attributes"`
+	Transferred     []intlSpan              `json:"transferred,omitempty"`
 	Content         intlSpan                `json:"content"`
 	Values          []intlSpan              `json:"values"`
 	Structures      []intlStructureRegion   `json:"structures"`

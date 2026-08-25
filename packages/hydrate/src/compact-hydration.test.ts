@@ -3,9 +3,9 @@ import { markFiniteClientBoundary } from '@exactjs/core';
 import { createServerBoundary } from '@exactjs/core/runtime/render';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { expect, it } from 'vitest';
-import { hydrateClientIslands, readExactHydrationConfig } from './index.js';
+import { hydrateClientIslands, lazyClientIsland, readExactHydrationConfig } from './index.js';
 import type { HydrateOptions } from './types.js';
-import { createVNode, markTestComponents } from './test-support/native-vnode.js';
+import { createVNode, markTestComponent, markTestComponents } from './test-support/native-vnode.js';
 
 it('resolves compiler-finite island props from a grouped response table', () => {
 	function Counter(props: { label: string }) {
@@ -35,18 +35,37 @@ it('resolves compiler-finite island props from a grouped response table', () => 
 	expect(container.querySelector('button')?.textContent).toBe('Compact');
 });
 
-it('activates compact interaction islands and releases their shared table afterward', () => {
+it('activates compact interaction islands and releases their shared table afterward', async () => {
 	const container = document.createElement('main');
 	container.innerHTML =
-		'<div data-xh="0.0" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button>Open</button></div>';
+		'<div data-xh="0.0" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="dialog-button">Open</button></div>';
 	function Dialog(props: { label: string }) {
-		return () => createVNode('button', null, props.label);
+		return () => createVNode('button', { 'data-exact-id': 'dialog-button' }, props.label);
 	}
+	markTestComponent(Dialog);
 	const options: HydrateOptions = {
 		hydrationTable: [1, [['Dialog', ['label'], [['dialog-1', 'Opened']]]]] as const
 	};
-	expect(hydrateClientIslands(container, markTestComponents({ Dialog }), options)).toBe(0);
+	expect(
+		hydrateClientIslands(
+			container,
+			{
+				Dialog: lazyClientIsland(async () => Dialog, {
+					mode: 'interaction',
+					reasons: [],
+					targets: [
+						{
+							id: 'dialog-button',
+							events: [{ type: 'click', replay: 'native-click' }]
+						}
+					]
+				})
+			},
+			options
+		)
+	).toBe(0);
 	container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	await new Promise((resolve) => setTimeout(resolve, 0));
 	expect(container.querySelector('[data-exact-client-hydrated="true"]')).not.toBeNull();
 	expect(container.querySelector('button')?.textContent).toBe('Opened');
 	expect(options.hydrationTable).toBeUndefined();

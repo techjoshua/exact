@@ -45,6 +45,17 @@ import { hydrate } from '@exactjs/hydrate/root';
 const root = hydrate(app, document.getElementById('app')!);
 ```
 
+When SSR uses `publishRootProps: true`, construct the client root from the same bounded bootstrap
+record instead of shipping a second application-data script:
+
+```tsx
+const container = document.getElementById('app')!;
+const props = readPublishedRootProps<AppProps>(container);
+hydrateAfterNavigation(<App {...props} />, container);
+```
+
+The later hydration call reuses that decoded configuration.
+
 `hydrateAfterNavigation()` gives visible SSR content one rendering opportunity after
 `DOMContentLoaded`, then schedules activation as user-visible work. If a pointer, keyboard, input,
 change, or submit interaction reaches the root first, a capture listener activates synchronously

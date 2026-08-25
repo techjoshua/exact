@@ -1,4 +1,10 @@
-import type { AnyComponentInstance, Child, RenderToStringOptions, SsrContext } from '../types.js';
+import type {
+	AnyComponentInstance,
+	Child,
+	DirectSsrComponentSnapshot,
+	RenderToStringOptions,
+	SsrContext
+} from '../types.js';
 import { boundedJoin, SsrTreeNodeError } from './limits.js';
 
 /** Renders one child inside a supplied isolated SSR frame. */
@@ -14,6 +20,8 @@ type IndependentSsrResult = {
 	readonly frame: SsrContext;
 	readonly created: readonly AnyComponentInstance[];
 	readonly rendered: readonly AnyComponentInstance[];
+	readonly directCreated: readonly DirectSsrComponentSnapshot[];
+	readonly directRendered: readonly DirectSsrComponentSnapshot[];
 };
 
 /** Returns whether request state permits the compiler-proven concurrent path. */
@@ -27,8 +35,11 @@ export function canRenderIndependentChildren(
 		context.reactMarkup ||
 		context.documentRootSeen ||
 		options.inspection ||
-		options.onComponentCreated ||
-		options.onComponentRendered ||
+		(!options.allowIndependentComponentObservation &&
+			(options.onComponentCreated ||
+				options.onComponentRendered ||
+				options.onDirectComponentCreated ||
+				options.onDirectComponentRendered)) ||
 		options.onUnsafeHtml ||
 		options.onProfile
 	);
@@ -68,13 +79,15 @@ async function renderIndependentGroup(
 				context.asyncScheduler.run<IndependentSsrResult>(async () => {
 					const created: AnyComponentInstance[] = [];
 					const rendered: AnyComponentInstance[] = [];
-					const frame = isolatedSsrFrame(context, created, rendered);
+					const directCreated: DirectSsrComponentSnapshot[] = [];
+					const directRendered: DirectSsrComponentSnapshot[] = [];
+					const frame = isolatedSsrFrame(context, created, rendered, directCreated, directRendered);
 					try {
 						const html = await renderChild(frame, child, parent, {
 							...options,
 							signal: controller.signal
 						});
-						return { html, frame, created, rendered };
+						return { html, frame, created, rendered, directCreated, directRendered };
 					} catch (error) {
 						if (error !== cancellation) failures.set(index, error);
 						if (!controller.signal.aborted) controller.abort(cancellation);
@@ -99,7 +112,9 @@ async function renderIndependentGroup(
 function isolatedSsrFrame(
 	context: SsrContext,
 	created: AnyComponentInstance[],
-	rendered: AnyComponentInstance[]
+	rendered: AnyComponentInstance[],
+	directCreated: DirectSsrComponentSnapshot[],
+	directRendered: DirectSsrComponentSnapshot[]
 ): SsrContext {
 	return {
 		...context,
@@ -121,8 +136,11 @@ function isolatedSsrFrame(
 		preparedEnhancementComponents: new WeakMap(),
 		preparedEnhancementChildren: new WeakMap(),
 		preparedEnhancementSuspense: new WeakMap(),
+		preparedDirectScheduledComponents: context.preparedDirectScheduledComponents,
 		onComponentCreated: (instance) => created.push(instance),
 		onComponentRendered: (instance) => rendered.push(instance),
+		onDirectComponentCreated: (snapshot) => directCreated.push(snapshot),
+		onDirectComponentRendered: (snapshot) => directRendered.push(snapshot),
 		asyncFrame: true
 	};
 }
@@ -136,15 +154,19 @@ function mergeIndependentResults(
 		context.traversedNodes += result.frame.traversedNodes;
 		if (context.traversedNodes > context.maxTreeNodes)
 			throw new SsrTreeNodeError(context.maxTreeNodes);
-		for (const hint of result.frame.reactResourceHints)
-			if (!context.reactResourceHints.includes(hint)) context.reactResourceHints.push(hint);
-		for (const link of result.frame.resourceLinkHeaders)
-			if (!context.resourceLinkHeaders.includes(link)) context.resourceLinkHeaders.push(link);
-		context.dynamicComponentPreloads = context.resourceLinkHeaders.length;
-		for (const identity of result.frame.unavailableEnhancements)
-			context.unavailableEnhancements.add(identity);
+		const hints = (context.reactResourceHints ??= []);
+		for (const hint of result.frame.reactResourceHints ?? [])
+			if (!hints.includes(hint)) hints.push(hint);
+		const links = (context.resourceLinkHeaders ??= []);
+		for (const link of result.frame.resourceLinkHeaders ?? [])
+			if (!links.includes(link)) links.push(link);
+		context.dynamicComponentPreloads = links.length;
+		for (const identity of result.frame.unavailableEnhancements ?? [])
+			(context.unavailableEnhancements ??= new Set()).add(identity);
 		for (const instance of result.created) context.onComponentCreated?.(instance);
 		for (const instance of result.rendered) context.onComponentRendered?.(instance);
+		for (const snapshot of result.directCreated) context.onDirectComponentCreated?.(snapshot);
+		for (const snapshot of result.directRendered) context.onDirectComponentRendered?.(snapshot);
 		if (result.html) html.push(result.html);
 	}
 	return boundedJoin(context, html);

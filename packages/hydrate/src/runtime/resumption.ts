@@ -6,7 +6,7 @@ import {
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readExactComponentContract
+	readPreparedExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
 
@@ -25,8 +25,8 @@ export function createComponentResumptionResolver(
 	const consumed = new Set<number>();
 	const history: number[] = [];
 	const resolve = ((type: AnyComponentFunction) => {
-		const contract = readExactComponentContract(type);
-		if (!contract?.resumption) return undefined;
+		const contract = readPreparedExactCompiledComponentContract(type);
+		if (!contract.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
@@ -37,14 +37,20 @@ export function createComponentResumptionResolver(
 			throw new Error(`eXact SSR resumption is missing component ${componentId}`);
 		const record = available[recordIndex]!;
 		const allowedPaths = new Set(contract.resumption.statePaths);
-		for (const path of Object.keys(record.values)) {
+		const values = expandIndexedFields(record.values, contract.resumption.statePaths, componentId);
+		for (const path of Object.keys(values)) {
 			if (!allowedPaths.has(path))
 				throw new Error(
 					`eXact SSR resumption contains undeclared state path ${componentId}:${path}`
 				);
 		}
 		const allowedContexts = new Set(contract.resumption.contexts);
-		for (const name of Object.keys(record.contexts)) {
+		const contexts = expandIndexedFields(
+			record.contexts,
+			contract.resumption.contexts,
+			componentId
+		);
+		for (const name of Object.keys(contexts)) {
 			if (!allowedContexts.has(name))
 				throw new Error(`eXact SSR resumption contains undeclared context ${componentId}:${name}`);
 		}
@@ -59,7 +65,7 @@ export function createComponentResumptionResolver(
 		}
 		consumed.add(recordIndex);
 		history.push(recordIndex);
-		return record;
+		return { ...record, values, contexts };
 	}) as ComponentResumptionResolver;
 	resolve.checkpoint = () => history.length;
 	resolve.rollback = (checkpoint) => {
@@ -68,6 +74,35 @@ export function createComponentResumptionResolver(
 		while (history.length > checkpoint) consumed.delete(history.pop()!);
 	};
 	return resolve;
+}
+
+/** Expands compiler indexes only after the receiving component contract supplies their names. */
+function expandIndexedFields(
+	values: Readonly<Record<string, unknown>>,
+	fields: readonly string[],
+	componentId: string
+): Readonly<Record<string, unknown>> {
+	const keys = Object.keys(values);
+	if (!keys.some((key) => key.startsWith('@'))) return values;
+	const output: Record<string, unknown> = {};
+	for (const key of keys) {
+		if (!key.startsWith('@')) {
+			if (Object.prototype.hasOwnProperty.call(output, key))
+				throw new Error(`Duplicate eXact resumption field ${componentId}:${key}`);
+			output[key] = values[key];
+			continue;
+		}
+		if (!/^@(?:0|[1-9]\d*)$/.test(key))
+			throw new Error(`Malformed eXact indexed resumption ${componentId}`);
+		const index = Number(key.slice(1));
+		const field = fields[index];
+		if (field === undefined)
+			throw new Error(`eXact SSR resumption index is outside component ${componentId}`);
+		if (Object.prototype.hasOwnProperty.call(output, field))
+			throw new Error(`Duplicate eXact resumption field ${componentId}:${field}`);
+		output[field] = values[key];
+	}
+	return output;
 }
 
 /** Captures the current activation cursor before a fallible adoption attempt. */

@@ -1,14 +1,8 @@
-import { exact } from '@exactjs/vite-plugin';
-import { fileURLToPath } from 'node:url';
+import { exactServerBuild } from './vite.server-build.js';
 
-/** Builds the eXact server-rendering entry independently from its browser artifact. */
-export default {
-	root: fileURLToPath(new URL('.', import.meta.url)),
-	plugins: [exact()],
-	build: {
-		ssr: 'src/server-entry.tsx',
-		outDir: 'dist-server',
-		emptyOutDir: true,
-		rollupOptions: { output: { entryFileNames: 'server-entry.js' } }
-	}
-};
+/** Builds the Node SSR entry without retaining Bun-only response capabilities. */
+export default exactServerBuild(
+	new URL('./src/server-entry.tsx', import.meta.url),
+	'dist-server',
+	'server-entry.js'
+);

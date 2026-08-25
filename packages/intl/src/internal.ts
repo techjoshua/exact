@@ -10,7 +10,6 @@ export { validateIntlCatalog, validateIntlRuntimeDescriptor } from './validation
 export { validateIntlPackageMetadata } from './package-metadata.js';
 export {
 	materializeIntlTranslation,
-	projectLegacyIntlTranslation,
 	projectIntlTranslationContract
 } from './translation-contract.js';
 export { intlUnitDefinitions, intlUnitIdentifiers } from './unit-definitions.js';

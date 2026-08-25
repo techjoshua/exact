@@ -13,9 +13,10 @@ import type {
 	RenderToStringResult
 } from '../types.js';
 import { renderVNodeAsync } from './async-tree.js';
-import { shouldEmitDocumentHydration } from './boundaries.js';
+import { shouldEmitDocumentHydration } from './document-hydration.js';
 import { createSsrContext, drainTasks } from './context.js';
 import { hydrationScriptOptions } from './hydration-options.js';
+import { rootComponentIdentity, rootPropsOptions } from './root-props.js';
 import { renderToStringOwned } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
@@ -43,7 +44,7 @@ export async function renderToStringAsync(
 		for (const chunk of renderVNodeChunks(context, validatedVNode, undefined, 1))
 			output.append(chunk);
 	} else output.append(await renderVNodeAsync(context, validatedVNode, undefined, renderOptions));
-	output.prepend(context.reactResourceHints);
+	output.prepend(context.reactResourceHints ?? []);
 	let chunks = output.finish();
 	if (options.outputExtensions?.length) {
 		const html = (await processExactOutput(
@@ -54,12 +55,12 @@ export async function renderToStringAsync(
 		assertOutputWithinLimit(context, html);
 		chunks = [html];
 	}
-	const hydrationTable = context.hydrationTable.value();
+	const hydrationTable = context.hydrationTable?.value();
 	return createChunkedStringResult(
 		chunks,
 		options.state,
 		hydrationTable,
-		context.resourceLinkHeaders,
+		context.resourceLinkHeaders ?? [],
 		context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
 			? context.wallClockSnapshot
 			: undefined
@@ -71,12 +72,18 @@ export async function renderToHydratableStringAsync(
 	vnode: VNode,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
 ): Promise<HydratableStringResult> {
-	const capture = createSsrResumptionCapture(options);
+	const prepared = rootPropsOptions(vnode, options);
+	const capture = createSsrResumptionCapture(
+		prepared,
+		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootComponentIdentity(vnode)
+	);
 	const result = await renderToStringAsync(vnode, capture.options);
 	const resumptions = capture.records();
-	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
+	const emittedResumptions = resumptions.length ? resumptions : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(options, result, emittedResumptions)
+		hydrationScriptOptions(prepared, result, emittedResumptions),
+		capture.layouts()
 	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
@@ -136,7 +143,8 @@ export async function streamDocumentRender(
 						options,
 						final,
 						resumptions.length > 0 ? resumptions : options.resumptions
-					)
+					),
+					capture.layouts()
 				)
 			});
 		}

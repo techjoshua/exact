@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { writeExactPublishedComponentBuildFacts } from '@exactjs/compiler/component-library-build';
 
@@ -10,6 +11,11 @@ if (!manifest.name || !manifest.version)
 const declaration = manifest.exactComponentLibrary;
 if (declaration?.protocol !== 1 || typeof declaration.build !== 'string')
 	throw new Error(`${manifest.name} must declare protocol-1 exactComponentLibrary.build`);
+
+if (manifest.exactCompiledComponents) {
+	await writeCompiledBuildFacts();
+	process.exit(0);
+}
 
 const configPath = ts.findConfigFile(packageRoot, ts.sys.fileExists, 'tsconfig.json');
 if (!configPath) throw new Error(`No tsconfig.json found for ${manifest.name}`);
@@ -122,6 +128,62 @@ await writeExactPublishedComponentBuildFacts(packageRoot, declaration.build, {
 	})),
 	exports
 });
+
+async function writeCompiledBuildFacts() {
+	const expectedBySubpath = Array.isArray(manifest.exactCompiledComponents)
+		? { '.': manifest.exactCompiledComponents }
+		: manifest.exactCompiledComponents;
+	const expected = new Set(
+		Object.entries(expectedBySubpath).flatMap(([subpath, names]) =>
+			names.map((name) => `${subpath}:${name}`)
+		)
+	);
+	const modules = new Map();
+	const exports = [];
+	const discovered = new Set();
+	for (const [subpath, declarationValue] of Object.entries(normalizeExports(manifest.exports))) {
+		for (const target of exportTargets(declarationValue)) {
+			if (target.condition === 'types' || !target.path.endsWith('.js')) continue;
+			const modulePath = normalizePath(target.path);
+			const namespace = await import(
+				`${pathToFileURL(path.join(packageRoot, modulePath)).href}?exact-build-facts=${Date.now()}`
+			);
+			const components = [];
+			for (const [exportName, value] of Object.entries(namespace)) {
+				const expectedKey = `${subpath}:${exportName}`;
+				if (!expected.has(expectedKey) || typeof value !== 'function') continue;
+				const id = value[Symbol.for('@exactjs/component')];
+				const contract = value[Symbol.for('@exactjs/component-contract')];
+				if (typeof id !== 'string' || !contract?.definition) continue;
+				discovered.add(expectedKey);
+				components.push({
+					id,
+					placement: contract.placement,
+					artifactTargets: [contract.role === 'client' ? 'client' : 'server']
+				});
+				exports.push({
+					subpath,
+					condition: target.condition,
+					module: modulePath,
+					exportName,
+					componentId: id
+				});
+			}
+			if (components.length) modules.set(modulePath, components);
+		}
+	}
+	const missing = [...expected].filter((name) => !discovered.has(name));
+	if (missing.length)
+		throw new Error(`${manifest.name} is missing compiled exports: ${missing.join(', ')}`);
+	await writeExactPublishedComponentBuildFacts(packageRoot, declaration.build, {
+		package: { name: manifest.name, version: manifest.version },
+		modules: [...modules].map(([modulePath, components]) => ({
+			path: modulePath,
+			facts: { protocol: 1, components, componentImports: [], rendererEnhancements: [] }
+		})),
+		exports
+	});
+}
 
 function visit(node, callback) {
 	callback(node);

@@ -7,10 +7,7 @@ import type {
 	IntlTranslationPatternNodeV1,
 	IntlTranslationPatternV1
 } from './contracts.js';
-import {
-	materializeIntlTranslation,
-	projectLegacyIntlTranslation
-} from './translation-contract.js';
+import { materializeIntlTranslation } from './translation-contract.js';
 import {
 	validatePattern,
 	validateStructuralUsage,
@@ -149,10 +146,7 @@ export function validateIntlCatalog(
 		if (!descriptorGroup?.length)
 			throw new TypeError(`Catalog contains unknown message ${owner}:${key}`);
 		const rawMessage = messagesRecord[key];
-		const genericInput = isLegacyPattern(rawMessage)
-			? projectLegacyIntlTranslation(rawMessage as IntlPatternV1, descriptorGroup[0]!)
-			: rawMessage;
-		const translation = validateTranslationPattern(genericInput, `catalog.messages.${key}`, limits);
+		const translation = validateTranslationPattern(rawMessage, `catalog.messages.${key}`, limits);
 		for (const descriptor of descriptorGroup) {
 			const pattern = materializeIntlTranslation(translation, descriptor);
 			validatePattern(
@@ -167,16 +161,6 @@ export function validateIntlCatalog(
 		messages[key] = translation;
 	}
 	return Object.freeze({ protocol: 1, locale, owner, messages: Object.freeze(messages) });
-}
-
-function isLegacyPattern(input: unknown): boolean {
-	return (
-		Array.isArray(input) &&
-		input.some(
-			(node) =>
-				typeof node === 'object' && node !== null && ('binding' in node || 'bindings' in node)
-		)
-	);
 }
 
 function validateTranslationPattern(

@@ -11,7 +11,8 @@ import {
 	type ComponentFunction,
 	type VNode
 } from '@exactjs/core';
-import { isExactComponent, markExactComponent } from '@exactjs/core/framework/component-contracts';
+import '@exactjs/core/runtime/contexts';
+import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import { currentWorkPriority } from '@exactjs/reactive';
 import {
 	REACT_ACTIVITY_TYPE,
@@ -54,6 +55,10 @@ import type {
 } from '../types.js';
 import { normalizeReactHostProps } from './host-props.js';
 import { envelopeReactRef, reactRefBinding } from './refs.js';
+import {
+	createCompatibilityArtifactVariants,
+	reactCompatibilityArtifactTarget
+} from './adapter-identity.js';
 
 /** Reads a react root runtime from its source representation. */
 export function readReactRootRuntime(
@@ -117,7 +122,10 @@ const ExactVNodeBoundary = function ExactVNodeBoundary(
 ) {
 	return () => props.vnode;
 } as ComponentFunction<Record<string, never>, { vnode: VNode }>;
-markExactComponent(ExactVNodeBoundary, '@exactjs/react-compat:ExactVNodeBoundary');
+const ExactVNodeBoundaries = createCompatibilityArtifactVariants(
+	ExactVNodeBoundary,
+	'@exactjs/react-compat:ExactVNodeBoundary'
+);
 
 const ExactVNodeBoundaryType = Object.defineProperties(
 	function ReactExactVNodeBoundary(): never {
@@ -125,7 +133,9 @@ const ExactVNodeBoundaryType = Object.defineProperties(
 	},
 	{
 		$$typeof: { value: EXACT_COMPONENT_TYPE },
-		exactComponent: { value: ExactVNodeBoundary }
+		exactComponent: {
+			get: () => ExactVNodeBoundaries[reactCompatibilityArtifactTarget()]
+		}
 	}
 );
 
@@ -161,7 +171,7 @@ export function reactElementToVNode(element: ReactElement): VNode {
 	}
 	if (element.type === REACT_SUSPENSE_TYPE) {
 		keyedProps.__exactReactTransition = currentReactTransitionOwnership();
-		return createVNode(ReactSuspenseBoundary, keyedProps);
+		return createVNode(ReactSuspenseBoundaries[reactCompatibilityArtifactTarget()], keyedProps);
 	}
 	if (element.type === REACT_ACTIVITY_TYPE) {
 		const children = childrenArray(elementProps.children).map(toExactNode).flat() as Child[];
@@ -173,7 +183,7 @@ export function reactElementToVNode(element: ReactElement): VNode {
 		);
 	}
 	if (element.type === REACT_PROFILER_TYPE) {
-		return createVNode(ReactProfilerBoundary, keyedProps);
+		return createVNode(ReactProfilerBoundaries[reactCompatibilityArtifactTarget()], keyedProps);
 	}
 	if (typeof element.type === 'symbol')
 		throw unsupportedType(element.type.description ?? String(element.type));
@@ -293,8 +303,14 @@ const ReactSuspenseBoundary = function ReactSuspenseBoundary(
 		);
 } as ComponentFunction<Record<string, never>, Record<string, unknown>>;
 
-markExactComponent(ReactProfilerBoundary, '@exactjs/react-compat:ReactProfilerBoundary');
-markExactComponent(ReactSuspenseBoundary, '@exactjs/react-compat:ReactSuspenseBoundary');
+const ReactProfilerBoundaries = createCompatibilityArtifactVariants(
+	ReactProfilerBoundary,
+	'@exactjs/react-compat:ReactProfilerBoundary'
+);
+const ReactSuspenseBoundaries = createCompatibilityArtifactVariants(
+	ReactSuspenseBoundary,
+	'@exactjs/react-compat:ReactSuspenseBoundary'
+);
 
 /** Reports whether react portal. */
 export function isReactPortal(value: unknown): value is import('../types.js').ReactPortal {

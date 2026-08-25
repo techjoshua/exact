@@ -5,7 +5,7 @@ import {
 	exactDomInspectionOwner,
 	unmount,
 	type DomWorkBudget
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import {
 	cloneEndpointRoutes,
 	mergeClientIslands,
@@ -183,6 +183,7 @@ export function createExactClientFromResolvedOptions(
 		});
 	domain = createFrameworkComponentDomain({
 		executionRoot: runtimeOptions.executionRoot ?? 'page',
+		logger: runtimeOptions.logger,
 		dispatchContinuation: (request) =>
 			run(() =>
 				invokeAndApply(container, client, 'invoke', request.id, undefined, runtimeOptions, {

@@ -105,5 +105,5 @@ function streamEvents(request: IncomingMessage, response: ServerResponse): void 
 }
 
 function documentTemplate(assets: NativeServerAssets): string {
-	return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="framework-participant" content="exact-native"><title>Incident Operations</title>${assets.stylesheet ? `<link rel="stylesheet" href="${assets.stylesheet}">` : ''}</head><body><!--exact-app--><script type="module" src="${assets.clientScript}"></script></body></html>`;
+	return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="framework-participant" content="exact-native"><title>Incident Operations</title>${assets.stylesheet ? `<link rel="stylesheet" href="${assets.stylesheet}">` : ''}<script type="module" src="${assets.clientScript}"></script></head><body><!--exact-app--></body></html>`;
 }

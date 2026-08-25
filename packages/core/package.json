@@ -56,6 +56,26 @@
 			"types": "./dist/framework/component-execution.d.ts",
 			"default": "./dist/framework/component-execution.js"
 		},
+		"./framework/server-component-execution": {
+			"types": "./dist/framework/server-component-execution.d.ts",
+			"default": "./dist/framework/server-component-execution.js"
+		},
+		"./framework/render-structure": {
+			"types": "./dist/framework/render-structure.d.ts",
+			"default": "./dist/framework/render-structure.js"
+		},
+		"./framework/server-render-structure": {
+			"types": "./dist/framework/server-render-structure.d.ts",
+			"default": "./dist/framework/server-render-structure.js"
+		},
+		"./framework/server-task-helpers": {
+			"types": "./dist/framework/server-task-helpers.d.ts",
+			"default": "./dist/framework/server-task-helpers.js"
+		},
+		"./framework/component-lifecycle": {
+			"types": "./dist/framework/component-lifecycle.d.ts",
+			"default": "./dist/framework/component-lifecycle.js"
+		},
 		"./framework/protocol-records": {
 			"types": "./dist/framework/protocol-records.d.ts",
 			"default": "./dist/framework/protocol-records.js"
@@ -84,9 +104,25 @@
 			"types": "./dist/runtime/reactivity.d.ts",
 			"default": "./dist/runtime/reactivity.js"
 		},
+		"./runtime/component-reactivity": {
+			"types": "./dist/runtime/component-reactivity.d.ts",
+			"default": "./dist/runtime/component-reactivity.js"
+		},
+		"./runtime/lifecycle": {
+			"types": "./dist/runtime/lifecycle.d.ts",
+			"default": "./dist/runtime/lifecycle.js"
+		},
 		"./runtime/tasks": {
 			"types": "./dist/runtime/tasks.d.ts",
 			"default": "./dist/runtime/tasks.js"
+		},
+		"./runtime/component-tasks": {
+			"types": "./dist/runtime/component-tasks.d.ts",
+			"default": "./dist/runtime/component-tasks.js"
+		},
+		"./runtime/component-execution": {
+			"types": "./dist/runtime/component-execution.d.ts",
+			"default": "./dist/runtime/component-execution.js"
 		},
 		"./runtime/inspection": {
 			"types": "./dist/runtime/inspection.d.ts",
@@ -108,9 +144,25 @@
 			"types": "./dist/runtime/logging.d.ts",
 			"default": "./dist/runtime/logging.js"
 		},
+		"./runtime/collections": {
+			"types": "./dist/runtime/collections.d.ts",
+			"default": "./dist/runtime/collections.js"
+		},
+		"./runtime/contexts": {
+			"types": "./dist/runtime/contexts.d.ts",
+			"default": "./dist/runtime/contexts.js"
+		},
 		"./runtime/localization": {
 			"types": "./dist/runtime/localization.d.ts",
 			"default": "./dist/runtime/localization.js"
+		},
+		"./runtime/lists": {
+			"types": "./dist/runtime/lists.d.ts",
+			"default": "./dist/runtime/lists.js"
+		},
+		"./runtime/refs": {
+			"types": "./dist/runtime/refs.d.ts",
+			"default": "./dist/runtime/refs.js"
 		},
 		"./localization": {
 			"types": "./dist/localization.d.ts",

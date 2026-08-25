@@ -142,7 +142,7 @@ export type ModuleTransform = (
 export type TransformTarget = 'default' | 'client' | 'server';
 
 /** Selects the runtime component-contract subset retained by a physical bundle. */
-export type ComponentContractProjection = 'complete' | 'hydrate' | 'client';
+export type ComponentContractProjection = 'complete' | 'hydrate' | 'client' | 'server-render';
 
 /** Defines the exact asset kind type contract. */
 export type ExactAssetKind =
@@ -253,6 +253,8 @@ export type TransformResult = {
 	code: string;
 	map: ExactSourceMap | null;
 	filename: string;
+	/** Bare package specifiers imported by the final target-local artifact. */
+	runtimeDependencies: readonly string[];
 	/** Descriptive protocol facts for authoritative build-tool graph authorization. */
 	componentBuild: ExactComponentBuildFacts;
 	/** Build-facing capability imports; emitted independently of application plugin registries. */

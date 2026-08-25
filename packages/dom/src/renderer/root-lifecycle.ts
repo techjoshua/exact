@@ -7,9 +7,11 @@ import {
 } from '@exactjs/core';
 import {
 	componentDomainInspection,
-	createFrameworkComponentDomain
+	componentDomainLogging,
+	createFrameworkComponentDomain,
+	setComponentDomainLogger
 } from '@exactjs/core/framework/component-domains';
-import { flushSync } from '@exactjs/reactive';
+import { flushSync } from '@exactjs/reactive/framework/runtime';
 import { clearDelegated } from '../events.js';
 import {
 	componentMounts,
@@ -64,22 +66,21 @@ export function ownMountedInstance(mounted: Mounted, instance: AnyComponentInsta
 
 /** Transforms render into its required representation. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
+	let root = roots.get(container);
 	const inspection = options.inspection ?? exactDomInspectionOwner();
-	if (inspection && !vnode.domain) {
+	if (root?.current.domain && !vnode.domain) {
+		// A hydrated or inspected root keeps owning later authored updates even when callers create
+		// the replacement VNode outside withComponentDomain(). Explicit domains still win.
+		vnode = { ...vnode, domain: root.current.domain };
+	} else if (inspection && !vnode.domain) {
 		vnode = {
 			...vnode,
 			domain: createFrameworkComponentDomain({
 				executionRoot: inspection.executionRoot,
-				inspection
+				inspection,
+				logger: options.logger
 			})
 		};
-	}
-	let root = roots.get(container);
-	if (root?.current.domain && !vnode.domain) {
-		// A hydrated root keeps owning later authored updates even when callers
-		// create the replacement VNode outside withComponentDomain(). Explicit
-		// domains still win for deliberate cross-root composition.
-		vnode = { ...vnode, domain: root.current.domain };
 	}
 	if (!root) {
 		root = createRendererRoot(container, vnode, options, { version: 0 });
@@ -93,6 +94,11 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	if (vnode.domain && componentDomainInspection(vnode.domain)) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
+	if (previousCurrent.domain) setComponentDomainLogger(previousCurrent.domain, options.logger);
+	if (root.current.domain) setComponentDomainLogger(root.current.domain, options.logger);
+	root.componentLogging = root.current.domain
+		? componentDomainLogging(root.current.domain)
+		: undefined;
 	if (options.logger) {
 		const contexts = root.ambientContexts as Map<symbol, unknown> | undefined;
 		if (contexts) contexts.set(LoggerContext.id, options.logger);

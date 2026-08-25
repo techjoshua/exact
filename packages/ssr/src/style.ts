@@ -1,4 +1,4 @@
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { hasOwn } from './attribute-traversal.js';
 
 /** Serializes an owned native or React-compatible style value. */

@@ -741,6 +741,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	dependencies []nativeTaskDependency,
 	task Task,
 	dependencyCount int,
+	directServer bool,
 ) *ast.Node {
 	callsTaskDefinition := lowering.taskWorkCallsDefinition(work)
 	replacements := make(map[string]string)
@@ -784,6 +785,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 		task,
 		dependencyCount,
 		callsTaskDefinition,
+		directServer,
 	)
 	return lowering.visitor.VisitEachChild(rewritten)
 }

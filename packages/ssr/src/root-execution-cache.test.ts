@@ -8,8 +8,8 @@ import {
 } from '@exactjs/core/framework/component-contracts';
 import { ssrRootExecutionBlueprint } from './render/root-execution-cache.js';
 
-describe('SSR root execution blueprint cache', () => {
-	it('reuses root and dynamic component preparations while detecting replaced authority', () => {
+describe('SSR root component blueprint cache', () => {
+	it('reuses root and dynamic contracts while detecting replaced authority', () => {
 		function Root(this: Component<{ value: string }>) {
 			return () => this.state.value;
 		}
@@ -29,12 +29,15 @@ describe('SSR root execution blueprint cache', () => {
 		expect(cache.resolve(compiledRoot)).toBe(root);
 		const dynamic = cache.resolve(compiledDynamic);
 		expect(cache.resolve(compiledDynamic)).toBe(dynamic);
-		expect(dynamic.execution?.transitionsById.has('dynamic-task')).toBe(true);
+		expect(dynamic.contract.execution?.transitions[0]?.[0]).toBe('dynamic-task');
 
-		compiledDynamic[exactComponentContract] = executionContract('replacement-task');
+		compiledDynamic[exactComponentContract] = {
+			...executionContract('replacement-task'),
+			definition: fixtureDefinition(compiledDynamic)
+		};
 		const replacement = cache.resolve(compiledDynamic);
 		expect(replacement).not.toBe(dynamic);
-		expect(replacement.execution?.transitionsById.has('replacement-task')).toBe(true);
+		expect(replacement.contract.execution?.transitions[0]?.[0]).toBe('replacement-task');
 	});
 });
 
@@ -45,8 +48,20 @@ function attachContract<T extends (...args: any[]) => any>(
 ): T & Record<typeof exactComponentContract | typeof exactComponentType, any> {
 	return Object.assign(component, {
 		[exactComponentType]: id,
-		[exactComponentContract]: contract
+		[exactComponentContract]: { ...contract, definition: fixtureDefinition(component) }
 	});
+}
+
+function fixtureDefinition(component: (...args: any[]) => any) {
+	return {
+		version: 1 as const,
+		instantiate: component,
+		state: [],
+		tasks: [],
+		reactive: [],
+		render: 'returned-function' as const,
+		capabilities: ['tasks'] as const
+	};
 }
 
 function executionContract(taskId: string): ExactComponentContract {
@@ -60,19 +75,8 @@ function executionContract(taskId: string): ExactComponentContract {
 		boundaries: [],
 		execution: {
 			version: 1,
-			ports: [{ index: 0, kind: 'state', path: 'value', direction: 'output' }],
-			transitions: [
-				{
-					id: taskId,
-					taskId,
-					activation: 'setup',
-					placement: 'server',
-					readiness: 'blocking',
-					concurrency: 'latest',
-					inputs: [],
-					outputs: [0]
-				}
-			],
+			ports: [['state', 'value', 'output']],
+			transitions: [[taskId, taskId, 'setup', 'server', 'blocking', 'latest', [], [0]]],
 			reactive: []
 		}
 	};

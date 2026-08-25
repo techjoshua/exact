@@ -3,13 +3,16 @@ import {
 	batch,
 	createErrorReport,
 	handleComponentError,
+	hasComponentTaskOwner,
 	observeComponentAsync,
+	runCompiledComponentInteraction,
+	runDirectCompiledComponentInteraction,
 	runComponentInteraction,
 	traceInteractionPhase,
 	unwrap,
 	type InteractionScope
 } from '@exactjs/core';
-import { flushSync, runWithPriority } from '@exactjs/reactive';
+import { flushSync, publishBatch, runWithPriority } from '@exactjs/reactive/framework/runtime';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';
@@ -75,14 +78,22 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 
 	const listener = (event: Event) => {
 		dispatchEventPath(event, container, (cursor) => {
-			const handler = eventHandlers.get(cursor)?.get(type);
+			const handlers = eventHandlers.get(cursor);
+			const handler = handlers?.get(type);
 			if (handler) {
 				const current = cursor;
+				const closed = handlers!.has(closedInteractionKey(type));
 				preserveFocus(root, () => {
 					try {
 						const owner = findOwnerInstance(current);
-						const result = runInteractiveEvent(root, owner, () =>
-							callDelegatedHandler(handler, current, event)
+						const result = runInteractiveEvent(
+							root,
+							owner,
+							() =>
+								closed
+									? callClosedDelegatedHandler(handler, current, event)
+									: callDelegatedHandler(handler, current, event),
+							closed || handlers!.has(directInteractionKey(type))
 						);
 						observeComponentAsync(owner, result, 'event', type);
 					} catch (error) {
@@ -99,17 +110,39 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 	listeners.set(type, listener);
 }
 
+/** Returns the colocated map key that marks one compiler-owned event binding. */
+export function directInteractionKey(type: string): string {
+	return `__exactDirect:${type}`;
+}
+
+/** Returns the colocated marker for a compiler-proven event-argument-free binding. */
+export function closedInteractionKey(type: string): string {
+	return `__exactClosed:${type}`;
+}
+
 /**
  * Runs one direct or delegated DOM callback in the owning component interaction.
  *
  * The caller retains responsibility for the synchronous reactive batch and error observation.
  */
 export function runEventInteraction<Result>(
+	root: Root,
 	owner: AnyComponentInstance | undefined,
 	work: () => Result | PromiseLike<Result>,
-	onScope?: (scope: InteractionScope) => void
+	onScope?: (scope: InteractionScope) => void,
+	direct = false
 ): Result | PromiseLike<Result> {
 	if (!owner) return work();
+	if (direct || !hasComponentTaskOwner(owner))
+		return runDirectCompiledComponentInteraction(
+			owner,
+			'event',
+			nextEventGeneration,
+			'interactive',
+			work,
+			onScope,
+			compiledInteractionTrace(root)
+		);
 	return runComponentInteraction(
 		owner,
 		'event',
@@ -127,16 +160,42 @@ export function runEventInteraction<Result>(
 function runInteractiveEvent<Result>(
 	root: Root,
 	owner: AnyComponentInstance | undefined,
-	work: () => Result | PromiseLike<Result>
+	work: () => Result | PromiseLike<Result>,
+	direct = false
 ): Result | PromiseLike<Result> {
 	let interaction: InteractionScope | undefined;
-	root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
+	const useLazyInteraction = owner !== undefined && !hasComponentTaskOwner(owner);
 	try {
 		const result = runWithPriority('interactive', () =>
-			batch(() =>
-				runEventInteraction(owner, work, (scope) => {
-					interaction = scope;
-				})
+			(direct ? publishBatch : batch)(() =>
+				owner
+					? direct || useLazyInteraction
+						? runDirectCompiledComponentInteraction(
+								owner,
+								'event',
+								nextEventGeneration,
+								'interactive',
+								work,
+								(scope) => {
+									interaction = scope;
+									root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
+								},
+								compiledInteractionTrace(root)
+							)
+						: runCompiledComponentInteraction(
+								owner,
+								'event',
+								nextEventGeneration(owner),
+								'interactive',
+								new AbortController(),
+								work,
+								(scope) => {
+									interaction = scope;
+									root.interactionWork = { reconciliations: 0, traversedNodes: 0 };
+								},
+								compiledInteractionTrace(root)
+							)
+					: work()
 			)
 		);
 		traceInteractionPhase(interaction, 'handler-complete');
@@ -144,13 +203,19 @@ function runInteractiveEvent<Result>(
 		// normal and deferred consequences queued for their ordinary host turns.
 		flushSync('interactive');
 		traceInteractionPhase(interaction, 'feedback-committed', () => ({
-			reconciliations: root.interactionWork!.reconciliations,
-			traversedNodes: root.interactionWork!.traversedNodes
+			reconciliations: root.interactionWork?.reconciliations ?? 0,
+			traversedNodes: root.interactionWork?.traversedNodes ?? 0
 		}));
 		return result;
 	} finally {
 		root.interactionWork = undefined;
 	}
+}
+
+/** Skips generic trace discovery when one shared root logger proves trace logging is disabled. */
+function compiledInteractionTrace(root: Root): false | undefined {
+	const logging = root.componentLogging;
+	return logging && !logging.componentOverride && logging.logger === undefined ? false : undefined;
 }
 
 /**
@@ -258,6 +323,14 @@ function callDelegatedHandler(handler: EventListener, current: Element, event: E
 			delete (event as { currentTarget?: EventTarget | null }).currentTarget;
 		}
 	}
+}
+
+function callClosedDelegatedHandler(
+	handler: EventListener,
+	current: Element,
+	event: Event
+): unknown {
+	return (handler as (this: Element, event: Event) => unknown).call(current, event);
 }
 
 function eventTargetElement(target: EventTarget | null): Element | null {

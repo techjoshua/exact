@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { ExactPreparedBunRemoteBuild } from './build.js';
 import type { BunBuildLike } from './plugin.js';
@@ -45,9 +45,7 @@ export class ExactBunMicrofrontendIntegration {
 			const scope = this.scope(importer);
 			if (!this.#remote.ownsRemoteModule(importer) && !scope) return undefined;
 			try {
-				const source =
-					this.#remote.onLoad(importer)?.contents ??
-					this.#sources.get(normalizeRemotePath(importer));
+				const source = this.importerSource(importer);
 				return this.#remote.registerProvidedBridge(args.path, bunImportUsages(source, args.path));
 			} catch {
 				if (!scope) return undefined;
@@ -97,6 +95,22 @@ export class ExactBunMicrofrontendIntegration {
 		return (
 			remoteScope(filename) ??
 			(filename ? this.#paths.get(normalizeRemotePath(filename)) : undefined)
+		);
+	}
+
+	/**
+	 * Returns the most recent importer source, falling back to the file Bun is resolving.
+	 *
+	 * Bun may resolve a dependency before the catch-all load hook records its importer. Generated
+	 * remote modules remain owned by the adapter; ordinary scoped modules can be read from disk so
+	 * their provided-package facade never depends on hook ordering.
+	 */
+	private importerSource(filename: string): string | undefined {
+		const normalized = normalizeRemotePath(filename);
+		return (
+			this.#remote.onLoad(filename)?.contents ??
+			this.#sources.get(normalized) ??
+			readBunImporterSource(normalized)
 		);
 	}
 }
@@ -164,6 +178,16 @@ function remoteScope(id: string | undefined): string | undefined {
 
 function normalizeRemotePath(value: string): string {
 	return value.replaceAll('\\', '/').split('?', 1)[0]!;
+}
+
+/** Reads a filesystem-backed Bun importer without treating virtual module identifiers as paths. */
+export function readBunImporterSource(filename: string): string | undefined {
+	if (!path.isAbsolute(filename)) return undefined;
+	try {
+		return readFileSync(filename, 'utf8');
+	} catch {
+		return undefined;
+	}
 }
 
 function resolveRemoteImport(request: string, importer: string): string | undefined {

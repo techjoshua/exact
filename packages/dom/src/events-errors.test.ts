@@ -1,12 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
+import '@exactjs/core/runtime/lists';
 import {
 	createErrorContext,
+	currentInteraction,
 	ErrorBoundary,
 	ErrorContext,
 	type Component,
-	type ErrorContextValue,
 	type ErrorReport
 } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
@@ -14,8 +15,98 @@ import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
+import { directInteractionKey } from './events.js';
+import { eventHandlers } from './state.js';
 
 describe('@exactjs/dom events-errors', () => {
+	it('runs compiler-owned event handlers without materializing an interaction frame', () => {
+		const container = document.createElement('div');
+		let activeInteraction: unknown = 'not called';
+		function Button(this: Component<{}>) {
+			return () =>
+				jsx('button', {
+					'__exactDirectInteraction:onClick': () => {
+						activeInteraction = currentInteraction();
+					},
+					children: 'Click'
+				});
+		}
+		render(jsx(Button, {}), container);
+		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		expect(activeInteraction).toBeUndefined();
+	});
+
+	it('retains published compiled-event mutations when a later statement fails', () => {
+		const container = document.createElement('div');
+		const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		let owner!: Component<{ count: number }>;
+		function Button(this: Component<{ count: number }>) {
+			owner = this;
+			this.state.count = 0;
+			return () =>
+				jsx('button', {
+					'__exactDirectInteraction:onClick': () => {
+						this.state.count = 1;
+						throw new Error('event failed');
+					},
+					children: 'Fail'
+				});
+		}
+		try {
+			render(jsx(Button, {}), container);
+			container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+			flushSync();
+
+			expect(owner.state.count).toBe(1);
+		} finally {
+			unmount(container);
+			errorLog.mockRestore();
+		}
+	});
+
+	it('does not redefine currentTarget for compiler-proven argument-free handlers', () => {
+		const container = document.createElement('div');
+		let calls = 0;
+		function Button(this: Component<{}>) {
+			return () =>
+				jsx('button', {
+					'__exactClosedInteraction:onClick': () => calls++,
+					children: 'Click'
+				});
+		}
+		render(jsx(Button, {}), container);
+		const event = new MouseEvent('click', { bubbles: true });
+		const defineProperty = vi.spyOn(Object, 'defineProperty');
+
+		container.querySelector('button')!.dispatchEvent(event);
+
+		expect(calls).toBe(1);
+		expect(
+			defineProperty.mock.calls.some(([target, key]) => target === event && key === 'currentTarget')
+		).toBe(false);
+	});
+
+	it('keeps compiled interaction selection local to one event binding', () => {
+		const container = document.createElement('div');
+		const handler = () => undefined;
+		function Buttons(this: Component<{}>) {
+			return () =>
+				jsx('div', {
+					children: [
+						jsx('button', {
+							'__exactDirectInteraction:onClick': handler,
+							children: 'Compiled'
+						}),
+						jsx('button', { onClick: handler, children: 'Runtime' })
+					]
+				});
+		}
+		render(jsx(Buttons, {}), container);
+		const buttons = container.querySelectorAll('button');
+		expect(eventHandlers.get(buttons[0]!)?.has(directInteractionKey('click'))).toBe(true);
+		expect(eventHandlers.get(buttons[1]!)?.has(directInteractionKey('click'))).toBe(false);
+	});
+
 	it('runs binding listeners before delegated user handlers and removes them on unmount', () => {
 		const container = document.createElement('div');
 		const calls: string[] = [];
@@ -487,78 +578,6 @@ describe('@exactjs/dom events-errors', () => {
 		expect(container.textContent).toContain('Outer: Error: fallback failed');
 	});
 
-	it('renders the root default error view for unclaimed event failures', () => {
-		const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-		let errors!: ErrorContextValue;
-
-		function Panel(this: Component<{}>) {
-			errors = this.getContext(ErrorContext);
-			return () =>
-				jsx('button', {
-					onClick: () => {
-						throw new Error('root failed');
-					},
-					children: 'Break'
-				});
-		}
-
-		try {
-			const container = document.createElement('div');
-			render(jsx(Panel, {}), container);
-			container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-			flushSync();
-
-			expect(errors.errors).toHaveLength(1);
-			expect(container.textContent).toContain('Application error');
-			expect(container.textContent).toContain('root failed');
-		} finally {
-			errors.clearAll();
-			errorLog.mockRestore();
-		}
-	});
-
-	it('keeps root default error contexts isolated per container', () => {
-		const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-		let firstErrors!: ErrorContextValue;
-		let secondErrors!: ErrorContextValue;
-
-		function First(this: Component<{}>) {
-			firstErrors = this.getContext(ErrorContext);
-			return () =>
-				jsx('button', {
-					onClick: () => {
-						throw new Error('first failed');
-					},
-					children: 'First'
-				});
-		}
-
-		function Second(this: Component<{}>) {
-			secondErrors = this.getContext(ErrorContext);
-			return () => jsx('p', { children: 'Second ok' });
-		}
-
-		try {
-			const first = document.createElement('div');
-			const second = document.createElement('div');
-			render(jsx(First, {}), first);
-			render(jsx(Second, {}), second);
-
-			first.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-			flushSync();
-
-			expect(firstErrors).not.toBe(secondErrors);
-			expect(firstErrors.errors).toHaveLength(1);
-			expect(secondErrors.errors).toHaveLength(0);
-			expect(first.textContent).toContain('first failed');
-			expect(second.textContent).toBe('Second ok');
-		} finally {
-			firstErrors?.clearAll();
-			secondErrors?.clearAll();
-			errorLog.mockRestore();
-		}
-	});
-
 	it('replaces delegated event handlers', () => {
 		let button!: Component<{ mode: 'a' | 'b' }>;
 		const first = vi.fn();
@@ -671,3 +690,4 @@ describe('@exactjs/dom events-errors', () => {
 		expect(select.value).toBe('high');
 	});
 });
+import '@exactjs/core/runtime/contexts';

@@ -5,14 +5,14 @@ import {
 	isVNode,
 	type VNode
 } from '@exactjs/core';
-import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
+import { getCellVNode, isCellVNode } from '@exactjs/core/framework/render-structure';
 import {
 	mergeTargetClassContributions,
 	mergeTargetTokenContributions
 } from '@exactjs/core/framework/target-contributions';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
-import { prepareSsrTargetBoundary, prepareSsrTargetBoundaryAsync } from './enhancement-planning.js';
+import { ssrEnhancementPlanningCapability } from './enhancement-planning-capability.js';
 import { resolveSsrTargetBoundary } from './enhancement-routing.js';
 import { resolveSsrLogicalChildren } from './logical-children.js';
 
@@ -31,7 +31,7 @@ export function applySsrTargetContributions(
 	boundary: VNode,
 	parent: AnyComponentInstance | undefined
 ): void {
-	prepareSsrTargetBoundary(context, boundary, parent);
+	ssrEnhancementPlanningCapability().prepareTarget(context, boundary, parent);
 	applyPreparedTargetTree(context, boundary, parent);
 }
 
@@ -42,7 +42,7 @@ export async function applySsrTargetContributionsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<void> {
-	await prepareSsrTargetBoundaryAsync(context, boundary, parent, options);
+	await ssrEnhancementPlanningCapability().prepareTargetAsync(context, boundary, parent, options);
 	applyPreparedTargetTree(context, boundary, parent);
 }
 
@@ -58,7 +58,7 @@ function applyPreparedTargetTree(
 	let childParent = parent;
 	let children: readonly unknown[];
 	if (typeof vnode.type === 'function') {
-		const prepared = context.preparedEnhancementComponents.get(vnode);
+		const prepared = context.preparedEnhancementComponents?.get(vnode);
 		childParent = prepared?.failed ? parent : (prepared?.instance ?? parent);
 		children = prepared?.children ?? [];
 	} else {
@@ -66,12 +66,15 @@ function applyPreparedTargetTree(
 	}
 	for (const child of children)
 		if (isVNode(child)) applyPreparedTargetTree(context, child, childParent);
-	if (vnode.type !== Target || context.appliedTargetBoundaries.has(vnode)) return;
+	if (vnode.type !== Target || context.appliedTargetBoundaries?.has(vnode)) return;
 	const target = resolveSsrTargetBoundary(context, vnode, parent);
 	if (!target) return;
-	const base = context.targetContributions.get(target) ?? target.props;
-	context.targetContributions.set(target, composeTargetProps(base, vnode.props));
-	context.appliedTargetBoundaries.add(vnode);
+	const base = context.targetContributions?.get(target) ?? target.props;
+	(context.targetContributions ??= new WeakMap()).set(
+		target,
+		composeTargetProps(base, vnode.props)
+	);
+	(context.appliedTargetBoundaries ??= new WeakSet()).add(vnode);
 }
 
 function composeTargetProps(

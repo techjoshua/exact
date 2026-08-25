@@ -7,12 +7,17 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./styles.css": "./styles.css"
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"ThemeModeToggle",
+		"ThemePreferenceProvider"
+	],
 	"sideEffects": [
 		"./styles.css"
 	],
@@ -22,10 +27,11 @@
 	},
 	"dependencies": {
 		"@exactjs/component-library": "^0.1.0",
-		"@exactjs/core": "^0.1.0"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "vitest run"
 	}
 }

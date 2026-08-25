@@ -37,6 +37,78 @@ func TestJSXLoweringEmitsNativeRuntimeOperations(t *testing.T) {
 	}
 }
 
+func TestJSXLoweringSelectsLazyCompiledEventInteractions(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/direct-interaction.tsx",
+		Kind: "compile",
+		Source: `export function Counter(this: Component<{ count: number }>) {
+			return () => <button onClick={() => this.state.count++}>Count</button>;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `"__exactClosedInteraction:onClick"`) {
+		t.Fatalf("closed event handler did not select the direct interaction lane:\n%s", response.Code)
+	}
+}
+
+func TestJSXLoweringRetainsEventObjectsForObservableHandlerParameters(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/event-argument.tsx",
+		Kind: "compile",
+		Source: `export function Counter(this: Component<{}>) {
+			function click(event: MouseEvent) { console.log(event.currentTarget); }
+			return () => <button onClick={click}>Count</button>;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `"__exactDirectInteraction:onClick"`) ||
+		strings.Contains(response.Code, `"__exactClosedInteraction:onClick"`) {
+		t.Fatalf("event-observing handler lost its complete event lane:\n%s", response.Code)
+	}
+}
+
+func TestJSXLoweringRetainsImplicitArgumentsReads(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/event-arguments.tsx",
+		Kind: "compile",
+		Source: `export function Counter(this: Component<{}>) {
+			function click() { console.log(arguments[0]); }
+			return () => <button onClick={click}>Count</button>;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `"__exactDirectInteraction:onClick"`) ||
+		strings.Contains(response.Code, `"__exactClosedInteraction:onClick"`) {
+		t.Fatalf("arguments-observing handler lost its complete event lane:\n%s", response.Code)
+	}
+}
+
+func TestJSXLoweringKeepsComponentCallbacksOutsideTheNativeEventLane(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "C:/tmp/general-interaction.tsx",
+		Kind: "compile",
+		Source: `declare function Button(props: { onClick(): void }): unknown;
+		export function Link(this: Component<{}>, props: { navigate(): void }) {
+			return () => <Button onClick={props.navigate} />;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, `"__exactDirectInteraction:onClick"`) {
+		t.Fatalf("component callback prop incorrectly selected the native event lane:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `onClick:`) {
+		t.Fatalf("component callback prop was not preserved:\n%s", response.Code)
+	}
+}
+
 func TestModuleDeclarativeCollectionRetainsReactiveComponentProps(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "C:/tmp/declarative-component-props.tsx",

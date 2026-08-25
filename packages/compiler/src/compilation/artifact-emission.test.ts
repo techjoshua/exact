@@ -112,6 +112,31 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(serverMap.sources).toEqual([input]);
 	});
 
+	it('emits a direct synchronous server lane for a compiler-closed component', async () => {
+		const root = await createTestWorkspace('exact-direct-server-');
+		const input = path.join(root, 'src', 'greeting.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`export function Greeting(props: { name: string }) {
+				return () => <p>Hello {props.name}</p>;
+			}`
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src')
+		});
+		const client = await readFile(result.clientFile, 'utf8');
+		const server = await readFile(result.serverFile, 'utf8');
+
+		expect(server).toContain('classification: "synchronous"');
+		expect(server).toContain('lane: "direct"');
+		expect(server).toMatch(/render: __exactImplementation_Greeting_/);
+		expect(client).not.toContain('lane: "direct"');
+	});
+
 	it('creates package export maps for generated target artifacts', async () => {
 		const root = await createTestWorkspace('exact-package-');
 		const input = path.join(root, 'src', 'components', 'page.tsx');
@@ -208,14 +233,19 @@ describe('@exactjs/compiler: artifacts', () => {
 			)
 		);
 		expect(server).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
-		expect(client).not.toContain('parts:');
-		expect(server).not.toContain('parts:');
 		expect(client).toContain('executors: []');
 		expect(server).toContain('executors: [');
+		expect(server).toContain('classification: "scheduled"');
+		expect(server).toContain('lane: "direct"');
+		expect(server).not.toContain('deferredTaskProps: [');
+		expect(server).not.toContain('slices: [');
+		expect(server).not.toContain('execution: {');
+		expect(client).not.toContain('classification: "scheduled"');
 		expect(server).toMatch(
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
 		);
-		expect(server).toMatch(/__exactWrite\(__exactComponent_\d+\.state, \["count"\]/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.count = 1/);
+		expect(server).not.toContain('__exactWrite');
 	});
 
 	it('preserves awaited server task value flow in both client and executor artifacts', async () => {
@@ -307,8 +337,9 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
-		expect(server).toMatch(/__exactComponent_\d+\.state, \["settled"\]/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.settled = true/);
+		expect(server).not.toContain('__exactWrite');
 	});
 
 	it('keeps direct server-context dependencies out of client activation records', async () => {
@@ -334,7 +365,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain(
 			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'
 		);
-		expect(client).toContain('this.reactive(() => this.state.id)');
+		expect(client).toContain('__exactDerived(() => this.state.id)');
 		expect(server).toMatch(
 			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
 		);
@@ -431,7 +462,12 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(panelContract).toBeTruthy();
 		expect(
 			artifactAnalysis(app).partitionPlan.nodes.some(
-				(node) => node.componentContract === panelContract && node.placement === 'client'
+				(node) => node.componentContract === panelContract && node.placement === 'either'
+			)
+		).toBe(true);
+		expect(
+			artifactAnalysis(panel).partitionPlan.nodes.some(
+				(node) => node.kind === 'region' && node.placement === 'client'
 			)
 		).toBe(true);
 	});
@@ -486,6 +522,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const workspaceServer = await readFile(workspace.serverFile, 'utf8');
 		const workspaceClient = await readFile(workspace.clientFile, 'utf8');
 		const workspaceViewClient = await readFile(workspaceView.clientFile, 'utf8');
+		const workspaceViewServer = await readFile(workspaceView.serverFile, 'utf8');
 
 		expect(results.map((result) => path.basename(result.inputFile)).sort()).toEqual([
 			'App.tsx',
@@ -494,12 +531,20 @@ describe('@exactjs/compiler: artifacts', () => {
 			'workspace.tsx'
 		]);
 		expect(appServer).toContain('./components/page.exact.server.js');
-		expect(pageServer).toContain('createServerBoundary as __exactBoundary');
-		expect(pageServer).not.toContain('./workspace.exact.server.js');
+		expect(pageServer).not.toContain('createServerBoundary as __exactBoundary');
+		expect(pageServer).toContain('./workspace.exact.server.js');
 		expect(pageServer).not.toContain('./workspace.js');
-		expect(workspaceServer).toContain('createServerBoundary as __exactBoundary');
+		expect(workspaceServer).toContain('./workspace-view.exact.server.js');
 		expect(workspaceClient).toContain('./workspace-view.exact.client.js');
-		expect(workspaceViewClient).toContain('__exactVNode');
+		expect(workspaceViewClient).toContain('__exactClaimProgramKeyedChild');
+		expect(workspaceViewClient).toContain('directClaims: true');
+		expect(workspaceViewClient).not.toContain(
+			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
+		);
+		expect(workspaceViewServer).toContain(
+			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
+		);
+		expect(workspaceViewClient).not.toContain('() => __exactVNode("div"');
 		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
 		expect(workspaceViewClient).not.toContain('this.map(');
 		expect(workspaceViewClient).not.toContain('Anonymous_ExactClient');
@@ -507,8 +552,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(pageClient).not.toContain('../provider.js');
 		expect(artifactAnalysis(page).components[0]?.tasks[0]?.placement).toBe('server');
 		expect(artifactAnalysis(workspace).components[0]).toMatchObject({
-			placement: 'client',
-			artifactTargets: ['client']
+			placement: 'isomorphic',
+			artifactTargets: ['client', 'server']
 		});
 	}, 15_000);
 
