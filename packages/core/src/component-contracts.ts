@@ -5,7 +5,11 @@ import type {
 } from './component-definition-contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
 import { validatedComponentContract } from './component-contract/contract-cache.js';
-import { compiledComponentRenderABI, generalComponentABI } from './component/compiled-abi.js';
+import {
+	compiledComponentCollectionsABI,
+	compiledComponentRenderABI,
+	generalComponentABI
+} from './component/compiled-abi.js';
 import {
 	addUniqueExecutor,
 	addUniqueImplementation,
@@ -345,7 +349,10 @@ function runtimeBoundaryDefinition(
 	return {
 		version: 1,
 		abi:
-			target === 'server' ? generalComponentABI | compiledComponentRenderABI : generalComponentABI,
+			(target === 'server'
+				? generalComponentABI | compiledComponentRenderABI
+				: generalComponentABI) |
+			(capabilities.includes('collections') ? compiledComponentCollectionsABI : 0),
 		instantiate: component,
 		state: [],
 		tasks: [],

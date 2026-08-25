@@ -852,6 +852,46 @@ func TestComponentExecutionForwardsReactivePropIdentity(t *testing.T) {
 	}
 }
 
+func TestClientTransparentComponentUsesOneCompiledDynamicRange(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "transparent.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			export function Transparent(props: { children?: string }) {
+				return () => props.children;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "createDynamicChild as __exactDynamic") ||
+		!strings.Contains(response.Code, "return () => __exactDynamic(() => props.children") {
+		t.Fatalf("transparent render did not receive a compiler-owned dynamic range:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, "abi: 1") {
+		t.Fatalf("transparent render retained the component-wide watch ABI:\n%s", response.Code)
+	}
+
+	static := NewSession().Execute(Request{
+		ID:     "static-transparent.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			export function StaticTransparent() {
+				return () => null;
+			}
+		`,
+	})
+	if static.Error != "" || len(static.Diagnostics) != 0 {
+		t.Fatalf("static compile failed: %s %#v", static.Error, static.Diagnostics)
+	}
+	if strings.Contains(static.Code, "createDynamicChild") || !strings.Contains(static.Code, "abi: 1") {
+		t.Fatalf("constant render retained unnecessary reactive work:\n%s", static.Code)
+	}
+}
+
 func TestComponentExecutorPreservesAuthoredStateContextualTypes(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "typed-executor.tsx",

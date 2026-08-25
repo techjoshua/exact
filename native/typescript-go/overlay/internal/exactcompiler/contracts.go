@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.36.0"
+const ProtocolVersion = "1.37.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -27,7 +27,7 @@ const (
 )
 
 const (
-	// TargetDefault compiles an artifact without client/server specialization.
+	// TargetDefault is retained only for analysis and transient check lowering.
 	TargetDefault Target = "default"
 	// TargetClient compiles a browser-owned artifact.
 	TargetClient Target = "client"
@@ -182,32 +182,33 @@ type Import struct {
 
 // Component identifies a native eXact component declaration.
 type Component struct {
-	ID                  string                    `json:"id"`
-	Name                string                    `json:"name"`
-	Start               int                       `json:"start"`
-	Length              int                       `json:"length"`
-	Exported            bool                      `json:"exported"`
-	Signals             []string                  `json:"signals"`
-	Placement           string                    `json:"placement"`
-	SubgraphPlacement   string                    `json:"subgraphPlacement"`
-	EnvironmentEffect   string                    `json:"environmentEffect"`
-	ArtifactTargets     []string                  `json:"artifactTargets"`
-	RenderEdges         []RenderEdge              `json:"renderEdges"`
-	ClientIslandCount   int                       `json:"clientIslandCount"`
-	Contexts            []ContextEffect           `json:"contexts"`
-	EnhancementContexts EnhancementContextEffects `json:"enhancementContexts"`
-	SplitBoundaries     []string                  `json:"splitBoundaries"`
-	Diagnostics         []string                  `json:"diagnostics"`
-	Execution           ComponentExecution        `json:"execution"`
-	Interactions        bool                      `json:"-"`
-	DynamicComponents   bool                      `json:"-"`
-	StateSlots          []string                  `json:"-"`
-	Collections         bool                      `json:"-"`
-	CompiledRender      bool                      `json:"-"`
-	Lifecycle           bool                      `json:"-"`
-	Lists               bool                      `json:"-"`
-	Surface             ComponentSurfacePlan      `json:"-"`
-	TargetPlan          ComponentTargetPlan       `json:"-"`
+	ID                   string                    `json:"id"`
+	Name                 string                    `json:"name"`
+	Start                int                       `json:"start"`
+	Length               int                       `json:"length"`
+	Exported             bool                      `json:"exported"`
+	Signals              []string                  `json:"signals"`
+	Placement            string                    `json:"placement"`
+	SubgraphPlacement    string                    `json:"subgraphPlacement"`
+	EnvironmentEffect    string                    `json:"environmentEffect"`
+	ArtifactTargets      []string                  `json:"artifactTargets"`
+	RenderEdges          []RenderEdge              `json:"renderEdges"`
+	ClientIslandCount    int                       `json:"clientIslandCount"`
+	Contexts             []ContextEffect           `json:"contexts"`
+	EnhancementContexts  EnhancementContextEffects `json:"enhancementContexts"`
+	SplitBoundaries      []string                  `json:"splitBoundaries"`
+	Diagnostics          []string                  `json:"diagnostics"`
+	Execution            ComponentExecution        `json:"execution"`
+	Interactions         bool                      `json:"-"`
+	DynamicComponents    bool                      `json:"-"`
+	StateSlots           []string                  `json:"-"`
+	Collections          bool                      `json:"-"`
+	CompiledRender       bool                      `json:"-"`
+	ClientCompiledRender bool                      `json:"-"`
+	Lifecycle            bool                      `json:"-"`
+	Lists                bool                      `json:"-"`
+	Surface              ComponentSurfacePlan      `json:"-"`
+	TargetPlan           ComponentTargetPlan       `json:"-"`
 }
 
 // ComponentSurfacePlan records compiler-observed instance capabilities before lowering rewrites

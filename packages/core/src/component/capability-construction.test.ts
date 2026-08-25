@@ -98,7 +98,7 @@ describe('compiled component capability construction', () => {
 			createFrameworkComponentDomain({ executionRoot: 'server-test', target: 'server' })
 		);
 
-		expect(instance.runtimeABI).toBe(15);
+		expect(instance.runtimeABI).toBe(31);
 		instance.unmount();
 	});
 

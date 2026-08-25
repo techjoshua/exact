@@ -18,6 +18,7 @@ import { prependExactEnhancementRegistrations } from './enhancement-registration
 import { materializeExactPhysicalEnhancementFacades } from './physical-enhancement-facades.js';
 import { synchronizeNativeProject } from './project-synchronization.js';
 import { publishOutputTransaction, type CompilerOutputMutation } from './output-transaction.js';
+import { checkSourceWithNativeCompiler } from '../native/transformation.js';
 
 /** Compiles one input file and optionally writes code and its source map. */
 export async function compileFile(
@@ -185,6 +186,56 @@ export async function compileProject(
 	await validatePreparedFiles(prepared, options.root ?? rootDir, options);
 	await publishOutputTransaction(prepared.flatMap(preparedFileMutations));
 	return prepared.map((result) => publicPreparedResult(result, options.emitInspection));
+}
+
+/** Checks an authored project through transient compiler lowering without publishing output. */
+export async function checkProject(
+	inputs: readonly string[],
+	options: CompileProjectOptions = {}
+): Promise<void> {
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
+	if (ownedSession) {
+		try {
+			return await checkProject(inputs, { ...options, session: ownedSession });
+		} finally {
+			ownedSession.dispose();
+		}
+	}
+	const files = await collectInputFiles(inputs, true);
+	const rootDir = options.rootDir ?? commonRoot(files);
+	const packageEnhancements =
+		options.packageEnhancements ??
+		loadExactPackageEnhancements({
+			applicationRoot: options.root ?? rootDir
+		}).packageEnhancements;
+	const synchronizedSources = await synchronizeNativeProject(files, {
+		root: options.root,
+		configFile: options.configFile,
+		packageEnhancements,
+		session: options.session
+	});
+	const errors: string[] = [];
+	for (const file of files) {
+		const source = synchronizedSources.get(file) ?? (await readFile(file, 'utf8'));
+		try {
+			checkSourceWithNativeCompiler(source, file, {
+				filename: file,
+				root: options.root,
+				configFile: options.configFile,
+				session: options.session,
+				packageEnhancements,
+				serverComponents: options.serverComponents,
+				preserveComponentHoisting: options.preserveComponentHoisting,
+				jsxInterop: options.jsxInterop,
+				assetRules: options.assetRules,
+				preserveClientAssetImports: options.preserveClientAssetImports,
+				...capabilityCompilationOptions(options)
+			});
+		} catch (error) {
+			errors.push(error instanceof Error ? error.message : String(error));
+		}
+	}
+	if (errors.length) throw new Error(errors.join('\n'));
 }
 
 type PreparedCompileFile = CompileFileResult & Readonly<{ source: string }>;

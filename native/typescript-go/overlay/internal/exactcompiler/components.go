@@ -73,9 +73,10 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 				Requires:           []string{},
 				OptionallyConsumes: []string{},
 			},
-			SplitBoundaries: []string{},
-			Diagnostics:     []string{},
-			CompiledRender:  componentHasCompiledRender(candidate.node),
+			SplitBoundaries:      []string{},
+			Diagnostics:          []string{},
+			CompiledRender:       componentHasCompiledRender(candidate.node),
+			ClientCompiledRender: componentReturnsRenderFunction(candidate.node),
 			Lifecycle: componentUsesProtocolMember(
 				candidate.node,
 				"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",

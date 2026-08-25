@@ -538,12 +538,14 @@ activity blockers, lifecycle registrations, controllers, task state, refs, lists
 remain allocation-on-demand sidecars.
 
 Compiled component definitions also carry a compact runtime ABI describing whether their generated
-execution uses a compiled render, authored lifecycle work, the general list capability, or task
-ownership. A compiler-owned render constructs its direct bindings and structural readers once;
-state and prop changes are then routed by those generated operations rather than by a second generic
-component-render watcher. Construction and disposal use the same ABI to avoid task lookups,
-lifecycle-map probes, and list-controller calls that the component cannot exercise. Framework test
-fixtures and compatibility artifacts retain the conservative general path.
+execution uses a compiled render, authored lifecycle work, the general list capability, collection
+interception, or task ownership. A compiler-owned render constructs its direct bindings and
+structural readers once. A transparent render that has no JSX host receives one explicit dynamic
+range for its returned expression instead of retaining a component-wide watcher. State and prop
+changes are then routed by those generated operations. Construction and disposal use the same ABI
+to avoid capability-name scans, task lookups, lifecycle-map probes, and list-controller calls that
+the component cannot exercise. Framework test fixtures and compatibility artifacts retain the
+conservative general path.
 
 The compiler also selects the authored component surface itself. The base durable instance owns only
 the state machine and its always-valid context operations. Canonical lifecycle registration and

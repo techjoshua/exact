@@ -87,6 +87,7 @@ func (plan jsxLoweringPlan) prepare(
 		enhancementImports:       plan.enhancementImports,
 		partitionPlan:            plan.partitionPlan,
 		dynamicComponents:        plan.dynamicComponents,
+		dynamicRenderExpressions: make(map[int]struct{}),
 		clientIslands:            plan.clientIslands,
 		recordedClientIslands:    make(map[string]struct{}),
 		serverTaskSlices:         make(map[string]string),
@@ -94,8 +95,31 @@ func (plan jsxLoweringPlan) prepare(
 		externalImports:          collectExternalImportBindings(sourceFile, plan.typeChecker),
 		closedServerWriters:      make(map[string]struct{}),
 	}
+	lowering.indexDynamicRenderExpressions()
 	lowering.indexCollectionMaps()
 	return lowering, true
+}
+
+// indexDynamicRenderExpressions gives every client component render arrow an explicit compiled
+// range even when its authored result contains no JSX topology, such as a transparent children
+// forwarder. The range owns the only watcher; the durable component render itself runs once.
+func (lowering *jsxLowering) indexDynamicRenderExpressions() {
+	for _, render := range resolveComponentRenders(lowering.sourceFile) {
+		if ast.IsArrowFunction(render.callable) {
+			body := unwrapRenderExpression(render.callable.Body())
+			if body != nil && !ast.IsBlock(body) && !containsJSX(body) &&
+				lowering.hasReactiveComponentCapture(body) {
+				lowering.dynamicRenderExpressions[body.Pos()] = struct{}{}
+			}
+		}
+		for _, returned := range directCallableReturns(render.callable) {
+			expression := unwrapRenderExpression(returned)
+			if expression != nil && !containsJSX(expression) &&
+				lowering.hasReactiveComponentCapture(expression) {
+				lowering.dynamicRenderExpressions[expression.Pos()] = struct{}{}
+			}
+		}
+	}
 }
 
 func indexContinuationComponents(continuations []Continuation) map[string]struct{} {

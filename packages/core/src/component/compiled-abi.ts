@@ -12,6 +12,17 @@ export const compiledComponentListsABI = 4;
 /** The component needs task, interaction, or compatibility execution ownership. */
 export const compiledComponentTasksABI = 8;
 
-/** Complete capability ABI used by explicitly constructed framework-owned boundary artifacts. */
+/** State or props can contain Map/Set values that require collection interception. */
+export const compiledComponentCollectionsABI = 16;
+
+/** Every component capability bit accepted by runtime contract validation. */
+export const allCompiledComponentABI =
+	compiledComponentRenderABI |
+	compiledComponentLifecycleABI |
+	compiledComponentListsABI |
+	compiledComponentTasksABI |
+	compiledComponentCollectionsABI;
+
+/** Conservative non-render ABI used by explicit framework-owned boundary artifacts. */
 export const generalComponentABI =
 	compiledComponentLifecycleABI | compiledComponentListsABI | compiledComponentTasksABI;

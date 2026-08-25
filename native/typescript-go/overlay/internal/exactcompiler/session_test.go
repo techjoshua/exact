@@ -125,6 +125,21 @@ func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	}
 }
 
+func TestSessionCheckValidatesWithoutReturningAnArtifact(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:          "check.ts",
+		Kind:        "check",
+		Diagnostics: "semantic",
+		Source:      `const answer: number = 42; void answer;`,
+	})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatalf("valid check failed: error=%q diagnostics=%#v", response.Error, response.Diagnostics)
+	}
+	if response.Code != "" {
+		t.Fatalf("check exposed a transient executable artifact: %q", response.Code)
+	}
+}
+
 func TestUTF16PackageEnhancementBoundaryConversion(t *testing.T) {
 	source := "const label = '°😀';\nimport * as time from 'enhancement';"
 	authored := "const label = '°😀';"

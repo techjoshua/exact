@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { compileProjectArtifacts } from './compilation/compiler.js';
-import { compileProject } from './compilation/file-compilation.js';
+import { checkProject, compileProject } from './compilation/file-compilation.js';
 import { createCompilerSession } from './expression/session.js';
 import { resolveNativeCompilerExecutable } from './native/executable.js';
 import type { TransformTarget } from './types.js';
@@ -33,14 +33,12 @@ async function main(argv: string[]): Promise<void> {
 	try {
 		if (options.check) {
 			const configFile = checkConfigFile(options.project);
-			await compileProject(options.inputs, {
+			await checkProject(options.inputs, {
 				rootDir: options.rootDir,
 				root: configFile ? path.dirname(configFile) : process.cwd(),
 				configFile,
 				target: options.target,
 				serverComponents: options.serverComponents,
-				generatedValidation: 'semantic',
-				includeAllModules: true,
 				session
 			});
 			return;
