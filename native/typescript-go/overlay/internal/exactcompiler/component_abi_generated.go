@@ -7,4 +7,5 @@ const (
 	componentABILifecycle      = 2
 	componentABILists          = 4
 	componentABITasks          = 8
+	componentABICollections    = 16
 )

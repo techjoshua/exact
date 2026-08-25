@@ -371,7 +371,7 @@ describe('@exactjs/core component contracts', () => {
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: { version: 1 as const, instantiate, abi: 16, capabilities: [] }
+				definition: { version: 1 as const, instantiate, abi: 32, capabilities: [] }
 			}
 		});
 

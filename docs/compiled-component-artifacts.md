@@ -49,6 +49,11 @@ component's topology or interpret a universal component plan when the artifact a
 Browser-target artifacts carry only their specialized template, claims, readers, bindings, and
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
+When a render arrow returns an otherwise unstructured value such as `props.children`, the client
+artifact emits one explicit dynamic range for that expression. The durable component render still
+runs once; only the compiler-declared range observes and replaces the forwarded value. Such
+components do not retain the component-wide watched-render fallback merely because they have no JSX
+element of their own.
 Compiler-proven top-level state reads use the artifact's deterministic numeric state slots rather
 than re-entering the inspectable state's property proxy. That numeric lane tracks the same
 target/key dependency graph as ordinary property reads, so computed freshness, transactions,

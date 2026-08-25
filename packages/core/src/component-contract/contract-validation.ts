@@ -17,6 +17,7 @@ import {
 	isContractString,
 	isSafeContractStringList
 } from './metadata-validation.js';
+import { allCompiledComponentABI } from '../component/compiled-abi.js';
 
 /** Validates all required metadata before a generated artifact gains runtime authority. */
 export function isExactComponentContract(
@@ -96,7 +97,7 @@ function isDefinition(value: unknown): boolean {
 		typeof value.abi === 'number' &&
 		Number.isSafeInteger(value.abi) &&
 		value.abi >= 0 &&
-		value.abi <= 15 &&
+		(value.abi & ~allCompiledComponentABI) === 0 &&
 		(value.updates === undefined || isComponentUpdates(value.updates)) &&
 		(value.state === undefined || isSafeContractStringList(value.state)) &&
 		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&

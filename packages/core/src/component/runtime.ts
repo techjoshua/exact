@@ -36,7 +36,8 @@ import { type ExactCompiledComponentContract } from '../component-contracts.js';
 import {
 	compiledComponentLifecycleABI,
 	compiledComponentListsABI,
-	compiledComponentTasksABI
+	compiledComponentTasksABI,
+	compiledComponentCollectionsABI
 } from './compiled-abi.js';
 import { ComponentRuntimeSurface } from './runtime-surface.js';
 import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
@@ -100,11 +101,11 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 			domain,
 			() => this,
 			contract.definition.state,
-			contract.definition.capabilities.includes('collections')
+			Boolean(this.runtimeABI & compiledComponentCollectionsABI)
 		);
 		this.props = createComponentProps(
 			rawProps,
-			contract.definition.capabilities.includes('collections')
+			Boolean(this.runtimeABI & compiledComponentCollectionsABI)
 		);
 		this.initialize(instantiate, execution, rawProps, contract);
 	}

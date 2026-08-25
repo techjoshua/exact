@@ -49,12 +49,20 @@ export type * from './process-activation-contracts.js';
 export type * from './process-state-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.36.0';
+export const nativeCompilerProtocolVersion = '1.37.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
 	id?: string;
-	kind: 'version' | 'reset' | 'synchronize' | 'diagnose' | 'analyze' | 'compile' | 'extension';
+	kind:
+		| 'version'
+		| 'reset'
+		| 'synchronize'
+		| 'diagnose'
+		| 'analyze'
+		| 'check'
+		| 'compile'
+		| 'extension';
 	source?: string;
 	root?: string;
 	/** Immutable deployment namespace shared by every artifact in one partition graph. */

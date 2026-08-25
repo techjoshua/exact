@@ -440,6 +440,8 @@ func rootComponentContractAttachment(
 			"1",
 		)
 	}
+	compiledRender := component.CompiledRender ||
+		(target == TargetClient && component.ClientCompiledRender)
 	implementationRecord := contractObject(factory, false,
 		contractProperty(factory, "id", contractString(factory, rootSymbolID)),
 		contractProperty(factory, "name", contractString(factory, implementationName)),
@@ -551,6 +553,7 @@ func rootComponentContractAttachment(
 					hasLifecycle,
 					hasInteractions,
 					usesCompatibility,
+					compiledRender,
 				),
 				unsupportedServerSurface,
 				component.TargetPlan.DirectServer,

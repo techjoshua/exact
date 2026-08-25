@@ -58,7 +58,7 @@ func (s *Session) Execute(request Request) Response {
 	if request.Kind == "synchronize" {
 		return s.synchronizeProject(request, response, requestStarted)
 	}
-	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
+	if request.Kind != "compile" && request.Kind != "check" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
 		response.Error = fmt.Sprintf("unsupported native compiler request kind %q", request.Kind)
 		return response
 	}
@@ -71,6 +71,10 @@ func (s *Session) Execute(request Request) Response {
 	}
 	if request.Target != TargetDefault && request.Target != TargetClient && request.Target != TargetServer {
 		response.Error = fmt.Sprintf("unsupported eXact compilation target %q", request.Target)
+		return response
+	}
+	if request.Kind == "check" && request.Target != TargetDefault {
+		response.Error = "native check requests require the target-neutral analysis projection"
 		return response
 	}
 	if request.ComponentContractProjection == "" {
@@ -208,7 +212,7 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	if usesForeignJSXRuntime(sourceFile) {
-		if request.Kind == "compile" {
+		if request.Kind == "compile" || request.Kind == "check" {
 			response.Code = authoredSource
 			if request.Diagnostics == "semantic" {
 				validationStarted := time.Now()
@@ -222,6 +226,9 @@ func (s *Session) Execute(request Request) Response {
 					return response
 				}
 				response.Diagnostics = append(response.Diagnostics, validated...)
+			}
+			if request.Kind == "check" {
+				response.Code = ""
 			}
 		}
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
@@ -543,7 +550,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, assets.diagnostics...)
-	if request.Kind == "compile" && request.JSXInterop == nil {
+	if (request.Kind == "compile" || request.Kind == "check") && request.JSXInterop == nil {
 		for _, component := range components {
 			for _, message := range component.Diagnostics {
 				if !strings.HasPrefix(message, "error: JSX tag ") {
@@ -745,6 +752,11 @@ func (s *Session) Execute(request Request) Response {
 	}
 	sourceDiagnosticCount := len(response.Diagnostics)
 	response.Diagnostics = append(response.Diagnostics, generatedDiagnostics...)
+	if request.Kind == "check" {
+		// Check lowering exists only to validate the compiler-aware TypeScript projection.
+		// Never expose its target-neutral executable representation to build hosts.
+		response.Code = ""
+	}
 	remapAuthoredLocations(&response, normalization, sourceDiagnosticCount)
 	applySetupAssignmentExecutions(
 		response.Analysis.StateWrites,

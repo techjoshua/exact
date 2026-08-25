@@ -67,6 +67,7 @@ type jsxLowering struct {
 	renderProgramDefinitionNodes []namedRenderProgramDefinition
 	componentUpdates             map[string]*componentUpdateBuild
 	declarativeRenderDepth       int
+	dynamicRenderExpressions     map[int]struct{}
 	timeActivation               string
 	timeActivationAdopted        bool
 	timePlanNode                 *ast.Node
@@ -248,6 +249,18 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if lowering.target == TargetClient {
 		if read := lowering.lowerIndexedStateRead(node); read != nil {
 			return read
+		}
+		if _, dynamic := lowering.dynamicRenderExpressions[node.Pos()]; dynamic {
+			delete(lowering.dynamicRenderExpressions, node.Pos())
+			emitted := lowering.visitor.VisitEachChild(node)
+			closure := lowering.reactiveClosure(node)
+			if closure == nil {
+				closure = lowering.arrow(emitted)
+			}
+			return lowering.call(lowering.names.dynamic, []*ast.Node{
+				closure,
+				lowering.factory.NewStringLiteral(lowering.dynamicID(node), ast.TokenFlagsNone),
+			})
 		}
 	}
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {

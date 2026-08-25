@@ -34,8 +34,15 @@ func planComponentTargets(
 		unsupportedSurface := component.Surface.Logging || component.Surface.Localization ||
 			component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
 			component.Surface.ServerLifecycle
-		abi := componentRuntimeABI(*component, execution, hasLifecycle, false, usesCompatibility)
-		directABI := componentABICompiledRender | componentABITasks
+		abi := componentRuntimeABI(
+			*component,
+			execution,
+			hasLifecycle,
+			false,
+			usesCompatibility,
+			component.CompiledRender,
+		)
+		directABI := componentABICompiledRender | componentABITasks | componentABICollections
 		tasksSupported := true
 		for _, task := range tasks {
 			if task.Component == component.Name && !directServerTaskSupported(task) {
@@ -392,9 +399,10 @@ func componentRuntimeABI(
 	hasLifecycle bool,
 	hasInteractions bool,
 	compatibility bool,
+	compiledRender bool,
 ) int {
 	abi := 0
-	if component.CompiledRender {
+	if compiledRender {
 		abi |= componentABICompiledRender
 	}
 	if hasLifecycle {
@@ -405,6 +413,9 @@ func componentRuntimeABI(
 	}
 	if len(execution.Transitions) != 0 || hasInteractions || compatibility {
 		abi |= componentABITasks
+	}
+	if component.Collections {
+		abi |= componentABICollections
 	}
 	return abi
 }
