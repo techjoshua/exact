@@ -176,7 +176,7 @@ Only a lazy server key retains the dynamic generic lane while its loader can sus
 | `defineTask()` in compiler output                 | Generic task fallback             | Emit compiler-selected computation or task lanes                              |
 | `defineTask()` as an advanced runtime API         | Internal/advanced primitive       | Move out of the normal compiled runtime graph                                 |
 | Generic VNode component mounting and adoption     | Dynamic/compatibility fallback    | Retain only for compiler-declared dynamic ranges and compatibility boundaries |
-| `createComponentRegistry()` callable entries      | Native dynamic selection          | Migrated to compiler-selected target-local facade artifacts                   |
+| `createComponentRegistry()` source declarations   | Native dynamic selection          | Compiler-only syntax; execution requires target-local facade artifacts        |
 | Accessibility components                          | First-party native components     | Migrated to target-paired package artifacts                                   |
 | Internationalization components                   | First-party native components     | Migrated to target-paired package artifacts                                   |
 | Request provider                                  | First-party native component      | Migrated to target-paired package artifacts                                   |
