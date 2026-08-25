@@ -103,10 +103,16 @@ request-local host with a realm-stable, non-enumerable identity, and disposal re
 artifacts can therefore find their own request's frame even when a development module graph loads
 another copy of core, without introducing a process-wide request registry or cross-request
 retention.
-Static SSR capability installers use a versioned realm registry for the same development-module
-interop reason. That registry contains only module-lifetime functions selected by reachable server
-artifacts; request state and component instances never enter it, and omitting an installer still
-lets bundlers remove the corresponding implementation from specialized targets.
+Static SSR capability installers use one bundle-local ESM registry. It contains only
+module-lifetime functions selected by reachable server artifacts; request state and component
+instances never enter it, and omitting an installer still lets bundlers remove the corresponding
+implementation from specialized targets. Server builds must deduplicate `@exactjs/ssr`; duplicate
+package copies are a build-graph defect rather than a reason for framework modules to mutate
+`globalThis`.
+
+Every SSR lane uses the request's single normalized stabilization budget. Direct writers, generic
+instances, enhancement planning, boundaries, and task drains therefore fail at the same configured
+limit instead of carrying lane-specific retry counts.
 
 ## Migration inventory
 

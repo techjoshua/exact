@@ -140,7 +140,6 @@ describe('@exactjs/ssr component resumption', () => {
 					}
 				});
 		}
-
 		const rendered = renderToHydratableString(createVNode(Root, {}));
 
 		expect(rendered.html).toContain('<output>1</output>');

@@ -75,7 +75,7 @@ export async function renderNativeSuspenseAsyncCapability(
 		context.componentDomain
 	);
 	try {
-		const maxPasses = options.maxTaskPasses ?? 10;
+		const maxPasses = context.maxTaskPasses;
 		for (let pass = 0; pass < maxPasses; pass++) {
 			if (pass) coordinator.beginGeneration();
 			const candidate = await renderChildren(context, vnode.children, owner, options);

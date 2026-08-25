@@ -109,7 +109,7 @@ export async function renderDirectSsrComponentOutput<Publication>(
 		const constructionCheckpoint = context.onComponentAttemptCheckpoint?.();
 		try {
 			context.onDirectComponentCreated?.(scheduled.snapshot);
-			const maxPasses = options.maxTaskPasses ?? 10;
+			const maxPasses = context.maxTaskPasses;
 			for (let pass = 0; pass < maxPasses; pass++) {
 				const renderCheckpoint = context.onComponentAttemptCheckpoint?.();
 				const issued = await scheduled.render();
@@ -303,7 +303,7 @@ function constructDirectScheduledSsrComponent(
 		async drain() {
 			const rerender = pending.size !== 0;
 			if (!rerender) return false;
-			await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
+			await drainTasks(pending, context.maxTaskPasses, options.signal, options.taskDeadline);
 			return true;
 		},
 		[Symbol.asyncDispose]: () => execution[Symbol.asyncDispose]()

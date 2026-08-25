@@ -1,6 +1,6 @@
 import type { AnyComponentInstance, VNode } from '@exactjs/core';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
-import { realmSsrCapabilities } from './realm-capability.js';
+import { ssrCapabilities } from './capability-registry.js';
 
 type SsrAsyncOptions = RenderToStringOptions & { taskDeadline?: number };
 
@@ -36,12 +36,12 @@ const capabilityName = 'enhancement-planning';
 export function registerSsrEnhancementPlanningCapability(
 	next: SsrEnhancementPlanningCapability
 ): void {
-	realmSsrCapabilities[capabilityName] = next;
+	ssrCapabilities[capabilityName] = next;
 }
 
 /** Returns the compiler-selected planning capability or reports a malformed runtime artifact. */
 export function ssrEnhancementPlanningCapability(): SsrEnhancementPlanningCapability {
-	const capability = realmSsrCapabilities[capabilityName] as
+	const capability = ssrCapabilities[capabilityName] as
 		| SsrEnhancementPlanningCapability
 		| undefined;
 	if (!capability)

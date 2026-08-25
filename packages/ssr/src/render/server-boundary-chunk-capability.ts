@@ -1,6 +1,6 @@
 import type { VNode } from '@exactjs/core';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
-import { realmSsrCapabilities } from './realm-capability.js';
+import { ssrCapabilities } from './capability-registry.js';
 
 type ChunkRenderer = (
 	child: Child,
@@ -21,7 +21,7 @@ const capabilityName = 'server-boundary-chunks';
 
 /** Installs chunked client-boundary rendering for artifacts that emit client boundaries. */
 export function registerServerBoundaryChunkCapability(next: ServerBoundaryChunkCapability): void {
-	realmSsrCapabilities[capabilityName] = next;
+	ssrCapabilities[capabilityName] = next;
 }
 
 /** Streams an explicitly compiler-selected client boundary. */
@@ -33,7 +33,7 @@ export function renderServerBoundaryChunks(
 	renderChild: ChunkRenderer,
 	marked: MarkerRenderer
 ): Generator<string> {
-	const capability = realmSsrCapabilities[capabilityName] as
+	const capability = ssrCapabilities[capabilityName] as
 		| ServerBoundaryChunkCapability
 		| undefined;
 	if (!capability)

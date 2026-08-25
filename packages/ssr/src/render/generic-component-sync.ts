@@ -28,7 +28,7 @@ export function renderGenericComponentSync({
 	);
 	onInstance(instance);
 	context.onComponentCreated?.(instance);
-	for (let pass = 0; pass < 25; pass++) {
+	for (let pass = 0; pass < context.maxTaskPasses; pass++) {
 		const checkpoint = context.onComponentAttemptCheckpoint?.();
 		let invalidated = false;
 		let html: string;
@@ -59,7 +59,9 @@ export function renderGenericComponentSync({
 		}
 		return { html, props: rawProps };
 	}
-	throw new Error('eXact SSR component did not stabilize after 25 render passes');
+	throw new Error(
+		`eXact SSR component did not stabilize after ${context.maxTaskPasses} render passes`
+	);
 }
 
 /** Materializes the durable instance used by the synchronous chunk traversal. */

@@ -65,6 +65,7 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		reactMarkup: options.reactMarkup ?? false,
 		nextId: 0,
 		logger: options.logger,
+		maxTaskPasses: normalizePositiveLimit(options.maxTaskPasses, 10),
 		maxTreeDepth: normalizeSsrTreeDepth(options.maxTreeDepth),
 		traversalDepth: 0,
 		maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, defaultMaxSsrTreeNodes),
