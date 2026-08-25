@@ -29,11 +29,10 @@ export function adoptProgramChildSlots(
 	const state = mounted.renderProgram!;
 	const ownsLists =
 		state.invocation.program.listBindings === true ||
-		state.invocation.program.keyedChildren !== undefined ||
-		state.invocation.program.bindings?.some((binding) => binding[0] === 'lists') === true;
+		state.invocation.program.keyedChildren !== undefined;
 	if (ownsLists) parentInstance.beginRender();
 	try {
-		const slotCount = state.invocation.program.slots?.length ?? state.slotNodes.length;
+		const slotCount = state.slotNodes.length;
 		for (let index = 0; index < slotCount; index++) {
 			const slot = structuralProgramSlot(state, index);
 			if (!slot) continue;
@@ -274,8 +273,6 @@ function structuralProgramSlot(
 	state: NonNullable<Mounted['renderProgram']>,
 	index: number
 ): readonly ['child' | 'component', string] | undefined {
-	const slot = state.invocation.program.slots?.[index];
-	if (slot?.[0] === 'child' || slot?.[0] === 'component') return slot;
 	const marker = state.slotNodes[index];
 	if (isKeyedChildAnchor(marker)) {
 		const kind = componentSlotIncludes(state.componentSlots, index) ? 'component' : 'child';

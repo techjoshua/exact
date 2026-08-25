@@ -3,8 +3,6 @@
  */
 import { createDerived, type Component } from '@exactjs/core';
 import {
-	createCompiledVNode,
-	createDynamicChild,
 	createFrameworkFixtureComponentInstance,
 	createPreparedRenderProgram,
 	keyCompiledVNode,
@@ -188,7 +186,6 @@ describe('hydration-only root capability', () => {
 	});
 
 	it('adopts marked compiler render programs without materializing their generic cells', () => {
-		let fallbacks = 0;
 		const descriptor = prepareCompiledRenderProgram(
 			withGenericRenderProgramBindings({
 				version: 4,
@@ -213,14 +210,7 @@ describe('hydration-only root capability', () => {
 		const componentId = '@exactjs/hydrate:root-marked-program';
 		const ClientApp = createExactFrameworkFixtureArtifact(function ClientApp() {
 			return () =>
-				createPreparedRenderProgram(descriptor, [() => 'ready'], renderProgramOwner, () => {
-					fallbacks++;
-					return createCompiledVNode(
-						'span',
-						{ 'data-exact-id': 'program-root' },
-						createDynamicChild(() => 'ready', 'program-text')
-					);
-				});
+				createPreparedRenderProgram(descriptor, [() => 'ready'], renderProgramOwner);
 		}, componentId);
 		const ServerApp = createExactFrameworkFixtureArtifact(function ServerApp() {
 			return () => createPreparedServerRenderProgram(descriptor, ['ready']);
@@ -230,12 +220,9 @@ describe('hydration-only root capability', () => {
 		const container = document.createElement('main');
 		container.innerHTML = renderToString(serverVNode).html;
 		const span = container.querySelector('span');
-		const fallbackCount = fallbacks;
-
 		const root = hydrate(clientVNode, container);
 
 		expect(container.querySelector('span')).toBe(span);
-		expect(fallbacks).toBe(fallbackCount);
 		root.dispose();
 	});
 

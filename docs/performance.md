@@ -140,13 +140,14 @@ claims. Inert static intrinsics are never claimed or assigned individual ownersh
 path does not walk descriptor tables, build an identity map, or rediscover slots. Every claimed tag,
 namespace, scalar sentinel, and structural marker pair is still checked. A stale or malformed plan
 therefore fails closed into the existing hydration recovery path. Complete rendering-mode-neutral
-artifacts combine the same direct client claim lane with a generated SSR writer and a generated
-recovery factory; manually constructed and older compatibility programs alone retain the
-table-driven adopter.
+artifacts combine the same direct client claim lane with a generated SSR writer. The production DOM
+executor accepts only that compiler-specialized client ABI; manually constructed table fixtures are
+converted to the direct ABI by the testing entry point and are not a browser compatibility lane.
 
-Render-program descriptors are emitted once as immutable module tables. Component instances join
-only their local expression readers and optional recovery function to that shared table; they do
-not allocate a descriptor factory or repeat cache lookup and freezing. For compiler-proven direct
+Render-program descriptors are emitted once as immutable module records. Component instances join
+only their local expression readers to that shared record; closed client output does not retain a
+second generic VNode topology for region-local recovery. It does not allocate a descriptor factory
+or repeat cache lookup and freezing. For compiler-proven direct
 top-level state reads, closed client output assigns dirty bits to the affected text and property
 operations. Each finite region registers its generated operation function with the durable
 component definition. The artifact carries one fixed dependency/mask table and one generated

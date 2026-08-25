@@ -41,7 +41,7 @@ import { releaseMountedRange, takeReversedRelease } from '../retained-release.js
 import { requireDomEnhancementCapability } from '../enhancement-capability.js';
 import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-capability.js';
 import { parkForeignMounts } from './replacement-parking.js';
-import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
+import { patchRenderProgram } from '../render-program.js';
 import { patchDynamic } from '../dynamic.js';
 
 /** Performs the patch domain operation. */
@@ -201,10 +201,8 @@ export function patchInner(
 
 	if (next.type === RenderProgram) {
 		if (patchRenderProgram(mounted, next)) return mounted;
-		const fallback = fallbackRenderProgram(next);
-		if (fallback) return patch(root, parent, mounted, fallback, parentInstance, parentScope);
-		// Distinct closed programs have no generic VNode representation. Replace them through the
-		// ordinary ownership transaction so the optimization cannot bypass placement or teardown.
+		// Distinct programs replace through the ordinary ownership transaction so compiler
+		// specialization cannot bypass placement or teardown.
 		const replacement = mount(root, next, parentInstance, parentScope, parent, false);
 		placeMountedBefore(root, parent, replacement, mounted.dom);
 		if (!releaseMountedRange(root, parent, mounted, 'reconcile-replaced'))

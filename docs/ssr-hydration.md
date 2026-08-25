@@ -144,8 +144,8 @@ Completed component mounts cache their first target and host candidates; parent 
 those structural results instead of recursively rediscovering roots through nested components.
 
 Finite render-program roots do not receive a generic cell envelope in compiler-generated SSR. The
-program's root element and dense topology provide its fixed ownership and hydration identity.
-Program node tables contain only dense numeric indexes. Authored or protocol-facing
+program's root element and generated dense claims provide its fixed ownership and hydration
+identity. Authored or protocol-facing
 `data-exact-id` attributes are not consulted as a fallback render-program identity map.
 Variable-width component, cell, fragment, list, and structural ranges keep their markers when a
 later sibling requires a concrete boundary. A compiler-proven final structural or component child

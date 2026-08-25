@@ -59,8 +59,9 @@ facade retains the same numeric identity inside nested callbacks. Nested-state a
 references retain path-based operations because their final target is runtime data.
 Compiler-synthesized computation and task wrappers consume the same analyzed write identity; they
 do not reconstruct a string path merely because the authored assignment moved into managed work.
-Render-program node tables use only dense, zero-based compiler indexes. Hydration resolves those
-indexes during its bounded topology walk; it does not build or consult a string-identity map.
+Client render programs use only dense, zero-based compiler indexes in their generated claim calls.
+Hydration executes those claims directly; it does not interpret a node table or build a
+string-identity map.
 `data-exact-id` remains a separate identity only for operations that must address a live DOM target,
 such as authorized server patches and interaction replay. It is not a second render-program ABI.
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
