@@ -555,7 +555,9 @@ universal prototype implementation. This keeps an unused feature's imports unrea
 relying on a lazy field to disguise a bundle-level dependency.
 
 Compiler-indexed component state uses one proxy handler and numeric dependency identities per
-state object. Initialized fields are ordinary data properties on the inspectable backing record;
+state object. Instances of the same compiled definition share its immutable key-to-slot layout;
+only a component that introduces a dynamic field allocates an instance-local extension map.
+Initialized fields are ordinary data properties on the inspectable backing record;
 they do not allocate getter and setter closures for every declared field. A compact indexed bitmap
 tracks field presence for deletion, snapshots, and optimistic rollback, while fields introduced
 dynamically retain the same reactive fallback semantics and receive stable indexes on first write.

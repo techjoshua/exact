@@ -5,13 +5,19 @@ import { hasChanged, isReactiveContainer } from './change-detection.js';
 import { unwrap } from './internal/values.js';
 
 type IndexedRecord = {
-	readonly indexes: Map<PropertyKey, number>;
-	readonly keys: PropertyKey[];
+	readonly layout: IndexedLayout;
+	dynamicIndexes?: Map<PropertyKey, number>;
+	dynamicKeys?: PropertyKey[];
 	readonly initialized: boolean[];
 	readonly target: Record<PropertyKey, unknown>;
 	readonly options: ReactiveOptions;
 	readonly wrap: (value: object, options: ReactiveOptions) => object;
 };
+
+type IndexedLayout = Readonly<{
+	indexes: ReadonlyMap<PropertyKey, number>;
+	keys: readonly PropertyKey[];
+}>;
 
 /** Stable dependency keys for compiler-known fields on one indexed reactive target. */
 export type ReactiveOwnDependencies = Readonly<{
@@ -20,6 +26,7 @@ export type ReactiveOwnDependencies = Readonly<{
 }>;
 
 const indexedRecords = new WeakMap<object, IndexedRecord>();
+const indexedLayouts = new WeakMap<object, IndexedLayout>();
 
 /**
  * Creates an inspectable object facade whose compiler-known top-level fields are
@@ -31,46 +38,42 @@ export function createIndexedReactive<T extends object>(
 	options: ReactiveOptions,
 	wrap: (value: object, options: ReactiveOptions) => object
 ): Reactive<T> {
-	const indexes = new Map<PropertyKey, number>();
-	const indexedKeys: PropertyKey[] = [];
-	for (const key of keys) {
-		if (indexes.has(key)) continue;
-		indexes.set(key, indexes.size);
-		indexedKeys.push(key);
-	}
+	const layout = indexedLayout(keys);
 	const target: Record<PropertyKey, unknown> = {};
-	const initialized = new Array<boolean>(indexes.size).fill(false);
+	const initialized = new Array<boolean>(layout.keys.length).fill(false);
 	const read = (key: PropertyKey, index: number) => {
 		track(target, index);
 		return target[key];
 	};
-	const record: IndexedRecord = { indexes, keys: indexedKeys, initialized, target, options, wrap };
+	const record: IndexedRecord = { layout, initialized, target, options, wrap };
 
 	const facade = new Proxy(target, {
 		get(target, key, receiver) {
 			if (key === proxyMarker) return true;
 			if (key === rawTarget) return target;
-			const index = indexes.get(key);
+			const index = indexedRecordIndex(record, key);
 			return index === undefined ? Reflect.get(target, key, receiver) : read(key, index);
 		},
 		set(_target, key, next) {
-			let index = indexes.get(key);
+			let index = indexedRecordIndex(record, key);
 			if (index === undefined) {
-				index = indexes.size;
-				indexes.set(key, index);
-				indexedKeys.push(key);
+				const dynamicIndexes = (record.dynamicIndexes ??= new Map());
+				const dynamicKeys = (record.dynamicKeys ??= []);
+				index = layout.keys.length + dynamicIndexes.size;
+				dynamicIndexes.set(key, index);
+				dynamicKeys.push(key);
 				initialized.push(false);
 			}
 			return writeIndexedRecord(record, index, next);
 		},
 		deleteProperty(_target, key) {
-			const index = indexes.get(key);
+			const index = indexedRecordIndex(record, key);
 			return index === undefined
 				? Reflect.deleteProperty(target, key)
 				: deleteIndexedRecord(record, index);
 		},
 		has(target, key) {
-			const index = indexes.get(key);
+			const index = indexedRecordIndex(record, key);
 			return (index !== undefined && initialized[index] === true) || Reflect.has(target, key);
 		}
 	});
@@ -85,7 +88,7 @@ export function readReactiveOwnProperty(
 ): { present: true; value: unknown } | { present: false } {
 	const indexed = indexedRecords.get(value);
 	if (indexed) {
-		const index = indexed.indexes.get(key);
+		const index = indexedRecordIndex(indexed, key);
 		return index !== undefined && indexed.initialized[index]
 			? { present: true, value: indexed.target[key] }
 			: { present: false };
@@ -100,13 +103,13 @@ export function readReactiveOwnProperty(
 export function readIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'read');
 	track(indexed.target, index);
-	return indexed.target[indexed.keys[index]!];
+	return indexed.target[indexedRecordKey(indexed, index)];
 }
 
 /** Reads one compiler-proven slot without collecting a dependency. */
 export function peekIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'peek');
-	return indexed.target[indexed.keys[index]!];
+	return indexed.target[indexedRecordKey(indexed, index)];
 }
 
 /** Commits one compiler-proven slot without entering the facade's proxy traps. */
@@ -127,7 +130,7 @@ function indexedRecord(value: object, index: number, operation: string): Indexed
 }
 
 function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown): boolean {
-	const key = indexed.keys[index]!;
+	const key = indexedRecordKey(indexed, index);
 	const previous = indexed.target[key];
 	const raw = unwrap(next);
 	const value =
@@ -165,7 +168,7 @@ function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown
 }
 
 function deleteIndexedRecord(indexed: IndexedRecord, index: number): boolean {
-	const key = indexed.keys[index]!;
+	const key = indexedRecordKey(indexed, index);
 	if (indexed.initialized[index]) {
 		const previous = indexed.target[key];
 		if (hasActiveTransaction())
@@ -197,7 +200,7 @@ export function reactiveOwnDependencies(
 	if (!indexed) return undefined;
 	const indexes: PropertyKey[] = [];
 	for (const key of keys) {
-		const index = indexed.indexes.get(key);
+		const index = indexedRecordIndex(indexed, key);
 		if (index === undefined) return undefined;
 		indexes.push(index);
 	}
@@ -205,4 +208,29 @@ export function reactiveOwnDependencies(
 		target: indexed.target,
 		keys: indexes
 	};
+}
+
+function indexedLayout(keys: readonly PropertyKey[]): IndexedLayout {
+	const identity = keys as object;
+	const cached = indexedLayouts.get(identity);
+	if (cached) return cached;
+	const indexes = new Map<PropertyKey, number>();
+	const uniqueKeys: PropertyKey[] = [];
+	for (const key of keys) {
+		if (indexes.has(key)) continue;
+		indexes.set(key, indexes.size);
+		uniqueKeys.push(key);
+	}
+	const layout = { indexes, keys: uniqueKeys };
+	indexedLayouts.set(identity, layout);
+	return layout;
+}
+
+function indexedRecordIndex(indexed: IndexedRecord, key: PropertyKey): number | undefined {
+	return indexed.layout.indexes.get(key) ?? indexed.dynamicIndexes?.get(key);
+}
+
+function indexedRecordKey(indexed: IndexedRecord, index: number): PropertyKey {
+	if (index < indexed.layout.keys.length) return indexed.layout.keys[index]!;
+	return indexed.dynamicKeys![index - indexed.layout.keys.length]!;
 }
