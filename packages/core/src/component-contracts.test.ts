@@ -211,13 +211,14 @@ describe('@exactjs/core component contracts', () => {
 						version: 1 as const,
 						classification: 'scheduled' as const,
 						lane,
-						setupProps: ['request'],
+						deferredTaskProps: ['request'],
 						render
 					}
 				: {
 						version: 1 as const,
 						classification: 'scheduled' as const,
-						lane
+						lane,
+						deferredTaskProps: ['request']
 					};
 		const component = Object.assign(implementation, {
 			[exactComponentType]: 'component:ServerPage',

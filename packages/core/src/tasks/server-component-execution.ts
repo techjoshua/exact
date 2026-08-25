@@ -44,11 +44,12 @@ type ServerExecutionHost = { readonly state?: object } & {
 };
 
 /**
- * Realm-stable request-frame identity shared by separately evaluated copies of the core package.
- * The frame remains owned by its request-local host and is removed when that request is disposed.
+ * Realm-stable protocol identities shared by separately evaluated copies of the core package.
+ * The frame remains owned by its request-local host and is removed when that request is disposed;
+ * dependency tokens carry only request-owned output slots.
  */
 const serverExecutionFrame = Symbol.for('@exactjs/server-component-execution-frame');
-const serverDependencyBrand = Symbol('exact.server-component-dependency');
+const serverDependencyBrand = Symbol.for('@exactjs/server-component-dependency');
 
 type ServerComponentDependency = Readonly<{
 	[serverDependencyBrand]: OutputSlot;

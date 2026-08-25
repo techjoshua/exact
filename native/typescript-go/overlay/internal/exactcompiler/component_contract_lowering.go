@@ -531,6 +531,7 @@ func rootComponentContractAttachment(
 				factory,
 				implementation,
 				projectedExecution,
+				component.TargetPlan.DeferredTaskProps,
 				component.StateSlots,
 				runtimeContinuations,
 				hasResumption,

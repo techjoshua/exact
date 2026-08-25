@@ -51,7 +51,7 @@ export async function renderGenericComponentAsync({
 		};
 		const componentProps = await prepareComponentProps(
 			rawProps,
-			blueprint.contract.execution,
+			blueprint.contract.definition.server?.deferredTaskProps,
 			options.signal
 		);
 		instance = withTaskObserver(observer, () =>
