@@ -26,6 +26,8 @@ export {
 	createExpressHandler,
 	createFetchHandler,
 	createHapiHandler,
+	exactResponseToFetchResponse,
+	handleExactFetchRequest,
 	createAdapterLifetime,
 	cleanupAdapterPreservingPrimary,
 	withAdapterStreamCleanup,

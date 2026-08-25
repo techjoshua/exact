@@ -1,6 +1,6 @@
 import {
 	exactResponseBodyOf,
-	handleExactRequest,
+	handleExactFetchRequest,
 	type ExactResponseLike,
 	type ExactServerContext
 } from '@exactjs/server';
@@ -19,17 +19,7 @@ export function createExactBunHandler(
 	context: ExactServerContext
 ): (request: Request) => Promise<Response> {
 	return async (request) => {
-		const result = await handleExactRequest(
-			{
-				method: request.method,
-				url: request.url,
-				headers: request.headers,
-				bodyStream: request.body,
-				signal: request.signal,
-				platformRequest: request
-			},
-			context
-		);
+		const result = await handleExactFetchRequest(request, context);
 		return exactResponseToBunResponse(result);
 	};
 }
