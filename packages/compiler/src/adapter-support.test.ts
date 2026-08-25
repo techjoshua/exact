@@ -9,6 +9,7 @@ import {
 	parseExactEnhancementFacadeRequest,
 	exactDiagnosticKey,
 	formatExactDiagnostic,
+	isExactGeneratedArtifactModule,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath,
 	matchesExactBuildFilter,
@@ -101,6 +102,10 @@ describe('build adapter support', () => {
 	});
 
 	it('applies common source, test, dependency, and authored filters', () => {
+		expect(isExactGeneratedArtifactModule('/src/view.exact.client.ts')).toBe(true);
+		expect(isExactGeneratedArtifactModule('/src/view.exact.server.js?direct')).toBe(true);
+		expect(isExactGeneratedArtifactModule('/src/view.tsx')).toBe(false);
+		expect(shouldTransformExactBuildModulePath('/src/view.exact.client.ts', {})).toBe(false);
 		expect(shouldTransformExactBuildModulePath('/src/view.test.tsx', {})).toBe(false);
 		expect(
 			shouldTransformExactBuildModulePath('/src/view.test.tsx', { compileTestModules: true })
@@ -151,6 +156,13 @@ describe('build adapter support', () => {
 				include: '/src/components.ts'
 			})
 		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/components.exact.client.ts',
+				'function Component() { return () => value; }',
+				{ include: '/src/' }
+			)
+		).toBe(false);
 	});
 
 	it('formats and keys diagnostics consistently', () => {
