@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
 	composeExactComponentContracts,
-	createExactCompatibilityArtifact,
-	createExactCompiledDynamicBoundaryArtifact,
 	exactComponentContract,
 	exactComponentIdentity,
 	exactComponentType,
 	readExactCompiledComponentContract,
 	readExactComponentContract
 } from './component-contracts.js';
+import {
+	createExactCompatibilityArtifact,
+	createExactCompiledDynamicBoundaryArtifact
+} from './component-contract/runtime-artifacts.js';
 
 describe('@exactjs/core component contracts', () => {
 	it('limits an opaque framework boundary to dynamic rendering and interactions', () => {

@@ -1,8 +1,8 @@
 import {
-	createExactFrameworkFixtureArtifact,
 	readExactCompiledComponentContract,
 	readPreparedExactCompiledComponentContract
 } from '../component-contracts.js';
+import { createExactFrameworkFixtureArtifact } from '../component-contract/runtime-artifacts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import type {
 	AnyComponentInstance,

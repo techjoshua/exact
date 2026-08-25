@@ -1,6 +1,9 @@
 import { Suspense, type Component } from '@exactjs/core';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import {
+	createExactFrameworkFixtureArtifact,
+	readExactCompiledComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderToString, renderToStringAsync } from './index.js';
@@ -19,13 +22,25 @@ createExactFrameworkFixtureArtifact(Lazy, '@exactjs/ssr:test:Lazy');
 
 describe('@exactjs/ssr component registries', () => {
 	it('renders eager registry members through their stable selection facade', () => {
+		let direct = 0;
+		let generic = 0;
 		const View = createCompiledComponentRegistry('test:ssr:eager', 'EagerView', 'server', () => ({
 			eager: Eager
 		}));
-		const output = renderToString(createVNode(View.eager, { label: 'ready' }));
+		expect(readExactCompiledComponentContract(View.eager).definition.server).toMatchObject({
+			classification: 'synchronous',
+			lane: 'direct',
+			render: View.eager
+		});
+		const output = renderToString(createVNode(View.eager, { label: 'ready' }), {
+			onDirectComponentCreated: () => direct++,
+			onComponentCreated: () => generic++
+		});
 
 		expect(output.html).toContain('eager:ready');
 		expect(output.html).toContain('exact:component');
+		expect(direct).toBe(1);
+		expect(generic).toBe(1);
 	});
 
 	it('loads a lazy selected server entry through Suspense readiness', async () => {

@@ -68,8 +68,20 @@ describe('component registries', () => {
 			role: 'client',
 			definition: {
 				instantiate: View.primary,
+				abi: 1,
 				capabilities: ['registry', 'dynamic-components']
 			}
+		});
+		expect(
+			readExactCompiledComponentContract(
+				createCompiledComponentRegistry('server-registry', 'ServerView', 'server', () => ({
+					primary: Primary
+				})).primary
+			).definition
+		).toMatchObject({
+			abi: 1,
+			capabilities: ['registry'],
+			server: { classification: 'synchronous', lane: 'direct' }
 		});
 
 		expect(inspectComponentRegistry(View)).toEqual({
