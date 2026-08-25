@@ -43,6 +43,7 @@ async function prepareFile(
 	options: CompileFileOptions,
 	loadedSource?: string
 ): Promise<PreparedCompileFile> {
+	const target = options.target ?? 'client';
 	const source = loadedSource ?? (await readFile(inputFile, 'utf8'));
 	const packageEnhancements =
 		options.packageEnhancements ??
@@ -55,7 +56,7 @@ async function prepareFile(
 		configFile: options.configFile,
 		session: options.session,
 		packageEnhancements,
-		target: options.target,
+		target,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
 		moduleRewrite: options.moduleRewrite,
@@ -80,7 +81,7 @@ async function prepareFile(
 					rendererEnhancements,
 					inputFile,
 					options.outDir ?? path.dirname(outputFile),
-					options.target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
+					target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
 				).code
 			: result.code;
 	return Object.freeze({

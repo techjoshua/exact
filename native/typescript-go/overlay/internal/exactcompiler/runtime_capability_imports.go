@@ -411,7 +411,15 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			}
 		}
 	}
-	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
+	modalBindingUsed := false
+	if lowering.target != TargetServer {
+		for _, binding := range lowering.formBindings {
+			if binding.control == "modal" {
+				modalBindingUsed = true
+				break
+			}
+		}
+	}
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,
 		lowering.checker,

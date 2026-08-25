@@ -33,7 +33,7 @@ describe('@exactjs/compiler component computations', () => {
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/tasks"');
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/reactivity"');
 		expect(taskOutput).not.toContain('@exactjs/core/runtime/component-reactivity');
-		expect(taskOutput).toContain('__exactDerived(() => this.state.query)');
+		expect(taskOutput).toContain('__exactDerived(() => __exactReadState(this.state, 0) as any)');
 	});
 
 	it('imports optional component surface capabilities only when authored', () => {
@@ -116,7 +116,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`
 		);
 
-		expect(output).toContain('__exactUpdate(this.state, ["name"]');
+		expect(output).toContain('__exactUpdateState(this.state, 0');
 	});
 
 	it('lowers synchronous derived state assignments into owned reactive computations', () => {
@@ -130,7 +130,7 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(output).toContain('__exactDerived(() => this.state.quantity)');
 		expect(output).toContain('__exactDerived(() => this.state.price)');
-		expect(output).toContain('__exactWrite(this.state, ["subtotal"]');
+		expect(output).toContain('__exactWriteState(this.state, 2');
 	});
 
 	it('keeps dependency-free state initialization synchronous and unowned', () => {
@@ -141,7 +141,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Counter.tsx' }
 		);
-		expect(output).toContain('__exactWrite(this.state, ["count"], () => 0)');
+		expect(output).toContain('__exactWriteState(this.state, 0, () => 0)');
 	});
 
 	it('owns environment-specific state production even without reactive inputs', () => {
@@ -153,7 +153,7 @@ describe('@exactjs/compiler component computations', () => {
 			{ filename: 'Width.tsx' }
 		);
 		expect(result.code).toContain('__exactActivateTask(this, __exactDefineTask({');
-		expect(result.code).toContain('__exactWrite(this.state, ["value"]');
+		expect(result.code).toContain('__exactWriteState(this.state, 0');
 		expect(
 			analyzeSource(
 				`function Width(this: Component<{ value: number }>) {
@@ -206,8 +206,8 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'ArrayTotals.tsx' }
 		);
-		expect(arrayOutput).toContain('__exactWrite(this.state, ["subtotal"]');
-		expect(arrayOutput).toContain('__exactWrite(this.state, ["tax"]');
+		expect(arrayOutput).toContain('__exactWriteState(this.state, 0');
+		expect(arrayOutput).toContain('__exactWriteState(this.state, 1');
 		const objectOutput = transform(
 			`function Totals(this: Component<{ values: { subtotal: number; tax: number }; subtotal: number; tax: number }>) {
 				({ subtotal: this.state.subtotal, tax: this.state.tax } = this.state.values);
@@ -215,8 +215,8 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'ObjectTotals.tsx' }
 		);
-		expect(objectOutput).toContain('__exactWrite(this.state, ["subtotal"]');
-		expect(objectOutput).toContain('__exactWrite(this.state, ["tax"]');
+		expect(objectOutput).toContain('__exactWriteState(this.state, 0');
+		expect(objectOutput).toContain('__exactWriteState(this.state, 1');
 	});
 
 	it('preserves rest and computed-key semantics while publishing derived destructuring', () => {
@@ -246,8 +246,8 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).toContain('= 10');
 		expect(output).toContain('= 20');
 		expect(output).toMatch(/\[__exactDependency\d*\]: __exactDestructured_/);
-		expect(output).toContain('__exactWrite(this.state, ["remaining"]');
-		expect(output).toContain('__exactWrite(this.state, ["others"]');
+		expect(output).toContain('__exactWriteState(this.state, 4');
+		expect(output).toContain('__exactWriteState(this.state, 2');
 	});
 
 	it('preserves synchronous try catch finally as one reactive computation region', () => {
@@ -270,9 +270,9 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');
-		expect(output).toContain('__exactWrite(this.state, ["result"]');
-		expect(output).toContain('__exactWrite(this.state, ["error"]');
-		expect(output).toContain('__exactWrite(this.state, ["attempted"]');
+		expect(output).toContain('__exactWriteState(this.state, 3');
+		expect(output).toContain('__exactWriteState(this.state, 1');
+		expect(output).toContain('__exactWriteState(this.state, 0');
 	});
 
 	it('lowers sequential async component control flow and preserves try catch finally', () => {
@@ -294,18 +294,19 @@ describe('@exactjs/compiler component computations', () => {
 				}
 				return () => <output>{this.state.value}</output>;
 			}`,
-			{ filename: 'Customer.tsx' }
+			{ filename: 'Customer.tsx', target: 'server' }
 		);
 		expect(output).not.toContain('async function Customer');
-		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
-		expect(output).toContain('readiness: "blocking"');
+		expect(output).toContain('__exactActivateServerTask(this, __exact_server_task_slice_1');
+		expect(output).toContain('"blocking"');
 		expect(output).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');
-		expect(output).toContain('__exactTaskAwait');
-		expect(output).toContain('__exactStageTaskMutation');
-		expect(output.match(/__exactTaskAwait/g)?.length).toBeGreaterThanOrEqual(3);
+		expect(output).toContain('__exactServerTaskAwait');
+		expect(output).toContain('this.state.value =');
+		expect(output).toContain('this.state.orders =');
+		expect(output.match(/__exactServerTaskAwait/g)?.length).toBeGreaterThanOrEqual(3);
 	});
 
 	it('keeps synchronous initialization ahead of an async generation', () => {
@@ -316,13 +317,13 @@ describe('@exactjs/compiler component computations', () => {
 				this.state.value = await load(this.state.id);
 				return () => <output>{this.state.value}</output>;
 			}`,
-			{ filename: 'InitializedAsync.tsx' }
+			{ filename: 'InitializedAsync.tsx', target: 'server' }
 		);
-		const initialization = output.indexOf('__exactWrite(this.state, ["id"], () => "initial")');
-		const task = output.indexOf('__exactActivateTask(this, __exactDefineTask({');
+		const initialization = output.indexOf('this.state.id = "initial"');
+		const task = output.indexOf('__exactActivateServerTask(this, __exact_server_task_slice_1');
 		expect(initialization).toBeGreaterThanOrEqual(0);
 		expect(task).toBeGreaterThan(initialization);
-		expect(output).toContain('__exactDerived(() => this.state.id)');
+		expect(output).toContain('this.state.id);');
 	});
 
 	it('rejects escaping async locals and async feedback cycles', () => {

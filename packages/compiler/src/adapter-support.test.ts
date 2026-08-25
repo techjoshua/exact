@@ -219,7 +219,11 @@ describe('build adapter support', () => {
 		});
 
 		expect(result).toMatchObject({ map: { sources: ['/src/view.tsx'] } });
-		expect(result?.code).toContain('__exactVNode("span"');
+		expect(result?.code).toContain('__exactPreparedRenderProgram(__exact_render_program_1');
+		expect(result?.code).toContain('directClaims: true');
+		expect(result?.code).not.toMatch(/\bnodes:\s*\[/);
+		expect(result?.code).not.toMatch(/\bslots:\s*\[/);
+		expect(result?.code).not.toMatch(/\bbindings:\s*\[/);
 	});
 
 	it('selects React work before native compilation and skips it without compatibility', () => {

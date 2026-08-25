@@ -70,7 +70,7 @@ export type ExactComponentRegistryExplanation = Readonly<{
 /** Optional human- and tool-readable account of one compiler transform. */
 export type ExactCompilerExplanation = Readonly<{
 	filename: string;
-	target: 'default' | 'client' | 'server';
+	target: 'client' | 'server';
 	components: readonly ExactComponentExplanation[];
 	registries: readonly ExactComponentRegistryExplanation[];
 	islands: readonly Readonly<{
