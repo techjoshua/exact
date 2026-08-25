@@ -255,11 +255,19 @@ export function createExactCompatibilityArtifact<T extends AnyExactComponentCall
 	identity: string,
 	target: 'client' | 'server'
 ): T {
-	return attachRuntimeBoundaryArtifact(component, identity, target, compatibilityCapabilities);
+	return attachRuntimeBoundaryArtifact(
+		component,
+		identity,
+		target,
+		compatibilityCapabilities,
+		generalComponentABI |
+			compiledComponentCollectionsABI |
+			(target === 'server' ? compiledComponentRenderABI : 0)
+	);
 }
 
-/** Constructs the narrow artifact for a framework-owned boundary over an opaque runtime VNode. */
-export function createExactDynamicBoundaryArtifact<T extends AnyExactComponentCallable>(
+/** Constructs a precompiled framework boundary whose renderer invokes its render operation. */
+export function createExactCompiledDynamicBoundaryArtifact<T extends AnyExactComponentCallable>(
 	component: T,
 	identity: string,
 	target: 'client' | 'server'
@@ -267,7 +275,7 @@ export function createExactDynamicBoundaryArtifact<T extends AnyExactComponentCa
 	return attachRuntimeBoundaryArtifact(component, identity, target, [
 		'dynamic-components',
 		'interactions'
-	]);
+	], compiledComponentRenderABI);
 }
 
 /** Constructs a complete runtime artifact solely for low-level framework test fixtures. */
@@ -278,7 +286,11 @@ export function createExactFrameworkFixtureArtifact<T extends AnyExactComponentC
 	const existing = (component as ContractComponent)[exactComponentContract];
 	if (existing?.definition) return component;
 	if (existing && !existing.definition) {
-		const fixture = runtimeBoundaryDefinition(component, ['interactions', 'tasks'], 'client');
+		const fixture = runtimeBoundaryDefinition(
+			component,
+			['interactions', 'tasks'],
+			generalComponentABI
+		);
 		Object.defineProperties(component, {
 			[exactComponentType]: {
 				configurable: false,
@@ -293,7 +305,13 @@ export function createExactFrameworkFixtureArtifact<T extends AnyExactComponentC
 		});
 		return component;
 	}
-	return attachRuntimeBoundaryArtifact(component, identity, 'client', ['interactions', 'tasks']);
+	return attachRuntimeBoundaryArtifact(
+		component,
+		identity,
+		'client',
+		['interactions', 'tasks'],
+		generalComponentABI
+	);
 }
 
 /** Constructs an artifact for a framework-owned logical owner with no component topology. */
@@ -302,20 +320,27 @@ export function createExactInternalOwnerArtifact<T extends AnyExactComponentCall
 	identity: string,
 	target: 'client' | 'server'
 ): T {
-	return attachRuntimeBoundaryArtifact(component, identity, target, []);
+	return attachRuntimeBoundaryArtifact(
+		component,
+		identity,
+		target,
+		[],
+		target === 'server' ? compiledComponentRenderABI : 0
+	);
 }
 
 function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
 	component: T,
 	identity: string,
 	target: 'client' | 'server',
-	capabilities: ExactCompiledComponentDefinitionContract['capabilities']
+	capabilities: ExactCompiledComponentDefinitionContract['capabilities'],
+	abi: number
 ): T {
 	if (!identity) throw new Error('eXact runtime artifact identity must be a non-empty string');
 	if (target !== 'client' && target !== 'server')
 		throw new TypeError('eXact runtime artifacts require a target-local artifact target');
 	const implementationId = `${identity}:implementation`;
-	const definition = runtimeBoundaryDefinition(component, capabilities, target);
+	const definition = runtimeBoundaryDefinition(component, capabilities, abi);
 	const contract: ExactComponentContract = {
 		version: 2,
 		placement: target,
@@ -344,15 +369,11 @@ function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
 function runtimeBoundaryDefinition(
 	component: AnyExactComponentCallable,
 	capabilities: ExactCompiledComponentDefinitionContract['capabilities'],
-	target: 'client' | 'server'
+	abi: number
 ): ExactCompiledComponentDefinitionContract {
 	return {
 		version: 1,
-		abi:
-			(target === 'server'
-				? generalComponentABI | compiledComponentRenderABI
-				: generalComponentABI) |
-			(capabilities.includes('collections') ? compiledComponentCollectionsABI : 0),
+		abi,
 		instantiate: component,
 		state: [],
 		tasks: [],

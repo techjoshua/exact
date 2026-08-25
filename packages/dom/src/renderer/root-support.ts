@@ -8,14 +8,14 @@ import {
 	type ErrorReport,
 	type VNode
 } from '@exactjs/core';
-import { createExactDynamicBoundaryArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactCompiledDynamicBoundaryArtifact } from '@exactjs/core/framework/component-contracts';
 import { createDefaultErrorView } from '@exactjs/core/framework/error-view';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';
 
 /** Creates a root boundary. */
 export function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
-	return createExactDynamicBoundaryArtifact(
+	return createExactCompiledDynamicBoundaryArtifact(
 		function RootBoundary(this: Component<{}>, props: { version: number }) {
 			(this as AnyComponentInstance).contexts.set(ErrorContext.id, root.errors);
 
