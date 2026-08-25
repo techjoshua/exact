@@ -59,6 +59,18 @@ The SSR report is written under `results/raw/`. Treat its Node and Bun rows as s
 profiles, compare framework results only within the same row and benchmark run, and retain the
 reported transport identity when interpreting a framework's runtime support.
 
+### Bun-native comparison follow-up
+
+The current Bun profile exercises eXact through its native `Bun.serve` adapter while React,
+SvelteKit, and Nuxt retain their Node-oriented production artifacts under Bun's `node:http`
+compatibility layer. Preserve that transport identity when reporting the current results.
+
+A future comparison update should add a separately labeled best-native-Bun lane rather than
+silently changing this one. That lane should evaluate React with `Bun.serve` and its Bun streaming
+renderer, SvelteKit with its Bun adapter once an accepted production release is available, and Nuxt
+with Nitro's Bun preset. Its harness must measure streamed response completion consistently before
+the native lane is compared across frameworks.
+
 The service listens on `http://127.0.0.1:4310` by default. `PORT` may select another port. Its state can
 be restored with `POST /__benchmark/reset` and the `x-benchmark-control: fixture-reset` header.
 
