@@ -58,4 +58,48 @@ describe('compiler-generated component updates', () => {
 		expect(apply).toHaveBeenLastCalledWith([undefined, targets[1]], 2, 0);
 		scope.stop();
 	});
+
+	it('publishes compiler-selected operation words beyond the first 64 operations', () => {
+		const state = indexedReactiveObjects<{ first: number; last: number }>(['first', 'last']);
+		state.first = 1;
+		state.last = 1;
+		const published: Array<readonly [number, number, number[]]> = [];
+		const apply = vi.fn(
+			(
+				_targets: readonly (object | undefined)[],
+				low: number,
+				high: number,
+				words?: Uint32Array
+			) => {
+				published.push([low, high, [...(words ?? [])]]);
+			}
+		);
+		const updates = {
+			bindings: [
+				['first', 1, 0, 0],
+				['last', 0, 0, 2]
+			] as const,
+			words: 3,
+			apply
+		};
+		const scope = createEffectScope();
+		const owner = { state, scope } as unknown as AnyComponentInstance;
+		const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
+		const target = { mounted, stopBindings: [], valid: true };
+		bindCompiledComponentUpdate(target, 0, updates);
+
+		batch(() => {
+			state.first = 2;
+			state.last = 2;
+		});
+		flushSync();
+		expect(apply).toHaveBeenCalledTimes(1);
+		expect(apply.mock.calls[0]![0]).toEqual([target]);
+		expect(published[0]).toEqual([1, 0, [2]]);
+
+		state.last = 3;
+		flushSync();
+		expect(published[1]).toEqual([0, 0, [2]]);
+		scope.stop();
+	});
 });

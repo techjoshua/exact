@@ -14,6 +14,7 @@ type CompiledComponentUpdateState = {
 	readonly k: readonly PropertyKey[];
 	readonly v: number[];
 	readonly t: Array<ExactRenderProgramBindingTarget | undefined>;
+	readonly w?: Uint32Array;
 };
 
 type ComponentUpdateOwner = AnyComponentInstance & {
@@ -62,7 +63,8 @@ export function bindCompiledComponentUpdate(
 			d: dependencies.target,
 			k: dependencies.keys,
 			v: dependencies.keys.map((key) => readMutationVersion(dependencies.target, key)),
-			t: []
+			t: [],
+			...(updates.words === undefined ? {} : { w: new Uint32Array(updates.words - 2) })
 		};
 		component[componentUpdateState] = state;
 		subscribeKeys(state.d, state.k, () => publishCompiledComponentUpdate(updates, state!), {
@@ -85,12 +87,30 @@ function publishCompiledComponentUpdate(
 ): void {
 	let dirtyLow = 0;
 	let dirtyHigh = 0;
+	let changed = false;
 	for (let index = 0; index < state.k.length; index++) {
 		const version = readMutationVersion(state.d, state.k[index]!);
 		if (version === state.v[index]) continue;
 		state.v[index] = version;
-		dirtyLow |= updates.bindings[index]![1];
-		dirtyHigh |= updates.bindings[index]![2];
+		changed = true;
+		const binding = updates.bindings[index]!;
+		dirtyLow |= binding[1];
+		dirtyHigh |= binding[2];
+		if (state.w) {
+			const bindingWords = binding as unknown as readonly number[];
+			for (let word = 0; word < state.w.length; word++) {
+				state.w[word] = state.w[word]! | (bindingWords[word + 3] ?? 0);
+			}
+		}
 	}
-	if (dirtyLow || dirtyHigh) updates.apply(state.t, dirtyLow, dirtyHigh);
+	if (!changed) return;
+	if (updates.words === undefined) {
+		updates.apply(state.t, dirtyLow, dirtyHigh);
+		return;
+	}
+	try {
+		updates.apply(state.t, dirtyLow, dirtyHigh, state.w!);
+	} finally {
+		state.w!.fill(0);
+	}
 }

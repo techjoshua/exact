@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"sort"
 	"strconv"
 	"strings"
 
@@ -16,8 +15,6 @@ type renderProgramDirectUpdate struct {
 	firstSlot int
 	keys      []string
 }
-
-type renderProgramDirtyMask struct{ low, high uint32 }
 
 // directRenderProgramBinder emits the exact client binding calls in browser-safe application order.
 // Shared DOM operations retain the mechanics; the compiled component owns all topology and wiring.
@@ -94,45 +91,11 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 		}
 		call(lowering.names.bindProgramProperties, arguments...)
 	}
-	masks := make(map[string]renderProgramDirtyMask)
-	for bit, update := range directUpdates {
-		for _, key := range update.keys {
-			mask := masks[key]
-			if bit < 32 {
-				mask.low |= uint32(1) << bit
-			} else {
-				mask.high |= uint32(1) << (bit - 32)
-			}
-			masks[key] = mask
-		}
-	}
-	keys := make([]string, 0, len(masks))
-	for key := range masks {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	stateBindings := make([]*ast.Node, 0, len(keys))
-	for _, key := range keys {
-		mask := masks[key]
-		stateBindings = append(stateBindings, lowering.factory.NewArrayLiteralExpression(
-			lowering.factory.NewNodeList([]*ast.Node{
-				lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone),
-				lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask.low), 10), ast.TokenFlagsNone),
-				lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask.high), 10), ast.TokenFlagsNone),
-			}),
-			false,
-		))
-	}
 	if componentTarget != nil {
 		call(
 			lowering.names.bindComponentUpdate,
 			lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
 			lowering.factory.NewIdentifier(componentUpdates),
-		)
-	} else if len(stateBindings) != 0 {
-		call(
-			lowering.names.bindProgramState,
-			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(stateBindings), false),
 		)
 	}
 	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)
@@ -183,9 +146,6 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 			})
 		}
 	}
-	if len(updates) > 64 {
-		return nil
-	}
 	return updates
 }
 
@@ -234,46 +194,25 @@ func (lowering *jsxLowering) directRenderProgramStateKey(node *ast.Node) (string
 	return "", false
 }
 
-func (lowering *jsxLowering) directRenderProgramUpdater(
-	updates []renderProgramDirectUpdate,
-) *ast.Node {
-	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
-	dirtyLow := lowering.factory.NewIdentifier("__exactDirtyLow")
-	dirtyHigh := lowering.factory.NewIdentifier("__exactDirtyHigh")
-	statements := make([]*ast.Node, 0, len(updates))
-	for bit, update := range updates {
-		statements = append(statements,
-			lowering.directUpdateStatement(target, dirtyLow, dirtyHigh, bit, update),
-		)
-	}
-	parameters := []*ast.Node{target, dirtyLow, dirtyHigh}
-	declarations := make([]*ast.Node, len(parameters))
-	for index, name := range parameters {
-		declarations[index] = lowering.factory.NewParameterDeclaration(nil, nil, name, nil, nil, nil)
-	}
-	return lowering.factory.NewArrowFunction(
-		nil,
-		nil,
-		lowering.factory.NewNodeList(declarations),
-		nil,
-		nil,
-		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
-		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
-	)
-}
-
 func (lowering *jsxLowering) directUpdateStatement(
 	target *ast.Node,
 	dirtyLow *ast.Node,
 	dirtyHigh *ast.Node,
+	dirtyWords *ast.Node,
 	bit int,
 	update renderProgramDirectUpdate,
 ) *ast.Node {
 	dirty := dirtyLow
-	mask := uint32(1) << bit
-	if bit >= 32 {
+	mask := uint32(1) << (bit % 32)
+	if bit >= 64 {
+		dirty = lowering.factory.NewElementAccessExpression(
+			dirtyWords,
+			nil,
+			lowering.factory.NewNumericLiteral(strconv.Itoa(bit/32-2), ast.TokenFlagsNone),
+			ast.NodeFlagsNone,
+		)
+	} else if bit >= 32 {
 		dirty = dirtyHigh
-		mask = uint32(1) << (bit - 32)
 	}
 	condition := lowering.binary(
 		lowering.binary(

@@ -374,6 +374,46 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	}
 }
 
+func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *testing.T) {
+	var fields strings.Builder
+	var initializers strings.Builder
+	var regions strings.Builder
+	for index := 0; index < 65; index++ {
+		name := fmt.Sprintf("value%d", index)
+		fmt.Fprintf(&fields, "%s: number;", name)
+		fmt.Fprintf(&initializers, "this.state.%s = %d;", name, index)
+		fmt.Fprintf(&regions, "<span>{this.state.%s}</span>,", name)
+	}
+	response := NewSession().Execute(Request{
+		ID: "wide-component-state-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: fmt.Sprintf(`
+			type State = {%s};
+			export function Planned(this: { state: State }) {
+				%s
+				return () => [%s];
+			}
+		`, fields.String(), initializers.String(), regions.String()),
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`words: 3`,
+		`["value64", 0, 0, 1]`,
+		`__exactDirtyWords: Uint32Array`,
+		`__exactDirtyWords[0] & 1`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("wide component update program omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, "bindCompiledProgramState") ||
+		strings.Contains(response.Code, "__exactBindProgramState") {
+		t.Fatalf("wide component update retained the generic lane fallback:\n%s", response.Code)
+	}
+}
+
 func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "planned-complete.tsx", Kind: "compile", Target: TargetClient,

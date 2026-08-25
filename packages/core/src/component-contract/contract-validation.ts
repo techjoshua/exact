@@ -158,19 +158,23 @@ function isServerExecution(value: unknown): boolean {
 }
 
 function isComponentUpdates(value: unknown): boolean {
+	if (!isContractRecord(value) || !hasOnlyContractKeys(value, ['bindings', 'words', 'apply']))
+		return false;
+	const words = value.words === undefined ? 2 : value.words;
 	return (
-		isContractRecord(value) &&
-		hasOnlyContractKeys(value, ['bindings', 'apply']) &&
+		typeof words === 'number' &&
+		Number.isSafeInteger(words) &&
+		words >= 2 &&
+		(value.words === undefined || words >= 3) &&
 		Array.isArray(value.bindings) &&
 		value.bindings.every(
 			(binding) =>
 				Array.isArray(binding) &&
-				binding.length === 3 &&
+				binding.length === words + 1 &&
 				isContractString(binding[0]) &&
-				Number.isSafeInteger(binding[1]) &&
-				binding[1] >= 0 &&
-				Number.isSafeInteger(binding[2]) &&
-				binding[2] >= 0
+				binding
+					.slice(1)
+					.every((mask) => Number.isSafeInteger(mask) && mask >= 0 && mask <= 0xffff_ffff)
 		) &&
 		typeof value.apply === 'function'
 	);

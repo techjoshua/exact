@@ -11,10 +11,37 @@ export type ExactCompiledComponentCapability =
 	| 'dynamic-components'
 	| 'collections';
 
-/** One component-owned direct DOM update program shared by every instance of its definition. */
-export type ExactCompiledComponentUpdateContract = Readonly<{
-	/** Stable state field plus the low/high operation masks affected by that field. */
+/** Ordinary component update program whose operations fit in two inline mask words. */
+type ExactNarrowComponentUpdateContract = Readonly<{
+	/** Stable state field plus its low/high operation masks. */
 	bindings: readonly (readonly [key: string, dirtyLow: number, dirtyHigh: number])[];
+	words?: never;
 	/** Applies compiler-selected operations to the currently mounted finite-region targets. */
 	apply(targets: readonly (object | undefined)[], dirtyLow: number, dirtyHigh: number): void;
 }>;
+
+/** Large component update program with compiler-sized mask storage beyond its inline words. */
+type ExactWideComponentUpdateContract = Readonly<{
+	/** Stable state field plus every 32-operation mask affected by that field. */
+	bindings: readonly (readonly [
+		key: string,
+		dirtyLow: number,
+		dirtyHigh: number,
+		dirtyWord0: number,
+		...dirtyWords: number[]
+	])[];
+	/** Total mask words; wide artifacts always contain at least three. */
+	words: number;
+	/** Applies compiler-selected operations to the currently mounted finite-region targets. */
+	apply(
+		targets: readonly (object | undefined)[],
+		dirtyLow: number,
+		dirtyHigh: number,
+		dirtyWords: Uint32Array
+	): void;
+}>;
+
+/** One component-owned direct DOM update program shared by every instance of its definition. */
+export type ExactCompiledComponentUpdateContract =
+	| ExactNarrowComponentUpdateContract
+	| ExactWideComponentUpdateContract;

@@ -339,6 +339,40 @@ describe('@exactjs/core component contracts', () => {
 		]);
 	});
 
+	it('validates compiler-generated component update programs wider than 64 operations', () => {
+		const instantiate = () => undefined;
+		const updates = {
+			bindings: [
+				['first', 1, 0, 0],
+				['last', 0, 0, 1]
+			] as const,
+			words: 3,
+			apply() {}
+		};
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:WideUpdates',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1 as const,
+					instantiate,
+					construct,
+					abi: 0,
+					capabilities: [],
+					updates
+				}
+			}
+		});
+
+		expect(readExactCompiledComponentContract(component).definition.updates).toBe(updates);
+	});
+
 	it('rejects an invalid component update mask before adopting its artifact', () => {
 		const instantiate = () => undefined;
 		const component = Object.assign(() => undefined, {
@@ -358,6 +392,34 @@ describe('@exactjs/core component contracts', () => {
 					abi: 0,
 					capabilities: [],
 					updates: { bindings: [['count', -1, 0]], apply() {} }
+				}
+			}
+		});
+
+		expect(() => readExactCompiledComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
+	});
+
+	it('rejects a wide component update whose binding width does not match its artifact', () => {
+		const instantiate = () => undefined;
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:InvalidWideUpdates',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1 as const,
+					instantiate,
+					construct,
+					abi: 0,
+					capabilities: [],
+					updates: { bindings: [['count', 0, 0]], words: 3, apply() {} }
 				}
 			}
 		});

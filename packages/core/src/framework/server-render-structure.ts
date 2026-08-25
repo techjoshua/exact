@@ -26,7 +26,6 @@ export {
 	type ExactRenderProgramSsrOperations,
 	type ExactRenderProgramSsrOutput,
 	type ExactRenderProgramSsrWriter,
-	type ExactRenderProgramUpdater,
 	type ExactSsrRenderProgram,
 	type ExactTableRenderProgram
 } from '../render-program.js';
