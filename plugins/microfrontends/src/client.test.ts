@@ -35,6 +35,7 @@ function remoteBrand(name: string): string {
     definition: {
       version: 1,
       instantiate: ${name},
+      abi: 8,
       state: [],
       tasks: [],
       reactive: [],

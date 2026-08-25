@@ -10,6 +10,8 @@ functions are not a second component authoring model.
 Every value accepted as a native component by DOM rendering, hydration, SSR, or a component
 registry must carry a target-local artifact produced by the eXact compiler. A package may publish
 precompiled artifacts, so consuming an eXact library does not require recompiling its source.
+The artifact definition always carries its compiler-selected capability ABI; an absent ABI is an
+invalid artifact, not a request for a universal compatibility runtime.
 
 Compatibility adapters may own foreign functions and explicitly bridge them into a compiled eXact
 boundary. Genuinely runtime-dependent children remain supported inside compiler-declared dynamic

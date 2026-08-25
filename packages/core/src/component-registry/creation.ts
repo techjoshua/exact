@@ -1,4 +1,5 @@
 import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
+import { generalComponentABI } from '../component/compiled-abi.js';
 import {
 	exactComponentContract,
 	exactComponentType,
@@ -180,6 +181,7 @@ function attachRegistryFacadeArtifact(
 		definition: Object.freeze({
 			version: 1,
 			instantiate: facade,
+			abi: generalComponentABI,
 			state: Object.freeze([]),
 			tasks: Object.freeze([]),
 			reactive: Object.freeze([]),

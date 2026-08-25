@@ -211,6 +211,13 @@ func markExportedComponents(
 }
 
 func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
+	return durableComponentCandidates(sourceFile)
+}
+
+// durableComponentCandidates retains nested durable definitions long enough for diagnostics to
+// reject them. Only module-level definitions can receive stable, target-local artifact contracts;
+// setup-local PascalCase view arrows are handled separately as lexical micro-components.
+func durableComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 	candidates := rawComponentCandidates(sourceFile)
 	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
 	filtered := make([]componentCandidate, 0, len(candidates))
@@ -224,6 +231,40 @@ func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 		}
 	}
 	return filtered
+}
+
+func componentCandidateIsModuleLevel(candidate componentCandidate) bool {
+	if ast.IsFunctionDeclaration(candidate.node) {
+		return candidate.node.Parent != nil && ast.IsSourceFile(candidate.node.Parent)
+	}
+	if candidate.node.Parent == nil || !ast.IsVariableDeclaration(candidate.node.Parent) {
+		return false
+	}
+	return componentVariableIsModuleLevel(candidate.node.Parent)
+}
+
+// nestedComponentDiagnostics prevents analysis from promising an artifact that module emission
+// cannot attach. Durable component definitions have module identity; narrower setup-local view
+// helpers must use the compiler-owned lexical micro-component form instead.
+func nestedComponentDiagnostics(sourceFile *ast.SourceFile) []Diagnostic {
+	diagnostics := []Diagnostic{}
+	for _, candidate := range durableComponentCandidates(sourceFile) {
+		if componentCandidateIsModuleLevel(candidate) {
+			continue
+		}
+		if !componentName(candidate.name) || !componentHasCompiledRender(candidate.node) {
+			continue
+		}
+		diagnostics = append(diagnostics, Diagnostic{
+			Severity: "error",
+			Code:     "EXACT2216",
+			Message: "Native eXact component " + candidate.name +
+				" must be defined at module scope so every target can receive one stable compiled artifact",
+			Start:  candidate.node.Pos(),
+			Length: candidate.node.End() - candidate.node.Pos(),
+		})
+	}
+	return diagnostics
 }
 
 // lexicalMicroComponentTargets identifies PascalCase, synchronous view arrows

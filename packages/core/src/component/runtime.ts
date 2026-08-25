@@ -32,12 +32,11 @@ import { componentTaskCapability, type ComponentTaskCapabilityState } from './ta
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
-import { type ExactComponentContract } from '../component-contracts.js';
+import { type ExactCompiledComponentContract } from '../component-contracts.js';
 import {
 	compiledComponentLifecycleABI,
 	compiledComponentListsABI,
-	compiledComponentTasksABI,
-	generalComponentABI
+	compiledComponentTasksABI
 } from './compiled-abi.js';
 import { ComponentRuntimeSurface } from './runtime-surface.js';
 import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
@@ -81,15 +80,15 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
-		execution?: PreparedComponentExecution,
-		contract?: ExactComponentContract
+		execution: PreparedComponentExecution | undefined,
+		contract: ExactCompiledComponentContract
 	) {
 		super();
 		this.type = type;
 		this.parent = parent;
 		this.domain = domain;
 		this.ambientContexts = ambientContexts;
-		this.runtimeABI = contract?.definition?.abi ?? generalComponentABI;
+		this.runtimeABI = contract.definition.abi;
 		this.taskCapability =
 			this.runtimeABI & compiledComponentTasksABI ? componentTaskCapability() : undefined;
 		this.id = `c${nextComponentId++}`;
@@ -100,12 +99,12 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		this.state = createComponentState<State>(
 			domain,
 			() => this,
-			contract?.definition?.state,
-			contract?.definition?.capabilities.includes('collections') === true
+			contract.definition.state,
+			contract.definition.capabilities.includes('collections')
 		);
 		this.props = createComponentProps(
 			rawProps,
-			contract?.definition?.capabilities.includes('collections') === true
+			contract.definition.capabilities.includes('collections')
 		);
 		this.initialize(instantiate, execution, rawProps, contract);
 	}
@@ -220,7 +219,7 @@ export class ComponentInstanceImpl<State extends object, Props extends Record<st
 		instantiate: ComponentFunction<State, Props>,
 		execution: PreparedComponentExecution | undefined,
 		rawProps: Props,
-		contract: ExactComponentContract | undefined
+		contract: ExactCompiledComponentContract
 	): void {
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {

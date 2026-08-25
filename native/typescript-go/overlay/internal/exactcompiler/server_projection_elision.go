@@ -334,6 +334,12 @@ func serverProjectionElidableInitializer(node *ast.Node) bool {
 	case ast.IsObjectLiteralExpression(node):
 		for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
 			if ast.IsPropertyAssignment(property) {
+				// Evaluating a computed property name can call user code, invoke an accessor, or
+				// throw even when the assigned value is inert. The shared effect analysis may
+				// eventually prove narrower cases; this projection pass must not guess.
+				if name := property.Name(); name != nil && ast.IsComputedPropertyName(name) {
+					return false
+				}
 				if !serverProjectionElidableInitializer(property.AsPropertyAssignment().Initializer) {
 					return false
 				}
