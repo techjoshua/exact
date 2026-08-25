@@ -196,6 +196,7 @@ describe('installed eXact component package artifacts', () => {
       export function createServerBoundary() { return null; }
 			export function constructRenderComponentInstance() { return null; }
 			export function constructDurableComponentInstance() { return null; }
+			export function rejectDirectServerComponentConstruction() { return null; }
     `
 			);
 			await writeFile(
