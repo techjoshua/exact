@@ -16,7 +16,6 @@ import { adoptProgramChildSlots } from './render-program-children.js';
 import {
 	indexProgramHydration,
 	markedProgramRange,
-	matchesProgramIdentity,
 	programElement,
 	type ProgramHydrationIndex
 } from './render-program-hydration.js';
@@ -149,7 +148,7 @@ export function adoptRenderProgram(
 
 function matchesProgramElement(
 	node: Node | undefined,
-	id: string | number,
+	_id: number,
 	tag: string | undefined,
 	namespace: ExactRenderProgram['namespace']
 ): boolean {
@@ -161,11 +160,7 @@ function matchesProgramElement(
 			: namespace === 'mathml'
 				? 'http://www.w3.org/1998/Math/MathML'
 				: 'http://www.w3.org/1999/xhtml';
-	return (
-		element.localName.toLowerCase() === tag.toLowerCase() &&
-		element.namespaceURI === uri &&
-		matchesProgramIdentity(element, id)
-	);
+	return element.localName.toLowerCase() === tag.toLowerCase() && element.namespaceURI === uri;
 }
 
 /** Adopts a program or transfers the untouched range to its generic fallback. */

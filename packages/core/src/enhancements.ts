@@ -4,7 +4,6 @@ import type {
 	CompiledEnhancementNode,
 	ContextToken,
 	EnhancementEntry,
-	EnhancementMarker,
 	RenderResult
 } from './component/contracts.js';
 
@@ -69,13 +68,6 @@ export function createEnhancementNode(
 		fallback: 'preserve-target' as const
 	});
 }
-
-/**
- * Creates the legacy marker shape while preserving the canonical enhancement-node semantics.
- * @deprecated Compiler output now calls createEnhancementNode.
- */
-export const createEnhancementMarker: (entries: readonly EnhancementEntry[]) => EnhancementMarker =
-	createEnhancementNode;
 
 /** Copies an object while omitting a compiler-proven finite set of namespaced enhancement keys. */
 export function omitKnownProps(

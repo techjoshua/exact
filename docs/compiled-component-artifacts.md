@@ -43,6 +43,10 @@ universal function as a substitute for compilation.
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the
 component's topology or interpret a universal component plan when the artifact already knows it.
+Render-program node tables use only dense, zero-based compiler indexes. Hydration resolves those
+indexes during its bounded topology walk; it does not build or consult a string-identity map.
+`data-exact-id` remains a separate identity only for operations that must address a live DOM target,
+such as authorized server patches and interaction replay. It is not a second render-program ABI.
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
 value directly to its serialization operation; the runtime does not rebuild a per-region slot
 table or allocate a receiver merely to replay the compiler's ordering. Render-program ABI version
@@ -117,11 +121,16 @@ Every SSR lane uses the request's single normalized stabilization budget. Direct
 instances, enhancement planning, boundaries, and task drains therefore fail at the same configured
 limit instead of carrying lane-specific retry counts.
 
-## Migration inventory
+An interaction-only client boundary is valid only with a compiler-emitted lazy loader and its
+bounded activation target metadata. An already-loaded component is an eager registry entry; the
+runtime does not infer a blanket event policy from an interaction marker or reinterpret that entry
+as a deferred artifact. This keeps listener selection and replay authority in generated output.
+
+## Runtime inventory
 
 | Existing path                                     | Classification                    | Required replacement                                                          |
 | ------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------- |
-| Compiler-attached component contract and identity | Compiled foundation               | Evolve into the mandatory target-local artifact; remove optional lookup       |
+| Compiler-attached component contract and identity | Compiled foundation               | Mandatory target-local artifact                                               |
 | `markExactComponent()`                            | Ad hoc native fallback            | Removed; compatibility and fixtures use complete scoped artifacts             |
 | `contract?.definition?.instantiate ?? type`       | Ad hoc native construction        | Removed; native construction requires artifact wiring                         |
 | `ComponentInstanceImpl`                           | Universal native host             | Replace with artifact-selected compact storage and capability sidecars        |
@@ -150,15 +159,15 @@ limit instead of carrying lane-specific retry counts.
 | React compatibility boundaries                    | Foreign compatibility             | Migrated to explicit target-local compatibility artifacts                     |
 | Unsafe HTML, Activity, Suspense, opaque children  | Explicit dynamic operations       | Keep narrow region-local runtime capabilities                                 |
 
-## Transitional rules
+## Current rules
 
 1. New framework code must not add an identity-only native component path.
 2. New compiler output must not introduce a generic runtime operation when its policy and topology
    are statically known.
-3. During dual-path migration, compiled execution and the legacy path must pass the same observable
-   behavior, lifecycle, cleanup, SSR, and hydration tests.
-4. A fallback is removable only after all first-party users have migrated and malformed or foreign
-   values fail at the intended boundary.
+3. Native artifacts, hydration markers, render-program tables, and runtime capability records use
+   only their current compiler ABI. Missing or obsolete shapes fail at the owning boundary.
+4. A generic operation remains only for a compiler-declared dynamic region or an explicit foreign
+   compatibility boundary, never as an implicit fallback for uncompiled native code.
 5. Development inspection metadata may be richer than production artifacts, but production state
    must remain coherently inspectable through the artifact ABI.
 

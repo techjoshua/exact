@@ -559,8 +559,8 @@ dynamically retain the same reactive fallback semantics and receive stable index
 Render-program hydration stores only directly claimed compiler-numbered elements in a sparse
 ephemeral array. Inert static intrinsics remain covered by their enclosing component or structural
 range and receive no element-owner records. The closed client path allocates neither string keys nor
-marker maps. Legacy authored identities and compatibility programs retain the bounded indexing path
-because they do not carry a compiler-generated claim lane.
+marker maps. Table-backed generic regions use the same dense numeric node identity and bounded
+indexing path; authored string identities are not an alternate render-program representation.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
 the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring

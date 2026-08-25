@@ -7,7 +7,7 @@ import '@exactjs/core/runtime/refs';
 import {
 	Activity,
 	createContext,
-	createEnhancementMarker,
+	createEnhancementNode,
 	createPortal,
 	Fragment,
 	Target,
@@ -70,7 +70,7 @@ describe('renderer enhancement target routing', () => {
 					createVNode(
 						'button',
 						{
-							__exactEnhancements: createEnhancementMarker([
+							__exactEnhancements: createEnhancementNode([
 								{ identity, props: { tone: 'near' }, root: true }
 							])
 						},
@@ -82,7 +82,7 @@ describe('renderer enhancement target routing', () => {
 
 		render(
 			createVNode(Card, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'far' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'far' } }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Motion]]) }
@@ -106,7 +106,7 @@ describe('renderer enhancement target routing', () => {
 			this.onUnmount(released);
 			return () => props.children;
 		});
-		const marker = (root: boolean) => createEnhancementMarker([{ identity, props: {}, root }]);
+		const marker = (root: boolean) => createEnhancementNode([{ identity, props: {}, root }]);
 		const Boundary = markTestComponent(function Boundary(
 			this: Component<{}>,
 			props: { left: boolean }
@@ -122,7 +122,7 @@ describe('renderer enhancement target routing', () => {
 		const tree = (left: boolean) =>
 			createVNode(Boundary, {
 				left,
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
 			});
 		const container = document.createElement('div');
 		const options = { enhancementCatalog: new Map([[identity, Motion]]) };
@@ -160,18 +160,18 @@ describe('renderer enhancement target routing', () => {
 					null,
 					createVNode('button', {
 						id: 'left',
-						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: left }])
+						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: left }])
 					}),
 					createVNode('button', {
 						id: 'right',
-						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: right }])
+						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: right }])
 					})
 				);
 		});
 
 		render(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Motion]]) }
@@ -188,7 +188,7 @@ describe('renderer enhancement target routing', () => {
 	it('leaves unavailable enhancements inert and warns once per root identity', () => {
 		const events: LogEvent[] = [];
 		const logger: Logger = { log: (event) => events.push(event) };
-		const marker = createEnhancementMarker([{ identity, props: { preset: 'fade' } }]);
+		const marker = createEnhancementNode([{ identity, props: { preset: 'fade' } }]);
 		const container = document.createElement('div');
 
 		render(createVNode('button', { __exactEnhancements: marker }, 'Save'), container, { logger });
@@ -222,7 +222,7 @@ describe('renderer enhancement target routing', () => {
 		markExactEnhancementContexts(Consumer, { requires: [token] });
 		const providerIdentity = '@test/z-provider#default';
 		const consumerIdentity = '@test/a-consumer#default';
-		const marker = createEnhancementMarker([
+		const marker = createEnhancementNode([
 			{ identity: consumerIdentity, props: {} },
 			{ identity: providerIdentity, props: {} }
 		]);
@@ -255,7 +255,7 @@ describe('renderer enhancement target routing', () => {
 		});
 		markExactEnhancementContexts(Left, { provides: [leftToken], requires: [rightToken] });
 		markExactEnhancementContexts(Right, { provides: [rightToken], requires: [leftToken] });
-		const marker = createEnhancementMarker([
+		const marker = createEnhancementNode([
 			{ identity: '@test/left#default', props: {} },
 			{ identity: '@test/right#default', props: {} }
 		]);
@@ -294,13 +294,13 @@ describe('renderer enhancement target routing', () => {
 					null,
 					createVNode('button', {
 						id: 'left',
-						__exactEnhancements: createEnhancementMarker([
+						__exactEnhancements: createEnhancementNode([
 							{ identity: leftIdentity, props: {}, root: true }
 						])
 					}),
 					createVNode('button', {
 						id: 'right',
-						__exactEnhancements: createEnhancementMarker([
+						__exactEnhancements: createEnhancementNode([
 							{ identity: rightIdentity, props: {}, root: true }
 						])
 					})
@@ -308,7 +308,7 @@ describe('renderer enhancement target routing', () => {
 		});
 		render(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([
+				__exactEnhancements: createEnhancementNode([
 					{ identity: leftIdentity, props: {} },
 					{ identity: rightIdentity, props: {} }
 				])
@@ -349,7 +349,7 @@ describe('renderer enhancement target routing', () => {
 							id: 'dynamic',
 							...(this.state.explicit
 								? {
-										__exactEnhancements: createEnhancementMarker([
+										__exactEnhancements: createEnhancementNode([
 											{ identity, props: {}, root: true }
 										])
 									}
@@ -361,7 +361,7 @@ describe('renderer enhancement target routing', () => {
 		const container = document.createElement('div');
 		render(
 			createVNode(Card, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Motion]]) }
@@ -395,7 +395,7 @@ describe('renderer enhancement target routing', () => {
 						portal,
 						createVNode('button', {
 							id: 'portal-target',
-							__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+							__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 						})
 					)
 				);
@@ -403,7 +403,7 @@ describe('renderer enhancement target routing', () => {
 		const container = document.createElement('div');
 		render(
 			createVNode(Card, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Motion]]) }

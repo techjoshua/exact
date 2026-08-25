@@ -87,9 +87,9 @@ export function CompilerTourPage(this: Component<{}>) {
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
 					boundary. Inputs outside it are rejected before any path beneath <code>outDir</code> is
 					derived or written. Client, server, shared, map, and inspection outputs are staged as one
-					publication; a failed commit restores the previous generation. Transform results report the
-					framework packages imported by the emitted target so a published library build can verify
-					that its package manifest declares every runtime dependency.
+					publication; a failed commit restores the previous generation. Transform results report
+					the framework packages imported by the emitted target so a published library build can
+					verify that its package manifest declares every runtime dependency.
 				</p>
 				<p>
 					Editor compiler sessions bound native response time and settle cancellation immediately.

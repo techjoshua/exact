@@ -20,7 +20,7 @@ import {
 } from './render-program-claims.js';
 
 describe('compiled render-program hydration index', () => {
-	it('addresses dense compiler nodes without materializing legacy identity maps', () => {
+	it('addresses dense compiler nodes without materializing identity maps', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<section><button>Save</button></section>';
 
@@ -32,18 +32,17 @@ describe('compiled render-program hydration index', () => {
 			root.querySelector('button')
 		]);
 		expect(programElement(index, 2)).toBe(root.querySelector('button'));
-		expect(index.legacyElements).toBeUndefined();
 		expect(index.markers).toBeUndefined();
 	});
 
-	it('retains legacy identities and structural markers only when present', () => {
+	it('indexes structural markers without authored element identities', () => {
 		const root = document.createElement('main');
 		root.innerHTML =
-			'<section data-exact-id="legacy"><!--exact:dynamic:slot--><span>value</span><!--/exact:dynamic:slot--></section>';
+			'<section><!--exact:dynamic:slot--><span>value</span><!--/exact:dynamic:slot--></section>';
 
 		const index = indexProgramHydration(root);
 
-		expect(programElement(index, 'legacy')).toBe(root.firstElementChild);
+		expect(programElement(index, 1)).toBe(root.firstElementChild);
 		expect(claimProgramChildSlot(index, 'slot')?.data).toBe('exact:dynamic:slot');
 	});
 

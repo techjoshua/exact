@@ -3,7 +3,7 @@
  */
 import {
 	activateTaskForHost,
-	createEnhancementMarker,
+	createEnhancementNode,
 	createContext,
 	createErrorContext,
 	defineTask,
@@ -47,7 +47,7 @@ describe('component testing', () => {
 		const target = createVNode(
 			'button',
 			{
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'quiet' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'quiet' } }])
 			},
 			'Save'
 		);

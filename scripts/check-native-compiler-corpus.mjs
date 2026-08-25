@@ -50,7 +50,6 @@ const sampleCount = positiveInteger(
 );
 const executable =
 	process.env.EXACT_COMPILER_EXECUTABLE ??
-	process.env.EXACT_NATIVE_COMPILER ??
 	path.join(
 		root,
 		'.tmp',

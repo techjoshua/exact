@@ -10,12 +10,12 @@ export type ParsedExplicitTask = Readonly<{
 	indentation: string;
 }>;
 
-/** Parses a function with authored task policy or its legacy registration representation. */
+/** Parses a function with an authored task policy and its activation call. */
 export function parseExplicitTaskSource(
 	source: string,
 	range: ExactSourceRange
 ): ParsedExplicitTask | undefined {
-	return parseFunctionDefinedTask(source, range) ?? parseLegacyTaskExpression(source, range);
+	return parseFunctionDefinedTask(source, range);
 }
 
 function parseFunctionDefinedTask(
@@ -66,39 +66,6 @@ function parseFunctionDefinedTask(
 		body: authored.slice(bodyOpen + 1, bodyClose),
 		range: Object.freeze({ start: lineStart, end: activationSemicolon + 1 }),
 		indentation
-	});
-}
-
-function parseLegacyTaskExpression(
-	source: string,
-	range: ExactSourceRange
-): ParsedExplicitTask | undefined {
-	const authored = source.slice(range.start, range.end).trim();
-	const open = authored.indexOf('(');
-	const arrow = authored.indexOf('=>', open + 1);
-	if (open < 0 || arrow < 0) return undefined;
-	const callbackStart = authored.lastIndexOf('async', arrow);
-	if (callbackStart < open) return undefined;
-	const argsText = authored
-		.slice(open + 1, callbackStart)
-		.replace(/,\s*$/, '')
-		.trim();
-	const parameterOpen = authored.indexOf('(', callbackStart);
-	const parameterClose = findMatching(authored, parameterOpen, '(', ')');
-	if (parameterOpen < 0 || parameterClose === undefined || parameterClose > arrow) return undefined;
-	const bodyOpen = authored.indexOf('{', arrow);
-	const bodyClose = bodyOpen < 0 ? undefined : findMatching(authored, bodyOpen, '{', '}');
-	if (bodyOpen < 0 || bodyClose === undefined) return undefined;
-	const rawParameters = splitTopLevel(authored.slice(parameterOpen + 1, parameterClose));
-	const signalParameter = rawParameters.at(-1)?.replace(/\s/g, '') === '{signal}';
-	const parameters = signalParameter ? rawParameters.slice(0, -1) : rawParameters;
-	return Object.freeze({
-		dependencies: splitTopLevel(argsText),
-		parameters,
-		...(signalParameter ? { contextParameter: 'signal' } : {}),
-		body: authored.slice(bodyOpen + 1, bodyClose),
-		range,
-		indentation: ''
 	});
 }
 

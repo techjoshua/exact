@@ -3,7 +3,7 @@
  */
 import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
-import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
+import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
@@ -21,7 +21,7 @@ describe('@exactjs/hydrate accessibility identity adoption', () => {
 			return () => [
 				createVNode('span', { ref: label }, 'Account email'),
 				createVNode('input', {
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { labelledBy: label } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { labelledBy: label } }])
 				})
 			];
 		}, '@exactjs/hydrate:accessibility-page');

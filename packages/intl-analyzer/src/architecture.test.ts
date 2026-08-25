@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementMarker, createVNode, type Child } from '@exactjs/core';
+import { createEnhancementNode, createVNode, type Child } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { hydrate } from '@exactjs/hydrate/enhanced';
 import {
@@ -35,7 +35,7 @@ describe('intl architecture fixture', () => {
 					'section',
 					{
 						id: 'localized',
-						__exactEnhancements: createEnhancementMarker([
+						__exactEnhancements: createEnhancementNode([
 							{ identity: enhancementIdentity, props: { locale: true } }
 						])
 					},
@@ -117,7 +117,7 @@ describe('intl architecture fixture', () => {
 				IntlProvider,
 				{ environment },
 				createVNode('p', {
-					__exactEnhancements: createEnhancementMarker([
+					__exactEnhancements: createEnhancementNode([
 						{ identity: enhancementIdentity, props: { message } }
 					])
 				})
@@ -191,7 +191,7 @@ describe('intl architecture fixture', () => {
 				createVNode('input', {
 					placeholder: fallback,
 					id: 'search',
-					__exactEnhancements: createEnhancementMarker([
+					__exactEnhancements: createEnhancementNode([
 						{ identity: enhancementIdentity, props: { placeholder } }
 					])
 				})

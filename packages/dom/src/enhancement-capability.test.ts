@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementMarker, type Child, type Component } from '@exactjs/core';
+import { createEnhancementNode, type Child, type Component } from '@exactjs/core';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { describe, expect, it } from 'vitest';
@@ -36,7 +36,7 @@ describe('DOM enhancement capability activation', () => {
 		render(
 			createVNode(
 				'button',
-				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'After'
 			),
 			container

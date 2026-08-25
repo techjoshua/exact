@@ -520,6 +520,9 @@ eXact namespace, executable binding indexes, formatter options, or proprietary r
 Generic inline-code `equiv`, `canCopy`, and `canDelete` fields form the translator guide. The
 build-owned execution contract remains beside compiled descriptors and is joined to those generic
 codes only after import.
+Catalog import and synchronization accept only this generic current representation. Files carrying
+older eXact binding indexes, proprietary selector attributes, or superseded message keys are
+rejected or treated as obsolete; regenerate their source XLIFF instead of migrating it at runtime.
 
 Message identity hashes the source locale, target, generic text/inline-code pattern, and placeholder
 guide. It deliberately excludes eXact execution metadata, so an internal lowering change does not

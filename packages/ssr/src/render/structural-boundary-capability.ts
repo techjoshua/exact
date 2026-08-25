@@ -70,9 +70,7 @@ export function renderNativeSuspenseAsync(
 }
 
 function requiredCapability(): SsrStructuralBoundaryCapability {
-	const capability = ssrCapabilities[capabilityName] as
-		| SsrStructuralBoundaryCapability
-		| undefined;
+	const capability = ssrCapabilities[capabilityName] as SsrStructuralBoundaryCapability | undefined;
 	if (!capability)
 		throw new TypeError(
 			'SSR structural boundary execution requires its compiler-selected runtime capability'

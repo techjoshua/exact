@@ -2,8 +2,6 @@
 export type ProgramHydrationIndex = Readonly<{
 	/** Dense compiler indexes resolve without allocating string keys or map entries. */
 	elements: readonly Element[];
-	/** Legacy authored identities are indexed only when the DOM actually carries one. */
-	legacyElements?: ReadonlyMap<string, Element>;
 	/** Structural marker lookup is allocation-on-demand for programs which contain ranges. */
 	markers?: ReadonlyMap<string, Comment>;
 }>;
@@ -11,15 +9,12 @@ export type ProgramHydrationIndex = Readonly<{
 /** Indexes compiler identities in one traversal; callers release the ephemeral index after use. */
 export function indexProgramHydration(root: Element): ProgramHydrationIndex {
 	const elements: Element[] = [];
-	let legacyElements: Map<string, Element> | undefined;
 	let markers: Map<string, Comment> | undefined;
 	let node: Node | undefined = root;
 	while (node) {
 		let current: Node = node;
 		if (current instanceof Element) {
 			elements.push(current);
-			const legacyId = current.getAttribute('data-exact-id');
-			if (legacyId) (legacyElements ??= new Map()).set(legacyId, current);
 		} else if (current instanceof Comment && current.data.startsWith('exact:dynamic:')) {
 			(markers ??= new Map()).set(current.data, current);
 			const closing = `/${current.data}`;
@@ -39,22 +34,13 @@ export function indexProgramHydration(root: Element): ProgramHydrationIndex {
 	}
 	return {
 		elements,
-		...(legacyElements ? { legacyElements } : {}),
 		...(markers ? { markers } : {})
 	};
 }
 
-/** Resolves either a dense compiled node index or a legacy stable element identity. */
-export function programElement(
-	index: ProgramHydrationIndex,
-	id: string | number
-): Element | undefined {
-	return typeof id === 'number' ? index.elements[id] : index.legacyElements?.get(id);
-}
-
-/** Checks the current dense or legacy element identity representation. */
-export function matchesProgramIdentity(element: Element, id: string | number): boolean {
-	return typeof id === 'number' || element.getAttribute('data-exact-id') === id;
+/** Resolves one dense compiler-owned node index. */
+export function programElement(index: ProgramHydrationIndex, id: number): Element | undefined {
+	return index.elements[id];
 }
 
 /** Claims one compiler-identified structural child marker. */

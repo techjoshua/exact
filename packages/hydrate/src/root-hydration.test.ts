@@ -197,7 +197,7 @@ describe('hydration-only root capability', () => {
 				template: '<span data-exact-id="program-root">\ue000exact:0\ue001</span>',
 				slots: [['text', 'program-text', [0]]],
 				bindings: [['text', 0]],
-				nodes: [['program-root', 'span', 'html']],
+				nodes: [[0, 'span', 'html']],
 				ssr(target, context, invocation) {
 					const value = target.prepareText(invocation, 0);
 					if (value === target.unprepared) return;
