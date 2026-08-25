@@ -54,11 +54,6 @@ export function createForwardedExpression<T>(compute: () => T): T {
 	return compute();
 }
 
-/** Evaluates one compiler-owned non-JSX component result without adding a nested range. */
-export function createCompiledComponentOutput<T extends RenderResult>(compute: () => T): T {
-	return compute();
-}
-
 /** Creates an eager dynamic boundary for a direct server render or its local fallback. */
 export function createDynamicChild(
 	compute: () => RenderResult,

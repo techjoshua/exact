@@ -853,7 +853,7 @@ func TestComponentExecutionForwardsReactivePropIdentity(t *testing.T) {
 	}
 }
 
-func TestClientTransparentComponentUsesOneCompiledDynamicRange(t *testing.T) {
+func TestClientTransparentComponentUsesItsCompiledBoundaryRange(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "transparent.tsx",
 		Kind:   "compile",
@@ -867,12 +867,13 @@ func TestClientTransparentComponentUsesOneCompiledDynamicRange(t *testing.T) {
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, "createCompiledComponentOutput as __exactComponentRangeOutput") ||
-		!strings.Contains(response.Code, "return () => __exactComponentRangeOutput(() => props.children") {
-		t.Fatalf("transparent render did not receive compiler-owned component-range output:\n%s", response.Code)
+	if !strings.Contains(response.Code, "return () => props.children") ||
+		!strings.Contains(response.Code, "abi: 32") {
+		t.Fatalf("transparent render did not select compiler-owned component-range output:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, "abi: 1") {
-		t.Fatalf("transparent render retained the component-wide watch ABI:\n%s", response.Code)
+	if strings.Contains(response.Code, "createDynamicChild") ||
+		strings.Contains(response.Code, "createCompiledComponentOutput") {
+		t.Fatalf("transparent render retained a nested range helper:\n%s", response.Code)
 	}
 
 	static := NewSession().Execute(Request{
@@ -888,7 +889,7 @@ func TestClientTransparentComponentUsesOneCompiledDynamicRange(t *testing.T) {
 	if static.Error != "" || len(static.Diagnostics) != 0 {
 		t.Fatalf("static compile failed: %s %#v", static.Error, static.Diagnostics)
 	}
-	if strings.Contains(static.Code, "createCompiledComponentOutput") || !strings.Contains(static.Code, "abi: 1") {
+	if strings.Contains(static.Code, "createDynamicChild") || !strings.Contains(static.Code, "abi: 1") {
 		t.Fatalf("constant render retained unnecessary reactive work:\n%s", static.Code)
 	}
 }

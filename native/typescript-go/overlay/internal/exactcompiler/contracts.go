@@ -205,6 +205,7 @@ type Component struct {
 	Collections          bool                      `json:"-"`
 	CompiledRender       bool                      `json:"-"`
 	ClientCompiledRender bool                      `json:"-"`
+	ClientRangeOutput    bool                      `json:"-"`
 	Lifecycle            bool                      `json:"-"`
 	Lists                bool                      `json:"-"`
 	Surface              ComponentSurfacePlan      `json:"-"`

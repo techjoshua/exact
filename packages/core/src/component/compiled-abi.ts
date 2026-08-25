@@ -15,13 +15,17 @@ export const compiledComponentTasksABI = 8;
 /** State or props can contain Map/Set values that require collection interception. */
 export const compiledComponentCollectionsABI = 16;
 
+/** The component boundary directly observes and reconciles one unstructured output reader. */
+export const compiledComponentRangeOutputABI = 32;
+
 /** Every component capability bit accepted by runtime contract validation. */
 export const allCompiledComponentABI =
 	compiledComponentRenderABI |
 	compiledComponentLifecycleABI |
 	compiledComponentListsABI |
 	compiledComponentTasksABI |
-	compiledComponentCollectionsABI;
+	compiledComponentCollectionsABI |
+	compiledComponentRangeOutputABI;
 
 /** Conservative non-render ABI used by explicit framework-owned boundary artifacts. */
 export const generalComponentABI =

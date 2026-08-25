@@ -23,8 +23,9 @@ describe('compiled transparent component', () => {
 			filename: 'Transparent.tsx',
 			target: 'client'
 		});
-		expect(compiled).toContain('abi: 1');
-		expect(compiled).toContain('createCompiledComponentOutput as __exactComponentRangeOutput');
+		expect(compiled).toContain('abi: 32');
+		expect(compiled).not.toContain('createDynamicChild');
+		expect(compiled).not.toContain('createCompiledComponentOutput');
 
 		const Transparent = executeCompiledComponent(compiled, 'Transparent');
 		const container = document.createElement('div');

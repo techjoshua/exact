@@ -114,9 +114,10 @@ describe('@exactjs/compiler: component values', () => {
 			{ filename: 'Transparent.tsx' }
 		);
 
-		expect(output).toContain('createCompiledComponentOutput as __exactComponentRangeOutput');
-		expect(output).toContain('return () => __exactComponentRangeOutput(() => props.children)');
-		expect(output).toContain('abi: 1');
+		expect(output).not.toContain('createDynamicChild');
+		expect(output).not.toContain('createCompiledComponentOutput');
+		expect(output).toContain('return () => props.children');
+		expect(output).toContain('abi: 32');
 
 		const constant = transform('export function Empty() { return () => null; }', {
 			filename: 'Empty.tsx'
