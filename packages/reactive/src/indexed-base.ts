@@ -1,8 +1,8 @@
 import { proxyMarker, rawTarget } from './internal/symbols.js';
 import type { Reactive, ReactiveOptions } from './internal/types.js';
-import { hasActiveTransaction, recordTransactionUndo, track, trigger } from './internal/deps.js';
+import { batch, hasActiveTransaction, recordTransactionUndo, track, trigger } from './internal/deps.js';
 import { hasChanged, isReactiveContainer } from './change-detection.js';
-import { unwrap } from './internal/values.js';
+import { isReactiveValue, unwrap } from './internal/values.js';
 
 type IndexedRecord = {
 	readonly layout: IndexedLayout;
@@ -12,6 +12,7 @@ type IndexedRecord = {
 	readonly target: Record<PropertyKey, unknown>;
 	readonly options: ReactiveOptions;
 	readonly wrap: (value: object, options: ReactiveOptions) => object;
+	readonly preserveReactiveValues: boolean;
 };
 
 type IndexedLayout = Readonly<{
@@ -36,16 +37,26 @@ const indexedLayouts = new WeakMap<object, IndexedLayout>();
 export function createIndexedReactive<T extends object>(
 	keys: readonly PropertyKey[],
 	options: ReactiveOptions,
-	wrap: (value: object, options: ReactiveOptions) => object
+	wrap: (value: object, options: ReactiveOptions) => object,
+	initial?: T,
+	preserveReactiveValues = false
 ): Reactive<T> {
 	const layout = indexedLayout(keys);
 	const target: Record<PropertyKey, unknown> = {};
 	const initialized = new Array<boolean>(layout.keys.length).fill(false);
 	const read = (key: PropertyKey, index: number) => {
 		track(target, index);
-		return target[key];
+		return readIndexedValue(record, key);
 	};
-	const record: IndexedRecord = { layout, initialized, target, options, wrap };
+	const record: IndexedRecord = {
+		layout,
+		initialized,
+		target,
+		options,
+		wrap,
+		preserveReactiveValues
+	};
+	if (initial) seedIndexedRecord(record, initial);
 
 	const facade = new Proxy(target, {
 		get(target, key, receiver) {
@@ -55,15 +66,11 @@ export function createIndexedReactive<T extends object>(
 			return index === undefined ? Reflect.get(target, key, receiver) : read(key, index);
 		},
 		set(_target, key, next) {
-			let index = indexedRecordIndex(record, key);
-			if (index === undefined) {
-				const dynamicIndexes = (record.dynamicIndexes ??= new Map());
-				const dynamicKeys = (record.dynamicKeys ??= []);
-				index = layout.keys.length + dynamicIndexes.size;
-				dynamicIndexes.set(key, index);
-				dynamicKeys.push(key);
-				initialized.push(false);
+			if (options.readonly) {
+				options.onReadonlyWrite?.(key);
+				return false;
 			}
+			const index = ensureIndexedRecordIndex(record, key);
 			return writeIndexedRecord(record, index, next);
 		},
 		deleteProperty(_target, key) {
@@ -79,6 +86,35 @@ export function createIndexedReactive<T extends object>(
 	});
 	indexedRecords.set(facade, record);
 	return facade as Reactive<T>;
+}
+
+/**
+ * Reconciles a compiler-indexed facade while preserving numeric dependency identities.
+ *
+ * The caller owns batching and may reconcile compatible nested containers before this function
+ * replaces a top-level slot. Returns false when the value is not an indexed facade.
+ */
+export function updateIndexedReactive(
+	value: object,
+	next: Record<PropertyKey, unknown>,
+	reconcileNested: (previous: unknown, next: unknown) => boolean
+): boolean {
+	const indexed = indexedRecords.get(value);
+	if (!indexed) return false;
+	batch(() => {
+		for (const key of Reflect.ownKeys(indexed.target)) {
+			if (Object.prototype.hasOwnProperty.call(next, key)) continue;
+			const index = indexedRecordIndex(indexed, key);
+			if (index !== undefined) deleteIndexedRecord(indexed, index);
+		}
+		for (const key of Reflect.ownKeys(next)) {
+			const incoming = Reflect.get(next, key);
+			const index = ensureIndexedRecordIndex(indexed, key);
+			if (indexed.initialized[index] && reconcileNested(indexed.target[key], incoming)) continue;
+			writeIndexedRecord(indexed, index, incoming);
+		}
+	});
+	return true;
 }
 
 /** Reads an own field without invoking an arbitrary user-defined accessor. */
@@ -103,13 +139,13 @@ export function readReactiveOwnProperty(
 export function readIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'read');
 	track(indexed.target, index);
-	return indexed.target[indexedRecordKey(indexed, index)];
+	return readIndexedValue(indexed, indexedRecordKey(indexed, index));
 }
 
 /** Reads one compiler-proven slot without collecting a dependency. */
 export function peekIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'peek');
-	return indexed.target[indexedRecordKey(indexed, index)];
+	return readIndexedValue(indexed, indexedRecordKey(indexed, index));
 }
 
 /** Commits one compiler-proven slot without entering the facade's proxy traps. */
@@ -132,9 +168,13 @@ function indexedRecord(value: object, index: number, operation: string): Indexed
 function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown): boolean {
 	const key = indexedRecordKey(indexed, index);
 	const previous = indexed.target[key];
-	const raw = unwrap(next);
+	const raw = retainedIndexedValue(indexed, key, next);
 	const value =
-		raw && typeof raw === 'object' && isReactiveContainer(raw)
+		!indexed.options.passthroughKeys?.includes(key) &&
+		!isReactiveValue(raw) &&
+		raw &&
+		typeof raw === 'object' &&
+		isReactiveContainer(raw)
 			? indexed.wrap(raw as object, indexed.options)
 			: raw;
 	const wasInitialized = indexed.initialized[index] === true;
@@ -165,6 +205,43 @@ function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown
 		// Observability must not alter state semantics.
 	}
 	return true;
+}
+
+function seedIndexedRecord(indexed: IndexedRecord, initial: object): void {
+	for (const key of Reflect.ownKeys(initial)) {
+		const index = ensureIndexedRecordIndex(indexed, key);
+		const raw = retainedIndexedValue(indexed, key, Reflect.get(initial, key));
+		indexed.target[key] =
+			!indexed.options.passthroughKeys?.includes(key) &&
+			!isReactiveValue(raw) &&
+			raw &&
+			typeof raw === 'object' &&
+			isReactiveContainer(raw)
+				? indexed.wrap(raw as object, indexed.options)
+				: raw;
+		indexed.initialized[index] = true;
+	}
+}
+
+function retainedIndexedValue(
+	indexed: IndexedRecord,
+	key: PropertyKey,
+	value: unknown
+): unknown {
+	if (indexed.options.passthroughKeys?.includes(key)) return value;
+	if (indexed.preserveReactiveValues && isReactiveValue(value)) return value;
+	return unwrap(value);
+}
+
+function readIndexedValue(indexed: IndexedRecord, key: PropertyKey): unknown {
+	const current = indexed.target[key];
+	if (indexed.options.passthroughKeys?.includes(key)) return current;
+	if (!indexed.preserveReactiveValues || !isReactiveValue(current)) return current;
+	const value = current.get();
+	const raw = unwrap(value);
+	return raw && typeof raw === 'object' && isReactiveContainer(raw)
+		? indexed.wrap(raw as object, indexed.options)
+		: raw;
 }
 
 function deleteIndexedRecord(indexed: IndexedRecord, index: number): boolean {
@@ -228,6 +305,18 @@ function indexedLayout(keys: readonly PropertyKey[]): IndexedLayout {
 
 function indexedRecordIndex(indexed: IndexedRecord, key: PropertyKey): number | undefined {
 	return indexed.layout.indexes.get(key) ?? indexed.dynamicIndexes?.get(key);
+}
+
+function ensureIndexedRecordIndex(indexed: IndexedRecord, key: PropertyKey): number {
+	const existing = indexedRecordIndex(indexed, key);
+	if (existing !== undefined) return existing;
+	const dynamicIndexes = (indexed.dynamicIndexes ??= new Map());
+	const dynamicKeys = (indexed.dynamicKeys ??= []);
+	const index = indexed.layout.keys.length + dynamicIndexes.size;
+	dynamicIndexes.set(key, index);
+	dynamicKeys.push(key);
+	indexed.initialized.push(false);
+	return index;
 }
 
 function indexedRecordKey(indexed: IndexedRecord, index: number): PropertyKey {

@@ -50,6 +50,7 @@ export function registerCollectionComponentStateFactory(factory: CollectionState
 /** Creates readonly reactive props while preserving compiler-owned children passthrough. */
 export function createComponentProps<Props extends Record<string, unknown>>(
 	rawProps: Props,
+	indexedKeys?: readonly string[],
 	collections = false
 ): Reactive<Record<string, unknown>> {
 	const options: ReactiveOptions = {
@@ -62,13 +63,16 @@ export function createComponentProps<Props extends Record<string, unknown>>(
 	if (collections) {
 		if (!collectionPropsFactory)
 			throw new Error('Collection props require the compiler-selected collection capability');
-		return collectionPropsFactory(rawProps, options);
+		return collectionPropsFactory(rawProps, indexedKeys, options);
 	}
-	return reactiveObjects(rawProps, options) as Reactive<Record<string, unknown>>;
+	return indexedKeys?.length
+		? indexedReactiveObjects<Record<string, unknown>>(indexedKeys, options, rawProps, true)
+		: (reactiveObjects(rawProps, options) as Reactive<Record<string, unknown>>);
 }
 
 type CollectionPropsFactory = (
 	value: Record<string, unknown>,
+	indexedKeys: readonly string[] | undefined,
 	options: ReactiveOptions
 ) => Reactive<Record<string, unknown>>;
 

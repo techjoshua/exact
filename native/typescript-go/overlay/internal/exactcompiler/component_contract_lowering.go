@@ -640,6 +640,10 @@ func rootComponentContractAttachment(
 		usesCompatibility,
 		compiledRender,
 	)
+	propsSlots := []string(nil)
+	if target == TargetClient {
+		propsSlots = component.PropsSlots
+	}
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -678,6 +682,7 @@ func rootComponentContractAttachment(
 				projectedExecution,
 				component.TargetPlan.DeferredTaskProps,
 				component.StateSlots,
+				propsSlots,
 				runtimeContinuations,
 				hasResumption,
 				serverPublicationName,

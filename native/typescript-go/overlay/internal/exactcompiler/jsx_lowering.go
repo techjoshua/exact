@@ -17,6 +17,7 @@ type jsxLowering struct {
 	nodeIDs                      map[*ast.Node]string
 	writes                       map[string]StateWrite
 	stateReadSlots               map[string]indexedStateRead
+	propsReadSlots               map[string]indexedPropsRead
 	stateWriteSlots              map[string]int
 	indexedStateReadKeys         map[*ast.Node]string
 	tasks                        map[string]Task
@@ -248,6 +249,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	}
 	if lowering.target == TargetClient {
 		if read := lowering.lowerIndexedStateRead(node); read != nil {
+			return read
+		}
+		if read := lowering.lowerIndexedPropsRead(node); read != nil {
 			return read
 		}
 	}

@@ -89,6 +89,7 @@ export abstract class CompactComponentInstance<
 		);
 		this.props = createComponentProps(
 			rawProps,
+			contract.definition.props,
 			Boolean(this.runtimeABI & compiledComponentCollectionsABI)
 		);
 		this.componentResumption = resolveComponentResumption(this.domain, this.type);
