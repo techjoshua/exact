@@ -2,7 +2,7 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
-import { constructRenderComponentInstance } from '@exactjs/core/runtime/component-construction';
+import { constructRenderComponentInstance } from '@exactjs/core/runtime/component-construction/render';
 import { createVNode } from './native-vnode.js';
 
 /** Attaches the smallest prepared contract used by direct-frame resumption fixtures. */

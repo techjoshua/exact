@@ -144,7 +144,8 @@ const (
 	runtimeSSREnhancements          runtimeImportGroupID = "ssr-enhancements"
 	runtimeCompilerClosedSSR        runtimeImportGroupID = "compiler-closed-ssr"
 	runtimeServerRenderStructure    runtimeImportGroupID = "server-render-structure"
-	runtimeComponentConstruction    runtimeImportGroupID = "component-construction"
+	runtimeRenderConstruction       runtimeImportGroupID = "render-construction"
+	runtimeDurableConstruction      runtimeImportGroupID = "durable-construction"
 )
 
 type runtimeImportGroup struct {
@@ -197,7 +198,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{id: runtimeLifecycle, module: "@exactjs/core/runtime/lifecycle"},
 		{id: runtimeComponentReactivity, module: "@exactjs/core/runtime/component-reactivity"},
 		{id: runtimeFrameworkLifecycle, module: "@exactjs/core/framework/component-lifecycle"},
-		{id: runtimeComponentConstruction, module: "@exactjs/core/runtime/component-construction"},
+		{id: runtimeRenderConstruction, module: "@exactjs/core/runtime/component-construction/render"},
+		{id: runtimeDurableConstruction, module: "@exactjs/core/runtime/component-construction/durable"},
 		{id: runtimeServerComponentExecution, module: "@exactjs/core/framework/server-component-execution"},
 		{id: runtimeGenericSSRComponents, module: "@exactjs/ssr/runtime/generic-components"},
 		{id: runtimeSSRStructuralBoundaries, module: "@exactjs/ssr/runtime/structural-boundaries"},
@@ -275,8 +277,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
 		{"activateServerComponentTaskForHost", lowering.names.activateServerTask, runtimeServerComponentExecution},
 		{"createTimeActivation", lowering.names.createTimeActivation, runtimeTime},
-		{"constructRenderComponentInstance", lowering.names.constructRenderComponent, runtimeComponentConstruction},
-		{"constructDurableComponentInstance", lowering.names.constructDurableComponent, runtimeComponentConstruction},
+		{"constructRenderComponentInstance", lowering.names.constructRenderComponent, runtimeRenderConstruction},
+		{"constructDurableComponentInstance", lowering.names.constructDurableComponent, runtimeDurableConstruction},
 		{"bindCompiledProgramText", lowering.names.bindProgramText, runtimeRenderProgram},
 		{"bindCompiledProgramChild", lowering.names.bindProgramChild, runtimeRenderProgram},
 		{"bindCompiledProgramLists", lowering.names.bindProgramLists, runtimeRenderProgram},

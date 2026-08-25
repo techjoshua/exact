@@ -8,7 +8,7 @@ import {
 	type Component
 } from '@exactjs/core';
 import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exactjs/dom';
-import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction';
+import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction/durable';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { getHydrationRoot, type CoreHydrationRoot, type ExactClient } from '@exactjs/hydrate';
 import { createTestVNode } from '@exactjs/testing/internal/fixtures';

@@ -3,7 +3,7 @@ import * as exactRenderStructure from '@exactjs/core/framework/render-structure'
 import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
 import * as exactServerComponentExecution from '@exactjs/core/framework/server-component-execution';
 import * as exactServerTaskHelpers from '@exactjs/core/framework/server-task-helpers';
-import * as exactConstructionRuntime from '@exactjs/core/runtime/component-construction';
+import * as exactDirectServerConstructionRuntime from '@exactjs/core/runtime/component-construction/direct-server';
 import { createVNode } from '@exactjs/core';
 import { renderToStringAsync } from '@exactjs/ssr';
 import ts from 'typescript';
@@ -56,7 +56,8 @@ it('issues nested independent server tasks before authored-order serialization',
 	};
 	const modules: Record<string, unknown> = {
 		'@exactjs/core': exactCore,
-		'@exactjs/core/runtime/component-construction': exactConstructionRuntime,
+		'@exactjs/core/runtime/component-construction/direct-server':
+			exactDirectServerConstructionRuntime,
 		'@exactjs/core/framework/render-structure': exactRenderStructure,
 		'@exactjs/core/framework/server-render-structure': exactServerRenderStructure,
 		'@exactjs/core/framework/server-component-execution': exactServerComponentExecution,

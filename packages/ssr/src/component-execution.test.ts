@@ -8,7 +8,7 @@ import {
 	type TaskContext
 } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
-import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction';
+import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction/durable';
 import {
 	exactComponentContract,
 	exactComponentType,

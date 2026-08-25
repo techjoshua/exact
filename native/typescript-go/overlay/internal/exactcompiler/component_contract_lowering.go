@@ -159,16 +159,12 @@ func lowerComponentContracts(
 			emitContext,
 			descriptorName,
 		)
-		constructorImport := constructors.declaration(factory)
+		constructorImports := constructors.declarations(factory)
 		capacity := len(statements) + len(updateDefinitions) + 1
-		if constructorImport != nil {
-			capacity++
-		}
+		capacity += len(constructorImports)
 		ordered := make([]*ast.Node, 0, capacity)
 		ordered = append(ordered, statements[:insertionIndex]...)
-		if constructorImport != nil {
-			ordered = append(ordered, constructorImport)
-		}
+		ordered = append(ordered, constructorImports...)
 		ordered = append(ordered, descriptor)
 		ordered = append(ordered, updateDefinitions...)
 		ordered = append(ordered, statements[insertionIndex:]...)
@@ -209,47 +205,59 @@ func (imports *componentConstructorImports) selectConstructor(
 	return factory.NewIdentifier(imports.durableName)
 }
 
-func (imports *componentConstructorImports) declaration(factory *printer.NodeFactory) *ast.Node {
-	specifiers := []*ast.Node{}
-	if imports.renderUsed {
-		specifiers = append(specifiers, factory.NewImportSpecifier(
-			false,
-			factory.NewIdentifier("constructRenderComponentInstance"),
-			factory.NewIdentifier(imports.renderName),
-		))
-	}
-	if imports.durableUsed {
-		specifiers = append(specifiers, factory.NewImportSpecifier(
-			false,
-			factory.NewIdentifier("constructDurableComponentInstance"),
-			factory.NewIdentifier(imports.durableName),
-		))
-	}
-	if imports.directServerUsed {
-		specifiers = append(specifiers, factory.NewImportSpecifier(
-			false,
-			factory.NewIdentifier("rejectDirectServerComponentConstruction"),
-			factory.NewIdentifier(imports.directServerName),
-		))
-	}
-	if len(specifiers) == 0 {
-		return nil
-	}
+func componentConstructorImport(
+	factory *printer.NodeFactory,
+	imported string,
+	local string,
+	module string,
+) *ast.Node {
 	declaration := factory.NewImportDeclaration(
 		nil,
 		factory.NewImportClause(
 			ast.KindUnknown,
 			nil,
-			factory.NewNamedImports(factory.NewNodeList(specifiers)),
+			factory.NewNamedImports(factory.NewNodeList([]*ast.Node{
+				factory.NewImportSpecifier(
+					false,
+					factory.NewIdentifier(imported),
+					factory.NewIdentifier(local),
+				),
+			})),
 		),
-		factory.NewStringLiteral(
-			"@exactjs/core/runtime/component-construction",
-			ast.TokenFlagsNone,
-		),
+		factory.NewStringLiteral(module, ast.TokenFlagsNone),
 		nil,
 	)
 	ast.SetParentInChildren(declaration)
 	return declaration
+}
+
+func (imports *componentConstructorImports) declarations(factory *printer.NodeFactory) []*ast.Node {
+	declarations := []*ast.Node{}
+	if imports.renderUsed {
+		declarations = append(declarations, componentConstructorImport(
+			factory,
+			"constructRenderComponentInstance",
+			imports.renderName,
+			"@exactjs/core/runtime/component-construction/render",
+		))
+	}
+	if imports.durableUsed {
+		declarations = append(declarations, componentConstructorImport(
+			factory,
+			"constructDurableComponentInstance",
+			imports.durableName,
+			"@exactjs/core/runtime/component-construction/durable",
+		))
+	}
+	if imports.directServerUsed {
+		declarations = append(declarations, componentConstructorImport(
+			factory,
+			"rejectDirectServerComponentConstruction",
+			imports.directServerName,
+			"@exactjs/core/runtime/component-construction/direct-server",
+		))
+	}
+	return declarations
 }
 
 func extractComponentUpdateDefinitions(
