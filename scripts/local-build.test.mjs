@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
-import { exactCompileWorkspaces } from './exact-package-build-plan.mjs';
+import {
+	exactCompileWorkspaces,
+	orderExactCompileWorkspaces
+} from './exact-package-build-plan.mjs';
 
 test('the root build prepares package-export prerequisites before building dependent workspaces', async () => {
 	const manifest = JSON.parse(await readFile(path.resolve('package.json'), 'utf8'));
@@ -45,6 +48,22 @@ test('target-local package compilation is discovered from publishable manifests'
 	assert.ok(names.includes('@exactjs/router'));
 	assert.ok(names.includes('@exactjs/microfrontends'));
 	assert.equal(new Set(names).size, names.length);
+	assert.ok(
+		names.indexOf('@exactjs/physics') < names.indexOf('@exactjs/gravity'),
+		'compiled dependencies must precede their consumers'
+	);
+});
+
+test('target-local package compilation rejects dependency cycles', () => {
+	const workspace = (name, dependencies) => ({ manifest: { name, dependencies } });
+	assert.throws(
+		() =>
+			orderExactCompileWorkspaces([
+				workspace('@exactjs/left', { '@exactjs/right': '^0.1.0' }),
+				workspace('@exactjs/right', { '@exactjs/left': '^0.1.0' })
+			]),
+		/Cyclic eXact package compilation dependencies: @exactjs\/left, @exactjs\/right/
+	);
 });
 
 test('the root build includes the enhancement playground and its component libraries', async () => {
