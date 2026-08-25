@@ -1,4 +1,8 @@
-import { handleExactRequest, type ExactServerContext } from '@exactjs/server';
+import {
+	exactResponseToFetchResponse,
+	handleExactFetchRequest,
+	type ExactServerContext
+} from '@exactjs/server';
 
 /** Defines the exact cloudflare handler type contract. */
 export type ExactCloudflareHandler<Env = unknown, CfContext = unknown> = (
@@ -12,21 +16,9 @@ export function createExactCloudflareHandler<Env = unknown, CfContext = unknown>
 	context: ExactServerContext
 ): ExactCloudflareHandler<Env, CfContext> {
 	return async (request, env, ctx) => {
-		const result = await handleExactRequest(
-			{
-				method: request.method,
-				url: request.url,
-				headers: request.headers,
-				bodyStream: request.body,
-				signal: request.signal,
-				platformRequest: { request, env, context: ctx }
-			},
-			context
+		return exactResponseToFetchResponse(
+			await handleExactFetchRequest(request, context, { request, env, context: ctx })
 		);
-		return new Response(result.stream ?? result.body ?? '', {
-			status: result.status,
-			headers: result.headers
-		});
 	};
 }
 

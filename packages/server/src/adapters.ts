@@ -5,7 +5,7 @@ import {
 	throwCleanupFailure
 } from '@exactjs/core';
 import { handleExactRequest } from './runtime/request-handler.js';
-import type { ExactServerContext } from './types.js';
+import type { ExactResponseLike, ExactServerContext } from './types.js';
 
 /** Defines the exact express request type contract. */
 export type ExactExpressRequest = {
@@ -68,22 +68,35 @@ export function createFetchHandler(
 	context: ExactServerContext
 ): (request: Request) => Promise<Response> {
 	return async (request) => {
-		const response = await handleExactRequest(
-			{
-				method: request.method,
-				url: request.url,
-				headers: request.headers,
-				bodyStream: request.body,
-				signal: request.signal,
-				platformRequest: request
-			},
-			context
-		);
-		return new Response(response.stream ?? response.body ?? '', {
-			status: response.status,
-			headers: response.headers
-		});
+		return exactResponseToFetchResponse(await handleExactFetchRequest(request, context));
 	};
+}
+
+/** Translates one Fetch Request into the canonical eXact request contract. */
+export function handleExactFetchRequest(
+	request: Request,
+	context: ExactServerContext,
+	platformRequest: unknown = request
+): Promise<ExactResponseLike> {
+	return handleExactRequest(
+		{
+			method: request.method,
+			url: request.url,
+			headers: request.headers,
+			bodyStream: request.body,
+			signal: request.signal,
+			platformRequest
+		},
+		context
+	);
+}
+
+/** Translates the canonical eXact response into a Fetch Response. */
+export function exactResponseToFetchResponse(response: ExactResponseLike): Response {
+	return new Response(response.stream ?? response.body ?? '', {
+		status: response.status,
+		headers: response.headers
+	});
 }
 
 /** Creates an Express-style eXact endpoint handler. */
