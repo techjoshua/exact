@@ -4,7 +4,7 @@
 import * as exactCore from '@exactjs/core';
 import { createVNode } from '@exactjs/core';
 import * as exactRenderRuntime from '@exactjs/core/runtime/render';
-import * as exactConstructionRuntime from '@exactjs/core/runtime/component-construction';
+import * as exactRenderConstructionRuntime from '@exactjs/core/runtime/component-construction/render';
 import * as exactReactivityRuntime from '@exactjs/core/runtime/reactivity';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
@@ -47,7 +47,7 @@ function executeCompiledComponent(
 	}).outputText;
 	const module = { exports: {} as Record<string, exactCore.AnyComponentFunction> };
 	const modules: Record<string, unknown> = {
-		'@exactjs/core/runtime/component-construction': exactConstructionRuntime,
+		'@exactjs/core/runtime/component-construction/render': exactRenderConstructionRuntime,
 		'@exactjs/core/runtime/render': exactRenderRuntime,
 		'@exactjs/core/runtime/reactivity': exactReactivityRuntime
 	};

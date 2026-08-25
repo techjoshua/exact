@@ -10,7 +10,7 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
-import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction';
+import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction/durable';
 import { computed } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import {
