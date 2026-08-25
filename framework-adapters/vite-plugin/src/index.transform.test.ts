@@ -140,7 +140,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 			messages: {
 				[key]: [
 					{ kind: 'text', value: 'Bonjour ' },
-					{ kind: 'value', binding: 0 }
+					{ kind: 'placeholder', id: 'n1' }
 				]
 			}
 		};
