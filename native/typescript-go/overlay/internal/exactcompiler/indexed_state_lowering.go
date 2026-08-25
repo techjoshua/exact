@@ -41,8 +41,9 @@ func indexStateReadSlots(components []Component, reads []StateRead) map[string]i
 	return result
 }
 
-// indexStateWriteSlots selects only canonical top-level writes whose component layout owns a
-// stable numeric slot. Aliased, nested, and dynamic writes retain the general path runtime.
+// indexStateWriteSlots selects canonical top-level writes whose component layout owns a stable
+// numeric slot. A checker-proven alias of the complete state facade has the same indexed identity;
+// nested aliases and dynamic writes retain the general path runtime.
 func indexStateWriteSlots(components []Component, writes []StateWrite) map[string]int {
 	slotsByComponent := make(map[string]map[string]int, len(components))
 	for _, component := range components {
@@ -54,7 +55,7 @@ func indexStateWriteSlots(components []Component, writes []StateWrite) map[strin
 	}
 	result := make(map[string]int, len(writes))
 	for _, write := range writes {
-		if write.RootAlias != "" || len(write.Path) != 1 || write.DynamicSegments[0] != nil {
+		if write.RootDepth != 0 || len(write.Path) != 1 || write.DynamicSegments[0] != nil {
 			continue
 		}
 		if slot, exists := slotsByComponent[write.Component][write.Path[0]]; exists {

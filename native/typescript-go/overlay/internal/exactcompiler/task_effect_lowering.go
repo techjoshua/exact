@@ -477,11 +477,16 @@ func (lowering *jsxLowering) directTaskAssignment(
 			writeValue,
 		)
 	} else {
-		write = lowering.call(
+		name, reference := lowering.stateWriteReferenceForWrite(
+			writeEffect,
 			lowering.names.write,
+			lowering.names.writeState,
+		)
+		write = lowering.call(
+			name,
 			[]*ast.Node{
 				lowering.stateWriteRoot(writeEffect),
-				lowering.stateWritePathNode(writeEffect),
+				reference,
 				lowering.arrow(writeValue),
 			},
 		)
@@ -530,11 +535,16 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 		)
 		writeValue = local
 	}
-	write := lowering.call(
+	name, reference := lowering.stateWriteReferenceForWrite(
+		writeEffect,
 		lowering.names.write,
+		lowering.names.writeState,
+	)
+	write := lowering.call(
+		name,
 		[]*ast.Node{
 			lowering.stateWriteRoot(writeEffect),
-			lowering.stateWritePathNode(writeEffect),
+			reference,
 			lowering.arrow(writeValue),
 		},
 	)

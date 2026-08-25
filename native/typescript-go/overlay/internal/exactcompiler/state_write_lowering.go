@@ -273,8 +273,35 @@ func (lowering *jsxLowering) stateWriteReference(
 	pathHelper string,
 	indexedHelper string,
 ) (string, *ast.Node) {
+	return lowering.stateWriteReferenceForKey(
+		nodeSpanKey(node),
+		write,
+		pathHelper,
+		indexedHelper,
+	)
+}
+
+func (lowering *jsxLowering) stateWriteReferenceForWrite(
+	write StateWrite,
+	pathHelper string,
+	indexedHelper string,
+) (string, *ast.Node) {
+	return lowering.stateWriteReferenceForKey(
+		fmt.Sprintf("%d:%d", write.Start, write.Length),
+		write,
+		pathHelper,
+		indexedHelper,
+	)
+}
+
+func (lowering *jsxLowering) stateWriteReferenceForKey(
+	key string,
+	write StateWrite,
+	pathHelper string,
+	indexedHelper string,
+) (string, *ast.Node) {
 	if lowering.target == TargetClient {
-		if slot, exists := lowering.stateWriteSlots[nodeSpanKey(node)]; exists {
+		if slot, exists := lowering.stateWriteSlots[key]; exists {
 			return indexedHelper, lowering.factory.NewNumericLiteral(
 				fmt.Sprintf("%d", slot),
 				ast.TokenFlagsNone,

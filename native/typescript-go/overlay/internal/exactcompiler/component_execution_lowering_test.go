@@ -134,6 +134,29 @@ func TestClientComponentBindingWritesCompilerIndexedStateSlot(t *testing.T) {
 	}
 }
 
+func TestClientNestedCallbackWritesThroughIndexedStateFacadeAlias(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "indexed-state-alias.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Counter(this: Component<{ count: number }>) {
+				const state = this.state;
+				function increment() { state.count += 1; }
+				return () => <button onClick={increment}>{this.state.count}</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "__exactUpdateState(state, 0, previous => previous + 1)") {
+		t.Fatalf("state facade alias did not retain its indexed slot identity:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactUpdate(state, ["count"]`) {
+		t.Fatalf("state facade alias retained a generic top-level path update:\n%s", response.Code)
+	}
+}
+
 func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,
@@ -152,6 +175,10 @@ func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *tes
 	if !strings.Contains(response.Code, "activateComputationForHost as __exactActivateComputation") ||
 		!strings.Contains(response.Code, "__exactActivateComputation(this") {
 		t.Fatalf("hydrate projection did not select the synchronous computation lane:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, "__exactWriteState(this.state, 0") ||
+		strings.Contains(response.Code, `__exactWrite(this.state, ["message"]`) {
+		t.Fatalf("compiler-generated computation did not preserve its indexed write:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `label: "__exactComponentComputation_`) {
 		t.Fatalf("hydrate projection wrapped a synchronous computation in a task definition:\n%s", response.Code)
