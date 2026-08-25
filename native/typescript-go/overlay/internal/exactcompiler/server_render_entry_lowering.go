@@ -59,6 +59,20 @@ func (lowering *jsxLowering) compilerClosedRenderHelper(
 	}
 	unmarked := false
 	for _, property := range options.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsShorthandPropertyAssignment(property) {
+			name := property.Name().Text()
+			switch name {
+			case "reactMarkup", "outputExtensions":
+				// These options can change the root representation. A shorthand value is
+				// not statically narrow enough to retain the compiler-closed renderer.
+				return "", false
+			case "markers":
+				// A runtime marker choice can use the marked entrypoint. Its publisher
+				// already observes the request context's marker policy; only a literal
+				// false earns the smaller unmarked entrypoint below.
+			}
+			continue
+		}
 		if !ast.IsPropertyAssignment(property) {
 			return "", false
 		}

@@ -70,10 +70,12 @@ enhancement-owned, or general-child descendant retains the ordinary renderer.
 
 The compiler also specializes authored `renderToStringAsync()` and
 `renderToHydratableStringAsync()` calls whose local root graph is closed and whose options cannot
-enable foreign React markup. Those calls enter a structure-only
+enable foreign React markup. A runtime `markers` choice still uses the closed marked entrypoint;
+the request context selects whether it publishes delimiters without reopening component dispatch.
+Those calls enter a structure-only
 serializer that accepts generated render programs, scalar and property slots, and transitively
-closed component slots. Dynamic render options, general child expressions, and unsupported graph
-edges leave the authored call on the universal SSR entry point. This proof keeps the broad async
+closed component slots. Render options that can replace the root, general child expressions, and
+unsupported graph edges leave the authored call on the universal SSR entry point. This proof keeps the broad async
 VNode dispatcher out of simple production server bundles without creating a second author-facing
 render API. A private closed graph rendered by a local call with literal `markers: false` also
 publishes its generated HTML directly, so marker, hydration-payload, and resumption-envelope
