@@ -641,7 +641,7 @@ func (s *Session) Execute(request Request) Response {
 	// target-local import uses observed after task lowering so wrapping
 	// cannot make an authored render-helper reference invisible to import
 	// pruning.
-	targetImportUses := artifactIdentifierUses(transformed)
+	targetImportUses := artifactRuntimeIdentifierUses(transformed)
 	transformed = lowerComponentContracts(
 		transformed,
 		emitContext,

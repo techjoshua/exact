@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { createEnhancementNode, type Child, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { describe, expect, it } from 'vitest';
 import {

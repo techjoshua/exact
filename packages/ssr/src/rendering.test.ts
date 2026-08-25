@@ -13,7 +13,7 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { describe, expect, it } from 'vitest';
 import { diffBoundaryHtml, renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';

@@ -10,7 +10,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
-import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import type { SsrContext } from '../types.js';
 import { awaitWithAbort } from './context.js';
 import type { SsrRenderOptions } from './entrypoints.js';

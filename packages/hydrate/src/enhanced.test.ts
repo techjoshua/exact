@@ -3,7 +3,7 @@
  */
 import { createEnhancementNode, Fragment, Target, type Child, type Component } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import '@exactjs/dom/runtime/target';
 import { renderToString } from '@exactjs/ssr';

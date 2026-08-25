@@ -1,7 +1,7 @@
 import { Accessibility } from '@exactjs/accessibility';
 import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
 import '@exactjs/core/runtime/refs';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';

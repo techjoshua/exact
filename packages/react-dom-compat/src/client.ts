@@ -4,7 +4,7 @@ import {
 	type ComponentFunction,
 	type ErrorReport
 } from '@exactjs/core';
-import { createExactCompatibilityArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactCompatibilityArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 // React client roots can produce Suspense and Activity VNodes without compiler lowering.
 import '@exactjs/dom/structural-boundaries';
 import { render as renderExact, unmount as unmountExact } from '@exactjs/dom';

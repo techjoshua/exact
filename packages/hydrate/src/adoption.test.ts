@@ -17,7 +17,7 @@ import {
 } from '@exactjs/core';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import '@exactjs/dom/runtime/target';
 import '@exactjs/dom/unsafe-html';
 import {

@@ -8,7 +8,7 @@ import {
 	type ErrorReport,
 	type VNode
 } from '@exactjs/core';
-import { createExactCompiledDynamicBoundaryArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactCompiledDynamicBoundaryArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { createDefaultErrorView } from '@exactjs/core/framework/error-view';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';

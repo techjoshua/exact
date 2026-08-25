@@ -10,7 +10,7 @@ import {
 	withComponentDomain,
 	type Component
 } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { describe, expect, it, vi } from 'vitest';

@@ -11,7 +11,7 @@ import {
 	type ReadinessContextValue
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
-import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { registerComponentLifecycleHandler } from '@exactjs/core/framework/component-lifecycle';
 import {

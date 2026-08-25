@@ -1,5 +1,5 @@
 import { createVNode, type ComponentFunction } from '@exactjs/core';
-import { createExactCompatibilityArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactCompatibilityArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import type { ReactNode } from '@exactjs/react-compat';
 import {
 	ReactCacheContext,

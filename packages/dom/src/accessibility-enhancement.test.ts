@@ -5,7 +5,7 @@ import './framework/enhancements.js';
 import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
 import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render } from './index.js';

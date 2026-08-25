@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { createErrorContext, ErrorContext } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import '@exactjs/core/runtime/refs';
 import { render } from '@exactjs/dom';
 import { testComponent } from '@exactjs/testing';

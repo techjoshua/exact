@@ -3,7 +3,7 @@
  */
 import './structural-boundaries.js';
 import { Suspense, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
