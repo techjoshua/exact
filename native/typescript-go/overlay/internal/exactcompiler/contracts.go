@@ -226,6 +226,7 @@ type ComponentSurfacePlan struct {
 type ComponentTargetPlan struct {
 	ClientExecution      ComponentExecution
 	ServerExecution      ComponentExecution
+	DeferredTaskProps    []string
 	DirectServer         bool
 	DirectServerFrame    bool
 	GenericServerRuntime bool

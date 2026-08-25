@@ -594,7 +594,7 @@ function directResumableFixture<Props extends Record<string, unknown>>(
 					version: 1 as const,
 					classification,
 					lane: 'direct' as const,
-					setupProps: [],
+					deferredTaskProps: [],
 					render: implementation
 				}
 			},

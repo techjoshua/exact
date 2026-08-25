@@ -49,6 +49,7 @@ func planComponentTargets(
 		component.TargetPlan = ComponentTargetPlan{
 			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
 			ServerExecution:      execution,
+			DeferredTaskProps:    deferredServerTaskProps(*component, execution, componentNode, tasks),
 			DirectServer:         directServer,
 			DirectServerFrame:    directServer && len(execution.Transitions) == 0,
 			GenericServerRuntime: component.Placement != "client" && !directServer,
@@ -129,6 +130,7 @@ func componentDefinitionMetadata(
 	factory *printer.NodeFactory,
 	instantiate *ast.Node,
 	execution ComponentExecution,
+	deferredTaskProps []string,
 	stateSlots []string,
 	continuations []Continuation,
 	hasResumption bool,
@@ -197,6 +199,7 @@ func componentDefinitionMetadata(
 			serverComponentExecutionMetadata(
 				factory,
 				execution,
+				deferredTaskProps,
 				instantiate,
 				directServer,
 				dynamicComponents,
@@ -218,6 +221,7 @@ func componentDefinitionMetadata(
 func serverComponentExecutionMetadata(
 	factory *printer.NodeFactory,
 	execution ComponentExecution,
+	deferredTaskProps []string,
 	instantiate *ast.Node,
 	direct bool,
 	dynamic bool,
@@ -237,16 +241,20 @@ func serverComponentExecutionMetadata(
 		contractProperty(factory, "classification", contractString(factory, classification)),
 		contractProperty(factory, "lane", contractString(factory, lane)),
 	}
+	if len(deferredTaskProps) != 0 {
+		properties = append(properties,
+			contractProperty(factory, "deferredTaskProps", stringMetadata(factory, deferredTaskProps)),
+		)
+	}
 	if lane == "direct" {
 		properties = append(properties,
-			contractProperty(factory, "setupProps", stringMetadata(factory, serverSetupPropNames(execution))),
 			contractProperty(factory, "render", instantiate),
 		)
 	}
 	return contractObject(factory, true, properties...)
 }
 
-func serverSetupPropNames(execution ComponentExecution) []string {
+func serverSetupTaskPropNames(execution ComponentExecution) []string {
 	seen := make(map[string]struct{})
 	result := []string{}
 	for _, transition := range execution.Transitions {
@@ -272,6 +280,98 @@ func serverSetupPropNames(execution ComponentExecution) []string {
 		}
 	}
 	return result
+}
+
+// deferredServerTaskProps proves which setup-task inputs are never consumed by ordinary
+// component construction or rendering. Only those props may retain dependency provenance while
+// the component is instantiated; every other pending prop must settle first.
+func deferredServerTaskProps(
+	component Component,
+	execution ComponentExecution,
+	componentNode *ast.Node,
+	tasks []Task,
+) []string {
+	candidates := serverSetupTaskPropNames(execution)
+	if len(candidates) == 0 || componentNode == nil {
+		return candidates
+	}
+	propsName := componentPropsParameterName(componentNode)
+	if propsName == "" {
+		return nil
+	}
+	candidateSet := make(map[string]struct{}, len(candidates))
+	for _, name := range candidates {
+		candidateSet[name] = struct{}{}
+	}
+	taskRanges := make([]SourceSpan, 0, len(tasks)*2)
+	for _, task := range tasks {
+		if task.Component != component.Name || task.Invoked ||
+			(task.Placement != "server" && task.Placement != "isomorphic") {
+			continue
+		}
+		if task.Length > 0 {
+			taskRanges = append(taskRanges, SourceSpan{Start: task.Start, Length: task.Length})
+		}
+		if task.WorkLength > 0 {
+			taskRanges = append(taskRanges, SourceSpan{Start: task.WorkStart, Length: task.WorkLength})
+		}
+	}
+	direct := make(map[string]struct{})
+	walkNode(componentNode, func(node *ast.Node) bool {
+		name, ok := rootPropertyName(node, propsName)
+		if !ok {
+			return true
+		}
+		if _, candidate := candidateSet[name]; !candidate || withinAnySourceSpan(node, taskRanges) {
+			return true
+		}
+		direct[name] = struct{}{}
+		return true
+	})
+	result := make([]string, 0, len(candidates))
+	for _, name := range candidates {
+		if _, usedDirectly := direct[name]; !usedDirectly {
+			result = append(result, name)
+		}
+	}
+	return result
+}
+
+func componentPropsParameterName(componentNode *ast.Node) string {
+	for _, parameter := range componentNode.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() != "this" {
+			return name.Text()
+		}
+	}
+	return ""
+}
+
+func rootPropertyName(node *ast.Node, receiver string) (string, bool) {
+	switch {
+	case ast.IsPropertyAccessExpression(node):
+		member := node.AsPropertyAccessExpression()
+		if ast.IsIdentifier(member.Expression) && member.Expression.Text() == receiver &&
+			member.Name() != nil {
+			return member.Name().Text(), true
+		}
+	case ast.IsElementAccessExpression(node):
+		member := node.AsElementAccessExpression()
+		if ast.IsIdentifier(member.Expression) && member.Expression.Text() == receiver &&
+			member.ArgumentExpression != nil && ast.IsStringLiteral(member.ArgumentExpression) {
+			return member.ArgumentExpression.Text(), true
+		}
+	}
+	return "", false
+}
+
+func withinAnySourceSpan(node *ast.Node, spans []SourceSpan) bool {
+	for _, span := range spans {
+		if node.Pos() >= span.Start && node.End() <= span.Start+span.Length {
+			return true
+		}
+	}
+	return false
 }
 
 // componentRuntimeABI compacts compiler-proven execution needs into the hot construction record.

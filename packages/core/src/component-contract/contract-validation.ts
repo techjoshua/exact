@@ -115,17 +115,22 @@ function isDefinition(value: unknown): boolean {
 function isServerExecution(value: unknown): boolean {
 	if (!isContractRecord(value)) return false;
 	return (
-		hasOnlyContractKeys(value, ['version', 'classification', 'lane', 'setupProps', 'render']) &&
+		hasOnlyContractKeys(value, [
+			'version',
+			'classification',
+			'lane',
+			'deferredTaskProps',
+			'render'
+		]) &&
 		value.version === 1 &&
 		(value.classification === 'synchronous' ||
 			value.classification === 'scheduled' ||
 			value.classification === 'dynamic') &&
 		(value.lane === 'direct' || value.lane === 'generic') &&
+		(value.deferredTaskProps === undefined || isSafeContractStringList(value.deferredTaskProps)) &&
 		(value.lane === 'direct'
-			? value.classification !== 'dynamic' &&
-				typeof value.render === 'function' &&
-				isSafeContractStringList(value.setupProps)
-			: value.render === undefined && value.setupProps === undefined)
+			? value.classification !== 'dynamic' && typeof value.render === 'function'
+			: value.render === undefined)
 	);
 }
 

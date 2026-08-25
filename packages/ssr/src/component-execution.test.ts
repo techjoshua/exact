@@ -302,7 +302,7 @@ function compiledComponent<T extends (...args: any[]) => any>(
 											version: 1 as const,
 											classification: 'scheduled' as const,
 											lane: 'direct' as const,
-											setupProps: execution.ports.flatMap((port) =>
+											deferredTaskProps: execution.ports.flatMap((port) =>
 												port[0] === 'props' ? [port[1].replace(/^props\./, '').split('.')[0]!] : []
 											),
 											render: component

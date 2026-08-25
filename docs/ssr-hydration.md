@@ -99,8 +99,11 @@ discovery waterfall without building or flattening a request-wide plan. Explicit
 boundaries keep the ordinary drain-before-render path, and structural render reachability still prevents inactive
 branches or unselected dynamic components from starting work.
 
-A compiler-closed scheduled component executes on a request-local state frame, settles only its
-compiler-listed setup props, and consumes generated input/output slices directly. It allocates neither a generic component
+A compiler-closed scheduled component executes on a request-local state frame, settles pending
+props that ordinary construction or rendering consumes, and preserves dependency provenance only
+for compiler-proven task-exclusive inputs. The generated `deferredTaskProps` list is the complete
+authority for that distinction; SSR does not reconstruct it from the generic execution graph.
+The component consumes generated input/output slices directly. It allocates neither a generic component
 instance nor a reactive component scope. Its generated setup and task bodies mutate that plain state
 directly; request cancellation wraps only the awaits and owned timers that need it. Compiler-proven scheduled child slots emit direct issue
 calls in the server artifact, so their setup tasks can enter the bounded scheduler while the parent

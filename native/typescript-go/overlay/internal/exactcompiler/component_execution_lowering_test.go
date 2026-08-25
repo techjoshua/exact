@@ -118,7 +118,6 @@ func TestServerProjectionInlinesCompilerSynchronousComputations(t *testing.T) {
 		`})(props.name, { signal: void 0 })`,
 		`classification: "synchronous"`,
 		`lane: "direct"`,
-		`setupProps: []`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct server computation is missing %q:\n%s", expected, response.Code)
@@ -218,7 +217,7 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 	for _, expected := range []string{
 		`classification: "scheduled"`, `lane: "direct"`,
 		`from "@exactjs/core/framework/server-render-structure"`,
-		`render: __exactImplementation_Page_1`, `setupProps: [`, `"request"`,
+		`render: __exactImplementation_Page_1`, `deferredTaskProps: [`, `"request"`,
 		`issueServerComponentVNode as`, `__exactIssueServerComponent(__exactComponentVNode(Page`,
 		`createPreparedServerRenderProgram as`,
 		`activateServerComponentTaskForHost as`,
@@ -236,6 +235,41 @@ func TestServerScheduledComponentSelectsRequestLocalDirectLane(t *testing.T) {
 		if strings.Contains(response.Code, forbidden) {
 			t.Fatalf("scheduled direct server component retained generic runtime %q:\n%s", forbidden, response.Code)
 		}
+	}
+}
+
+func TestServerScheduledComponentDefersOnlyTaskExclusiveProps(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-scheduled-shared-prop.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			function Page(
+				this: Component<{ value: string; initial: string }>,
+				props: { request: string; initial: string }
+			) {
+				this.state.initial = props.initial;
+				async function load(value: string, _task: TaskContext = TaskContext.server().blocking()) {
+					this.state.value = await Promise.resolve(value);
+				}
+				load(props.request);
+				return () => <output>{this.state.initial}{this.state.value}</output>;
+			}
+			export function Shell(props: { request: string; initial: string }) {
+				return () => <Page request={props.request} initial={props.initial} />;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	compact := strings.Join(strings.Fields(response.Code), " ")
+	if !strings.Contains(compact, `deferredTaskProps: [ "request" ]`) {
+		t.Fatalf("task-exclusive prop was not isolated from direct setup props:\n%s", response.Code)
+	}
+	if strings.Contains(compact, `deferredTaskProps: [ "initial"`) ||
+		strings.Contains(compact, `deferredTaskProps: [ "request", "initial"`) {
+		t.Fatalf("directly consumed prop was incorrectly deferred:\n%s", response.Code)
 	}
 }
 

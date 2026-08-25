@@ -1,23 +1,16 @@
 import { plannedContinuationDependency } from '@exactjs/core';
-import type { ExactComponentExecutionContract } from '@exactjs/core/framework/component-contracts';
 import { serverComponentDependencyForValue } from '@exactjs/core/framework/server-component-execution';
-
-const noPlannedInputs: ReadonlySet<string> = new Set();
-type PlannedComponentInputs = ReadonlySet<string> | readonly string[];
-type ComponentPropPlan = ExactComponentExecutionContract | PlannedComponentInputs;
-const setupPropsByExecution = new WeakMap<ExactComponentExecutionContract, ReadonlySet<string>>();
 
 /** Resolves pending values needed by component initialization while preserving planned task-input sources. */
 export function prepareComponentProps(
 	props: Record<string, unknown>,
-	execution: ComponentPropPlan | undefined,
+	deferredTaskProps: readonly string[] | undefined,
 	signal: AbortSignal | undefined
 ): Record<string, unknown> | Promise<Record<string, unknown>> {
-	const plannedInputs = plannedComponentInputs(execution);
 	let resolved: Record<string, unknown> | undefined;
 	let pending: Promise<readonly [key: string, value: unknown]>[] | undefined;
 	for (const key in props) {
-		if (!Object.hasOwn(props, key) || plannedInputIncludes(plannedInputs, key)) continue;
+		if (!Object.hasOwn(props, key) || deferredTaskProps?.includes(key)) continue;
 		const source =
 			serverComponentDependencyForValue(props[key]) ?? plannedContinuationDependency(props[key]);
 		if (!source) continue;
@@ -39,36 +32,6 @@ export function prepareComponentProps(
 		});
 	return resolved ?? props;
 }
-
-function plannedComponentInputs(execution: ComponentPropPlan | undefined): PlannedComponentInputs {
-	if (!execution) return noPlannedInputs;
-	if (!isExecutionContract(execution)) return execution;
-	const cached = setupPropsByExecution.get(execution);
-	if (cached) return cached;
-	const inputs = new Set<string>();
-	for (const transition of execution.transitions) {
-		if (transition[2] !== 'setup') continue;
-		for (const index of transition[6]) {
-			const port = execution.ports[index];
-			if (port?.[0] !== 'props') continue;
-			const path = port[1].replace(/^props\./, '');
-			inputs.add(path.split('.', 1)[0]!);
-		}
-	}
-	setupPropsByExecution.set(execution, inputs);
-	return inputs;
-}
-
-function isExecutionContract(
-	execution: ComponentPropPlan
-): execution is ExactComponentExecutionContract {
-	return 'ports' in execution && 'transitions' in execution;
-}
-
-function plannedInputIncludes(inputs: PlannedComponentInputs, key: string): boolean {
-	return Array.isArray(inputs) ? inputs.includes(key) : (inputs as ReadonlySet<string>).has(key);
-}
-
 function settledValue(
 	key: string,
 	snapshot: ReturnType<

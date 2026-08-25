@@ -4,6 +4,7 @@ import {
 	awaitServerComponentTask,
 	createServerComponentExecutionFrame,
 	issueServerComponentVNode,
+	serverComponentDependencyForValue,
 	serverComponentExecutionValueForHost,
 	serverComponentTaskTimeout,
 	withServerComponentVNodeIssuer,
@@ -19,6 +20,19 @@ const valueSlice = [
 const consumeSlice = [[-1], [], 'blocking', 'consume'] as const satisfies ServerComponentTaskSlice;
 
 describe('compiler-closed server component execution', () => {
+	it('recognizes dependency tokens created by another evaluated runtime copy', () => {
+		const token = {
+			[Symbol.for('@exactjs/server-component-dependency')]: {
+				status: 'available',
+				value: 'ready'
+			}
+		};
+		expect(serverComponentDependencyForValue(token)?.read()).toMatchObject({
+			status: 'available',
+			value: 'ready'
+		});
+	});
+
 	it('isolates forwarded task outputs across concurrent request frames', async () => {
 		const left = { state: { value: 'pending' } };
 		const right = { state: { value: 'pending' } };

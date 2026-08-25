@@ -49,7 +49,7 @@ describe('@exactjs/ssr ownership', () => {
 						version: 1,
 						classification: 'synchronous',
 						lane: 'direct',
-						setupProps: [],
+						deferredTaskProps: [],
 						render: Direct
 					}
 				},
@@ -116,7 +116,7 @@ describe('@exactjs/ssr ownership', () => {
 						version: 1,
 						classification: 'synchronous',
 						lane: 'direct',
-						setupProps: [],
+						deferredTaskProps: [],
 						render: DirectList
 					}
 				}

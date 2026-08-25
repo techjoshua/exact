@@ -165,7 +165,7 @@ export type ExactServerComponentExecutionContract = Readonly<{
 	classification: 'synchronous' | 'scheduled' | 'dynamic';
 	/** Whether this artifact can bypass durable generic server ownership. State-only resumption and compiler-closed scheduled setup are supported. */
 	lane: 'direct' | 'generic';
-	setupProps?: readonly string[];
+	deferredTaskProps?: readonly string[];
 	/** Direct synchronous setup/render entry emitted only when generic ownership is unnecessary. */
 	render?: AnyExactComponentCallable;
 }>;
