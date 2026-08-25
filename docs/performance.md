@@ -623,9 +623,15 @@ for the closed lane. When a private graph is rendered only by a local call with 
 `markers: false`, the selected publisher returns the generated HTML directly and the bundle check
 also rejects component-marker, hydration-payload, and resumption-envelope formatters. Exported
 components and calls with non-empty output extensions retain the corresponding general capability.
-Because that selected root is compiler-produced and has no output extension, its hot path also
-omits plugin-host output processing; unproven and externally transformed values continue through
-the general validation boundary.
+Because every selected closed root is compiler-produced and cannot have a root-replacing output
+extension, its hot path omits plugin-host output processing in marked, unmarked, and hydratable
+modes. Unproven and externally transformed values continue through the general validation boundary.
+
+When a closed marked graph contains an isomorphic continuation, its server definition carries the
+prepared resumption publication kind and authored component name. The direct publisher feeds those
+facts to the serialization operation instead of rescanning implementations and continuations after
+every component render. A server-only task never selects client-resumption formatting merely
+because its component is exported.
 
 Compiler-created synchronous setup computations are also target-specialized. On the server their
 already-known dependency expressions feed the generated computation directly in authored order;

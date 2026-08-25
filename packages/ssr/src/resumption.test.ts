@@ -195,6 +195,18 @@ describe('@exactjs/ssr component resumption', () => {
 				],
 				executors: [],
 				boundaries: [],
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					abi: 14,
+					capabilities: ['interactions', 'tasks'] as const,
+					server: {
+						version: 1 as const,
+						classification: 'dynamic' as const,
+						lane: 'generic' as const,
+						publication: { kind: 'resumption' as const, name: 'Counter' }
+					}
+				},
 				resumption: {
 					componentId: 'component:Counter',
 					statePaths: ['count'],
@@ -264,6 +276,18 @@ describe('@exactjs/ssr component resumption', () => {
 				],
 				executors: [],
 				boundaries: [],
+				definition: {
+					version: 1 as const,
+					instantiate: implementation,
+					abi: 14,
+					capabilities: ['interactions', 'tasks'] as const,
+					server: {
+						version: 1 as const,
+						classification: 'dynamic' as const,
+						lane: 'generic' as const,
+						publication: { kind: 'resumption' as const, name: 'InteractiveChild' }
+					}
+				},
 				resumption: {
 					componentId: 'component:InteractiveChild',
 					statePaths: ['count'],

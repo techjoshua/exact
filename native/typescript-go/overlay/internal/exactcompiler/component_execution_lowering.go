@@ -134,6 +134,7 @@ func componentDefinitionMetadata(
 	stateSlots []string,
 	continuations []Continuation,
 	hasResumption bool,
+	serverPublicationName string,
 	directResumption bool,
 	hasInteractions bool,
 	compatibility bool,
@@ -203,6 +204,7 @@ func componentDefinitionMetadata(
 				instantiate,
 				directServer,
 				dynamicComponents,
+				serverPublicationName,
 			),
 		))
 	}
@@ -225,6 +227,7 @@ func serverComponentExecutionMetadata(
 	instantiate *ast.Node,
 	direct bool,
 	dynamic bool,
+	publicationName string,
 ) *ast.Node {
 	classification := "synchronous"
 	if dynamic {
@@ -250,6 +253,14 @@ func serverComponentExecutionMetadata(
 		properties = append(properties,
 			contractProperty(factory, "render", instantiate),
 		)
+	}
+	if publicationName != "" {
+		properties = append(properties, contractProperty(factory, "publication", contractObject(
+			factory,
+			true,
+			contractProperty(factory, "kind", contractString(factory, "resumption")),
+			contractProperty(factory, "name", contractString(factory, publicationName)),
+		)))
 	}
 	return contractObject(factory, true, properties...)
 }

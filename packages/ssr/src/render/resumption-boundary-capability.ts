@@ -1,12 +1,13 @@
 import type { VNode } from '@exactjs/core';
+import { readPreparedExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
 import { ssrCapabilities } from './capability-registry.js';
 
 type ResumptionBoundaryCapability = (
 	context: SsrContext,
-	vnode: VNode,
 	id: string,
+	name: string,
 	html: string,
 	props: Record<string, unknown>
 ) => string;
@@ -26,6 +27,22 @@ export function renderResumableComponentBoundary(
 	html: string,
 	props: Record<string, unknown>
 ): string {
+	const publication =
+		typeof vnode.type === 'function'
+			? readPreparedExactCompiledComponentContract(vnode.type).definition.server?.publication
+			: undefined;
+	if (publication?.kind !== 'resumption') return markerPair(context, id, () => html);
+	return renderPreparedResumableComponentBoundary(context, id, publication.name, html, props);
+}
+
+/** Wraps a compiler-proven resumable component without reading its contract again. */
+export function renderPreparedResumableComponentBoundary(
+	context: SsrContext,
+	id: string,
+	name: string,
+	html: string,
+	props: Record<string, unknown>
+): string {
 	const capability = ssrCapabilities[capabilityName] as ResumptionBoundaryCapability | undefined;
-	return capability?.(context, vnode, id, html, props) ?? markerPair(context, id, () => html);
+	return capability?.(context, id, name, html, props) ?? markerPair(context, id, () => html);
 }

@@ -168,6 +168,11 @@ export type ExactServerComponentExecutionContract = Readonly<{
 	deferredTaskProps?: readonly string[];
 	/** Direct synchronous setup/render entry emitted only when generic ownership is unnecessary. */
 	render?: AnyExactComponentCallable;
+	/** Compiler-selected component publication used after successful server rendering. */
+	publication?: Readonly<{
+		kind: 'resumption';
+		name: string;
+	}>;
 }>;
 
 /** Canonical compiler description from which one durable state-machine instance is created. */

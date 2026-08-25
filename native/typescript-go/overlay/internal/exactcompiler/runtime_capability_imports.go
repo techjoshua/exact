@@ -417,8 +417,16 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	serverStructuralBoundariesUsed := lowering.target == TargetServer &&
 		(containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker) ||
 			containsIdentifier(root, lowering.names.boundary))
-	serverResumptionBoundariesUsed := lowering.target == TargetServer &&
-		len(lowering.continuationComponents) != 0
+	serverResumptionBoundariesUsed := false
+	if lowering.target == TargetServer {
+		for _, component := range lowering.components {
+			if component.Placement == "isomorphic" &&
+				lowering.componentRetainsContinuation(component.ID) {
+				serverResumptionBoundariesUsed = true
+				break
+			}
+		}
+	}
 	if serverResumptionBoundariesUsed &&
 		(containsIdentifier(root, lowering.names.renderClosedUnmarkedSsr) ||
 			containsIdentifier(root, lowering.names.renderClosedHydratableSsr)) &&

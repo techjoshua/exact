@@ -81,9 +81,9 @@ render API. A private closed graph rendered by a local call with literal `marker
 publishes its generated HTML directly, so marker, hydration-payload, and resumption-envelope
 formatting do not enter that server bundle. Exported server components retain those capabilities
 because an external caller can render them with markers, and non-empty output extensions retain
-the universal entry point because they may replace the rendered value. The unmarked closed lane can
-therefore trust its compiler-produced root directly; plugin-host output processing remains at the
-ordinary renderer boundary for authored or externally transformed values.
+the universal entry point because they may replace the rendered value. Every compiler-only closed
+entry trusts its proven root directly; plugin-host output processing remains at the ordinary
+renderer boundary for authored or externally transformed values.
 Generated native-component slots preserve their component kind through server serialization. The
 direct lane writes the component inside the parent slot's existing structural range instead of
 adding a redundant component marker pair. Hydration uses that same bounded slot for ownership, while
@@ -96,7 +96,11 @@ artifact evaluates its compiler-ordered render slots into the prepared invocatio
 than creating a one-use runtime slot dispatcher. Resumption
 publication is a distinct server capability: a compiled continuation component can publish its
 request-local resumption envelope without retaining client-boundary traversal or generic component
-construction. The server keeps readable path-keyed records in its result API while serializing
+construction. The server artifact carries the authored publication name and resumption kind, so
+the direct publisher calls the narrow serializer without rereading the component contract or
+searching its continuation catalog. Server-only task components do not select that client
+publication capability, even when their server artifact is exported. The server keeps readable
+path-keyed records in its result API while serializing
 values as compiler-indexed pairs; hydration expands them only through the matching prepared
 component contract. SSR enhancement activation and `_target` composition are likewise installed only by
 server artifacts that emit enhancement operations. Client-only artifacts never select SSR,
