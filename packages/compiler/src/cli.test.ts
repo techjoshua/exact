@@ -50,7 +50,18 @@ describe('exactc', { timeout: 15_000 }, () => {
 		]);
 
 		const output = await readFile(path.join(outDir, 'view.ts'), 'utf8');
-		expect(output).toContain('__exactVNode("span"');
+		expect(output).toContain('__exactPreparedRenderProgram(__exact_render_program_1');
+		expect(output).toContain('directClaims: true');
+	});
+
+	it('rejects the removed target-neutral executable target', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-target-'));
+		const input = path.join(root, 'view.tsx');
+		await writeFile(input, 'const view = <span />;');
+
+		await expect(
+			execFileAsync(process.execPath, [cliPath, '--target', 'default', input])
+		).rejects.toMatchObject({ stderr: expect.stringContaining('Invalid --target default') });
 	});
 
 	it('emits source maps through the CLI', async () => {

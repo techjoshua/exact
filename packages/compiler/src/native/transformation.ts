@@ -36,7 +36,7 @@ export function transformSourceWithNativeCompiler(
 	if (!session?.hasNativeCompiler())
 		throw new Error('Native compilation requires a session with a configured Go compiler host');
 	const policyOptions = capabilityCompilationOptions(options);
-	const target = options.target ?? 'default';
+	const target = executableTarget(options.target);
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
@@ -139,6 +139,11 @@ export function transformSourceWithNativeCompiler(
 		...(inspectionRedactions ? { inspectionRedactions } : {}),
 		...(correlation ? { inspectionCorrelation: correlation } : {})
 	};
+}
+
+/** Selects one executable artifact target while keeping neutral projection private to analysis. */
+function executableTarget(target: TransformOptions['target']): 'client' | 'server' {
+	return target ?? 'client';
 }
 
 function shouldEnableInspection(

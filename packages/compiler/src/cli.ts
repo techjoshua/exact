@@ -142,7 +142,7 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printUsage(): void {
 	console.log(
-		'Usage: exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target default|client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
+		'Usage: exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
 	);
 }
 
@@ -153,7 +153,7 @@ function checkConfigFile(configFile: string | undefined): string | undefined {
 }
 
 function parseTarget(value: string | undefined): TransformTarget {
-	if (value === 'default' || value === 'client' || value === 'server') return value;
+	if (value === 'client' || value === 'server') return value;
 	throw new Error(`Invalid --target ${value ?? ''}`);
 }
 

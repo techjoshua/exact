@@ -104,7 +104,7 @@ function requiredValue(argv: string[], index: number, option: string): string {
 }
 
 function parseTarget(value: string): TransformTarget {
-	if (value === 'default' || value === 'client' || value === 'server') return value;
+	if (value === 'client' || value === 'server') return value;
 	throw new Error(`Invalid --target ${value}`);
 }
 
@@ -115,7 +115,7 @@ function parseReactTarget(value: string): ReactCompatibilityTarget {
 
 function printUsage(): void {
 	console.log(
-		'Usage: exact-reactc [exactc options] [--compatibilityRoot dir] [--reactTarget auto|18|19] <file-or-directory...>'
+		'Usage: exact-reactc [--target client|server] [exactc options] [--compatibilityRoot dir] [--reactTarget auto|18|19] <file-or-directory...>'
 	);
 }
 

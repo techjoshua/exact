@@ -13,7 +13,7 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).not.toContain('const fullName =');
 		expect(output).not.toContain('createDerived');
 		expect(output).toContain(
-			'const __exact_fullName_1 = `${this.state.first} ${this.state.last}`;'
+			'const __exact_fullName_1 = `${__exactReadState(this.state, 0) as any} ${__exactReadState(this.state, 1) as any}`;'
 		);
 		expect(output).toContain('return __exact_fullName_1;');
 	});
@@ -32,7 +32,7 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain(
-			'const fullName = __exactDerived(() => `${this.state.first} ${this.state.last}`);'
+			'const fullName = __exactDerived(() => `${__exactReadState(this.state, 0) as any} ${__exactReadState(this.state, 1) as any}`);'
 		);
 		expect(output).toContain('fullName.get()');
 	});
@@ -54,7 +54,9 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const doubled = __exactDerived(() => this.state.count * 2);');
+		expect(output).toContain(
+			'const doubled = __exactDerived(() => (__exactReadState(this.state, 0) as any) * 2);'
+		);
 		expect(output).toContain('const label = __exactDerived(() => `value:${doubled.get()}`);');
 		expect(output).toContain('consume(label.get());');
 	});
@@ -81,7 +83,7 @@ describe('@exactjs/compiler: derived values', () => {
 
 		expect(output).not.toContain('createDerived');
 		expect(output).not.toContain('const user =');
-		expect(output).toContain('const __exact_user_1 = this.state.user;');
+		expect(output).toContain('const __exact_user_1 = __exactReadState(this.state, 0)');
 		expect(output).toContain('return __exact_user_1;');
 	});
 
@@ -99,7 +101,7 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('const state = this.state;');
 		expect(output).not.toContain('const state = __exactDerived');
 		expect(output).not.toContain('state.get()');
-		expect(output).toContain('__exactUpdateResult(state, ["count"]');
+		expect(output).toContain('__exactUpdateStateResult(state, 0');
 	});
 
 	it('elides safe scalar derived chains inside one reactive JSX prop', () => {
@@ -114,8 +116,10 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).not.toContain('createDerived');
 		expect(output).not.toContain('const first =');
 		expect(output).not.toContain('const fullName =');
-		expect(output).toContain('const __exact_first_1 = this.state.first;');
-		expect(output).toContain('const __exact_fullName_1 = `${__exact_first_1} ${this.state.last}`;');
+		expect(output).toContain('const __exact_first_1 = __exactReadState(this.state, 0)');
+		expect(output).toContain(
+			'const __exact_fullName_1 = `${__exact_first_1} ${__exactReadState(this.state, 1) as any}`;'
+		);
 		expect(output).toContain('return __exact_fullName_1;');
 	});
 
@@ -142,7 +146,7 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		const conditional = output.indexOf('__exactDynamic(() => props.user ?');
+		const conditional = output.indexOf('props.user ?');
 		const materializedName = output.indexOf('const __exact_name_1 =', conditional);
 		const nestedReturn = output.indexOf('return __exact_name_1;', materializedName);
 		expect(conditional).toBeGreaterThan(-1);
@@ -185,7 +189,7 @@ describe('@exactjs/compiler: derived values', () => {
 
 		expect(output).not.toContain('createDerived');
 		expect(output).not.toContain('let label =');
-		expect(output).toContain('const __exact_label_1 = this.state.first;');
+		expect(output).toContain('const __exact_label_1 = __exactReadState(this.state, 0)');
 		expect(output).toContain('return __exact_label_1;');
 	});
 
@@ -257,7 +261,9 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).not.toContain('createDerived');
-		expect(output).toContain('const __exact_label_1 = suffix(this.state.name);');
+		expect(output).toContain(
+			'const __exact_label_1 = suffix(__exactReadState(this.state, 0) as any);'
+		);
 		expect(output).toContain('return __exact_label_1;');
 		expect(output).not.toContain('const suffix = __exactDerived');
 	});
@@ -335,7 +341,8 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const first = __exactDerived(() => this.state.values.at(0));');
+		expect(output).toContain('const first = __exactDerived(() =>');
+		expect(output).toContain('__exactReadState(this.state, 0)');
 		expect(output).not.toContain('const position =');
 		expect(output).not.toContain('const summary =');
 		expect(output).toContain('const __exact_position_1 =');
@@ -347,7 +354,9 @@ describe('@exactjs/compiler: derived values', () => {
 			'import { TaskContext } from "@exactjs/core";\n\n      function View(this: Component<{ query: string }>) {\n        const label = `${this.state.query}!`;\n        const runFixtureTask = async (value, _task: TaskContext = TaskContext.latest()) => {};\n        runFixtureTask(label);\n        return () => <p />;\n      }\n    '
 		);
 
-		expect(output).toContain('const label = __exactDerived(() => `${this.state.query}!`);');
+		expect(output).toContain(
+			'const label = __exactDerived(() => `${__exactReadState(this.state, 0) as any}!`);'
+		);
 		expect(output).toMatch(
 			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value, _task: TaskContext\) => \{\s*\}\), label\);/
 		);
@@ -416,12 +425,9 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain(
-			'const point = __exactDerived(() => this.state.enabled ? { x: 1 } : undefined);'
+			'const point = __exactDerived(() => __exactReadState(this.state, 0) as any ? { x: 1 } : undefined);'
 		);
-		expect(output).toContain('const __exact_cached_point_1 = point.get();');
-		expect(output).toContain(
-			'return __exact_cached_point_1 ? String(__exact_cached_point_1.x) : "missing";'
-		);
+		expect(output).toContain('point.get() ? String((point.get()!).x) : "missing"');
 	});
 
 	it('inlines safe derived consts inside explicit reactive captures', () => {
@@ -432,7 +438,9 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const label = __exactDerived(() => `${this.state.query}!`);');
+		expect(output).toContain(
+			'const label = __exactDerived(() => `${__exactReadState(this.state, 0) as any}!`);'
+		);
 		expect(output).toContain('this.reactive(() => label.get())');
 	});
 
@@ -447,7 +455,7 @@ describe('@exactjs/compiler: derived values', () => {
 		);
 
 		expect(output).toMatch(
-			/this\.map\(items, \(?item\)? => item\.id, \(?item\)? => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title, "x[A-Za-z0-9_-]{22}"\)\), "x[A-Za-z0-9_-]{22}", undefined, "member:id"\)/
+			/this\.map\(items, \(?item\)? => item\.id, \(?item\)? => __exactPreparedRenderProgram\(__exact_render_program_1, \[\(\) => item\.title\], this\), "x[A-Za-z0-9_-]{22}", undefined, "member:id"\)/
 		);
 	});
 
@@ -456,10 +464,12 @@ describe('@exactjs/compiler: derived values', () => {
 			'import { TaskContext } from "@exactjs/core";\nfunction View() { this.reactive(() => this.state.query); const runFixtureTask = ({ signal }: TaskContext = TaskContext.latest()) => {};\nrunFixtureTask(); }'
 		);
 
-		expect(output).toContain('this.reactive(() => this.state.query)');
+		expect(output).toContain(
+			'this.reactive(() => __exactReadState(this.state, 0) as any)'
+		);
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(output).toContain('({ signal }: TaskContext)');
-		expect(output).not.toContain('this.reactive(() => () => this.state.query)');
+		expect(output).not.toContain('this.reactive(() => () => __exactReadState');
 	});
 
 	it('preserves directive prologues before helper imports', () => {
@@ -470,11 +480,13 @@ describe('@exactjs/compiler: derived values', () => {
 	});
 
 	it('avoids helper alias collisions with user identifiers', () => {
-		const output = transform('const __exactVNode = 1; const view = <span />;');
+		const output = transform(
+			'const __exactPreparedRenderProgram = 1; const view = <span />;'
+		);
 
-		expect(output).toContain('createCompiledVNode as __exactVNode_1');
-		expect(output).toContain('__exactVNode_1("span"');
-		expect(output).toContain('const __exactVNode = 1');
+		expect(output).toContain('createPreparedRenderProgram as __exactPreparedRenderProgram_1');
+		expect(output).toContain('__exactPreparedRenderProgram_1(__exact_render_program_1');
+		expect(output).toContain('const __exactPreparedRenderProgram = 1');
 	});
 
 	it('returns source maps from transformSource when requested', () => {

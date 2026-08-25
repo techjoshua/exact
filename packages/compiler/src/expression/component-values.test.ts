@@ -45,7 +45,9 @@ describe('@exactjs/compiler: component values', () => {
 			(component) => component.name === 'App'
 		);
 
-		expect(output).toContain('const View = __exactDerived(() => this.state.grid ? Grid : List);');
+		expect(output).toContain(
+			'const View = __exactDerived(() => __exactReadState(this.state, 0) as any ? Grid : List);'
+		);
 		expect(output).toContain('__exactDynamic(() => __exactVNode(View.get(), {}))');
 		expect(app?.renderEdges.map((edge) => edge.tag)).toEqual(['Grid', 'List']);
 	});

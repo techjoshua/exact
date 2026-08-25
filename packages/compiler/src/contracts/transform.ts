@@ -38,10 +38,12 @@ export type TransformOptions = {
 	buildKey?: string;
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
+	/** Executable artifact target; omitted transforms compile a specialized client artifact. */
 	target?: TransformTarget;
 	/**
 	 * Projects the complete compiler-owned component contract for a concrete runtime bundle.
-	 * Omit this for rendering-mode-neutral output; bundler adapters set it from their render mode.
+	 * Omit this to retain the complete contract for the selected executable target; bundler adapters
+	 * narrow it from their render mode.
 	 */
 	componentContractProjection?: ComponentContractProjection;
 	serverComponents?: boolean;
@@ -138,8 +140,8 @@ export type ModuleTransform = (
 	map?: unknown;
 }>;
 
-/** Defines the transform target type contract. */
-export type TransformTarget = 'default' | 'client' | 'server';
+/** Defines the executable transform target type contract. */
+export type TransformTarget = ExactArtifactTarget;
 
 /** Selects the runtime component-contract subset retained by a physical bundle. */
 export type ComponentContractProjection = 'complete' | 'hydrate' | 'client' | 'server-render';

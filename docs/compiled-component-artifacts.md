@@ -39,6 +39,9 @@ Component discovery is independent of a module's JSX extension. `.ts`, `.tsx`, `
 source modules can all define native components. Published packages emit separate client and server
 module trees and select them with package export conditions; they do not publish a manually branded
 universal function as a substitute for compilation.
+Direct compiler and CLI calls that omit a target emit the specialized client artifact. Executable
+compilation accepts only `client` or `server`; target-neutral structure remains private compiler
+analysis and cannot be published or passed to a renderer.
 
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the

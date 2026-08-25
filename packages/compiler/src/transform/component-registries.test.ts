@@ -52,7 +52,7 @@ describe('@exactjs/compiler: component registries', () => {
 		);
 
 		expect(output).toContain(
-			'const CurrentWidget = __exactDerived(() => Widget[this.state.selected])'
+			'const CurrentWidget = __exactDerived(() => Widget[__exactReadState(this.state, 0) as any])'
 		);
 		expect(output).toContain('__exactDynamic(() => __exactVNode(CurrentWidget.get(), {}))');
 	});

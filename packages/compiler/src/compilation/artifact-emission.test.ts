@@ -23,7 +23,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const output = await readFile(result.outputFile!, 'utf8');
 
 		expect(result.outputFile).toBe(path.join(outDir, 'view.ts'));
-		expect(output).toContain('__exactVNode("span"');
+		expect(output).toContain('__exactPreparedRenderProgram(__exact_render_program_1');
 	});
 
 	it('writes source maps beside compiled files', async () => {

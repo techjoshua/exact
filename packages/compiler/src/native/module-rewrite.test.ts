@@ -47,7 +47,8 @@ describe('native module rewriting', () => {
 		const native = transformSource(source, options);
 		const output = native.code;
 
-		expect(output).toContain('import { useQuery, type QueryKey } from "@tanstack/react-query";');
+		expect(output).toContain('import { useQuery } from "@tanstack/react-query";');
+		expect(output).not.toContain('QueryKey');
 		expect(output).toContain(
 			'import { ExactQueryClientProvider as Provider } from "@exactjs/tanstack-query/provider";'
 		);
@@ -61,9 +62,6 @@ describe('native module rewriting', () => {
 			'{ ExactQueryClientProvider: DestructuredProvider } = require("@exactjs/tanstack-query/provider")'
 		);
 		expect(output).toContain('return Query.QueryClientProvider;');
-		expect(native.code).toMatch(
-			/import \{ ExactQueryClientProvider as __exact_ExactQueryClientProvider(?:_\d+)? \}/
-		);
 		expect(native.map).toMatchObject({
 			version: 3,
 			sources: ['module.ts'],
