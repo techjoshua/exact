@@ -17,6 +17,7 @@ type componentUpdateBuild struct {
 	component  Component
 	name       string
 	bindings   map[string][]uint32
+	binders    []*ast.Node
 	targets    int
 	operations []componentUpdateOperation
 }
@@ -25,13 +26,13 @@ type componentUpdateBuild struct {
 func (lowering *jsxLowering) registerComponentUpdates(
 	identityNode *ast.Node,
 	updates []renderProgramDirectUpdate,
-) (int, string, bool) {
+) (int, string, *componentUpdateBuild, bool) {
 	if len(updates) == 0 {
-		return 0, "", false
+		return 0, "", nil, false
 	}
 	component, exists := lowering.componentContaining(identityNode)
 	if !exists {
-		return 0, "", false
+		return 0, "", nil, false
 	}
 	build := lowering.componentUpdates[component.Name]
 	if build == nil {
@@ -61,7 +62,7 @@ func (lowering *jsxLowering) registerComponentUpdates(
 			build.bindings[key] = masks
 		}
 	}
-	return target, build.name, true
+	return target, build.name, build, true
 }
 
 // componentContaining returns the narrowest durable component span that owns a JSX region.
@@ -128,6 +129,11 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 	wordCount := (len(build.operations) + 31) / 32
 	if wordCount < 2 {
 		wordCount = 2
+	}
+	if wordCount > 2 {
+		for _, binder := range build.binders {
+			binder.AsIdentifier().Text = lowering.names.bindWideComponentUpdate
+		}
 	}
 	bindings := make([]*ast.Node, 0, len(keys))
 	for _, key := range keys {

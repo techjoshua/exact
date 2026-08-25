@@ -204,7 +204,9 @@ export type ExactCompiledComponentDefinitionContract = Readonly<{
 /** One component-owned direct DOM update program shared by every instance of its definition. */
 export type {
 	ExactCompiledComponentCapability,
-	ExactCompiledComponentUpdateContract
+	ExactCompiledComponentUpdateContract,
+	ExactNarrowComponentUpdateContract,
+	ExactWideComponentUpdateContract
 } from './component-definition-contracts.js';
 
 /** Target-local executable contract attached to a public component root. */

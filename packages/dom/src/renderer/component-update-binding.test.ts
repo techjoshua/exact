@@ -9,6 +9,7 @@ import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-obje
 import { describe, expect, it, vi } from 'vitest';
 import type { Mounted } from '../types.js';
 import { bindCompiledComponentUpdate } from './component-update-binding.js';
+import { bindCompiledWideComponentUpdate } from './component-update-wide-binding.js';
 
 describe('compiler-generated component updates', () => {
 	it('shares one fixed dependency reaction across indexed region targets', () => {
@@ -69,7 +70,7 @@ describe('compiler-generated component updates', () => {
 				_targets: readonly (object | undefined)[],
 				low: number,
 				high: number,
-				words?: Uint32Array
+				words: Uint32Array
 			) => {
 				published.push([low, high, [...(words ?? [])]]);
 			}
@@ -86,7 +87,7 @@ describe('compiler-generated component updates', () => {
 		const owner = { state, scope } as unknown as AnyComponentInstance;
 		const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
 		const target = { mounted, stopBindings: [], valid: true };
-		bindCompiledComponentUpdate(target, 0, updates);
+		bindCompiledWideComponentUpdate(target, 0, updates);
 
 		batch(() => {
 			state.first = 2;

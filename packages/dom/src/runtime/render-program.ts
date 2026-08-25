@@ -11,6 +11,8 @@ export {
 
 /** Compiler-selected component-wide dirty update binding. */
 export { bindCompiledComponentUpdate } from '../renderer/component-update-binding.js';
+/** Compiler-selected wide component dirty update binding. */
+export { bindCompiledWideComponentUpdate } from '../renderer/component-update-wide-binding.js';
 
 /** Compiler-selected direct render-program claim operations. */
 export {
