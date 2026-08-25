@@ -106,7 +106,7 @@ describe('@exactjs/compiler: component values', () => {
 		expect(output).not.toContain('@exactjs/core/runtime/tasks');
 	});
 
-	it('gives transparent component output one compiler-owned dynamic range', () => {
+	it('gives transparent component output one compiler-owned component range', () => {
 		const output = transform(
 			`export function Transparent(props: { children?: string }) {
 				return () => props.children;
@@ -114,15 +114,14 @@ describe('@exactjs/compiler: component values', () => {
 			{ filename: 'Transparent.tsx' }
 		);
 
-		expect(output).toContain('createDynamicChild as __exactDynamic');
-		expect(output).toMatch(/return \(\) => __exactDynamic\(\(\) => props\.children, "x[^"]+"\)/);
+		expect(output).toContain('createCompiledComponentOutput as __exactComponentRangeOutput');
+		expect(output).toContain('return () => __exactComponentRangeOutput(() => props.children)');
 		expect(output).toContain('abi: 1');
 
-		const constant = transform(
-			'export function Empty() { return () => null; }',
-			{ filename: 'Empty.tsx' }
-		);
+		const constant = transform('export function Empty() { return () => null; }', {
+			filename: 'Empty.tsx'
+		});
 		expect(constant).toContain('abi: 1');
-		expect(constant).not.toContain('createDynamicChild');
+		expect(constant).not.toContain('createCompiledComponentOutput');
 	});
 });

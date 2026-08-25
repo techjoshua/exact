@@ -257,10 +257,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			if closure == nil {
 				closure = lowering.arrow(emitted)
 			}
-			return lowering.call(lowering.names.dynamic, []*ast.Node{
-				closure,
-				lowering.factory.NewStringLiteral(lowering.dynamicID(node), ast.TokenFlagsNone),
-			})
+			return lowering.call(lowering.names.componentRangeOutput, []*ast.Node{closure})
 		}
 	}
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {

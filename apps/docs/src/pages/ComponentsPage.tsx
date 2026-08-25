@@ -158,7 +158,9 @@ export function ComponentsPage(this: Component<{}>) {
 					A module-level PascalCase function that directly returns its view function is compiled as
 					a component even when that view only forwards <code>props.children</code> and contains no
 					JSX of its own. Transparent providers and enhancements therefore receive the same stable
-					artifact and ownership rules as visibly rendered components.
+					artifact and ownership rules as visibly rendered components. Their existing component
+					boundary also owns child updates, so forwarding does not add a second wrapper element or
+					dynamic marker range.
 				</p>
 			</section>
 			<section>
