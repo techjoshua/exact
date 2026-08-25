@@ -1,0 +1,8 @@
+{
+	"component": {
+		"render": 1,
+		"lifecycle": 2,
+		"lists": 4,
+		"tasks": 8
+	}
+}

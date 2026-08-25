@@ -274,13 +274,6 @@ func serverSetupPropNames(execution ComponentExecution) []string {
 	return result
 }
 
-const (
-	componentABICompiledRender = 1 << iota
-	componentABILifecycle
-	componentABILists
-	componentABITasks
-)
-
 // componentRuntimeABI compacts compiler-proven execution needs into the hot construction record.
 func componentRuntimeABI(
 	component Component,
