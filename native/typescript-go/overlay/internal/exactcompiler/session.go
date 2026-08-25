@@ -447,6 +447,7 @@ func (s *Session) Execute(request Request) Response {
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
 	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
+	attachFormBindingStateSlots(formBindings, stateReads, components)
 	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop != nil)
 	if request.ServerComponents {
 		// Partition planning needs setup-task flow, but same-build SSR executes that setup

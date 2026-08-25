@@ -109,6 +109,31 @@ func TestClientComponentReadsCompilerIndexedStateSlots(t *testing.T) {
 	}
 }
 
+func TestClientComponentBindingWritesCompilerIndexedStateSlot(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "indexed-component-binding.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			declare function Dialog(props: { open: boolean; onOpenChanged(value: boolean): void }): unknown;
+			export function View(this: Component<{ open: boolean }>) {
+				return () => <Dialog open:onOpenChanged={this.state.open} />;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(
+		response.Code,
+		"__exactWriteState(this.state, 0, () => __exactBindingValue)",
+	) {
+		t.Fatalf("component binding did not use its compiler-indexed state slot:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactWrite(this.state, ["open"]`) {
+		t.Fatalf("component binding retained its generic path write:\n%s", response.Code)
+	}
+}
+
 func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,
