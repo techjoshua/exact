@@ -39,11 +39,12 @@ test('the root build prepares package-export prerequisites before building depen
 	assert.equal(manifest.devDependencies['@typescript/native'], 'npm:typescript@^7.0.2');
 });
 
-test('target-local package compilation is discovered from publishable manifests', async () => {
+test('target-local package compilation includes private application component libraries', async () => {
 	const workspaces = await exactCompileWorkspaces(path.resolve('.'));
 	const names = workspaces.map((entry) => entry.manifest.name);
 
 	assert.ok(names.length > 0);
+	assert.ok(names.includes('@exactjs/app-theme-preference'));
 	assert.ok(names.includes('@exactjs/request'));
 	assert.ok(names.includes('@exactjs/router'));
 	assert.ok(names.includes('@exactjs/microfrontends'));

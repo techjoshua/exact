@@ -1,14 +1,13 @@
-import { isPublishableWorkspace, readWorkspaceManifests } from './workspace-manifests.mjs';
+import { readWorkspaceManifests } from './workspace-manifests.mjs';
 
-/** Returns publishable packages whose manifests request target-local eXact compilation. */
+/** Returns every workspace whose manifest requests target-local eXact compilation. */
 export async function exactCompileWorkspaces(repositoryRoot) {
 	const manifests = await readWorkspaceManifests(repositoryRoot);
 	return orderExactCompileWorkspaces(
 		manifests.filter(
 			(entry) =>
-				isPublishableWorkspace(entry) &&
-				(entry.manifest.exactCompileModules !== undefined ||
-					entry.manifest.exactCompiledComponents !== undefined)
+				entry.manifest.exactCompileModules !== undefined ||
+				entry.manifest.exactCompiledComponents !== undefined
 		)
 	);
 }

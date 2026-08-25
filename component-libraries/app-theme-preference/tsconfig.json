@@ -7,7 +7,7 @@
 		"lib": ["ES2022", "DOM"],
 		"jsx": "preserve"
 	},
-	"references": [{ "path": "../../packages/core" }],
+	"references": [{ "path": "../../packages/core" }, { "path": "../../packages/ssr" }],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts"]
 }

@@ -11,6 +11,7 @@
 	"references": [
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/ssr" },
 		{ "path": "../../packages/theme" }
 	],
 	"include": ["src"],
