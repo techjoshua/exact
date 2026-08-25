@@ -10,5 +10,8 @@ describe('compiler-selected component runtime surfaces', () => {
 		expect(Object.hasOwn(prototype, 'map')).toBe(false);
 		expect(Object.hasOwn(prototype, 'refs')).toBe(false);
 		expect(Object.hasOwn(prototype, 'intl')).toBe(false);
+		expect(Object.hasOwn(prototype, 'hasContext')).toBe(false);
+		expect(Object.hasOwn(prototype, 'getContext')).toBe(false);
+		expect(Object.hasOwn(prototype, 'setContext')).toBe(false);
 	});
 });
