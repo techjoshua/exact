@@ -104,11 +104,54 @@ type jsxRuntimeNames struct {
 	renderClosedUnmarkedSsr string
 }
 
+type runtimeImportGroupID string
+
+const (
+	runtimeRender                   runtimeImportGroupID = "render"
+	runtimeReactivity               runtimeImportGroupID = "reactivity"
+	runtimeTasks                    runtimeImportGroupID = "tasks"
+	runtimeInspection               runtimeImportGroupID = "inspection"
+	runtimeRegistry                 runtimeImportGroupID = "registry"
+	runtimeEnhancements             runtimeImportGroupID = "enhancements"
+	runtimeDynamicComponents        runtimeImportGroupID = "dynamic-components"
+	runtimeLogging                  runtimeImportGroupID = "logging"
+	runtimeLocalization             runtimeImportGroupID = "localization"
+	runtimeModal                    runtimeImportGroupID = "modal"
+	runtimeUnsafeHTML               runtimeImportGroupID = "unsafe-html"
+	runtimeStructuralBoundaries     runtimeImportGroupID = "structural-boundaries"
+	runtimeTarget                   runtimeImportGroupID = "target"
+	runtimeTime                     runtimeImportGroupID = "time"
+	runtimeLists                    runtimeImportGroupID = "lists"
+	runtimeRefs                     runtimeImportGroupID = "refs"
+	runtimeComponentExecution       runtimeImportGroupID = "component-execution"
+	runtimeCollections              runtimeImportGroupID = "collections"
+	runtimeRenderProgram            runtimeImportGroupID = "render-program"
+	runtimeContexts                 runtimeImportGroupID = "contexts"
+	runtimeLifecycle                runtimeImportGroupID = "lifecycle"
+	runtimeComponentReactivity      runtimeImportGroupID = "component-reactivity"
+	runtimeFrameworkLifecycle       runtimeImportGroupID = "framework-lifecycle"
+	runtimeServerComponentExecution runtimeImportGroupID = "server-component-execution"
+	runtimeGenericSSRComponents     runtimeImportGroupID = "generic-ssr-components"
+	runtimeSSRStructuralBoundaries  runtimeImportGroupID = "ssr-structural-boundaries"
+	runtimeSSRResumptionBoundaries  runtimeImportGroupID = "ssr-resumption-boundaries"
+	runtimeSSREnhancements          runtimeImportGroupID = "ssr-enhancements"
+	runtimeCompilerClosedSSR        runtimeImportGroupID = "compiler-closed-ssr"
+	runtimeServerRenderStructure    runtimeImportGroupID = "server-render-structure"
+)
+
+type runtimeImportGroup struct {
+	id         runtimeImportGroupID
+	module     string
+	specifiers []*ast.Node
+}
+
+type runtimeImportHelper struct {
+	imported string
+	local    string
+	group    runtimeImportGroupID
+}
+
 func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
-	type importGroup struct {
-		module     string
-		specifiers []*ast.Node
-	}
 	const serverRenderRuntimeModule = "@exactjs/core/framework/server-render-structure"
 	renderRuntimeModule := "@exactjs/core/runtime/render"
 	taskRuntimeModule := "@exactjs/core/runtime/tasks"
@@ -122,118 +165,123 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		}
 		taskRuntimeModule = "@exactjs/core/framework/server-task-helpers"
 	}
-	groups := []importGroup{
-		{module: renderRuntimeModule},
-		{module: "@exactjs/core/runtime/reactivity"},
-		{module: taskRuntimeModule},
-		{module: "@exactjs/core/runtime/inspection"},
-		{module: "@exactjs/core/runtime/registry"},
-		{module: "@exactjs/core/runtime/enhancements"},
-		{module: "@exactjs/core/runtime/dynamic-components"},
-		{module: "@exactjs/core/runtime/logging"},
-		{module: "@exactjs/core/runtime/localization"},
-		{module: "@exactjs/dom/runtime/modal"},
-		{module: "@exactjs/dom/runtime/unsafe-html"},
-		{module: "@exactjs/dom/runtime/structural-boundaries"},
-		{module: "@exactjs/dom/runtime/target"},
-		{module: "@exactjs/time/internal"},
-		{module: "@exactjs/core/runtime/lists"},
-		{module: "@exactjs/core/runtime/refs"},
-		{module: "@exactjs/core/runtime/component-execution"},
-		{module: "@exactjs/core/runtime/collections"},
-		{module: "@exactjs/dom/runtime/render-program"},
-		{module: "@exactjs/core/runtime/contexts"},
-		{module: "@exactjs/core/runtime/lifecycle"},
-		{module: "@exactjs/core/runtime/component-reactivity"},
-		{module: "@exactjs/core/framework/component-lifecycle"},
-		{module: "@exactjs/core/framework/server-component-execution"},
-		{module: "@exactjs/ssr/runtime/generic-components"},
-		{module: "@exactjs/ssr/runtime/structural-boundaries"},
-		{module: "@exactjs/ssr/runtime/resumption-boundaries"},
-		{module: "@exactjs/ssr/runtime/enhancements"},
-		{module: "@exactjs/ssr/runtime/compiler-closed"},
+	groups := []runtimeImportGroup{
+		{id: runtimeRender, module: renderRuntimeModule},
+		{id: runtimeReactivity, module: "@exactjs/core/runtime/reactivity"},
+		{id: runtimeTasks, module: taskRuntimeModule},
+		{id: runtimeInspection, module: "@exactjs/core/runtime/inspection"},
+		{id: runtimeRegistry, module: "@exactjs/core/runtime/registry"},
+		{id: runtimeEnhancements, module: "@exactjs/core/runtime/enhancements"},
+		{id: runtimeDynamicComponents, module: "@exactjs/core/runtime/dynamic-components"},
+		{id: runtimeLogging, module: "@exactjs/core/runtime/logging"},
+		{id: runtimeLocalization, module: "@exactjs/core/runtime/localization"},
+		{id: runtimeModal, module: "@exactjs/dom/runtime/modal"},
+		{id: runtimeUnsafeHTML, module: "@exactjs/dom/runtime/unsafe-html"},
+		{id: runtimeStructuralBoundaries, module: "@exactjs/dom/runtime/structural-boundaries"},
+		{id: runtimeTarget, module: "@exactjs/dom/runtime/target"},
+		{id: runtimeTime, module: "@exactjs/time/internal"},
+		{id: runtimeLists, module: "@exactjs/core/runtime/lists"},
+		{id: runtimeRefs, module: "@exactjs/core/runtime/refs"},
+		{id: runtimeComponentExecution, module: "@exactjs/core/runtime/component-execution"},
+		{id: runtimeCollections, module: "@exactjs/core/runtime/collections"},
+		{id: runtimeRenderProgram, module: "@exactjs/dom/runtime/render-program"},
+		{id: runtimeContexts, module: "@exactjs/core/runtime/contexts"},
+		{id: runtimeLifecycle, module: "@exactjs/core/runtime/lifecycle"},
+		{id: runtimeComponentReactivity, module: "@exactjs/core/runtime/component-reactivity"},
+		{id: runtimeFrameworkLifecycle, module: "@exactjs/core/framework/component-lifecycle"},
+		{id: runtimeServerComponentExecution, module: "@exactjs/core/framework/server-component-execution"},
+		{id: runtimeGenericSSRComponents, module: "@exactjs/ssr/runtime/generic-components"},
+		{id: runtimeSSRStructuralBoundaries, module: "@exactjs/ssr/runtime/structural-boundaries"},
+		{id: runtimeSSRResumptionBoundaries, module: "@exactjs/ssr/runtime/resumption-boundaries"},
+		{id: runtimeSSREnhancements, module: "@exactjs/ssr/runtime/enhancements"},
+		{id: runtimeCompilerClosedSSR, module: "@exactjs/ssr/runtime/compiler-closed"},
 	}
-	preparedServerProgramGroup := 0
+	preparedServerProgramGroup := runtimeRender
 	if lowering.target == TargetServer &&
 		renderRuntimeModule != serverRenderRuntimeModule {
-		groups = append(groups, importGroup{
+		groups = append(groups, runtimeImportGroup{
+			id:     runtimeServerRenderStructure,
 			module: serverRenderRuntimeModule,
 		})
-		preparedServerProgramGroup = len(groups) - 1
+		preparedServerProgramGroup = runtimeServerRenderStructure
 	}
-	add := func(group int, imported string, local string) {
-		groups[group].specifiers = append(
-			groups[group].specifiers,
+	groupByID := make(map[runtimeImportGroupID]*runtimeImportGroup, len(groups))
+	for index := range groups {
+		groupByID[groups[index].id] = &groups[index]
+	}
+	add := func(groupID runtimeImportGroupID, imported string, local string) {
+		group := groupByID[groupID]
+		if group == nil {
+			panic("missing runtime import group " + string(groupID))
+		}
+		group.specifiers = append(
+			group.specifiers,
 			lowering.importSpecifier(imported, local),
 		)
 	}
-	helpers := []struct {
-		imported string
-		local    string
-		group    int
-	}{
-		{"createCompiledVNode", lowering.names.element, 0},
-		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
-		{"keyCompiledVNode", lowering.names.keyedElement, 0},
-		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, 0},
+	helpers := []runtimeImportHelper{
+		{"createCompiledVNode", lowering.names.element, runtimeRender},
+		{"createCompiledComponentVNode", lowering.names.componentElement, runtimeRender},
+		{"keyCompiledVNode", lowering.names.keyedElement, runtimeRender},
+		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, runtimeRender},
 		{"createPreparedServerRenderProgram", lowering.names.preparedServerProgram, preparedServerProgramGroup},
-		{"prepareCompiledRenderProgram", lowering.names.prepareRenderProgram, 0},
-		{"createCompiledFragment", lowering.names.fragment, 0},
-		{"createCompiledTarget", lowering.names.target, 0},
-		{"createExpression", lowering.names.expression, 0},
-		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
-		{"componentExecutionValueForHost", lowering.names.componentOutput, 16},
-		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, 23},
-		{"issueServerComponentVNode", lowering.names.issueServerComponent, 23},
-		{"createDynamicChild", lowering.names.dynamic, 0},
-		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
-		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
-		{"dynamicComponentValue", lowering.names.dynamicComponentValue, 6},
-		{"createServerBoundary", lowering.names.boundary, 0},
-		{"markFiniteClientBoundary", lowering.names.finiteBoundary, 0},
-		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, 0},
-		{"createServerSlot", lowering.names.serverSlot, 0},
-		{"createKeyedServerSlot", lowering.names.keyedServerSlot, 0},
-		{"createDerived", lowering.names.derived, 1},
-		{"peek", lowering.names.peek, 1},
-		{"writeReactiveLazy", lowering.names.write, 1},
-		{"updateReactiveValue", lowering.names.update, 1},
-		{"updateReactiveValueWithResult", lowering.names.updateResult, 1},
-		{"deleteReactiveValue", lowering.names.delete, 1},
-		{"mutateReactiveArray", lowering.names.arrayMutation, 1},
-		{"mutateReactiveCollection", lowering.names.collectionMutation, 1},
-		{"awaitServerComponentTask", lowering.names.serverTaskAwait, 23},
-		{"serverComponentTaskTimeout", lowering.names.serverTaskTimeout, 23},
-		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
-		{"createEnhancementNode", lowering.names.enhancements, 5},
-		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
-		{"componentLogMethod", lowering.names.componentLog, 7},
-		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, 22},
-		{"registerComponentRenderHandler", lowering.names.registerRender, 22},
-		{"ownComponentResource", lowering.names.ownResource, 22},
-		{"activateServerComponentTaskForHost", lowering.names.activateServerTask, 23},
-		{"createTimeActivation", lowering.names.createTimeActivation, 13},
-		{"bindCompiledProgramText", lowering.names.bindProgramText, 18},
-		{"bindCompiledProgramChild", lowering.names.bindProgramChild, 18},
-		{"bindCompiledProgramLists", lowering.names.bindProgramLists, 18},
-		{"bindCompiledProgramKeyedChild", lowering.names.bindProgramKeyedChild, 18},
-		{"bindCompiledProgramProperties", lowering.names.bindProgramProperties, 18},
-		{"bindCompiledProgramState", lowering.names.bindProgramState, 18},
-		{"bindCompiledComponentUpdate", lowering.names.bindComponentUpdate, 18},
-		{"applyCompiledProgramText", lowering.names.applyProgramText, 18},
-		{"applyCompiledProgramProperties", lowering.names.applyProgramProperties, 18},
-		{"beginCompiledProgramClaims", lowering.names.beginProgramClaims, 18},
-		{"claimCompiledProgramElement", lowering.names.claimProgramElement, 18},
-		{"claimCompiledProgramElementPath", lowering.names.claimElementPath, 18},
-		{"claimCompiledProgramText", lowering.names.claimProgramText, 18},
-		{"claimCompiledProgramChild", lowering.names.claimProgramChild, 18},
-		{"claimCompiledProgramKeyedChild", lowering.names.claimProgramKeyedChild, 18},
-		{"claimCompiledProgramProperty", lowering.names.claimProgramProperty, 18},
-		{"enterCompiledProgramElement", lowering.names.enterProgramElement, 18},
-		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, 18},
-		{"renderCompilerClosedToStringAsync", lowering.names.renderClosedSsr, 28},
-		{"renderCompilerClosedToHydratableStringAsync", lowering.names.renderClosedHydratableSsr, 28},
-		{"renderCompilerClosedUnmarkedToStringAsync", lowering.names.renderClosedUnmarkedSsr, 28},
+		{"prepareCompiledRenderProgram", lowering.names.prepareRenderProgram, runtimeRender},
+		{"createCompiledFragment", lowering.names.fragment, runtimeRender},
+		{"createCompiledTarget", lowering.names.target, runtimeRender},
+		{"createExpression", lowering.names.expression, runtimeRender},
+		{"createForwardedExpression", lowering.names.forwardedExpression, runtimeRender},
+		{"componentExecutionValueForHost", lowering.names.componentOutput, runtimeComponentExecution},
+		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, runtimeServerComponentExecution},
+		{"issueServerComponentVNode", lowering.names.issueServerComponent, runtimeServerComponentExecution},
+		{"createDynamicChild", lowering.names.dynamic, runtimeRender},
+		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, runtimeDynamicComponents},
+		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, runtimeDynamicComponents},
+		{"dynamicComponentValue", lowering.names.dynamicComponentValue, runtimeDynamicComponents},
+		{"createServerBoundary", lowering.names.boundary, runtimeRender},
+		{"markFiniteClientBoundary", lowering.names.finiteBoundary, runtimeRender},
+		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, runtimeRender},
+		{"createServerSlot", lowering.names.serverSlot, runtimeRender},
+		{"createKeyedServerSlot", lowering.names.keyedServerSlot, runtimeRender},
+		{"createDerived", lowering.names.derived, runtimeReactivity},
+		{"peek", lowering.names.peek, runtimeReactivity},
+		{"writeReactiveLazy", lowering.names.write, runtimeReactivity},
+		{"updateReactiveValue", lowering.names.update, runtimeReactivity},
+		{"updateReactiveValueWithResult", lowering.names.updateResult, runtimeReactivity},
+		{"deleteReactiveValue", lowering.names.delete, runtimeReactivity},
+		{"mutateReactiveArray", lowering.names.arrayMutation, runtimeReactivity},
+		{"mutateReactiveCollection", lowering.names.collectionMutation, runtimeReactivity},
+		{"awaitServerComponentTask", lowering.names.serverTaskAwait, runtimeServerComponentExecution},
+		{"serverComponentTaskTimeout", lowering.names.serverTaskTimeout, runtimeServerComponentExecution},
+		{"createCompiledComponentRegistry", lowering.names.componentRegistry, runtimeRegistry},
+		{"createEnhancementNode", lowering.names.enhancements, runtimeEnhancements},
+		{"omitKnownProps", lowering.names.omitEnhancementProps, runtimeEnhancements},
+		{"componentLogMethod", lowering.names.componentLog, runtimeLogging},
+		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, runtimeFrameworkLifecycle},
+		{"registerComponentRenderHandler", lowering.names.registerRender, runtimeFrameworkLifecycle},
+		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
+		{"activateServerComponentTaskForHost", lowering.names.activateServerTask, runtimeServerComponentExecution},
+		{"createTimeActivation", lowering.names.createTimeActivation, runtimeTime},
+		{"bindCompiledProgramText", lowering.names.bindProgramText, runtimeRenderProgram},
+		{"bindCompiledProgramChild", lowering.names.bindProgramChild, runtimeRenderProgram},
+		{"bindCompiledProgramLists", lowering.names.bindProgramLists, runtimeRenderProgram},
+		{"bindCompiledProgramKeyedChild", lowering.names.bindProgramKeyedChild, runtimeRenderProgram},
+		{"bindCompiledProgramProperties", lowering.names.bindProgramProperties, runtimeRenderProgram},
+		{"bindCompiledProgramState", lowering.names.bindProgramState, runtimeRenderProgram},
+		{"bindCompiledComponentUpdate", lowering.names.bindComponentUpdate, runtimeRenderProgram},
+		{"applyCompiledProgramText", lowering.names.applyProgramText, runtimeRenderProgram},
+		{"applyCompiledProgramProperties", lowering.names.applyProgramProperties, runtimeRenderProgram},
+		{"beginCompiledProgramClaims", lowering.names.beginProgramClaims, runtimeRenderProgram},
+		{"claimCompiledProgramElement", lowering.names.claimProgramElement, runtimeRenderProgram},
+		{"claimCompiledProgramElementPath", lowering.names.claimElementPath, runtimeRenderProgram},
+		{"claimCompiledProgramText", lowering.names.claimProgramText, runtimeRenderProgram},
+		{"claimCompiledProgramChild", lowering.names.claimProgramChild, runtimeRenderProgram},
+		{"claimCompiledProgramKeyedChild", lowering.names.claimProgramKeyedChild, runtimeRenderProgram},
+		{"claimCompiledProgramProperty", lowering.names.claimProgramProperty, runtimeRenderProgram},
+		{"enterCompiledProgramElement", lowering.names.enterProgramElement, runtimeRenderProgram},
+		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, runtimeRenderProgram},
+		{"renderCompilerClosedToStringAsync", lowering.names.renderClosedSsr, runtimeCompilerClosedSSR},
+		{"renderCompilerClosedToHydratableStringAsync", lowering.names.renderClosedHydratableSsr, runtimeCompilerClosedSSR},
+		{"renderCompilerClosedUnmarkedToStringAsync", lowering.names.renderClosedUnmarkedSsr, runtimeCompilerClosedSSR},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -277,9 +325,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			if !containsIdentifier(root, local) {
 				continue
 			}
-			group := 2
+			group := runtimeTasks
 			if imported == "markExactInspectionSource" {
-				group = 3
+				group = runtimeInspection
 			}
 			add(group, imported, local)
 		}
@@ -294,14 +342,12 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			}
 		}
 	}
-	source := lowering.sourceFile.Text()
 	localizationUsed := lowering.componentLocalization ||
-		containsComponentSurfaceUse(root, "intl") ||
-		strings.Contains(source, "this.intl")
+		containsComponentSurfaceUse(root, "intl")
 	loggingSurfaceUsed := containsComponentSurfaceUse(
 		root,
 		"log",
-	) || strings.Contains(source, "this.log")
+	)
 	listUsed := lowering.listCapabilityUsed
 	for _, component := range lowering.components {
 		if component.Lists {
@@ -309,9 +355,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			break
 		}
 	}
-	refsUsed := containsComponentSurfaceUse(root, "ref", "readRef", "refs") ||
-		strings.Contains(source, "this.ref") || strings.Contains(source, "this.readRef") ||
-		strings.Contains(source, "this.refs")
+	refsUsed := containsComponentSurfaceUse(root, "ref", "readRef", "refs")
 	contextsUsed := containsComponentSurfaceUse(
 		root,
 		"hasContext",
@@ -321,8 +365,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		root,
 		lowering.sourceFile,
 		lowering.checker,
-	) || strings.Contains(source, "this.hasContext") || strings.Contains(source, "this.getContext") ||
-		strings.Contains(source, "this.setContext")
+	)
 	lifecycleUsed := containsComponentSurfaceUse(
 		root,
 		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
@@ -330,7 +373,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	componentReactivityUsed := containsComponentSurfaceUse(
 		root,
 		"reactive",
-	) || strings.Contains(source, "this.reactive")
+	)
 	executionUsed := lowering.contractProjection != ComponentContractProjectionHydrate
 	if executionUsed {
 		executionUsed = false
@@ -391,26 +434,26 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		}
 	}
 	result := make([]*ast.Node, 0, len(groups))
-	for index, group := range groups {
+	for _, group := range groups {
 		if len(group.specifiers) == 0 {
-			if (index == 2 && (interopUsed || interactionUsed)) ||
-				(group.module == "@exactjs/core/runtime/logging" && loggingSurfaceUsed) ||
-				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) ||
-				(group.module == "@exactjs/core/runtime/lists" && listUsed) ||
-				(group.module == "@exactjs/core/runtime/refs" && refsUsed) ||
-				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
-				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
-				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) ||
-				(group.module == "@exactjs/dom/runtime/target" && targetUsed) ||
-				(group.module == "@exactjs/core/runtime/component-execution" && executionUsed) ||
-				(group.module == "@exactjs/core/runtime/collections" && collectionsUsed) ||
-				(group.module == "@exactjs/core/runtime/contexts" && contextsUsed) ||
-				(group.module == "@exactjs/core/runtime/lifecycle" && lifecycleUsed) ||
-				(group.module == "@exactjs/core/runtime/component-reactivity" && componentReactivityUsed) ||
-				(group.module == "@exactjs/ssr/runtime/generic-components" && genericServerRuntimeUsed) ||
-				(group.module == "@exactjs/ssr/runtime/structural-boundaries" && serverStructuralBoundariesUsed) ||
-				(group.module == "@exactjs/ssr/runtime/resumption-boundaries" && serverResumptionBoundariesUsed) ||
-				(group.module == "@exactjs/ssr/runtime/enhancements" && serverEnhancementsUsed) {
+			if (group.id == runtimeTasks && (interopUsed || interactionUsed)) ||
+				(group.id == runtimeLogging && loggingSurfaceUsed) ||
+				(group.id == runtimeLocalization && localizationUsed) ||
+				(group.id == runtimeLists && listUsed) ||
+				(group.id == runtimeRefs && refsUsed) ||
+				(group.id == runtimeModal && modalBindingUsed) ||
+				(group.id == runtimeUnsafeHTML && unsafeHTMLUsed) ||
+				(group.id == runtimeStructuralBoundaries && structuralBoundariesUsed) ||
+				(group.id == runtimeTarget && targetUsed) ||
+				(group.id == runtimeComponentExecution && executionUsed) ||
+				(group.id == runtimeCollections && collectionsUsed) ||
+				(group.id == runtimeContexts && contextsUsed) ||
+				(group.id == runtimeLifecycle && lifecycleUsed) ||
+				(group.id == runtimeComponentReactivity && componentReactivityUsed) ||
+				(group.id == runtimeGenericSSRComponents && genericServerRuntimeUsed) ||
+				(group.id == runtimeSSRStructuralBoundaries && serverStructuralBoundariesUsed) ||
+				(group.id == runtimeSSRResumptionBoundaries && serverResumptionBoundariesUsed) ||
+				(group.id == runtimeSSREnhancements && serverEnhancementsUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,
