@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createEffectScope, flushSync, reactive, unwrap, withEffectScope } from '@exactjs/reactive';
 import {
 	exactComponentContract,
-	exactComponentType,
-	createExactFrameworkFixtureArtifact
+	exactComponentType
 } from '../component-contracts.js';
+import { createExactFrameworkFixtureArtifact } from '../component-contract/runtime-artifacts.js';
 import { pageComponentDomain, withComponentDomain } from '../component/domain.js';
 import type { Component } from '../component/contracts.js';
 import { createDynamicComponent, dynamicComponentResolverFor } from './creation.js';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createContext } from './keys.js';
-import { createExactFrameworkFixtureArtifact } from './component-contracts.js';
+import { createExactFrameworkFixtureArtifact } from './component-contract/runtime-artifacts.js';
 import {
 	createEnhancementNode,
 	markExactEnhancementContexts,

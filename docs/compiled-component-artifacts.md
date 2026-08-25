@@ -159,6 +159,11 @@ An interaction-only client boundary is valid only with a compiler-emitted lazy l
 bounded activation target metadata. An already-loaded component is an eager registry entry; the
 runtime does not infer a blanket event policy from an interaction marker or reinterpret that entry
 as a deferred artifact. This keeps listener selection and replay authority in generated output.
+Each compiled registry key is itself a target-local render artifact. Client keys render once and
+delegate changing props or lazy readiness to one explicit dynamic range; they do not retain a
+component-wide render watcher or advertise unused lifecycle, list, or task ownership. Eager server
+keys select the direct synchronous frame and forward immediately to their fixed implementation.
+Only a lazy server key retains the dynamic generic lane while its loader can suspend.
 
 ## Runtime inventory
 

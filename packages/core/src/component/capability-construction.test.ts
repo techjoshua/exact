@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest';
 import '../runtime/lifecycle.js';
 import '../runtime/collections.js';
 
-import {
-	createExactCompatibilityArtifact,
-	exactComponentContract,
-	exactComponentType
-} from '../component-contracts.js';
+import { exactComponentContract, exactComponentType } from '../component-contracts.js';
+import { createExactCompatibilityArtifact } from '../component-contract/runtime-artifacts.js';
 import { createFrameworkComponentDomain } from './domain.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';

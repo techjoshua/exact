@@ -1,5 +1,6 @@
 import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
-import { generalComponentABI } from '../component/compiled-abi.js';
+import { compiledComponentRenderABI } from '../component/compiled-abi.js';
+import { createCompiledDynamicComponent } from '../dynamic-component/runtime.js';
 import {
 	exactComponentContract,
 	exactComponentType,
@@ -116,7 +117,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			this: RegistryFacadeInstance,
 			props: Record<string, unknown>
 		) {
-			return () => {
+			const renderSelection = () => {
 				const component = entry.resolved ?? entry.eager;
 				if (!component) throw loadRegistryEntry(entry);
 				// Registry keys are selection identity even when two entries
@@ -126,12 +127,19 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 					key: `exact-registry:${entry.key}`
 				});
 			};
+			if (target !== 'client') return renderSelection;
+			const selection = createCompiledDynamicComponent({
+				id: `${id}:${key}`,
+				source: () => entry.resolved ?? entry.eager ?? loadRegistryEntry(entry),
+				props
+			});
+			return () => selection;
 		} as AnyComponentFunction;
 		Object.defineProperty(facade, 'name', {
 			configurable: true,
 			value: `${name ?? 'ComponentRegistry'}.${key}${id ? `#${id}` : ''}`
 		});
-		if (id && target) attachRegistryFacadeArtifact(facade, id, key, target);
+		if (id && target) attachRegistryFacadeArtifact(facade, id, key, target, lazy !== undefined);
 		const entry: ComponentRegistryEntryRuntime = {
 			registry: runtime,
 			key,
@@ -153,12 +161,13 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 	return value as ComponentRegistry<Definition>;
 }
 
-/** Attaches the complete compiler-selected runtime contract for one finite registry key. */
+/** Attaches the target-local render and loader lane selected for one finite registry key. */
 function attachRegistryFacadeArtifact(
 	facade: AnyComponentFunction,
 	registryId: string,
 	key: string,
-	target: 'client' | 'server'
+	target: 'client' | 'server',
+	lazy: boolean
 ): void {
 	const identity = `${registryId}:${key}`;
 	const implementationId = `${identity}:implementation`;
@@ -181,12 +190,26 @@ function attachRegistryFacadeArtifact(
 		definition: Object.freeze({
 			version: 1,
 			instantiate: facade,
-			abi: generalComponentABI,
+			abi: compiledComponentRenderABI,
 			state: Object.freeze([]),
 			tasks: Object.freeze([]),
 			reactive: Object.freeze([]),
 			render: 'returned-function',
-			capabilities: Object.freeze(['registry', 'dynamic-components'] as const)
+			capabilities: Object.freeze(
+				target === 'client' || lazy
+					? (['registry', 'dynamic-components'] as const)
+					: (['registry'] as const)
+			),
+			...(target === 'server'
+				? {
+						server: Object.freeze({
+							version: 1 as const,
+							classification: lazy ? ('dynamic' as const) : ('synchronous' as const),
+							lane: lazy ? ('generic' as const) : ('direct' as const),
+							...(!lazy ? { render: facade } : {})
+						})
+					}
+				: {})
 		})
 	});
 	Object.defineProperties(facade, {
