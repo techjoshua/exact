@@ -68,8 +68,12 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 }
 
 func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool {
+	compiledHelper := lowering.compilerOwnedRenderHelperCall(source)
 	for _, read := range lowering.stateReads {
 		if read.Start >= source.Pos() && read.Start+read.Length <= source.End() {
+			if compiledHelper && spanInsideNestedCallable(source, read.Start, read.Length) {
+				continue
+			}
 			return true
 		}
 	}
@@ -81,9 +85,20 @@ func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool 
 		for _, reference := range binding.References {
 			if reference.Start >= source.Pos() &&
 				reference.Start+reference.Length <= source.End() {
+				if compiledHelper &&
+					spanInsideNestedCallable(source, reference.Start, reference.Length) {
+					continue
+				}
 				return true
 			}
 		}
+	}
+	// A statically resolved JSX helper is compiled into its own target artifact. Passing the
+	// durable state facade into that helper does not make the component output unstructured: the
+	// helper's generated readers subscribe to the facade's individual fields and return one finite
+	// render-program invocation. The owning component can therefore execute its render arrow once.
+	if compiledHelper {
+		return false
 	}
 	// Passing the component state facade into a render helper is itself a live
 	// capture even when individual property reads occur inside the callee. The
@@ -104,6 +119,63 @@ func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool 
 	})
 	if stateRoot {
 		return true
+	}
+	return false
+}
+
+// spanInsideNestedCallable distinguishes deferred handler/task bodies passed to a compiled render
+// helper from eager argument evaluation. Deferred reads do not require re-entering the helper;
+// direct scalar arguments still select the component range because they are snapshots.
+func spanInsideNestedCallable(source *ast.Node, start int, length int) bool {
+	inside := false
+	walkNode(source, func(node *ast.Node) bool {
+		if inside {
+			return false
+		}
+		if node != source && ast.IsFunctionLike(node) &&
+			start >= node.Pos() && start+length <= node.End() {
+			inside = true
+			return false
+		}
+		return true
+	})
+	return inside
+}
+
+// compilerOwnedRenderHelperCall proves that a direct call resolves to authored JSX which the
+// project compiler will lower for the same target. Declaration-only and opaque package functions
+// remain conservative because their implementation artifact cannot be proven from this program.
+func (lowering *jsxLowering) compilerOwnedRenderHelperCall(source *ast.Node) bool {
+	if lowering.checker == nil {
+		return false
+	}
+	expression := unwrapRenderExpression(source)
+	if !ast.IsCallExpression(expression) {
+		return false
+	}
+	call := expression.AsCallExpression()
+	symbol := resolvedCallableSymbol(
+		callTargetSymbol(call.Expression, lowering.checker),
+		lowering.checker,
+	)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		callable := declaration
+		if ast.IsVariableDeclaration(declaration) {
+			callable = declaration.AsVariableDeclaration().Initializer
+		}
+		if callable == nil ||
+			(!ast.IsFunctionDeclaration(callable) &&
+				!ast.IsFunctionExpression(callable) &&
+				!ast.IsArrowFunction(callable)) {
+			continue
+		}
+		file := ast.GetSourceFileOfNode(callable)
+		if file != nil && !file.IsDeclarationFile && directlyReturnsRenderedValue(callable) {
+			return true
+		}
 	}
 	return false
 }

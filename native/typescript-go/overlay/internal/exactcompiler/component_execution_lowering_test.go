@@ -1,6 +1,8 @@
 package exactcompiler
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -961,6 +963,85 @@ func TestClientRenderHelperStateFacadeUsesItsCompiledBoundaryRange(t *testing.T)
 	if !strings.Contains(response.Code, "return () => renderView(this.state)") ||
 		!strings.Contains(response.Code, "abi: 32") {
 		t.Fatalf("state-forwarding render helper did not select its component range:\n%s", response.Code)
+	}
+}
+
+func TestClientCompiledRenderHelperUsesFiniteProgramABI(t *testing.T) {
+	root := t.TempDir()
+	helper := filepath.Join(root, "view.tsx")
+	helperSource := `
+		export function renderView(state: { labels: string[] }) {
+			const visible = state.labels.filter(label => label.length !== 0);
+			return <output>{visible.join(",")}</output>;
+		}
+		export function renderLabel(label: string) {
+			return <output>{label}</output>;
+		}
+	`
+	if err := os.WriteFile(
+		helper,
+		[]byte(helperSource),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(root, "entry.tsx")
+	response := NewSession().Execute(Request{
+		ID:     entry,
+		Root:   root,
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { renderView } from "./view.js";
+			declare class Component<State> { state: State }
+			export function View(this: Component<{ labels: string[] }>) {
+				return () => renderView(this.state);
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "return () => renderView(this.state)") ||
+		!strings.Contains(response.Code, "abi: 1") {
+		t.Fatalf("compiled render helper did not select the finite program ABI:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "abi: 32") {
+		t.Fatalf("compiled render helper retained generic range reconciliation:\n%s", response.Code)
+	}
+	snapshot := NewSession().Execute(Request{
+		ID:     filepath.Join(root, "snapshot.tsx"),
+		Root:   root,
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { renderLabel } from "./view.js";
+			declare class Component<State> { state: State }
+			export function Snapshot(this: Component<{ label: string }>) {
+				return () => renderLabel(this.state.label);
+			}
+		`,
+	})
+	if snapshot.Error != "" || len(snapshot.Diagnostics) != 0 {
+		t.Fatalf("snapshot compile failed: %s %#v", snapshot.Error, snapshot.Diagnostics)
+	}
+	if !strings.Contains(snapshot.Code, "abi: 32") {
+		t.Fatalf("eager helper argument snapshot lost range invalidation:\n%s", snapshot.Code)
+	}
+	helperResponse := NewSession().Execute(Request{
+		ID:     helper,
+		Root:   root,
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: helperSource,
+	})
+	if helperResponse.Error != "" || len(helperResponse.Diagnostics) != 0 {
+		t.Fatalf("helper compile failed: %s %#v", helperResponse.Error, helperResponse.Diagnostics)
+	}
+	if !strings.Contains(helperResponse.Code, "createDerived as __exactDerived") ||
+		!strings.Contains(helperResponse.Code, "const visible = __exactDerived(") ||
+		!strings.Contains(helperResponse.Code, "visible.get()") {
+		t.Fatalf("compiled render helper did not retain parameter-derived work:\n%s", helperResponse.Code)
 	}
 }
 

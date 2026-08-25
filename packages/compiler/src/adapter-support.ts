@@ -112,6 +112,11 @@ export function isExactBuildSourceModule(id: string): boolean {
 	return /\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
 }
 
+/** Reports whether a module is an already lowered target artifact rather than authored source. */
+export function isExactGeneratedArtifactModule(id: string): boolean {
+	return /\.exact\.(?:client|server)\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
+}
+
 /** Reports whether a JSX-bearing module contains syntax requiring ownership analysis. */
 export function containsExactBuildJsx(id: string, source: string): boolean {
 	return /\.[jt]sx(?:$|\?)/i.test(id) && source.includes('<');
@@ -135,6 +140,10 @@ export function shouldTransformExactBuildModulePath(
 	id: string,
 	options: ExactBuildModuleSelectionOptions
 ): boolean {
+	// Target artifacts contain compiler runtime calls and component contracts by design. Feeding
+	// them through an adapter a second time can duplicate lowering and reinterpret generated cells
+	// as authored source. The host bundler still performs its ordinary TypeScript transpilation.
+	if (isExactGeneratedArtifactModule(id)) return false;
 	if (
 		options.compileTestModules !== true &&
 		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)

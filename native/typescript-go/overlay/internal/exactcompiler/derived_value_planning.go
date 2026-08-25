@@ -55,12 +55,20 @@ func planDerivedBindings(
 		return retained, map[int]ReactiveBinding{}
 	}
 	components := make(map[string]*ast.Node)
+	renderHelpers := make(map[string]struct{})
 	for _, component := range componentCandidates(sourceFile) {
 		components[component.name] = component.node
+		if directlyReturnsRenderedValue(component.node) {
+			renderHelpers[component.name] = struct{}{}
+		}
 	}
 	candidates := make(map[ast.SymbolId]*derivedElisionCandidate)
 	for _, binding := range bindings {
-		if binding.Provenance != "derived" || !binding.SafeToReevaluate {
+		if binding.Provenance != "derived" {
+			continue
+		}
+		_, renderHelper := renderHelpers[binding.Component]
+		if !binding.SafeToReevaluate && !renderHelper {
 			continue
 		}
 		declaration := declarations[binding.Start]
@@ -68,6 +76,12 @@ func planDerivedBindings(
 			continue
 		}
 		retained[binding.Start] = binding
+		// A render helper is itself the declarative rendering boundary. Even an opaque call in a
+		// helper-derived local must be retained as a live computation because its finite program is
+		// not re-entered on component updates. Unsafe expressions are never duplicated into consumers.
+		if !binding.SafeToReevaluate {
+			continue
+		}
 		if len(binding.References) != 1 {
 			continue
 		}
