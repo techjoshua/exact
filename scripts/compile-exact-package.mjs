@@ -12,6 +12,7 @@ const repositoryRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url))
 const compilerModule = path.join(repositoryRoot, 'packages/compiler/dist/index.js');
 const { compileProject } = await import(pathToFileURL(compilerModule).href);
 const stageRoot = await mkdtemp(path.join(tmpdir(), 'exact-package-'));
+const emittedRuntimeDependencies = new Map();
 const inputs = manifest.exactCompileModules
 	? declaredCompileModules(manifest.exactCompileModules)
 	: await productionSources(sourceRoot);
@@ -30,6 +31,13 @@ try {
 			generatedValidation: 'semantic'
 		});
 		for (const result of results) {
+			for (const specifier of result.runtimeDependencies) {
+				const dependency = packageNameForSpecifier(specifier);
+				if (!dependency || dependency === manifest.name) continue;
+				const targets = emittedRuntimeDependencies.get(dependency) ?? new Set();
+				targets.add(target);
+				emittedRuntimeDependencies.set(dependency, targets);
+			}
 			if (!result.outputFile) continue;
 			const relative = path.relative(generatedRoot, result.outputFile);
 			const outputFile = path
@@ -45,10 +53,34 @@ try {
 			await mkdir(path.dirname(outputFile), { recursive: true });
 			await writeFile(outputFile, emitted.code);
 		}
+		validateRuntimeDependencies();
 		await verifyCompiledExports(target, targetDirectory);
 	}
 } finally {
 	await rm(stageRoot, { recursive: true, force: true });
+}
+
+function packageNameForSpecifier(specifier) {
+	if (specifier.startsWith('node:') || specifier.startsWith('#')) return undefined;
+	if (specifier.startsWith('@')) return specifier.split('/').slice(0, 2).join('/');
+	return specifier.split('/')[0];
+}
+
+function validateRuntimeDependencies() {
+	const declared = new Set([
+		...Object.keys(manifest.dependencies ?? {}),
+		...Object.keys(manifest.peerDependencies ?? {}),
+		...Object.keys(manifest.optionalDependencies ?? {})
+	]);
+	const missing = [...emittedRuntimeDependencies]
+		.filter(([dependency]) => !declared.has(dependency))
+		.map(([dependency, targets]) => `${dependency} (${[...targets].sort().join(', ')})`)
+		.sort();
+	if (missing.length) {
+		throw new Error(
+			`${manifest.name} must declare dependencies imported by compiled artifacts: ${missing.join(', ')}`
+		);
+	}
 }
 
 function declaredCompileModules(declaration) {

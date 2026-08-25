@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
+import { exactCompileWorkspaces } from './exact-package-build-plan.mjs';
 
 test('the root build prepares package-export prerequisites before building dependent workspaces', async () => {
 	const manifest = JSON.parse(await readFile(path.resolve('package.json'), 'utf8'));
@@ -21,7 +22,7 @@ test('the root build prepares package-export prerequisites before building depen
 	assert.match(manifest.scripts['test:bun'], /^npm run build:bun-prerequisites && /);
 	assert.equal(
 		manifest.scripts['build:workspaces'],
-		'npm run generate:app-artifacts && tsc6 -b && node scripts/compile-exact-package.mjs packages/request && node scripts/compile-exact-package.mjs packages/accessibility && node scripts/compile-exact-package.mjs packages/intl && node scripts/compile-exact-package.mjs packages/time && node scripts/compile-exact-package.mjs packages/theme && node scripts/compile-exact-package.mjs packages/testing && node scripts/compile-exact-package.mjs component-libraries/app-theme-preference && node scripts/compile-exact-package.mjs component-libraries/forms && node scripts/compile-exact-package.mjs component-libraries/gestures && node scripts/compile-exact-package.mjs component-libraries/physics && node scripts/compile-exact-package.mjs component-libraries/gravity && node scripts/compile-exact-package.mjs component-libraries/motion && node scripts/compile-exact-package.mjs component-libraries/router && node scripts/compile-exact-package.mjs component-libraries/theme-fixture && node scripts/compile-exact-package.mjs react-adapters/convex && node scripts/compile-exact-package.mjs react-adapters/jotai && node scripts/compile-exact-package.mjs react-adapters/redux && node scripts/compile-exact-package.mjs react-adapters/tanstack-query && node scripts/compile-exact-package.mjs plugins/microfrontends && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
+		'npm run generate:app-artifacts && tsc6 -b && node scripts/compile-all-exact-packages.mjs && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
 	);
 	assert.equal(
 		manifest.scripts['build:chromium-devtools'],
@@ -32,6 +33,17 @@ test('the root build prepares package-export prerequisites before building depen
 		'node scripts/generate-all-component-library-build-facts.mjs'
 	);
 	assert.equal(manifest.devDependencies['@typescript/native'], 'npm:typescript@^7.0.2');
+});
+
+test('target-local package compilation is discovered from publishable manifests', async () => {
+	const workspaces = await exactCompileWorkspaces(path.resolve('.'));
+	const names = workspaces.map((entry) => entry.manifest.name);
+
+	assert.ok(names.length > 0);
+	assert.ok(names.includes('@exactjs/request'));
+	assert.ok(names.includes('@exactjs/router'));
+	assert.ok(names.includes('@exactjs/microfrontends'));
+	assert.equal(new Set(names).size, names.length);
 });
 
 test('the root build includes the enhancement playground and its component libraries', async () => {

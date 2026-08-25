@@ -374,6 +374,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		root,
 		"reactive",
 	)
+	for _, component := range lowering.components {
+		localizationUsed = localizationUsed || component.Surface.Localization
+		loggingSurfaceUsed = loggingSurfaceUsed || component.Surface.Logging
+		refsUsed = refsUsed || component.Surface.Refs
+		contextsUsed = contextsUsed || component.Surface.Contexts
+		componentReactivityUsed = componentReactivityUsed || component.Surface.Reactivity
+	}
 	executionUsed := lowering.contractProjection != ComponentContractProjectionHydrate
 	if executionUsed {
 		executionUsed = false

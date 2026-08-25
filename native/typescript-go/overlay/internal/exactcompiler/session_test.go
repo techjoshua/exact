@@ -1833,6 +1833,9 @@ func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
 		if !strings.Contains(localized.Code, `import "@exactjs/core/runtime/localization"`) {
 			t.Fatalf("component Intl use did not import its runtime capability:\n%s", localized.Code)
 		}
+		if !containsString(localized.RuntimeDependencies, "@exactjs/core/runtime/localization") {
+			t.Fatalf("emitted localization dependency was not reported: %#v", localized.RuntimeDependencies)
+		}
 	}
 
 	plain := NewSession().Execute(Request{
@@ -1848,6 +1851,9 @@ func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
 	}
 	if strings.Contains(plain.Code, "runtime/localization") {
 		t.Fatalf("component without Intl use retained localization capability:\n%s", plain.Code)
+	}
+	if containsString(plain.RuntimeDependencies, "@exactjs/core/runtime/localization") {
+		t.Fatalf("unused localization dependency was reported: %#v", plain.RuntimeDependencies)
 	}
 }
 

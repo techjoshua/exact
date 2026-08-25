@@ -3,20 +3,18 @@ import { transform } from '../index.js';
 import { analyzeSource } from '../compilation/source-analysis.js';
 
 describe('@exactjs/compiler: component values', () => {
-	it('supports immutable local function-valued components', () => {
-		const output = transform(
-			`function App() {
+	it('rejects nested durable function-valued components', () => {
+		expect(() =>
+			transform(
+				`function App() {
         const Card = function Card(this: Component<{ title: string }>) {
           return () => <p>{this.state.title}</p>;
         };
         return () => <Card />;
       }`,
-			{ filename: 'App.tsx' }
-		);
-
-		expect(output).toContain('const Card = function Card');
-		expect(output).toContain('__exactComponentVNode(Card, {})');
-		expect(output).toMatch(/__exactDynamic\(\(\) => this\.state\.title, "x[A-Za-z0-9_-]{22}"\)/);
+				{ filename: 'App.tsx' }
+			)
+		).toThrow('must be defined at module scope');
 	});
 
 	it('supports immutable aliases to known components', () => {

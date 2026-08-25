@@ -30,12 +30,10 @@ func planComponentTargets(
 		directResumption := hasResumption &&
 			directServerResumptionSupported(component.ID, resumptions)
 		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
-		hasLifecycle := componentUsesProtocolMember(componentNode, "onUnmount", "onRender", "own")
-		unsupportedSurface := componentUsesProtocolMember(
-			componentNode,
-			"log", "intl", "hasContext", "getContext", "setContext", "reactive",
-			"ref", "refs", "onUnmount", "onRender", "own",
-		)
+		hasLifecycle := component.Surface.ServerLifecycle
+		unsupportedSurface := component.Surface.Logging || component.Surface.Localization ||
+			component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
+			component.Surface.ServerLifecycle
 		abi := componentRuntimeABI(*component, execution, hasLifecycle, false, usesCompatibility)
 		directABI := componentABICompiledRender | componentABITasks
 		tasksSupported := true

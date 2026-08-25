@@ -253,6 +253,8 @@ export type TransformResult = {
 	code: string;
 	map: ExactSourceMap | null;
 	filename: string;
+	/** Bare package specifiers imported by the final target-local artifact. */
+	runtimeDependencies: readonly string[];
 	/** Descriptive protocol facts for authoritative build-tool graph authorization. */
 	componentBuild: ExactComponentBuildFacts;
 	/** Build-facing capability imports; emitted independently of application plugin registries. */

@@ -127,6 +127,7 @@ export function transformSourceWithNativeCompiler(
 				: nativeMap
 			: null,
 		filename,
+		runtimeDependencies: Object.freeze([...(response.runtimeDependencies ?? [])]),
 		componentBuild: createExactComponentBuildFacts(analysis),
 		...(analysis.rendererEnhancements.length
 			? { rendererEnhancements: analysis.rendererEnhancements.map((entry) => ({ ...entry })) }

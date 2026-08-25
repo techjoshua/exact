@@ -75,6 +75,7 @@
 		"@exactjs/hydrate": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
 		"@exactjs/server": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"devDependencies": {

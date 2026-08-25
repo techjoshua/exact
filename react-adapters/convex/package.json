@@ -31,7 +31,8 @@
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/react-compat-adapter-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"peerDependencies": {
 		"@exactjs/react-compat": "^0.1.0",

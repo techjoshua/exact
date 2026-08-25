@@ -61,8 +61,10 @@
 	"dependencies": {
 		"@exactjs/component-library": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
 		"@exactjs/language-extension-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"devDependencies": {
 		"prettier": "^3.6.2"
