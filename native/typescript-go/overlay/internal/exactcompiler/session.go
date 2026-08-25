@@ -689,6 +689,7 @@ func (s *Session) Execute(request Request) Response {
 			return response
 		}
 	}
+	response.RuntimeDependencies = emittedRuntimeDependencies(transformed)
 
 	printStarted := time.Now()
 	emitter := printer.NewPrinter(

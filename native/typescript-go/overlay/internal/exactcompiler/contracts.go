@@ -206,7 +206,19 @@ type Component struct {
 	CompiledRender      bool                      `json:"-"`
 	Lifecycle           bool                      `json:"-"`
 	Lists               bool                      `json:"-"`
+	Surface             ComponentSurfacePlan      `json:"-"`
 	TargetPlan          ComponentTargetPlan       `json:"-"`
+}
+
+// ComponentSurfacePlan records compiler-observed instance capabilities before lowering rewrites
+// their syntax. Runtime selection must consume these facts rather than scan transformed text.
+type ComponentSurfacePlan struct {
+	Logging         bool
+	Localization    bool
+	Refs            bool
+	Contexts        bool
+	Reactivity      bool
+	ServerLifecycle bool
 }
 
 // ComponentTargetPlan is the compiler's authoritative target-local execution decision. Lowering
@@ -1130,19 +1142,20 @@ func (value WorkCounters) since(previous WorkCounters) WorkCounters {
 
 // Response is one newline-delimited result emitted by a Session.
 type Response struct {
-	ID                string                  `json:"id,omitempty"`
-	ProtocolVersion   string                  `json:"protocolVersion"`
-	TypeScriptVersion string                  `json:"typescriptVersion"`
-	BackendVersion    string                  `json:"backendVersion"`
-	Code              string                  `json:"code"`
-	SourceMap         *sourcemap.RawSourceMap `json:"sourceMap,omitempty"`
-	Diagnostics       []Diagnostic            `json:"diagnostics"`
-	Analysis          Analysis                `json:"analysis"`
-	Timings           Timings                 `json:"timings"`
-	Counters          WorkCounters            `json:"counters"`
-	CacheHit          bool                    `json:"cacheHit,omitempty"`
-	Error             string                  `json:"error,omitempty"`
-	Extension         any                     `json:"extension,omitempty"`
+	ID                  string                  `json:"id,omitempty"`
+	ProtocolVersion     string                  `json:"protocolVersion"`
+	TypeScriptVersion   string                  `json:"typescriptVersion"`
+	BackendVersion      string                  `json:"backendVersion"`
+	Code                string                  `json:"code"`
+	RuntimeDependencies []string                `json:"runtimeDependencies,omitempty"`
+	SourceMap           *sourcemap.RawSourceMap `json:"sourceMap,omitempty"`
+	Diagnostics         []Diagnostic            `json:"diagnostics"`
+	Analysis            Analysis                `json:"analysis"`
+	Timings             Timings                 `json:"timings"`
+	Counters            WorkCounters            `json:"counters"`
+	CacheHit            bool                    `json:"cacheHit,omitempty"`
+	Error               string                  `json:"error,omitempty"`
+	Extension           any                     `json:"extension,omitempty"`
 }
 
 // NewResponseVersionFields returns the versions required on every response,

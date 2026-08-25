@@ -25,7 +25,8 @@
 		"RequestProvider"
 	],
 	"dependencies": {
-		"@exactjs/core": "^0.1.0"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",

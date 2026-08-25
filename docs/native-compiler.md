@@ -94,6 +94,13 @@ Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
 `@exactjs/compiler`.
 
+Each transform result reports `runtimeDependencies`, the bare package specifiers that remain in
+the final target-local module after lowering and pruning. Published-package builds validate those
+facts against `dependencies`, `peerDependencies`, and `optionalDependencies`; a generated DOM or
+SSR import can therefore never be hidden behind a development-only workspace installation. The
+monorepo discovers packages requesting target-local compilation from their manifests rather than
+maintaining a second ordered package list.
+
 Precompiled pipelines treat `rootDir` as an output-containment boundary. Every input must resolve
 beneath that root before the compiler derives a path under `outDir`; an outside input fails without
 writing through `..` segments or an absolute path.

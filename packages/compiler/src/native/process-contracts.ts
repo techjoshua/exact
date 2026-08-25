@@ -403,6 +403,8 @@ export type NativeCompilerResponse = Readonly<{
 	typescriptVersion: string;
 	backendVersion: string;
 	code?: string;
+	/** Bare package specifiers that survive target lowering in the emitted module. */
+	runtimeDependencies?: readonly string[];
 	sourceMap?: NativeCompilerSourceMap;
 	diagnostics: readonly NativeCompilerDiagnostic[];
 	analysis: NativeCompilerAnalysis;

@@ -41,6 +41,20 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		if len(signals) == 0 {
 			continue
 		}
+		surface := ComponentSurfacePlan{
+			Logging:      componentUsesProtocolMember(candidate.node, "log"),
+			Localization: componentUsesProtocolMember(candidate.node, "intl"),
+			Refs:         componentUsesProtocolMember(candidate.node, "ref", "readRef", "refs"),
+			Contexts: componentUsesProtocolMember(
+				candidate.node,
+				"hasContext", "getContext", "setContext",
+			),
+			Reactivity: componentUsesProtocolMember(candidate.node, "reactive"),
+			ServerLifecycle: componentUsesProtocolMember(
+				candidate.node,
+				"onUnmount", "onRender", "own",
+			),
+		}
 		components = append(components, Component{
 			ID:                nativeComponentIDForNode(sourceFile, candidate.node),
 			Name:              candidate.name,
@@ -66,7 +80,8 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 				candidate.node,
 				"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
 			),
-			Lists: componentUsesProtocolMember(candidate.node, "map"),
+			Lists:   componentUsesProtocolMember(candidate.node, "map"),
+			Surface: surface,
 		})
 	}
 	sort.Slice(components, func(left int, right int) bool {

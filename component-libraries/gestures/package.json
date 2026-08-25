@@ -38,7 +38,8 @@
 	},
 	"dependencies": {
 		"@exactjs/component-library": "^0.1.0",
-		"@exactjs/core": "^0.1.0"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"devDependencies": {
 		"@exactjs/dom": "^0.1.0",

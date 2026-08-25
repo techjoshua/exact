@@ -32,6 +32,7 @@
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/react-compat-adapter-api": "^0.1.0",
 		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0",
 		"@tanstack/query-core": "^5.101.2"
 	},
 	"peerDependencies": {

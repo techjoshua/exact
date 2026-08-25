@@ -488,18 +488,13 @@ func rootComponentContractAttachment(
 	directResumption := hasResumption && directServerResumptionSupported(component.ID, resumptions)
 	hasInteractions := target == TargetClient && component.Interactions
 	hasLifecycle := component.Lifecycle
-	unsupportedServerSurface := componentUsesProtocolMember(
-		componentFunction,
-		"log", "intl", "hasContext", "getContext", "setContext", "reactive",
-		"ref", "refs", "onUnmount", "onRender", "own",
-	)
+	unsupportedServerSurface := component.Surface.Logging || component.Surface.Localization ||
+		component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
+		component.Surface.ServerLifecycle
 	if target == TargetServer {
 		// Mount/activation registrations are absent from the projected server function.
 		// Only lifecycle phases that can run during SSR require the lifecycle ABI there.
-		hasLifecycle = componentUsesProtocolMember(
-			componentFunction,
-			"onUnmount", "onRender", "own",
-		)
+		hasLifecycle = component.Surface.ServerLifecycle
 	}
 	var updates *ast.Node
 	if name, exists := componentUpdates[component.Name]; exists {
