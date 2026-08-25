@@ -49,6 +49,8 @@ target/key dependency graph as ordinary property reads, so computed freshness, t
 rollback, scheduling, and teardown retain one set of reactive semantics. Authored aliases, dynamic
 keys, external consumers, and DevTools continue through the ordinary state facade. Direct server
 frames use their plain request-local state records and do not import this client-only access lane.
+Canonical top-level client assignments, updates, and deletes use the same numeric slots directly;
+nested and dynamic references retain path-based operations because their final target is runtime data.
 Render-program node tables use only dense, zero-based compiler indexes. Hydration resolves those
 indexes during its bounded topology walk; it does not build or consult a string-identity map.
 `data-exact-id` remains a separate identity only for operations that must address a live DOM target,

@@ -27,7 +27,7 @@ describe('@exactjs/compiler: client state bridges', () => {
 		expect(output).toContain('Object.assign(this.state, props.__exactState)');
 		expect(output).toContain('title: __exactExpression(() => __exactReadState(this.state, 0)');
 		expect(output).toContain(
-			'onClick: () => __exactUpdateResult(this.state, ["count"], previous =>'
+			'onClick: () => __exactUpdateStateResult(this.state, 0, previous =>'
 		);
 		expect(output).not.toContain('export const Panel_ExactClient_1 = Panel');
 	});
@@ -49,7 +49,7 @@ describe('@exactjs/compiler: client state bridges', () => {
 		expect(output).not.toContain('node:fs/promises');
 		expect(output).not.toContain('readFile');
 		expect(output).toContain(
-			'onClick: () => __exactUpdateResult(this.state, ["count"], previous =>'
+			'onClick: () => __exactUpdateStateResult(this.state, 0, previous =>'
 		);
 	});
 

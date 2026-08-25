@@ -9,6 +9,8 @@ type IndexedRecord = {
 	readonly keys: PropertyKey[];
 	readonly initialized: boolean[];
 	readonly target: Record<PropertyKey, unknown>;
+	readonly options: ReactiveOptions;
+	readonly wrap: (value: object, options: ReactiveOptions) => object;
 };
 
 /** Stable dependency keys for compiler-known fields on one indexed reactive target. */
@@ -42,42 +44,7 @@ export function createIndexedReactive<T extends object>(
 		track(target, index);
 		return target[key];
 	};
-	const write = (key: PropertyKey, index: number, next: unknown) => {
-		const previous = target[key];
-		const raw = unwrap(next);
-		const value =
-			raw && typeof raw === 'object' && isReactiveContainer(raw)
-				? wrap(raw as object, options)
-				: raw;
-		const wasInitialized = initialized[index] === true;
-		if (wasInitialized && !hasChanged(previous, value)) return true;
-		if (hasActiveTransaction())
-			recordTransactionUndo(
-				() => {
-					if (wasInitialized) target[key] = previous;
-					if (!wasInitialized) {
-						initialized[index] = false;
-						Reflect.deleteProperty(target, key);
-					}
-				},
-				target,
-				index
-			);
-		Reflect.defineProperty(target, key, {
-			configurable: true,
-			enumerable: true,
-			value,
-			writable: true
-		});
-		initialized[index] = true;
-		trigger(target, index);
-		try {
-			options.onMutation?.(key, 'set');
-		} catch {
-			// Observability must not alter state semantics.
-		}
-		return true;
-	};
+	const record: IndexedRecord = { indexes, keys: indexedKeys, initialized, target, options, wrap };
 
 	const facade = new Proxy(target, {
 		get(target, key, receiver) {
@@ -94,37 +61,20 @@ export function createIndexedReactive<T extends object>(
 				indexedKeys.push(key);
 				initialized.push(false);
 			}
-			return write(key, index, next);
+			return writeIndexedRecord(record, index, next);
 		},
 		deleteProperty(_target, key) {
 			const index = indexes.get(key);
-			if (index !== undefined && initialized[index]) {
-				const previous = target[key];
-				if (hasActiveTransaction())
-					recordTransactionUndo(
-						() => {
-							Reflect.defineProperty(target, key, {
-								configurable: true,
-								enumerable: true,
-								value: previous,
-								writable: true
-							});
-							initialized[index] = true;
-						},
-						target,
-						index
-					);
-				trigger(target, index);
-			}
-			if (index !== undefined) initialized[index] = false;
-			return Reflect.deleteProperty(target, key);
+			return index === undefined
+				? Reflect.deleteProperty(target, key)
+				: deleteIndexedRecord(record, index);
 		},
 		has(target, key) {
 			const index = indexes.get(key);
 			return (index !== undefined && initialized[index] === true) || Reflect.has(target, key);
 		}
 	});
-	indexedRecords.set(facade, { indexes, keys: indexedKeys, initialized, target });
+	indexedRecords.set(facade, record);
 	return facade as Reactive<T>;
 }
 
@@ -148,12 +98,94 @@ export function readReactiveOwnProperty(
 
 /** Reads one compiler-proven top-level slot without entering the facade's property trap. */
 export function readIndexedReactiveSlot(value: object, index: number): unknown {
+	const indexed = indexedRecord(value, index, 'read');
+	track(indexed.target, index);
+	return indexed.target[indexed.keys[index]!];
+}
+
+/** Reads one compiler-proven slot without collecting a dependency. */
+export function peekIndexedReactiveSlot(value: object, index: number): unknown {
+	const indexed = indexedRecord(value, index, 'peek');
+	return indexed.target[indexed.keys[index]!];
+}
+
+/** Commits one compiler-proven slot without entering the facade's proxy traps. */
+export function setIndexedReactiveSlot(value: object, index: number, next: unknown): void {
+	writeIndexedRecord(indexedRecord(value, index, 'write'), index, next);
+}
+
+/** Deletes one compiler-proven slot without entering the facade's proxy traps. */
+export function deleteIndexedReactiveSlot(value: object, index: number): boolean {
+	return deleteIndexedRecord(indexedRecord(value, index, 'delete'), index);
+}
+
+function indexedRecord(value: object, index: number, operation: string): IndexedRecord {
 	const indexed = indexedRecords.get(value);
 	if (!indexed || !Number.isSafeInteger(index) || index < 0 || index >= indexed.initialized.length)
-		throw new TypeError('Compiled reactive read referenced an invalid indexed slot');
-	track(indexed.target, index);
-	const key = indexed.keys[index];
-	return key === undefined ? undefined : indexed.target[key];
+		throw new TypeError(`Compiled reactive ${operation} referenced an invalid indexed slot`);
+	return indexed;
+}
+
+function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown): boolean {
+	const key = indexed.keys[index]!;
+	const previous = indexed.target[key];
+	const raw = unwrap(next);
+	const value =
+		raw && typeof raw === 'object' && isReactiveContainer(raw)
+			? indexed.wrap(raw as object, indexed.options)
+			: raw;
+	const wasInitialized = indexed.initialized[index] === true;
+	if (wasInitialized && !hasChanged(previous, value)) return true;
+	if (hasActiveTransaction())
+		recordTransactionUndo(
+			() => {
+				if (wasInitialized) indexed.target[key] = previous;
+				if (!wasInitialized) {
+					indexed.initialized[index] = false;
+					Reflect.deleteProperty(indexed.target, key);
+				}
+			},
+			indexed.target,
+			index
+		);
+	Reflect.defineProperty(indexed.target, key, {
+		configurable: true,
+		enumerable: true,
+		value,
+		writable: true
+	});
+	indexed.initialized[index] = true;
+	trigger(indexed.target, index);
+	try {
+		indexed.options.onMutation?.(key, 'set');
+	} catch {
+		// Observability must not alter state semantics.
+	}
+	return true;
+}
+
+function deleteIndexedRecord(indexed: IndexedRecord, index: number): boolean {
+	const key = indexed.keys[index]!;
+	if (indexed.initialized[index]) {
+		const previous = indexed.target[key];
+		if (hasActiveTransaction())
+			recordTransactionUndo(
+				() => {
+					Reflect.defineProperty(indexed.target, key, {
+						configurable: true,
+						enumerable: true,
+						value: previous,
+						writable: true
+					});
+					indexed.initialized[index] = true;
+				},
+				indexed.target,
+				index
+			);
+		trigger(indexed.target, index);
+	}
+	indexed.initialized[index] = false;
+	return Reflect.deleteProperty(indexed.target, key);
 }
 
 /** Resolves compiler-known own fields to compact stable dependencies without evaluating them. */

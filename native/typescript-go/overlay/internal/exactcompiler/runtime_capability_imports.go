@@ -54,6 +54,10 @@ type jsxRuntimeNames struct {
 	derived                   string
 	peek                      string
 	readState                 string
+	writeState                string
+	updateState               string
+	updateStateResult         string
+	deleteState               string
 	write                     string
 	update                    string
 	updateResult              string
@@ -246,6 +250,10 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createDerived", lowering.names.derived, runtimeReactivity},
 		{"peek", lowering.names.peek, runtimeReactivity},
 		{"readIndexedReactiveSlot", lowering.names.readState, runtimeReactivity},
+		{"writeIndexedReactiveLazy", lowering.names.writeState, runtimeReactivity},
+		{"updateIndexedReactiveValue", lowering.names.updateState, runtimeReactivity},
+		{"updateIndexedReactiveValueWithResult", lowering.names.updateStateResult, runtimeReactivity},
+		{"deleteIndexedReactiveValue", lowering.names.deleteState, runtimeReactivity},
 		{"writeReactiveLazy", lowering.names.write, runtimeReactivity},
 		{"updateReactiveValue", lowering.names.update, runtimeReactivity},
 		{"updateReactiveValueWithResult", lowering.names.updateResult, runtimeReactivity},
@@ -791,6 +799,10 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		derived:                   allocate("__exactDerived"),
 		peek:                      allocate("__exactPeek"),
 		readState:                 allocate("__exactReadState"),
+		writeState:                allocate("__exactWriteState"),
+		updateState:               allocate("__exactUpdateState"),
+		updateStateResult:         allocate("__exactUpdateStateResult"),
+		deleteState:               allocate("__exactDeleteState"),
 		write:                     allocate("__exactWrite"),
 		update:                    allocate("__exactUpdate"),
 		updateResult:              allocate("__exactUpdateResult"),

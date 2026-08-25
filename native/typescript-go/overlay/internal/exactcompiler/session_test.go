@@ -2532,7 +2532,7 @@ __fixtureTask2();
 		`placement: "isomorphic"`,
 		`instantiate: __exactImplementation_Panel_1`,
 		`title: __exactExpression(() => __exactReadState(this.state, 1) as string)`,
-		`"__exactClosedInteraction:onClick": () => __exactUpdateResult(this.state, ["count"]`,
+		`"__exactClosedInteraction:onClick": () => __exactUpdateStateResult(this.state, 0`,
 		`__exactDynamic(() => __exactReadState(this.state, 0) as number`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2907,7 +2907,7 @@ __fixtureTask4();
 	}
 	for _, expected := range []string{
 		`export const Panel =`,
-		`"__exactClosedInteraction:onClick": () => __exactUpdateResult`,
+		`"__exactClosedInteraction:onClick": () => __exactUpdateStateResult`,
 		`__exactServerSlot(`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -3057,7 +3057,7 @@ __fixtureTask6();
 		`console.log(prefix)`,
 		`save();`,
 		`cancel();`,
-		`__exactUpdateResult(this.state, ["count"]`,
+		`__exactUpdateStateResult(this.state, 0`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(

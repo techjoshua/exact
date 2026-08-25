@@ -17,6 +17,7 @@ type jsxLowering struct {
 	nodeIDs                      map[*ast.Node]string
 	writes                       map[string]StateWrite
 	stateReadSlots               map[string]indexedStateRead
+	stateWriteSlots              map[string]int
 	indexedStateReadKeys         map[*ast.Node]string
 	tasks                        map[string]Task
 	invokedTasks                 map[int]Task

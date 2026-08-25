@@ -41,6 +41,29 @@ func indexStateReadSlots(components []Component, reads []StateRead) map[string]i
 	return result
 }
 
+// indexStateWriteSlots selects only canonical top-level writes whose component layout owns a
+// stable numeric slot. Aliased, nested, and dynamic writes retain the general path runtime.
+func indexStateWriteSlots(components []Component, writes []StateWrite) map[string]int {
+	slotsByComponent := make(map[string]map[string]int, len(components))
+	for _, component := range components {
+		slots := make(map[string]int, len(component.StateSlots))
+		for index, key := range component.StateSlots {
+			slots[key] = index
+		}
+		slotsByComponent[component.Name] = slots
+	}
+	result := make(map[string]int, len(writes))
+	for _, write := range writes {
+		if write.RootAlias != "" || len(write.Path) != 1 || write.DynamicSegments[0] != nil {
+			continue
+		}
+		if slot, exists := slotsByComponent[write.Component][write.Path[0]]; exists {
+			result[fmt.Sprintf("%d:%d", write.Start, write.Length)] = slot
+		}
+	}
+	return result
+}
+
 // lowerIndexedStateRead emits the compiler-only numeric access lane while retaining enough
 // semantic identity for the render-program planner to select its dirty-mask update path.
 func (lowering *jsxLowering) lowerIndexedStateRead(node *ast.Node) *ast.Node {

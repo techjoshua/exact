@@ -13,6 +13,13 @@ import {
 	writeReactiveLazy
 } from './index.js';
 import { keyedCollectionMetadata } from './internal/keyed-collections.js';
+import { indexedReactive } from './indexed.js';
+import {
+	deleteIndexedReactiveValue,
+	updateIndexedReactiveValue,
+	updateIndexedReactiveValueWithResult,
+	writeIndexedReactiveLazy
+} from './writes.js';
 
 describe('@exactjs/reactive writes', () => {
 	it('retains keyed record identity when an API response reorders records', () => {
@@ -130,6 +137,33 @@ describe('@exactjs/reactive writes', () => {
 			])
 		).toBe('was:6');
 		expect(state.count).toBe(10);
+	});
+
+	it('writes compiler-proven indexed slots without changing reactive semantics', () => {
+		const state = indexedReactive<{ count?: number; record?: { value: number } }>([
+			'count',
+			'record'
+		]);
+		state.count = 2;
+		state.record = { value: 1 };
+		const seen: Array<number | undefined> = [];
+		watch(() => seen.push(state.count));
+
+		expect(writeIndexedReactiveLazy(state, 0, () => 3)).toBe(3);
+		expect(updateIndexedReactiveValue(state, 0, (value) => Number(value) * 2)).toBe(6);
+		expect(
+			updateIndexedReactiveValueWithResult(state, 0, (value) => [Number(value) + 1, `was:${value}`])
+		).toBe('was:6');
+		flushSync();
+		expect(seen).toEqual([2, 7]);
+
+		const record = state.record;
+		writeIndexedReactiveLazy(state, 1, () => ({ value: 2 }));
+		expect(state.record).toBe(record);
+		expect(state.record?.value).toBe(2);
+		expect(deleteIndexedReactiveValue(state, 0)).toBe(true);
+		expect('count' in state).toBe(false);
+		expect(() => writeIndexedReactiveLazy(state, 2, () => 1)).toThrow('invalid indexed slot');
 	});
 
 	it('delegates array mutations while rejecting non-array compiler targets', () => {
