@@ -42,8 +42,9 @@ func lowerComponentContracts(
 	used := sourceIdentifiers(sourceFile)
 	descriptorName := allocateGeneratedName(used, "__exactComponentContract")
 	constructors := componentConstructorImports{
-		renderName:  allocateGeneratedName(used, "__exactConstructRenderComponent"),
-		durableName: allocateGeneratedName(used, "__exactConstructDurableComponent"),
+		renderName:       allocateGeneratedName(used, "__exactConstructRenderComponent"),
+		durableName:      allocateGeneratedName(used, "__exactConstructDurableComponent"),
+		directServerName: allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
 	}
 	statements := make(
 		[]*ast.Node,
@@ -183,16 +184,23 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
-	renderName  string
-	durableName string
-	renderUsed  bool
-	durableUsed bool
+	renderName       string
+	durableName      string
+	directServerName string
+	renderUsed       bool
+	durableUsed      bool
+	directServerUsed bool
 }
 
 func (imports *componentConstructorImports) selectConstructor(
 	factory *printer.NodeFactory,
 	abi int,
+	directServer bool,
 ) *ast.Node {
+	if directServer {
+		imports.directServerUsed = true
+		return factory.NewIdentifier(imports.directServerName)
+	}
 	if abi&(componentABILifecycle|componentABILists|componentABITasks) == 0 {
 		imports.renderUsed = true
 		return factory.NewIdentifier(imports.renderName)
@@ -215,6 +223,13 @@ func (imports *componentConstructorImports) declaration(factory *printer.NodeFac
 			false,
 			factory.NewIdentifier("constructDurableComponentInstance"),
 			factory.NewIdentifier(imports.durableName),
+		))
+	}
+	if imports.directServerUsed {
+		specifiers = append(specifiers, factory.NewImportSpecifier(
+			false,
+			factory.NewIdentifier("rejectDirectServerComponentConstruction"),
+			factory.NewIdentifier(imports.directServerName),
 		))
 	}
 	if len(specifiers) == 0 {
@@ -619,7 +634,11 @@ func rootComponentContractAttachment(
 			componentDefinitionMetadata(
 				factory,
 				implementation,
-				constructors.selectConstructor(factory, runtimeABI),
+				constructors.selectConstructor(
+					factory,
+					runtimeABI,
+					target == TargetServer && component.TargetPlan.DirectServer,
+				),
 				projectedExecution,
 				component.TargetPlan.DeferredTaskProps,
 				component.StateSlots,

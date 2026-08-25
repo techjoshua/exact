@@ -273,13 +273,14 @@ func TestServerDirectFrameOwnsCompiledKeyedListFallbackWithoutListRuntime(t *tes
 	}
 	for _, expected := range []string{
 		`lane: "direct"`, `abi: 1`, `createPreparedServerRenderProgram as`,
-		`keyCompiledVNode as`,
+		`keyCompiledVNode as`, `rejectDirectServerComponentConstruction as`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct list frame is missing %q:\n%s", expected, response.Code)
 		}
 	}
 	if strings.Contains(response.Code, `@exactjs/core/runtime/lists`) ||
+		strings.Contains(response.Code, `constructDurableComponentInstance`) ||
 		strings.Contains(response.Code, "this.map") ||
 		strings.Contains(response.Code, "(__exactSlot) =>") {
 		t.Fatalf("direct server list retained durable list runtime:\n%s", response.Code)

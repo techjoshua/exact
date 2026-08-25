@@ -174,6 +174,9 @@ entry invokes the linked constructor without importing either implementation or 
 bits. Both records implement the same observable component-instance contract and share
 process-local diagnostic identity, but the compact lane cannot accidentally allocate unused
 controllers, task state, or list cleanup machinery.
+Compiler-closed server artifacts instead link a fail-closed construction entry: they execute their
+generated request-local frame and do not retain either durable client record merely to populate a
+contract field. Sending such an artifact through generic instance construction is an error.
 
 ## Runtime inventory
 
