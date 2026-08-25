@@ -1,4 +1,10 @@
-import { cleanupReaction, getDep, runTracked, track, trigger } from './internal/deps.js';
+import {
+	cleanupReaction,
+	getDep,
+	linkReactionToDependency,
+	runTracked,
+	track
+} from './internal/deps.js';
 
 import {
 	currentEffectScope,
@@ -8,15 +14,9 @@ import {
 	withEffectScope
 } from './internal/scopes.js';
 
-import {
-	currentWorkPriority,
-	isHigherWorkPriority,
-	queueComputation,
-	queueReaction,
-	removeQueuedComputation
-} from './internal/scheduler.js';
+import { currentWorkPriority, isHigherWorkPriority, queueReaction } from './internal/scheduler.js';
 
-import { iterateKey, reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
+import { iterateKey, reactiveValueRef } from './internal/symbols.js';
 
 import { isReactive, isReactiveValue, unwrap } from './internal/values.js';
 
@@ -31,8 +31,6 @@ import type {
 } from './internal/types.js';
 
 import { proxyRefs } from './proxy/state.js';
-
-import { hasChanged } from './change-detection.js';
 
 const inactiveWatch: StopHandle = () => undefined;
 const collectionRefs = new WeakMap<object, ReactiveRef<object>>();
@@ -50,102 +48,7 @@ export type OwnedRetainedWatch = Readonly<{
 	stop(): void;
 }>;
 
-/** Creates a lazy derived reactive value that recomputes when one of its tracked dependencies changes. */
-export function computed<T>(compute: () => T): ReactiveValue<T> {
-	const scope = currentEffectScope();
-	const target = {};
-	const key = 'value';
-	let initialized = false;
-	let current: T;
-	let stop: StopHandle | undefined;
-	let queued = false;
-	let computeFailed = false;
-
-	const source: ReactiveRef<T> = {
-		target,
-		key,
-		get() {
-			if (queued) recomputeAndNotify();
-			else ensure();
-			track(target, key);
-			return current;
-		},
-		set() {
-			throw new TypeError('Cannot write to readonly reactive value');
-		}
-	};
-
-	function ensure(): void {
-		if (scope && !scope.active) return;
-		if (stop) return;
-
-		computeFailed = false;
-		stop = watch(
-			() => {
-				const computedValue = compute();
-				ref(computedValue)?.get();
-				const next = unwrap(computedValue) as T;
-				if (!initialized) {
-					current = next;
-					initialized = true;
-					return;
-				}
-
-				if (hasChanged(current, next)) current = next;
-			},
-			queueRecompute,
-			{
-				scope,
-				onError(error) {
-					computeFailed = true;
-					if (scope?.onError) scope.onError(error);
-					else throw error;
-				}
-			}
-		);
-	}
-
-	function queueRecompute(): void {
-		if (scope && !scope.active) return;
-		if (queued) {
-			queueComputation(recomputeAndNotify, scope?.onError, currentWorkPriority(), scope);
-			return;
-		}
-		queued = true;
-		queueComputation(recomputeAndNotify, scope?.onError, currentWorkPriority(), scope);
-	}
-
-	function recomputeAndNotify(): void {
-		// A computed value tears down and rebuilds its watcher on each flush so dependency
-		// sets follow the latest branch of the compute function instead of stale reads.
-		if (scope?.paused) {
-			queueComputation(recomputeAndNotify, scope.onError, currentWorkPriority(), scope);
-			return;
-		}
-		queued = false;
-		removeQueuedComputation(recomputeAndNotify);
-		if (scope && !scope.active) return;
-		stop?.();
-		stop = undefined;
-		const previous = initialized ? current : undefined;
-		const hadValue = initialized;
-		ensure();
-		if (computeFailed) return;
-		if (!hadValue || hasChanged(previous, current)) {
-			trigger(target, key);
-		}
-	}
-
-	return {
-		[reactiveValueMarker]: true,
-		[reactiveValueRef]: source,
-		get: () => source.get(),
-		toJSON: () => source.get(),
-		toString: () => String(source.get()),
-		valueOf: () => source.get(),
-		[Symbol.toPrimitive]: () => source.get()
-	} as ReactiveValue<T>;
-}
+export { computed } from './computation.js';
 
 /** Runs a tracked function immediately and schedules it again whenever its dependencies change. */
 export function watch(
@@ -362,7 +265,7 @@ function subscribeToDependencies(
 		}
 	};
 
-	for (const dependency of dependencies) dependency.add(reaction);
+	for (const dependency of dependencies) linkReactionToDependency(reaction, dependency);
 	if (scope) registerEffectScopeReaction(scope, reaction);
 	return reaction.stop;
 }

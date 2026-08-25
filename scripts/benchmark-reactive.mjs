@@ -2,8 +2,17 @@ import { cpus, platform, release } from 'node:os';
 import process from 'node:process';
 import * as reactiveRuntime from '../packages/reactive/dist/index.js';
 
-const { batch, flushSync, reactive, registerReactiveListKey, watch, writeReactive } =
-	reactiveRuntime;
+const {
+	batch,
+	computed,
+	createEffectScope,
+	flushSync,
+	reactive,
+	registerReactiveListKey,
+	watch,
+	withEffectScope,
+	writeReactive
+} = reactiveRuntime;
 
 const size = Number(process.env.EXACT_REACTIVE_BENCH_SIZE ?? 10_000);
 const warmups = Number(process.env.EXACT_REACTIVE_BENCH_WARMUPS ?? 3);
@@ -258,6 +267,57 @@ const scenarios = [
 				throw new Error('Protocol roundtrip changed keyed collection data');
 			}
 			return { elapsed, bytes: Buffer.byteLength(json) };
+		}
+	},
+	{
+		name: 'scoped computed chain settlement',
+		run: () => {
+			const depth = Math.min(size, 1_000);
+			const scope = createEffectScope();
+			const state = reactive({ value: 0 });
+			let current;
+			withEffectScope(scope, () => {
+				current = computed(() => state.value);
+				current.get();
+				for (let index = 0; index < depth; index++) {
+					const source = current;
+					current = computed(() => source.get() + 1);
+					current.get();
+				}
+			});
+			const start = performance.now();
+			state.value = 1;
+			const result = current.get();
+			const elapsed = performance.now() - start;
+			if (result !== depth + 1) throw new Error('Computed chain settled to the wrong value');
+			scope.stop();
+			return elapsed;
+		}
+	},
+	{
+		name: 'equal computed diamond settlement',
+		run: () => {
+			const scope = createEffectScope();
+			const state = reactive({ value: 1 });
+			let downstreamRuns = 0;
+			let label;
+			withEffectScope(scope, () => {
+				const left = computed(() => state.value % 2);
+				const right = computed(() => state.value % 2);
+				label = computed(() => {
+					downstreamRuns++;
+					return `${left.get()}:${right.get()}`;
+				});
+				label.get();
+			});
+			const start = performance.now();
+			state.value = 3;
+			flushSync();
+			const elapsed = performance.now() - start;
+			if (label.get() !== '1:1' || downstreamRuns !== 1)
+				throw new Error('Equal computed results crossed the propagation barrier');
+			scope.stop();
+			return elapsed;
 		}
 	}
 ];

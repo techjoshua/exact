@@ -396,6 +396,10 @@ The focused reactive command includes the repaired compiled keyed-list DOM gate:
 npm run benchmark:reactive
 ```
 
+The reactive benchmark also measures scope-owned deep-chain settlement and an equal-result diamond.
+The chain guards affected-graph traversal cost; the diamond verifies that equality prevents
+downstream execution while reporting settlement timing alongside the collection scenarios.
+
 The shipping fixture also has a manually invoked retained-heap regression test. It warms the
 compiler-generated hydratable SSR root with production marker behavior, forces full collections,
 and verifies across 1,000 measured requests that each batch plateaus with zero surviving component

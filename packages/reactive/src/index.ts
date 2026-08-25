@@ -43,7 +43,8 @@ export type {
 	WatchOptions
 } from './internal/types.js';
 export { isReactive, isReactiveValue, unwrap } from './internal/values.js';
-export { collectionRef, computed, ref, subscribe, watch } from './observation.js';
+export { computed, inspectComputed, type ComputedInspection } from './computation.js';
+export { collectionRef, ref, subscribe, watch } from './observation.js';
 export { reactive } from './reactive.js';
 export { indexedReactive, readReactiveOwnProperty } from './indexed.js';
 export { snapshot } from './snapshot.js';

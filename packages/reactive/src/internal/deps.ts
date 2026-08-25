@@ -1,9 +1,18 @@
-import type { Dep, Reaction } from './types.js';
+import { scheduleDependencyReactions, scheduleTriggeredReactions } from './dependency-graph.js';
 
-const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
-const depOwners = new WeakMap<Dep, { target: object; key: PropertyKey }>();
-const reactionStack: Reaction[] = [];
-const trackingPauseFloors: number[] = [];
+export {
+	cleanupReaction,
+	getDep,
+	linkReaction,
+	linkReactionToDependency,
+	peek,
+	reactionDependencies,
+	registerDependencyObservationHooks,
+	runTracked,
+	track,
+	type DependencyObservationHooks,
+	type ReactiveDependency
+} from './dependency-graph.js';
 
 type Transaction = {
 	readonly undos?: TransactionUndo[];
@@ -25,6 +34,7 @@ type TransactionUndo = {
 const transactions: Transaction[] = [];
 const mutationVersions = new WeakMap<object, Map<PropertyKey, number>>();
 const journalTransactions = new WeakMap<ReactiveMutationJournal, Transaction>();
+let restorationVersion = 0;
 
 /** Retained inverse journal for one synchronously published group of reactive mutations. */
 export type ReactiveMutationJournal = {
@@ -33,20 +43,6 @@ export type ReactiveMutationJournal = {
 	/** Releases the inverse journal while retaining the published mutations. */
 	discard(): void;
 };
-
-/** Records that the active reaction depends on a target/key pair. */
-export function track(target: object, key: PropertyKey): void {
-	const pauseFloor = trackingPauseFloors[trackingPauseFloors.length - 1];
-	// Reactions that existed when peek() began stay hidden, but a reaction
-	// explicitly created inside peek() owns its own dependency collection.
-	if (pauseFloor !== undefined && reactionStack.length <= pauseFloor) return;
-	const reaction = reactionStack[reactionStack.length - 1];
-	if (!reaction) return;
-
-	const dep = getDep(target, key);
-	dep.add(reaction);
-	reaction.deps.add(dep);
-}
 
 /** Schedules every reaction currently subscribed to a target/key pair. */
 export function trigger(target: object, key: PropertyKey): void {
@@ -182,6 +178,7 @@ export function rollbackReactiveMutationJournals(
 	const covered = new Map<object, Map<PropertyKey, MutationVersionRange[]>>();
 	const blocked = new Map<object, Set<PropertyKey>>();
 	const rollbackTriggers = new Map<object, Set<PropertyKey>>();
+	const restored = new Map<object, Set<PropertyKey>>();
 	for (let journalIndex = journals.length - 1; journalIndex >= 0; journalIndex--) {
 		const journal = journals[journalIndex]!;
 		const transaction = journalTransactions.get(journal);
@@ -189,11 +186,12 @@ export function rollbackReactiveMutationJournals(
 			journal.rollback();
 			continue;
 		}
-		rollbackOwnedTransaction(transaction, covered, blocked);
+		rollbackOwnedTransaction(transaction, covered, blocked, restored);
 		addCoveredVersionRanges(covered, transaction.versionRanges!);
 		mergeTriggers(rollbackTriggers, transaction.triggers);
 		journal.discard();
 	}
+	advanceRestoredDependencyVersions(restored);
 	const parent = transactions[transactions.length - 1];
 	if (parent) mergeTriggers(parent.triggers, rollbackTriggers);
 	else flushTriggers(rollbackTriggers);
@@ -212,6 +210,11 @@ export function recordTransactionUndo(undo: () => void, target?: object, key?: P
 /** Returns whether mutations currently need an inverse journal entry. */
 export function hasActiveTransaction(): boolean {
 	return Boolean(transactions[transactions.length - 1]?.undos);
+}
+
+/** Returns whether target/key notifications are currently deferred by a reactive transaction. */
+export function hasActiveReactiveTransaction(): boolean {
+	return transactions.length > 0;
 }
 
 function mergeTransaction(parent: Transaction, child: Transaction): void {
@@ -246,6 +249,7 @@ function rollbackTransaction(
 ): void {
 	const undos = transaction.undos;
 	if (!undos) return;
+	const restored = new Map<object, Set<PropertyKey>>();
 	for (let index = undos.length - 1; index >= 0; index--) {
 		const undo = undos[index]!;
 		if (
@@ -257,7 +261,10 @@ function rollbackTransaction(
 		)
 			continue;
 		undo.apply();
+		if (undo.target && undo.key !== undefined)
+			recordRestoredDependency(restored, undo.target, undo.key);
 	}
+	advanceRestoredDependencyVersions(restored);
 }
 
 function transactionMutationVersions(
@@ -283,6 +290,11 @@ function incrementMutationVersion(target: object, key: PropertyKey): number {
 /** Returns the current mutation generation for one dependency without tracking it. */
 export function readMutationVersion(target: object, key: PropertyKey): number {
 	return mutationVersions.get(target)?.get(key) ?? 0;
+}
+
+/** Returns the generation of the most recent transaction restoration. */
+export function readReactiveRestorationVersion(): number {
+	return restorationVersion;
 }
 
 function createTransaction(rollback: boolean, retainVersions = false): Transaction {
@@ -325,7 +337,8 @@ function mergeVersionRanges(
 function rollbackOwnedTransaction(
 	transaction: Transaction,
 	covered: Map<object, Map<PropertyKey, MutationVersionRange[]>>,
-	blocked: Map<object, Set<PropertyKey>>
+	blocked: Map<object, Set<PropertyKey>>,
+	restored: Map<object, Set<PropertyKey>>
 ): void {
 	const undos = transaction.undos;
 	if (!undos || !transaction.versionRanges) return;
@@ -349,7 +362,26 @@ function rollbackOwnedTransaction(
 			}
 		}
 		undo.apply();
+		if (undo.target && undo.key !== undefined)
+			recordRestoredDependency(restored, undo.target, undo.key);
 	}
+}
+
+function recordRestoredDependency(
+	restored: Map<object, Set<PropertyKey>>,
+	target: object,
+	key: PropertyKey
+): void {
+	let keys = restored.get(target);
+	if (!keys) restored.set(target, (keys = new Set()));
+	keys.add(key);
+}
+
+function advanceRestoredDependencyVersions(restored: Map<object, Set<PropertyKey>>): void {
+	if (!restored.size) return;
+	for (const [target, keys] of restored)
+		for (const key of keys) incrementMutationVersion(target, key);
+	restorationVersion++;
 }
 
 function versionsCovered(
@@ -384,84 +416,9 @@ function addCoveredVersionRanges(
 }
 
 function flushTriggers(triggers: Map<object, Set<PropertyKey>>): void {
-	if (!triggers.size) return;
-	const reactions = new Set<Reaction>();
-	for (const [target, keys] of triggers) {
-		const targetDeps = deps.get(target);
-		if (!targetDeps) continue;
-		for (const key of keys) {
-			const dep = targetDeps.get(key);
-			if (!dep) continue;
-			for (const reaction of dep) reactions.add(reaction);
-		}
-	}
-
-	// Custom schedulers may synchronously replace their watcher. Snapshot the complete
-	// subscriber set first so the replacement cannot be rediscovered by a later key in
-	// the same atomic transition.
-	for (const reaction of reactions) reaction.schedule();
+	scheduleTriggeredReactions(triggers);
 }
 
 function triggerNow(target: object, key: PropertyKey): void {
-	const dep = deps.get(target)?.get(key);
-	if (!dep) return;
-	for (const reaction of [...dep]) {
-		reaction.schedule();
-	}
-}
-
-/** Returns the dependency set for a target/key pair, creating it on first use. */
-export function getDep(target: object, key: PropertyKey): Dep {
-	let targetDeps = deps.get(target);
-	if (!targetDeps) {
-		targetDeps = new Map();
-		deps.set(target, targetDeps);
-	}
-
-	let dep = targetDeps.get(key);
-	if (!dep) {
-		dep = new Set();
-		targetDeps.set(key, dep);
-		depOwners.set(dep, { target, key });
-	}
-
-	return dep;
-}
-
-/** Removes a reaction from all dependency sets it currently belongs to. */
-export function cleanupReaction(reaction: Reaction): void {
-	for (const dep of reaction.deps) {
-		dep.delete(reaction);
-		if (!dep.size) {
-			const owner = depOwners.get(dep);
-			if (owner) {
-				const targetDeps = deps.get(owner.target);
-				if (targetDeps?.get(owner.key) === dep) targetDeps.delete(owner.key);
-				if (targetDeps && !targetDeps.size) deps.delete(owner.target);
-				depOwners.delete(dep);
-			}
-		}
-	}
-	reaction.deps.clear();
-}
-
-/** Runs a function while collecting all reactive reads into the supplied reaction. */
-export function runTracked(reaction: Reaction, fn: () => void): void {
-	cleanupReaction(reaction);
-	reactionStack.push(reaction);
-	try {
-		fn();
-	} finally {
-		reactionStack.pop();
-	}
-}
-
-/** Runs a function without linking its reads to the currently active reaction. */
-export function peek<T>(fn: () => T): T {
-	trackingPauseFloors.push(reactionStack.length);
-	try {
-		return fn();
-	} finally {
-		trackingPauseFloors.pop();
-	}
+	scheduleDependencyReactions(target, key);
 }

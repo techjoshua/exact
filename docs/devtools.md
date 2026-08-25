@@ -43,6 +43,14 @@ history, value-preview, and event-publication machinery remains outside their ex
 This does not make component state opaque, and an instrumented build still installs the capability
 before its first root is evaluated.
 
+Reactive graph inspection uses bounded, value-free computed projections. A computed reports
+whether it is `clean`, `checked`, `dirty`, `computing`, `failed`, `paused`, or `stopped`, together
+with its effective priority, initialization and observation state, and bounded source and sink
+counts. Runtime cycle failures use the stable
+`eXact reactive computation cycle detected` diagnostic instead of including source text, values,
+or an unbounded graph dump. Framework tooling obtains the same projection through
+`inspectComputed()`; inspecting does not attach a watcher or change graph liveness.
+
 Vite development mode enables those defaults through `@exactjs/vite-plugin`, not through Vite
 itself. Custom middleware servers must include `exact()` in the Vite configuration they load;
 calling `createServer()` or `transformIndexHtml()` without the plugin cannot install runtime
