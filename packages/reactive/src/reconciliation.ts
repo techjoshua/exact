@@ -25,15 +25,11 @@ import { updateIndexedReactive } from './indexed-base.js';
 /** Mutates an existing reactive object to match a partial next value while preserving nested proxies. */
 export function updateReactive<T extends object>(target: Reactive<T>, next: Partial<T>): void {
 	if (
-		updateIndexedReactive(
-			target,
-			next as Record<PropertyKey, unknown>,
-			(previous, value) => {
-				if (!canUpdateNestedReactive(previous, value)) return false;
-				updateReactive(previous as object, unwrap(value) as Partial<object>);
-				return true;
-			}
-		)
+		updateIndexedReactive(target, next as Record<PropertyKey, unknown>, (previous, value) => {
+			if (!canUpdateNestedReactive(previous, value)) return false;
+			updateReactive(previous as object, unwrap(value) as Partial<object>);
+			return true;
+		})
 	)
 		return;
 	const raw = isReactive(target) ? (target as { [rawTarget]: T })[rawTarget] : target;

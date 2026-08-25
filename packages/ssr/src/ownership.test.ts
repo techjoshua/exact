@@ -47,6 +47,7 @@ describe('@exactjs/ssr ownership', () => {
 					abi: 1,
 					capabilities: [],
 					state: ['label'],
+					props: ['label'],
 					server: {
 						version: 1,
 						classification: 'synchronous',
@@ -115,6 +116,7 @@ describe('@exactjs/ssr ownership', () => {
 					abi: 1,
 					capabilities: [],
 					state: [],
+					props: ['rows'],
 					server: {
 						version: 1,
 						classification: 'synchronous',

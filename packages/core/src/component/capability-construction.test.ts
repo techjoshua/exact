@@ -15,7 +15,6 @@ import {
 } from './runtime.js';
 import { RenderComponentInstance } from './render-instance.js';
 import { constructRenderComponentInstance } from './render-instance-construction.js';
-import { constructDurableComponentInstance } from './durable-instance-construction.js';
 import { TaskComponentInstance } from './task-instance.js';
 import { constructTaskComponentInstance } from './task-instance-construction.js';
 
@@ -65,6 +64,7 @@ describe('compiled component capability construction', () => {
 					construct: constructRenderComponentInstance,
 					abi: 0,
 					state: [],
+					props: [],
 					tasks: [],
 					reactive: [],
 					render: 'returned-function' as const,
@@ -139,6 +139,7 @@ describe('compiled component capability construction', () => {
 					construct: constructTaskComponentInstance,
 					abi: 8,
 					state: [],
+					props: [],
 					tasks: ['setup'],
 					reactive: [],
 					render: 'returned-function' as const,
@@ -177,6 +178,7 @@ describe('compiled component capability construction', () => {
 					construct: constructTaskComponentInstance,
 					abi: 8,
 					state: [],
+					props: [],
 					tasks: ['setup'],
 					reactive: [],
 					render: 'returned-function' as const,

@@ -102,8 +102,8 @@ function isDefinition(value: unknown): boolean {
 		value.abi >= 0 &&
 		(value.abi & ~allCompiledComponentABI) === 0 &&
 		(value.updates === undefined || isComponentUpdates(value.updates)) &&
-		(value.state === undefined || isSafeContractStringList(value.state)) &&
-		(value.props === undefined || isSafeContractStringList(value.props)) &&
+		isSafeContractStringList(value.state) &&
+		isSafeContractStringList(value.props) &&
 		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&
 		(value.reactive === undefined ||
 			(Array.isArray(value.reactive) && value.reactive.every(isReactiveAllocation))) &&

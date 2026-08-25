@@ -73,12 +73,37 @@ describe('indexed reactive state', () => {
 		state.items = ['a'];
 		const source = collectionRef(state.items);
 		expect(source).toBe(collectionRef(state.items));
-		const observed: number[] = [];
-		const stop = watch(() => observed.push(source!.get().length));
+		const observed: string[][] = [];
+		const stop = watch(() => observed.push([...source!.get()]));
 		state.items.push('b');
 		flushSync();
-		expect(observed).toEqual([1, 2]);
+		state.items.splice(0, 2, state.items[1]!, state.items[0]!);
+		flushSync();
+		expect(observed).toEqual([['a'], ['a', 'b'], ['b', 'a']]);
 		stop();
+	});
+
+	it('does not subscribe a forwarding facade read before the nested source is consumed', () => {
+		const state = indexedReactive<{ items: string[] }>(['items']);
+		state.items = ['a'];
+		let source = collectionRef(state.items)!;
+		const forwardingRuns = vi.fn();
+		const stopForwarding = watch(() => {
+			forwardingRuns();
+			source = collectionRef(state.items)!;
+		});
+		const lengths: number[] = [];
+		const stopLengths = watch(() => lengths.push(source.get().length));
+
+		state.items.push('b');
+		flushSync();
+		state.items = ['replacement'];
+		flushSync();
+
+		expect(forwardingRuns).toHaveBeenCalledTimes(1);
+		expect(lengths).toEqual([1, 2, 1]);
+		stopLengths();
+		stopForwarding();
 	});
 
 	it('reads indexed fields without granting arbitrary accessors execution', () => {

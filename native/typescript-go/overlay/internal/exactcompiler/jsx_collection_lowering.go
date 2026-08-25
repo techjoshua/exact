@@ -378,7 +378,7 @@ func (lowering *jsxLowering) lowerComponentMapCall(node *ast.Node) *ast.Node {
 	collection := arguments[0]
 	var provenance *ast.Node
 	emittedCollection := lowering.visitor.VisitNode(collection)
-	if ast.IsIdentifier(collection) {
+	if len(arguments) < 5 && ast.IsIdentifier(collection) && ast.GetSourceFileOfNode(collection) != nil {
 		if _, derived := lowering.derivedBindingAtReference(collection); derived {
 			emittedCollection = lowering.factory.NewIdentifier(collection.Text())
 			provenance = lowering.derivedCollectionProvenance(collection)

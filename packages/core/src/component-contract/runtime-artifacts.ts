@@ -161,6 +161,7 @@ function runtimeBoundaryDefinition(
 		instantiate: component,
 		construct,
 		state: [],
+		props: [],
 		tasks: [],
 		reactive: [],
 		render: 'returned-function',

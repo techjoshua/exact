@@ -24,7 +24,7 @@ describe('@exactjs/compiler: client state bridges', () => {
 		);
 
 		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(output).toContain('Object.assign(this.state, props.__exactState)');
+		expect(output).toContain('Object.assign(this.state, __exactReadState(props, 0))');
 		expect(output).toContain('title: __exactExpression(() => __exactReadState(this.state, 0)');
 		expect(output).toContain('onClick: () => __exactUpdateStateResult(this.state, 0, previous =>');
 		expect(output).not.toContain('export const Panel_ExactClient_1 = Panel');

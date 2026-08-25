@@ -3,10 +3,7 @@ import { componentContextCapability } from './context-capability.js';
 import type { AnyComponentInstance, ContextToken } from './contracts.js';
 import { registerComponentRuntimeSurface } from './runtime-surface-registration.js';
 
-function hasContext(
-	this: AnyComponentInstance,
-	token: ContextToken<unknown>
-): boolean {
+function hasContext(this: AnyComponentInstance, token: ContextToken<unknown>): boolean {
 	this.contextTokens.set(token.id, token);
 	const capability = componentContextCapability();
 	capability.publish(this, token, 'read');

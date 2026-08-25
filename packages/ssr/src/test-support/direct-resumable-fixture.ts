@@ -41,6 +41,7 @@ export function directResumableFixture<Props extends Record<string, unknown>>(
 				abi: 1,
 				capabilities: ['resumption'] as const,
 				state: statePaths,
+				props: [],
 				server: {
 					version: 1 as const,
 					classification,

@@ -594,11 +594,16 @@ callback synthesis instead of recovering component ownership from the generated 
 Managed client computations and task callbacks use the same analyzed slot identity, including when
 their work closes over a checker-proven alias of the complete state facade.
 
-Client props use the same indexed storage primitive when the compiler proves a direct top-level
-read. The component definition shares an immutable props layout across instances; construction
-seeds it once and parent updates notify its numeric slots without a property-key lookup. Dynamically
-indexed props retain the ordinary readonly facade, and server artifacts omit the client props
-layout so SSR does not pay for proxy-oriented storage.
+Every compiled component definition carries immutable state and props layouts, including explicit
+empty layouts. Client construction therefore has one compiler-indexed storage contract rather than
+selecting a generic facade at runtime. Proven top-level props reads bypass the facade's property
+trap; dynamic keys extend the same readonly facade with stable instance-local indexes. Parent
+updates reconcile through those numeric dependency identities. Generated client islands preserve
+the parent component's complete state layout so reads and form bindings retain their original slot
+numbers even when the request serializes only the island's required state paths. Island-specific
+transport props receive a separate generated layout and direct numeric reads. Server artifacts
+carry the same layouts for contract consistency, while compiler-closed direct SSR continues to use
+plain request-local records and never constructs the reactive facade.
 
 Render-program hydration stores only directly claimed compiler-numbered elements in a sparse
 ephemeral array. Inert static intrinsics remain covered by their enclosing component or structural

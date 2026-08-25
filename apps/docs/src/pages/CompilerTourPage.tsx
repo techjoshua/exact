@@ -117,7 +117,9 @@ export function CompilerTourPage(this: Component<{}>) {
 						<p>
 							The product type&apos;s <code>@exact key</code> annotation preserves rows as results
 							change. SSR can finish the search before the browser adopts the page, and generated
-							component slots let it adopt native children without redundant wrapper markup.
+							component slots let it adopt native children without redundant wrapper markup. A
+							generated client range keeps the component&apos;s original state-slot identities, so
+							server publication and browser updates address the same fields directly.
 						</p>
 					</div>
 				</div>

@@ -296,22 +296,31 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
 /** Returns the structural dependency source for a reactive iterable collection. */
 export function collectionRef<T extends object>(value: T): ReactiveRef<T> | undefined {
 	const existing = ref(value);
-	if (existing) return existing;
-	if (!isReactive(value)) return undefined;
 	let source = collectionRefs.get(value) as ReactiveRef<T> | undefined;
 	if (source) return source;
+	if (!existing && !isReactive(value)) return undefined;
 	const target = unwrap(value) as object;
 	source = {
-		target,
-		key: iterateKey,
+		target: existing?.target ?? target,
+		key: existing?.key ?? iterateKey,
 		get() {
-			track(target, iterateKey);
-			return value;
+			const current = existing ? existing.get() : value;
+			trackCollectionStructure(current);
+			return current;
 		},
-		set() {
+		set(next: T) {
+			if (existing) {
+				existing.set(next);
+				return;
+			}
 			throw new TypeError('Cannot replace a collection through its structural reference');
 		}
 	};
 	collectionRefs.set(value, source as ReactiveRef<object>);
 	return source;
+}
+
+/** Records the structural dependency for a framework-owned collection consumer. */
+export function trackCollectionStructure(value: object): void {
+	track(unwrap(value) as object, iterateKey);
 }

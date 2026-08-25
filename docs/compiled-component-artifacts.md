@@ -73,9 +73,14 @@ keys, external consumers, and DevTools continue through the ordinary state facad
 frames use their plain request-local state records and do not import this client-only access lane.
 Compiler-proven top-level props reads use a separate deterministic layout on the readonly props
 facade. Initial construction seeds that layout without publishing false changes, and later parent
-updates reconcile through the same numeric dependency identities. Dynamic property access remains
-on the ordinary facade, while `children` preserves its renderer-owned passthrough identity. Server
-artifacts omit this client-only layout and continue to read request-local props directly.
+updates reconcile through the same numeric dependency identities. Every compiled definition emits
+state and props layouts, including empty layouts, so component construction never infers a generic
+storage lane from missing metadata. Dynamic property access extends the same facade, while
+`children` preserves its renderer-owned passthrough identity. Generated client islands retain the
+parent state layout instead of renumbering a serialized subset; their synthetic transport props
+receive a separate compiler-owned layout. Direct server artifacts carry the metadata for target
+contract consistency but continue to read plain request-local state and props without constructing
+client reactive storage.
 Canonical top-level client assignments, updates, and deletes use the same numeric slots directly;
 compiler-generated intrinsic and component binding callbacks preserve that slot proof even when
 their handlers move into a generated client island. A checker-proven alias of the complete state

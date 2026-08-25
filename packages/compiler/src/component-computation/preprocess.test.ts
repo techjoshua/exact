@@ -175,7 +175,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Editor.tsx' }
 		);
-		expect(output).toContain('peek(() => props.value)');
+		expect(output).toContain('peek(() => __exactReadState(props, 0) as string)');
 	});
 
 	it('rejects direct and distributed reactive assignment cycles', () => {

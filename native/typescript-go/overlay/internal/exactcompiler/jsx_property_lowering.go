@@ -65,7 +65,7 @@ func (lowering *jsxLowering) propsWithReactivity(
 						properties,
 						lowering.property(
 							lowering.factory.NewIdentifier("className"),
-							lowering.lowerClassNameValue(attributes, reactive),
+							lowering.lowerClassNameValue(attributes, reactive, false),
 						),
 					)
 					classNameEmitted = true
@@ -295,6 +295,7 @@ func jsxClassNameContribution(property *ast.Node) bool {
 func (lowering *jsxLowering) lowerClassNameValue(
 	attributes *ast.Node,
 	reactive bool,
+	materialize bool,
 ) *ast.Node {
 	contributions := []*ast.Node{}
 	allStatic := true
@@ -305,7 +306,7 @@ func (lowering *jsxLowering) lowerClassNameValue(
 		attribute := property.AsJsxAttribute()
 		name := attribute.Name()
 		if !ast.IsJsxNamespacedName(name) {
-			value, static := lowering.lowerOrdinaryClassName(attribute, reactive)
+			value, static := lowering.lowerOrdinaryClassName(attribute, reactive, materialize)
 			if value != nil {
 				contributions = append(contributions, value)
 				allStatic = allStatic && static
@@ -320,7 +321,7 @@ func (lowering *jsxLowering) lowerClassNameValue(
 			)
 			continue
 		}
-		condition := lowering.lowerClassNameCondition(attribute, reactive)
+		condition := lowering.lowerClassNameCondition(attribute, reactive, materialize)
 		if condition == nil {
 			continue
 		}
@@ -357,6 +358,7 @@ func (lowering *jsxLowering) lowerClassNameValue(
 func (lowering *jsxLowering) lowerOrdinaryClassName(
 	attribute *ast.JsxAttribute,
 	reactive bool,
+	materialize bool,
 ) (*ast.Node, bool) {
 	switch {
 	case attribute.Initializer == nil:
@@ -371,7 +373,7 @@ func (lowering *jsxLowering) lowerOrdinaryClassName(
 		if expression == nil {
 			return nil, false
 		}
-		value := lowering.visitor.VisitNode(expression)
+		value := lowering.lowerPlannedClassNameExpression(expression, materialize)
 		if reactive && !jsxCallbackExpression(expression) {
 			value = lowering.reactiveExpression(expression, value)
 		}
@@ -384,6 +386,7 @@ func (lowering *jsxLowering) lowerOrdinaryClassName(
 func (lowering *jsxLowering) lowerClassNameCondition(
 	attribute *ast.JsxAttribute,
 	reactive bool,
+	materialize bool,
 ) *ast.Node {
 	if ast.IsStringLiteral(attribute.Initializer) {
 		return lowering.factory.NewStringLiteral(
@@ -398,11 +401,31 @@ func (lowering *jsxLowering) lowerClassNameCondition(
 	if expression == nil {
 		return nil
 	}
-	value := lowering.visitor.VisitNode(expression)
+	value := lowering.lowerPlannedClassNameExpression(expression, materialize)
 	if reactive && !jsxCallbackExpression(expression) {
 		value = lowering.reactiveExpression(expression, value)
 	}
 	return value
+}
+
+// lowerPlannedClassNameExpression keeps render-program property writers closed
+// over derived values whose setup declaration the compiler intentionally elided.
+func (lowering *jsxLowering) lowerPlannedClassNameExpression(
+	expression *ast.Node,
+	materialize bool,
+) *ast.Node {
+	if materialize {
+		if closure := lowering.reactiveClosure(expression); closure != nil {
+			return lowering.factory.NewCallExpression(
+				closure,
+				nil,
+				nil,
+				lowering.factory.NewNodeList(nil),
+				ast.NodeFlagsNone,
+			)
+		}
+	}
+	return lowering.visitor.VisitNode(expression)
 }
 
 func jsxEventAttribute(name string) bool {

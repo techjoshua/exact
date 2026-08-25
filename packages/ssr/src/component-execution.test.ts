@@ -294,6 +294,7 @@ function compiledComponent<T extends (...args: any[]) => any>(
 							construct: constructDurableComponentInstance,
 							abi: directScheduled ? 9 : 8,
 							state: [],
+							props: [],
 							tasks: ['setup'],
 							reactive: execution.reactive,
 							render: 'returned-function' as const,

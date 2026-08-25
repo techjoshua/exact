@@ -640,10 +640,7 @@ func rootComponentContractAttachment(
 		usesCompatibility,
 		compiledRender,
 	)
-	propsSlots := []string(nil)
-	if target == TargetClient {
-		propsSlots = component.PropsSlots
-	}
+	propsSlots := component.PropsSlots
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,

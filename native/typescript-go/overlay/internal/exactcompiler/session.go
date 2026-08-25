@@ -407,6 +407,10 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		request.ID,
 	)
+	// Storage layouts are part of the component identity inherited by generated
+	// client islands. Assign them before copying components into island records.
+	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
+	attachComponentPropsSlots(components, sourceFile, generation.checker)
 	clientIslands := indexClientElementIslands(
 		sourceFile,
 		components,
@@ -453,8 +457,6 @@ func (s *Session) Execute(request Request) Response {
 	boundaries = append(boundaries, partitionBoundaries...)
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
-	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
-	attachComponentPropsSlots(components, sourceFile, generation.checker)
 	attachFormBindingStateSlots(formBindings, stateReads, components)
 	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop != nil)
 	if request.ServerComponents {

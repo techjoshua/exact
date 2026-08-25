@@ -45,7 +45,14 @@ export type {
 } from '../internal/types.js';
 export { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
 export { computed, inspectComputed, type ComputedInspection } from '../computation.js';
-export { collectionRef, ref, subscribe, subscribeKeys, watch } from '../observation.js';
+export {
+	collectionRef,
+	ref,
+	subscribe,
+	subscribeKeys,
+	trackCollectionStructure,
+	watch
+} from '../observation.js';
 export {
 	reactiveOwnDependencies,
 	readIndexedReactiveSlot,
