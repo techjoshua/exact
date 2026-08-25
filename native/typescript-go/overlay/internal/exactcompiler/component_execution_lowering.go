@@ -140,6 +140,7 @@ func componentDefinitionMetadata(
 	execution ComponentExecution,
 	deferredTaskProps []string,
 	stateSlots []string,
+	propsSlots []string,
 	continuations []Continuation,
 	hasResumption bool,
 	serverPublicationName string,
@@ -156,6 +157,7 @@ func componentDefinitionMetadata(
 	updates *ast.Node,
 ) *ast.Node {
 	state := append([]string{}, stateSlots...)
+	props := append([]string{}, propsSlots...)
 	tasks := []string{}
 	capabilities := []string{}
 	for _, transition := range execution.Transitions {
@@ -201,6 +203,9 @@ func componentDefinitionMetadata(
 		contractProperty(factory, "abi", contractNumber(factory, runtimeABI)),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		contractProperty(factory, "state", stringMetadata(factory, state)),
+	}
+	if len(props) != 0 {
+		properties = append(properties, contractProperty(factory, "props", stringMetadata(factory, props)))
 	}
 	if updates != nil {
 		properties = append(properties, contractProperty(factory, "updates", updates))

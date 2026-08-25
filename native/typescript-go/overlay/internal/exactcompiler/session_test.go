@@ -723,7 +723,7 @@ func TestSessionWiresInferredProgramListsWithoutComponentListController(t *testi
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `props.items.map((item) => __exactKeyedVNode(`) ||
+	if !strings.Contains(response.Code, `(__exactReadState(props, 0) as Item[]).map((item) => __exactKeyedVNode(`) ||
 		!strings.Contains(response.Code, `, item.id))`) {
 		t.Fatalf("compiler-owned list omitted direct key wiring:\n%s", response.Code)
 	}
@@ -777,7 +777,7 @@ func TestSessionInlinesConditionalFragmentsIntoTheirProgramRange(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `props.open ? [__exactPreparedRenderProgram(`) ||
+	if !strings.Contains(response.Code, `__exactReadState(props, 0) as boolean ? [__exactPreparedRenderProgram(`) ||
 		!strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
 		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0)`) ||
 		!strings.Contains(response.Code, `template: "<section></section>"`) {
@@ -808,7 +808,7 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
-		!strings.Contains(response.Code, `__exactApply("value", props.option)`) {
+		!strings.Contains(response.Code, `__exactApply("value", __exactReadState(props, 0) as string)`) {
 		t.Fatalf("closed client output omitted the direct property writer:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, `], this, undefined, (__exactGroup, __exactApply) =>`) {
@@ -2949,7 +2949,7 @@ __fixtureTask2();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`...props.events`,
+		`...__exactReadState(props, 0) as Record<string, unknown>`,
 		`"__exactClosedInteraction:onClick": () => alert(1)`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -3364,7 +3364,7 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 	for _, expected := range []string{
 		`__exactApply("className", [`,
 		`{ "active": __exactReadState(this.state, 0) as any }`,
-		`props.className`,
+		`__exactReadState(props, 0) as unknown`,
 		`{ "disabled": !(__exactReadState(this.state, 1) as any) }`,
 	} {
 		if !strings.Contains(response.Code, expected) {

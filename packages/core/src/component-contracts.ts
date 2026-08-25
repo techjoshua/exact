@@ -193,6 +193,8 @@ export type ExactCompiledComponentDefinitionContract = Readonly<{
 	updates?: ExactCompiledComponentUpdateContract;
 	/** Stable top-level state slots used by the compiled component-state facade. */
 	state?: readonly string[];
+	/** Stable top-level props slots used by compiler-generated direct reads. */
+	props?: readonly string[];
 	tasks?: readonly string[];
 	reactive?: ExactComponentExecutionContract['reactive'];
 	render?: 'returned-function';

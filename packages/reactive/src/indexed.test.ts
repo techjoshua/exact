@@ -8,6 +8,8 @@ import { reactiveOwnDependencies, readIndexedReactiveSlot } from './indexed-base
 import { subscribeKeys } from './observation.js';
 import { snapshot } from './snapshot.js';
 import { watch } from './observation.js';
+import { indexedReactiveObjects } from './framework/indexed-objects.js';
+import { updateReactive } from './reconciliation.js';
 
 describe('indexed reactive state', () => {
 	it('tracks stable slots while preserving an ordinary inspectable facade', () => {
@@ -138,5 +140,78 @@ describe('indexed reactive state', () => {
 		flushSync();
 
 		expect(seen).toEqual([[1, 'second']]);
+	});
+
+	it('seeds readonly indexed props and updates numeric dependencies through reconciliation', () => {
+		const props = indexedReactiveObjects<{ label: string; children?: object }>(
+			['label', 'children'],
+			{
+				readonly: true,
+				passthroughKeys: ['children'],
+				onReadonlyWrite(key) {
+					throw new TypeError(`readonly ${String(key)}`);
+				}
+			},
+			{ label: 'first', children: { type: 'child' } }
+		);
+		const child = props.children;
+		const seen: string[] = [];
+		const stop = watch(() => seen.push(readIndexedReactiveSlot(props, 0) as string));
+
+		updateReactive(props, { label: 'second', children: child });
+		flushSync();
+
+		expect(seen).toEqual(['first', 'second']);
+		expect(props.children).toBe(child);
+		expect(() => {
+			props.label = 'authored write';
+		}).toThrow('readonly label');
+		stop();
+	});
+
+	it('retains compiler-owned live prop values and resolves them at indexed read time', () => {
+		const state = indexedReactive<{ label: string }>(['label']);
+		state.label = 'first';
+		const live = computed(() => state.label);
+		const props = indexedReactiveObjects<{ label: string }>(
+			['label'],
+			{ readonly: true },
+			{ label: live as unknown as string },
+			true
+		);
+		const seen: string[] = [];
+		const stop = watch(() => seen.push(readIndexedReactiveSlot(props, 0) as string));
+
+		state.label = 'second';
+		flushSync();
+
+		expect(seen).toEqual(['first', 'second']);
+		stop();
+	});
+
+	it('invalidates an indexed live object prop when its computed selection changes', () => {
+		const state = indexedReactive<{ items: Array<{ id: string }>; selectedId: string }>([
+			'items',
+			'selectedId'
+		]);
+		state.items = [{ id: 'first' }, { id: 'second' }];
+		state.selectedId = '';
+		const live = computed(() => state.items.find((item) => item.id === state.selectedId));
+		const props = indexedReactiveObjects<{ item?: { id: string } }>(
+			['item'],
+			{ readonly: true },
+			{ item: live as unknown as { id: string } },
+			true
+		);
+		const seen: Array<string | undefined> = [];
+		const stop = watch(() =>
+			seen.push((readIndexedReactiveSlot(props, 0) as { id: string } | undefined)?.id)
+		);
+
+		state.selectedId = 'second';
+		flushSync();
+
+		expect(seen).toEqual([undefined, 'second']);
+		stop();
 	});
 });

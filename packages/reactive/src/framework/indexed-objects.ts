@@ -6,7 +6,15 @@ import { reactiveObjects } from './objects.js';
 /** Creates compiler-proven indexed state with object/array-only nested observation. */
 export function indexedReactiveObjects<T extends object>(
 	keys: readonly PropertyKey[],
-	options: ReactiveOptions = {}
+	options: ReactiveOptions = {},
+	initial?: T,
+	preserveReactiveValues = false
 ): Reactive<T> {
-	return createIndexedReactive<T>(keys, options, reactiveObjects);
+	return createIndexedReactive<T>(
+		keys,
+		options,
+		reactiveObjects,
+		initial,
+		preserveReactiveValues
+	);
 }

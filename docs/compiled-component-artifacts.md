@@ -71,6 +71,11 @@ target/key dependency graph as ordinary property reads, so computed freshness, t
 rollback, scheduling, and teardown retain one set of reactive semantics. Authored aliases, dynamic
 keys, external consumers, and DevTools continue through the ordinary state facade. Direct server
 frames use their plain request-local state records and do not import this client-only access lane.
+Compiler-proven top-level props reads use a separate deterministic layout on the readonly props
+facade. Initial construction seeds that layout without publishing false changes, and later parent
+updates reconcile through the same numeric dependency identities. Dynamic property access remains
+on the ordinary facade, while `children` preserves its renderer-owned passthrough identity. Server
+artifacts omit this client-only layout and continue to read request-local props directly.
 Canonical top-level client assignments, updates, and deletes use the same numeric slots directly;
 compiler-generated intrinsic and component binding callbacks preserve that slot proof even when
 their handlers move into a generated client island. A checker-proven alias of the complete state

@@ -917,7 +917,7 @@ func TestClientTransparentComponentUsesItsCompiledBoundaryRange(t *testing.T) {
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, "return () => props.children") ||
+	if !strings.Contains(response.Code, "return () => __exactReadState(props, 0)") ||
 		!strings.Contains(response.Code, "abi: 32") {
 		t.Fatalf("transparent render did not select compiler-owned component-range output:\n%s", response.Code)
 	}
@@ -941,6 +941,39 @@ func TestClientTransparentComponentUsesItsCompiledBoundaryRange(t *testing.T) {
 	}
 	if strings.Contains(static.Code, "createDynamicChild") || !strings.Contains(static.Code, "abi: 1") {
 		t.Fatalf("constant render retained unnecessary reactive work:\n%s", static.Code)
+	}
+}
+
+func TestClientComponentIndexesProvenPropsWithoutRewritingDynamicAccess(t *testing.T) {
+	source := `
+		export function Label(props: { title: string; [key: string]: unknown }) {
+			const key = "detail";
+			return () => <p>{props.title}{String(props[key])}</p>;
+		}
+	`
+	client := NewSession().Execute(Request{
+		ID: "indexed-props.tsx", Kind: "compile", Target: TargetClient, Source: source,
+	})
+	if client.Error != "" || len(client.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", client.Error, client.Diagnostics)
+	}
+	for _, expected := range []string{
+		`props: [`, `"title"`, `__exactReadState(props, 0) as string`, `props[key]`,
+	} {
+		if !strings.Contains(client.Code, expected) {
+			t.Fatalf("indexed client props are missing %q:\n%s", expected, client.Code)
+		}
+	}
+
+	server := NewSession().Execute(Request{
+		ID: "indexed-props.tsx", Kind: "compile", Target: TargetServer, Source: source,
+		ServerComponents: true,
+	})
+	if server.Error != "" || len(server.Diagnostics) != 0 {
+		t.Fatalf("server compile failed: %s %#v", server.Error, server.Diagnostics)
+	}
+	if strings.Contains(server.Code, `__exactReadState(props`) || strings.Contains(server.Code, `props: [`) {
+		t.Fatalf("server artifact retained client-only indexed props:\n%s", server.Code)
 	}
 }
 

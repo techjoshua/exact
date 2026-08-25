@@ -1,4 +1,5 @@
 import { indexedReactive, reactive, type Reactive, type ReactiveOptions } from '@exactjs/reactive';
+import { indexedReactiveCollectionProps } from '@exactjs/reactive/framework/indexed-collections';
 import {
 	registerCollectionComponentPropsFactory,
 	registerCollectionComponentStateFactory
@@ -14,5 +15,9 @@ const factory = <State extends object>(
 		: reactive({} as State, options);
 
 registerCollectionComponentStateFactory(factory);
-registerCollectionComponentPropsFactory((value, options) => reactive(value, options));
+registerCollectionComponentPropsFactory((value, indexedKeys, options) =>
+	indexedKeys?.length
+		? indexedReactiveCollectionProps<Record<string, unknown>>(indexedKeys, value, options)
+		: reactive(value, options)
+);
 registerGeneralReactiveFactory(reactive);

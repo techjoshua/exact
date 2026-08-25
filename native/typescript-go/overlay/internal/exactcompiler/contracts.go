@@ -202,6 +202,7 @@ type Component struct {
 	Interactions         bool                      `json:"-"`
 	DynamicComponents    bool                      `json:"-"`
 	StateSlots           []string                  `json:"-"`
+	PropsSlots           []string                  `json:"-"`
 	Collections          bool                      `json:"-"`
 	CompiledRender       bool                      `json:"-"`
 	ClientCompiledRender bool                      `json:"-"`
