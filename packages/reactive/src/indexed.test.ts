@@ -51,6 +51,21 @@ describe('indexed reactive state', () => {
 		expect('dynamic' in state).toBe(false);
 	});
 
+	it('shares compiler layouts without sharing instance-local dynamic fields', () => {
+		const keys = ['known'] as const;
+		const first = indexedReactive<{ known?: number; [key: string]: unknown }>(keys);
+		const second = indexedReactive<{ known?: number; [key: string]: unknown }>(keys);
+		first.known = 1;
+		second.known = 2;
+		first.dynamic = 'first';
+		second.dynamic = 'second';
+
+		expect(first).toEqual({ known: 1, dynamic: 'first' });
+		expect(second).toEqual({ known: 2, dynamic: 'second' });
+		delete first.dynamic;
+		expect(second.dynamic).toBe('second');
+	});
+
 	it('exposes one stable structural source for an indexed collection', () => {
 		const state = indexedReactive<{ items: string[] }>(['items']);
 		state.items = ['a'];
