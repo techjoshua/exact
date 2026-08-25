@@ -1440,6 +1440,16 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 		strings.Count(response.Code, `abi: 3`) != 1 {
 		t.Fatalf("component runtime ABI did not distinguish direct and lifecycle paths:\n%s", response.Code)
 	}
+	for _, expected := range []string{
+		`constructRenderComponentInstance as __exactConstructRenderComponent`,
+		`constructDurableComponentInstance as __exactConstructDurableComponent`,
+		`construct: __exactConstructRenderComponent`,
+		`construct: __exactConstructDurableComponent`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("component artifact did not select constructor %q:\n%s", expected, response.Code)
+		}
+	}
 	if !strings.Contains(response.Code, `registerComponentLifecycleHandler as __exactRegisterLifecycle`) ||
 		!strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount", () => undefined)`) ||
 		strings.Contains(response.Code, `"@exactjs/core/runtime/lifecycle"`) {
@@ -2425,6 +2435,15 @@ func TestSessionEmitsOnlyFiniteClientIslandForServerOwnedSetup(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "Panel_ExactClient_1") {
 		t.Fatalf("client artifact omitted the finite interactive island:\n%s", response.Code)
+	}
+	for _, expected := range []string{
+		"constructDurableComponentInstance as __exactConstructDurableComponent",
+		"construct: __exactConstructDurableComponent",
+		"abi: 9",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("client island omitted construction artifact %q:\n%s", expected, response.Code)
+		}
 	}
 	for _, forbidden := range []string{"node:private-data", "__exactActivateTask"} {
 		if strings.Contains(response.Code, forbidden) {

@@ -100,6 +100,10 @@
 			"types": "./dist/runtime/render.d.ts",
 			"default": "./dist/runtime/render.js"
 		},
+		"./runtime/component-construction": {
+			"types": "./dist/runtime/component-construction.d.ts",
+			"default": "./dist/runtime/component-construction.js"
+		},
 		"./runtime/reactivity": {
 			"types": "./dist/runtime/reactivity.d.ts",
 			"default": "./dist/runtime/reactivity.js"

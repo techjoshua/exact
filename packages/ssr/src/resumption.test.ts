@@ -10,6 +10,7 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
+import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction';
 import { computed } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import {
@@ -199,6 +200,7 @@ describe('@exactjs/ssr component resumption', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					construct: constructDurableComponentInstance,
 					abi: 14,
 					capabilities: ['interactions', 'tasks'] as const,
 					server: {
@@ -280,6 +282,7 @@ describe('@exactjs/ssr component resumption', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					construct: constructDurableComponentInstance,
 					abi: 14,
 					capabilities: ['interactions', 'tasks'] as const,
 					server: {

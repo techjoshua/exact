@@ -10,6 +10,9 @@ import {
 	type ExactCompiledComponentDefinitionContract,
 	type ExactComponentContract
 } from '../component-contracts.js';
+import { constructDurableComponentInstance } from '../component/durable-instance-construction.js';
+import type { CompiledComponentInstanceConstructor } from '../component/instance-construction.js';
+import { constructRenderComponentInstance } from '../component/render-instance-construction.js';
 
 type ContractComponent = AnyExactComponentCallable & {
 	[exactComponentContract]?: ExactComponentContract;
@@ -148,10 +151,15 @@ function runtimeBoundaryDefinition(
 	capabilities: ExactCompiledComponentDefinitionContract['capabilities'],
 	abi: number
 ): ExactCompiledComponentDefinitionContract {
+	const construct: CompiledComponentInstanceConstructor =
+		abi & generalComponentABI
+			? constructDurableComponentInstance
+			: constructRenderComponentInstance;
 	return {
 		version: 1,
 		abi,
 		instantiate: component,
+		construct,
 		state: [],
 		tasks: [],
 		reactive: [],

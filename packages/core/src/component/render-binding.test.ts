@@ -5,6 +5,7 @@ import { exactComponentContract, exactComponentType } from '../component-contrac
 import type { Component, ComponentFunction } from './contracts.js';
 import { renderInstance } from './render.js';
 import { createComponentInstance, createFrameworkFixtureComponentInstance } from './runtime.js';
+import { constructRenderComponentInstance } from './render-instance-construction.js';
 
 describe('component render binding', () => {
 	it('preserves the render arrow lexical receiver', () => {
@@ -61,6 +62,7 @@ describe('component render binding', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					construct: constructRenderComponentInstance,
 					abi: 1,
 					state: ['value'],
 					capabilities: []

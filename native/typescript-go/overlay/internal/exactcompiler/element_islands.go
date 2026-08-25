@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/printer"
 )
 
 type islandValueCapture struct {
@@ -66,8 +65,7 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 			lowering.clientDefinitions,
 			lowering.clientIslandDefinition(island),
 			lowering.factory.NewExpressionStatement(
-				clientIslandArtifactAttachment(
-					lowering.factory,
+				lowering.clientIslandArtifactAttachment(
 					lowering.factory.NewIdentifier(island.name),
 					island,
 				),
@@ -79,11 +77,11 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 // clientIslandArtifactAttachment gives compiler-synthesized island functions
 // the same executable authority as analyzed source components. An island is a
 // native component, not an identity-only exception to the artifact ABI.
-func clientIslandArtifactAttachment(
-	factory *printer.NodeFactory,
+func (lowering *jsxLowering) clientIslandArtifactAttachment(
 	implementation *ast.Node,
 	island clientElementIsland,
 ) *ast.Node {
+	factory := lowering.factory
 	state := []string{}
 	seenState := make(map[string]struct{})
 	for _, path := range island.statePaths {
@@ -98,6 +96,12 @@ func clientIslandArtifactAttachment(
 	capabilities := []string{}
 	if island.interaction {
 		capabilities = append(capabilities, "interactions")
+	}
+	abi := componentABICompiledRender
+	constructor := lowering.names.constructRenderComponent
+	if island.interaction {
+		abi |= componentABITasks
+		constructor = lowering.names.constructDurableComponent
 	}
 	role := "client-island"
 	contract := contractObject(factory, true,
@@ -118,6 +122,8 @@ func clientIslandArtifactAttachment(
 		contractProperty(factory, "definition", contractObject(factory, true,
 			contractProperty(factory, "version", contractNumber(factory, 1)),
 			contractProperty(factory, "instantiate", implementation),
+			contractProperty(factory, "construct", factory.NewIdentifier(constructor)),
+			contractProperty(factory, "abi", contractNumber(factory, abi)),
 			contractProperty(factory, "state", stringMetadata(factory, state)),
 			contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		)),

@@ -103,6 +103,8 @@ type jsxRuntimeNames struct {
 	interop                   string
 	timeActivation            string
 	createTimeActivation      string
+	constructRenderComponent  string
+	constructDurableComponent string
 	renderClosedSsr           string
 	renderClosedHydratableSsr string
 
@@ -142,6 +144,7 @@ const (
 	runtimeSSREnhancements          runtimeImportGroupID = "ssr-enhancements"
 	runtimeCompilerClosedSSR        runtimeImportGroupID = "compiler-closed-ssr"
 	runtimeServerRenderStructure    runtimeImportGroupID = "server-render-structure"
+	runtimeComponentConstruction    runtimeImportGroupID = "component-construction"
 )
 
 type runtimeImportGroup struct {
@@ -194,6 +197,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{id: runtimeLifecycle, module: "@exactjs/core/runtime/lifecycle"},
 		{id: runtimeComponentReactivity, module: "@exactjs/core/runtime/component-reactivity"},
 		{id: runtimeFrameworkLifecycle, module: "@exactjs/core/framework/component-lifecycle"},
+		{id: runtimeComponentConstruction, module: "@exactjs/core/runtime/component-construction"},
 		{id: runtimeServerComponentExecution, module: "@exactjs/core/framework/server-component-execution"},
 		{id: runtimeGenericSSRComponents, module: "@exactjs/ssr/runtime/generic-components"},
 		{id: runtimeSSRStructuralBoundaries, module: "@exactjs/ssr/runtime/structural-boundaries"},
@@ -271,6 +275,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
 		{"activateServerComponentTaskForHost", lowering.names.activateServerTask, runtimeServerComponentExecution},
 		{"createTimeActivation", lowering.names.createTimeActivation, runtimeTime},
+		{"constructRenderComponentInstance", lowering.names.constructRenderComponent, runtimeComponentConstruction},
+		{"constructDurableComponentInstance", lowering.names.constructDurableComponent, runtimeComponentConstruction},
 		{"bindCompiledProgramText", lowering.names.bindProgramText, runtimeRenderProgram},
 		{"bindCompiledProgramChild", lowering.names.bindProgramChild, runtimeRenderProgram},
 		{"bindCompiledProgramLists", lowering.names.bindProgramLists, runtimeRenderProgram},
@@ -856,6 +862,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		interop:                   allocate("__exactInteropComponent"),
 		timeActivation:            allocate("__exactTimeRange"),
 		createTimeActivation:      allocate("__exactCreateTimeActivation"),
+		constructRenderComponent:  allocate("__exactConstructRenderComponent"),
+		constructDurableComponent: allocate("__exactConstructDurableComponent"),
 		renderClosedSsr:           allocate("__exactRenderClosedSsr"),
 		renderClosedHydratableSsr: allocate("__exactRenderClosedHydratableSsr"),
 

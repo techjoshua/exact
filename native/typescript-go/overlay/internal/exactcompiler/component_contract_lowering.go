@@ -41,6 +41,10 @@ func lowerComponentContracts(
 
 	used := sourceIdentifiers(sourceFile)
 	descriptorName := allocateGeneratedName(used, "__exactComponentContract")
+	constructors := componentConstructorImports{
+		renderName:  allocateGeneratedName(used, "__exactConstructRenderComponent"),
+		durableName: allocateGeneratedName(used, "__exactConstructDurableComponent"),
+	}
 	statements := make(
 		[]*ast.Node,
 		0,
@@ -70,6 +74,7 @@ func lowerComponentContracts(
 							compatibility,
 							projection,
 							componentUpdates,
+							&constructors,
 						)...,
 					)
 					continue
@@ -91,6 +96,7 @@ func lowerComponentContracts(
 				compatibility,
 				projection,
 				componentUpdates,
+				&constructors,
 			)
 			if rootChanged {
 				statements = append(statements, updatedRoot)
@@ -152,8 +158,16 @@ func lowerComponentContracts(
 			emitContext,
 			descriptorName,
 		)
-		ordered := make([]*ast.Node, 0, len(statements)+len(updateDefinitions)+1)
+		constructorImport := constructors.declaration(factory)
+		capacity := len(statements) + len(updateDefinitions) + 1
+		if constructorImport != nil {
+			capacity++
+		}
+		ordered := make([]*ast.Node, 0, capacity)
 		ordered = append(ordered, statements[:insertionIndex]...)
+		if constructorImport != nil {
+			ordered = append(ordered, constructorImport)
+		}
 		ordered = append(ordered, descriptor)
 		ordered = append(ordered, updateDefinitions...)
 		ordered = append(ordered, statements[insertionIndex:]...)
@@ -166,6 +180,61 @@ func lowerComponentContracts(
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
 	return result
+}
+
+type componentConstructorImports struct {
+	renderName  string
+	durableName string
+	renderUsed  bool
+	durableUsed bool
+}
+
+func (imports *componentConstructorImports) selectConstructor(
+	factory *printer.NodeFactory,
+	abi int,
+) *ast.Node {
+	if abi&(componentABILifecycle|componentABILists|componentABITasks) == 0 {
+		imports.renderUsed = true
+		return factory.NewIdentifier(imports.renderName)
+	}
+	imports.durableUsed = true
+	return factory.NewIdentifier(imports.durableName)
+}
+
+func (imports *componentConstructorImports) declaration(factory *printer.NodeFactory) *ast.Node {
+	specifiers := []*ast.Node{}
+	if imports.renderUsed {
+		specifiers = append(specifiers, factory.NewImportSpecifier(
+			false,
+			factory.NewIdentifier("constructRenderComponentInstance"),
+			factory.NewIdentifier(imports.renderName),
+		))
+	}
+	if imports.durableUsed {
+		specifiers = append(specifiers, factory.NewImportSpecifier(
+			false,
+			factory.NewIdentifier("constructDurableComponentInstance"),
+			factory.NewIdentifier(imports.durableName),
+		))
+	}
+	if len(specifiers) == 0 {
+		return nil
+	}
+	declaration := factory.NewImportDeclaration(
+		nil,
+		factory.NewImportClause(
+			ast.KindUnknown,
+			nil,
+			factory.NewNamedImports(factory.NewNodeList(specifiers)),
+		),
+		factory.NewStringLiteral(
+			"@exactjs/core/runtime/component-construction",
+			ast.TokenFlagsNone,
+		),
+		nil,
+	)
+	ast.SetParentInChildren(declaration)
+	return declaration
 }
 
 func extractComponentUpdateDefinitions(
@@ -243,6 +312,7 @@ func wrapRootComponentFunction(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	constructors *componentConstructorImports,
 ) []*ast.Node {
 	if !preserveComponentHoisting {
 		return wrapRootComponentFunctionValue(
@@ -259,6 +329,7 @@ func wrapRootComponentFunction(
 			compatibility,
 			projection,
 			componentUpdates,
+			constructors,
 		)
 	}
 	factory := emitContext.Factory
@@ -280,6 +351,7 @@ func wrapRootComponentFunction(
 		compatibility,
 		projection,
 		componentUpdates,
+		constructors,
 	)
 	attachmentStatement := factory.NewExpressionStatement(attachment)
 	return []*ast.Node{declaration.AsNode(), attachmentStatement}
@@ -299,6 +371,7 @@ func wrapRootComponentFunctionValue(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	constructors *componentConstructorImports,
 ) []*ast.Node {
 	factory := emitContext.Factory
 	name := declaration.Name()
@@ -344,6 +417,7 @@ func wrapRootComponentFunctionValue(
 		compatibility,
 		projection,
 		componentUpdates,
+		constructors,
 	)
 	implementationDeclaration := factory.NewVariableStatement(
 		nil,
@@ -415,6 +489,7 @@ func rootComponentContractAttachment(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	constructors *componentConstructorImports,
 ) *ast.Node {
 	factory := emitContext.Factory
 	implementationName := component.Name
@@ -506,6 +581,14 @@ func rootComponentContractAttachment(
 	if target == TargetServer && hasResumption && len(componentContinuations) != 0 {
 		serverPublicationName = component.Name
 	}
+	runtimeABI := componentRuntimeABI(
+		component,
+		projectedExecution,
+		hasLifecycle,
+		hasInteractions,
+		usesCompatibility,
+		compiledRender,
+	)
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -536,6 +619,7 @@ func rootComponentContractAttachment(
 			componentDefinitionMetadata(
 				factory,
 				implementation,
+				constructors.selectConstructor(factory, runtimeABI),
 				projectedExecution,
 				component.TargetPlan.DeferredTaskProps,
 				component.StateSlots,
@@ -547,14 +631,7 @@ func rootComponentContractAttachment(
 				usesCompatibility,
 				component.DynamicComponents,
 				component.Collections,
-				componentRuntimeABI(
-					component,
-					projectedExecution,
-					hasLifecycle,
-					hasInteractions,
-					usesCompatibility,
-					compiledRender,
-				),
+				runtimeABI,
 				unsupportedServerSurface,
 				component.TargetPlan.DirectServer,
 				target == TargetServer,
@@ -745,6 +822,7 @@ func wrapRootComponentVariables(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	constructors *componentConstructorImports,
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
@@ -799,6 +877,7 @@ func wrapRootComponentVariables(
 			compatibility,
 			projection,
 			componentUpdates,
+			constructors,
 		)
 		body := factory.NewBlock(
 			factory.NewNodeList([]*ast.Node{

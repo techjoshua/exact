@@ -14,6 +14,8 @@ import {
 	createFrameworkFixtureComponentInstance
 } from './runtime.js';
 import { RenderComponentInstance } from './render-instance.js';
+import { constructRenderComponentInstance } from './render-instance-construction.js';
+import { constructDurableComponentInstance } from './durable-instance-construction.js';
 
 describe('compiled component capability construction', () => {
 	it('releases component-owned resources with the durable instance', () => {
@@ -58,6 +60,7 @@ describe('compiled component capability construction', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					construct: constructRenderComponentInstance,
 					abi: 0,
 					state: [],
 					tasks: [],
@@ -131,6 +134,7 @@ describe('compiled component capability construction', () => {
 				definition: {
 					version: 1 as const,
 					instantiate: implementation,
+					construct: constructDurableComponentInstance,
 					abi: 8,
 					state: [],
 					tasks: ['setup'],

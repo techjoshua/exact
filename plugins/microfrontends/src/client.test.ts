@@ -8,10 +8,11 @@ import {
 	type Component
 } from '@exactjs/core';
 import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exactjs/dom';
+import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { getHydrationRoot, type CoreHydrationRoot, type ExactClient } from '@exactjs/hydrate';
 import { createTestVNode } from '@exactjs/testing/internal/fixtures';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
 	loadExactRemoteModule,
 	registerExactRemoteClientBindings,
@@ -35,6 +36,7 @@ function remoteBrand(name: string): string {
     definition: {
       version: 1,
       instantiate: ${name},
+      construct: globalThis.__exactConstructDurableComponent,
       abi: 8,
       state: [],
       tasks: [],
@@ -203,7 +205,12 @@ function stubUnsupportedBuild(): void {
 }
 
 describe('RemoteComponent', () => {
-	beforeAll(() => registerExactRemoteClientBindings(bindings));
+	beforeAll(() => {
+		(globalThis as Record<string, unknown>).__exactConstructDurableComponent =
+			constructDurableComponentInstance;
+		registerExactRemoteClientBindings(bindings);
+	});
+	afterAll(() => delete (globalThis as Record<string, unknown>).__exactConstructDurableComponent);
 	afterEach(() => {
 		delete (globalThis as Record<string, unknown>).__exactCreateVNode;
 		vi.unstubAllGlobals();
