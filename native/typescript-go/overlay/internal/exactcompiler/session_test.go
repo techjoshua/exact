@@ -2621,7 +2621,7 @@ __fixtureTask0();
 		`__exactSlot === 0 ? __exactReadState(this.state, 0)`,
 		`?? ""`,
 		`readonly currentTarget: HTMLInputElement`,
-		`=> __exactWrite(this.state, ["name"], () => event.currentTarget.value as any)`,
+		`=> __exactWriteState(this.state, 0, () => event.currentTarget.value as any)`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -2636,6 +2636,31 @@ __fixtureTask0();
 			"authored form-binding namespace escaped into client output:\n%s",
 			client.Code,
 		)
+	}
+}
+
+func TestSessionRetainsPathWriteForNestedFormBinding(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "profile.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			export function Profile(this: Component<{ profile: { name: string } }>) {
+				return () => <input value:onInput={this.state.profile.name} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(
+		response.Code,
+		`__exactWrite(this.state, ["profile", "name"], () => event.currentTarget.value as any)`,
+	) {
+		t.Fatalf("nested form binding lost its path write:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "__exactWriteState") {
+		t.Fatalf("nested form binding incorrectly used a top-level indexed slot:\n%s", response.Code)
 	}
 }
 

@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
@@ -17,8 +18,47 @@ type formBinding struct {
 	target     *ast.Node
 	option     *ast.Node
 	targetPath []string
+	stateSlot  int
+	indexed    bool
 	start      int
 	length     int
+}
+
+// attachFormBindingStateSlots preserves the authored component's storage identity before form
+// handlers move into generated client islands. Generated AST ancestry cannot recover this proof.
+func attachFormBindingStateSlots(
+	bindings map[int]formBinding,
+	reads []StateRead,
+	components []Component,
+) {
+	slotsByComponent := make(map[string]map[string]int, len(components))
+	for _, component := range components {
+		slots := make(map[string]int, len(component.StateSlots))
+		for slot, key := range component.StateSlots {
+			slots[key] = slot
+		}
+		slotsByComponent[component.Name] = slots
+	}
+	for position, binding := range bindings {
+		if len(binding.targetPath) != 1 {
+			continue
+		}
+		for _, read := range reads {
+			if read.Start != binding.target.Pos() ||
+				read.Length != binding.target.End()-binding.target.Pos() ||
+				read.Confidence != "exact" || len(read.Path) != 1 {
+				continue
+			}
+			slot, exists := slotsByComponent[read.Component][binding.targetPath[0]]
+			if !exists {
+				break
+			}
+			binding.stateSlot = slot
+			binding.indexed = true
+			bindings[position] = binding
+			break
+		}
+	}
 }
 
 // analyzeFormBindings validates namespaced native-control bindings once, before
@@ -863,11 +903,20 @@ func (lowering *jsxLowering) formBindingUpdate(
 	value *ast.Node,
 ) *ast.Node {
 	if len(binding.targetPath) != 0 {
+		name := lowering.names.write
+		reference := lowering.statePath(binding.targetPath)
+		if lowering.target == TargetClient && binding.indexed {
+			name = lowering.names.writeState
+			reference = lowering.factory.NewNumericLiteral(
+				fmt.Sprintf("%d", binding.stateSlot),
+				ast.TokenFlagsNone,
+			)
+		}
 		return lowering.call(
-			lowering.names.write,
+			name,
 			[]*ast.Node{
 				lowering.stateRoot(),
-				lowering.statePath(binding.targetPath),
+				reference,
 				lowering.arrow(value),
 			},
 		)

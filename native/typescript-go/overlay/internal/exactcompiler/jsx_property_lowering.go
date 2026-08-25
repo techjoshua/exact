@@ -636,11 +636,17 @@ func (lowering *jsxLowering) componentBindingProperties(
 ) []*ast.Node {
 	target := lowering.visitor.VisitNode(binding.target)
 	next := lowering.factory.NewIdentifier("__exactBindingValue")
-	write := lowering.call(
+	name, reference := lowering.stateWriteReference(
+		binding.target,
+		binding.write,
 		lowering.names.write,
+		lowering.names.writeState,
+	)
+	write := lowering.call(
+		name,
 		[]*ast.Node{
 			lowering.stateWriteRoot(binding.write),
-			lowering.stateWritePathNode(binding.write),
+			reference,
 			lowering.arrow(next),
 		},
 	)
