@@ -46,6 +46,7 @@ type jsxLowering struct {
 	recordedClientIslands        map[string]struct{}
 	serverTaskSlices             map[string]string
 	captureValues                map[ast.SymbolId]string
+	clientIslandPropsSlots       map[string]int
 	interop                      *JSXInterop
 	materializedNames            map[int]string
 	cachedDerivedNames           map[int]string

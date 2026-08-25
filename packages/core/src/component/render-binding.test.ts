@@ -65,6 +65,7 @@ describe('component render binding', () => {
 					construct: constructRenderComponentInstance,
 					abi: 1,
 					state: ['value'],
+					props: [],
 					capabilities: []
 				}
 			}

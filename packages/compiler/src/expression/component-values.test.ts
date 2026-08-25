@@ -116,7 +116,7 @@ describe('@exactjs/compiler: component values', () => {
 
 		expect(output).not.toContain('createDynamicChild');
 		expect(output).not.toContain('createCompiledComponentOutput');
-		expect(output).toContain('return () => props.children');
+		expect(output).toContain('return () => __exactReadState(props, 0) as string | undefined');
 		expect(output).toContain('abi: 32');
 
 		const constant = transform('export function Empty() { return () => null; }', {

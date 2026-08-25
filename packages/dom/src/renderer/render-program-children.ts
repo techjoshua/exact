@@ -4,7 +4,12 @@ import {
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/runtime/render';
 import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
-import { peek, withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
+import {
+	peek,
+	trackCollectionStructure,
+	withEffectScope,
+	type EffectScope
+} from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../placement.js';
 import { getListBinding } from '../children.js';
 import type { Mounted, RenderProgramChildAnchor } from '../types.js';
@@ -331,11 +336,9 @@ function readProgramChildren(
 		const list = vnode ? getListBinding(vnode) : undefined;
 		if (list) {
 			// The compiler-owned lane replaces the Fragment's generic list watcher. Observe the
-			// collection reference here so in-place reactive mutations schedule this grouped lane.
+			// replacement source and current collection structure without walking every item.
 			const collection = list.source?.get() ?? list.collection;
-			for (const _item of collection) {
-				// Iteration records the collection's structural dependency without allocating a copy.
-			}
+			trackCollectionStructure(collection as object);
 			owned.push({
 				...vnode!,
 				props: { ...vnode!.props, __exactProgramList: true }

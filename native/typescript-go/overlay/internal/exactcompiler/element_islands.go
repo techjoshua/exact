@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
@@ -34,6 +35,7 @@ type clientElementIsland struct {
 	id               string
 	name             string
 	statePaths       [][]string
+	propsSlots       []string
 	interaction      bool
 	activation       ActivationDecision
 	serverSlot       bool
@@ -61,6 +63,7 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 			continue
 		}
 		lowering.recordedClientIslands[island.id] = struct{}{}
+		island.propsSlots = lowering.clientIslandPropsLayout(island)
 		lowering.clientDefinitions = append(
 			lowering.clientDefinitions,
 			lowering.clientIslandDefinition(island),
@@ -82,17 +85,10 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 	island clientElementIsland,
 ) *ast.Node {
 	factory := lowering.factory
-	state := []string{}
-	seenState := make(map[string]struct{})
-	for _, path := range island.statePaths {
-		if len(path) == 0 {
-			continue
-		}
-		if _, exists := seenState[path[0]]; !exists {
-			seenState[path[0]] = struct{}{}
-			state = append(state, path[0])
-		}
-	}
+	// Generated island reads and form bindings retain the parent component's
+	// compiler-assigned indexes. The request snapshot may contain only the
+	// island's required paths, but its storage layout must preserve those indexes.
+	state := append([]string(nil), island.component.StateSlots...)
 	capabilities := []string{}
 	if island.interaction {
 		capabilities = append(capabilities, "interactions")
@@ -125,6 +121,7 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 			contractProperty(factory, "construct", factory.NewIdentifier(constructor)),
 			contractProperty(factory, "abi", contractNumber(factory, abi)),
 			contractProperty(factory, "state", stringMetadata(factory, state)),
+			contractProperty(factory, "props", stringMetadata(factory, island.propsSlots)),
 			contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		)),
 	)
@@ -160,6 +157,11 @@ func (lowering *jsxLowering) clientIslandDefinition(
 	island clientElementIsland,
 ) *ast.Node {
 	previousCaptures := lowering.captureValues
+	previousPropsSlots := lowering.clientIslandPropsSlots
+	lowering.clientIslandPropsSlots = make(map[string]int, len(island.propsSlots))
+	for slot, key := range island.propsSlots {
+		lowering.clientIslandPropsSlots[key] = slot
+	}
 	lowering.captureValues = make(map[ast.SymbolId]string)
 	for _, capture := range island.valueCaptures {
 		lowering.captureValues[capture.symbol] = capture.name
@@ -207,32 +209,30 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
 		lowering.factory.NewObjectLiteralExpression(nil, false),
 	)
-	stateInput := lowering.factory.NewPropertyAccessExpression(
-		props,
-		nil,
-		lowering.factory.NewIdentifier("__exactState"),
-		ast.NodeFlagsNone,
-	)
-	assignState := lowering.factory.NewCallExpression(
-		lowering.factory.NewPropertyAccessExpression(
-			lowering.factory.NewIdentifier("Object"),
+	var stateInitialization *ast.Node
+	if len(island.statePaths) != 0 {
+		stateInput := lowering.clientIslandPropsRead(props, "__exactState")
+		assignState := lowering.factory.NewCallExpression(
+			lowering.factory.NewPropertyAccessExpression(
+				lowering.factory.NewIdentifier("Object"),
+				nil,
+				lowering.factory.NewIdentifier("assign"),
+				ast.NodeFlagsNone,
+			),
 			nil,
-			lowering.factory.NewIdentifier("assign"),
+			nil,
+			lowering.factory.NewNodeList([]*ast.Node{
+				lowering.stateRoot(),
+				stateInput,
+			}),
 			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		lowering.factory.NewNodeList([]*ast.Node{
-			lowering.stateRoot(),
+		)
+		stateInitialization = lowering.factory.NewIfStatement(
 			stateInput,
-		}),
-		ast.NodeFlagsNone,
-	)
-	stateInitialization := lowering.factory.NewIfStatement(
-		stateInput,
-		lowering.factory.NewExpressionStatement(assignState),
-		nil,
-	)
+			lowering.factory.NewExpressionStatement(assignState),
+			nil,
+		)
+	}
 
 	var opening *ast.Node
 	var children *ast.NodeList
@@ -283,12 +283,7 @@ func (lowering *jsxLowering) clientIslandDefinition(
 	if island.serverSlot {
 		arguments = append(
 			arguments,
-			lowering.factory.NewPropertyAccessExpression(
-				props,
-				nil,
-				lowering.factory.NewIdentifier("children"),
-				ast.NodeFlagsNone,
-			),
+			lowering.clientIslandPropsRead(props, "children"),
 		)
 	} else {
 		arguments = append(arguments, lowering.children(children)...)
@@ -297,7 +292,11 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		lowering.call(renderHelper, arguments),
 	)
 	lowering.captureValues = previousCaptures
-	bodyStatements := []*ast.Node{stateInitialization}
+	lowering.clientIslandPropsSlots = previousPropsSlots
+	bodyStatements := []*ast.Node{}
+	if stateInitialization != nil {
+		bodyStatements = append(bodyStatements, stateInitialization)
+	}
 	bodyStatements = append(bodyStatements, derivedValues...)
 	bodyStatements = append(bodyStatements, capturedFunctions...)
 	if island.hasSpread {
@@ -443,11 +442,9 @@ func (lowering *jsxLowering) clientIslandCaptureReference(
 		return nil
 	}
 	return lowering.factory.NewPropertyAccessExpression(
-		lowering.factory.NewPropertyAccessExpression(
+		lowering.clientIslandPropsRead(
 			lowering.factory.NewIdentifier("props"),
-			nil,
-			lowering.factory.NewIdentifier("__exactCapture"),
-			ast.NodeFlagsNone,
+			"__exactCapture",
 		),
 		nil,
 		lowering.factory.NewIdentifier(name),
@@ -480,9 +477,11 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 		if ast.IsJsxSpreadAttribute(property) {
 			if members, finite := island.finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {
-					value := lowering.propertyAccess(props, member.name)
+					var value *ast.Node
 					if interactiveJSXAttribute(member.name) {
 						value = lowering.finiteSpreadPropertyValue(&member)
+					} else {
+						value = lowering.clientIslandPropsRead(props, member.name)
 					}
 					properties = append(properties, lowering.property(
 						jsxPropertyName(lowering.factory, member.name), value,
@@ -533,7 +532,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 			lowering.clientIslandAttributeReadsState(island, attribute.Initializer.AsJsxExpression().Expression) {
 			value = lowering.jsxAttributeInitializer(attribute, tag, name, true)
 		} else {
-			value = lowering.propertyAccess(props, name)
+			value = lowering.clientIslandPropsRead(props, name)
 		}
 		properties = append(
 			properties,
@@ -541,6 +540,77 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 		)
 	}
 	return properties
+}
+
+// clientIslandPropsRead emits the direct numeric read selected by the generated island layout.
+func (lowering *jsxLowering) clientIslandPropsRead(props *ast.Node, key string) *ast.Node {
+	slot, exists := lowering.clientIslandPropsSlots[key]
+	if !exists {
+		panic("generated client island read missing props slot: " + key)
+	}
+	return lowering.call(lowering.names.readState, []*ast.Node{
+		props,
+		lowering.factory.NewNumericLiteral(strconv.Itoa(slot), ast.TokenFlagsNone),
+	})
+}
+
+// clientIslandPropsLayout records every statically addressed input of one synthesized component.
+// Opaque spreads remain enumerable through the facade, while all named reads bypass its proxy trap.
+func (lowering *jsxLowering) clientIslandPropsLayout(island clientElementIsland) []string {
+	keys := make(map[string]struct{})
+	add := func(key string) { keys[key] = struct{}{} }
+	if len(island.statePaths) != 0 {
+		add("__exactState")
+	}
+	if len(island.valueCaptures) != 0 {
+		add("__exactCapture")
+	}
+	if island.serverSlot {
+		add("children")
+	}
+	var opening *ast.Node
+	switch {
+	case ast.IsJsxElement(island.node):
+		opening = island.node.AsJsxElement().OpeningElement
+	case ast.IsJsxSelfClosingElement(island.node):
+		opening = island.node
+	}
+	if opening != nil && opening.Attributes() != nil {
+		attributes := opening.Attributes()
+		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+			if ast.IsJsxSpreadAttribute(property) {
+				for _, member := range island.finiteSpreads[property.Pos()] {
+					if !interactiveJSXAttribute(member.name) {
+						add(member.name)
+					}
+				}
+				continue
+			}
+			attribute := property.AsJsxAttribute()
+			name := jsxAttributeText(attribute.Name())
+			if name == "ref" || interactiveJSXAttribute(name) {
+				continue
+			}
+			if attribute.Initializer != nil && ast.IsJsxExpression(attribute.Initializer) {
+				expression := attribute.Initializer.AsJsxExpression().Expression
+				if expression != nil {
+					if binding, exists := lowering.formBindings[expression.Pos()]; exists && binding.name == name {
+						continue
+					}
+					if lowering.clientIslandAttributeReadsState(island, expression) {
+						continue
+					}
+				}
+			}
+			add(name)
+		}
+	}
+	result := make([]string, 0, len(keys))
+	for key := range keys {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func (lowering *jsxLowering) clientIslandAttributeReadsState(
@@ -956,7 +1026,7 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 			if !classNameEmitted {
 				properties = append(properties, lowering.property(
 					lowering.factory.NewIdentifier("className"),
-					lowering.lowerClassNameValue(attributes, false),
+					lowering.lowerClassNameValue(attributes, false, false),
 				))
 				classNameEmitted = true
 			}

@@ -31,6 +31,8 @@ describe('component contract validation', () => {
 			instantiate,
 			construct: instantiate,
 			abi: 0,
+			state: [],
+			props: [],
 			capabilities: [],
 			server: {
 				version: 1,
@@ -52,6 +54,18 @@ describe('component contract validation', () => {
 		};
 
 		expect(isExactComponentContract(contract, componentId)).toBe(true);
+		expect(
+			isExactComponentContract(
+				{ ...contract, definition: { ...definition, state: undefined } },
+				componentId
+			)
+		).toBe(false);
+		expect(
+			isExactComponentContract(
+				{ ...contract, definition: { ...definition, props: undefined } },
+				componentId
+			)
+		).toBe(false);
 		expect(
 			isExactComponentContract(
 				{

@@ -247,6 +247,8 @@ describe('@exactjs/core component contracts', () => {
 					instantiate: implementation,
 					construct,
 					abi: lane === 'direct' ? 9 : 8,
+					state: [],
+					props: [],
 					capabilities: [],
 					server
 				}
@@ -328,6 +330,8 @@ describe('@exactjs/core component contracts', () => {
 					instantiate,
 					construct,
 					abi: 0,
+					state: [],
+					props: [],
 					capabilities: [],
 					updates: { bindings: [['count', 1, 0]], apply() {} }
 				}
@@ -364,6 +368,8 @@ describe('@exactjs/core component contracts', () => {
 					instantiate,
 					construct,
 					abi: 0,
+					state: [],
+					props: [],
 					capabilities: [],
 					updates
 				}

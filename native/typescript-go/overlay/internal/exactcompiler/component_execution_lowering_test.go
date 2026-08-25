@@ -972,8 +972,10 @@ func TestClientComponentIndexesProvenPropsWithoutRewritingDynamicAccess(t *testi
 	if server.Error != "" || len(server.Diagnostics) != 0 {
 		t.Fatalf("server compile failed: %s %#v", server.Error, server.Diagnostics)
 	}
-	if strings.Contains(server.Code, `__exactReadState(props`) || strings.Contains(server.Code, `props: [`) {
-		t.Fatalf("server artifact retained client-only indexed props:\n%s", server.Code)
+	if strings.Contains(server.Code, `__exactReadState(props`) ||
+		!strings.Contains(server.Code, `props: [`) ||
+		!strings.Contains(server.Code, `"title"`) {
+		t.Fatalf("server artifact did not retain its compiler-owned props layout:\n%s", server.Code)
 	}
 }
 

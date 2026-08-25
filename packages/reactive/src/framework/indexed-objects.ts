@@ -10,11 +10,5 @@ export function indexedReactiveObjects<T extends object>(
 	initial?: T,
 	preserveReactiveValues = false
 ): Reactive<T> {
-	return createIndexedReactive<T>(
-		keys,
-		options,
-		reactiveObjects,
-		initial,
-		preserveReactiveValues
-	);
+	return createIndexedReactive<T>(keys, options, reactiveObjects, initial, preserveReactiveValues);
 }

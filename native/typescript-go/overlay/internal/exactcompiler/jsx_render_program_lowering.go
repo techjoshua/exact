@@ -898,7 +898,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 					path,
 					node,
 					"className",
-					lowering.lowerClassNameValue(attributes, false),
+					lowering.lowerClassNameValue(attributes, false, true),
 				)
 				classNameEmitted = true
 			}

@@ -202,6 +202,8 @@ describe('@exactjs/ssr component resumption', () => {
 					instantiate: implementation,
 					construct: constructDurableComponentInstance,
 					abi: 14,
+					state: ['count'],
+					props: [],
 					capabilities: ['interactions', 'tasks'] as const,
 					server: {
 						version: 1 as const,
@@ -284,6 +286,8 @@ describe('@exactjs/ssr component resumption', () => {
 					instantiate: implementation,
 					construct: constructDurableComponentInstance,
 					abi: 14,
+					state: ['count'],
+					props: [],
 					capabilities: ['interactions', 'tasks'] as const,
 					server: {
 						version: 1 as const,

@@ -60,6 +60,7 @@ function fixtureDefinition(component: (...args: any[]) => any) {
 		construct: constructDurableComponentInstance,
 		abi: 8,
 		state: [],
+		props: [],
 		tasks: [],
 		reactive: [],
 		render: 'returned-function' as const,

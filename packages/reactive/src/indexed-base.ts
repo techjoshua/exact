@@ -1,6 +1,12 @@
 import { proxyMarker, rawTarget } from './internal/symbols.js';
-import type { Reactive, ReactiveOptions } from './internal/types.js';
-import { batch, hasActiveTransaction, recordTransactionUndo, track, trigger } from './internal/deps.js';
+import type { Reactive, ReactiveOptions, ReactiveRef } from './internal/types.js';
+import {
+	batch,
+	hasActiveTransaction,
+	recordTransactionUndo,
+	track,
+	trigger
+} from './internal/deps.js';
 import { hasChanged, isReactiveContainer } from './change-detection.js';
 import { isReactiveValue, unwrap } from './internal/values.js';
 
@@ -11,8 +17,9 @@ type IndexedRecord = {
 	readonly initialized: boolean[];
 	readonly target: Record<PropertyKey, unknown>;
 	readonly options: ReactiveOptions;
-	readonly wrap: (value: object, options: ReactiveOptions) => object;
+	readonly wrap: (value: object, options: ReactiveOptions, parentSource?: ReactiveRef) => object;
 	readonly preserveReactiveValues: boolean;
+	sources?: ReactiveRef[];
 };
 
 type IndexedLayout = Readonly<{
@@ -37,17 +44,13 @@ const indexedLayouts = new WeakMap<object, IndexedLayout>();
 export function createIndexedReactive<T extends object>(
 	keys: readonly PropertyKey[],
 	options: ReactiveOptions,
-	wrap: (value: object, options: ReactiveOptions) => object,
+	wrap: (value: object, options: ReactiveOptions, parentSource?: ReactiveRef) => object,
 	initial?: T,
 	preserveReactiveValues = false
 ): Reactive<T> {
 	const layout = indexedLayout(keys);
 	const target: Record<PropertyKey, unknown> = {};
 	const initialized = new Array<boolean>(layout.keys.length).fill(false);
-	const read = (key: PropertyKey, index: number) => {
-		track(target, index);
-		return readIndexedValue(record, key);
-	};
 	const record: IndexedRecord = {
 		layout,
 		initialized,
@@ -63,7 +66,9 @@ export function createIndexedReactive<T extends object>(
 			if (key === proxyMarker) return true;
 			if (key === rawTarget) return target;
 			const index = indexedRecordIndex(record, key);
-			return index === undefined ? Reflect.get(target, key, receiver) : read(key, index);
+			return index === undefined
+				? Reflect.get(target, key, receiver)
+				: readIndexedValue(record, key, index, 'facade');
 		},
 		set(_target, key, next) {
 			if (options.readonly) {
@@ -138,14 +143,13 @@ export function readReactiveOwnProperty(
 /** Reads one compiler-proven top-level slot without entering the facade's property trap. */
 export function readIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'read');
-	track(indexed.target, index);
-	return readIndexedValue(indexed, indexedRecordKey(indexed, index));
+	return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'direct');
 }
 
 /** Reads one compiler-proven slot without collecting a dependency. */
 export function peekIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'peek');
-	return readIndexedValue(indexed, indexedRecordKey(indexed, index));
+	return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'peek');
 }
 
 /** Commits one compiler-proven slot without entering the facade's proxy traps. */
@@ -175,7 +179,7 @@ function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown
 		raw &&
 		typeof raw === 'object' &&
 		isReactiveContainer(raw)
-			? indexed.wrap(raw as object, indexed.options)
+			? indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index))
 			: raw;
 	const wasInitialized = indexed.initialized[index] === true;
 	if (wasInitialized && !hasChanged(previous, value)) return true;
@@ -217,31 +221,57 @@ function seedIndexedRecord(indexed: IndexedRecord, initial: object): void {
 			raw &&
 			typeof raw === 'object' &&
 			isReactiveContainer(raw)
-				? indexed.wrap(raw as object, indexed.options)
+				? indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index))
 				: raw;
 		indexed.initialized[index] = true;
 	}
 }
 
-function retainedIndexedValue(
-	indexed: IndexedRecord,
-	key: PropertyKey,
-	value: unknown
-): unknown {
+function retainedIndexedValue(indexed: IndexedRecord, key: PropertyKey, value: unknown): unknown {
 	if (indexed.options.passthroughKeys?.includes(key)) return value;
 	if (indexed.preserveReactiveValues && isReactiveValue(value)) return value;
 	return unwrap(value);
 }
 
-function readIndexedValue(indexed: IndexedRecord, key: PropertyKey): unknown {
+function readIndexedValue(
+	indexed: IndexedRecord,
+	key: PropertyKey,
+	index: number,
+	mode: 'facade' | 'direct' | 'peek'
+): unknown {
 	const current = indexed.target[key];
-	if (indexed.options.passthroughKeys?.includes(key)) return current;
-	if (!indexed.preserveReactiveValues || !isReactiveValue(current)) return current;
-	const value = current.get();
+	if (indexed.options.passthroughKeys?.includes(key)) {
+		if (mode !== 'peek') track(indexed.target, index);
+		return current;
+	}
+	const value =
+		indexed.preserveReactiveValues && isReactiveValue(current) ? current.get() : current;
 	const raw = unwrap(value);
-	return raw && typeof raw === 'object' && isReactiveContainer(raw)
-		? indexed.wrap(raw as object, indexed.options)
-		: raw;
+	if (raw && typeof raw === 'object' && isReactiveContainer(raw)) {
+		if (mode === 'direct') track(indexed.target, index);
+		return indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index));
+	}
+	if (mode !== 'peek') track(indexed.target, index);
+	return raw;
+}
+
+/** Stable parent dependency used by nested proxies without subscribing a reader that only forwards them. */
+function indexedParentSource(indexed: IndexedRecord, index: number): ReactiveRef {
+	const sources = (indexed.sources ??= []);
+	const existing = sources[index];
+	if (existing) return existing;
+	const source: ReactiveRef = {
+		target: indexed.target,
+		key: index,
+		get() {
+			return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'direct');
+		},
+		set(value: unknown) {
+			writeIndexedRecord(indexed, index, value);
+		}
+	};
+	sources[index] = source;
+	return source;
 }
 
 function deleteIndexedRecord(indexed: IndexedRecord, index: number): boolean {

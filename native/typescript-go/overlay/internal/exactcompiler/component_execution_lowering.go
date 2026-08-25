@@ -203,9 +203,7 @@ func componentDefinitionMetadata(
 		contractProperty(factory, "abi", contractNumber(factory, runtimeABI)),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		contractProperty(factory, "state", stringMetadata(factory, state)),
-	}
-	if len(props) != 0 {
-		properties = append(properties, contractProperty(factory, "props", stringMetadata(factory, props)))
+		contractProperty(factory, "props", stringMetadata(factory, props)),
 	}
 	if updates != nil {
 		properties = append(properties, contractProperty(factory, "updates", updates))

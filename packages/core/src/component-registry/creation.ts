@@ -175,6 +175,7 @@ function attachRegistryFacadeArtifact(
 			construct: constructRenderComponentInstance,
 			abi: compiledComponentRenderABI,
 			state: Object.freeze([]),
+			props: Object.freeze([]),
 			tasks: Object.freeze([]),
 			reactive: Object.freeze([]),
 			render: 'returned-function',

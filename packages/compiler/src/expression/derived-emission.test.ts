@@ -163,9 +163,9 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).not.toContain('createDerived');
-		expect(output).toContain(
-			'const __exact_fullName_1 = `${props.user.first} ${props.user.last}`;'
-		);
+		expect(output).toContain('const __exact_fullName_1 = `${(__exactReadState(props, 0) as {');
+		expect(output).toContain('}).first} ${(__exactReadState(props, 0) as {');
+		expect(output).toContain('}).last}`;');
 		expect(output).toContain('return __exact_fullName_1;');
 	});
 
@@ -177,7 +177,7 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		const conditional = output.indexOf('props.user ?');
+		const conditional = output.indexOf('__exactReadState(props, 0)');
 		const materializedName = output.indexOf('const __exact_name_1 =', conditional);
 		const nestedReturn = output.indexOf('return __exact_name_1;', materializedName);
 		expect(conditional).toBeGreaterThan(-1);
@@ -260,11 +260,15 @@ describe('@exactjs/compiler: derived values', () => {
 
 		expect(output).not.toContain('createDerived');
 		expect(output).not.toContain('const values =');
-		expect(output).toContain('const __exact_values_1 = new Set(props.values ?? []);');
+		expect(output).toContain(
+			'const __exact_values_1 = new Set(__exactReadState(props, 1) as string[] | undefined ?? []);'
+		);
 		expect(output).not.toContain('const count =');
 		expect(output).not.toContain('const progress =');
 		expect(output).toContain('const __exact_count_1 =');
-		expect(output).toContain('const __exact_progress_1 = Math.round(props.ratio * 100);');
+		expect(output).toContain(
+			'const __exact_progress_1 = Math.round((__exactReadState(props, 0) as number) * 100);'
+		);
 	});
 
 	it('accepts declared pure call contracts while retaining unknown-call diagnostics', () => {
@@ -278,7 +282,9 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).not.toContain('createDerived');
-		expect(output).toContain('const __exact_label_1 = format(props.name);');
+		expect(output).toContain(
+			'const __exact_label_1 = format(__exactReadState(props, 0) as string);'
+		);
 	});
 
 	it('infers pure local helpers and their reactive captures', () => {
@@ -400,7 +406,9 @@ describe('@exactjs/compiler: derived values', () => {
 			'import { TaskContext } from "@exactjs/core";\n\n      function View(props: { query: string }) {\n        const label = `${props.query}!`;\n        const runFixtureTask = async (value, _task: TaskContext = TaskContext.latest()) => {};\n        runFixtureTask(label);\n        return () => <p />;\n      }\n    '
 		);
 
-		expect(output).toContain('const label = __exactDerived(() => `${props.query}!`);');
+		expect(output).toContain(
+			'const label = __exactDerived(() => `${__exactReadState(props, 0) as string}!`);'
+		);
 		expect(output).toMatch(
 			/__exactActivateTask\(this, __exactDefineTask\(\{[\s\S]*?async \(value, _task: TaskContext\) => \{\s*\}\), label\);/
 		);
@@ -459,7 +467,9 @@ describe('@exactjs/compiler: derived values', () => {
 
 		expect(output).not.toContain('const filtered =');
 		expect(output).not.toContain('filtered.map(');
-		expect(output).toContain('const __exact_filtered_1 = props.items.filter(');
+		expect(output).toContain(
+			'const __exact_filtered_1 = (__exactReadState(props, 0) as string[]).filter('
+		);
 		expect(output).toContain('__exact_filtered_1.map(');
 	});
 

@@ -447,7 +447,7 @@ describe('@exactjs/compiler: islands', () => {
 			})
 		);
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(client).toContain('props.children');
+		expect(client).toContain('__exactReadState(props, 1)');
 		expect(client).not.toContain('ServerSummary');
 		expect(client).not.toContain('readFile');
 		expect(server).toContain('__exactBoundary');

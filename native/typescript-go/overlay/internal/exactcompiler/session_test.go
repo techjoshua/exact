@@ -2641,7 +2641,7 @@ __fixtureTask2();
 	}
 }
 
-func TestSessionUsesElementAccessForNamespacedClientIslandProps(t *testing.T) {
+func TestSessionIndexesNamespacedClientIslandProps(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:                          "conditional-class-island.tsx",
 		Kind:                        "compile",
@@ -2661,8 +2661,9 @@ func TestSessionUsesElementAccessForNamespacedClientIslandProps(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `"className:active": props["className:active"]`) {
-		t.Fatalf("namespaced island prop did not use valid element access:\n%s", response.Code)
+	if !strings.Contains(response.Code, `"className:active": __exactReadState(props, 1)`) ||
+		!strings.Contains(response.Code, `"className:active"`) {
+		t.Fatalf("namespaced island prop did not use its compiler-owned numeric slot:\n%s", response.Code)
 	}
 }
 
@@ -4302,7 +4303,14 @@ func TestSessionOmitsMaterializedDerivedCellsFromHydrationArtifacts(t *testing.T
 			t.Fatalf("hydration artifact retained redundant derived cell %q:\n%s", omitted, response.Code)
 		}
 	}
-	for _, expected := range []string{"View_ExactClient_1", "title: props.title"} {
+	for _, expected := range []string{
+		"View_ExactClient_1",
+		"title: __exactReadState(props, 1)",
+		`state: [`,
+		`"items"`,
+		`"selectedId"`,
+		`__exactWriteState(this.state, 1`,
+	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("hydration artifact omitted specialized island input %q:\n%s", expected, response.Code)
 		}
@@ -6232,6 +6240,60 @@ func TestSessionLowersKeyedMapsInsideMaterializedReactiveClosures(t *testing.T) 
 	}
 	if !strings.Contains(response.Code, "this.map(") {
 		t.Fatalf("keyed map was not lowered inside reactive closure: %s", response.Code)
+	}
+}
+
+func TestSessionLowersDerivedKeyedMapsInsideConditionalFragments(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			interface Item {
+				/** @exact key */
+				id: string;
+				visible: boolean;
+			}
+			export function List(props: { items: Item[]; selected?: string }) {
+				const visible = props.items.filter((item) => item.visible);
+				return () => <ul>{visible.length === 0 ? <p>Empty</p> : <>{visible.map((item) => (
+					<><span>{props.selected === item.id ? "selected" : ""}</span><li>{item.id}</li></>
+				))}</>}</ul>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "this.map(") {
+		t.Fatalf("conditional keyed map was not lowered inside its reactive closure: %s", response.Code)
+	}
+}
+
+func TestSessionInlinesElidedDerivedValuesInsideKeyedPropertyWriters(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			interface Line {
+				/** @exact key */
+				id: string;
+			}
+			export function Lines(props: { lines: Line[]; highlighted?: string[] }) {
+				const highlighted = new Set(props.highlighted ?? []);
+				return () => <div>{props.lines.map((line) => (
+					<span className="line" className:highlighted={highlighted.has(line.id)}>{line.id}</span>
+				))}</div>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "highlighted.has(line.id)") ||
+		!strings.Contains(response.Code, "const __exact_highlighted_1 = new Set(") ||
+		!strings.Contains(response.Code, "return __exact_highlighted_1.has(line.id);") {
+		t.Fatalf("keyed property writer retained an elided derived identifier: %s", response.Code)
 	}
 }
 

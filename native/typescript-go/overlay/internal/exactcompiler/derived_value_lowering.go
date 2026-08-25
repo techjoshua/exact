@@ -154,7 +154,7 @@ func (lowering *jsxLowering) lowerDerivedReference(node *ast.Node) *ast.Node {
 func (lowering *jsxLowering) derivedBindingAtReference(
 	node *ast.Node,
 ) (ReactiveBinding, bool) {
-	if lowering.checker == nil {
+	if lowering.checker == nil || node == nil || ast.NodeIsSynthesized(node) || ast.GetSourceFileOfNode(node) == nil {
 		return ReactiveBinding{}, false
 	}
 	symbol := lowering.checker.GetSymbolAtLocation(node)

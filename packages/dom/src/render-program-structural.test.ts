@@ -152,11 +152,22 @@ it('observes in-place collection mutations through a compiler-owned list lane', 
 	expect(container.querySelectorAll('li')).toHaveLength(2);
 });
 
-it('observes an indexed-state collection without a parent-path source', () => {
+it('observes an indexed-state collection through its stable structural source', () => {
 	const state = indexedReactive<{ items: Array<{ id: string }> }>(['items']);
 	state.items = [{ id: 'a' }, { id: 'b' }];
 	const cache = new Map();
 	const source = collectionRef(state.items)!;
+	const read = vi.fn(() =>
+		createVNode(Fragment, {
+			list: {
+				collection: state.items,
+				source,
+				key: (item: { id: string }) => item.id,
+				render: (item: { id: string }) => createCompiledVNode('li', {}, item.id),
+				cache
+			}
+		})
+	);
 	const vnode = createCompiledRenderProgram(
 		'render-program:indexed-list-slot',
 		() => ({
@@ -168,23 +179,13 @@ it('observes an indexed-state collection without a parent-path source', () => {
 			bindings: [['lists', [0]]],
 			nodes: [[0, 'ul']]
 		}),
-		[
-			() =>
-				createVNode(Fragment, {
-					list: {
-						collection: state.items,
-						source,
-						key: (item: { id: string }) => item.id,
-						render: (item: { id: string }) => createCompiledVNode('li', {}, item.id),
-						cache
-					}
-				})
-		]
+		[read]
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
 	state.items.splice(0, 2, state.items[1]!, state.items[0]!);
 	flushSync();
+	expect(read).toHaveBeenCalledTimes(2);
 	expect([...container.querySelectorAll('li')].map((node) => node.textContent)).toEqual(['b', 'a']);
 });
 
