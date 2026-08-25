@@ -27,6 +27,7 @@ function publishDirectComponent(
 	_parent: AnyComponentInstance | undefined,
 	html: string,
 	props: Record<string, unknown>,
+	_snapshot: import('../types.js').DirectSsrComponentSnapshot,
 	publication: DirectComponentPublication
 ): string {
 	return componentHtml(context, vnode, publication.componentId, html, props, publication);

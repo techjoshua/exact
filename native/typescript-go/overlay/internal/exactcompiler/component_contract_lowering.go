@@ -500,6 +500,10 @@ func rootComponentContractAttachment(
 	if name, exists := componentUpdates[component.Name]; exists {
 		updates = factory.NewIdentifier(name)
 	}
+	serverPublicationName := ""
+	if target == TargetServer && hasResumption && len(componentContinuations) != 0 {
+		serverPublicationName = component.Name
+	}
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -535,6 +539,7 @@ func rootComponentContractAttachment(
 				component.StateSlots,
 				runtimeContinuations,
 				hasResumption,
+				serverPublicationName,
 				directResumption,
 				hasInteractions,
 				usesCompatibility,

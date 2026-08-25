@@ -1,6 +1,5 @@
 import { type VNode } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
-import { processExactOutput } from '@exactjs/plugin-host/runtime';
 import type {
 	HydratableStringResult,
 	HydrationScriptOptions,
@@ -9,15 +8,15 @@ import type {
 } from './types.js';
 import { renderHydrationScript } from './hydration.js';
 import { createSsrResumptionCapture } from './resumption.js';
-import { componentHtml } from './render/component-output.js';
 import { componentMarkerId } from './render/component-markers.js';
 import {
 	renderCompilerClosedVNode,
 	type CompilerClosedPublication
 } from './render/compiler-closed-tree.js';
 import type { DirectSsrComponentPublisher } from './render/direct-component.js';
+import { directComponentHtml } from './render/direct-component-output.js';
 import { createSsrContext } from './render/context.js';
-import { assertOutputWithinLimit, withTaskDeadline } from './render/limits.js';
+import { withTaskDeadline } from './render/limits.js';
 import { SsrOutputBuffer } from './render/output-buffer.js';
 import {
 	createChunkedHydratableResult,
@@ -32,13 +31,21 @@ const publishMarkedComponent: DirectSsrComponentPublisher<CompilerClosedPublicat
 	_parent,
 	html,
 	props,
+	snapshot,
 	publication
 ) =>
-	componentHtml(context, child, componentMarkerId(context, child), html, props, {
-		enhancement: false,
-		documentProbe: context.documentProbe,
-		...publication
-	});
+	directComponentHtml(
+		context,
+		componentMarkerId(context, child),
+		html,
+		props,
+		snapshot.contract.definition.server?.publication,
+		{
+			enhancement: false,
+			documentProbe: context.documentProbe,
+			...publication
+		}
+	);
 
 const publishUnmarkedComponent: DirectSsrComponentPublisher<CompilerClosedPublication> = (
 	_context,
@@ -56,21 +63,7 @@ export async function renderCompilerClosedToStringAsync(
 	vnode: VNode,
 	options: RenderToStringOptions = {}
 ): Promise<RenderToStringResult> {
-	const validatedVNode = (await processExactOutput(
-		vnode,
-		{ kind: 'vnode', signal: options.signal },
-		options.outputExtensions ?? []
-	)) as VNode;
-	const output = await renderCompilerClosedOutput(validatedVNode, options, publishMarkedComponent);
-	if (options.outputExtensions?.length) {
-		const html = (await processExactOutput(
-			output.chunks.length === 1 ? output.chunks[0]! : output.chunks.join(''),
-			{ kind: 'html', signal: options.signal },
-			options.outputExtensions
-		)) as string;
-		assertOutputWithinLimit(output.context, html);
-		output.chunks = [html];
-	}
+	const output = await renderCompilerClosedOutput(vnode, options, publishMarkedComponent);
 	return createCompilerClosedStringResult(output, options);
 }
 

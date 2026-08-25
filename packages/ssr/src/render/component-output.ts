@@ -2,7 +2,7 @@ import type { VNode } from '@exactjs/core';
 import { readPreparedExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
-import { renderResumableComponentBoundary } from './resumption-boundary-capability.js';
+import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
 
 /** Wraps completed component HTML in the compiler-selected root or resumption boundary. */
 export function componentHtml(
@@ -18,14 +18,24 @@ export function componentHtml(
 		omitCompilerOwnedBoundary?: boolean;
 	}
 ): string {
-	const resumable =
-		typeof vnode.type === 'function' &&
-		readPreparedExactCompiledComponentContract(vnode.type).continuations.length !== 0;
+	const publication =
+		typeof vnode.type === 'function'
+			? readPreparedExactCompiledComponentContract(vnode.type).definition.server?.publication
+			: undefined;
+	const resumable = publication?.kind === 'resumption';
 	return flags.enhancement ||
 		(flags.documentProbe && context.documentRootSeen) ||
 		(flags.omitCompilerOwnedBoundary && !resumable)
 		? html
 		: flags.hasComponentAncestor
-			? renderResumableComponentBoundary(context, vnode, componentId, html, props)
+			? resumable
+				? renderPreparedResumableComponentBoundary(
+						context,
+						componentId,
+						publication.name,
+						html,
+						props
+					)
+				: markerPair(context, componentId, () => html)
 			: markerPair(context, componentId, () => html);
 }

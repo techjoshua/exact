@@ -81,6 +81,7 @@ export type DirectSsrComponentPublisher<Publication = undefined> = (
 	parent: AnyComponentInstance | undefined,
 	html: string,
 	props: Record<string, unknown>,
+	snapshot: DirectSsrComponentSnapshot,
 	publication: Publication
 ) => string;
 
@@ -126,7 +127,15 @@ export async function renderDirectSsrComponentOutput<Publication>(
 						context.onComponentAttemptRollback?.(renderCheckpoint);
 						continue;
 					}
-					const output = publish(context, vnode, parent, html, scheduled.props, publication);
+					const output = publish(
+						context,
+						vnode,
+						parent,
+						html,
+						scheduled.props,
+						scheduled.snapshot,
+						publication
+					);
 					context.onDirectComponentRendered?.(scheduled.snapshot);
 					return output;
 				} catch (error) {
@@ -176,7 +185,15 @@ export async function renderDirectSsrComponentOutput<Publication>(
 					directPrimary
 				);
 		}
-		const output = publish(context, vnode, parent, html, direct.props, publication);
+		const output = publish(
+			context,
+			vnode,
+			parent,
+			html,
+			direct.props,
+			direct.snapshot,
+			publication
+		);
 		context.onDirectComponentRendered?.(direct.snapshot);
 		return output;
 	} catch (error) {

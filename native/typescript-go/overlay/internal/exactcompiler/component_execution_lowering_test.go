@@ -390,7 +390,7 @@ func TestCompilerClosedHydratableRootSelectsPairedRenderer(t *testing.T) {
 	}
 }
 
-func TestUnmarkedClosedRootOmitsOnlyPrivateResumptionFormatting(t *testing.T) {
+func TestUnmarkedClosedServerOnlyRootOmitsResumptionFormatting(t *testing.T) {
 	for name, exported := range map[string]string{
 		"private":  "",
 		"exported": "export ",
@@ -417,11 +417,41 @@ func TestUnmarkedClosedRootOmitsOnlyPrivateResumptionFormatting(t *testing.T) {
 			if response.Error != "" || len(response.Diagnostics) != 0 {
 				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 			}
-			retained := strings.Contains(response.Code, `import "@exactjs/ssr/runtime/resumption-boundaries"`)
-			if retained != (name == "exported") {
-				t.Fatalf("%s unmarked root has incorrect resumption capability reachability:\n%s", name, response.Code)
+			if strings.Contains(response.Code, `import "@exactjs/ssr/runtime/resumption-boundaries"`) ||
+				strings.Contains(response.Code, `publication:`) {
+				t.Fatalf("%s server-only component retained client resumption publication:\n%s", name, response.Code)
 			}
 		})
+	}
+}
+
+func TestIsomorphicContinuationEmitsPreparedServerPublication(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "isomorphic-publication.tsx", Kind: "compile", Target: TargetServer,
+		ComponentContractProjection: ComponentContractProjectionServerRender,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			export function Page(this: Component<{ value: string }>) {
+				async function load(_task: TaskContext = TaskContext.server().blocking()) {
+					this.state.value = await Promise.resolve("ready");
+				}
+				return () => <button onClick={() => load()}>{this.state.value}</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`import "@exactjs/ssr/runtime/resumption-boundaries"`,
+		`publication:`,
+		`kind: "resumption"`,
+		`name: "Page"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("isomorphic continuation artifact is missing %q:\n%s", expected, response.Code)
+		}
 	}
 }
 

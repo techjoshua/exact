@@ -5169,7 +5169,6 @@ __fixtureTask7();
 	}
 	taskID := server.Analysis.Tasks[0].ID
 	for _, expected := range []string{
-		`import "@exactjs/ssr/runtime/resumption-boundaries"`,
 		`markComponentContinuationTask as __exactContinuationTask`,
 		`__exactActivateTask(this, __exactDefineTask(`,
 		`__exactContinuationTask("` + taskID + `", async`,
@@ -5184,6 +5183,9 @@ __fixtureTask7();
 	}
 	if strings.Contains(server.Code, `import "@exactjs/ssr/runtime/structural-boundaries"`) {
 		t.Fatalf("continuation-only server output retained the full structural boundary runtime:\n%s", server.Code)
+	}
+	if strings.Contains(server.Code, `import "@exactjs/ssr/runtime/resumption-boundaries"`) {
+		t.Fatalf("server-only continuation retained client resumption publication:\n%s", server.Code)
 	}
 	client := NewSession().Execute(Request{
 		ID:     "component.tsx",

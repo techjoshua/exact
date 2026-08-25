@@ -61,8 +61,19 @@ export function isExactComponentContract(
 		(value.resumption === undefined ||
 			(isResumption(value.resumption) && value.resumption.componentId === componentId)) &&
 		(value.execution === undefined || isExecution(value.execution)) &&
-		(value.definition === undefined || isDefinition(value.definition))
+		(value.definition === undefined || isDefinition(value.definition)) &&
+		hasConsistentServerPublication(value)
 	);
+}
+
+function hasConsistentServerPublication(value: Record<PropertyKey, unknown>): boolean {
+	if (!isContractRecord(value.definition) || !isContractRecord(value.definition.server))
+		return true;
+	const resumable =
+		value.resumption !== undefined &&
+		Array.isArray(value.continuations) &&
+		value.continuations.length !== 0;
+	return (value.definition.server.publication !== undefined) === resumable;
 }
 
 function isDefinition(value: unknown): boolean {
@@ -120,7 +131,8 @@ function isServerExecution(value: unknown): boolean {
 			'classification',
 			'lane',
 			'deferredTaskProps',
-			'render'
+			'render',
+			'publication'
 		]) &&
 		value.version === 1 &&
 		(value.classification === 'synchronous' ||
@@ -128,6 +140,11 @@ function isServerExecution(value: unknown): boolean {
 			value.classification === 'dynamic') &&
 		(value.lane === 'direct' || value.lane === 'generic') &&
 		(value.deferredTaskProps === undefined || isSafeContractStringList(value.deferredTaskProps)) &&
+		(value.publication === undefined ||
+			(isContractRecord(value.publication) &&
+				hasOnlyContractKeys(value.publication, ['kind', 'name']) &&
+				value.publication.kind === 'resumption' &&
+				isContractString(value.publication.name))) &&
 		(value.lane === 'direct'
 			? value.classification !== 'dynamic' && typeof value.render === 'function'
 			: value.render === undefined)
