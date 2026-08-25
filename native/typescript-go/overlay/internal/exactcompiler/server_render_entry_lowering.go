@@ -159,7 +159,7 @@ func (lowering *jsxLowering) compilerClosedComponentGraph(
 		return true
 	}
 	component, exists := lowering.components[name]
-	if !exists || !component.DirectServer {
+	if !exists || !component.TargetPlan.DirectServer {
 		return false
 	}
 	if _, closed := lowering.closedServerWriters[name]; !closed {

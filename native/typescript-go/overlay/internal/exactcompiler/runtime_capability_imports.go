@@ -158,7 +158,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	if lowering.target == TargetServer {
 		renderRuntimeModule = serverRenderRuntimeModule
 		for _, component := range lowering.components {
-			if component.Placement != "client" && !component.DirectServer {
+			if component.TargetPlan.GenericServerRuntime {
 				renderRuntimeModule = "@exactjs/core/framework/render-structure"
 				break
 			}
@@ -378,8 +378,8 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	if executionUsed {
 		executionUsed = false
 		for _, component := range lowering.components {
-			if !(lowering.target == TargetServer && component.DirectServer) &&
-				len(projectComponentExecution(component.Execution, lowering.target).Transitions) != 0 {
+			if !(lowering.target == TargetServer && component.TargetPlan.DirectServer) &&
+				len(componentTargetExecution(component, lowering.target).Transitions) != 0 {
 				executionUsed = true
 				break
 			}
@@ -388,7 +388,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	genericServerRuntimeUsed := false
 	if lowering.target == TargetServer {
 		for _, component := range lowering.components {
-			if component.Placement != "client" && !component.DirectServer {
+			if component.TargetPlan.GenericServerRuntime {
 				genericServerRuntimeUsed = true
 				break
 			}
@@ -428,7 +428,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			containsCompiledTargetCall(lowering.sourceFile, lowering.checker))
 	collectionsUsed := false
 	for _, component := range lowering.components {
-		if component.Collections && !(lowering.target == TargetServer && component.DirectServer) {
+		if component.Collections && !(lowering.target == TargetServer && component.TargetPlan.DirectServer) {
 			collectionsUsed = true
 			break
 		}

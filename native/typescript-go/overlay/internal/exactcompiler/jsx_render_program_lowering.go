@@ -376,7 +376,7 @@ func (lowering *jsxLowering) directServerComponentOwner(node *ast.Node) (string,
 	name := ""
 	width := int(^uint(0) >> 1)
 	for candidate, component := range lowering.components {
-		if !component.DirectServer || node.Pos() < component.Start ||
+		if !component.TargetPlan.DirectServer || node.Pos() < component.Start ||
 			node.End() > component.Start+component.Length || component.Length >= width {
 			continue
 		}
