@@ -273,14 +273,10 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		}
 		arguments = append(arguments, owner)
 	}
-	closedServerArtifact := lowering.target == TargetServer
-	if (lowering.target != TargetClient ||
-		lowering.contractProjection == ComponentContractProjectionComplete) &&
-		!closedServerArtifact {
-		// Server and universal artifacts can enter React-compatible SSR or recover one malformed
-		// region locally. A client artifact already has root-level hydration recovery, so retaining
-		// a duplicate generic VNode factory for every compiler-closed region only adds parse, heap,
-		// and construction work to the successful path.
+	if lowering.target == TargetDefault {
+		// Untargeted compiler inspection retains a materializable description. Executable browser
+		// and server artifacts use only their target-specific compiled program and recover malformed
+		// hydration at the root boundary without shipping a second component topology.
 		lowering.renderProgramFallback = true
 		fallback := lowering.lowerOpeningLike(identityNode, opening, children)
 		lowering.renderProgramFallback = false

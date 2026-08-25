@@ -376,12 +376,12 @@ func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 		!strings.Contains(response.Code, `bind: __exactBindingTarget =>`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		strings.Contains(response.Code, `slots: [["text"`) ||
-		!strings.Contains(response.Code, `() => __exactVNode("span"`) ||
+		strings.Contains(response.Code, `() => __exactVNode("span"`) ||
 		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
 		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") {
-		t.Fatalf("complete metadata artifact omitted a direct lane or its universal fallback:\n%s", response.Code)
+		t.Fatalf("complete metadata artifact did not close over its direct client lane:\n%s", response.Code)
 	}
 }
 
@@ -404,8 +404,8 @@ func TestSessionUsesDirectStructuralClaimsWithCompleteMetadata(t *testing.T) {
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
 		strings.Contains(response.Code, `["component"`) ||
-		!strings.Contains(response.Code, `() => __exactVNode("span"`) {
-		t.Fatalf("complete metadata artifact omitted direct structural execution or recovery:\n%s", response.Code)
+		strings.Contains(response.Code, `() => __exactVNode("span"`) {
+		t.Fatalf("complete metadata artifact did not close over direct structural execution:\n%s", response.Code)
 	}
 }
 
@@ -587,9 +587,9 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	if !strings.Contains(complete.Code, `__exactClaimProgramChild`) ||
 		!strings.Contains(complete.Code, `__exactComponentVNode(Detail`) ||
-		!strings.Contains(complete.Code, `__exactVNode("main"`) ||
-		!strings.Contains(complete.Code, `__exactDynamic(() => __exactComponentVNode(Detail`) {
-		t.Fatalf("complete metadata artifact omitted direct component claims or recovery:\n%s", complete.Code)
+		strings.Contains(complete.Code, `__exactVNode("main"`) ||
+		strings.Contains(complete.Code, `__exactDynamic(() => __exactComponentVNode(Detail`) {
+		t.Fatalf("complete metadata artifact did not close over direct component claims:\n%s", complete.Code)
 	}
 
 	stateful := NewSession().Execute(Request{
@@ -2531,9 +2531,9 @@ __fixtureTask2();
 		`export const Panel =`,
 		`placement: "isomorphic"`,
 		`instantiate: __exactImplementation_Panel_1`,
-		`title: __exactExpression(() => __exactReadState(this.state, 1) as string)`,
-		`"__exactClosedInteraction:onClick": () => __exactUpdateStateResult(this.state, 0`,
-		`__exactDynamic(() => __exactReadState(this.state, 0) as number`,
+		`__exactSlot === 0 ? __exactReadState(this.state, 1) as string`,
+		`__exactSlot === 1 ? () => __exactUpdateStateResult(this.state, 0`,
+		`: __exactReadState(this.state, 0) as number`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -2618,7 +2618,7 @@ __fixtureTask0();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`value: __exactExpression(() => __exactReadState(this.state, 0)`,
+		`__exactSlot === 0 ? __exactReadState(this.state, 0)`,
 		`?? ""`,
 		`readonly currentTarget: HTMLInputElement`,
 		`=> __exactWrite(this.state, ["name"], () => event.currentTarget.value as any)`,
@@ -2907,7 +2907,7 @@ __fixtureTask4();
 	}
 	for _, expected := range []string{
 		`export const Panel =`,
-		`"__exactClosedInteraction:onClick": () => __exactUpdateStateResult`,
+		`__exactSlot === 0 ? () => __exactUpdateStateResult`,
 		`__exactServerSlot(`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -2983,7 +2983,7 @@ __fixtureTask5();
 	for _, expected := range []string{
 		`const label = __exactDerived(() => String(__exactReadState(this.state, 0)`,
 		`console.log(label.get())`,
-		`__exactDynamic(() => label.get()`,
+		`: label.get(), this`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(

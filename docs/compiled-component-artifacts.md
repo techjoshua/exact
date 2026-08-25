@@ -43,6 +43,9 @@ universal function as a substitute for compilation.
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the
 component's topology or interpret a universal component plan when the artifact already knows it.
+Browser-target artifacts carry only their specialized template, claims, readers, bindings, and
+update program. They do not embed a second generic VNode description of the same region; a same-build
+hydration mismatch is recovered at the owning root boundary.
 Compiler-proven top-level state reads use the artifact's deterministic numeric state slots rather
 than re-entering the inspectable state's property proxy. That numeric lane tracks the same
 target/key dependency graph as ordinary property reads, so computed freshness, transactions,
