@@ -16,6 +16,8 @@ type jsxLowering struct {
 	names                        jsxRuntimeNames
 	nodeIDs                      map[*ast.Node]string
 	writes                       map[string]StateWrite
+	stateReadSlots               map[string]indexedStateRead
+	indexedStateReadKeys         map[*ast.Node]string
 	tasks                        map[string]Task
 	invokedTasks                 map[int]Task
 	functionTasks                map[int]Task
@@ -240,6 +242,11 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if ast.IsImportDeclaration(node) {
 		if _, exists := lowering.enhancementImports.declarations[node.Pos()]; exists {
 			return lowering.factory.NewEmptyStatement()
+		}
+	}
+	if lowering.target == TargetClient {
+		if read := lowering.lowerIndexedStateRead(node); read != nil {
+			return read
 		}
 	}
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {

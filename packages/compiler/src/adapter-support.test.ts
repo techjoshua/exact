@@ -108,6 +108,34 @@ describe('build adapter support', () => {
 		expect(shouldCompileExactBuildModule('/src/view.tsx', 'const view = <span />;', {})).toBe(true);
 		expect(
 			shouldCompileExactBuildModule(
+				'/src/planned.ts',
+				'function Planned(this: Component<{}>) { return () => createVNode("p"); }',
+				{}
+			)
+		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/provider.js',
+				'export function Provider(props) { return () => props.children; }',
+				{}
+			)
+		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/math.ts',
+				'export function add(a, b) { return a + b; }',
+				{}
+			)
+		).toBe(false);
+		expect(
+			shouldCompileExactBuildModule(
+				'/app/packages/core/dist/component.js',
+				'function Component() { return () => value; }',
+				{}
+			)
+		).toBe(false);
+		expect(
+			shouldCompileExactBuildModule(
 				'/app/node_modules/library/view.tsx',
 				'const view = <span />;',
 				{}

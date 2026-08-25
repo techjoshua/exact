@@ -43,6 +43,12 @@ universal function as a substitute for compilation.
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the
 component's topology or interpret a universal component plan when the artifact already knows it.
+Compiler-proven top-level state reads use the artifact's deterministic numeric state slots rather
+than re-entering the inspectable state's property proxy. That numeric lane tracks the same
+target/key dependency graph as ordinary property reads, so computed freshness, transactions,
+rollback, scheduling, and teardown retain one set of reactive semantics. Authored aliases, dynamic
+keys, external consumers, and DevTools continue through the ordinary state facade. Direct server
+frames use their plain request-local state records and do not import this client-only access lane.
 Render-program node tables use only dense, zero-based compiler indexes. Hydration resolves those
 indexes during its bounded topology walk; it does not build or consult a string-identity map.
 `data-exact-id` remains a separate identity only for operations that must address a live DOM target,

@@ -117,6 +117,19 @@ export function containsExactBuildJsx(id: string, source: string): boolean {
 	return /\.[jt]sx(?:$|\?)/i.test(id) && source.includes('<');
 }
 
+/** Reports whether non-JSX source contains a lexical eXact component ownership signal. */
+export function containsExactComponentSyntax(source: string): boolean {
+	return (
+		/\bthis\s*:\s*[^,)]*\bComponent\s*</.test(source) ||
+		/\bthis\s*(?:\.\s*(?:state|onMount|onActivate|onDeactivate|onUnmount|onRender|own|map|reactive|getContext|hasContext|setContext)|\[)/.test(
+			source
+		) ||
+		/\bcreateVNode\s*\(/.test(source) ||
+		(/\bfunction\s+[A-Z][$\w]*\s*\(/.test(source) &&
+			/\breturn\s*(?:\(\s*)?\(\s*[^)]*\)\s*=>/.test(source))
+	);
+}
+
 /** Applies common include, exclude, and test-module filters before adapter transformation. */
 export function shouldTransformExactBuildModulePath(
 	id: string,
@@ -139,13 +152,14 @@ export function shouldCompileExactBuildModule(
 	options: ExactBuildModuleSelectionOptions
 ): boolean {
 	if (!isExactBuildSourceModule(id)) return false;
-	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
+	if (!options.include && /(?:^|[\\/])(?:node_modules|dist)(?:[\\/]|$)/.test(id)) return false;
 	if (!shouldTransformExactBuildModulePath(id, options)) return false;
 	// An explicit include is an ownership declaration, not merely a path prefilter. Compile matching
 	// TypeScript modules even when their component definitions use createVNode instead of JSX.
 	if (options.include) return true;
 	return (
 		containsExactBuildJsx(id, source) ||
+		containsExactComponentSyntax(source) ||
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)
 	);
 }

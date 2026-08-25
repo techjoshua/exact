@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import { computed } from './computation.js';
 import { batch, captureReactiveMutations } from './internal/deps.js';
 import { flushSync } from './internal/scheduler.js';
 import { collectionRef } from './observation.js';
 import { indexedReactive, readReactiveOwnProperty } from './indexed.js';
-import { reactiveOwnDependencies } from './indexed-base.js';
+import { reactiveOwnDependencies, readIndexedReactiveSlot } from './indexed-base.js';
 import { subscribeKeys } from './observation.js';
 import { snapshot } from './snapshot.js';
 import { watch } from './observation.js';
@@ -79,6 +80,30 @@ describe('indexed reactive state', () => {
 		state.count = 1;
 		expect(reactiveOwnDependencies(state, ['count'])?.keys).toEqual([0]);
 		expect(reactiveOwnDependencies(state, ['missing'])).toBeUndefined();
+	});
+
+	it('reads compiler-known slots directly while retaining dependency tracking', () => {
+		const state = indexedReactive<{ count: number }>(['count']);
+		state.count = 1;
+		const seen: number[] = [];
+		const stop = watch(() => seen.push(readIndexedReactiveSlot(state, 0) as number));
+		state.count = 2;
+		flushSync();
+
+		expect(seen).toEqual([1, 2]);
+		expect(() => readIndexedReactiveSlot(state, 1)).toThrow('invalid indexed slot');
+		stop();
+	});
+
+	it('keeps transitive computed reads synchronously current through indexed slots', () => {
+		const state = indexedReactive<{ count: number }>(['count']);
+		state.count = 1;
+		const doubled = computed(() => (readIndexedReactiveSlot(state, 0) as number) * 2);
+		const label = computed(() => `count:${doubled.get()}`);
+
+		expect(label.get()).toBe('count:2');
+		state.count = 2;
+		expect(label.get()).toBe('count:4');
 	});
 
 	it('coalesces compiler-selected field dependencies into one reaction', () => {

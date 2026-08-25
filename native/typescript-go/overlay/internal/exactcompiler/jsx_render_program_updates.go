@@ -219,6 +219,9 @@ func (lowering *jsxLowering) directRenderProgramStateKey(node *ast.Node) (string
 	if node == nil {
 		return "", false
 	}
+	if key, exists := lowering.indexedStateReadKeys[node]; exists {
+		return key, true
+	}
 	for _, read := range lowering.stateReads {
 		if read.Confidence != "exact" || len(read.Path) != 1 ||
 			read.Start != node.Pos() || read.Length != node.End()-node.Pos() {

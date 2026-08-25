@@ -52,6 +52,8 @@ func (plan jsxLoweringPlan) prepare(
 		names:                    allocateJSXRuntimeNames(sourceFile),
 		nodeIDs:                  expressionNodeIDs(sourceFile),
 		writes:                   indexStateWrites(plan.stateWrites),
+		stateReadSlots:           indexStateReadSlots(plan.components, plan.stateReads),
+		indexedStateReadKeys:     make(map[*ast.Node]string),
 		tasks:                    indexTasks(plan.tasks),
 		invokedTasks:             indexInvokedTasks(plan.tasks),
 		functionTasks:            indexFunctionTasks(plan.tasks),

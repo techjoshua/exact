@@ -3,6 +3,7 @@ export {
 	mutateReactiveArray,
 	mutateReactiveCollection,
 	peek,
+	readIndexedReactiveSlot,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
 	writeReactiveLazy

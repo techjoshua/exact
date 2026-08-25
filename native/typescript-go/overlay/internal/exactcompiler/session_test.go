@@ -1207,6 +1207,9 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 			export function Named() {
 				return () => <main />;
 			}
+			export function Transparent(props: { children?: unknown }) {
+				return () => props.children;
+			}
 			const protocolOnly = function () {
 				this.onMount(() => undefined);
 			};
@@ -1220,8 +1223,8 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	components := response.Analysis.Components
-	if len(components) != 3 {
-		t.Fatalf("discovered %d components, expected 3: %#v", len(components), components)
+	if len(components) != 4 {
+		t.Fatalf("discovered %d components, expected 4: %#v", len(components), components)
 	}
 	for _, component := range components {
 		if component.ID == "" || !strings.HasPrefix(component.ID, "x") {
@@ -1229,16 +1232,20 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 		}
 	}
 	if components[0].Name != "Named" || !components[0].Exported ||
-		len(components[0].Signals) != 1 || components[0].Signals[0] != "named-jsx" {
+		!equalStrings(components[0].Signals, []string{"named-jsx", "named-render"}) {
 		t.Fatalf("unexpected named JSX component: %#v", components[0])
 	}
-	if components[1].Name != "protocolOnly" ||
-		components[1].Signals[0] != "component-protocol" {
-		t.Fatalf("unexpected protocol component: %#v", components[1])
+	if components[1].Name != "Transparent" || !components[1].Exported ||
+		!equalStrings(components[1].Signals, []string{"named-render"}) {
+		t.Fatalf("unexpected transparent component: %#v", components[1])
 	}
-	if components[2].Name != "typedOnly" ||
-		components[2].Signals[0] != "typed-receiver" {
-		t.Fatalf("unexpected typed component: %#v", components[2])
+	if components[2].Name != "protocolOnly" ||
+		components[2].Signals[0] != "component-protocol" {
+		t.Fatalf("unexpected protocol component: %#v", components[2])
+	}
+	if components[3].Name != "typedOnly" ||
+		components[3].Signals[0] != "typed-receiver" {
+		t.Fatalf("unexpected typed component: %#v", components[3])
 	}
 }
 
@@ -2524,9 +2531,9 @@ __fixtureTask2();
 		`export const Panel =`,
 		`placement: "isomorphic"`,
 		`instantiate: __exactImplementation_Panel_1`,
-		`title: __exactExpression(() => this.state.label)`,
+		`title: __exactExpression(() => __exactReadState(this.state, 1) as string)`,
 		`"__exactClosedInteraction:onClick": () => __exactUpdateResult(this.state, ["count"]`,
-		`__exactDynamic(() => this.state.count`,
+		`__exactDynamic(() => __exactReadState(this.state, 0) as number`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -2611,7 +2618,8 @@ __fixtureTask0();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`value: __exactExpression(() => this.state.name ?? "")`,
+		`value: __exactExpression(() => __exactReadState(this.state, 0)`,
+		`?? ""`,
 		`readonly currentTarget: HTMLInputElement`,
 		`=> __exactWrite(this.state, ["name"], () => event.currentTarget.value as any)`,
 	} {
@@ -2667,13 +2675,16 @@ __fixtureTask1();
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`Number.isNaN(this.state.count)`,
+		`Number.isNaN(__exactReadState(this.state, 2)`,
 		`event.currentTarget.valueAsNumber`,
-		`this.state.enabled ?? false`,
-		`this.state.method === "ground"`,
+		`__exactReadState(this.state, 3)`,
+		`?? false`,
+		`__exactReadState(this.state, 4)`,
+		`=== "ground"`,
 		`event.currentTarget.checked &&`,
 		`Array.from(event.currentTarget.selectedOptions`,
-		`(this.state.codes ?? []).includes(Number("2"))`,
+		`__exactReadState(this.state, 1)`,
+		`.includes(Number("2"))`,
 		`const value = Number(event.currentTarget.value)`,
 		`event.currentTarget.valueAsDate`,
 		`currentTarget: HTMLInputElement`,
@@ -2970,7 +2981,7 @@ __fixtureTask5();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`const label = __exactDerived(() => String(this.state.count));`,
+		`const label = __exactDerived(() => String(__exactReadState(this.state, 0)`,
 		`console.log(label.get())`,
 		`__exactDynamic(() => label.get()`,
 	} {
@@ -4816,7 +4827,8 @@ func TestSessionTransportsCapturedDefaultsForInvokedServerTasks(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
-		`const draft = __exactTaskArgs[0] === void 0 ? this.state.draft : __exactTaskArgs[0];`,
+		`const draft = __exactTaskArgs[0] === void 0 ? __exactReadState(this.state, 0)`,
+		`: __exactTaskArgs[0];`,
 		`return [draft];`,
 		`__exactDispatchContinuation`,
 		`save()`,
@@ -4863,7 +4875,7 @@ func TestSessionLowersInvokedFunctionTaskThroughPublicABI(t *testing.T) {
 		`const save = __exactBindTask(this, __exactDefineTask(`,
 		`placement: "server"`,
 		`concurrency: "latest"`,
-		`save(this.state.title)`,
+		`save(__exactReadState(this.state, 0) as string)`,
 		`__exactDispatchContinuation`,
 	} {
 		if !strings.Contains(response.Code, expected) {

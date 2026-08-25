@@ -559,6 +559,12 @@ state object. Initialized fields are ordinary data properties on the inspectable
 they do not allocate getter and setter closures for every declared field. A compact indexed bitmap
 tracks field presence for deletion, snapshots, and optimistic rollback, while fields introduced
 dynamically retain the same reactive fallback semantics and receive stable indexes on first write.
+Generated client expressions read compiler-proven top-level fields by numeric slot, bypassing the
+facade's property trap and string-to-index lookup. The direct read still records the backing
+target's numeric dependency in the shared reactive graph; it is therefore not a parallel signal
+implementation and preserves synchronously current transitive computed reads. The inspectable
+facade remains the boundary for authored aliases, dynamic access, external code, snapshots, and
+DevTools. Plain request-local SSR state does not pay for the client indexed-read helper.
 
 Render-program hydration stores only directly claimed compiler-numbered elements in a sparse
 ephemeral array. Inert static intrinsics remain covered by their enclosing component or structural
