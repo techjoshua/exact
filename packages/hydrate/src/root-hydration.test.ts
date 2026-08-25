@@ -209,8 +209,7 @@ describe('hydration-only root capability', () => {
 		);
 		const componentId = '@exactjs/hydrate:root-marked-program';
 		const ClientApp = createExactFrameworkFixtureArtifact(function ClientApp() {
-			return () =>
-				createPreparedRenderProgram(descriptor, [() => 'ready'], renderProgramOwner);
+			return () => createPreparedRenderProgram(descriptor, [() => 'ready'], renderProgramOwner);
 		}, componentId);
 		const ServerApp = createExactFrameworkFixtureArtifact(function ServerApp() {
 			return () => createPreparedServerRenderProgram(descriptor, ['ready']);

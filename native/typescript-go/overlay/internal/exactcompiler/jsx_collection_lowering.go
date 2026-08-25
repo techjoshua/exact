@@ -11,6 +11,7 @@ type collectionMapPlan struct {
 	primitive   bool
 	keyed       bool
 	declarative bool
+	renderChild bool
 }
 
 var exactKeyArgument = regexp.MustCompile(
@@ -18,7 +19,14 @@ var exactKeyArgument = regexp.MustCompile(
 )
 
 func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
-	if lowering.checker == nil || !insideJSXChildExpression(node) {
+	if lowering.checker == nil {
+		return nil
+	}
+	plan, planned := lowering.collectionMaps[nodeSpanKey(node)]
+	// Materializing a compiler-proven derived value clones its sole render expression into the
+	// retained binding closure. Synthesized parent links no longer lead back to authored JSX, so
+	// retain the source classification recorded before lowering rather than losing keyed identity.
+	if !insideJSXChildExpression(node) && (!planned || !plan.renderChild) {
 		return nil
 	}
 	call := node.AsCallExpression()
@@ -28,7 +36,6 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		len(call.Arguments.Nodes) != 1 {
 		return nil
 	}
-	plan, planned := lowering.collectionMaps[nodeSpanKey(node)]
 	if !planned || plan.declarative {
 		return nil
 	}
@@ -77,7 +84,7 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	)
 	emittedCollection := lowering.visitor.VisitNode(collection)
 	var provenance *ast.Node
-	if ast.IsIdentifier(collection) {
+	if ast.IsIdentifier(collection) && ast.GetSourceFileOfNode(collection) != nil {
 		if _, derived := lowering.derivedBindingAtReference(collection); derived {
 			provenance = lowering.derivedCollectionProvenance(collection)
 		}
@@ -246,6 +253,7 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 			primitive:   primitive,
 			keyed:       keyed,
 			declarative: lowering.moduleDeclarativeCollection(node),
+			renderChild: insideJSXChildExpression(node),
 		}
 		return true
 	})

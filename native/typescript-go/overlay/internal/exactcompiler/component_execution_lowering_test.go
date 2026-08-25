@@ -942,6 +942,28 @@ func TestClientTransparentComponentUsesItsCompiledBoundaryRange(t *testing.T) {
 	}
 }
 
+func TestClientRenderHelperStateFacadeUsesItsCompiledBoundaryRange(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "render-helper.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			declare function renderView(state: { label: string }): unknown;
+			export function View(this: Component<{ label: string }>) {
+				return () => renderView(this.state);
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "return () => renderView(this.state)") ||
+		!strings.Contains(response.Code, "abi: 32") {
+		t.Fatalf("state-forwarding render helper did not select its component range:\n%s", response.Code)
+	}
+}
+
 func TestComponentExecutorPreservesAuthoredStateContextualTypes(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "typed-executor.tsx",

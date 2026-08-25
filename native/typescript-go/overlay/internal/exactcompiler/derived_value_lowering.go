@@ -21,10 +21,14 @@ func (lowering *jsxLowering) omitFullyMaterializedRenderLocals(root *ast.Node) *
 			lowering.materializedNames[name.Pos()] == "" {
 			return true
 		}
-		// A cached retained derived value is materialized as one local `.get()` per reactive
-		// evaluation, but its shared derived cell remains the source of that read. Only locals whose
-		// initializer was actually moved into every consumer are removable here.
-		if _, retained := lowering.derived[name.Pos()]; retained {
+		// Cached retained cells use a separate cached name and therefore never enter this set.
+		// A materialized name proves the initializer itself moved into a reactive consumer; when no
+		// authored reference survives the completed lowering pass, retaining the setup cell would
+		// duplicate both the calculation and its reactive graph ownership.
+		if binding, retained := lowering.derived[name.Pos()]; retained && len(binding.References) > 1 {
+			// Separate consumers must continue to share one identity-bearing result. Their emitted
+			// closures can each contain a materialized local, but that does not prove the two values
+			// are interchangeable.
 			return true
 		}
 		if symbol := lowering.checker.GetSymbolAtLocation(name); symbol != nil {
@@ -191,6 +195,13 @@ func (lowering *jsxLowering) derivedGet(expression *ast.Node) *ast.Node {
 func (lowering *jsxLowering) omitElidedDerivedDeclarations(
 	node *ast.Node,
 ) *ast.Node {
+	if lowering.directServerFrameComponent(node) {
+		// The client artifact materializes a sole render consumer inside its
+		// precise binding. A direct SSR frame executes the authored render body
+		// once and therefore still needs the ordinary setup local; it has no
+		// client binding in which that initializer could be materialized.
+		return nil
+	}
 	statement := node.AsVariableStatement()
 	list := statement.DeclarationList.AsVariableDeclarationList()
 	declarations := make([]*ast.Node, 0, len(list.Declarations.Nodes))

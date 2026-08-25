@@ -126,11 +126,12 @@ function mountWorkspace(
 		batch: false,
 		stream: false
 	});
-	hydrateClientIslands(
+	const hydrated = hydrateClientIslands(
 		root,
 		{ CalculatorWorkspace },
 		{ componentDomain: client.domain, batch: false, stream: false }
 	);
+	expect(hydrated).toBe(1);
 	return { client, root };
 }
 

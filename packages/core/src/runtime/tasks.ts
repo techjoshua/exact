@@ -4,6 +4,7 @@ export { registerComponentContinuationContexts } from '../component/context-resu
 export { dispatchComponentContinuation } from '../component/domain.js';
 export { activateTaskForHost } from '../tasks/activation.js';
 export { activateComputationForHost } from '../tasks/computation-activation.js';
+export { createTrackedContinuationDependency } from '../tasks/dependency-source.js';
 export {
 	activateCompiledClientLatestTaskForHost,
 	bindCompiledClientLatestTaskForHost

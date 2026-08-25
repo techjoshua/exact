@@ -51,7 +51,8 @@ export function hasComponent<Registry extends AnyComponentRegistry>(
 
 /** Preloads a lazy registry facade without constructing a component instance. */
 export async function preloadComponent(component: AnyAuthoredComponentFunction): Promise<void> {
-	if (typeof component !== 'function') throw new TypeError('preloadComponent() requires a component');
+	if (typeof component !== 'function')
+		throw new TypeError('preloadComponent() requires a component');
 	const entry = registryEntryFor(component as AnyComponentFunction);
 	if (!entry) return;
 	await loadRegistryEntry(entry);

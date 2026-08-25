@@ -77,7 +77,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 		const plugin = exact({ reactCompatibility: false });
 		const result = plugin.transform('const view = <span />;', '/src/view.tsx');
 
-		expect(result?.code).toContain('__exactVNode("span"');
+		expect(result?.code).toContain('__exactPreparedRenderProgram(__exact_render_program_1');
 		expect(result?.map).toMatchObject({
 			version: 3,
 			sources: ['/src/view.tsx'],

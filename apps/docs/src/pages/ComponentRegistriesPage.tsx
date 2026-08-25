@@ -85,8 +85,8 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					is immutable so the compiler can prove every key, import, placement, and output target.
 				</p>
 				<p>
-					The declaration is eXact source syntax and must pass through the compiler. Its client
-					and server builds receive different executable registry artifacts.
+					The declaration is eXact source syntax and must pass through the compiler. Its client and
+					server builds receive different executable registry artifacts.
 				</p>
 				<CodeBlock source={registrySource} language="tsx" title="widgets.tsx" />
 			</section>

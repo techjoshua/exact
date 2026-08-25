@@ -439,25 +439,25 @@ it('fails closed when an initial text slot violates its scalar contract', () => 
 it('claims marked SSR nodes through compiler-generated hydration calls without indexing the subtree', () => {
 	const state = reactive({ label: '', disabled: false });
 	const program = prepareCoreRenderProgram({
-			version: 4,
-			id: 'render-program:hydration-plan',
-			namespace: 'html',
-			template:
-				'<section data-exact-id="root"><button data-exact-id="button">\ue000exact:0\ue001</button></section>',
-			directClaims: true,
-			bind(target) {
-				if (beginCompiledProgramClaims(target, 'section', 'html', 2, 2)) {
-					claimCompiledProgramElementPath(target, 1, 1, 'button');
-					claimCompiledProgramProperty(target, 0, 1);
-					enterCompiledProgramElement(target, 1);
-					claimCompiledProgramText(target, 1, 0, 'label');
-					leaveCompiledProgramElement(target);
-					return;
-				}
-				bindCompiledProgramText(target, 1);
-				bindCompiledProgramProperties(target, 0, 0);
+		version: 4,
+		id: 'render-program:hydration-plan',
+		namespace: 'html',
+		template:
+			'<section data-exact-id="root"><button data-exact-id="button">\ue000exact:0\ue001</button></section>',
+		directClaims: true,
+		bind(target) {
+			if (beginCompiledProgramClaims(target, 'section', 'html', 2, 2)) {
+				claimCompiledProgramElementPath(target, 1, 1, 'button');
+				claimCompiledProgramProperty(target, 0, 1);
+				enterCompiledProgramElement(target, 1);
+				claimCompiledProgramText(target, 1, 0, 'label');
+				leaveCompiledProgramElement(target);
+				return;
 			}
-		});
+			bindCompiledProgramText(target, 1);
+			bindCompiledProgramProperties(target, 0, 0);
+		}
+	});
 	const vnode = createPreparedRenderProgram(
 		program,
 		[() => state.disabled, () => state.label],

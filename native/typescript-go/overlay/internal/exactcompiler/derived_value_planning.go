@@ -16,9 +16,11 @@ type derivedElisionCandidate struct {
 }
 
 // planDerivedBindings separates durable shared cells from safe calculations
-// that can live in their sole reactive view consumer without creating a new
-// identity. The source declaration remains the semantic definition and
-// inspection range; elision is only an emitted-runtime optimization.
+// that can live in their sole reactive view consumer. That consumer's retained
+// binding already caches identity between dependency changes, so an additional
+// dynamic computation node would duplicate ownership and graph work. The source
+// declaration remains the semantic definition and inspection range; elision is
+// only an emitted-runtime optimization.
 func planDerivedBindings(
 	sourceFile *ast.SourceFile,
 	bindings []ReactiveBinding,
@@ -66,11 +68,7 @@ func planDerivedBindings(
 			continue
 		}
 		retained[binding.Start] = binding
-		if len(binding.References) != 1 ||
-			!elidableDerivedValue(
-				declaration.AsVariableDeclaration().Initializer,
-				typeChecker,
-			) {
+		if len(binding.References) != 1 {
 			continue
 		}
 		symbol := declarationSymbols[binding.Start]
@@ -211,41 +209,4 @@ func scalarDerivedType(value *checker.Type) bool {
 		checker.TypeFlagsNull |
 		checker.TypeFlagsUndefined
 	return value.Flags()&scalars != 0
-}
-
-// elidableDerivedValue admits values whose identity does not depend on a fresh
-// setup allocation. Type information is preferred, but isolated transforms do
-// not necessarily load the Component declaration, so direct state/property
-// reads and known scalar intrinsics also need a syntax-level proof.
-func elidableDerivedValue(value *ast.Node, typeChecker *checker.Checker) bool {
-	if value == nil {
-		return false
-	}
-	if scalarDerivedType(typeChecker.GetTypeAtLocation(value)) {
-		return true
-	}
-	switch {
-	case ast.IsIdentifier(value),
-		ast.IsPropertyAccessExpression(value),
-		ast.IsElementAccessExpression(value):
-		return true
-	case ast.IsCallExpression(value):
-		call := value.AsCallExpression()
-		if ast.IsIdentifier(call.Expression) {
-			_, scalar := safeDerivedScalarFunctions[call.Expression.Text()]
-			return scalar
-		}
-		if !ast.IsPropertyAccessExpression(call.Expression) {
-			return false
-		}
-		method := call.Expression.AsPropertyAccessExpression().Name().Text()
-		switch method {
-		case
-			"every", "findIndex", "findLastIndex", "includes", "indexOf",
-			"join", "lastIndexOf", "localeCompare", "reduce", "reduceRight",
-			"some", "startsWith", "endsWith":
-			return true
-		}
-	}
-	return false
 }

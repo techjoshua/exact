@@ -751,6 +751,13 @@ func rootComponentContractAttachment(
 		factory.NewNodeList([]*ast.Node{implementation, properties}),
 		ast.NodeFlagsNone,
 	)
+	// Compiler metadata is a runtime protocol, not part of an authored component's
+	// exported TypeScript surface. Preserve the implementation's callable type so
+	// declaration emit cannot expose target-local constructors or contract internals.
+	assigned = factory.NewAsExpression(
+		assigned,
+		factory.NewTypeQueryNode(implementation, nil),
+	)
 	if !wrapIIFE {
 		return assigned
 	}

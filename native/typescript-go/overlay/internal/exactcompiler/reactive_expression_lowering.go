@@ -85,6 +85,26 @@ func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool 
 			}
 		}
 	}
+	// Passing the component state facade into a render helper is itself a live
+	// capture even when individual property reads occur inside the callee. The
+	// helper call must remain an owned component-range reader until its body is
+	// specialized into the caller's render program.
+	stateRoot := false
+	walkNode(source, func(node *ast.Node) bool {
+		if stateRoot || !ast.IsPropertyAccessExpression(node) {
+			return !stateRoot
+		}
+		access := node.AsPropertyAccessExpression()
+		if access.Name() != nil && access.Name().Text() == "state" &&
+			access.Expression.Kind == ast.KindThisKeyword {
+			stateRoot = true
+			return false
+		}
+		return true
+	})
+	if stateRoot {
+		return true
+	}
 	return false
 }
 

@@ -17,10 +17,7 @@ import type {
 	LazyRegistryEntry,
 	RegistryFacadeInstance
 } from './contracts.js';
-import {
-	assertSafeRegistryKey,
-	invalidRegistryEntry
-} from './errors.js';
+import { assertSafeRegistryKey, invalidRegistryEntry } from './errors.js';
 import { loadRegistryEntry, registerRegistryFacade } from './loading.js';
 import { componentRegistryValues } from './storage.js';
 

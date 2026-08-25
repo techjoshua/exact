@@ -33,7 +33,9 @@ describe('@exactjs/compiler component computations', () => {
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/tasks"');
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/reactivity"');
 		expect(taskOutput).not.toContain('@exactjs/core/runtime/component-reactivity');
-		expect(taskOutput).toContain('__exactDerived(() => __exactReadState(this.state, 0) as any)');
+		expect(taskOutput).toContain(
+			'__exactActivationDependency(() => __exactReadState(this.state, 0) as any)'
+		);
 	});
 
 	it('imports optional component surface capabilities only when authored', () => {
@@ -128,8 +130,8 @@ describe('@exactjs/compiler component computations', () => {
 			{ filename: 'Summary.tsx' }
 		);
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
-		expect(output).toContain('__exactDerived(() => this.state.quantity)');
-		expect(output).toContain('__exactDerived(() => this.state.price)');
+		expect(output).toContain('__exactActivationDependency(() => this.state.quantity)');
+		expect(output).toContain('__exactActivationDependency(() => this.state.price)');
 		expect(output).toContain('__exactWriteState(this.state, 2');
 	});
 
@@ -266,7 +268,7 @@ describe('@exactjs/compiler component computations', () => {
 			{ filename: 'TrySummary.tsx' }
 		);
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
-		expect(output).toContain('__exactDerived(() => this.state.input)');
+		expect(output).toContain('__exactActivationDependency(() => this.state.input)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');
 		expect(output).toContain('finally');

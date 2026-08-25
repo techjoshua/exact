@@ -8,5 +8,7 @@ import type {
 export function createComponentRegistry<const Definition extends ComponentRegistryDefinition>(
 	_define: (builder: ComponentRegistryBuilder) => Definition
 ): ComponentRegistry<Definition> {
-	throw new Error('createComponentRegistry() is source syntax and must be compiled before execution');
+	throw new Error(
+		'createComponentRegistry() is source syntax and must be compiled before execution'
+	);
 }

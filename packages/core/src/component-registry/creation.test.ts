@@ -136,13 +136,18 @@ describe('component registries', () => {
 	it('deduplicates lazy loads and keeps lazy() scoped to definition execution', async () => {
 		const load = vi.fn(async () => Secondary);
 		let escaped: ((load: () => Promise<typeof Secondary>) => unknown) | undefined;
-		const View = createCompiledComponentRegistry('test:deduplicate', 'View', 'client', (builder) => {
-			escaped = builder.lazy;
-			return {
-				primary: Primary,
-				secondary: builder.lazy(load)
-			};
-		});
+		const View = createCompiledComponentRegistry(
+			'test:deduplicate',
+			'View',
+			'client',
+			(builder) => {
+				escaped = builder.lazy;
+				return {
+					primary: Primary,
+					secondary: builder.lazy(load)
+				};
+			}
+		);
 
 		await Promise.all([preloadComponent(View.secondary), preloadComponent(View.secondary)]);
 		expect(load).toHaveBeenCalledTimes(1);

@@ -9,7 +9,10 @@ import (
 )
 
 func (lowering *jsxLowering) componentReactive(expression *ast.Node) *ast.Node {
-	return lowering.call(lowering.names.derived, []*ast.Node{lowering.arrow(expression)})
+	return lowering.call(
+		lowering.names.activationDependency,
+		[]*ast.Node{lowering.arrow(expression)},
+	)
 }
 
 func (lowering *jsxLowering) stateValue(path []string) *ast.Node {
