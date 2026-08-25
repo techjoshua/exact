@@ -450,7 +450,7 @@ func rootComponentContractAttachment(
 		continuations,
 		component.ID,
 	)
-	projectedExecution := projectComponentExecution(component.Execution, target)
+	projectedExecution := componentTargetExecution(component, target)
 	runtimeContinuations := componentContinuations
 	if target == TargetServer {
 		runtimeContinuations = omitDirectServerSetupContinuations(
@@ -552,7 +552,7 @@ func rootComponentContractAttachment(
 					usesCompatibility,
 				),
 				unsupportedServerSurface,
-				component.DirectServer,
+				component.TargetPlan.DirectServer,
 				target == TargetServer,
 				projection != ComponentContractProjectionComplete,
 				updates,
@@ -560,7 +560,7 @@ func rootComponentContractAttachment(
 		),
 	}
 	if projection != ComponentContractProjectionHydrate &&
-		!(target == TargetServer && component.DirectServer) {
+		!(target == TargetServer && component.TargetPlan.DirectServer) {
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"execution",

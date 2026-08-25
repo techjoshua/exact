@@ -14,10 +14,10 @@ func (lowering *jsxLowering) directServerSetupTransition(
 		return Component{}, ComponentTransition{}, false
 	}
 	component, exists := lowering.components[task.Component]
-	if !exists || !component.DirectServer {
+	if !exists || !component.TargetPlan.DirectServer {
 		return Component{}, ComponentTransition{}, false
 	}
-	for _, transition := range projectComponentExecution(component.Execution, TargetServer).Transitions {
+	for _, transition := range component.TargetPlan.ServerExecution.Transitions {
 		if transition.TaskID == task.ID && transition.Activation == "setup" &&
 			!transition.DirectServerSetup {
 			return component, transition, true
@@ -47,7 +47,7 @@ func (lowering *jsxLowering) serverTaskSlice(
 	}
 	lowering.serverTaskSlices[task.ID] = name
 	produced := make(map[int]struct{})
-	for _, candidate := range projectComponentExecution(component.Execution, TargetServer).Transitions {
+	for _, candidate := range component.TargetPlan.ServerExecution.Transitions {
 		for _, port := range candidate.Outputs {
 			produced[port] = struct{}{}
 		}
@@ -66,10 +66,10 @@ func (lowering *jsxLowering) serverTaskSlice(
 	}
 	outputs := make([]*ast.Node, 0, len(transition.Outputs))
 	for _, output := range transition.Outputs {
-		if output < 0 || output >= len(component.Execution.Ports) {
+		if output < 0 || output >= len(component.TargetPlan.ServerExecution.Ports) {
 			continue
 		}
-		port := component.Execution.Ports[output]
+		port := component.TargetPlan.ServerExecution.Ports[output]
 		if port.Kind != "state" {
 			continue
 		}

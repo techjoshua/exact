@@ -41,7 +41,7 @@ func (lowering *jsxLowering) directServerArtifactComponent(node *ast.Node) bool 
 		return false
 	}
 	for _, component := range lowering.components {
-		if component.DirectServer && node.Pos() >= component.Start &&
+		if component.TargetPlan.DirectServer && node.Pos() >= component.Start &&
 			node.End() <= component.Start+component.Length {
 			return true
 		}
@@ -65,20 +65,10 @@ func (lowering *jsxLowering) directServerFrameComponent(node *ast.Node) bool {
 			found = true
 		}
 	}
-	if !found || !owner.CompiledRender || owner.DynamicComponents ||
-		len(projectComponentExecution(owner.Execution, TargetServer).Transitions) != 0 {
+	if !found || !owner.TargetPlan.DirectServerFrame {
 		return false
 	}
-	componentNode := componentSourceNode(lowering.sourceFile, owner)
-	if componentNode == nil ||
-		componentUsesProtocolMember(
-			componentNode,
-			"log", "intl", "hasContext", "getContext", "setContext", "reactive",
-			"ref", "refs", "map", "onUnmount", "onRender", "own",
-		) {
-		return false
-	}
-	return lowering.interop == nil || !componentUsesJSXInterop(owner, componentNode)
+	return true
 }
 
 func componentSourceNode(sourceFile *ast.SourceFile, component Component) *ast.Node {

@@ -182,10 +182,10 @@ func (lowering *jsxLowering) directScheduledServerComponent(tag *ast.Node) bool 
 		return false
 	}
 	component, exists := lowering.components[tag.Text()]
-	if !exists || !component.DirectServer {
+	if !exists || !component.TargetPlan.DirectServer {
 		return false
 	}
-	execution := projectComponentExecution(component.Execution, TargetServer)
+	execution := component.TargetPlan.ServerExecution
 	return len(execution.Transitions) != 0
 }
 

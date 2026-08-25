@@ -206,7 +206,17 @@ type Component struct {
 	CompiledRender      bool                      `json:"-"`
 	Lifecycle           bool                      `json:"-"`
 	Lists               bool                      `json:"-"`
-	DirectServer        bool                      `json:"-"`
+	TargetPlan          ComponentTargetPlan       `json:"-"`
+}
+
+// ComponentTargetPlan is the compiler's authoritative target-local execution decision. Lowering
+// passes consume this plan instead of independently reconstructing server lanes and projections.
+type ComponentTargetPlan struct {
+	ClientExecution      ComponentExecution
+	ServerExecution      ComponentExecution
+	DirectServer         bool
+	DirectServerFrame    bool
+	GenericServerRuntime bool
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.

@@ -8,10 +8,10 @@ import (
 	"github.com/microsoft/typescript-go/internal/printer"
 )
 
-// markDirectServerComponents records the single compiler proof shared by task lowering and
-// contract emission. Keeping the decision on the analyzed component prevents generated task calls
-// and the renderer lane from silently selecting different ABIs.
-func markDirectServerComponents(
+// planComponentTargets records the single target-local proof shared by task lowering, contract
+// emission, capability selection, and renderer entry lowering. No later pass should reconstruct
+// these execution or server-lane decisions from component facts.
+func planComponentTargets(
 	sourceFile *ast.SourceFile,
 	components []Component,
 	tasks []Task,
@@ -45,9 +45,16 @@ func markDirectServerComponents(
 				break
 			}
 		}
-		component.DirectServer = component.CompiledRender &&
+		directServer := component.CompiledRender &&
 			(!hasResumption || directResumption) && !usesCompatibility &&
 			!component.DynamicComponents && !unsupportedSurface && tasksSupported && abi&^directABI == 0
+		component.TargetPlan = ComponentTargetPlan{
+			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
+			ServerExecution:      execution,
+			DirectServer:         directServer,
+			DirectServerFrame:    directServer && len(execution.Transitions) == 0,
+			GenericServerRuntime: component.Placement != "client" && !directServer,
+		}
 	}
 }
 
@@ -61,6 +68,13 @@ func directServerTaskSupported(task Task) bool {
 	return !task.Invoked && !task.Detached && task.KeyLength == 0 &&
 		(task.Readiness == "" || task.Readiness == "blocking" || !task.Async) &&
 		len(task.Contexts) == 0
+}
+
+func componentTargetExecution(component Component, target Target) ComponentExecution {
+	if target == TargetServer {
+		return component.TargetPlan.ServerExecution
+	}
+	return component.TargetPlan.ClientExecution
 }
 
 // componentExecutionMetadata emits the compact canonical subgraph on both
