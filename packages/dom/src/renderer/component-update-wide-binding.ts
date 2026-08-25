@@ -1,5 +1,5 @@
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { ExactNarrowComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
+import type { ExactWideComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
 import {
 	reactiveOwnDependencies,
@@ -8,19 +8,20 @@ import {
 } from '@exactjs/reactive/framework/runtime';
 import type { Mounted } from '../types.js';
 
-/** Lazily allocated component-owned state for one compiler-generated update program. */
-type CompiledComponentUpdateState = {
+/** Lazily allocated mask storage for one compiler-generated wide component update program. */
+type CompiledWideComponentUpdateState = {
 	readonly d: object;
 	readonly k: readonly PropertyKey[];
 	readonly v: number[];
 	readonly t: Array<ExactRenderProgramBindingTarget | undefined>;
+	readonly w: Uint32Array;
 };
 
-type ComponentUpdateOwner = AnyComponentInstance & {
-	[componentUpdateState]?: CompiledComponentUpdateState;
+type WideComponentUpdateOwner = AnyComponentInstance & {
+	[wideComponentUpdateState]?: CompiledWideComponentUpdateState;
 };
 
-const componentUpdateState = Symbol('exact.dom.component-updates');
+const wideComponentUpdateState = Symbol('exact.dom.component-wide-updates');
 
 type ProgramBindingTarget = {
 	readonly mounted: Mounted;
@@ -28,17 +29,11 @@ type ProgramBindingTarget = {
 	valid: boolean;
 };
 
-/**
- * Joins one finite DOM region to its compiler-generated component update program.
- *
- * The first mounted region allocates one dependency subscription on the durable component scope.
- * Every later region installs only its stable indexed target. Region teardown clears that target;
- * component scope teardown releases the shared subscription.
- */
-export function bindCompiledComponentUpdate(
+/** Joins one finite DOM region to a compiler-generated update program wider than 64 operations. */
+export function bindCompiledWideComponentUpdate(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
-	updates: ExactNarrowComponentUpdateContract
+	updates: ExactWideComponentUpdateContract
 ): void {
 	const context = target as ProgramBindingTarget;
 	const owner =
@@ -47,8 +42,8 @@ export function bindCompiledComponentUpdate(
 		context.valid = false;
 		return;
 	}
-	const component = owner as ComponentUpdateOwner;
-	let state = component[componentUpdateState];
+	const component = owner as WideComponentUpdateOwner;
+	let state = component[wideComponentUpdateState];
 	if (!state) {
 		const dependencies = reactiveOwnDependencies(
 			owner.state,
@@ -62,10 +57,11 @@ export function bindCompiledComponentUpdate(
 			d: dependencies.target,
 			k: dependencies.keys,
 			v: dependencies.keys.map((key) => readMutationVersion(dependencies.target, key)),
-			t: []
+			t: [],
+			w: new Uint32Array(updates.words - 2)
 		};
-		component[componentUpdateState] = state;
-		subscribeKeys(state.d, state.k, () => publishCompiledComponentUpdate(updates, state!), {
+		component[wideComponentUpdateState] = state;
+		subscribeKeys(state.d, state.k, () => publishCompiledWideComponentUpdate(updates, state!), {
 			scope: owner.scope
 		});
 	}
@@ -78,19 +74,31 @@ export function bindCompiledComponentUpdate(
 	});
 }
 
-/** Converts one mutation-version snapshot into the component's generated dirty operation mask. */
-function publishCompiledComponentUpdate(
-	updates: ExactNarrowComponentUpdateContract,
-	state: CompiledComponentUpdateState
+/** Publishes every changed compiler-sized mask word through the generated wide updater. */
+function publishCompiledWideComponentUpdate(
+	updates: ExactWideComponentUpdateContract,
+	state: CompiledWideComponentUpdateState
 ): void {
 	let dirtyLow = 0;
 	let dirtyHigh = 0;
+	let changed = false;
 	for (let index = 0; index < state.k.length; index++) {
 		const version = readMutationVersion(state.d, state.k[index]!);
 		if (version === state.v[index]) continue;
 		state.v[index] = version;
-		dirtyLow |= updates.bindings[index]![1];
-		dirtyHigh |= updates.bindings[index]![2];
+		changed = true;
+		const binding = updates.bindings[index]!;
+		dirtyLow |= binding[1];
+		dirtyHigh |= binding[2];
+		const bindingWords = binding as unknown as readonly number[];
+		for (let word = 0; word < state.w.length; word++) {
+			state.w[word] = state.w[word]! | (bindingWords[word + 3] ?? 0);
+		}
 	}
-	if (dirtyLow || dirtyHigh) updates.apply(state.t, dirtyLow, dirtyHigh);
+	if (!changed) return;
+	try {
+		updates.apply(state.t, dirtyLow, dirtyHigh, state.w);
+	} finally {
+		state.w.fill(0);
+	}
 }

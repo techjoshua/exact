@@ -1123,11 +1123,13 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	directUpdates := []renderProgramDirectUpdate{}
 	var componentTarget *int
 	componentUpdates := ""
+	var componentUpdate *componentUpdateBuild
 	if lowering.target == TargetClient {
 		directUpdates = lowering.directRenderProgramUpdates(build)
-		if target, updates, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
+		if target, updates, update, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
 			componentTarget = &target
 			componentUpdates = updates
+			componentUpdate = update
 		} else {
 			// Direct state operations are component-owned. JSX outside a compiled component retains
 			// ordinary expression bindings rather than materializing a second update runtime.
@@ -1139,7 +1141,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	}
 	if lowering.target == TargetClient {
 		if len(bindings) != 0 || len(directListSlots) != 0 || len(build.nodes) > 1 {
-			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget, componentUpdates)))
+			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget, componentUpdates, componentUpdate)))
 		} else {
 			members = append(
 				members,

@@ -23,6 +23,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 	directUpdates []renderProgramDirectUpdate,
 	componentTarget *int,
 	componentUpdates string,
+	componentUpdate *componentUpdateBuild,
 ) *ast.Node {
 	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
 	statements := make([]*ast.Node, 0, len(build.slots)+2)
@@ -92,11 +93,21 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 		call(lowering.names.bindProgramProperties, arguments...)
 	}
 	if componentTarget != nil {
-		call(
-			lowering.names.bindComponentUpdate,
-			lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
-			lowering.factory.NewIdentifier(componentUpdates),
-		)
+		binder := lowering.factory.NewIdentifier(lowering.names.bindComponentUpdate)
+		componentUpdate.binders = append(componentUpdate.binders, binder)
+		statements = append(statements, lowering.factory.NewExpressionStatement(
+			lowering.factory.NewCallExpression(
+				binder,
+				nil,
+				nil,
+				lowering.factory.NewNodeList([]*ast.Node{
+					target,
+					lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
+					lowering.factory.NewIdentifier(componentUpdates),
+				}),
+				ast.NodeFlagsNone,
+			),
+		))
 	}
 	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)
 	return lowering.factory.NewArrowFunction(

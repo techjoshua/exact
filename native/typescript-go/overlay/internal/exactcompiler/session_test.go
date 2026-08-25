@@ -272,6 +272,9 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 			t.Fatalf("generated direct state update omitted %q:\n%s", expected, response.Code)
 		}
 	}
+	if strings.Contains(response.Code, "__exactBindWideComponentUpdate") {
+		t.Fatalf("narrow component update retained the wide binding runtime:\n%s", response.Code)
+	}
 	definition := strings.Index(response.Code, "const __exact_component_updates_1")
 	attachment := strings.Index(response.Code, "updates: __exact_component_updates_1")
 	if definition == -1 || attachment == -1 || definition > attachment {
@@ -400,6 +403,7 @@ func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *te
 	}
 	for _, expected := range []string{
 		`words: 3`,
+		`__exactBindWideComponentUpdate(__exactBindingTarget, 64, __exact_component_updates_1)`,
 		`["value64", 0, 0, 1]`,
 		`__exactDirtyWords: Uint32Array`,
 		`__exactDirtyWords[0] & 1`,
@@ -409,7 +413,8 @@ func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *te
 		}
 	}
 	if strings.Contains(response.Code, "bindCompiledProgramState") ||
-		strings.Contains(response.Code, "__exactBindProgramState") {
+		strings.Contains(response.Code, "__exactBindProgramState") ||
+		strings.Contains(response.Code, "__exactBindComponentUpdate(") {
 		t.Fatalf("wide component update retained the generic lane fallback:\n%s", response.Code)
 	}
 }

@@ -12,7 +12,7 @@ export type ExactCompiledComponentCapability =
 	| 'collections';
 
 /** Ordinary component update program whose operations fit in two inline mask words. */
-type ExactNarrowComponentUpdateContract = Readonly<{
+export type ExactNarrowComponentUpdateContract = Readonly<{
 	/** Stable state field plus its low/high operation masks. */
 	bindings: readonly (readonly [key: string, dirtyLow: number, dirtyHigh: number])[];
 	words?: never;
@@ -21,7 +21,7 @@ type ExactNarrowComponentUpdateContract = Readonly<{
 }>;
 
 /** Large component update program with compiler-sized mask storage beyond its inline words. */
-type ExactWideComponentUpdateContract = Readonly<{
+export type ExactWideComponentUpdateContract = Readonly<{
 	/** Stable state field plus every 32-operation mask affected by that field. */
 	bindings: readonly (readonly [
 		key: string,

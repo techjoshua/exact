@@ -156,7 +156,9 @@ region in that component therefore shares one dependency subscription and mutati
 The ordinary case keeps two inline 32-bit mask words. When a component contains more than 64 direct
 operations, the compiler extends that same artifact with the exact number of additional words; only
 instances of that component allocate the corresponding typed mask storage. Capacity never selects
-the removed runtime `WeakMap`/lane graph or a set of per-region reactions.
+the removed runtime `WeakMap`/lane graph or a set of per-region reactions. The compiler also links
+the wide binder only into those artifacts; ordinary components retain the two-word binder without a
+wide-capacity branch or import.
 Numeric mutation versions identify the fields that actually changed, and the generated updater
 calls only operations whose region target is currently mounted. Region replacement clears its
 indexed target, while final component teardown releases the shared reaction. This avoids both
