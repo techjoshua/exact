@@ -568,10 +568,13 @@ implementation and preserves synchronously current transitive computed reads. Th
 facade remains the boundary for authored aliases, dynamic access, external code, snapshots, and
 DevTools. Plain request-local SSR state does not pay for the client indexed-read helper.
 Canonical top-level client writes also address the proven numeric slot directly while retaining
-replacement reconciliation, mutation journals, batching, and dependency notification. Nested,
-aliased, and dynamic writes keep the generic path lane rather than accepting an unsafe slot proof.
+replacement reconciliation, mutation journals, batching, and dependency notification. A
+checker-proven alias of the complete state facade keeps this indexed identity; nested-state aliases
+and dynamic writes keep the generic path lane rather than accepting an unsafe slot proof.
 Generated form and component-binding callbacks carry the authored slot identity through island and
 callback synthesis instead of recovering component ownership from the generated syntax tree.
+Managed client computations and task callbacks use the same analyzed slot identity, including when
+their work closes over a checker-proven alias of the complete state facade.
 
 Render-program hydration stores only directly claimed compiler-numbered elements in a sparse
 ephemeral array. Inert static intrinsics remain covered by their enclosing component or structural
