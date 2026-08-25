@@ -1,6 +1,8 @@
 import {
 	type AnyComponentInstance,
+	createErrorReport,
 	createVNode,
+	handleComponentError,
 	LoggerContext,
 	Text,
 	type VNode
@@ -24,6 +26,7 @@ import type { DomProfileEvent, Mounted, RenderOptions } from '../types.js';
 import { walkDomSubtree, type DomWorkBudget } from '../work.js';
 import { normalizeTreeDepth, normalizeTreeNodes, withDomWork } from './limits.js';
 import { patch } from './patching/root.js';
+import { rerenderComponent } from './patching/children.js';
 import { createRendererRoot } from './root-construction.js';
 import {
 	attemptTeardown,
@@ -117,6 +120,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 
 	const next =
 		root.mode === 'hydrated' ? vnode : createVNode(root.boundary, { version: root.version });
+	const refreshCompiledBoundary = root.mode !== 'hydrated' && root.mounted !== undefined;
 	const profileStarted = root.onProfile ? performance.now() : undefined;
 	try {
 		withDomWork(root, () => {
@@ -128,6 +132,18 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 				options.logicalParent,
 				options.logicalParent?.scope
 			);
+			if (refreshCompiledBoundary) {
+				try {
+					rerenderComponent(root, root.mounted);
+				} catch (error) {
+					const instance = root.mounted.instance;
+					if (!instance) throw error;
+					handleComponentError(
+						instance,
+						createErrorReport(error, 'render', instance, 'root-update')
+					);
+				}
+			}
 			flushSync();
 		});
 		if (!root.errors.errors.length) root.patchRecoveryRequired = false;

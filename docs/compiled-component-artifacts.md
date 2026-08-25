@@ -54,6 +54,9 @@ artifact emits one explicit dynamic range for that expression. The durable compo
 runs once; only the compiler-declared range observes and replaces the forwarded value. Such
 components do not retain the component-wide watched-render fallback merely because they have no JSX
 element of their own.
+Framework-owned renderer roots likewise use an explicit compiled render operation. The renderer
+invokes that operation when the public root value changes, so no compilerless component watcher or
+additional dynamic marker is required around the application.
 Compiler-proven top-level state reads use the artifact's deterministic numeric state slots rather
 than re-entering the inspectable state's property proxy. That numeric lane tracks the same
 target/key dependency graph as ordinary property reads, so computed freshness, transactions,

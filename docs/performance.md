@@ -587,6 +587,10 @@ indexing path; authored string identities are not an alternate render-program re
 Browser artifacts also omit the generic VNode fallback formerly retained beside complete render
 programs. Their specialized template handles construction, while hydration failure escalates to the
 root recovery path instead of retaining and invoking a second region topology.
+The DOM renderer's framework-owned root boundary follows the same rule. Its render operation runs
+once at construction and is invoked explicitly by the root update path; it does not retain a
+component-wide reactive watcher. This preserves the existing marker-free root topology and error
+ownership while avoiding an extra dependency subscription on every client navigation.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
 the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
