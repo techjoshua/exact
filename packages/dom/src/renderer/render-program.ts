@@ -12,7 +12,10 @@ import { adoptProgramChildSlots } from './render-program-children.js';
 import { markedProgramRange } from './render-program-hydration.js';
 import { bindRenderProgram } from './render-program-bindings.js';
 import { claimCompiledRenderProgram } from './render-program-claims.js';
-import { ownDirectProgramNodes, releaseDirectProgramNodeOwners } from './render-program-slot-claims.js';
+import {
+	ownDirectProgramNodes,
+	releaseDirectProgramNodeOwners
+} from './render-program-slot-claims.js';
 
 /** Mounts one compiler-specialized browser program. */
 export function mountRenderProgram(

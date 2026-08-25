@@ -33,10 +33,15 @@ async function AsyncLabel(this: Component<{ text?: string }>, props: { text: str
 
 const DirectLabel = (props: { text: string }) => <span>{props.text}</span>;
 
-const Labels = createComponentRegistry(({ lazy }) => ({
+const _defineLabels = () =>
+	createComponentRegistry(({ lazy }) => ({
+		direct: DirectLabel,
+		async: lazy(async () => AsyncLabel)
+	}));
+const Labels = {
 	direct: DirectLabel,
-	async: lazy(async () => AsyncLabel)
-}));
+	async: AsyncLabel
+} as ReturnType<typeof _defineLabels>;
 
 describe('@exactjs/jsx types', () => {
 	it('compiles TSX through the automatic runtime', () => {

@@ -4174,7 +4174,7 @@ func TestSessionElidesSingleConsumerScalarDerivedBindings(t *testing.T) {
 	}
 }
 
-func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
+func TestSessionRetainsSharedAndMaterializesSoleConsumerDerivedBindings(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "shared-derived.tsx",
 		Kind: "compile",
@@ -4198,12 +4198,60 @@ func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
 	for _, expected := range []string{
 		`createDerived as __exactDerived`,
 		"const label = __exactDerived(() => `Count: ${this.state.count}`)",
-		`const options = __exactDerived(() => ({ label: String(this.state.count) }))`,
 		`label.get()`,
-		`options.get()`,
+		`const __exact_options_1 = { label: String(this.state.count) }`,
+		`return __exact_options_1`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("retained derived output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `const options = __exactDerived`) ||
+		strings.Contains(response.Code, `options.get()`) {
+		t.Fatalf("sole-consumer derived output retained a redundant computation cell:\n%s", response.Code)
+	}
+}
+
+func TestSessionOmitsMaterializedDerivedCellsFromHydrationArtifacts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:                          "derived-hydration.tsx",
+		Kind:                        "compile",
+		Target:                      TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		ServerComponents:            true,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			export function View(this: Component<{
+				items: { id: string }[];
+				selectedId: string;
+			}>) {
+				const load = async (_task: TaskContext = TaskContext.server()) => undefined;
+				load();
+				const selected = this.state.items.find(
+					(item) => item.id === this.state.selectedId
+				);
+				return () => <button
+					title={selected?.id}
+					onClick={() => this.state.selectedId = ""}
+				/>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "View_ExactClient_1") {
+		t.Fatalf("hydration artifact omitted generated client island:\n%s", response.Code)
+	}
+	for _, omitted := range []string{"createDerived", "const selected =", "selected.get()"} {
+		if strings.Contains(response.Code, omitted) {
+			t.Fatalf("hydration artifact retained redundant derived cell %q:\n%s", omitted, response.Code)
+		}
+	}
+	for _, expected := range []string{"View_ExactClient_1", "title: props.title"} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("hydration artifact omitted specialized island input %q:\n%s", expected, response.Code)
 		}
 	}
 }
@@ -4264,7 +4312,7 @@ __fixtureTask10();
 	}
 	for _, expected := range []string{
 		`const label = __exactDerived(() => this.state.query + "!")`,
-		`__exactDerived(() => label.get())`,
+		`__exactActivationDependency(() => label.get())`,
 		`(__exactDependency: string, _task: TaskContext) => consume(__exactDependency)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -4697,7 +4745,7 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 		"activateTaskForHost as __exactActivateTask",
 		"defineTask as __exactDefineTask",
 		"__exactActivateTask(this, __exactDefineTask(",
-		"__exactDerived(() => this.state.revision)",
+		"__exactActivationDependency(() => this.state.revision)",
 		"async (revision: number, task: TaskContext)",
 		"__exactTaskAwait(task.signal, delay(task.signal))",
 	} {
@@ -4840,14 +4888,14 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
 		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft : __exactTaskArgs[1];`,
 		`return [__exactTaskArgs[0], draft];`,
-		`__exactDerived(() => this.state.revision)`,
+		`__exactActivationDependency(() => this.state.revision)`,
 		`async (__exactDependency: number, draft: string, task: TaskContext)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("captured task output is missing %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, "__exactDerived(() => this.state.draft)") ||
+	if strings.Contains(response.Code, "__exactActivationDependency(() => this.state.draft)") ||
 		strings.Contains(response.Code, "draft: string = this.state.draft") {
 		t.Fatalf("captured default remained a reactive dependency or body default:\n%s", response.Code)
 	}
@@ -6223,10 +6271,12 @@ func TestSessionPreservesNarrowedDerivedValuesInsideNestedPrograms(t *testing.T)
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "point.get()!") {
+	if !strings.Contains(response.Code, "const __exact_cached_point_1 = point.get();") ||
+		!strings.Contains(response.Code, "__exact_cached_point_1 ?") {
 		t.Fatalf("nested program discarded the authored nullish narrowing: %s", response.Code)
 	}
-	if strings.Contains(response.Code, "point.get().x") || strings.Contains(response.Code, "point.get().y") {
+	if strings.Contains(response.Code, "point.get().x") || strings.Contains(response.Code, "point.get().y") ||
+		strings.Contains(response.Code, "point.get() ?") {
 		t.Fatalf("nested program emitted property reads without the authored narrowing: %s", response.Code)
 	}
 }

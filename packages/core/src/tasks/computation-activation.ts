@@ -8,8 +8,9 @@ import {
 	watchContinuationDependencies,
 	type ContinuationDependencyWatcher
 } from './dependency-watcher.js';
+import type { ContinuationDependencySource } from './dependency-source.js';
 
-type ActivationInput<T> = T | ReactiveValue<T>;
+type ActivationInput<T> = T | ReactiveValue<T> | ContinuationDependencySource<T>;
 
 /**
  * Activates synchronous compiler-owned component computation without constructing a task

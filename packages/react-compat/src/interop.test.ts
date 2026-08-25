@@ -48,11 +48,11 @@ describe('eXact and React context interop', () => {
 		expect(server).not.toBe(client);
 		expect(readExactCompiledComponentContract(client)).toMatchObject({
 			placement: 'client',
-			definition: { abi: 14 }
+			definition: { abi: 30 }
 		});
 		expect(readExactCompiledComponentContract(server)).toMatchObject({
 			placement: 'server',
-			definition: { abi: 15 }
+			definition: { abi: 31 }
 		});
 	});
 

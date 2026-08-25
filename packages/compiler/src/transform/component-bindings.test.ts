@@ -42,9 +42,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 			'open: __exactExpression(() => __exactReadState(this.state, 0) as boolean)'
 		);
 		expect(result.code).toContain('onOpenChanged: (__exactBindingValue: boolean) =>');
-		expect(result.code).toContain(
-			'__exactWriteState(this.state, 0, () => __exactBindingValue)'
-		);
+		expect(result.code).toContain('__exactWriteState(this.state, 0, () => __exactBindingValue)');
 	});
 
 	it('rejects an explicit generated prop instead of composing callbacks', () => {
@@ -96,9 +94,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		);
 		expect(result.code).toContain('__exactApply("__exactBindToggle",');
 		expect(result.code).toContain('event.currentTarget.open');
-		expect(result.code).toContain(
-			'__exactApply("__exactClosedInteraction:onToggle", () => { })'
-		);
+		expect(result.code).toContain('__exactApply("__exactClosedInteraction:onToggle", () => { })');
 	});
 
 	it('lowers modal state without serializing an open HTML attribute', () => {

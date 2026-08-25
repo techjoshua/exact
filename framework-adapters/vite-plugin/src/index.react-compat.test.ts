@@ -89,7 +89,9 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 
 		expect(transformed).toContain('adaptReactComponent as __exactInteropComponent');
 		expect(transformed).toContain('__exactInteropComponent(QueryClientProvider)');
-		expect(transformed).toContain('client: __exactExpression(() => this.state.client)');
+		expect(transformed).toContain(
+			'client: __exactExpression(() => __exactReadState(this.state, 0) as object)'
+		);
 		expect(transformed).not.toContain('jsx-runtime18');
 	});
 
@@ -117,7 +119,7 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 			'/** @jsxImportSource @exactjs/jsx */\nimport { useState } from "react"; const view = <span>{useState}</span>;';
 		expect(
 			exact({ reactCompatibility: false }).transform(exactOwned, '/src/exact.tsx')?.code
-		).toContain('__exactVNode');
+		).toContain('__exactPreparedRenderProgram');
 		expect(
 			exact({ reactCompatibility: false }).transform(
 				'/** @jsxImportSource react */\nconst view = <span />;',

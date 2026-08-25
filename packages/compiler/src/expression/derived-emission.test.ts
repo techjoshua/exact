@@ -61,7 +61,7 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('consume(label.get());');
 	});
 
-	it('retains an identity-bearing derived value with one view consumer', () => {
+	it('materializes an identity-bearing derived value inside its sole reactive view consumer', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {
         const user = { fullName: \`\${this.state.first} \${this.state.last}\` };
@@ -69,8 +69,39 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const user = __exactDerived');
-		expect(output).toContain('user.get()');
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const user =');
+		expect(output).toContain('const __exact_user_1 = {');
+		expect(output).toContain('return __exact_user_1;');
+	});
+
+	it('materializes a collection lookup directly inside its sole component-prop binding', () => {
+		const source = `
+      function Detail(props: { incident?: { id: string } }) {
+        return () => <p>{props.incident?.id}</p>;
+      }
+      function View(this: Component<{
+        incidents: { id: string }[];
+        selectedId: string;
+      }>) {
+        const selected = this.state.incidents.find(
+          (incident) => incident.id === this.state.selectedId
+        );
+        return () => <Detail incident={selected} />;
+      }
+		`;
+		const output = transform(source);
+
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const selected =');
+		expect(output).toContain('.find(');
+
+		const serverOutput = transform(source, {
+			target: 'server',
+			componentContractProjection: 'server-render'
+		});
+		expect(serverOutput).toContain('const selected = this.state.incidents.find(');
+		expect(serverOutput).toContain('incident: __exactExpression(() => selected)');
 	});
 
 	it('elides a single-consumer binding that only forwards existing identity', () => {
@@ -227,7 +258,9 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('const values = __exactDerived(() => new Set(props.values ?? []));');
+		expect(output).not.toContain('createDerived');
+		expect(output).not.toContain('const values =');
+		expect(output).toContain('const __exact_values_1 = new Set(props.values ?? []);');
 		expect(output).not.toContain('const count =');
 		expect(output).not.toContain('const progress =');
 		expect(output).toContain('const __exact_count_1 =');
@@ -416,6 +449,20 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('return __exact_title_1;');
 	});
 
+	it('materializes a derived collection before emitting a keyed render-program reader', () => {
+		const output = transform(`
+      function View(this: Component<{ query: string }>, props: { items: string[] }) {
+        const filtered = props.items.filter(item => item.includes(this.state.query));
+        return () => <ul>{filtered.map(item => <li>{item}</li>)}</ul>;
+      }
+    `);
+
+		expect(output).not.toContain('const filtered =');
+		expect(output).not.toContain('filtered.map(');
+		expect(output).toContain('const __exact_filtered_1 = props.items.filter(');
+		expect(output).toContain('__exact_filtered_1.map(');
+	});
+
 	it('preserves narrowing for nullable derived locals', () => {
 		const output = transform(`
       function View(this: Component<{ enabled: boolean }>) {
@@ -464,9 +511,7 @@ describe('@exactjs/compiler: derived values', () => {
 			'import { TaskContext } from "@exactjs/core";\nfunction View() { this.reactive(() => this.state.query); const runFixtureTask = ({ signal }: TaskContext = TaskContext.latest()) => {};\nrunFixtureTask(); }'
 		);
 
-		expect(output).toContain(
-			'this.reactive(() => __exactReadState(this.state, 0) as any)'
-		);
+		expect(output).toContain('this.reactive(() => __exactReadState(this.state, 0) as any)');
 		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(output).toContain('({ signal }: TaskContext)');
 		expect(output).not.toContain('this.reactive(() => () => __exactReadState');
@@ -480,9 +525,7 @@ describe('@exactjs/compiler: derived values', () => {
 	});
 
 	it('avoids helper alias collisions with user identifiers', () => {
-		const output = transform(
-			'const __exactPreparedRenderProgram = 1; const view = <span />;'
-		);
+		const output = transform('const __exactPreparedRenderProgram = 1; const view = <span />;');
 
 		expect(output).toContain('createPreparedRenderProgram as __exactPreparedRenderProgram_1');
 		expect(output).toContain('__exactPreparedRenderProgram_1(__exact_render_program_1');

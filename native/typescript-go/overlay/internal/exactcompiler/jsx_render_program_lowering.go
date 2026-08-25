@@ -692,7 +692,22 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				if list {
 					lowering.renderProgramListDepth++
 				}
-				reader := lowering.visitor.VisitNode(expression)
+				var reader *ast.Node
+				var materialized *ast.Node
+				if lowering.target == TargetClient {
+					materialized = lowering.reactiveClosure(expression)
+				}
+				if materialized != nil {
+					// Materialize authored render locals before collection lowering clones
+					// the map expression into a generated keyed-child reader. The cloned
+					// identifier no longer has reliable checker ownership, while the
+					// authored expression still resolves the declaration precisely.
+					reader = lowering.call(lowering.names.expression, []*ast.Node{
+						lowering.visitor.VisitNode(materialized),
+					})
+				} else {
+					reader = lowering.visitor.VisitNode(expression)
+				}
 				if list {
 					lowering.renderProgramListDepth--
 				}

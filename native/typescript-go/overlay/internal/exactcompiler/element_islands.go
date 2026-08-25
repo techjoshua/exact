@@ -128,7 +128,7 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 			contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		)),
 	)
-	return factory.NewCallExpression(
+	assigned := factory.NewCallExpression(
 		factory.NewPropertyAccessExpression(factory.NewIdentifier("Object"), nil, factory.NewIdentifier("assign"), ast.NodeFlagsNone),
 		nil,
 		nil,
@@ -147,6 +147,12 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 			), nil, nil, contract),
 		)}),
 		ast.NodeFlagsNone,
+	)
+	// Generated island exports likewise expose only their callable signature;
+	// their component contract remains a compiler/runtime protocol.
+	return factory.NewAsExpression(
+		assigned,
+		factory.NewTypeQueryNode(implementation, nil),
 	)
 }
 
@@ -171,6 +177,14 @@ func (lowering *jsxLowering) clientIslandDefinition(
 	}
 	derivedValues := make([]*ast.Node, 0, len(island.derivedCaptures))
 	for _, capture := range island.derivedCaptures {
+		name := capture.declaration.AsVariableDeclaration().Name()
+		if _, materialized := lowering.elidedDerived[name.Pos()]; materialized {
+			// The island's sole render consumer owns this calculation in its
+			// generated reactive binding. Recreating a durable derived cell here
+			// would retain the generic computation graph and evaluate the same
+			// authored initializer twice.
+			continue
+		}
 		derivedValues = append(
 			derivedValues,
 			lowering.clientIslandDerivedCapture(capture),

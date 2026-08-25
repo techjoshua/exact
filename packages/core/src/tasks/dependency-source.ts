@@ -3,6 +3,7 @@ import {
 	ref as reactiveRef,
 	subscribe,
 	unwrap,
+	watch,
 	type ReactiveRef,
 	type ReactiveValue
 } from '@exactjs/reactive/framework/runtime';
@@ -59,13 +60,32 @@ export function constantContinuationDependency<T>(value: T): ContinuationDepende
  * constants retain the same snapshot for the lifetime of the activation.
  */
 export function activationInputDependency<T>(
-	input: T | ReactiveValue<T>
+	input: T | ReactiveValue<T> | ContinuationDependencySource<T>
 ): ContinuationDependencySource<T> {
-	const planned = continuationDependencyForValue(input);
+	if (trackedContinuationDependencies.has(input as object))
+		return input as ContinuationDependencySource<T>;
+	const value = input as T | ReactiveValue<T>;
+	const planned = continuationDependencyForValue(value);
 	if (planned) return planned as ContinuationDependencySource<T>;
-	const source = reactiveRef(input);
-	if (!source) return constantContinuationDependency(input as T);
-	return reactiveContinuationDependency(input, source);
+	const source = reactiveRef(value);
+	if (!source) return constantContinuationDependency(value as T);
+	return reactiveContinuationDependency(value, source);
+}
+
+/**
+ * Creates the compiler-owned dependency source for one statically placed activation input.
+ *
+ * The source reuses ordinary reactive dependency tracking and publishes only when the projected
+ * value changes. Unlike a public computed value, it has no downstream computation graph, value
+ * facade, inspection record, or settlement traversal; its sole owner is the activation watcher
+ * that disposes the subscription with the component.
+ */
+export function createTrackedContinuationDependency<T>(
+	compute: () => T
+): ContinuationDependencySource<T> {
+	const dependency = new TrackedContinuationDependency(compute);
+	trackedContinuationDependencies.add(dependency);
+	return dependency;
 }
 
 /** Returns only a compiler-propagated dependency source without evaluating an ordinary value. */
@@ -149,6 +169,54 @@ function reactiveContinuationDependency<T>(
 
 const inertDisposable: Disposable = { [Symbol.dispose]() {} };
 
+const trackedContinuationDependencies = new WeakSet<object>();
+
+class TrackedContinuationDependency<T> implements ContinuationDependencySource<T> {
+	private initialized = false;
+	private notify: (() => void) | undefined;
+	private value!: T;
+	private version = 0;
+	private stop: (() => void) | undefined;
+	private readonly evaluate = (): void => {
+		const next = unwrap(this.compute()) as T;
+		if (this.initialized && Object.is(this.value, next)) return;
+		const publish = this.initialized;
+		this.initialized = true;
+		this.value = next;
+		if (publish) {
+			this.version++;
+			this.notify?.();
+		}
+	};
+
+	constructor(private readonly compute: () => T) {}
+
+	read(): ContinuationDependencySnapshot<T> {
+		if (!this.initialized) this.evaluate();
+		return { status: 'available', generation: 0, version: this.version, value: this.value };
+	}
+
+	subscribe(notify: () => void): Disposable {
+		if (this.notify)
+			throw new Error('Compiler-owned continuation dependencies support one active owner');
+		this.notify = notify;
+		try {
+			this.stop = watch(this.evaluate);
+		} catch (error) {
+			this.notify = undefined;
+			throw error;
+		}
+		let active = true;
+		return disposable(() => {
+			if (!active) return;
+			active = false;
+			this.stop?.();
+			this.stop = undefined;
+			this.notify = undefined;
+		});
+	}
+}
+
 function disposable(dispose: () => void): Disposable {
 	return { [Symbol.dispose]: dispose };
 }
@@ -163,6 +231,10 @@ type DependencySubscriber = {
 class DependencySubscribers {
 	#first?: DependencySubscriber;
 	#last?: DependencySubscriber;
+
+	get empty(): boolean {
+		return this.#first === undefined;
+	}
 
 	subscribe(notify: () => void): Disposable {
 		const subscriber: DependencySubscriber = {

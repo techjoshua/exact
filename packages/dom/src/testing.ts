@@ -7,10 +7,7 @@ import {
 	claimGenericHydrationSlots,
 	claimGenericMountSlots
 } from './renderer/render-program-slot-claims.js';
-import {
-	indexProgramHydration,
-	programElement
-} from './renderer/render-program-hydration.js';
+import { indexProgramHydration, programElement } from './renderer/render-program-hydration.js';
 import type { ExactTableRenderProgram } from '@exactjs/core/runtime/render';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
 
@@ -76,7 +73,9 @@ function claimTableFixture(target: TestClaimTarget, program: ExactTableRenderPro
 			? claimGenericHydrationSlots(program, target.root, index)
 			: claimGenericMountSlots(program, target.root, index);
 	target.slotNodes.splice(0, target.slotNodes.length, ...slots);
-	const components = program.slots.flatMap((slot, index) => (slot[0] === 'component' ? [index] : []));
+	const components = program.slots.flatMap((slot, index) =>
+		slot[0] === 'component' ? [index] : []
+	);
 	target.componentSlots = components.every((index) => index < 31)
 		? components.reduce((mask, index) => mask | (1 << index), 0)
 		: new Set(components);
@@ -85,8 +84,7 @@ function claimTableFixture(target: TestClaimTarget, program: ExactTableRenderPro
 	target.valid =
 		program.nodes.every((node, index) =>
 			matchesFixtureElement(target.elements[index], node, program.namespace)
-		) &&
-		target.slotNodes.every((node) => node instanceof Node || Array.isArray(node));
+		) && target.slotNodes.every((node) => node instanceof Node || Array.isArray(node));
 }
 
 function matchesFixtureElement(

@@ -185,9 +185,9 @@ export function RuntimesPage(this: Component<{}>) {
 				<p>
 					Every eXact application must run the compiler. A first-class or supported plugin embeds it
 					in the host build; <code>exactc</code> remains the escape hatch for other pipelines. All
-					four routes use the same persistent native compiler and expose no alternate backend. A direct
-					compiler call without a target emits a client artifact; select <code>server</code> explicitly
-					or request paired artifacts when producing server output.
+					four routes use the same persistent native compiler and expose no alternate backend. A
+					direct compiler call without a target emits a client artifact; select <code>server</code>{' '}
+					explicitly or request paired artifacts when producing server output.
 				</p>
 				<p>
 					Native source maps are composed through mapped host transforms. Framework-generated

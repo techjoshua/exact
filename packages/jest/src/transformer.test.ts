@@ -9,7 +9,7 @@ describe('@exactjs/jest transformer', () => {
 			{ supportsStaticESM: true }
 		);
 
-		expect(result.code).toContain('createCompiledVNode');
+		expect(result.code).toContain('createPreparedRenderProgram');
 		expect(result.code).not.toContain('this:');
 	});
 

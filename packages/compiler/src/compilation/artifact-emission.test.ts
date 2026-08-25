@@ -365,7 +365,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain(
 			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'
 		);
-		expect(client).toContain('__exactDerived(() => this.state.id)');
+		expect(client).toContain('__exactActivationDependency(() => this.state.id)');
 		expect(server).toMatch(
 			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
 		);

@@ -42,6 +42,13 @@ func (plan jsxLoweringPlan) prepare(
 		plan.reactiveBindings,
 		plan.typeChecker,
 	)
+	if plan.target == TargetServer {
+		// Render-consumer materialization is a client update optimization. Server
+		// rendering executes the authored setup and render frame once, so keeping
+		// these values as ordinary locals avoids both a reactive cell and a second
+		// generated closure while preserving the declaration for every SSR lane.
+		elidedDerived = map[int]ReactiveBinding{}
+	}
 	if !hasJSX && len(plan.stateWrites) == 0 && len(plan.tasks) == 0 &&
 		len(derived) == 0 && len(plan.components) == 0 {
 		return nil, false
