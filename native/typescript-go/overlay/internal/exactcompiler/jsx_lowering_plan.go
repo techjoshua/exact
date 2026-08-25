@@ -1,8 +1,6 @@
 package exactcompiler
 
 import (
-	"strings"
-
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/checker"
 	"github.com/microsoft/typescript-go/internal/printer"
@@ -39,14 +37,13 @@ func (plan jsxLoweringPlan) prepare(
 	factory *printer.NodeFactory,
 ) (*jsxLowering, bool) {
 	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
-	hasReactiveCapture := strings.Contains(sourceFile.Text(), ".reactive")
 	derived, elidedDerived := planDerivedBindings(
 		sourceFile,
 		plan.reactiveBindings,
 		plan.typeChecker,
 	)
 	if !hasJSX && len(plan.stateWrites) == 0 && len(plan.tasks) == 0 &&
-		len(derived) == 0 && !hasReactiveCapture && len(plan.components) == 0 {
+		len(derived) == 0 && len(plan.components) == 0 {
 		return nil, false
 	}
 	lowering := &jsxLowering{

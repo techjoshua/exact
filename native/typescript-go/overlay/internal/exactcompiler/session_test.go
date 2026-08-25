@@ -1851,6 +1851,32 @@ func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
 	}
 }
 
+func TestSessionDoesNotSelectRuntimeCapabilitiesFromSourceText(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "capability-text.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `export function Notes() {
+			const notes = ["this.intl", "this.log", "this.ref", "this.getContext", "this.reactive"];
+			return () => <output>{notes.join(" ")}</output>;
+		}`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, unwanted := range []string{
+		"runtime/localization",
+		"runtime/logging",
+		"runtime/refs",
+		"runtime/contexts",
+		"runtime/component-reactivity",
+	} {
+		if strings.Contains(response.Code, unwanted) {
+			t.Fatalf("source text selected %s without an AST capability use:\n%s", unwanted, response.Code)
+		}
+	}
+}
+
 func TestSessionImportsComponentContextsOnlyWhenUsed(t *testing.T) {
 	contextual := NewSession().Execute(Request{
 		ID:     "contextual.tsx",
