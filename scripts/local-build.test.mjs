@@ -9,8 +9,9 @@ test('the root build prepares package-export prerequisites before building depen
 
 	assert.equal(
 		manifest.scripts.build,
-		'npm run build:prerequisites && npm run build:native-compiler && npm run build:workspaces'
+		'npm run generate:compiler-abi && npm run build:prerequisites && npm run build:native-compiler && npm run build:workspaces'
 	);
+	assert.equal(manifest.scripts['generate:compiler-abi'], 'node scripts/generate-compiler-abi.mjs');
 	assert.equal(
 		manifest.scripts['build:prerequisites'],
 		'npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer -w @exactjs/dom -w @exactjs/ssr'

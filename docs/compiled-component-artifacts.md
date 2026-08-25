@@ -12,6 +12,9 @@ registry must carry a target-local artifact produced by the eXact compiler. A pa
 precompiled artifacts, so consuming an eXact library does not require recompiling its source.
 The artifact definition always carries its compiler-selected capability ABI; an absent ABI is an
 invalid artifact, not a request for a universal compatibility runtime.
+The ABI bit assignments have one repository-owned JSON contract. Generated Go compiler constants
+and TypeScript runtime constants are checked into the tree and verified against that source during
+build-script tests, so neither side can advance the protocol independently.
 
 Compatibility adapters may own foreign functions and explicitly bridge them into a compiled eXact
 boundary. Genuinely runtime-dependent children remain supported inside compiler-declared dynamic
