@@ -56,12 +56,16 @@ export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../pro
 export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';
 export { updateReactive } from '../reconciliation.js';
 export {
+	deleteIndexedReactiveValue,
 	deleteReactiveValue,
 	mutateReactiveArray,
 	mutateReactiveCollection,
 	registerReactiveListKey,
+	updateIndexedReactiveValue,
+	updateIndexedReactiveValueWithResult,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
+	writeIndexedReactiveLazy,
 	writeReactive,
 	writeReactiveLazy
 } from '../writes.js';

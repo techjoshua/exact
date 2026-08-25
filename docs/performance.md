@@ -565,6 +565,9 @@ target's numeric dependency in the shared reactive graph; it is therefore not a 
 implementation and preserves synchronously current transitive computed reads. The inspectable
 facade remains the boundary for authored aliases, dynamic access, external code, snapshots, and
 DevTools. Plain request-local SSR state does not pay for the client indexed-read helper.
+Canonical top-level client writes also address the proven numeric slot directly while retaining
+replacement reconciliation, mutation journals, batching, and dependency notification. Nested,
+aliased, and dynamic writes keep the generic path lane rather than accepting an unsafe slot proof.
 
 Render-program hydration stores only directly claimed compiler-numbered elements in a sparse
 ephemeral array. Inert static intrinsics remain covered by their enclosing component or structural

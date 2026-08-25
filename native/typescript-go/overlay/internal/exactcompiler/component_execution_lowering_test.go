@@ -84,6 +84,8 @@ func TestClientComponentReadsCompilerIndexedStateSlots(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"readIndexedReactiveSlot as __exactReadState",
+		"writeIndexedReactiveLazy as __exactWriteState",
+		"__exactWriteState(this.state, 0, () => 0)",
 		"__exactReadState(this.state, 0)",
 		`state: [`,
 		`"count"`,
@@ -100,7 +102,9 @@ func TestClientComponentReadsCompilerIndexedStateSlots(t *testing.T) {
 		t.Fatalf("server compile failed: %s %#v", server.Error, server.Diagnostics)
 	}
 	if strings.Contains(server.Code, "readIndexedReactiveSlot") ||
-		strings.Contains(server.Code, "__exactReadState") {
+		strings.Contains(server.Code, "__exactReadState") ||
+		strings.Contains(server.Code, "writeIndexedReactiveLazy") ||
+		strings.Contains(server.Code, "__exactWriteState") {
 		t.Fatalf("plain request-local server state used the indexed client facade:\n%s", server.Code)
 	}
 }

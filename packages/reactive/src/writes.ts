@@ -6,6 +6,11 @@ import {
 } from './internal/keyed-collections.js';
 
 import { unwrap } from './internal/values.js';
+import {
+	deleteIndexedReactiveSlot,
+	peekIndexedReactiveSlot,
+	setIndexedReactiveSlot
+} from './indexed-base.js';
 
 import { conflictingListKeyError, listKeyExtractors } from './proxy/state.js';
 
@@ -92,6 +97,56 @@ export function deleteReactiveValue(target: object, path: readonly PropertyKey[]
 	if (!path.length) return false;
 	const { parent, key } = resolveReactivePath(target, path);
 	return Reflect.deleteProperty(parent, key);
+}
+
+/** Compiler hook that assigns one proven top-level state slot. */
+export function writeIndexedReactiveLazy(
+	target: object,
+	index: number,
+	evaluate: () => unknown
+): unknown {
+	// Resolve the reference before the RHS to preserve JavaScript assignment ordering.
+	peekIndexedReactiveSlot(target, index);
+	const next = evaluate();
+	commitIndexedReactiveWrite(target, index, next);
+	return next;
+}
+
+/** Compiler hook for a compound update of one proven top-level state slot. */
+export function updateIndexedReactiveValue(
+	target: object,
+	index: number,
+	operation: ReactiveUpdateOperation<unknown>
+): unknown {
+	const previous = peekIndexedReactiveSlot(target, index);
+	const next = operation(previous);
+	commitIndexedReactiveWrite(target, index, next);
+	return next;
+}
+
+/** Compiler hook for a top-level update whose expression result differs from its stored value. */
+export function updateIndexedReactiveValueWithResult(
+	target: object,
+	index: number,
+	operation: ReactiveUpdateOperation<readonly [next: unknown, result: unknown]>
+): unknown {
+	const previous = peekIndexedReactiveSlot(target, index);
+	const [next, result] = operation(previous);
+	commitIndexedReactiveWrite(target, index, next);
+	return result;
+}
+
+/** Compiler hook for deleting one proven top-level state slot. */
+export function deleteIndexedReactiveValue(target: object, index: number): boolean {
+	return deleteIndexedReactiveSlot(target, index);
+}
+
+function commitIndexedReactiveWrite(target: object, index: number, next: unknown): void {
+	batch(() => {
+		const previous = peekIndexedReactiveSlot(target, index);
+		if (reconcileReactiveValue(previous, next, createReconcilePairs())) return;
+		if (!Object.is(unwrap(previous), unwrap(next))) setIndexedReactiveSlot(target, index, next);
+	});
 }
 
 /** Compiler runtime hook for standard array mutators. */

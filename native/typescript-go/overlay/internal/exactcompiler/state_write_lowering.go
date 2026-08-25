@@ -85,11 +85,12 @@ func (lowering *jsxLowering) lowerStateWrite(
 		}
 		value := lowering.visitor.VisitNode(expression.Right)
 		if expression.OperatorToken.Kind == ast.KindEqualsToken {
+			name, reference := lowering.stateWriteReference(node, write, lowering.names.write, lowering.names.writeState)
 			return lowering.call(
-				lowering.names.write,
+				name,
 				[]*ast.Node{
 					lowering.stateWriteRoot(write),
-					lowering.stateWritePathNode(write),
+					reference,
 					lowering.arrow(value),
 				},
 			)
@@ -106,20 +107,22 @@ func (lowering *jsxLowering) lowerStateWrite(
 			lowering.factory.NewToken(operator),
 			value,
 		)
+		name, reference := lowering.stateWriteReference(node, write, lowering.names.update, lowering.names.updateState)
 		return lowering.call(
-			lowering.names.update,
+			name,
 			[]*ast.Node{
 				lowering.stateWriteRoot(write),
-				lowering.stateWritePathNode(write),
+				reference,
 				lowering.arrowWithParameter(previous, updated),
 			},
 		)
 	case "delete":
+		name, reference := lowering.stateWriteReference(node, write, lowering.names.delete, lowering.names.deleteState)
 		return lowering.call(
-			lowering.names.delete,
+			name,
 			[]*ast.Node{
 				lowering.stateWriteRoot(write),
-				lowering.stateWritePathNode(write),
+				reference,
 			},
 		)
 	case "array-mutation":
@@ -253,14 +256,32 @@ func (lowering *jsxLowering) lowerStateUpdate(
 		lowering.factory.NewNodeList([]*ast.Node{declaration, returnValue}),
 		true,
 	)
+	name, reference := lowering.stateWriteReference(node, write, lowering.names.updateResult, lowering.names.updateStateResult)
 	return lowering.call(
-		lowering.names.updateResult,
+		name,
 		[]*ast.Node{
 			lowering.stateWriteRoot(write),
-			lowering.stateWritePathNode(write),
+			reference,
 			lowering.arrowWithParameter(previous, body),
 		},
 	)
+}
+
+func (lowering *jsxLowering) stateWriteReference(
+	node *ast.Node,
+	write StateWrite,
+	pathHelper string,
+	indexedHelper string,
+) (string, *ast.Node) {
+	if lowering.target == TargetClient {
+		if slot, exists := lowering.stateWriteSlots[nodeSpanKey(node)]; exists {
+			return indexedHelper, lowering.factory.NewNumericLiteral(
+				fmt.Sprintf("%d", slot),
+				ast.TokenFlagsNone,
+			)
+		}
+	}
+	return pathHelper, lowering.stateWritePathNode(write)
 }
 
 func (lowering *jsxLowering) arrowWithParameter(

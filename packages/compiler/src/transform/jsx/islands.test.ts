@@ -20,7 +20,7 @@ describe('@exactjs/compiler: islands', () => {
 
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(client).toContain('title: __exactExpression(() => __exactReadState(this.state, 1)');
-		expect(client).toContain('__exactUpdateResult(this.state, ["count"]');
+		expect(client).toContain('__exactUpdateStateResult(this.state, 0');
 		expect(client).toContain('__exactDynamic(() => __exactReadState(this.state, 0)');
 		expect(server).toContain(
 			'"__exactState": { count: this.state.count, label: this.state.label }'
@@ -218,7 +218,7 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).not.toContain('__exactCapture: attrs');
 		expect(server).toContain('"__exactState": { count: this.state.count }');
 		expect(server).toContain('title: this.state.label');
-		expect(client).toContain('__exactUpdateResult(this.state, ["count"]');
+		expect(client).toContain('__exactUpdateStateResult(this.state, 0');
 		expect(client).not.toContain('__exactClientProps');
 	});
 
@@ -380,7 +380,7 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(server).not.toContain('__exactCapture');
-		expect(client).toContain('const save = () => __exactUpdateResult(this.state, ["count"]');
+		expect(client).toContain('const save = () => __exactUpdateStateResult(this.state, 0');
 		expect(client).toContain('onClick: () => save()');
 	});
 
