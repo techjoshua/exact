@@ -154,6 +154,12 @@ export function ComponentsPage(this: Component<{}>) {
 					declarations, scheduling, and known DOM or storage effects belong in the component body, a
 					task, or an interaction callback according to their documented semantics.
 				</p>
+				<p>
+					A module-level PascalCase function that directly returns its view function is compiled as
+					a component even when that view only forwards <code>props.children</code> and contains no
+					JSX of its own. Transparent providers and enhancements therefore receive the same stable
+					artifact and ownership rules as visibly rendered components.
+				</p>
 			</section>
 			<section>
 				<h2>Lexical micro-components</h2>

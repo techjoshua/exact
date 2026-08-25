@@ -6,6 +6,7 @@ import { unwrap } from './internal/values.js';
 
 type IndexedRecord = {
 	readonly indexes: Map<PropertyKey, number>;
+	readonly keys: PropertyKey[];
 	readonly initialized: boolean[];
 	readonly target: Record<PropertyKey, unknown>;
 };
@@ -29,7 +30,12 @@ export function createIndexedReactive<T extends object>(
 	wrap: (value: object, options: ReactiveOptions) => object
 ): Reactive<T> {
 	const indexes = new Map<PropertyKey, number>();
-	for (const key of keys) if (!indexes.has(key)) indexes.set(key, indexes.size);
+	const indexedKeys: PropertyKey[] = [];
+	for (const key of keys) {
+		if (indexes.has(key)) continue;
+		indexes.set(key, indexes.size);
+		indexedKeys.push(key);
+	}
 	const target: Record<PropertyKey, unknown> = {};
 	const initialized = new Array<boolean>(indexes.size).fill(false);
 	const read = (key: PropertyKey, index: number) => {
@@ -85,6 +91,7 @@ export function createIndexedReactive<T extends object>(
 			if (index === undefined) {
 				index = indexes.size;
 				indexes.set(key, index);
+				indexedKeys.push(key);
 				initialized.push(false);
 			}
 			return write(key, index, next);
@@ -117,7 +124,7 @@ export function createIndexedReactive<T extends object>(
 			return (index !== undefined && initialized[index] === true) || Reflect.has(target, key);
 		}
 	});
-	indexedRecords.set(facade, { indexes, initialized, target });
+	indexedRecords.set(facade, { indexes, keys: indexedKeys, initialized, target });
 	return facade as Reactive<T>;
 }
 
@@ -137,6 +144,16 @@ export function readReactiveOwnProperty(
 	return descriptor && 'value' in descriptor
 		? { present: true, value: descriptor.value }
 		: { present: false };
+}
+
+/** Reads one compiler-proven top-level slot without entering the facade's property trap. */
+export function readIndexedReactiveSlot(value: object, index: number): unknown {
+	const indexed = indexedRecords.get(value);
+	if (!indexed || !Number.isSafeInteger(index) || index < 0 || index >= indexed.initialized.length)
+		throw new TypeError('Compiled reactive read referenced an invalid indexed slot');
+	track(indexed.target, index);
+	const key = indexed.keys[index];
+	return key === undefined ? undefined : indexed.target[key];
 }
 
 /** Resolves compiler-known own fields to compact stable dependencies without evaluating them. */

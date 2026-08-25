@@ -129,7 +129,9 @@ describe('@exactjs/compiler: artifact planning', () => {
 		const results = await compileProjectArtifacts([src], { outDir, rootDir: src });
 		const panel = results.find((result) => result.inputFile.endsWith('Panel.tsx'))!;
 
-		expect(await readFile(panel.clientFile, 'utf8')).toContain('format(this.state.name)');
+		expect(await readFile(panel.clientFile, 'utf8')).toContain(
+			'format(__exactReadState(this.state, 0)'
+		);
 	});
 
 	it('does not trust imported helpers that mutate captured storage', async () => {

@@ -68,6 +68,43 @@ func TestTaskFreeExportCarriesCanonicalDefinitionWithoutTaskCapability(t *testin
 	}
 }
 
+func TestClientComponentReadsCompilerIndexedStateSlots(t *testing.T) {
+	source := `
+		declare class Component<State> { state: State }
+		export function Counter(this: Component<{ count: number }>) {
+			this.state.count = 0;
+			return () => <output>{this.state.count}</output>;
+		}
+	`
+	client := NewSession().Execute(Request{
+		ID: "indexed-state-client.tsx", Kind: "compile", Target: TargetClient, Source: source,
+	})
+	if client.Error != "" || len(client.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", client.Error, client.Diagnostics)
+	}
+	for _, expected := range []string{
+		"readIndexedReactiveSlot as __exactReadState",
+		"__exactReadState(this.state, 0)",
+		`state: [`,
+		`"count"`,
+	} {
+		if !strings.Contains(client.Code, expected) {
+			t.Fatalf("indexed client output is missing %q:\n%s", expected, client.Code)
+		}
+	}
+
+	server := NewSession().Execute(Request{
+		ID: "indexed-state-server.tsx", Kind: "compile", Target: TargetServer, Source: source,
+	})
+	if server.Error != "" || len(server.Diagnostics) != 0 {
+		t.Fatalf("server compile failed: %s %#v", server.Error, server.Diagnostics)
+	}
+	if strings.Contains(server.Code, "readIndexedReactiveSlot") ||
+		strings.Contains(server.Code, "__exactReadState") {
+		t.Fatalf("plain request-local server state used the indexed client facade:\n%s", server.Code)
+	}
+}
+
 func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,

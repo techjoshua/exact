@@ -103,6 +103,18 @@ func componentHasCompiledRender(node *ast.Node) bool {
 	return false
 }
 
+// componentReturnsRenderFunction recognizes the durable setup-plus-view shape even when the view
+// forwards children or another already-authored value and therefore contains no JSX syntax itself.
+func componentReturnsRenderFunction(node *ast.Node) bool {
+	for _, returned := range directCallableReturns(node) {
+		callable := unwrapRenderExpression(returned)
+		if ast.IsArrowFunction(callable) || ast.IsFunctionExpression(callable) {
+			return true
+		}
+	}
+	return false
+}
+
 func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
 	accepted := make(map[string]struct{}, len(names))
 	for _, name := range names {
@@ -457,6 +469,10 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 	signals := make(map[string]struct{}, 3)
 	if componentName(candidate.name) && containsJSX(candidate.node) {
 		signals["named-jsx"] = struct{}{}
+	}
+	if componentName(candidate.name) && componentReturnsRenderFunction(candidate.node) &&
+		!looksLikeTaskPolicy(candidate.node, sourceFile) {
+		signals["named-render"] = struct{}{}
 	}
 	if hasComponentReceiver(candidate.node, sourceFile) {
 		signals["typed-receiver"] = struct{}{}

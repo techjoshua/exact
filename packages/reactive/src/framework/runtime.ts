@@ -46,7 +46,11 @@ export type {
 export { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
 export { computed, inspectComputed, type ComputedInspection } from '../computation.js';
 export { collectionRef, ref, subscribe, subscribeKeys, watch } from '../observation.js';
-export { reactiveOwnDependencies, readReactiveOwnProperty } from '../indexed-base.js';
+export {
+	reactiveOwnDependencies,
+	readIndexedReactiveSlot,
+	readReactiveOwnProperty
+} from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
 export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';

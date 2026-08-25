@@ -19,9 +19,9 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(client).toContain('title: __exactExpression(() => this.state.label)');
+		expect(client).toContain('title: __exactExpression(() => __exactReadState(this.state, 1)');
 		expect(client).toContain('__exactUpdateResult(this.state, ["count"]');
-		expect(client).toContain('__exactDynamic(() => this.state.count');
+		expect(client).toContain('__exactDynamic(() => __exactReadState(this.state, 0)');
 		expect(server).toContain(
 			'"__exactState": { count: this.state.count, label: this.state.label }'
 		);
@@ -264,7 +264,7 @@ describe('@exactjs/compiler: islands', () => {
 		expect(analyzeSource(finite, { filename: 'Panel.tsx' }).boundaries[0]?.activation?.mode).toBe(
 			'interaction'
 		);
-		expect(client).toContain('this.state.alternate ? () =>');
+		expect(client).toContain('__exactReadState(this.state, 0) as boolean ? () =>');
 		expect(server).toContain("this.state.alternate ? 'First' : 'Second'");
 		expect(
 			analyzeSource(mismatched, { filename: 'Panel.tsx' }).boundaries[0]?.activation?.reasons[0]
@@ -287,7 +287,9 @@ describe('@exactjs/compiler: islands', () => {
 			serverComponents: true
 		});
 
-		expect(client).toContain('value: __exactExpression(() => this.state.name ?? "")');
+		expect(client).toContain(
+			'value: __exactExpression(() => __exactReadState(this.state, 0) as string ?? "")'
+		);
 		expect(client).toContain('__exactBindInput:');
 		expect(client).not.toContain('value:onInput');
 		expect(server).toContain('"__exactState": { name: this.state.name }');
@@ -315,7 +317,9 @@ describe('@exactjs/compiler: islands', () => {
 
 		expect(server).not.toContain('"__exactCapture"');
 		expect(server).toContain('"__exactState": { count: this.state.count }');
-		expect(client).toContain('const label = __exactDerived(() => String(this.state.count));');
+		expect(client).toContain(
+			'const label = __exactDerived(() => String(__exactReadState(this.state, 0)'
+		);
 		expect(client).toContain('console.log(label.get())');
 		expect(client).toContain('__exactDynamic(() => label.get()');
 	});

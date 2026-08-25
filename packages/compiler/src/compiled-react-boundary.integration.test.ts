@@ -5,6 +5,7 @@ import '@exactjs/ssr/runtime/generic-components';
 import * as exactCore from '@exactjs/core';
 import { createVNode } from '@exactjs/core';
 import * as exactRenderRuntime from '@exactjs/core/runtime/render';
+import * as exactReactivityRuntime from '@exactjs/core/runtime/reactivity';
 import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
 import * as exactTaskRuntime from '@exactjs/core/runtime/tasks';
 import * as exactDomRenderProgram from '@exactjs/dom/runtime/render-program';
@@ -114,7 +115,7 @@ function compileMixedApp(target: 'client' | 'server'): CompiledMixedApp {
 		'@exactjs/core/framework/server-render-structure': exactServerRenderStructure,
 		'@exactjs/core/framework/server-task-helpers': exactCore,
 		'@exactjs/core/runtime/render': exactRenderRuntime,
-		'@exactjs/core/runtime/reactivity': exactCore,
+		'@exactjs/core/runtime/reactivity': exactReactivityRuntime,
 		'@exactjs/core/runtime/tasks': exactTaskRuntime,
 		'@exactjs/dom/runtime/render-program': exactDomRenderProgram,
 		'@exactjs/ssr/runtime/generic-components': {},
