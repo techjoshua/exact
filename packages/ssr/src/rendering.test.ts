@@ -5,7 +5,7 @@ import {
 	Target as TargetBoundary,
 	TargetOverrides,
 	activateTaskForHost,
-	createEnhancementMarker,
+	createEnhancementNode,
 	createContext,
 	defineTask,
 	markExactEnhancementContexts,
@@ -49,7 +49,7 @@ describe('@exactjs/ssr rendering', () => {
 		const vnode = createVNode(
 			'button',
 			{
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'quiet' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'quiet' } }])
 			},
 			'Save'
 		);
@@ -79,7 +79,7 @@ describe('@exactjs/ssr rendering', () => {
 		const output = renderToString(
 			createVNode(
 				Fragment,
-				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'Before',
 				createVNode('strong', null, 'After')
 			),
@@ -199,7 +199,7 @@ describe('@exactjs/ssr rendering', () => {
 	it('leaves unavailable server enhancements inert and warns once per identity', () => {
 		const identity = '@exactjs/ssr:missing#default';
 		const events: Array<{ message: string }> = [];
-		const marker = () => createEnhancementMarker([{ identity, props: { tone: 'quiet' } }]);
+		const marker = () => createEnhancementNode([{ identity, props: { tone: 'quiet' } }]);
 		const output = renderToString(
 			createVNode(
 				'section',
@@ -235,13 +235,13 @@ describe('@exactjs/ssr rendering', () => {
 
 		const output = renderToString(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
 		const asyncOutput = await renderToStringAsync(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
@@ -268,7 +268,7 @@ describe('@exactjs/ssr rendering', () => {
 				createVNode(
 					'main',
 					{
-						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 					},
 					'Target'
 				);
@@ -280,13 +280,13 @@ describe('@exactjs/ssr rendering', () => {
 
 		const output = renderToString(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
 		const asyncOutput = await renderToStringAsync(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
@@ -320,7 +320,7 @@ describe('@exactjs/ssr rendering', () => {
 							return createVNode(
 								'li',
 								{
-									__exactEnhancements: createEnhancementMarker([
+									__exactEnhancements: createEnhancementNode([
 										{ identity, props: {}, root: item === 'target' }
 									])
 								},
@@ -332,7 +332,7 @@ describe('@exactjs/ssr rendering', () => {
 		}, '@exactjs/ssr:routed-list-boundary');
 		const render = () =>
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			});
 		const options = {
 			markers: false,
@@ -510,7 +510,7 @@ describe('@exactjs/ssr rendering', () => {
 				createVNode(
 					'p',
 					{
-						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 					},
 					this.state.label
 				);
@@ -522,11 +522,11 @@ describe('@exactjs/ssr rendering', () => {
 					fallback: createVNode(
 						'span',
 						{
-							__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+							__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 						},
 						'loading'
 					),
-					__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 				},
 				createVNode(AsyncPanel, {})
 			);

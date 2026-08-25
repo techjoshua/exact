@@ -33,9 +33,7 @@ export function renderServerBoundaryChunks(
 	renderChild: ChunkRenderer,
 	marked: MarkerRenderer
 ): Generator<string> {
-	const capability = ssrCapabilities[capabilityName] as
-		| ServerBoundaryChunkCapability
-		| undefined;
+	const capability = ssrCapabilities[capabilityName] as ServerBoundaryChunkCapability | undefined;
 	if (!capability)
 		throw new TypeError('Server boundary rendering requires its compiler capability');
 	return capability(context, vnode, parent, depth, renderChild, marked);

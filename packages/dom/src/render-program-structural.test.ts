@@ -130,7 +130,7 @@ it('observes in-place collection mutations through a compiler-owned list lane', 
 				'<ul data-exact-id="list-root"><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
 			slots: [['child', 'items']],
 			bindings: [['lists', [0]]],
-			nodes: [['list-root', 'ul']]
+			nodes: [[0, 'ul']]
 		}),
 		[
 			() =>
@@ -211,7 +211,7 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 				'<main data-exact-id="component-root"><!--exact:dynamic:counter--><!--/exact:dynamic:counter--></main>',
 			slots: [['component', 'counter']],
 			bindings: [['component', 0]],
-			nodes: [['component-root', 'main']]
+			nodes: [[0, 'main']]
 		}),
 		[() => jsx(Counter, {})]
 	);
@@ -240,7 +240,7 @@ it('tracks and applies one compiler-owned property writer operation', () => {
 			['property', 0, 'onClick']
 		],
 		bindings: [['properties', [0, 1]]],
-		nodes: [['writer', 'button']]
+		nodes: [[0, 'button']]
 	});
 	const vnode = createPreparedRenderProgram(
 		program,

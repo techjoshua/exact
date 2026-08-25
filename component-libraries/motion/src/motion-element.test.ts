@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { Activity, createEnhancementMarker, type Component } from '@exactjs/core';
+import { Activity, createEnhancementNode, type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { render, unmount } from '@exactjs/dom/enhanced';
@@ -32,7 +32,7 @@ describe('MotionElement', () => {
 		const restore = installMotionDriver(driver);
 		const container = document.createElement('div');
 		containers.push(container);
-		const marker = createEnhancementMarker([{ identity, props: { apply: fade, appear: false } }]);
+		const marker = createEnhancementNode([{ identity, props: { apply: fade, appear: false } }]);
 		try {
 			render(createVNode('button', { __exactEnhancements: marker }, 'Save'), container, {
 				enhancementCatalog: new Map([[identity, MotionElement]])
@@ -62,7 +62,7 @@ describe('MotionElement', () => {
 		try {
 			render(
 				createVNode('button', {
-					__exactEnhancements: createEnhancementMarker([
+					__exactEnhancements: createEnhancementNode([
 						{ identity, props: { apply: fade, appear: true } }
 					])
 				}),
@@ -119,7 +119,7 @@ describe('MotionElement', () => {
 		const Scene = markTestComponent(function Scene(this: Component<{ offset: number }>) {
 			owner = this;
 			this.state.offset = 0;
-			const marker = createEnhancementMarker([
+			const marker = createEnhancementNode([
 				{
 					identity,
 					props: {

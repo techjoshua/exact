@@ -34,9 +34,7 @@ export function activateSsrEnhancements(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined
 ): VNode {
-	const capability = ssrCapabilities[capabilityName] as
-		| EnhancementExecutionCapability
-		| undefined;
+	const capability = ssrCapabilities[capabilityName] as EnhancementExecutionCapability | undefined;
 	return capability?.activate(context, vnode, parent) ?? vnode;
 }
 
@@ -47,9 +45,7 @@ export async function activateSsrEnhancementsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<VNode> {
-	const capability = ssrCapabilities[capabilityName] as
-		| EnhancementExecutionCapability
-		| undefined;
+	const capability = ssrCapabilities[capabilityName] as EnhancementExecutionCapability | undefined;
 	return capability?.activateAsync(context, vnode, parent, options) ?? vnode;
 }
 
@@ -59,9 +55,7 @@ export function applySsrTargetContributions(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined
 ): void {
-	const capability = ssrCapabilities[capabilityName] as
-		| EnhancementExecutionCapability
-		| undefined;
+	const capability = ssrCapabilities[capabilityName] as EnhancementExecutionCapability | undefined;
 	capability?.applyTarget(context, vnode, parent);
 }
 
@@ -72,8 +66,6 @@ export async function applySsrTargetContributionsAsync(
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions & { taskDeadline?: number }
 ): Promise<void> {
-	const capability = ssrCapabilities[capabilityName] as
-		| EnhancementExecutionCapability
-		| undefined;
+	const capability = ssrCapabilities[capabilityName] as EnhancementExecutionCapability | undefined;
 	await capability?.applyTargetAsync(context, vnode, parent, options);
 }

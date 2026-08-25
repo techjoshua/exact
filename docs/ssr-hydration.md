@@ -142,6 +142,8 @@ those structural results instead of recursively rediscovering roots through nest
 
 Finite render-program roots do not receive a generic cell envelope in compiler-generated SSR. The
 program's root element and dense topology provide its fixed ownership and hydration identity.
+Program node tables contain only dense numeric indexes. Authored or protocol-facing
+`data-exact-id` attributes are not consulted as a fallback render-program identity map.
 Variable-width component, cell, fragment, list, and structural ranges keep their markers when a
 later sibling requires a concrete boundary. A compiler-proven final structural or component child
 uses its parent and the end of the child list as its complete retained boundary, so its server markup
@@ -290,6 +292,9 @@ event data, observable initial work, and non-finite spreads produce source-locat
 Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the
 client artifact and sending only fallback values through SSR. Independently planned server ranges
 remain inert inside a dormant client island and retain their own refresh generation.
+The generated policy belongs to the lazy registry entry. An eager component entry cannot inherit
+interaction authority from boundary markup, and hydration does not install a general event family
+for such an entry.
 
 Passive hydration does not manufacture a focus transition when the document body owns focus. When
 an authored control already owns focus, DOM adoption and later reactive patches preserve that

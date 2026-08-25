@@ -89,7 +89,7 @@ describe('compiled render programs', () => {
 				['property', 0, 'tabIndex']
 			] as const,
 			bindings: [['properties', [0, 1]]] as const,
-			nodes: [['node', 'button']] as const
+			nodes: [[0, 'button']] as const
 		});
 		const writer = (group: number, apply: (name: string, value: unknown) => void) => {
 			expect(group).toBe(0);

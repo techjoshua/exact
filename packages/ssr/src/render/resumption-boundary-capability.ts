@@ -26,8 +26,6 @@ export function renderResumableComponentBoundary(
 	html: string,
 	props: Record<string, unknown>
 ): string {
-	const capability = ssrCapabilities[capabilityName] as
-		| ResumptionBoundaryCapability
-		| undefined;
+	const capability = ssrCapabilities[capabilityName] as ResumptionBoundaryCapability | undefined;
 	return capability?.(context, vnode, id, html, props) ?? markerPair(context, id, () => html);
 }

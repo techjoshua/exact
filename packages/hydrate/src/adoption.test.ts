@@ -6,7 +6,7 @@ import '@exactjs/core/runtime/refs';
 import {
 	Fragment,
 	Target,
-	createEnhancementMarker,
+	createEnhancementNode,
 	createRef,
 	unsafeHtml,
 	type Child,
@@ -121,7 +121,7 @@ describe('@exactjs/hydrate adoption', () => {
 				createVNode(
 					'button',
 					{
-						__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+						__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 					},
 					'Save'
 				);

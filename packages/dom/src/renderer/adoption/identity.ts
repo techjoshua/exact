@@ -13,16 +13,11 @@ export function stopFailedAdoption(scope: EffectScope): undefined {
 	return undefined;
 }
 
-/**
- * Validates the optional component name embedded by current SSR markers.
- *
- * Legacy and compiler-authored markers without the numeric/name pair remain adoptable. Named
- * markers fail closed when the client component identity differs, allowing the owning range to
- * recover without replacing adjacent DOM.
- */
+/** Validates the required component identity embedded by a current SSR marker. */
 export function componentMarkerMatchesType(marker: Comment, type: VNode['type']): boolean {
 	const parts = marker.data.split(':');
-	if (parts.length < 4 || parts[0] !== 'exact' || parts[1] !== 'component') return true;
+	if (parts.length < 4 || parts[0] !== 'exact' || parts[1] !== 'component' || !parts[2])
+		return false;
 	return (
 		decodeExactMarkerPart(parts[3]!) ===
 		(typeof type === 'function' ? exactComponentIdentity(type) : describeVNodeType(type))

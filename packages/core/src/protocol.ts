@@ -4,7 +4,7 @@ export function encodeExactMarkerPart(value: string): string {
 	return `~${Array.from(new TextEncoder().encode(value), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Decodes data emitted by encodeExactMarkerPart; legacy safe values pass through. */
+/** Decodes data emitted by encodeExactMarkerPart; directly encoded safe values pass through. */
 export function decodeExactMarkerPart(value: string): string {
 	if (!value.startsWith('~') || !/^(?:[0-9a-f]{2})+$/i.test(value.slice(1))) return value;
 	const hex = value.slice(1);

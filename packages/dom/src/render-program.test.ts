@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
-import type { Component } from '@exactjs/core';
+import { encodeExactMarkerPart, type Component } from '@exactjs/core';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import {
 	createCompiledVNode,
 	createFrameworkFixtureComponentInstance,
@@ -50,7 +51,7 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			slots: [['text', 'label', [0]]],
 			bindings: [['text', 0]],
-			nodes: [['planned', 'span']]
+			nodes: [[0, 'span']]
 		}),
 		[() => state.label],
 		() => createCompiledVNode('span', { 'data-exact-id': 'planned' }, state.label)
@@ -74,7 +75,7 @@ it('mounts and patches a static compiler program without reactive bindings', () 
 				template: '<p data-exact-id="static" class="message">Ready</p>',
 				slots: [],
 				bindings: [],
-				nodes: [['static', 'p']]
+				nodes: [[0, 'p']]
 			}),
 			[]
 		);
@@ -100,7 +101,7 @@ it('materializes repeated program templates without sharing live DOM', () => {
 				template: '<p data-exact-id="repeated">Repeated</p>',
 				slots: [],
 				bindings: [],
-				nodes: [['repeated', 'p']]
+				nodes: [[0, 'p']]
 			}),
 			[]
 		);
@@ -135,7 +136,7 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 				['property', 0, 'ref']
 			],
 			bindings: [['properties', [0, 1, 2, 3]]],
-			nodes: [['planned-button', 'button']]
+			nodes: [[0, 'button']]
 		}),
 		[() => state.disabled, () => ({ color: state.tone }), () => () => state.clicks++, () => ref],
 		() => createCompiledVNode('button', {}, 'Save')
@@ -177,9 +178,9 @@ it('applies a controlled select value after slotted option values', () => {
 				['properties', [0]]
 			],
 			nodes: [
-				['page', 'select'],
-				['letter', 'option'],
-				['a4', 'option']
+				[0, 'select'],
+				[1, 'option'],
+				[2, 'option']
 			]
 		}),
 		[() => state.value, () => 'letter', () => 'a4'],
@@ -209,8 +210,8 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 			slots: [['property', 1, 'ref']],
 			bindings: [['properties', [0]]],
 			nodes: [
-				['svg', 'svg'],
-				['circle', 'circle']
+				[0, 'svg'],
+				[1, 'circle']
 			]
 		}),
 		[() => ref],
@@ -233,7 +234,7 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 			template: '<path data-exact-id="route"></path>',
 			slots: [['property', 0, 'd']],
 			bindings: [['properties', [0]]],
-			nodes: [['route', 'path']]
+			nodes: [[0, 'path']]
 		}),
 		[() => 'M 0 0 L 10 10'],
 		() => createCompiledVNode('path', { 'data-exact-id': 'route' })
@@ -257,7 +258,7 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 				template: '<button data-exact-id="patched">Run</button>',
 				slots: [['property', 0, 'onClick']],
 				bindings: [['properties', [0]]],
-				nodes: [['patched', 'button']]
+				nodes: [[0, 'button']]
 			}),
 			[() => () => calls.push(label)],
 			() => createCompiledVNode('button', {}, 'Run')
@@ -281,7 +282,7 @@ it('evaluates an initial planned slot exactly once', () => {
 			template: '<span data-exact-id="single-read">\ue000exact:0\ue001</span>',
 			slots: [['text', 'value', [0]]],
 			bindings: [['text', 0]],
-			nodes: [['single-read', 'span']]
+			nodes: [[0, 'span']]
 		}),
 		[
 			() => {
@@ -317,9 +318,9 @@ it('refreshes only the compiled slot group whose dependency changed', () => {
 				['text', 1]
 			],
 			nodes: [
-				['slots', 'section'],
-				['first', 'span'],
-				['second', 'span']
+				[0, 'section'],
+				[1, 'span'],
+				[2, 'span']
 			]
 		}),
 		[
@@ -360,7 +361,7 @@ it('preserves static text between compiler-separated scalar slots', () => {
 				['text', 0],
 				['text', 1]
 			],
-			nodes: [['adjacent', 'small']]
+			nodes: [[0, 'small']]
 		}),
 		[() => state.owner, () => state.status]
 	);
@@ -384,7 +385,7 @@ it('retracks replacement readers when a compiled program invocation is patched',
 				template: '<span data-exact-id="replacement">\ue000exact:0\ue001</span>',
 				slots: [['text', 'replacement', [0]]],
 				bindings: [['text', 0]],
-				nodes: [['replacement', 'span']]
+				nodes: [[0, 'span']]
 			}),
 			[reader]
 		);
@@ -415,7 +416,7 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
 			slots: [['text', 'value', [0]]],
 			bindings: [['text', 0]],
-			nodes: [['planned', 'span']]
+			nodes: [[0, 'span']]
 		}),
 		[() => createCompiledVNode('strong', {}, 'generic')],
 		() => createCompiledVNode('span', { 'data-exact-id': 'fallback' }, 'fallback')
@@ -444,8 +445,8 @@ it('claims marked SSR nodes through compiler-generated hydration calls without i
 				['properties', [0]]
 			],
 			nodes: [
-				['root', 'section'],
-				['button', 'button']
+				[0, 'section'],
+				[1, 'button']
 			]
 		}),
 		[() => state.disabled, () => state.label],
@@ -482,8 +483,8 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 			slots: [['child', 'child']],
 			bindings: [['child', 0]],
 			nodes: [
-				['child-root', 'section'],
-				['after', 'footer']
+				[0, 'section'],
+				[1, 'footer']
 			]
 		}),
 		[() => (state.shown ? createCompiledVNode('strong', {}, state.label) : null)]
@@ -534,15 +535,13 @@ it('claims a variable-width structural child range before later planned elements
 });
 
 it.each([
-	['compiler-owned', '<strong>server</strong>'],
-	[
-		'generic-list',
-		'<!--exact:component:child--><strong>server</strong><!--/exact:component:child-->'
-	]
-])('adopts a %s component boundary inside a component slot', (_lane, componentHtml) => {
+	['compiler-owned', false],
+	['generic-list', true]
+])('adopts a %s component boundary inside a component slot', (_lane, marked) => {
 	function Child() {
 		return () => createVNode('strong', {}, 'server');
 	}
+	const childVNode = createVNode(Child, {});
 	const vnode = createCompiledRenderProgram(
 		'render-program:adopt-component-slot',
 		() => ({
@@ -558,8 +557,13 @@ it.each([
 				[1, 'footer']
 			]
 		}),
-		[() => createVNode(Child, {})]
+		[() => childVNode]
 	);
+	const componentIdentity = encodeExactMarkerPart(exactComponentIdentity(Child));
+	const componentMarker = `exact:component:0:${componentIdentity}`;
+	const componentHtml = marked
+		? `<!--${componentMarker}--><strong>server</strong><!--/${componentMarker}-->`
+		: '<strong>server</strong>';
 	const container = document.createElement('div');
 	container.innerHTML = `<!--exact:cell:root--><section><!--exact:dynamic:child-->${componentHtml}<!--/exact:dynamic:child--><footer>After</footer></section><!--/exact:cell:root-->`;
 	const strong = container.querySelector('strong');
@@ -581,8 +585,8 @@ it('rejects a marked SSR program when its generated hydration claims do not matc
 			slots: [],
 			bindings: [],
 			nodes: [
-				['root', 'section'],
-				['missing-button', 'button']
+				[0, 'section'],
+				[1, 'a']
 			]
 		}),
 		[],

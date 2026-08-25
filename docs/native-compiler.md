@@ -71,8 +71,7 @@ Each platform package declares npm `os` and `cpu` constraints. npm therefore ins
 package matching the current machine. The host package does not contain six executables.
 
 Set `EXACT_COMPILER_EXECUTABLE` only when a hermetic build or compiler-development workflow must
-provide an explicit executable. `EXACT_NATIVE_COMPILER` remains a temporary compatibility alias;
-the current variable takes precedence when both are set.
+provide an explicit executable. No deprecated compiler-name environment alias is accepted.
 
 ## Public integration
 

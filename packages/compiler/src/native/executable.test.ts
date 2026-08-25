@@ -7,7 +7,6 @@ import { nativeCompilerPlatformPackage, resolveNativeCompilerExecutable } from '
 describe('native compiler executable resolution', () => {
 	beforeEach(() => {
 		vi.stubEnv('EXACT_COMPILER_EXECUTABLE', '');
-		vi.stubEnv('EXACT_NATIVE_COMPILER', '');
 	});
 	afterEach(() => vi.unstubAllEnvs());
 
@@ -36,28 +35,13 @@ describe('native compiler executable resolution', () => {
 		}
 	});
 
-	it('prefers the current executable override over the legacy override', () => {
+	it('uses the explicit executable override', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-compiler-override-'));
 		const current = path.join(root, 'exactc');
-		const legacy = path.join(root, 'legacy-exactc');
 		try {
 			writeFileSync(current, 'current');
-			writeFileSync(legacy, 'legacy');
 			vi.stubEnv('EXACT_COMPILER_EXECUTABLE', current);
-			vi.stubEnv('EXACT_NATIVE_COMPILER', legacy);
 			expect(resolveNativeCompilerExecutable()).toBe(current);
-		} finally {
-			rmSync(root, { recursive: true, force: true });
-		}
-	});
-
-	it('accepts the legacy executable override during migration', () => {
-		const root = mkdtempSync(path.join(tmpdir(), 'exact-compiler-legacy-'));
-		const executable = path.join(root, 'exactc');
-		try {
-			writeFileSync(executable, 'legacy');
-			vi.stubEnv('EXACT_NATIVE_COMPILER', executable);
-			expect(resolveNativeCompilerExecutable()).toBe(executable);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}

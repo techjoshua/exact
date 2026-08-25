@@ -44,7 +44,7 @@ export {
 export { createExactRuntimeInspectionCorrelation } from '../language-tools/runtime-correlation.js';
 export { generatedComponentName } from '../names.js';
 export { createExactHydrationRegistrationModule } from '../registry.js';
-export { createLineSourceMap, createTokenSourceMap } from '../source-maps.js';
+export { createTokenSourceMap } from '../source-maps.js';
 export type * from '../types.js';
 
 export { compileFile, compileProject } from './file-compilation.js';

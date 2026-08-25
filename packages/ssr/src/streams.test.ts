@@ -1,6 +1,6 @@
 import {
 	activateTaskForHost,
-	createEnhancementMarker,
+	createEnhancementNode,
 	defineTask,
 	type Child,
 	type Component
@@ -84,7 +84,7 @@ describe('@exactjs/ssr streams', () => {
 			targetSetups++;
 			return () =>
 				createVNode('main', {
-					__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 				});
 		}, '@exactjs/ssr:stream-target');
 		const Boundary = createExactFrameworkFixtureArtifact(function Boundary(this: Component<{}>) {
@@ -92,7 +92,7 @@ describe('@exactjs/ssr streams', () => {
 		}, '@exactjs/ssr:stream-boundary');
 		const reader = renderToStream(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{
 				markers: false,

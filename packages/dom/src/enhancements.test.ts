@@ -5,7 +5,7 @@ import './framework/enhancements.js';
 import '@exactjs/core/runtime/refs';
 import {
 	createContext,
-	createEnhancementMarker,
+	createEnhancementNode,
 	Fragment,
 	markExactEnhancementContexts,
 	Target,
@@ -54,7 +54,7 @@ describe('renderer enhancements', () => {
 		});
 		const button = createVNode('button', {
 			id: 'save',
-			__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+			__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
 		});
 		const container = document.createElement('div');
 
@@ -76,7 +76,7 @@ describe('renderer enhancements', () => {
 			return () => createVNode('div', { className: props.className }, props.children);
 		});
 		const container = document.createElement('div');
-		const marker = createEnhancementMarker([{ identity, props: { className: 'motion-shell' } }]);
+		const marker = createEnhancementNode([{ identity, props: { className: 'motion-shell' } }]);
 
 		render(createVNode('button', { __exactEnhancements: marker }, 'Save'), container, {
 			enhancementCatalog: new Map([[identity, Wrapper]])
@@ -84,7 +84,7 @@ describe('renderer enhancements', () => {
 
 		expect(container.innerHTML).toBe('<div class="motion-shell"><button>Save</button></div>');
 
-		const updated = createEnhancementMarker([
+		const updated = createEnhancementNode([
 			{ identity, props: { className: 'motion-shell updated' } }
 		]);
 		render(createVNode('button', { __exactEnhancements: updated }, 'Saved'), container, {
@@ -116,7 +116,7 @@ describe('renderer enhancements', () => {
 		render(
 			createVNode('select', {
 				__exactBindChange: publish,
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Field]]) }
@@ -142,7 +142,7 @@ describe('renderer enhancements', () => {
 				'button',
 				{
 					'__exactClosedInteraction:onClick': publish,
-					__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 				},
 				'Save'
 			),
@@ -167,7 +167,7 @@ describe('renderer enhancements', () => {
 		render(
 			createVNode(
 				Fragment,
-				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'Before',
 				createVNode('strong', null, 'After')
 			),
@@ -198,7 +198,7 @@ describe('renderer enhancements', () => {
 			const value = this.getContext(token);
 			return () => createVNode('output', null, value.value);
 		});
-		const marker = createEnhancementMarker([{ identity, props: { value: 'ready' } }]);
+		const marker = createEnhancementNode([{ identity, props: { value: 'ready' } }]);
 		const container = document.createElement('div');
 
 		render(
@@ -217,7 +217,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				Fragment,
 				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { value: 'updated' } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { value: 'updated' } }])
 				},
 				createVNode('div', null, createVNode(Consumer, null))
 			),
@@ -255,7 +255,7 @@ describe('renderer enhancements', () => {
 		render(
 			createVNode('input', {
 				id: 'search',
-				__exactEnhancements: createEnhancementMarker([
+				__exactEnhancements: createEnhancementNode([
 					{ identity: outerIdentity, props: {} },
 					{ identity: innerIdentity, props: {} }
 				])
@@ -317,7 +317,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				'section',
 				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 				},
 				createPreparedRenderProgram(program, [() => state.count], owner)
 			),
@@ -354,7 +354,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				Fragment,
 				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { value } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { value } }])
 				},
 				child
 			);
@@ -394,7 +394,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				Fragment,
 				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { value } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { value } }])
 				},
 				child
 			);
@@ -623,7 +623,7 @@ describe('renderer enhancements', () => {
 		render(
 			createVNode('input', {
 				className: 'authored',
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'enhanced' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'enhanced' } }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Surface]]) }

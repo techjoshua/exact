@@ -1,5 +1,5 @@
 import { Accessibility } from '@exactjs/accessibility';
-import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
+import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
 import '@exactjs/core/runtime/refs';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
@@ -17,9 +17,7 @@ describe('@exactjs/ssr accessibility enhancement integration', () => {
 				createVNode(
 					'button',
 					{
-						__exactEnhancements: createEnhancementMarker([
-							{ identity, props: { describedBy: help } }
-						])
+						__exactEnhancements: createEnhancementNode([{ identity, props: { describedBy: help } }])
 					},
 					'Delete'
 				),

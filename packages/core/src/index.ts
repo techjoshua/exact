@@ -197,7 +197,6 @@ export type {
 } from './dynamic-component/contracts.js';
 export {
 	createEnhancementNode,
-	createEnhancementMarker,
 	exactEnhancementPassThrough,
 	exactEnhancementContexts,
 	isExactEnhancementPassThrough,

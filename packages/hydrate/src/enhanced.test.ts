@@ -1,13 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	createEnhancementMarker,
-	Fragment,
-	Target,
-	type Child,
-	type Component
-} from '@exactjs/core';
+import { createEnhancementNode, Fragment, Target, type Child, type Component } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
@@ -54,9 +48,7 @@ describe('enhanced hydration facade', () => {
 			createVNode(
 				'time',
 				{
-					__exactEnhancements: createEnhancementMarker([
-						{ identity, props: { update: activation } }
-					])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { update: activation } }])
 				},
 				createDynamicChild(() => String(activation.readEpochMilliseconds()), 'time-sample', false)
 			);
@@ -101,7 +93,7 @@ describe('enhanced hydration facade', () => {
 		}, identity);
 		const vnode = createVNode(
 			'button',
-			{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+			{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 			'Save'
 		);
 		const root = document.createElement('div');

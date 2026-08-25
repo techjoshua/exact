@@ -25,9 +25,6 @@ export function nativeCompilerPlatformPackage(
 export function resolveNativeCompilerExecutable(from?: string): string {
 	const override = process.env.EXACT_COMPILER_EXECUTABLE;
 	if (override) return requireExecutable(path.resolve(override), 'EXACT_COMPILER_EXECUTABLE');
-	const legacyOverride = process.env.EXACT_NATIVE_COMPILER;
-	if (legacyOverride)
-		return requireExecutable(path.resolve(legacyOverride), 'EXACT_NATIVE_COMPILER');
 	const packageName = nativeCompilerPlatformPackage();
 	const filename = process.platform === 'win32' ? 'exactc.exe' : 'exactc';
 

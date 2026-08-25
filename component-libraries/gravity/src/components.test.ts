@@ -6,7 +6,7 @@ import '@exactjs/dom/structural-boundaries';
 import {
 	type AnyComponentFunction,
 	Activity,
-	createEnhancementMarker,
+	createEnhancementNode,
 	type Component
 } from '@exactjs/core';
 import '@exactjs/core/runtime/component-execution';
@@ -89,7 +89,7 @@ describe('GravityElement', () => {
 				PhysicsWorld,
 				{ world, running: false },
 				createVNode('div', {
-					__exactEnhancements: createEnhancementMarker([
+					__exactEnhancements: createEnhancementNode([
 						{ identity: gravityIdentity, props: { apply: uniformGravity({ x: 0, y: 6 }) } },
 						{ identity: physicsIdentity, props: { body } }
 					])

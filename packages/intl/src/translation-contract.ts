@@ -122,59 +122,6 @@ export function materializeIntlTranslation(
 	return materialize(translation);
 }
 
-/** Converts a legacy exact-pattern catalog entry into generic placeholder references. */
-export function projectLegacyIntlTranslation(
-	pattern: IntlPatternV1,
-	descriptor: IntlRuntimeDescriptorV1
-): IntlTranslationPatternV1 {
-	const sourceProjection = projectIntlTranslationContract(descriptor.bindings, descriptor.source);
-	const exactIds = new Map<string, string>();
-	const index = (generic: IntlTranslationPatternV1, exact: IntlPatternV1): void => {
-		for (let position = 0; position < generic.length; position++) {
-			const genericNode = generic[position]!;
-			const exactNode = exact[position]!;
-			if (genericNode.kind === 'text') continue;
-			if (exactNode.kind === 'text')
-				throw new TypeError('Intl translation projection disagrees with its execution pattern');
-			exactIds.set(exactNodeIdentity(exactNode), genericNode.id);
-			if (genericNode.kind === 'element' && exactNode.kind === 'element')
-				index(genericNode.value, exactNode.value);
-			if (genericNode.kind === 'select' && exactNode.kind === 'select') {
-				for (let branch = 0; branch < genericNode.cases.length; branch++)
-					index(genericNode.cases[branch]!.value, exactNode.cases[branch]!.value);
-				index(genericNode.fallback, exactNode.fallback);
-			}
-		}
-	};
-	index(sourceProjection.source, descriptor.source);
-	const project = (nodes: IntlPatternV1): IntlTranslationPatternV1 =>
-		Object.freeze(
-			nodes.map((node): IntlTranslationPatternNodeV1 => {
-				if (node.kind === 'text') return Object.freeze({ ...node });
-				const id = exactIds.get(exactNodeIdentity(node));
-				if (!id)
-					throw new TypeError(
-						'Legacy intl translation contains an operation absent from its source'
-					);
-				if (node.kind === 'value' || node.kind === 'format' || node.kind === 'opaque')
-					return Object.freeze({ kind: 'placeholder', id });
-				if (node.kind === 'element')
-					return Object.freeze({ kind: 'element', id, value: project(node.value) });
-				return Object.freeze({
-					kind: 'select',
-					id,
-					cases: Object.freeze(
-						node.cases.map((candidate) =>
-							Object.freeze({ key: candidate.key, value: project(candidate.value) })
-						)
-					),
-					fallback: project(node.fallback)
-				});
-			})
-		);
-	return project(pattern);
-}
-
 function exactNodeMap(
 	bindings: readonly IntlBindingDescriptorV1[],
 	pattern: IntlPatternV1
@@ -208,12 +155,4 @@ function placeholder(
 	canCopy: boolean
 ): IntlTranslationPlaceholderV1 {
 	return Object.freeze({ id, kind, role, name, canCopy, canDelete: false });
-}
-
-function exactNodeIdentity(node: Exclude<IntlPatternNodeV1, { kind: 'text' }>): string {
-	if (node.kind === 'value') return `value:${node.binding}`;
-	if (node.kind === 'format') return `format:${JSON.stringify(node)}`;
-	if (node.kind === 'opaque') return `opaque:${node.binding}:${node.name}`;
-	if (node.kind === 'element') return `element:${node.binding}`;
-	return `select:${node.binding}:${node.rangeBinding ?? ''}:${node.selection}`;
 }

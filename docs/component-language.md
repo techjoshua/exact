@@ -655,9 +655,10 @@ when their bundler or import map supports it.
 
 An enhancement-free client does not include enhancement mounting, routing, reconciliation, or
 adoption code. Framework-generated entries activate the host automatically. A low-level integration
-that constructs enhancement markers and supplies `enhancementCatalog` manually must import from
+that constructs enhancement nodes and supplies `enhancementCatalog` manually must import from
 `@exactjs/dom/enhanced` or `@exactjs/hydrate/enhanced` so the synchronous renderer is prepared
-before it encounters those markers.
+before it encounters those nodes. The compiler-facing constructor is `createEnhancementNode`;
+there is no alternate legacy marker constructor.
 
 Component libraries author the option, while consuming applications decide which providers their
 builds use. Enabling a provider constructs the selected enhancement as a normal component. Omitting

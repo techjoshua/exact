@@ -314,7 +314,7 @@ it('materializes marker-mode program fallbacks inside their component scope', as
 		template: '<span>owned</span>',
 		slots: [],
 		bindings: [],
-		nodes: [['owned', 'span']]
+		nodes: [[0, 'span']]
 	});
 	function ProgramOwner() {
 		return () =>
