@@ -13,15 +13,15 @@ export function registerDynamicComponentPreload(context: SsrContext, boundaryId:
 	const artifact = artifactFor(context.dynamicComponentArtifacts, boundaryId);
 	if (!validArtifact(artifact)) return;
 	const key = `modulepreload:${artifact.url}:${artifact.integrity ?? ''}`;
-	if (context.reactResourceKeys.has(key)) return;
-	context.reactResourceKeys.add(key);
+	if (context.reactResourceKeys?.has(key)) return;
+	(context.reactResourceKeys ??= new Set()).add(key);
 	context.dynamicComponentPreloads++;
 	const attributes = htmlAttributes(artifact);
-	context.reactResourceHints.push(
+	(context.reactResourceHints ??= []).push(
 		`<link rel="modulepreload" href="${escapeAttr(artifact.url)}"${attributes}/>`
 	);
 	const link = linkHeader(artifact);
-	context.resourceLinkHeaders.push(link);
+	(context.resourceLinkHeaders ??= []).push(link);
 	context.onEarlyHints?.(Object.freeze([link]));
 }
 

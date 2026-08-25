@@ -3,11 +3,11 @@ import {
 	createVNode,
 	isVNode,
 	watch,
+	type AnyComponentFunction,
 	type Child,
 	type Component,
 	type VNode
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { PresenceProps } from './contracts.js';
 import type { MotionPlayback } from './contracts.js';
 import { acquireSemanticAbsence, releaseSemanticAbsence } from './semantics.js';
@@ -34,10 +34,7 @@ export const PresenceEnterContext = createContext<{
 }>('motion.presence-enter');
 
 /** Conditionally projects children through generation-fenced renderer release and reversal. */
-export const Presence = markExactComponent(function Presence(
-	this: Component<{ revision: number }>,
-	props: PresenceProps
-) {
+export function Presence(this: Component<{ revision: number }>, props: PresenceProps) {
 	this.state.revision = 0;
 	let displayed: PresenceItem[] | undefined;
 	let pending: PresenceItem[] = [];
@@ -67,7 +64,7 @@ export const Presence = markExactComponent(function Presence(
 		invalidate();
 	};
 
-	return () => {
+	const render = () => {
 		void this.state.revision;
 		const desired = props.when ? presenceItems(props.children) : [];
 		const initial = displayed === undefined;
@@ -130,7 +127,8 @@ export const Presence = markExactComponent(function Presence(
 		}
 		return projectPresence(mergePresence(exiting, desired), props, entered, exited, entering);
 	};
-}, '@exactjs/motion:Presence');
+	return () => render();
+}
 
 function presenceItems(children: PresenceProps['children']): PresenceItem[] {
 	const values = Array.isArray(children) ? children : [children];
@@ -177,7 +175,7 @@ function projectPresence(
 ): VNode[] {
 	return items.map((item) =>
 		createVNode(
-			PresenceRange,
+			PresenceRange as unknown as AnyComponentFunction,
 			{
 				key: item.key,
 				entering: entering.has(item.key),
@@ -190,10 +188,7 @@ function projectPresence(
 	);
 }
 
-const PresenceRange = markExactComponent(function PresenceRange(
-	this: Component<{}>,
-	props: PresenceRangeProps
-) {
+function PresenceRange(this: Component<{}>, props: PresenceRangeProps) {
 	const root = this.refs.root<Element>();
 	const parentEnter = this.hasContext(PresenceEnterContext)
 		? this.getContext(PresenceEnterContext)
@@ -260,7 +255,7 @@ const PresenceRange = markExactComponent(function PresenceRange(
 	});
 
 	return () => props.children;
-}, '@exactjs/motion:PresenceRange');
+}
 
 /** Applies a stable key and optional exit-layout owner to one projected list child. */
 export function keyedPresenceChild(
@@ -268,6 +263,13 @@ export function keyedPresenceChild(
 	key: string,
 	exitLayout?: 'retain' | 'pop'
 ): VNode {
-	if (exitLayout === 'pop') return createVNode(PresenceRange, { key, exitLayout }, child);
-	return isVNode(child) ? { ...child, key } : createVNode(PresenceRange, { key }, child);
+	if (exitLayout === 'pop')
+		return createVNode(
+			PresenceRange as unknown as AnyComponentFunction,
+			{ key, exitLayout },
+			child
+		);
+	return isVNode(child)
+		? { ...child, key }
+		: createVNode(PresenceRange as unknown as AnyComponentFunction, { key }, child);
 }

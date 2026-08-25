@@ -10,10 +10,10 @@ import {
 import { handleExactRequest } from '@exactjs/server';
 import { flushSync } from '@exactjs/reactive';
 import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exactjs/ssr';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { IdentityProvider } from '../.exact/IdentityProvider.exact.client.js';
 import { ServerIdentityProjection } from '../.exact/ServerIdentityProjection.exact.server.js';
-import { ProfilePage_ExactClient_1 } from '../.exact/ProfilePage.exact.client.js';
+import { exactHydrationRegistration } from '../.exact/hydration-registration.js';
 import {
 	ServerAuthorizationContext,
 	ServerBrandContext,
@@ -60,10 +60,9 @@ describe('@exactjs/sample-server-components', () => {
 
 		expect(rendered.html).not.toContain('<!--exact:');
 		const config = readExactHydrationConfig(container);
-		const islands = { ProfilePage_ExactClient_1 };
 		const client = createExactClient(container, {
 			...config,
-			islands,
+			islands: exactHydrationRegistration.islands,
 			fetch: async (_url, init) => {
 				const body = JSON.parse(init.body);
 				requests.push(body);
@@ -85,9 +84,11 @@ describe('@exactjs/sample-server-components', () => {
 		const button = container.querySelector('button')!;
 		expect(button.textContent).toBe('Saved 0 times');
 		button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await vi.waitFor(() =>
+			expect(container.querySelector('[data-exact-client-hydrated="true"]')).not.toBeNull()
+		);
 		flushSync();
 		expect(container.querySelector('button')).not.toBe(button);
-		expect(container.querySelector('[data-exact-client-hydrated="true"]')).not.toBeNull();
 		expect(container.querySelector('button')?.textContent).toBe('Saved 1 times');
 		expect(config.continuations?.['save-profile']?.boundaries).toContain(
 			container

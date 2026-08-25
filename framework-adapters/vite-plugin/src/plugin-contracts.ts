@@ -1,4 +1,5 @@
 import type { ExactAssetRule, TransformTarget } from '@exactjs/compiler';
+import type { ExactBuildRenderMode } from '@exactjs/compiler/adapter-support';
 import type { ExactComponentAuthorizationIdentity } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { IntlBuildConfiguration } from '@exactjs/intl-build';
@@ -16,8 +17,8 @@ export type ExactPluginOptions = {
 	include?: FilterPattern;
 	exclude?: FilterPattern;
 	target?: TransformTarget;
-	/** Retains only the component-contract fields needed by this browser rendering mode. */
-	renderMode?: 'universal' | 'client' | 'hydrate';
+	/** Retains only the component-contract fields needed by this client or server execution mode. */
+	renderMode?: ExactBuildRenderMode;
 	clientCondition?: string;
 	serverCondition?: string;
 	serverComponents?: boolean;
@@ -64,7 +65,7 @@ export type ExactPlugin = {
 			};
 		};
 	};
-	configResolved?(config: { command: 'build' | 'serve' }): void;
+	configResolved?(config: { command: 'build' | 'serve'; build?: { ssr?: boolean | string } }): void;
 	buildStart?(this: {
 		addWatchFile(file: string): void;
 		warn?(message: string): void;

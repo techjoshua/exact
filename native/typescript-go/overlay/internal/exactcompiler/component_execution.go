@@ -4,7 +4,166 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/checker"
 )
+
+// attachComponentStateSlots assigns deterministic top-level storage indexes
+// from semantic state reads and writes, including compiler-resolved aliases.
+func attachComponentStateSlots(
+	components []Component,
+	reads []StateRead,
+	writes []StateWrite,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) {
+	byComponent := make(map[string]map[string]struct{}, len(components))
+	add := func(component string, path []string) {
+		if component == "" || len(path) == 0 || path[0] == "" {
+			return
+		}
+		keys := byComponent[component]
+		if keys == nil {
+			keys = make(map[string]struct{})
+			byComponent[component] = keys
+		}
+		keys[path[0]] = struct{}{}
+	}
+	for _, read := range reads {
+		add(read.Component, read.Path)
+	}
+	for _, write := range writes {
+		add(write.Component, write.Path)
+	}
+	for index := range components {
+		keys := byComponent[components[index].Name]
+		if len(keys) == 0 {
+			continue
+		}
+		slots := make([]string, 0, len(keys))
+		for key := range keys {
+			slots = append(slots, key)
+		}
+		sort.Strings(slots)
+		components[index].StateSlots = slots
+		components[index].Collections = componentNeedsCollections(
+			components[index], sourceFile, typeChecker,
+		)
+	}
+}
+
+// componentNeedsCollections proves the narrow state/props lane from complete declared shapes.
+// Opaque/indexed types and recursive graphs beyond the analysis bound retain general interception.
+func componentNeedsCollections(
+	component Component,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	if component.DynamicComponents {
+		return true
+	}
+	for _, signal := range component.Signals {
+		if signal == "getContext" || signal == "hasContext" || signal == "setContext" {
+			return true
+		}
+	}
+	if sourceFile == nil || typeChecker == nil {
+		return true
+	}
+	var stateType *checker.Type
+	var componentNode *ast.Node
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if node.Pos() == component.Start && node.End() == component.Start+component.Length {
+			componentNode = node
+		}
+		if node.Pos() < component.Start || node.End() > component.Start+component.Length {
+			return true
+		}
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		member := node.AsPropertyAccessExpression()
+		if member.Expression.Kind == ast.KindThisKeyword && member.Name() != nil &&
+			member.Name().Text() == "state" {
+			stateType = typeChecker.GetTypeAtLocation(node)
+			return false
+		}
+		return true
+	})
+	if len(component.StateSlots) != 0 && stateType == nil {
+		return true
+	}
+	seen := make(map[*checker.Type]struct{})
+	for _, key := range component.StateSlots {
+		if !objectArrayStateType(
+			typeChecker.GetTypeOfPropertyOfType(stateType, key), typeChecker, seen, 0,
+		) {
+			return true
+		}
+	}
+	if componentNode == nil {
+		return true
+	}
+	for _, parameter := range componentNode.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() == "this" {
+			continue
+		}
+		if !objectArrayStateType(typeChecker.GetTypeAtLocation(parameter), typeChecker, seen, 0) {
+			return true
+		}
+	}
+	return false
+}
+
+func objectArrayStateType(
+	value *checker.Type,
+	typeChecker *checker.Checker,
+	seen map[*checker.Type]struct{},
+	depth int,
+) bool {
+	if value == nil || depth > 32 || value.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
+		return false
+	}
+	if value.Flags()&checker.TypeFlagsUnion != 0 {
+		for _, member := range value.Distributed() {
+			if !objectArrayStateType(member, typeChecker, seen, depth+1) {
+				return false
+			}
+		}
+		return true
+	}
+	if _, exists := seen[value]; exists {
+		return true
+	}
+	seen[value] = struct{}{}
+	display := typeChecker.TypeToString(value)
+	if strings.Contains(display, "Map<") || strings.Contains(display, "Set<") ||
+		strings.Contains(display, "ReadonlyMap<") || strings.Contains(display, "ReadonlySet<") {
+		return false
+	}
+	if value.Flags()&(checker.TypeFlagsStringLike|checker.TypeFlagsNumberLike|checker.TypeFlagsBooleanLike|
+		checker.TypeFlagsBigIntLike|checker.TypeFlagsESSymbolLike|checker.TypeFlagsNull|
+		checker.TypeFlagsUndefined) != 0 {
+		return true
+	}
+	if element := typeChecker.GetElementTypeOfArrayType(value); element != nil {
+		return objectArrayStateType(element, typeChecker, seen, depth+1)
+	}
+	if len(typeChecker.GetSignaturesOfType(value, checker.SignatureKindCall)) != 0 {
+		return true
+	}
+	if len(typeChecker.GetIndexInfosOfType(value)) != 0 {
+		return false
+	}
+	for _, property := range typeChecker.GetPropertiesOfType(value) {
+		if !objectArrayStateType(typeChecker.GetTypeOfSymbol(property), typeChecker, seen, depth+1) {
+			return false
+		}
+	}
+	return true
+}
 
 // attachComponentExecutionPlans derives compact local ports and invocation
 // wiring after continuation placement and policy analysis have completed.
@@ -15,6 +174,7 @@ func attachComponentExecutionPlans(
 	bindings []ReactiveBinding,
 ) {
 	planned := make(map[string]struct{}, len(continuations))
+	tasksByID := make(map[string]Task, len(tasks))
 	componentIDs := make(map[string]string, len(components))
 	for _, component := range components {
 		componentIDs[component.Name] = component.ID
@@ -23,6 +183,7 @@ func attachComponentExecutionPlans(
 		planned[continuation.ID] = struct{}{}
 	}
 	for _, task := range tasks {
+		tasksByID[task.ID] = task
 		if _, exists := planned[task.ID]; exists ||
 			(task.Placement != "client" && task.Placement != "server" && task.Placement != "isomorphic") {
 			continue
@@ -53,18 +214,29 @@ func attachComponentExecutionPlans(
 				activation = "interaction"
 			}
 			plan.Transitions = append(plan.Transitions, ComponentTransition{
-				ID:          continuation.ID,
-				TaskID:      continuation.TaskID,
-				Activation:  activation,
-				Placement:   continuation.Placement,
-				Readiness:   continuation.Readiness,
-				Concurrency: continuation.Concurrency,
-				Inputs:      inputs,
-				Outputs:     outputs,
+				ID:                continuation.ID,
+				TaskID:            continuation.TaskID,
+				Activation:        activation,
+				Placement:         continuation.Placement,
+				Readiness:         continuation.Readiness,
+				Concurrency:       continuation.Concurrency,
+				Inputs:            inputs,
+				Outputs:           outputs,
+				DirectServerSetup: directServerSetupComputation(tasksByID[continuation.TaskID]),
 			})
 		}
 		component.Execution = plan
 	}
+}
+
+// directServerSetupComputation recognizes compiler-created synchronous value propagation. An
+// authored server task stays on the scheduled lane even when its current implementation is small.
+func directServerSetupComputation(task Task) bool {
+	return task.CompilerComputation && !task.Async && !task.Invoked && !task.Detached &&
+		(task.Placement == "server" || task.Placement == "isomorphic") &&
+		task.EnvironmentEffect == "neutral" && len(task.Contexts) == 0 &&
+		len(task.Resources) == 0 && len(task.SignalCalls) == 0 &&
+		len(task.ResultWritePath) == 0
 }
 
 func componentExecutionContinuation(task Task, componentID string) Continuation {

@@ -16,18 +16,31 @@ const npmCommand =
 	npmCli && existsSync(npmCli)
 		? { command: process.execPath, prefix: [npmCli] }
 		: { command: 'npm', prefix: [] };
+const requestedApplication = process.env.EXACT_ACCEPTANCE_APP?.toLowerCase();
+const applications = [
+	{ key: 'sudoku', name: 'Sudoku', workspace: '@exactjs/sample-sudoku', journey: checkSudoku },
+	{ key: 'docs', name: 'docs', workspace: '@exactjs/docs', journey: checkDocs },
+	{
+		key: 'shipping',
+		name: 'shipping continuations',
+		workspace: '@exactjs/sample-shipping-calculator',
+		journey: checkShipping
+	}
+];
+const selectedApplications = requestedApplication
+	? applications.filter(({ key }) => key === requestedApplication)
+	: applications;
+if (!selectedApplications.length)
+	throw new Error(`Unknown EXACT_ACCEPTANCE_APP ${requestedApplication}`);
 const browser = await chromium.launch({ headless: true });
 let failure;
 
 try {
-	await checkApplication('Sudoku', '@exactjs/sample-sudoku', checkSudoku);
-	await checkApplication('docs', '@exactjs/docs', checkDocs);
-	await checkApplication(
-		'shipping continuations',
-		'@exactjs/sample-shipping-calculator',
-		checkShipping
+	for (const application of selectedApplications)
+		await checkApplication(application.name, application.workspace, application.journey);
+	console.log(
+		`Compiler browser acceptance passed (${selectedApplications.map(({ name }) => name).join(', ')}).`
 	);
-	console.log('Compiler browser acceptance passed (Sudoku, docs, shipping continuations).');
 } catch (error) {
 	failure = error;
 }
@@ -49,10 +62,19 @@ async function checkApplication(name, workspace, journey) {
 			if (message.type() === 'error') failures.push(`console error: ${message.text()}`);
 		});
 		try {
-			await journey(page, `http://127.0.0.1:${port}`);
-			await page.waitForTimeout(100);
-			if (failures.length) throw new Error(failures.join('\n'));
-			console.log(`  ${name} passed`);
+			try {
+				await journey(page, `http://127.0.0.1:${port}`);
+				await page.waitForTimeout(100);
+				if (failures.length) throw new Error(failures.join('\n'));
+				console.log(`  ${name} passed`);
+			} catch (error) {
+				const body = await page
+					.locator('body')
+					.innerText()
+					.catch(() => '');
+				const diagnostics = [...failures, body].filter(Boolean).join('\n');
+				throw diagnostics ? new Error(diagnostics, { cause: error }) : error;
+			}
 		} finally {
 			await context.close();
 		}
@@ -94,10 +116,10 @@ async function checkShipping(page, origin) {
 	await page.goto(origin, { waitUntil: 'networkidle' });
 	await page.getByRole('heading', { name: 'Find the right way to send it.' }).waitFor();
 	await page.getByRole('heading', { name: 'DOOP Standard' }).waitFor();
-	await expectEventually(
-		async () => exactStatuses.some((status) => status === 200),
-		'shipping did not perform its initial __exact request'
-	);
+	if (exactStatuses.length)
+		throw new Error(
+			`shipping redundantly refreshed its server-rendered revision: ${exactStatuses}`
+		);
 	const initialRequests = exactStatuses.length;
 	await page.getByLabel('To ZIP').fill('97209');
 	await expectEventually(

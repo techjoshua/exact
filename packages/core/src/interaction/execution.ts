@@ -3,12 +3,15 @@ import {
 	markComponentTrace,
 	componentTraceStarter,
 	type LazyComponentTraceAttributes,
-	type ComponentTraceSpan
+	type ComponentTraceSpan,
+	type ComponentTraceStarter
 } from '../component/performance-trace.js';
 import {
 	currentTaskFrameRecord,
+	createTaskOwnerRecord,
 	executeTaskFrame,
 	taskFrameSynchronousError,
+	withDeferredTaskFrame,
 	type TaskFrameRecord
 } from '../tasks/frame-runtime.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
@@ -18,6 +21,9 @@ export type InteractionSource = 'event' | 'form' | 'invoked' | 'navigation';
 
 /** Scheduling class inherited by work attached to an interaction task. */
 export type InteractionPriority = 'interactive' | 'normal' | 'deferred';
+
+/** Supplies a generation only when a direct compiled interaction needs a structural frame. */
+export type DeferredInteractionGeneration = (owner: AnyComponentInstance) => number;
 
 /** Diagnostic metadata associated with an interaction-root task frame. */
 export type InteractionScope = {
@@ -40,6 +46,11 @@ export function currentInteraction(): InteractionScope | undefined {
 		if (interaction) return interaction;
 	}
 	return undefined;
+}
+
+/** Reports whether a component already owns the durable task lane required by full interactions. */
+export function hasComponentTaskOwner(owner: AnyComponentInstance): boolean {
+	return taskOwnerForHost(owner) !== undefined;
 }
 
 /** Emits a correlated performance mark for a currently executing interaction. */
@@ -66,10 +77,134 @@ export function runComponentInteraction<Result>(
 	controller: AbortController,
 	work: (scope: InteractionScope) => Result | PromiseLike<Result>
 ): Promise<Result> {
-	const taskOwner = taskOwnerForHost(owner);
-	if (!taskOwner) throw new Error('Component interaction requires a registered task owner');
+	return executeComponentInteraction(owner, source, generation, priority, controller, true, work);
+}
+
+/**
+ * Executes a compiler-owned DOM interaction without allocating diagnostic metadata when component
+ * tracing is disabled. Structural task parenting and settlement still use the canonical frame.
+ */
+export function runCompiledComponentInteraction<Result>(
+	owner: AnyComponentInstance,
+	source: InteractionSource,
+	generation: number,
+	priority: InteractionPriority,
+	controller: AbortController,
+	work: () => Result | PromiseLike<Result>,
+	onTraceScope?: (scope: InteractionScope) => void,
+	trace?: ComponentTraceStarter | false
+): Promise<Result> {
+	return executeComponentInteraction(
+		owner,
+		source,
+		generation,
+		priority,
+		controller,
+		false,
+		work,
+		onTraceScope,
+		trace
+	);
+}
+
+/**
+ * Executes a compiled interaction directly until task work requests a structural parent.
+ * Trace-enabled builds retain the complete observable interaction contract from the start.
+ */
+export function runDirectCompiledComponentInteraction<Result>(
+	owner: AnyComponentInstance,
+	source: InteractionSource,
+	generation: number | DeferredInteractionGeneration,
+	priority: InteractionPriority,
+	work: () => Result | PromiseLike<Result>,
+	onTraceScope?: (scope: InteractionScope) => void,
+	trace?: ComponentTraceStarter | false
+): Result | PromiseLike<Result> {
+	const startTrace = trace === undefined ? componentTraceStarter(owner) : trace;
+	if (startTrace)
+		return runCompiledComponentInteraction(
+			owner,
+			source,
+			interactionGeneration(generation, owner),
+			priority,
+			new AbortController(),
+			work,
+			onTraceScope,
+			startTrace
+		);
+
+	let frame: TaskFrameRecord | undefined;
+	let execution: Promise<Result> | undefined;
+	let resolveForeground: ((value: Result | PromiseLike<Result>) => void) | undefined;
+	let rejectForeground: ((error: unknown) => void) | undefined;
+	const materialize = (): TaskFrameRecord => {
+		if (frame) return frame;
+		const registeredOwner = taskOwnerForHost(owner);
+		const taskOwner = registeredOwner ?? createTaskOwnerRecord(`${owner.id}:interaction`);
+		const foreground = new Promise<Result>((resolve, reject) => {
+			resolveForeground = resolve;
+			rejectForeground = reject;
+		});
+		execution = executeTaskFrame(
+			{
+				owner: taskOwner,
+				generation: interactionGeneration(generation, owner),
+				activation: 'interaction',
+				label: `${source} interaction`,
+				concurrency: 'latest',
+				priority: priority === 'interactive' ? 'immediate' : priority,
+				readiness: priority === 'deferred' ? 'nonblocking' : 'blocking',
+				publicContext: false,
+				detached: true
+			},
+			() => {
+				frame = currentTaskFrameRecord()!;
+				return foreground;
+			}
+		).finally(() => (registeredOwner ? undefined : taskOwner[Symbol.asyncDispose]()));
+		return frame!;
+	};
+
+	let directResult: Result | PromiseLike<Result>;
+	try {
+		directResult = withDeferredTaskFrame(materialize, work);
+	} catch (error) {
+		if (execution) {
+			rejectForeground!(error);
+			void execution.catch(() => undefined);
+		}
+		throw error;
+	}
+	if (!execution) return directResult;
+	resolveForeground!(directResult);
+	return execution;
+}
+
+function interactionGeneration(
+	generation: number | DeferredInteractionGeneration,
+	owner: AnyComponentInstance
+): number {
+	return typeof generation === 'function' ? generation(owner) : generation;
+}
+
+function executeComponentInteraction<Result>(
+	owner: AnyComponentInstance,
+	source: InteractionSource,
+	generation: number,
+	priority: InteractionPriority,
+	controller: AbortController,
+	exposeScope: boolean,
+	work:
+		| ((scope: InteractionScope) => Result | PromiseLike<Result>)
+		| (() => Result | PromiseLike<Result>),
+	onTraceScope?: (scope: InteractionScope) => void,
+	trace?: ComponentTraceStarter | false
+): Promise<Result> {
+	const registeredOwner = taskOwnerForHost(owner);
+	const taskOwner = registeredOwner ?? createTaskOwnerRecord(`${owner.id}:interaction`);
+	const startTrace = trace === undefined ? componentTraceStarter(owner) : trace || undefined;
 	let interactionScope: InteractionScope | undefined;
-	const execution = executeTaskFrame(
+	const frameExecution = executeTaskFrame(
 		{
 			owner: taskOwner,
 			controller,
@@ -83,31 +218,40 @@ export function runComponentInteraction<Result>(
 			publicContext: false
 		},
 		() => {
-			const frame = currentTaskFrameRecord()!;
-			const scope: InteractionScope = Object.freeze({
-				id: nextInteractionId++,
-				owner,
-				source,
-				priority,
-				generation
-			});
-			interactionScope = scope;
-			interactionsByFrame.set(frame, scope);
-			const trace = componentTraceStarter(owner)?.('interaction', `interaction:${scope.id}`, {
-				source,
-				priority,
-				generation
-			});
-			if (trace) (interactionTraces ??= new WeakMap()).set(scope, trace);
-			return work(scope);
+			if (exposeScope || startTrace) {
+				const frame = currentTaskFrameRecord()!;
+				const scope: InteractionScope = Object.freeze({
+					id: nextInteractionId++,
+					owner,
+					source,
+					priority,
+					generation
+				});
+				interactionScope = scope;
+				interactionsByFrame.set(frame, scope);
+				const trace = startTrace?.('interaction', `interaction:${scope.id}`, {
+					source,
+					priority,
+					generation
+				});
+				if (trace) (interactionTraces ??= new WeakMap()).set(scope, trace);
+				onTraceScope?.(scope);
+				return (work as (scope: InteractionScope) => Result | PromiseLike<Result>)(scope);
+			}
+			return (work as () => Result | PromiseLike<Result>)();
 		}
 	);
-	const synchronousError = taskFrameSynchronousError(execution);
+	const synchronousError = taskFrameSynchronousError(frameExecution);
 	if (synchronousError) {
+		if (!registeredOwner)
+			void frameExecution.finally(() => taskOwner[Symbol.asyncDispose]()).catch(() => undefined);
 		if (interactionScope && interactionTraces?.has(interactionScope))
 			finishInteractionTrace(interactionScope, 'error');
 		throw synchronousError.error;
 	}
+	const execution = registeredOwner
+		? frameExecution
+		: frameExecution.finally(() => taskOwner[Symbol.asyncDispose]());
 	if (interactionScope && interactionTraces?.has(interactionScope)) {
 		void execution.then(
 			() => finishInteractionTrace(interactionScope!, 'success'),

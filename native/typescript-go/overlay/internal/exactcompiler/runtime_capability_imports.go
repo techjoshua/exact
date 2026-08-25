@@ -9,125 +9,279 @@ import (
 )
 
 type jsxRuntimeNames struct {
-	element                string
-	componentElement       string
-	renderProgram          string
-	fragment               string
-	target                 string
-	expression             string
-	forwardedExpression    string
-	componentOutput        string
-	dynamic                string
-	dynamicComponent       string
-	serverDynamicComponent string
-	dynamicComponentValue  string
-	boundary               string
-	finiteBoundary         string
-	asyncSiblings          string
-	serverSlot             string
-	keyedServerSlot        string
-	clientProps            string
-	derived                string
-	peek                   string
-	write                  string
-	update                 string
-	updateResult           string
-	abortOptions           string
-	taskSignal             string
-	taskTimeout            string
-	taskInterval           string
-	taskAnimation          string
-	taskIdle               string
-	taskObserver           string
-	taskFetch              string
-	taskResource           string
-	taskAwait              string
-	taskMutation           string
-	stageTaskMutation      string
-	taskCollectionMutation string
-	taskContinuation       string
-	dispatchContinuation   string
-	registerContexts       string
-	inspectionSource       string
-	defineTask             string
-	bindTask               string
-	invokeTask             string
-	activateTask           string
-	taskOptions            string
-	taskCombined           string
-	delete                 string
-	arrayMutation          string
-	collectionMutation     string
-	componentRegistry      string
-	enhancements           string
-	omitEnhancementProps   string
-	componentLog           string
-	interop                string
-	timeActivation         string
-	createTimeActivation   string
+	element                   string
+	componentElement          string
+	keyedElement              string
+	preparedRenderProgram     string
+	preparedServerProgram     string
+	prepareRenderProgram      string
+	bindProgramText           string
+	bindProgramChild          string
+	bindProgramLists          string
+	bindProgramKeyedChild     string
+	bindProgramProperties     string
+	bindProgramState          string
+	bindComponentUpdate       string
+	applyProgramText          string
+	applyProgramProperties    string
+	beginProgramClaims        string
+	claimProgramElement       string
+	claimElementPath          string
+	claimProgramText          string
+	claimProgramChild         string
+	claimProgramKeyedChild    string
+	claimProgramProperty      string
+	enterProgramElement       string
+	leaveProgramElement       string
+	bindingTarget             string
+	fragment                  string
+	target                    string
+	expression                string
+	forwardedExpression       string
+	componentOutput           string
+	serverComponentOutput     string
+	issueServerComponent      string
+	dynamic                   string
+	dynamicComponent          string
+	serverDynamicComponent    string
+	dynamicComponentValue     string
+	boundary                  string
+	finiteBoundary            string
+	asyncSiblings             string
+	serverSlot                string
+	keyedServerSlot           string
+	clientProps               string
+	derived                   string
+	peek                      string
+	write                     string
+	update                    string
+	updateResult              string
+	abortOptions              string
+	taskSignal                string
+	taskTimeout               string
+	taskInterval              string
+	taskAnimation             string
+	taskIdle                  string
+	taskObserver              string
+	taskFetch                 string
+	taskResource              string
+	taskAwait                 string
+	serverTaskAwait           string
+	serverTaskTimeout         string
+	taskMutation              string
+	stageTaskMutation         string
+	taskCollectionMutation    string
+	taskContinuation          string
+	dispatchContinuation      string
+	registerContexts          string
+	inspectionSource          string
+	defineTask                string
+	bindTask                  string
+	invokeTask                string
+	activateTask              string
+	activateComputation       string
+	bindCompiledLatest        string
+	activateCompiledLatest    string
+	activateServerTask        string
+	taskOptions               string
+	taskCombined              string
+	delete                    string
+	arrayMutation             string
+	collectionMutation        string
+	componentRegistry         string
+	enhancements              string
+	omitEnhancementProps      string
+	componentLog              string
+	registerLifecycle         string
+	registerRender            string
+	ownResource               string
+	interop                   string
+	timeActivation            string
+	createTimeActivation      string
+	renderClosedSsr           string
+	renderClosedHydratableSsr string
+
+	renderClosedUnmarkedSsr string
+}
+
+type runtimeImportGroupID string
+
+const (
+	runtimeRender                   runtimeImportGroupID = "render"
+	runtimeReactivity               runtimeImportGroupID = "reactivity"
+	runtimeTasks                    runtimeImportGroupID = "tasks"
+	runtimeInspection               runtimeImportGroupID = "inspection"
+	runtimeRegistry                 runtimeImportGroupID = "registry"
+	runtimeEnhancements             runtimeImportGroupID = "enhancements"
+	runtimeDynamicComponents        runtimeImportGroupID = "dynamic-components"
+	runtimeLogging                  runtimeImportGroupID = "logging"
+	runtimeLocalization             runtimeImportGroupID = "localization"
+	runtimeModal                    runtimeImportGroupID = "modal"
+	runtimeUnsafeHTML               runtimeImportGroupID = "unsafe-html"
+	runtimeStructuralBoundaries     runtimeImportGroupID = "structural-boundaries"
+	runtimeTarget                   runtimeImportGroupID = "target"
+	runtimeTime                     runtimeImportGroupID = "time"
+	runtimeLists                    runtimeImportGroupID = "lists"
+	runtimeRefs                     runtimeImportGroupID = "refs"
+	runtimeComponentExecution       runtimeImportGroupID = "component-execution"
+	runtimeCollections              runtimeImportGroupID = "collections"
+	runtimeRenderProgram            runtimeImportGroupID = "render-program"
+	runtimeContexts                 runtimeImportGroupID = "contexts"
+	runtimeLifecycle                runtimeImportGroupID = "lifecycle"
+	runtimeComponentReactivity      runtimeImportGroupID = "component-reactivity"
+	runtimeFrameworkLifecycle       runtimeImportGroupID = "framework-lifecycle"
+	runtimeServerComponentExecution runtimeImportGroupID = "server-component-execution"
+	runtimeGenericSSRComponents     runtimeImportGroupID = "generic-ssr-components"
+	runtimeSSRStructuralBoundaries  runtimeImportGroupID = "ssr-structural-boundaries"
+	runtimeSSRResumptionBoundaries  runtimeImportGroupID = "ssr-resumption-boundaries"
+	runtimeSSREnhancements          runtimeImportGroupID = "ssr-enhancements"
+	runtimeCompilerClosedSSR        runtimeImportGroupID = "compiler-closed-ssr"
+	runtimeServerRenderStructure    runtimeImportGroupID = "server-render-structure"
+)
+
+type runtimeImportGroup struct {
+	id         runtimeImportGroupID
+	module     string
+	specifiers []*ast.Node
+}
+
+type runtimeImportHelper struct {
+	imported string
+	local    string
+	group    runtimeImportGroupID
 }
 
 func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
-	type importGroup struct {
-		module     string
-		specifiers []*ast.Node
+	const serverRenderRuntimeModule = "@exactjs/core/framework/server-render-structure"
+	renderRuntimeModule := "@exactjs/core/runtime/render"
+	taskRuntimeModule := "@exactjs/core/runtime/tasks"
+	if lowering.target == TargetServer {
+		renderRuntimeModule = serverRenderRuntimeModule
+		for _, component := range lowering.components {
+			if component.TargetPlan.GenericServerRuntime {
+				renderRuntimeModule = "@exactjs/core/framework/render-structure"
+				break
+			}
+		}
+		taskRuntimeModule = "@exactjs/core/framework/server-task-helpers"
 	}
-	groups := []importGroup{
-		{module: "@exactjs/core/runtime/render"},
-		{module: "@exactjs/core/runtime/reactivity"},
-		{module: "@exactjs/core/runtime/tasks"},
-		{module: "@exactjs/core/runtime/inspection"},
-		{module: "@exactjs/core/runtime/registry"},
-		{module: "@exactjs/core/runtime/enhancements"},
-		{module: "@exactjs/core/runtime/dynamic-components"},
-		{module: "@exactjs/core/runtime/logging"},
-		{module: "@exactjs/core/runtime/localization"},
-		{module: "@exactjs/dom/runtime/modal"},
-		{module: "@exactjs/dom/runtime/unsafe-html"},
-		{module: "@exactjs/dom/runtime/structural-boundaries"},
-		{module: "@exactjs/time/internal"},
+	groups := []runtimeImportGroup{
+		{id: runtimeRender, module: renderRuntimeModule},
+		{id: runtimeReactivity, module: "@exactjs/core/runtime/reactivity"},
+		{id: runtimeTasks, module: taskRuntimeModule},
+		{id: runtimeInspection, module: "@exactjs/core/runtime/inspection"},
+		{id: runtimeRegistry, module: "@exactjs/core/runtime/registry"},
+		{id: runtimeEnhancements, module: "@exactjs/core/runtime/enhancements"},
+		{id: runtimeDynamicComponents, module: "@exactjs/core/runtime/dynamic-components"},
+		{id: runtimeLogging, module: "@exactjs/core/runtime/logging"},
+		{id: runtimeLocalization, module: "@exactjs/core/runtime/localization"},
+		{id: runtimeModal, module: "@exactjs/dom/runtime/modal"},
+		{id: runtimeUnsafeHTML, module: "@exactjs/dom/runtime/unsafe-html"},
+		{id: runtimeStructuralBoundaries, module: "@exactjs/dom/runtime/structural-boundaries"},
+		{id: runtimeTarget, module: "@exactjs/dom/runtime/target"},
+		{id: runtimeTime, module: "@exactjs/time/internal"},
+		{id: runtimeLists, module: "@exactjs/core/runtime/lists"},
+		{id: runtimeRefs, module: "@exactjs/core/runtime/refs"},
+		{id: runtimeComponentExecution, module: "@exactjs/core/runtime/component-execution"},
+		{id: runtimeCollections, module: "@exactjs/core/runtime/collections"},
+		{id: runtimeRenderProgram, module: "@exactjs/dom/runtime/render-program"},
+		{id: runtimeContexts, module: "@exactjs/core/runtime/contexts"},
+		{id: runtimeLifecycle, module: "@exactjs/core/runtime/lifecycle"},
+		{id: runtimeComponentReactivity, module: "@exactjs/core/runtime/component-reactivity"},
+		{id: runtimeFrameworkLifecycle, module: "@exactjs/core/framework/component-lifecycle"},
+		{id: runtimeServerComponentExecution, module: "@exactjs/core/framework/server-component-execution"},
+		{id: runtimeGenericSSRComponents, module: "@exactjs/ssr/runtime/generic-components"},
+		{id: runtimeSSRStructuralBoundaries, module: "@exactjs/ssr/runtime/structural-boundaries"},
+		{id: runtimeSSRResumptionBoundaries, module: "@exactjs/ssr/runtime/resumption-boundaries"},
+		{id: runtimeSSREnhancements, module: "@exactjs/ssr/runtime/enhancements"},
+		{id: runtimeCompilerClosedSSR, module: "@exactjs/ssr/runtime/compiler-closed"},
 	}
-	add := func(group int, imported string, local string) {
-		groups[group].specifiers = append(
-			groups[group].specifiers,
+	preparedServerProgramGroup := runtimeRender
+	if lowering.target == TargetServer &&
+		renderRuntimeModule != serverRenderRuntimeModule {
+		groups = append(groups, runtimeImportGroup{
+			id:     runtimeServerRenderStructure,
+			module: serverRenderRuntimeModule,
+		})
+		preparedServerProgramGroup = runtimeServerRenderStructure
+	}
+	groupByID := make(map[runtimeImportGroupID]*runtimeImportGroup, len(groups))
+	for index := range groups {
+		groupByID[groups[index].id] = &groups[index]
+	}
+	add := func(groupID runtimeImportGroupID, imported string, local string) {
+		group := groupByID[groupID]
+		if group == nil {
+			panic("missing runtime import group " + string(groupID))
+		}
+		group.specifiers = append(
+			group.specifiers,
 			lowering.importSpecifier(imported, local),
 		)
 	}
-	helpers := []struct {
-		imported string
-		local    string
-		group    int
-	}{
-		{"createCompiledVNode", lowering.names.element, 0},
-		{"createCompiledComponentVNode", lowering.names.componentElement, 0},
-		{"createCompiledRenderProgram", lowering.names.renderProgram, 0},
-		{"createCompiledFragment", lowering.names.fragment, 0},
-		{"createCompiledTarget", lowering.names.target, 0},
-		{"createExpression", lowering.names.expression, 0},
-		{"createForwardedExpression", lowering.names.forwardedExpression, 0},
-		{"componentExecutionValueForHost", lowering.names.componentOutput, 2},
-		{"createDynamicChild", lowering.names.dynamic, 0},
-		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, 6},
-		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, 6},
-		{"dynamicComponentValue", lowering.names.dynamicComponentValue, 6},
-		{"createServerBoundary", lowering.names.boundary, 0},
-		{"markFiniteClientBoundary", lowering.names.finiteBoundary, 0},
-		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, 0},
-		{"createServerSlot", lowering.names.serverSlot, 0},
-		{"createKeyedServerSlot", lowering.names.keyedServerSlot, 0},
-		{"createDerived", lowering.names.derived, 1},
-		{"peek", lowering.names.peek, 1},
-		{"writeReactiveLazy", lowering.names.write, 1},
-		{"updateReactiveValue", lowering.names.update, 1},
-		{"updateReactiveValueWithResult", lowering.names.updateResult, 1},
-		{"deleteReactiveValue", lowering.names.delete, 1},
-		{"mutateReactiveArray", lowering.names.arrayMutation, 1},
-		{"mutateReactiveCollection", lowering.names.collectionMutation, 1},
-		{"createCompiledComponentRegistry", lowering.names.componentRegistry, 4},
-		{"createEnhancementNode", lowering.names.enhancements, 5},
-		{"omitKnownProps", lowering.names.omitEnhancementProps, 5},
-		{"componentLogMethod", lowering.names.componentLog, 7},
-		{"createTimeActivation", lowering.names.createTimeActivation, 12},
+	helpers := []runtimeImportHelper{
+		{"createCompiledVNode", lowering.names.element, runtimeRender},
+		{"createCompiledComponentVNode", lowering.names.componentElement, runtimeRender},
+		{"keyCompiledVNode", lowering.names.keyedElement, runtimeRender},
+		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, runtimeRender},
+		{"createPreparedServerRenderProgram", lowering.names.preparedServerProgram, preparedServerProgramGroup},
+		{"prepareCompiledRenderProgram", lowering.names.prepareRenderProgram, runtimeRender},
+		{"createCompiledFragment", lowering.names.fragment, runtimeRender},
+		{"createCompiledTarget", lowering.names.target, runtimeRender},
+		{"createExpression", lowering.names.expression, runtimeRender},
+		{"createForwardedExpression", lowering.names.forwardedExpression, runtimeRender},
+		{"componentExecutionValueForHost", lowering.names.componentOutput, runtimeComponentExecution},
+		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, runtimeServerComponentExecution},
+		{"issueServerComponentVNode", lowering.names.issueServerComponent, runtimeServerComponentExecution},
+		{"createDynamicChild", lowering.names.dynamic, runtimeRender},
+		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, runtimeDynamicComponents},
+		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, runtimeDynamicComponents},
+		{"dynamicComponentValue", lowering.names.dynamicComponentValue, runtimeDynamicComponents},
+		{"createServerBoundary", lowering.names.boundary, runtimeRender},
+		{"markFiniteClientBoundary", lowering.names.finiteBoundary, runtimeRender},
+		{"markIndependentAsyncSiblings", lowering.names.asyncSiblings, runtimeRender},
+		{"createServerSlot", lowering.names.serverSlot, runtimeRender},
+		{"createKeyedServerSlot", lowering.names.keyedServerSlot, runtimeRender},
+		{"createDerived", lowering.names.derived, runtimeReactivity},
+		{"peek", lowering.names.peek, runtimeReactivity},
+		{"writeReactiveLazy", lowering.names.write, runtimeReactivity},
+		{"updateReactiveValue", lowering.names.update, runtimeReactivity},
+		{"updateReactiveValueWithResult", lowering.names.updateResult, runtimeReactivity},
+		{"deleteReactiveValue", lowering.names.delete, runtimeReactivity},
+		{"mutateReactiveArray", lowering.names.arrayMutation, runtimeReactivity},
+		{"mutateReactiveCollection", lowering.names.collectionMutation, runtimeReactivity},
+		{"awaitServerComponentTask", lowering.names.serverTaskAwait, runtimeServerComponentExecution},
+		{"serverComponentTaskTimeout", lowering.names.serverTaskTimeout, runtimeServerComponentExecution},
+		{"createCompiledComponentRegistry", lowering.names.componentRegistry, runtimeRegistry},
+		{"createEnhancementNode", lowering.names.enhancements, runtimeEnhancements},
+		{"omitKnownProps", lowering.names.omitEnhancementProps, runtimeEnhancements},
+		{"componentLogMethod", lowering.names.componentLog, runtimeLogging},
+		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, runtimeFrameworkLifecycle},
+		{"registerComponentRenderHandler", lowering.names.registerRender, runtimeFrameworkLifecycle},
+		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
+		{"activateServerComponentTaskForHost", lowering.names.activateServerTask, runtimeServerComponentExecution},
+		{"createTimeActivation", lowering.names.createTimeActivation, runtimeTime},
+		{"bindCompiledProgramText", lowering.names.bindProgramText, runtimeRenderProgram},
+		{"bindCompiledProgramChild", lowering.names.bindProgramChild, runtimeRenderProgram},
+		{"bindCompiledProgramLists", lowering.names.bindProgramLists, runtimeRenderProgram},
+		{"bindCompiledProgramKeyedChild", lowering.names.bindProgramKeyedChild, runtimeRenderProgram},
+		{"bindCompiledProgramProperties", lowering.names.bindProgramProperties, runtimeRenderProgram},
+		{"bindCompiledProgramState", lowering.names.bindProgramState, runtimeRenderProgram},
+		{"bindCompiledComponentUpdate", lowering.names.bindComponentUpdate, runtimeRenderProgram},
+		{"applyCompiledProgramText", lowering.names.applyProgramText, runtimeRenderProgram},
+		{"applyCompiledProgramProperties", lowering.names.applyProgramProperties, runtimeRenderProgram},
+		{"beginCompiledProgramClaims", lowering.names.beginProgramClaims, runtimeRenderProgram},
+		{"claimCompiledProgramElement", lowering.names.claimProgramElement, runtimeRenderProgram},
+		{"claimCompiledProgramElementPath", lowering.names.claimElementPath, runtimeRenderProgram},
+		{"claimCompiledProgramText", lowering.names.claimProgramText, runtimeRenderProgram},
+		{"claimCompiledProgramChild", lowering.names.claimProgramChild, runtimeRenderProgram},
+		{"claimCompiledProgramKeyedChild", lowering.names.claimProgramKeyedChild, runtimeRenderProgram},
+		{"claimCompiledProgramProperty", lowering.names.claimProgramProperty, runtimeRenderProgram},
+		{"enterCompiledProgramElement", lowering.names.enterProgramElement, runtimeRenderProgram},
+		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, runtimeRenderProgram},
+		{"renderCompilerClosedToStringAsync", lowering.names.renderClosedSsr, runtimeCompilerClosedSSR},
+		{"renderCompilerClosedToHydratableStringAsync", lowering.names.renderClosedHydratableSsr, runtimeCompilerClosedSSR},
+		{"renderCompilerClosedUnmarkedToStringAsync", lowering.names.renderClosedUnmarkedSsr, runtimeCompilerClosedSSR},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -162,22 +316,91 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"bindTaskForHost",
 		"invokeTask",
 		"activateTaskForHost",
+		"activateComputationForHost",
+		"bindCompiledClientLatestTaskForHost",
+		"activateCompiledClientLatestTaskForHost",
 	}
 	for _, imported := range taskHelperOrder {
 		if local, used := lowering.taskHelpers[imported]; used {
 			if !containsIdentifier(root, local) {
 				continue
 			}
-			group := 2
+			group := runtimeTasks
 			if imported == "markExactInspectionSource" {
-				group = 3
+				group = runtimeInspection
 			}
 			add(group, imported, local)
 		}
 	}
 	interopUsed := lowering.interop != nil && containsIdentifier(root, lowering.names.interop)
 	interactionUsed := containsInteractionRuntimeUse(root)
-	localizationUsed := lowering.componentLocalization || containsComponentLocalizationUse(root)
+	if !interactionUsed && lowering.target != TargetServer {
+		for _, component := range lowering.components {
+			if component.Interactions {
+				interactionUsed = true
+				break
+			}
+		}
+	}
+	localizationUsed := lowering.componentLocalization ||
+		containsComponentSurfaceUse(root, "intl")
+	loggingSurfaceUsed := containsComponentSurfaceUse(
+		root,
+		"log",
+	)
+	listUsed := lowering.listCapabilityUsed
+	for _, component := range lowering.components {
+		if component.Lists {
+			listUsed = true
+			break
+		}
+	}
+	refsUsed := containsComponentSurfaceUse(root, "ref", "readRef", "refs")
+	contextsUsed := containsComponentSurfaceUse(
+		root,
+		"hasContext",
+		"getContext",
+		"setContext",
+	) || containsCoreContextComponentImport(
+		root,
+		lowering.sourceFile,
+		lowering.checker,
+	)
+	lifecycleUsed := containsComponentSurfaceUse(
+		root,
+		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
+	)
+	componentReactivityUsed := containsComponentSurfaceUse(
+		root,
+		"reactive",
+	)
+	for _, component := range lowering.components {
+		localizationUsed = localizationUsed || component.Surface.Localization
+		loggingSurfaceUsed = loggingSurfaceUsed || component.Surface.Logging
+		refsUsed = refsUsed || component.Surface.Refs
+		contextsUsed = contextsUsed || component.Surface.Contexts
+		componentReactivityUsed = componentReactivityUsed || component.Surface.Reactivity
+	}
+	executionUsed := lowering.contractProjection != ComponentContractProjectionHydrate
+	if executionUsed {
+		executionUsed = false
+		for _, component := range lowering.components {
+			if !(lowering.target == TargetServer && component.TargetPlan.DirectServer) &&
+				len(componentTargetExecution(component, lowering.target).Transitions) != 0 {
+				executionUsed = true
+				break
+			}
+		}
+	}
+	genericServerRuntimeUsed := false
+	if lowering.target == TargetServer {
+		for _, component := range lowering.components {
+			if component.TargetPlan.GenericServerRuntime {
+				genericServerRuntimeUsed = true
+				break
+			}
+		}
+	}
 	modalBindingUsed := containsIdentifier(root, "__exactModalOpen")
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,
@@ -185,15 +408,59 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	)
 	structuralBoundariesUsed := lowering.target != TargetServer &&
 		(partitionUsesStructuralBoundaries(lowering.partitionPlan) ||
-			containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker))
+			containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker) ||
+			containsIdentifier(root, lowering.names.boundary) ||
+			containsIdentifier(root, lowering.names.finiteBoundary) ||
+			containsIdentifier(root, lowering.names.asyncSiblings) ||
+			containsIdentifier(root, lowering.names.serverSlot) ||
+			containsIdentifier(root, lowering.names.keyedServerSlot))
+	serverStructuralBoundariesUsed := lowering.target == TargetServer &&
+		(containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker) ||
+			containsIdentifier(root, lowering.names.boundary))
+	serverResumptionBoundariesUsed := lowering.target == TargetServer &&
+		len(lowering.continuationComponents) != 0
+	if serverResumptionBoundariesUsed &&
+		(containsIdentifier(root, lowering.names.renderClosedUnmarkedSsr) ||
+			containsIdentifier(root, lowering.names.renderClosedHydratableSsr)) &&
+		!containsIdentifier(root, lowering.names.renderClosedSsr) &&
+		!lowering.universalSsrCallSurvives(root) &&
+		!lowering.exportsServerComponent() {
+		serverResumptionBoundariesUsed = false
+	}
+	serverEnhancementsUsed := lowering.target == TargetServer &&
+		(containsIdentifier(root, lowering.names.enhancements) ||
+			containsIdentifier(root, lowering.names.target))
+	targetUsed := lowering.target != TargetServer &&
+		(containsIdentifier(root, lowering.names.target) ||
+			containsCompiledTargetCall(lowering.sourceFile, lowering.checker))
+	collectionsUsed := false
+	for _, component := range lowering.components {
+		if component.Collections && !(lowering.target == TargetServer && component.TargetPlan.DirectServer) {
+			collectionsUsed = true
+			break
+		}
+	}
 	result := make([]*ast.Node, 0, len(groups))
-	for index, group := range groups {
+	for _, group := range groups {
 		if len(group.specifiers) == 0 {
-			if (index == 2 && (interopUsed || interactionUsed)) ||
-				(group.module == "@exactjs/core/runtime/localization" && localizationUsed) ||
-				(group.module == "@exactjs/dom/runtime/modal" && modalBindingUsed) ||
-				(group.module == "@exactjs/dom/runtime/unsafe-html" && unsafeHTMLUsed) ||
-				(group.module == "@exactjs/dom/runtime/structural-boundaries" && structuralBoundariesUsed) {
+			if (group.id == runtimeTasks && (interopUsed || interactionUsed)) ||
+				(group.id == runtimeLogging && loggingSurfaceUsed) ||
+				(group.id == runtimeLocalization && localizationUsed) ||
+				(group.id == runtimeLists && listUsed) ||
+				(group.id == runtimeRefs && refsUsed) ||
+				(group.id == runtimeModal && modalBindingUsed) ||
+				(group.id == runtimeUnsafeHTML && unsafeHTMLUsed) ||
+				(group.id == runtimeStructuralBoundaries && structuralBoundariesUsed) ||
+				(group.id == runtimeTarget && targetUsed) ||
+				(group.id == runtimeComponentExecution && executionUsed) ||
+				(group.id == runtimeCollections && collectionsUsed) ||
+				(group.id == runtimeContexts && contextsUsed) ||
+				(group.id == runtimeLifecycle && lifecycleUsed) ||
+				(group.id == runtimeComponentReactivity && componentReactivityUsed) ||
+				(group.id == runtimeGenericSSRComponents && genericServerRuntimeUsed) ||
+				(group.id == runtimeSSRStructuralBoundaries && serverStructuralBoundariesUsed) ||
+				(group.id == runtimeSSRResumptionBoundaries && serverResumptionBoundariesUsed) ||
+				(group.id == runtimeSSREnhancements && serverEnhancementsUsed) {
 				declaration := lowering.factory.NewImportDeclaration(
 					nil,
 					nil,
@@ -221,6 +488,53 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		result = append(result, declaration)
 	}
 	return result
+}
+
+// universalSsrCallSurvives reports whether an authored public renderer call remains after closed
+// call-site lowering. Import declarations themselves do not count as runtime uses.
+func (lowering *jsxLowering) universalSsrCallSurvives(root *ast.Node) bool {
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return !found
+		}
+		_, supported := lowering.compilerClosedSsrCallee(node.AsCallExpression().Expression)
+		if supported {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+// exportsServerComponent keeps module-level capability installation when another module can render
+// one of this artifact's server-capable components through a renderer selected at its own call site.
+func (lowering *jsxLowering) exportsServerComponent() bool {
+	for _, component := range lowering.components {
+		if component.Exported && component.Placement != "client" {
+			return true
+		}
+	}
+	return false
+}
+
+func containsComponentSurfaceUse(root *ast.Node, names ...string) bool {
+	accepted := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		accepted[name] = struct{}{}
+	}
+	found := false
+	walkNode(root, func(node *ast.Node) bool {
+		name, componentMember, dynamic := componentProtocolMember(node)
+		if !componentMember {
+			return true
+		}
+		_, matched := accepted[name]
+		found = matched || dynamic
+		return !found
+	})
+	return found
 }
 
 func partitionUsesStructuralBoundaries(plan PartitionPlan) bool {
@@ -259,6 +573,57 @@ func containsCoreStructuralBoundaryImport(
 	return found
 }
 
+func containsCoreContextComponentImport(
+	root *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	for local, reference := range bindings.byName {
+		if reference.moduleSpecifier == "@exactjs/core" &&
+			reference.exportName == "ErrorBoundary" &&
+			containsIdentifier(root, local) {
+			return true
+		}
+	}
+	found := false
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsPropertyAccessExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
+			reference.exportName == "ErrorBoundary"
+		return !found
+	})
+	return found
+}
+
+func containsCompiledTargetCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
+	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+	for _, reference := range bindings.byName {
+		if reference.moduleSpecifier == "@exactjs/core/runtime/render" &&
+			reference.exportName == "createCompiledTarget" {
+			return true
+		}
+	}
+	found := false
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		reference, exists := externalImportForExpression(
+			node.AsCallExpression().Expression,
+			bindings,
+			typeChecker,
+		)
+		found = exists && reference.moduleSpecifier == "@exactjs/core/runtime/render" &&
+			reference.exportName == "createCompiledTarget"
+		return !found
+	})
+	return found
+}
+
 func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
 	found := false
 	bindings := collectExternalImportBindings(sourceFile, typeChecker)
@@ -273,19 +638,6 @@ func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "unsafeHtml"
-		return !found
-	})
-	return found
-}
-
-func containsComponentLocalizationUse(root *ast.Node) bool {
-	found := false
-	walkNode(root, func(node *ast.Node) bool {
-		if !ast.IsPropertyAccessExpression(node) {
-			return true
-		}
-		member := node.AsPropertyAccessExpression()
-		found = member.Expression.Kind == ast.KindThisKeyword && member.Name().Text() == "intl"
 		return !found
 	})
 	return found
@@ -384,61 +736,98 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		}
 	}
 	return jsxRuntimeNames{
-		element:                allocate("__exactVNode"),
-		componentElement:       allocate("__exactComponentVNode"),
-		renderProgram:          allocate("__exactRenderProgram"),
-		fragment:               allocate("__exactFragment"),
-		target:                 allocate("__exactTarget"),
-		expression:             allocate("__exactExpression"),
-		forwardedExpression:    allocate("__exactForwardedExpression"),
-		componentOutput:        allocate("__exactComponentOutput"),
-		dynamic:                allocate("__exactDynamic"),
-		dynamicComponent:       allocate("__exactDynamicComponent"),
-		serverDynamicComponent: allocate("__exactServerDynamicComponent"),
-		dynamicComponentValue:  allocate("__exactDynamicComponentValue"),
-		boundary:               allocate("__exactBoundary"),
-		finiteBoundary:         allocate("__exactFiniteBoundary"),
-		asyncSiblings:          allocate("__exactAsyncSiblings"),
-		serverSlot:             allocate("__exactServerSlot"),
-		keyedServerSlot:        allocate("__exactKeyedServerSlot"),
-		clientProps:            allocate("__exactElementProps"),
-		derived:                allocate("__exactDerived"),
-		peek:                   allocate("__exactPeek"),
-		write:                  allocate("__exactWrite"),
-		update:                 allocate("__exactUpdate"),
-		updateResult:           allocate("__exactUpdateResult"),
-		abortOptions:           allocate("__exactAbortOptions"),
-		taskSignal:             allocate("__exactSignal"),
-		taskTimeout:            allocate("__exactTaskTimeout"),
-		taskInterval:           allocate("__exactTaskInterval"),
-		taskAnimation:          allocate("__exactTaskAnimationFrame"),
-		taskIdle:               allocate("__exactTaskIdleCallback"),
-		taskObserver:           allocate("__exactTaskObserver"),
-		taskFetch:              allocate("__exactTaskFetch"),
-		taskResource:           allocate("__exactTaskResource"),
-		taskOptions:            allocate("__exactTaskOptionsSignal"),
-		taskCombined:           allocate("__exactTaskCombinedSignal"),
-		taskAwait:              allocate("__exactTaskAwait"),
-		taskMutation:           allocate("__exactTaskMutation"),
-		stageTaskMutation:      allocate("__exactStageTaskMutation"),
-		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
-		taskContinuation:       allocate("__exactContinuationTask"),
-		dispatchContinuation:   allocate("__exactDispatchContinuation"),
-		registerContexts:       allocate("__exactRegisterContinuationContexts"),
-		inspectionSource:       allocate("__exactInspectionSource"),
-		defineTask:             allocate("__exactDefineTask"),
-		bindTask:               allocate("__exactBindTask"),
-		invokeTask:             allocate("__exactInvokeTask"),
-		activateTask:           allocate("__exactActivateTask"),
-		delete:                 allocate("__exactDelete"),
-		arrayMutation:          allocate("__exactArrayMutation"),
-		collectionMutation:     allocate("__exactCollectionMutation"),
-		componentRegistry:      allocate("__exactComponentRegistry"),
-		enhancements:           allocate("__exactEnhancements"),
-		omitEnhancementProps:   allocate("__exactOmitEnhancementProps"),
-		componentLog:           allocate("__exactComponentLog"),
-		interop:                allocate("__exactInteropComponent"),
-		timeActivation:         allocate("__exactTimeRange"),
-		createTimeActivation:   allocate("__exactCreateTimeActivation"),
+		element:                   allocate("__exactVNode"),
+		componentElement:          allocate("__exactComponentVNode"),
+		keyedElement:              allocate("__exactKeyedVNode"),
+		preparedRenderProgram:     allocate("__exactPreparedRenderProgram"),
+		preparedServerProgram:     allocate("__exactPreparedServerRenderProgram"),
+		prepareRenderProgram:      allocate("__exactPrepareRenderProgram"),
+		bindProgramText:           allocate("__exactBindProgramText"),
+		bindProgramChild:          allocate("__exactBindProgramChild"),
+		bindProgramLists:          allocate("__exactBindProgramLists"),
+		bindProgramKeyedChild:     allocate("__exactBindProgramKeyedChild"),
+		bindProgramProperties:     allocate("__exactBindProgramProperties"),
+		bindProgramState:          allocate("__exactBindProgramState"),
+		bindComponentUpdate:       allocate("__exactBindComponentUpdate"),
+		applyProgramText:          allocate("__exactApplyProgramText"),
+		applyProgramProperties:    allocate("__exactApplyProgramProperties"),
+		beginProgramClaims:        allocate("__exactBeginProgramClaims"),
+		claimProgramElement:       allocate("__exactClaimProgramElement"),
+		claimElementPath:          allocate("__exactClaimProgramElementPath"),
+		claimProgramText:          allocate("__exactClaimProgramText"),
+		claimProgramChild:         allocate("__exactClaimProgramChild"),
+		claimProgramKeyedChild:    allocate("__exactClaimProgramKeyedChild"),
+		claimProgramProperty:      allocate("__exactClaimProgramProperty"),
+		enterProgramElement:       allocate("__exactEnterProgramElement"),
+		leaveProgramElement:       allocate("__exactLeaveProgramElement"),
+		bindingTarget:             allocate("__exactBindingTarget"),
+		fragment:                  allocate("__exactFragment"),
+		target:                    allocate("__exactTarget"),
+		expression:                allocate("__exactExpression"),
+		forwardedExpression:       allocate("__exactForwardedExpression"),
+		componentOutput:           allocate("__exactComponentOutput"),
+		serverComponentOutput:     allocate("__exactServerComponentOutput"),
+		issueServerComponent:      allocate("__exactIssueServerComponent"),
+		dynamic:                   allocate("__exactDynamic"),
+		dynamicComponent:          allocate("__exactDynamicComponent"),
+		serverDynamicComponent:    allocate("__exactServerDynamicComponent"),
+		dynamicComponentValue:     allocate("__exactDynamicComponentValue"),
+		boundary:                  allocate("__exactBoundary"),
+		finiteBoundary:            allocate("__exactFiniteBoundary"),
+		asyncSiblings:             allocate("__exactAsyncSiblings"),
+		serverSlot:                allocate("__exactServerSlot"),
+		keyedServerSlot:           allocate("__exactKeyedServerSlot"),
+		clientProps:               allocate("__exactElementProps"),
+		derived:                   allocate("__exactDerived"),
+		peek:                      allocate("__exactPeek"),
+		write:                     allocate("__exactWrite"),
+		update:                    allocate("__exactUpdate"),
+		updateResult:              allocate("__exactUpdateResult"),
+		abortOptions:              allocate("__exactAbortOptions"),
+		taskSignal:                allocate("__exactSignal"),
+		taskTimeout:               allocate("__exactTaskTimeout"),
+		taskInterval:              allocate("__exactTaskInterval"),
+		taskAnimation:             allocate("__exactTaskAnimationFrame"),
+		taskIdle:                  allocate("__exactTaskIdleCallback"),
+		taskObserver:              allocate("__exactTaskObserver"),
+		taskFetch:                 allocate("__exactTaskFetch"),
+		taskResource:              allocate("__exactTaskResource"),
+		taskOptions:               allocate("__exactTaskOptionsSignal"),
+		taskCombined:              allocate("__exactTaskCombinedSignal"),
+		taskAwait:                 allocate("__exactTaskAwait"),
+		serverTaskAwait:           allocate("__exactServerTaskAwait"),
+		serverTaskTimeout:         allocate("__exactServerTaskTimeout"),
+		taskMutation:              allocate("__exactTaskMutation"),
+		stageTaskMutation:         allocate("__exactStageTaskMutation"),
+		taskCollectionMutation:    allocate("__exactTaskCollectionMutation"),
+		taskContinuation:          allocate("__exactContinuationTask"),
+		dispatchContinuation:      allocate("__exactDispatchContinuation"),
+		registerContexts:          allocate("__exactRegisterContinuationContexts"),
+		inspectionSource:          allocate("__exactInspectionSource"),
+		defineTask:                allocate("__exactDefineTask"),
+		bindTask:                  allocate("__exactBindTask"),
+		invokeTask:                allocate("__exactInvokeTask"),
+		activateTask:              allocate("__exactActivateTask"),
+		activateComputation:       allocate("__exactActivateComputation"),
+		bindCompiledLatest:        allocate("__exactBindClientLatestTask"),
+		activateCompiledLatest:    allocate("__exactActivateClientLatestTask"),
+		activateServerTask:        allocate("__exactActivateServerTask"),
+		delete:                    allocate("__exactDelete"),
+		arrayMutation:             allocate("__exactArrayMutation"),
+		collectionMutation:        allocate("__exactCollectionMutation"),
+		componentRegistry:         allocate("__exactComponentRegistry"),
+		enhancements:              allocate("__exactEnhancements"),
+		omitEnhancementProps:      allocate("__exactOmitEnhancementProps"),
+		componentLog:              allocate("__exactComponentLog"),
+		registerLifecycle:         allocate("__exactRegisterLifecycle"),
+		registerRender:            allocate("__exactRegisterRender"),
+		ownResource:               allocate("__exactOwnResource"),
+		interop:                   allocate("__exactInteropComponent"),
+		timeActivation:            allocate("__exactTimeRange"),
+		createTimeActivation:      allocate("__exactCreateTimeActivation"),
+		renderClosedSsr:           allocate("__exactRenderClosedSsr"),
+		renderClosedHydratableSsr: allocate("__exactRenderClosedHydratableSsr"),
+
+		renderClosedUnmarkedSsr: allocate("__exactRenderClosedUnmarkedSsr"),
 	}
 }

@@ -1,4 +1,4 @@
-import { captureReactiveMutations } from '@exactjs/reactive';
+import { captureReactiveMutations } from '@exactjs/reactive/framework/runtime';
 
 import { isPromiseLike } from '../component/async-value.js';
 import type { RuntimeTaskOptions } from './contracts.js';

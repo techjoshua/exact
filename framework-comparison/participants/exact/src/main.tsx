@@ -1,5 +1,5 @@
-import { render } from '@exactjs/dom';
-import { hydrateAfterNavigation } from '@exactjs/hydrate/root';
+import { render } from '@exactjs/dom/root';
+import { hydrateAfterNavigation, readPublishedRootProps } from '@exactjs/hydrate/root';
 import { IncidentApp } from './IncidentApp.jsx';
 import type { InitialData } from './types.js';
 import './styles.css';
@@ -7,12 +7,10 @@ import './styles.css';
 const root = document.getElementById('app');
 if (!root) throw new Error('Missing incident application root');
 
-const initialData = readInitialData();
-const app = <IncidentApp initialData={initialData} path={window.location.pathname} />;
+const published = readPublishedRootProps<{
+	initialData?: InitialData;
+	path?: string;
+}>(root);
+const app = <IncidentApp {...published} />;
 if (root.childNodes.length > 0) void hydrateAfterNavigation(app, root);
 else render(app, root);
-
-function readInitialData(): InitialData | undefined {
-	const node = document.getElementById('comparison-data');
-	return node?.textContent ? (JSON.parse(node.textContent) as InitialData) : undefined;
-}

@@ -7,15 +7,16 @@ import {
 	type LogEvent,
 	type Logger
 } from './index.js';
-import { createComponentInstance } from './runtime/render.js';
+import { createFrameworkFixtureComponentInstance } from './runtime/render.js';
 import { componentLogMethod } from './runtime/logging.js';
+import { createFrameworkComponentDomain } from './framework/component-domains.js';
 
 describe('@exactjs/core logging', () => {
 	it('provides a default component logger', () => {
 		const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
 
 		try {
-			createComponentInstance(function Logged(this: Component<{}>) {
+			createFrameworkFixtureComponentInstance(function Logged(this: Component<{}>) {
 				this.log.info('hello', { answer: 42 });
 				return () => null;
 			}, {});
@@ -36,12 +37,12 @@ describe('@exactjs/core logging', () => {
 			log
 		};
 
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
 
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				this.log.debug(
 					() => {
@@ -65,7 +66,7 @@ describe('@exactjs/core logging', () => {
 		const error = new Error('boom');
 
 		try {
-			createComponentInstance(function Broken(this: Component<{}>) {
+			createFrameworkFixtureComponentInstance(function Broken(this: Component<{}>) {
 				this.log.error('failed', error, { taskId: 'task-1' });
 				return () => null;
 			}, {});
@@ -91,12 +92,12 @@ describe('@exactjs/core logging', () => {
 		};
 		let callback!: () => void;
 
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, firstLogger);
 			return () => null;
 		}, {});
 
-		createComponentInstance(
+		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				callback = () => this.log.info('later');
 				return () => null;
@@ -120,11 +121,11 @@ describe('@exactjs/core logging', () => {
 			isEnabled: (level) => level !== 'debug' || debugEnabled,
 			log: (event) => events.push(event)
 		};
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
-		const child = createComponentInstance(
+		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				return () => null;
 			},
@@ -154,14 +155,57 @@ describe('@exactjs/core logging', () => {
 		});
 	});
 
+	it('does not materialize the public log facade for disabled compiled trace checks', () => {
+		const instance = {
+			id: 'compiled-log-owner',
+			type: function CompiledLogOwner() {},
+			mounted: true,
+			parent: undefined,
+			ambientContexts: undefined,
+			get contexts() {
+				return new Map<symbol, unknown>();
+			},
+			get log(): never {
+				throw new Error('compiled logging read the dynamic facade');
+			}
+		};
+
+		expect(componentLogMethod(instance as never, 'trace')).toBeUndefined();
+	});
+
+	it('uses one framework-root logger without walking component contexts', () => {
+		const events: LogEvent[] = [];
+		const logger: Logger = {
+			isEnabled: (level) => level === 'debug',
+			log: (event) => events.push(event)
+		};
+		const domain = createFrameworkComponentDomain({ executionRoot: 'logging-test', logger });
+		const instance = {
+			id: 'shared-log-owner',
+			type: function SharedLogOwner() {},
+			mounted: true,
+			parent: undefined,
+			ambientContexts: undefined,
+			domain,
+			get contexts(): never {
+				throw new Error('shared logging walked component contexts');
+			}
+		};
+
+		componentLogMethod(instance as never, 'debug')?.(() => ['shared']);
+		expect(componentLogMethod(instance as never, 'trace')).toBeUndefined();
+		expect(events).toHaveLength(1);
+		expect(events[0]!.message).toBe('shared');
+	});
+
 	it('peeks compiler log arguments without subscribing the caller', () => {
 		const events: LogEvent[] = [];
 		const logger: Logger = { log: (event) => events.push(event) };
-		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+		const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 			this.setContext(LoggerContext, logger);
 			return () => null;
 		}, {});
-		const child = createComponentInstance(
+		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				return () => null;
 			},
@@ -209,13 +253,13 @@ describe('@exactjs/core logging', () => {
 		};
 
 		try {
-			const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			const parent = createFrameworkFixtureComponentInstance(function Parent(this: Component<{}>) {
 				this.setContext(LoggerContext, logger);
 				return () => null;
 			}, {});
 
 			expect(() =>
-				createComponentInstance(
+				createFrameworkFixtureComponentInstance(
 					function Child(this: Component<{}>) {
 						this.log.info('hello');
 						return () => null;
@@ -271,3 +315,4 @@ describe('@exactjs/core logging', () => {
 		}
 	});
 });
+import './runtime/contexts.js';

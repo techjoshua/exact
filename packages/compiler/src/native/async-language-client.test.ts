@@ -50,7 +50,9 @@ describe('asynchronous native language client', () => {
 		const client = new NativeCompilerLanguageClient({
 			executable: process.execPath,
 			args: ['-e', nativeFixture],
-			timeoutMs: 50
+			// Process startup shares this deadline with the deliberate hang. Keep enough headroom for
+			// the replacement process to start under the repository's concurrent package test suite.
+			timeoutMs: 1_000
 		});
 		try {
 			await expect(client.request({ kind: 'analyze', source: 'hang' })).rejects.toThrow(

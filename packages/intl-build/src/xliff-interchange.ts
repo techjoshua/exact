@@ -8,7 +8,6 @@ import {
 } from '@exactjs/intl';
 import { validateIntlCatalog } from '@exactjs/intl/internal';
 import { translatorVisibleDescriptors } from './translator-visibility.js';
-import { legacyMessageKey, legacyPlaceholderAliases } from './xliff-legacy-migration.js';
 import {
 	childElement,
 	childElements,
@@ -79,7 +78,7 @@ export function importXliff21Catalog(
 	const sourceLocale = requiredAttribute(document, 'srcLang');
 	const file = requiredChild(document, 'file');
 	const owner = xliffFileOwner(file);
-	const contracts = descriptorAliases(descriptors, owner);
+	const contracts = descriptorMap(descriptors, owner);
 	if (sourceLocale !== sourceLocaleFor(owner, descriptors))
 		throw new TypeError(
 			`XLIFF source locale does not match ${sourceLocaleFor(owner, descriptors)}`
@@ -96,11 +95,10 @@ export function importXliff21Catalog(
 		const descriptor = contracts.get(authoredKey);
 		if (!descriptor) throw new TypeError(`XLIFF contains obsolete message ${owner}:${authoredKey}`);
 		const segment = requiredChild(unit, 'segment');
-		const aliases = legacyPlaceholderAliases(unit, descriptor);
-		validateSourcePattern(requiredChild(segment, 'source'), descriptor, aliases);
+		validateSourcePattern(requiredChild(segment, 'source'), descriptor);
 		const target = childElement(segment, 'target');
 		if (!target || target.children.length === 0) continue;
-		messages[descriptor.key] = decodePattern(target.children, descriptor, aliases);
+		messages[descriptor.key] = decodePattern(target.children, descriptor);
 	}
 	return validateIntlCatalog({ protocol: 1, locale, owner, messages }, descriptors);
 }
@@ -129,15 +127,13 @@ export function synchronizeXliff21Catalog(
 			existingUnits.set(key, unit);
 		}
 	const units = relevant.map((descriptor) => {
-		const previous =
-			existingUnits.get(descriptor.key) ?? existingUnits.get(legacyMessageKey(descriptor));
+		const previous = existingUnits.get(descriptor.key);
 		const previousSegment = previous && childElement(previous, 'segment');
-		const aliases = previous ? legacyPlaceholderAliases(previous, descriptor) : undefined;
 		if (previousSegment)
-			validateSourcePattern(requiredChild(previousSegment, 'source'), descriptor, aliases);
+			validateSourcePattern(requiredChild(previousSegment, 'source'), descriptor);
 		const target = previousSegment && childElement(previousSegment, 'target');
 		const translation = target?.children.length
-			? decodePattern(target.children, descriptor, aliases)
+			? decodePattern(target.children, descriptor)
 			: undefined;
 		const notes = previous && childElement(previous, 'notes');
 		return xliffUnit(
@@ -214,8 +210,7 @@ function encodeNode(
 
 function decodePattern(
 	children: readonly (XmlElement | string)[],
-	descriptor: IntlRuntimeDescriptorV1,
-	aliases: ReadonlyMap<string, string> | undefined = undefined
+	descriptor: IntlRuntimeDescriptorV1
 ): IntlTranslationPatternV1 {
 	const projection = projectIntlTranslationContract(descriptor.bindings, descriptor.source);
 	const expected = translationNodeMap(projection.source);
@@ -224,8 +219,7 @@ function decodePattern(
 			values.flatMap((child): IntlTranslationPatternNodeV1[] => {
 				if (typeof child === 'string') return child ? [{ kind: 'text', value: child }] : [];
 				const name = localName(child.name);
-				const authoredId = requiredAttribute(child, 'id');
-				const id = aliases?.get(authoredId) ?? authoredId;
+				const id = requiredAttribute(child, 'id');
 				const contract = expected.get(id);
 				if (!contract) throw new TypeError(`XLIFF references unknown placeholder ${id}`);
 				if (name === 'ph') {
@@ -249,15 +243,11 @@ function decodePattern(
 					if (localName(branch.name) !== 'mrk')
 						throw new TypeError('XLIFF select branches must use mrk');
 					const branchId = requiredAttribute(branch, 'id');
-					if (
-						branchId === `${id}.fallback` ||
-						branch.attributes.type === 'exact:fallback' ||
-						branch.attributes['exact:fallback'] === 'true'
-					) {
+					if (branchId === `${id}.fallback`) {
 						if (fallback) throw new TypeError(`XLIFF selector ${id} repeats its fallback`);
 						fallback = decode(branch.children);
 					} else {
-						const key = branch.attributes.value ?? requiredAttribute(branch, 'exact:key');
+						const key = requiredAttribute(branch, 'value');
 						if (cases.some((candidate) => candidate.key === key))
 							throw new TypeError(`XLIFF selector ${id} repeats case ${key}`);
 						cases.push({ key, value: decode(branch.children) });
@@ -270,12 +260,8 @@ function decodePattern(
 	return decode(children);
 }
 
-function validateSourcePattern(
-	source: XmlElement,
-	descriptor: IntlRuntimeDescriptorV1,
-	aliases?: ReadonlyMap<string, string>
-): void {
-	const actual = decodePattern(source.children, descriptor, aliases);
+function validateSourcePattern(source: XmlElement, descriptor: IntlRuntimeDescriptorV1): void {
+	const actual = decodePattern(source.children, descriptor);
 	const expected = projectIntlTranslationContract(descriptor.bindings, descriptor.source).source;
 	if (JSON.stringify(actual) !== JSON.stringify(expected))
 		throw new TypeError(`XLIFF source for ${descriptor.key} does not match its current contract`);
@@ -302,15 +288,13 @@ function translationNodeMap(
 	return result;
 }
 
-function descriptorAliases(
+function descriptorMap(
 	descriptors: readonly IntlRuntimeDescriptorV1[],
 	owner: string
 ): ReadonlyMap<string, IntlRuntimeDescriptorV1> {
 	const result = new Map<string, IntlRuntimeDescriptorV1>();
-	for (const descriptor of uniqueTranslationDescriptors(descriptors, owner)) {
+	for (const descriptor of uniqueTranslationDescriptors(descriptors, owner))
 		result.set(descriptor.key, descriptor);
-		result.set(legacyMessageKey(descriptor), descriptor);
-	}
 	return result;
 }
 
@@ -342,6 +326,20 @@ function requireXliffDocument(document: XmlElement): void {
 		document.attributes.version !== '2.1'
 	)
 		throw new TypeError('XLIFF interchange must be an XLIFF 2.1 document');
+	rejectExactRuntimeMetadata(document);
+}
+
+function rejectExactRuntimeMetadata(element: XmlElement): void {
+	for (const [name, value] of Object.entries(element.attributes))
+		if (
+			name === 'xmlns:exact' ||
+			name.startsWith('exact:') ||
+			value.startsWith('exact:') ||
+			value.startsWith('x-exact-')
+		)
+			throw new TypeError('XLIFF contains unsupported eXact runtime metadata');
+	for (const child of element.children)
+		if (typeof child !== 'string') rejectExactRuntimeMetadata(child);
 }
 
 function sourceLocaleFor(owner: string, descriptors: readonly IntlRuntimeDescriptorV1[]): string {

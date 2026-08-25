@@ -45,15 +45,48 @@ Rendering applies output-size, task-pass, and task-duration limits.
 
 The native compiler emits branded render programs for compiler-finite intrinsic regions. HTML,
 SVG, MathML, scalar text, finite host properties and attributes, classes, styles, URLs, ordinary
-form controls, events, and refs reuse the same host operations as generic rendering. Markerless SSR
-writes escaped parts directly, client mounting clones a cached inert template, and markerless
-hydration adopts with compiler paths. Nested conditional regions retain the namespace established
+form controls, events, and refs reuse focused renderer operations. Closed server artifacts emit a
+component-specific SSR function whose generated calls prepare known values and then write static
+markup, scalar text, structural children, and attributes in source order. Universal artifacts use
+the same generated server lane alongside their client topology. The server runtime
+provides escaping, marker, resource-limit, and recursive-child mechanics; it does not interpret a
+generic render tape or retain client templates and topology tables. Markerless SSR writes escaped
+values directly. A synchronous compiler-closed component executes on a request-local state frame
+without allocating the browser's durable component instance. The frame snapshots compiler
+expression props, publishes only compiler-selected resumable state after successful output, and
+uses a shared non-retaining keyed-list fallback if the generated writer rejects an unexpected slot
+shape. Hydratable SSR also omits scalar delimiters when static markup bounds
+the value on both sides; the client claims that text, or creates an owned empty text node, at the
+compiled position. Adjacent text retains delimiters where browser parsing could merge independently
+updated values. Client mounting clones a cached inert template, and hydration adopts elements and
+scalar text through generated claim calls. Nested conditional regions retain the namespace established
 by their intrinsic JSX ancestors, and standalone SVG or MathML programs mount through a
-namespace-correct template. Structural, marker-bearing, enhancement-routed,
-opaque-spread, raw-content, and otherwise unproven regions use the lazy region-local VNode fallback.
+namespace-correct template. A finite intrinsic client program may contain compiler-owned structural
+child slots: the server renders those children recursively through the ordinary dynamic-marker
+protocol, while hydration adopts and subsequently patches only the marked child range. Enhancement-
+routed, opaque-spread, raw-content, and otherwise unproven hosts use the lazy region-local VNode
+fallback.
 
-Async SSR uses a request-owned FIFO scheduler for compiler-proven local, neutral, context-free
-component sibling groups. `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial execution,
+A client program places a statically resolved native component in an explicit component lifecycle
+slot. Server and complete artifacts retain the component's recursive execution and add the same
+stable range marker, so hydration claims the component without rediscovering the surrounding host
+tree. Once claimed, the compiler-proven single component mounts and patches through its direct
+lifecycle operation rather than general sibling reconciliation. State, interactions, contexts,
+split boundaries, transitions, and keyed-list render callbacks
+remain owned by the component's durable instance inside that slot.
+
+When structural slots contain compiler-known keyed-list expressions, hydration adopts every slot
+inside one component render transaction. Later refreshes use the same grouped lane, preserving
+keyed instance identity and disposing removed registrations once after the complete list group has
+published. The compiler supplies stable list-site identity, original collection provenance, and key
+identity to that lane. Each materialized key owns the reactive expressions created by its item
+factory, and removing the key disposes that item scope after its DOM range reconciles away. The
+stable server marker ranges remain the ownership boundary for each resulting DOM range.
+
+Async SSR uses a request-owned FIFO scheduler for compiler-proven local, target-compatible,
+context-free component sibling groups. A server effect selects server placement; it is not by
+itself an ordering dependency between separately owned components. `maxAsyncSsrConcurrency`
+defaults to 4, accepts 1 for serial execution,
 and is capped at 32. Child frames isolate renderer state and merge in authored order. Nested proven
 groups temporarily yield their parent permit and reuse the same request-wide scheduler, avoiding
 both multiplied concurrency and deadlock. Marker-bearing, document, inspection, React-compatible,
@@ -62,14 +95,28 @@ callback-observed, and unproven groups remain serial.
 Components with compiler-attached execution subgraphs wire reachable child components before
 waiting for their own setup continuations. Ready root task generations enter that same request
 scheduler, while nested task frames retain the parent's permit. This removes the recursive async
-discovery waterfall without building or flattening a request-wide plan. Uncompiled components keep
-the ordinary drain-before-render path, and structural render reachability still prevents inactive
+discovery waterfall without building or flattening a request-wide plan. Explicit compatibility
+boundaries keep the ordinary drain-before-render path, and structural render reachability still prevents inactive
 branches or unselected dynamic components from starting work.
 
-After output extensions choose the rendered root, SSR reuses a root-keyed immutable execution
-blueprint. It caches validated contracts and prepared lookup indexes for components reached beneath
-that root, including dynamic components on first use. Weak keys avoid retaining replaced dynamic
-components, and an attachment or compiler-identity change forces validation and preparation again.
+A compiler-closed scheduled component executes on a request-local state frame, settles pending
+props that ordinary construction or rendering consumes, and preserves dependency provenance only
+for compiler-proven task-exclusive inputs. The generated `deferredTaskProps` list is the complete
+authority for that distinction; SSR does not reconstruct it from the generic execution graph.
+The component consumes generated input/output slices directly. It allocates neither a generic component
+instance nor a reactive component scope. Its generated setup and task bodies mutate that plain state
+directly; request cancellation wraps only the awaits and owned timers that need it. Compiler-proven scheduled child slots emit direct issue
+calls in the server artifact, so their setup tasks can enter the bounded scheduler while the parent
+creates their VNodes and before the first sibling settles. Each request owns and disposes its frames, task generations, cancellation, and buffered
+resumption snapshots; immutable component contracts and prepared indexes are the only cross-request
+state. Compiler-closed artifacts also omit the generic reactive error context. A direct construction
+failure propagates through the request unless the reachable artifact graph explicitly installs the
+generic component/error-boundary capability.
+
+After output extensions choose the rendered root, SSR reuses a root-keyed immutable contract
+blueprint for components reached beneath that root, including dynamic components on first use. It
+does not build a second execution-plan index. Weak keys avoid retaining replaced dynamic components,
+and an attachment or compiler-identity change forces contract validation again.
 The cache contains no props, contexts, state, task generations, cancellation, or other request data.
 Per request, components allocate only their compact value slots and the watchers required by actual
 transitions; components without transitions skip continuation-frame allocation entirely.
@@ -84,12 +131,26 @@ Compiler-cell roots adopt their existing cell range directly; they do not pass t
 repair or clear the root container. Compiler-proven native component calls use the component's own
 identity marker without an additional cell marker pair. Intrinsic cells and structural expression
 ranges retain their markers because those ranges still own independent reactive updates.
-Compiler render programs adopt their marked intrinsic nodes and scalar slots through the program's
-stable element and slot identities. They retain the SSR DOM and marker protocol without rebuilding
-an equivalent generic Cell/Dynamic mount graph. Initial adopted prop binding is covered by the
+Closed client render programs adopt their intrinsic nodes, scalar slots, and structural child
+ranges through compiler-generated claim calls. Those calls walk the known static topology in DOM
+order. A structural call advances directly to its matching close marker, so a variable number of
+SSR nodes cannot perturb later static siblings. The successful path therefore creates neither a
+region-local identity map nor a second interpreted node/slot plan. The same generated executor
+selects the template-sentinel representation for client-created regions, marker-free bounded SSR
+text, or the identity-sentinel fallback for ambiguous SSR text. Programs retain the SSR DOM without
+rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
 Completed component mounts cache their first target and host candidates; parent publication reuses
 those structural results instead of recursively rediscovering roots through nested components.
+
+Finite render-program roots do not receive a generic cell envelope in compiler-generated SSR. The
+program's root element and dense topology provide its fixed ownership and hydration identity.
+Program node tables contain only dense numeric indexes. Authored or protocol-facing
+`data-exact-id` attributes are not consulted as a fallback render-program identity map.
+Variable-width component, cell, fragment, list, and structural ranges keep their markers when a
+later sibling requires a concrete boundary. A compiler-proven final structural or component child
+uses its parent and the end of the child list as its complete retained boundary, so its server markup
+does not emit an otherwise redundant comment pair.
 
 Schema-defined empty hydration metadata is omitted from compiler registrations and document
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
@@ -101,6 +162,10 @@ same executable component semantics while leaving analysis-only state, task, and
 inventories in the compiler's build result instead of emitted JavaScript. Client-only projection
 also omits component resumption records. The default `universal` mode preserves the complete
 contract when a build cannot commit to one browser rendering mode.
+An SSR-only server entry can use `target: 'server'` with `renderMode: 'server-render'`. That facet
+retains compiled setup, dependency-ready tasks, rendering, and resumption publication while omitting
+the executors used only by later continuation requests. A server that also composes an executor
+contract must keep the default complete server mode or build a separate executor entry.
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.
@@ -135,6 +200,27 @@ Root hydration parses and validates its embedded bootstrap configuration once, t
 resolved immutable inputs into client construction. Static scalar DOM props bypass reactive watcher
 construction; compiler expressions and supported composite class or `srcdoc` values retain observed
 bindings.
+
+An application whose root component receives its initial request data as props can opt into one
+authoritative bootstrap copy:
+
+```tsx
+// server
+const result = renderToHydratableString(<App initialData={data} path={url.pathname} />, {
+	publishRootProps: true
+});
+
+// client
+const props = readPublishedRootProps<AppProps>(container);
+hydrateAfterNavigation(<App {...props} />, container);
+```
+
+`publishRootProps` requires a component root and cannot be combined with a separate hydration
+`state`. The compiler records direct setup assignments such as
+`this.state.items = props.initialData.items`. SSR omits that resumable state value only when the
+published prop path and final state value are identical. Derived, mutated, ambiguous, or nested
+component state remains in its ordinary component resumption record. Reading the props and later
+resolving hydration options reuse the same bounded decode.
 
 The `@exactjs/hydrate/root` entry uses a bounded hydration-only field projection. Operation
 endpoints, continuations, islands, and transports belong to the complete runtime; their presence in
@@ -209,6 +295,9 @@ event data, observable initial work, and non-finite spreads produce source-locat
 Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the
 client artifact and sending only fallback values through SSR. Independently planned server ranges
 remain inert inside a dormant client island and retain their own refresh generation.
+The generated policy belongs to the lazy registry entry. An eager component entry cannot inherit
+interaction authority from boundary markup, and hydration does not install a general event family
+for such an entry.
 
 Passive hydration does not manufacture a focus transition when the document body owns focus. When
 an authored control already owns focus, DOM adoption and later reactive patches preserve that

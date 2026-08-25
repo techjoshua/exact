@@ -39,8 +39,11 @@ func analyzeComponents(
 	for index := range components {
 		component := &components[index]
 		candidate := candidates[index]
+		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
+		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
+		summaryClientEffect := false
 		indivisible := ""
 		opaquePath := ""
 		splitBoundaries := make(map[string]struct{})
@@ -69,7 +72,7 @@ func analyzeComponents(
 			if len(taskActivations) == 0 {
 				switch setup.Effect {
 				case "browser":
-					clientEffects = true
+					summaryClientEffect = true
 				case "server":
 					serverEffects = true
 				case "mixed":
@@ -90,7 +93,7 @@ func analyzeComponents(
 								effectSourcePath(setup.EffectSources)+")",
 						)
 					case knownBrowser:
-						clientEffects = true
+						summaryClientEffect = true
 					case knownServer:
 						serverEffects = true
 					default:
@@ -109,7 +112,6 @@ func analyzeComponents(
 			}
 			ownedElements = append(ownedElements, element)
 			if element.interactive {
-				clientEffects = true
 				for _, attribute := range jsxAttributeNames(element.node) {
 					if attribute == "ref" {
 						splitBoundaries["ref"] = struct{}{}
@@ -141,6 +143,49 @@ func analyzeComponents(
 					}
 				}
 				return true
+			}
+			if insideSourceSpans(node.Pos(), clientLifecycleSpans) {
+				if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
+					!isStaticPropertyName(node) &&
+					serverOnlyImportSymbol(typeChecker.GetSymbolAtLocation(node)) {
+					indivisible = "mixed"
+					diagnostics = append(diagnostics,
+						"error: client lifecycle references a server-only import ("+node.Text()+")",
+					)
+				}
+				if ast.IsCallExpression(node) {
+					call := node.AsCallExpression()
+					target, exists := callableEffectForCall(callables, node.Pos())
+					if !exists {
+						symbol := resolvedCallableSymbol(
+							callTargetSymbol(call.Expression, typeChecker),
+							typeChecker,
+						)
+						if symbol != nil {
+							target, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
+						}
+					}
+					if exists {
+						knownBrowser, knownServer := knownEffectEnvironments(target.EffectSources)
+						switch {
+						case target.Effect == "server" || target.Effect == "mixed" || knownServer:
+							indivisible = "mixed"
+							diagnostics = append(diagnostics,
+								"error: client lifecycle calls server-only work ("+
+									strings.TrimSpace(sourceText(sourceFile, call.Expression))+")",
+							)
+						case target.Effect == "unknown" && !knownBrowser:
+							indivisible = "unknown"
+							if opaquePath == "" {
+								opaquePath = effectSourcePath(target.EffectSources)
+							}
+						}
+					}
+				}
+				return true
+			}
+			if insideSourceSpans(node.Pos(), dormantCallableSpans) {
+				return false
 			}
 			if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
 				!isStaticPropertyName(node) {
@@ -174,7 +219,14 @@ func analyzeComponents(
 				if exists {
 					switch target.Effect {
 					case "browser":
-						clientEffects = true
+						// An effect-only setup call can be omitted while the server emits
+						// markup and replayed by client activation. A consumed result can
+						// influence setup/render data and therefore remains client-resident.
+						if setupCallConsumesSynchronousResult(node) {
+							clientEffects = true
+						} else {
+							clientTaskEffects = true
+						}
 						splitBoundaries["browser-call:"+strings.TrimSpace(
 							sourceText(sourceFile, call.Expression),
 						)] = struct{}{}
@@ -211,6 +263,12 @@ func analyzeComponents(
 			}
 			return true
 		})
+		// The callable summary covers implicit effects that the direct setup walk
+		// cannot see. Prefer the walk when it proved an effect-only client lane so
+		// server markup remains eligible without losing client activation.
+		if summaryClientEffect && !clientEffects && !clientTaskEffects {
+			clientEffects = true
+		}
 
 		for _, task := range tasks {
 			if task.Component != component.Name ||
@@ -219,8 +277,16 @@ func analyzeComponents(
 				continue
 			}
 			if task.Placement == "client" || task.Placement == "isomorphic" {
-				clientEffects = true
-				clientTaskEffects = true
+				// A compiler-extracted setup computation whose browser value is written
+				// into component state is data-producing client work, not an effect-only
+				// activation lane. The server cannot manufacture its initial state.
+				if (task.SyntheticSetup ||
+					(task.CompilerComputation && len(task.Writes) != 0)) &&
+					task.BrowserEffects {
+					clientEffects = true
+				} else {
+					clientTaskEffects = true
+				}
 			}
 			if task.Placement == "server" || task.Placement == "isomorphic" {
 				serverEffects = true
@@ -248,6 +314,10 @@ func analyzeComponents(
 		)
 		component.SplitBoundaries = sortedSet(splitBoundaries)
 		component.Diagnostics = uniqueStrings(diagnostics)
+		// Activation is orthogonal to render residency. Event handlers and client
+		// task lanes require a client artifact, but their callbacks are not
+		// executed while the server renders the component's markup.
+		clientActivation := component.Interactions || component.Lifecycle || clientTaskEffects
 		component.EnvironmentEffect = "neutral"
 		if indivisible != "" {
 			component.EnvironmentEffect = indivisible
@@ -261,6 +331,8 @@ func analyzeComponents(
 			switch {
 			case clientEffects && serverEffects:
 				component.Placement = "isomorphic"
+			case serverEffects && clientActivation:
+				component.Placement = "isomorphic"
 			case serverEffects:
 				component.Placement = "server"
 			case clientEffects:
@@ -273,16 +345,17 @@ func analyzeComponents(
 		switch {
 		case component.Placement == "unknown":
 			component.ArtifactTargets = []string{}
-		case serverEffects && clientTaskEffects:
+		case serverEffects && clientActivation:
 			component.ArtifactTargets = []string{"client", "server"}
 		case serverEffects:
 			component.ArtifactTargets = []string{"server"}
 		case clientEffects:
 			component.ArtifactTargets = []string{"client"}
+		case clientActivation:
+			component.ArtifactTargets = []string{"client", "server"}
 		default:
 			component.ArtifactTargets = []string{"client", "server"}
 		}
-
 	}
 	localComponents := uniqueComponentNames(components)
 	nodeIDs := expressionNodeIDs(sourceFile)
@@ -317,6 +390,38 @@ func analyzeComponents(
 	}
 	resolveComponentSubgraphs(sourceFile, components)
 	return components
+}
+
+func componentClientLifecycleCallbackSpans(component *ast.Node) []SourceSpan {
+	spans := []SourceSpan{}
+	walkNode(component, func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		call := node.AsCallExpression()
+		name, componentMember, dynamic := componentProtocolMember(call.Expression)
+		if !componentMember || dynamic || call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
+			return true
+		}
+		switch name {
+		case "onMount", "onActivate", "onDeactivate", "onUnmount":
+			callback := call.Arguments.Nodes[0]
+			if ast.IsArrowFunction(callback) || ast.IsFunctionExpression(callback) {
+				spans = append(spans, SourceSpan{Start: callback.Pos(), Length: callback.End() - callback.Pos()})
+			}
+		}
+		return true
+	})
+	return spans
+}
+
+func insideSourceSpans(position int, spans []SourceSpan) bool {
+	for _, span := range spans {
+		if position >= span.Start && position < span.Start+span.Length {
+			return true
+		}
+	}
+	return false
 }
 
 func enhancementContextEffects(
@@ -491,6 +596,14 @@ func collectComponentElements(sourceFile *ast.SourceFile, typeChecker *checker.C
 			tag = node.AsJsxOpeningElement().TagName
 		case ast.IsJsxSelfClosingElement(node):
 			tag = node.AsJsxSelfClosingElement().TagName
+		case ast.IsJsxFragment(node):
+			result = append(result, componentElement{
+				node:      node,
+				tag:       "_",
+				fullStart: node.Pos(),
+				fullEnd:   node.End(),
+			})
+			return true
 		default:
 			return true
 		}

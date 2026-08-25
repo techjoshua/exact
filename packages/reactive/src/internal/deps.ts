@@ -6,9 +6,9 @@ const reactionStack: Reaction[] = [];
 const trackingPauseFloors: number[] = [];
 
 type Transaction = {
-	readonly undos: TransactionUndo[];
+	readonly undos?: TransactionUndo[];
 	readonly triggers: Map<object, Set<PropertyKey>>;
-	readonly versionRanges: Map<object, Map<PropertyKey, MutationVersionRange>>;
+	readonly versionRanges?: Map<object, Map<PropertyKey, MutationVersionRange>>;
 };
 
 type MutationVersionRange = {
@@ -50,7 +50,7 @@ export function track(target: object, key: PropertyKey): void {
 
 /** Schedules every reaction currently subscribed to a target/key pair. */
 export function trigger(target: object, key: PropertyKey): void {
-	const previousVersion = mutationVersion(target, key);
+	const previousVersion = readMutationVersion(target, key);
 	const nextVersion = incrementMutationVersion(target, key);
 	const transaction = transactions[transactions.length - 1];
 	if (transaction) {
@@ -60,7 +60,14 @@ export function trigger(target: object, key: PropertyKey): void {
 			transaction.triggers.set(target, keys);
 		}
 		keys.add(key);
-		recordMutationVersionRange(transaction, target, key, previousVersion, nextVersion);
+		if (transaction.versionRanges)
+			recordMutationVersionRange(
+				transaction.versionRanges,
+				target,
+				key,
+				previousVersion,
+				nextVersion
+			);
 		return;
 	}
 	triggerNow(target, key);
@@ -74,7 +81,8 @@ export function trigger(target: object, key: PropertyKey): void {
  * settles; use separate batches after awaits.
  */
 export function batch<T>(fn: () => T): T {
-	const transaction = createTransaction();
+	const parent = transactions[transactions.length - 1];
+	const transaction = createTransaction(true, Boolean(parent?.versionRanges));
 	transactions.push(transaction);
 	let result: T;
 	try {
@@ -85,9 +93,33 @@ export function batch<T>(fn: () => T): T {
 		throw error;
 	}
 	transactions.pop();
+	publishTransaction(parent, transaction);
+	return result;
+}
+
+/**
+ * Publishes one framework-owned synchronous update group without retaining inverse mutations.
+ *
+ * Native compiled event handlers use this lane because ordinary event mutations remain published
+ * when a later statement throws. A surrounding rollback-capable transaction upgrades the lane so
+ * its complete atomic contract is preserved when framework operations are nested.
+ *
+ * @internal
+ */
+export function publishBatch<T>(fn: () => T): T {
 	const parent = transactions[transactions.length - 1];
-	if (parent) mergeTransaction(parent, transaction);
-	else flushTriggers(transaction.triggers);
+	const transaction = createTransaction(Boolean(parent?.undos), Boolean(parent?.versionRanges));
+	transactions.push(transaction);
+	let result: T;
+	try {
+		result = fn();
+	} catch (error) {
+		transactions.pop();
+		publishTransaction(parent, transaction);
+		throw error;
+	}
+	transactions.pop();
+	publishTransaction(parent, transaction);
 	return result;
 }
 
@@ -99,7 +131,7 @@ export function batch<T>(fn: () => T): T {
  * batch contributes its notifications to that batch but retains independent rollback ownership.
  */
 export function captureReactiveMutations(fn: () => void): ReactiveMutationJournal {
-	const transaction = createTransaction();
+	const transaction = createTransaction(true, true);
 	transactions.push(transaction);
 	try {
 		fn();
@@ -112,7 +144,7 @@ export function captureReactiveMutations(fn: () => void): ReactiveMutationJourna
 	const parent = transactions[transactions.length - 1];
 	if (parent) mergeTriggers(parent.triggers, transaction.triggers);
 	else flushTriggers(transaction.triggers);
-	const protectedVersions = transactionMutationVersions(transaction);
+	const protectedVersions = transactionMutationVersions(transaction.versionRanges!);
 
 	let active = true;
 	const journal: ReactiveMutationJournal = {
@@ -123,13 +155,13 @@ export function captureReactiveMutations(fn: () => void): ReactiveMutationJourna
 			const parent = transactions[transactions.length - 1];
 			if (parent) mergeTriggers(parent.triggers, transaction.triggers);
 			else flushTriggers(transaction.triggers);
-			transaction.undos.length = 0;
+			transaction.undos!.length = 0;
 			transaction.triggers.clear();
 		},
 		discard() {
 			if (!active) return;
 			active = false;
-			transaction.undos.length = 0;
+			transaction.undos!.length = 0;
 			transaction.triggers.clear();
 		}
 	};
@@ -158,7 +190,7 @@ export function rollbackReactiveMutationJournals(
 			continue;
 		}
 		rollbackOwnedTransaction(transaction, covered, blocked);
-		addCoveredVersionRanges(covered, transaction.versionRanges);
+		addCoveredVersionRanges(covered, transaction.versionRanges!);
 		mergeTriggers(rollbackTriggers, transaction.triggers);
 		journal.discard();
 	}
@@ -174,18 +206,24 @@ export function rollbackReactiveMutationJournals(
  * journal preserve a newer authoritative write to that path during rollback.
  */
 export function recordTransactionUndo(undo: () => void, target?: object, key?: PropertyKey): void {
-	transactions[transactions.length - 1]?.undos.push({ apply: undo, target, key });
+	transactions[transactions.length - 1]?.undos?.push({ apply: undo, target, key });
 }
 
 /** Returns whether mutations currently need an inverse journal entry. */
 export function hasActiveTransaction(): boolean {
-	return transactions.length > 0;
+	return Boolean(transactions[transactions.length - 1]?.undos);
 }
 
 function mergeTransaction(parent: Transaction, child: Transaction): void {
-	parent.undos.push(...child.undos);
+	if (parent.undos && child.undos) parent.undos.push(...child.undos);
 	mergeTriggers(parent.triggers, child.triggers);
-	mergeVersionRanges(parent.versionRanges, child.versionRanges);
+	if (parent.versionRanges && child.versionRanges)
+		mergeVersionRanges(parent.versionRanges, child.versionRanges);
+}
+
+function publishTransaction(parent: Transaction | undefined, transaction: Transaction): void {
+	if (parent) mergeTransaction(parent, transaction);
+	else flushTriggers(transaction.triggers);
 }
 
 function mergeTriggers(
@@ -206,13 +244,16 @@ function rollbackTransaction(
 	transaction: Transaction,
 	protectedVersions?: Map<object, Map<PropertyKey, number>>
 ): void {
-	for (let index = transaction.undos.length - 1; index >= 0; index--) {
-		const undo = transaction.undos[index]!;
+	const undos = transaction.undos;
+	if (!undos) return;
+	for (let index = undos.length - 1; index >= 0; index--) {
+		const undo = undos[index]!;
 		if (
 			protectedVersions &&
 			undo.target &&
 			undo.key !== undefined &&
-			mutationVersion(undo.target, undo.key) !== protectedVersions.get(undo.target)?.get(undo.key)
+			readMutationVersion(undo.target, undo.key) !==
+				protectedVersions.get(undo.target)?.get(undo.key)
 		)
 			continue;
 		undo.apply();
@@ -220,10 +261,10 @@ function rollbackTransaction(
 }
 
 function transactionMutationVersions(
-	transaction: Transaction
+	versionRanges: Map<object, Map<PropertyKey, MutationVersionRange>>
 ): Map<object, Map<PropertyKey, number>> {
 	const result = new Map<object, Map<PropertyKey, number>>();
-	for (const [target, ranges] of transaction.versionRanges) {
+	for (const [target, ranges] of versionRanges) {
 		const versions = new Map<PropertyKey, number>();
 		for (const [key, range] of ranges) versions.set(key, range.end);
 		result.set(target, versions);
@@ -239,23 +280,28 @@ function incrementMutationVersion(target: object, key: PropertyKey): number {
 	return next;
 }
 
-function mutationVersion(target: object, key: PropertyKey): number {
+/** Returns the current mutation generation for one dependency without tracking it. */
+export function readMutationVersion(target: object, key: PropertyKey): number {
 	return mutationVersions.get(target)?.get(key) ?? 0;
 }
 
-function createTransaction(): Transaction {
-	return { undos: [], triggers: new Map(), versionRanges: new Map() };
+function createTransaction(rollback: boolean, retainVersions = false): Transaction {
+	return {
+		...(rollback ? { undos: [] } : {}),
+		triggers: new Map(),
+		...(retainVersions ? { versionRanges: new Map() } : {})
+	};
 }
 
 function recordMutationVersionRange(
-	transaction: Transaction,
+	versionRanges: Map<object, Map<PropertyKey, MutationVersionRange>>,
 	target: object,
 	key: PropertyKey,
 	start: number,
 	end: number
 ): void {
-	let ranges = transaction.versionRanges.get(target);
-	if (!ranges) transaction.versionRanges.set(target, (ranges = new Map()));
+	let ranges = versionRanges.get(target);
+	if (!ranges) versionRanges.set(target, (ranges = new Map()));
 	const range = ranges.get(key);
 	if (range) range.end = end;
 	else ranges.set(key, { start, end });
@@ -281,8 +327,10 @@ function rollbackOwnedTransaction(
 	covered: Map<object, Map<PropertyKey, MutationVersionRange[]>>,
 	blocked: Map<object, Set<PropertyKey>>
 ): void {
-	for (let index = transaction.undos.length - 1; index >= 0; index--) {
-		const undo = transaction.undos[index]!;
+	const undos = transaction.undos;
+	if (!undos || !transaction.versionRanges) return;
+	for (let index = undos.length - 1; index >= 0; index--) {
+		const undo = undos[index]!;
 		if (undo.target && undo.key !== undefined) {
 			if (blocked.get(undo.target)?.has(undo.key)) continue;
 			const range = transaction.versionRanges.get(undo.target)?.get(undo.key);
@@ -290,7 +338,7 @@ function rollbackOwnedTransaction(
 				range &&
 				!versionsCovered(
 					range.end + 1,
-					mutationVersion(undo.target, undo.key),
+					readMutationVersion(undo.target, undo.key),
 					covered.get(undo.target)?.get(undo.key) ?? []
 				)
 			) {

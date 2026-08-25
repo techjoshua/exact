@@ -796,6 +796,12 @@
 	font-size: var(--exact-theme-font-size-md);
 	line-height: var(--exact-theme-line-height-body);
 }
+[data-exact-theme][data-exact-theme-appearance='light'] {
+	color-scheme: light;
+}
+[data-exact-theme][data-exact-theme-appearance='dark'] {
+	color-scheme: dark;
+}
 [data-exact-theme][data-exact-theme-background='canvas'] {
 	background-color: var(--exact-theme-canvas);
 	color: var(--exact-theme-on-canvas);

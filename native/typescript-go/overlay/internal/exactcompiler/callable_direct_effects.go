@@ -78,26 +78,13 @@ func collectDirectCallableEffects(
 	}
 
 	walkCallable(fact.node, func(node *ast.Node) bool {
-		if ast.IsJsxAttribute(node) {
-			name := node.AsJsxAttribute().Name()
-			if name != nil && !ast.IsJsxNamespacedName(name) &&
-				interactiveJSXAttribute(name.Text()) {
-				fact.summary.DirectEffectSources = append(
-					fact.summary.DirectEffectSources,
-					environmentSource(
-						"browser",
-						"interactive JSX attribute "+name.Text(),
-						fact.summary.Name,
-					),
-				)
-			}
-		}
 		if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
 			!isStaticPropertyName(node) {
 			name := node.Text()
 			symbol := typeChecker.GetSymbolAtLocation(node)
 			if _, candidate := browserGlobals[name]; candidate &&
-				symbolIsOutsideSource(symbol, sourceFile) {
+				symbolIsOutsideSource(symbol, sourceFile) &&
+				!browserGlobalReferenceIsGuarded(node, name, fact.node) {
 				fact.summary.DirectEffectSources = append(
 					fact.summary.DirectEffectSources,
 					environmentSource("browser", name, fact.summary.Name),
@@ -235,6 +222,96 @@ func collectDirectCallableEffects(
 	fact.summary.StateReads = append([]StateEffect(nil), fact.directReads...)
 	fact.summary.StateWrites = append([]StateEffect(nil), fact.directWrites...)
 	fact.summary.Contexts = append([]ContextEffect(nil), fact.directContext...)
+}
+
+// browserGlobalReferenceIsGuarded recognizes the ordinary universal-runtime pattern where a
+// browser global is read only after a typeof availability test. The guard itself is safe in every
+// JavaScript runtime, and the guarded branch cannot execute on a server where the global is absent;
+// treating either reference as an unconditional browser effect would incorrectly project the
+// complete callable out of an otherwise valid server artifact.
+func browserGlobalReferenceIsGuarded(node *ast.Node, name string, callable *ast.Node) bool {
+	if node.Parent != nil && ast.IsTypeOfExpression(node.Parent) {
+		return true
+	}
+	for current := node; current != nil && current != callable; current = current.Parent {
+		parent := current.Parent
+		if parent == nil {
+			break
+		}
+		switch {
+		case ast.IsConditionalExpression(parent):
+			conditional := parent.AsConditionalExpression()
+			availableWhenTrue, recognized := browserAvailabilityGuard(conditional.Condition, name)
+			if recognized && ((nodeInside(current, conditional.WhenTrue) && availableWhenTrue) ||
+				(nodeInside(current, conditional.WhenFalse) && !availableWhenTrue)) {
+				return true
+			}
+		case ast.IsIfStatement(parent):
+			statement := parent.AsIfStatement()
+			availableWhenTrue, recognized := browserAvailabilityGuard(statement.Expression, name)
+			if recognized && ((nodeInside(current, statement.ThenStatement) && availableWhenTrue) ||
+				(statement.ElseStatement != nil && nodeInside(current, statement.ElseStatement) &&
+					!availableWhenTrue)) {
+				return true
+			}
+		case ast.IsBinaryExpression(parent):
+			binary := parent.AsBinaryExpression()
+			if !nodeInside(current, binary.Right) {
+				continue
+			}
+			availableWhenTrue, recognized := browserAvailabilityGuard(binary.Left, name)
+			if !recognized {
+				continue
+			}
+			if (binary.OperatorToken.Kind == ast.KindAmpersandAmpersandToken && availableWhenTrue) ||
+				(binary.OperatorToken.Kind == ast.KindBarBarToken && !availableWhenTrue) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func browserAvailabilityGuard(node *ast.Node, name string) (bool, bool) {
+	for node != nil && ast.IsParenthesizedExpression(node) {
+		node = node.AsParenthesizedExpression().Expression
+	}
+	if node == nil || !ast.IsBinaryExpression(node) {
+		return false, false
+	}
+	binary := node.AsBinaryExpression()
+	left, right := binary.Left, binary.Right
+	if !browserTypeofUndefinedComparison(left, right, name) &&
+		!browserTypeofUndefinedComparison(right, left, name) {
+		return false, false
+	}
+	switch binary.OperatorToken.Kind {
+	case ast.KindExclamationEqualsToken, ast.KindExclamationEqualsEqualsToken:
+		return true, true
+	case ast.KindEqualsEqualsToken, ast.KindEqualsEqualsEqualsToken:
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func browserTypeofUndefinedComparison(typeOf *ast.Node, undefined *ast.Node, name string) bool {
+	for typeOf != nil && ast.IsParenthesizedExpression(typeOf) {
+		typeOf = typeOf.AsParenthesizedExpression().Expression
+	}
+	for undefined != nil && ast.IsParenthesizedExpression(undefined) {
+		undefined = undefined.AsParenthesizedExpression().Expression
+	}
+	if typeOf == nil || undefined == nil || !ast.IsTypeOfExpression(typeOf) ||
+		!ast.IsStringLiteral(undefined) || undefined.Text() != "undefined" {
+		return false
+	}
+	expression := typeOf.AsTypeOfExpression().Expression
+	return expression != nil && ast.IsIdentifier(expression) && expression.Text() == name
+}
+
+func nodeInside(node *ast.Node, container *ast.Node) bool {
+	return node != nil && container != nil && node.Pos() >= container.Pos() && node.End() <= container.End()
 }
 
 func appendComponentBindingCallableFacts(

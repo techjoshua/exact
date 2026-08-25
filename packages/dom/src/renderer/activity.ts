@@ -11,13 +11,15 @@ import {
 	type ReadinessContextValue
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
+import { registerComponentLifecycleHandler } from '@exactjs/core/framework/component-lifecycle';
 import {
 	flushSync,
 	setEffectScopeWorkPriority,
 	withEffectScope,
 	type EffectScope
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { detachMountedRanges, restoreMountedRanges } from './retained-range.js';
 import { ownMountedInstance } from './root-lifecycle.js';
@@ -80,7 +82,7 @@ export function prepareActivity(
 		parentReadiness,
 		activationGeneration: 0
 	};
-	owner.onUnmount(() => {
+	registerComponentLifecycleHandler(owner, 'unmount', () => {
 		mounted.activity?.readinessRegistration?.cancel();
 		readiness.dispose();
 	});
@@ -202,10 +204,14 @@ function setDescendantActivity(mounted: Mounted, active: boolean): void {
 	}
 }
 
-function ActivityReadinessOwner(
-	this: Component<Record<string, never>>,
-	props: { context: ReadinessContextValue }
-) {
-	this.setContext(ReadinessContext, props.context);
-	return () => null;
-}
+const ActivityReadinessOwner = createExactInternalOwnerArtifact(
+	function ActivityReadinessOwner(
+		this: Component<Record<string, never>>,
+		props: { context: ReadinessContextValue }
+	) {
+		(this as AnyComponentInstance).contexts.set(ReadinessContext.id, props.context);
+		return () => null;
+	},
+	'@exactjs/dom:ActivityReadinessOwner',
+	'client'
+);

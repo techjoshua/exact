@@ -36,6 +36,7 @@ npm run test:e2e -w @exactjs/framework-comparison-suite
 npm run test:native -w @exactjs/framework-comparison-suite
 npm run measure:development -w @exactjs/framework-comparison-suite
 npm run measure:startup-cpu:development -w @exactjs/framework-comparison-suite
+npm run measure:ssr:development -w @exactjs/framework-comparison-suite
 npm run measure:native:development -w @exactjs/framework-comparison-suite
 ```
 
@@ -43,6 +44,32 @@ The startup CPU profile uses a fresh cache-disabled browser context for every sa
 Chromium's JavaScript parse, compile, evaluation, and total script-duration signals through semantic
 readiness. It runs at 1x, 4x, and 6x CPU rates by default. `COMPARISON_STARTUP_SAMPLES` selects the sample
 count and `COMPARISON_CPU_RATES` accepts a comma-separated rate list.
+
+The isolated SSR profile starts one framework process at a time on Node and Bun. Each participant
+declares its production transport for each runtime: native integrations such as eXact's `Bun.serve`
+lane are measured directly, while compatibility-only paths remain explicitly labeled. The report
+includes cold startup, warm sequential and concurrent request phases, CPU per request, post-GC memory
+trends, stable response identity, and target-local server-artifact sizes. `COMPARISON_SSR_SAMPLES` selects sequential
+samples; the `COMPARISON_SSR_STARTUP_SAMPLES`, `COMPARISON_SSR_CONCURRENCY`,
+`COMPARISON_SSR_CONCURRENCY_WAVES`, `COMPARISON_SSR_RETENTION_BATCHES`, and
+`COMPARISON_SSR_RETENTION_BATCH_SIZE` variables control the other lanes. Use
+`COMPARISON_SSR_RUNTIMES=node` when only Node is installed.
+
+The SSR report is written under `results/raw/`. Treat its Node and Bun rows as separate runtime
+profiles, compare framework results only within the same row and benchmark run, and retain the
+reported transport identity when interpreting a framework's runtime support.
+
+### Bun-native comparison follow-up
+
+The current Bun profile exercises eXact through its native `Bun.serve` adapter while React,
+SvelteKit, and Nuxt retain their Node-oriented production artifacts under Bun's `node:http`
+compatibility layer. Preserve that transport identity when reporting the current results.
+
+A future comparison update should add a separately labeled best-native-Bun lane rather than
+silently changing this one. That lane should evaluate React with `Bun.serve` and its Bun streaming
+renderer, SvelteKit with its Bun adapter once an accepted production release is available, and Nuxt
+with Nitro's Bun preset. Its harness must measure streamed response completion consistently before
+the native lane is compared across frameworks.
 
 The service listens on `http://127.0.0.1:4310` by default. `PORT` may select another port. Its state can
 be restored with `POST /__benchmark/reset` and the `x-benchmark-control: fixture-reset` header.

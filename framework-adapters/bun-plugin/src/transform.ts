@@ -7,6 +7,7 @@ import {
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import {
+	exactComponentContractProjection,
 	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
@@ -94,12 +95,10 @@ export function transformExactBunSource(
 				session,
 				packageEnhancements: options.__exactPackageEnhancements,
 				target: targetFor(options),
-				componentContractProjection:
-					options.target === 'server' ||
-					options.renderMode === undefined ||
-					options.renderMode === 'universal'
-						? 'complete'
-						: options.renderMode,
+				componentContractProjection: exactComponentContractProjection(
+					targetFor(options),
+					options.renderMode
+				),
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap ?? true,
 				assetRules: options.assetRules,

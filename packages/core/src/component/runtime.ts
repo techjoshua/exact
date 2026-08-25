@@ -2,64 +2,51 @@ import {
 	createEffectScope,
 	updateReactive,
 	withEffectScope,
-	type Reactive,
-	type ReactiveValue
-} from '@exactjs/reactive';
-import { createComponentActivation, type ComponentActivation } from './activation.js';
+	type Reactive
+} from '@exactjs/reactive/framework/runtime';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
-import { getComponentContext, hasComponentContext, setComponentContext } from './context-api.js';
-import { publishContextAccess } from './context-inspection.js';
-import { prepareComponentContextResumption } from './context-resumption.js';
+import { optionalComponentContextCapability } from './context-capability.js';
 import type {
 	AnyComponentInstance,
 	ComponentContextValues,
 	ComponentFunction,
 	ComponentInstance,
-	ContextToken,
-	LifecycleHandler,
-	RefBinding,
-	RefKey,
-	RefRegistry,
-	RenderEventHandler,
-	RenderFunction,
-	VNode
+	RenderFunction
 } from './contracts.js';
 import { cleanupFailedComponentConstruction } from './construction.js';
 import { ErrorContext } from './contexts.js';
 import {
 	componentDomainInspection,
 	isHydrationComponentDomain,
-	pageComponentDomain,
 	resolveComponentResumption,
 	withComponentDomain
 } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import {
 	clearComponentLifecycleHandlers,
-	componentLifecycleHandlers,
-	mutableComponentLifecycleHandlers,
-	mutableComponentRenderHandlers
+	componentLifecycleHandlers
 } from './lifecycle-handlers.js';
-import { createComponentListController } from './list-controller.js';
-import { componentLocalizationCapability } from './localization-capability.js';
-import { createNoopComponentLog } from './log.js';
-import { applyInternalPlugins } from './plugins.js';
+import { optionalComponentListCapability } from './list-capability.js';
 import { componentTaskCapability, type ComponentTaskCapabilityState } from './task-capability.js';
-import { reactiveValue } from './reactive-value.js';
-import type { IntlFacade } from '../localization/contracts.js';
-import { createComponentRefBinding, createComponentRefRegistry } from './ref-runtime.js';
-import { createComponentReactive } from './reactive-expression.js';
 import { applyComponentResumption } from './resumption.js';
 import { createComponentProps, createComponentState } from './state.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
-import { readExactComponentContract } from '../component-contracts.js';
+import { type ExactCompiledComponentContract } from '../component-contracts.js';
+import {
+	compiledComponentLifecycleABI,
+	compiledComponentListsABI,
+	compiledComponentTasksABI
+} from './compiled-abi.js';
+import { ComponentRuntimeSurface } from './runtime-surface.js';
+import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
 export { reparentComponentInstance } from './ownership.js';
 
 let nextComponentId = 1;
 
 /** Shared-prototype implementation of one durable component instance. */
-class ComponentInstanceImpl<State extends object, Props extends Record<string, unknown>>
+export class ComponentInstanceImpl<State extends object, Props extends Record<string, unknown>>
+	extends ComponentRuntimeSurface<State>
 	implements ComponentInstance<State>
 {
 	readonly type: ComponentFunction<State, Props>;
@@ -70,23 +57,17 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 	readonly state: Reactive<State>;
 	readonly props: Reactive<Record<string, unknown>>;
 	readonly ambientContexts?: ComponentContextValues;
-	log = createNoopComponentLog();
+	readonly runtimeABI: number;
 	renderStop?: ComponentInstance<State>['renderStop'];
 	mountController?: AbortController;
 	activationController?: AbortController;
 	invalidate?: () => void;
 	errorFallback?: RenderFunction;
 
-	private contextsValue?: Map<symbol, unknown>;
-	private contextTokensValue?: Map<symbol, ContextToken<unknown>>;
-	private refsValue?: Map<symbol, RefBinding<unknown>>;
-	private refsRegistry?: RefRegistry;
-	private lists?: ReturnType<typeof createComponentListController>;
-	private intlFacade?: IntlFacade;
 	private readonly inspection;
-	private readonly taskCapability = componentTaskCapability();
+	private readonly taskCapability;
 	private taskState?: ComponentTaskCapabilityState;
-	private readonly activation: ComponentActivation;
+	private activeValue = false;
 	private activityBlockers?: Set<symbol>;
 	private mountedValue = false;
 	private disposedValue = false;
@@ -94,170 +75,69 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 
 	constructor(
 		type: ComponentFunction<State, Props>,
+		instantiate: ComponentFunction<State, Props>,
 		rawProps: Props,
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
-		execution?: PreparedComponentExecution
+		execution: PreparedComponentExecution | undefined,
+		contract: ExactCompiledComponentContract
 	) {
+		super();
 		this.type = type;
 		this.parent = parent;
 		this.domain = domain;
 		this.ambientContexts = ambientContexts;
+		this.runtimeABI = contract.definition.abi;
+		this.taskCapability =
+			this.runtimeABI & compiledComponentTasksABI ? componentTaskCapability() : undefined;
 		this.id = `c${nextComponentId++}`;
 		this.inspection = componentDomainInspection(domain);
 		this.scope = createEffectScope(undefined, (error) => {
 			handleComponentError(this, createErrorReport(error, 'reactive', this, 'watch'));
 		});
-		this.state = createComponentState<State>(domain, () => this);
-		this.props = createComponentProps(rawProps);
-		this.activation = createComponentActivation(
-			this,
-			() => this.mountedValue,
-			() => this.disposedValue,
-			() => this.activityBlockers?.size ?? 0
+		this.state = createComponentState<State>(
+			domain,
+			() => this,
+			contract.definition.state,
+			contract.definition.capabilities.includes('collections')
 		);
-		this.initialize(execution, rawProps);
+		this.props = createComponentProps(
+			rawProps,
+			contract.definition.capabilities.includes('collections')
+		);
+		this.initialize(instantiate, execution, rawProps, contract);
 	}
 
-	get contexts(): Map<symbol, unknown> {
-		return (this.contextsValue ??= new Map());
-	}
-
-	get contextTokens(): Map<symbol, ContextToken<unknown>> {
-		return (this.contextTokensValue ??= new Map());
-	}
-
+	/** Reports whether mount publication has completed and unmount has not begun. */
 	get mounted(): boolean {
 		return this.mountedValue;
 	}
 
+	/** Returns the durable render function produced during component construction. */
 	get renderFunction(): RenderFunction {
 		return this.renderFunctionValue;
 	}
 
-	get refs(): RefRegistry {
-		return (this.refsRegistry ??= createComponentRefRegistry(this));
-	}
-
-	get intl(): IntlFacade {
-		const capability = componentLocalizationCapability();
-		if (!capability)
-			throw new Error(
-				'Component localization is unavailable because this artifact did not include the localization capability'
-			);
-		return (this.intlFacade ??= capability.create(this));
-	}
-
-	get mountHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'mount');
-	}
-
-	get activateHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'activate');
-	}
-
-	get deactivateHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'deactivate');
-	}
-
-	get unmountHandlers(): LifecycleHandler[] {
-		return mutableComponentLifecycleHandlers(this, 'unmount');
-	}
-
-	get renderHandlers(): RenderEventHandler[] {
-		return mutableComponentRenderHandlers(this);
-	}
-
+	/** Opens compiler-selected list bookkeeping for one render pass when lists are present. */
 	beginRender(): void {
-		this.lists?.beginRender();
+		if (this.runtimeABI & compiledComponentListsABI) optionalComponentListCapability()?.begin(this);
 	}
 
+	/** Closes compiler-selected list bookkeeping and releases entries absent from this pass. */
 	endRender(): void {
-		this.lists?.endRender();
+		if (this.runtimeABI & compiledComponentListsABI) optionalComponentListCapability()?.end(this);
 	}
 
-	hasContext(token: ContextToken<unknown>): boolean {
-		this.contextTokens.set(token.id, token);
-		publishContextAccess(this, token, 'read');
-		return hasComponentContext(this, this.ambientContexts, token);
-	}
-
-	getContext<T>(token: ContextToken<T>): Reactive<T> {
-		this.contextTokens.set(token.id, token);
-		publishContextAccess(this, token, 'read');
-		return getComponentContext(this, this.ambientContexts, token);
-	}
-
-	setContext<T>(token: ContextToken<T>, value: T): void {
-		this.contextTokens.set(token.id, token);
-		setComponentContext(this, token, value);
-		publishContextAccess(this, token, 'write');
-	}
-
-	reactive<T>(
-		input: TemplateStringsArray | (() => T) | T,
-		...values: unknown[]
-	): ReactiveValue<string> | ReactiveValue<T> {
-		return createComponentReactive(input, values);
-	}
-
-	ref<T>(key: RefKey<T>): RefBinding<T> {
-		const refs = (this.refsValue ??= new Map());
-		const existing = refs.get(key.id) as RefBinding<T> | undefined;
-		if (existing) return existing;
-		const binding = createComponentRefBinding(this, key);
-		refs.set(key.id, binding as RefBinding<unknown>);
-		return binding;
-	}
-
-	readRef<T>(key: RefKey<T>): T | undefined {
-		return this.refsValue?.get(key.id)?.current as T | undefined;
-	}
-
-	map<T>(
-		collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-		key: (item: T) => string,
-		render: (item: T) => VNode,
-		id?: string,
-		provenance?: Iterable<T>,
-		keyIdentity?: string
-	): VNode {
-		return (this.lists ??= createComponentListController()).map(
-			collection,
-			key,
-			render,
-			id,
-			provenance,
-			keyIdentity
-		);
-	}
-
-	onMount(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'mount').push(handler);
-	}
-
-	onActivate(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'activate').push(handler);
-	}
-
-	onDeactivate(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'deactivate').push(handler);
-	}
-
-	onUnmount(handler: LifecycleHandler): void {
-		mutableComponentLifecycleHandlers(this, 'unmount').push(handler);
-	}
-
-	onRender(handler: RenderEventHandler): void {
-		mutableComponentRenderHandlers(this).push(handler);
-	}
-
+	/** Publishes first mount, runs mount handlers, and derives initial activation. */
 	markMounted(): void {
 		if (this.mountedValue || this.disposedValue) return;
 		this.mountedValue = true;
 		this.inspection?.publish({ kind: 'component.mount', component: this });
-		const handlers = componentLifecycleHandlers(this, 'mount');
+		const handlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'mount')
+				: [];
 		this.mountController = handlers.length ? new AbortController() : undefined;
 		for (const handler of handlers) {
 			if (this.disposedValue || !this.mountedValue) break;
@@ -268,9 +148,10 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 				handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'mount'));
 			}
 		}
-		this.activation.update();
+		this.updateActivation();
 	}
 
+	/** Adds or removes one activity blocker and publishes the resulting active state. */
 	setActivity(token: symbol, active: boolean, reason = 'activity'): void {
 		if (active) {
 			this.activityBlockers?.delete(token);
@@ -283,18 +164,20 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 			reason,
 			attributes: Object.freeze({ active: blockers === 0, blockers })
 		});
-		this.activation.update(reason);
+		this.updateActivation(reason);
 	}
 
+	/** Applies parent-owned prop changes to the existing reactive prop identity. */
 	updateProps(nextProps: Record<string, unknown>): void {
 		updateReactive(this.props, nextProps);
 		this.inspection?.publish({ kind: 'props.change', component: this, path: 'props' });
 	}
 
+	/** Disposes every owned scope, task, list, handler, and controller exactly once. */
 	unmount(reason = 'unmount'): void {
 		if (this.disposedValue) return;
 		this.inspection?.publish({ kind: 'component.unmount', component: this, reason });
-		if (this.activation.active) this.activation.deactivate(reason);
+		this.deactivate(reason);
 		this.disposedValue = true;
 		this.mountedValue = false;
 		let failed = false;
@@ -309,10 +192,15 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		};
 		if (this.renderStop) teardown(this.renderStop);
 		teardown(() => this.scope.stop());
-		if (this.lists) teardown(() => this.lists!.dispose());
+		if (this.runtimeABI & compiledComponentListsABI)
+			teardown(() => optionalComponentListCapability()?.dispose(this));
 		if (this.mountController) teardown(() => this.mountController!.abort(reason));
 		if (this.taskState) teardown(() => this.taskCapability?.release(this.taskState, this));
-		for (const handler of componentLifecycleHandlers(this, 'unmount')) {
+		const unmountHandlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'unmount')
+				: [];
+		for (const handler of unmountHandlers) {
 			try {
 				const result = handler({ signal: AbortSignal.abort(reason), reason });
 				if (isPromiseLike(result))
@@ -323,16 +211,20 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 				);
 			}
 		}
-		clearComponentLifecycleHandlers(this);
+		if (this.runtimeABI & compiledComponentLifecycleABI) clearComponentLifecycleHandlers(this);
 		if (failed) throw firstError;
 	}
 
-	private initialize(execution: PreparedComponentExecution | undefined, rawProps: Props): void {
+	private initialize(
+		instantiate: ComponentFunction<State, Props>,
+		execution: PreparedComponentExecution | undefined,
+		rawProps: Props,
+		contract: ExactCompiledComponentContract
+	): void {
 		const resumption = resolveComponentResumption(this.domain, this.type);
 		if (resumption) {
 			applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 		}
-		const contract = readExactComponentContract(this.type);
 		this.taskState = this.taskCapability?.create(
 			this,
 			this.type,
@@ -344,12 +236,17 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		this.inspection?.publish({ kind: 'component.construct', component: this });
 		if (!this.parent && isHydrationComponentDomain(this.domain))
 			this.inspection?.publish({ kind: 'hydration.activate', component: this });
-		if (!this.parent) this.contexts.set(ErrorContext.id, reactiveValue(createErrorContext()));
-		applyInternalPlugins(this);
-		if (resumption) prepareComponentContextResumption(this, resumption);
+		if (!this.parent) this.contexts.set(ErrorContext.id, createErrorContext());
+		if (resumption) {
+			const contextCapability = optionalComponentContextCapability();
+			if (Object.keys(resumption.contexts).length !== 0 && !contextCapability)
+				throw new Error(
+					'Component context resumption requires the compiler-selected context capability'
+				);
+			contextCapability?.prepare(this, resumption);
+		}
 
 		let result: RenderFunction;
-		const instantiate = contract?.definition?.instantiate ?? this.type;
 		try {
 			result = withEffectScope(this.scope, () =>
 				withComponentDomain(this.domain, () =>
@@ -380,33 +277,59 @@ class ComponentInstanceImpl<State extends object, Props extends Record<string, u
 		this.renderFunctionValue = result;
 		this.taskCapability?.retain(this.taskState, this);
 	}
+
+	/** Advances the allocation-free activity state kept directly on the component record. */
+	private updateActivation(reason = 'activity'): void {
+		if (this.disposedValue || !this.mountedValue || this.activityBlockers?.size) {
+			this.deactivate(reason);
+			return;
+		}
+		if (this.activeValue) return;
+		this.activeValue = true;
+		this.inspection?.publish({ kind: 'component.activate', component: this, reason });
+		const handlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'activate')
+				: [];
+		this.activationController = handlers.length ? new AbortController() : undefined;
+		for (const handler of handlers) {
+			try {
+				const result = handler({ signal: this.activationController!.signal });
+				if (isPromiseLike(result))
+					observeLifecyclePromise(this, Promise.resolve(result), 'activate');
+			} catch (error) {
+				handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'activate'));
+			}
+		}
+	}
+
+	/** Deactivates the component without allocating a per-instance state-machine closure. */
+	private deactivate(reason: string): void {
+		if (!this.activeValue) return;
+		this.activeValue = false;
+		this.inspection?.publish({ kind: 'component.deactivate', component: this, reason });
+		this.activationController?.abort(reason);
+		this.activationController = undefined;
+		const handlers =
+			this.runtimeABI & compiledComponentLifecycleABI
+				? componentLifecycleHandlers(this, 'deactivate')
+				: [];
+		for (const handler of handlers) {
+			try {
+				const result = handler({ signal: AbortSignal.abort(reason), reason });
+				if (isPromiseLike(result))
+					observeLifecyclePromise(this, Promise.resolve(result), 'deactivate');
+			} catch (error) {
+				handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'deactivate'));
+			}
+		}
+	}
 }
 
-/** Creates a component instance, binds its component API, and runs the component constructor. */
-export function createComponentInstance<
-	State extends object,
-	Props extends Record<string, unknown>
->(
-	type: ComponentFunction<State, Props>,
-	rawProps: Props,
-	parent?: AnyComponentInstance,
-	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
-	domain = parent?.domain ?? pageComponentDomain
-): ComponentInstance<State> {
-	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain);
-}
+registerComponentRuntimeSurfaceTarget(ComponentInstanceImpl.prototype);
 
-/** Creates an instance using a previously validated and indexed compiler execution plan. */
-export function createPreparedComponentInstance<
-	State extends object,
-	Props extends Record<string, unknown>
->(
-	type: ComponentFunction<State, Props>,
-	rawProps: Props,
-	execution: PreparedComponentExecution | undefined,
-	parent?: AnyComponentInstance,
-	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
-	domain = parent?.domain ?? pageComponentDomain
-): ComponentInstance<State> {
-	return new ComponentInstanceImpl(type, rawProps, parent, ambientContexts, domain, execution);
-}
+export {
+	createComponentInstance,
+	createFrameworkFixtureComponentInstance,
+	createPreparedComponentInstance
+} from './runtime-construction.js';

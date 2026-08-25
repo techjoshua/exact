@@ -64,6 +64,7 @@ export type ExactServerRenderRecordIR = {
 /** Minimum public record required to resume a durable component in the browser. */
 export type ExactClientResumptionRecordIR = {
 	statePaths: string[];
+	stateInputs: Array<[statePath: string, propPath: string]>;
 	valueCaptures: string[];
 	contexts: string[];
 	boundaries: string[];

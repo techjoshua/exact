@@ -3,7 +3,7 @@
  */
 import {
 	activateTaskForHost,
-	createEnhancementMarker,
+	createEnhancementNode,
 	createContext,
 	createErrorContext,
 	defineTask,
@@ -12,6 +12,7 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
+import '@exactjs/dom/runtime/target';
 import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';
@@ -46,7 +47,7 @@ describe('component testing', () => {
 		const target = createVNode(
 			'button',
 			{
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'quiet' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'quiet' } }])
 			},
 			'Save'
 		);

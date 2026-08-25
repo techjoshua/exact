@@ -16,6 +16,7 @@ func createContinuationContracts(
 	tasks []Task,
 	operations []InvokedTaskOperation,
 	stateReads []StateRead,
+	stateWrites []StateWrite,
 	policies policyAnalysis,
 	boundaries []Boundary,
 	clientIslands map[*ast.Node]clientElementIsland,
@@ -218,6 +219,7 @@ func createContinuationContracts(
 	for _, component := range components {
 		serverStateReads := []string{}
 		statePaths := []string{}
+		stateInputs := []StateInput{}
 		valueCaptures := []string{}
 		for _, island := range clientIslands {
 			if island.component.Name != component.Name {
@@ -288,6 +290,19 @@ func createContinuationContracts(
 			}
 			statePaths = append(statePaths, strings.Join(read.Path, "."))
 		}
+		for _, write := range stateWrites {
+			if write.Component != component.Name || write.SetupExecution == "" ||
+				write.Operation != "assignment" || write.InputPath == "" {
+				continue
+			}
+			statePath := strings.Join(write.Path, ".")
+			if containsString(statePaths, statePath) {
+				stateInputs = appendUniqueStateInput(stateInputs, StateInput{
+					StatePath: statePath,
+					PropPath:  write.InputPath,
+				})
+			}
+		}
 		serverContexts := []ContextEffect{}
 		for _, effect := range component.Contexts {
 			if effect.Kind == "read" {
@@ -302,6 +317,7 @@ func createContinuationContracts(
 			},
 			Client: ClientResumptionRecord{
 				StatePaths:    uniqueSortedStrings(statePaths),
+				StateInputs:   validStateInputs(stateInputs),
 				ValueCaptures: uniqueSortedStrings(valueCaptures),
 				Contexts:      sharedContextWrites(component.Name, tasks, policies),
 				Boundaries:    boundaryIDsForComponent(boundaries, component.ID),
@@ -313,6 +329,52 @@ func createContinuationContracts(
 			resumptions[right].ComponentID
 	})
 	return continuations, resumptions
+}
+
+func appendUniqueStateInput(values []StateInput, candidate StateInput) []StateInput {
+	for index, value := range values {
+		if value.StatePath == candidate.StatePath {
+			if value.PropPath == candidate.PropPath || value.PropPath == "" {
+				return values
+			}
+			// Multiple input sources for one state path cannot be reconstructed safely.
+			values[index].PropPath = ""
+			return values
+		}
+	}
+	return append(values, candidate)
+}
+
+func validStateInputs(values []StateInput) []StateInput {
+	result := make([]StateInput, 0, len(values))
+	for _, value := range values {
+		if value.PropPath != "" {
+			result = append(result, value)
+		}
+	}
+	sort.Slice(result, func(left int, right int) bool {
+		return result[left].StatePath < result[right].StatePath
+	})
+	return result
+}
+
+// retainInvokedContinuations removes setup-only transport catalogs after partition planning has
+// consumed their data-flow facts. Invoked operations remain remotely dispatchable.
+func retainInvokedContinuations(
+	continuations []Continuation,
+	operations []InvokedTaskOperation,
+) []Continuation {
+	invoked := make(map[string]struct{}, len(operations))
+	for _, operation := range operations {
+		invoked[operation.ID] = struct{}{}
+	}
+	result := make([]Continuation, 0, len(invoked))
+	for _, continuation := range continuations {
+		if _, retained := invoked[continuation.ID]; retained {
+			result = append(result, continuation)
+		}
+	}
+	return result
 }
 
 func stateReadInsideServerTask(

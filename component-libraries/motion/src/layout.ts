@@ -1,5 +1,4 @@
 import { createContext, isTaskCancellation, type Child, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { LayoutGroupProps, MotionElementProps, MotionPlayback } from './contracts.js';
 import { defaultMotionSettings, MotionContext } from './context.js';
 import { animateInFrame, resolveMotionEffect } from './playback.js';
@@ -23,10 +22,7 @@ export interface LayoutCoordinator {
 export const LayoutContext = createContext<LayoutCoordinator>('motion.layout');
 
 /** Coordinates FLIP measurement and stable shared identity for one logical subtree. */
-export const LayoutGroup = markExactComponent(function LayoutGroup(
-	this: Component<{}>,
-	props: LayoutGroupProps
-) {
+export function LayoutGroup(this: Component<{}>, props: LayoutGroupProps) {
 	const settings = this.hasContext(MotionContext)
 		? this.getContext(MotionContext)
 		: defaultMotionSettings;
@@ -95,7 +91,7 @@ export const LayoutGroup = markExactComponent(function LayoutGroup(
 		identitySnapshots.clear();
 	});
 	return () => props.children as Child;
-}, '@exactjs/motion:LayoutGroup');
+}
 
 function layoutEffect(before: DOMRect, after: DOMRect, mode: LayoutMode) {
 	const animatePosition = mode === true || mode === 'both' || mode === 'position';

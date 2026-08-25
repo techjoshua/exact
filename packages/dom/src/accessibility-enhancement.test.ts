@@ -2,9 +2,10 @@
  * @vitest-environment jsdom
  */
 import './framework/enhancements.js';
+import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
-import { createEnhancementMarker, createRef, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { render } from './index.js';
@@ -15,15 +16,13 @@ const identity = '@exactjs/accessibility/enhancements#describedBy';
 
 describe('@exactjs/dom accessibility enhancement integration', () => {
 	it('publishes a ref relationship without wrapper markup and keeps generated identity', () => {
-		const Page = markExactComponent(function Page(this: Component<{}>) {
+		const Page = createExactFrameworkFixtureArtifact(function Page(this: Component<{}>) {
 			const help = this.ref(helpKey);
 			return () => [
 				createVNode(
 					'button',
 					{
-						__exactEnhancements: createEnhancementMarker([
-							{ identity, props: { describedBy: help } }
-						])
+						__exactEnhancements: createEnhancementNode([{ identity, props: { describedBy: help } }])
 					},
 					'Delete'
 				),
@@ -43,3 +42,4 @@ describe('@exactjs/dom accessibility enhancement integration', () => {
 		expect(container.children).toHaveLength(2);
 	});
 });
+import './runtime/target.js';

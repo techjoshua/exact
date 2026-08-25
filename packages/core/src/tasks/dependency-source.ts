@@ -5,7 +5,7 @@ import {
 	unwrap,
 	type ReactiveRef,
 	type ReactiveValue
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 import { continuationDependencyForValue } from './dependency-provenance.js';
 
 /** A dependency value together with the generation and publication version that produced it. */

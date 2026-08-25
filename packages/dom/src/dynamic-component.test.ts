@@ -3,7 +3,7 @@
  */
 import './structural-boundaries.js';
 import { Suspense, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
@@ -14,7 +14,7 @@ function LoadedPanel(this: Component<{}>, props: { label: string }) {
 	this.onUnmount(() => unmounts++);
 	return () => createVNode('p', null, props.label);
 }
-markExactComponent(LoadedPanel, 'fixture:loaded-panel');
+createExactFrameworkFixtureArtifact(LoadedPanel, 'fixture:loaded-panel');
 
 let unmounts = 0;
 
@@ -32,7 +32,7 @@ describe('@exactjs/dom dynamic components', () => {
 			});
 			return () => createVNode(Suspense, { fallback: createVNode('span', null, 'loading') }, child);
 		}
-		markExactComponent(Host, 'fixture:dynamic-host');
+		createExactFrameworkFixtureArtifact(Host, 'fixture:dynamic-host');
 
 		const container = document.createElement('div');
 		render(createVNode(Host, {}), container);
@@ -59,7 +59,7 @@ describe('@exactjs/dom dynamic components', () => {
 			});
 			return () => child;
 		}
-		markExactComponent(Host, 'fixture:replacement-host');
+		createExactFrameworkFixtureArtifact(Host, 'fixture:replacement-host');
 
 		const container = document.createElement('div');
 		render(createVNode(Host, {}), container);

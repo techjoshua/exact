@@ -1,9 +1,10 @@
-import { peek, reactive, unwrap } from '@exactjs/reactive';
+import { peek, unwrap } from '@exactjs/reactive/framework/runtime';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import {
 	exactComponentIdentity,
 	isExactComponent,
-	readExactComponentContract
+	readPreparedExactCompiledComponentContract
 } from '../component-contracts.js';
 import type {
 	AuthoredComponentFunction,
@@ -11,7 +12,8 @@ import type {
 	ComponentFunction,
 	VNode
 } from '../component/contracts.js';
-import { createDynamicChild, createVNode } from '../vnode.js';
+import { createDynamicChild } from '../component/reactive-vnodes.js';
+import { createVNode } from '../vnode.js';
 import { dynamicComponentResolverFor } from './creation.js';
 import type {
 	AnyDynamicComponentCandidate,
@@ -56,8 +58,8 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 	if (typeof resolver !== 'function')
 		throw new TypeError('Compiled dynamic components require a resolver or authored facade');
 
-	const lifetime = reactive({ retained: true });
-	const state = reactive<DynamicState<Props>>({
+	const lifetime = reactiveObjects({ retained: true });
+	const state = reactiveObjects<DynamicState<Props>>({
 		revision: 0,
 		status: 'unassigned',
 		generation: 0
@@ -203,14 +205,14 @@ function validateCandidate(candidate: AnyDynamicComponentCandidate): void {
 		throw new TypeError(
 			'Dynamic component resolution requires a native or explicitly adapted component'
 		);
-	const contract = readExactComponentContract(candidate);
-	if (!contract) return;
+	const contract = readPreparedExactCompiledComponentContract(candidate);
 	if (
+		contract.role === 'render' ||
 		contract.role === 'executor' ||
 		contract.placement === 'server' ||
 		contract.executors.length !== 0 ||
 		contract.continuations.length !== 0 ||
-		contract.execution?.transitions.some((transition) => transition.placement === 'server')
+		contract.execution?.transitions.some((transition) => transition[3] === 'server')
 	) {
 		throw new Error(
 			`Dynamic component ${exactComponentIdentity(candidate)} declares server execution capability`

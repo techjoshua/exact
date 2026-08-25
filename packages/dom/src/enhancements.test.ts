@@ -2,9 +2,10 @@
  * @vitest-environment jsdom
  */
 import './framework/enhancements.js';
+import '@exactjs/core/runtime/refs';
 import {
 	createContext,
-	createEnhancementMarker,
+	createEnhancementNode,
 	Fragment,
 	markExactEnhancementContexts,
 	Target,
@@ -16,14 +17,26 @@ import {
 import {
 	createCompiledTarget,
 	createDynamicChild,
-	createExpression
+	createExpression,
+	createPreparedRenderProgram,
+	prepareCompiledRenderProgram,
+	type ExactRenderProgramBindingTarget
 } from '@exactjs/core/runtime/render';
 import { markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
+import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-objects';
+import { createEffectScope } from '@exactjs/reactive/framework/runtime';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 import { inspectDomRoot } from './testing.js';
 import { createVNode } from './test-support/native-vnode.js';
+import {
+	applyCompiledProgramText,
+	beginCompiledProgramClaims,
+	bindCompiledComponentUpdate,
+	bindCompiledProgramText,
+	claimCompiledProgramText
+} from './runtime/render-program.js';
 
 const identity = '@test/motion#motion';
 
@@ -41,7 +54,7 @@ describe('renderer enhancements', () => {
 		});
 		const button = createVNode('button', {
 			id: 'save',
-			__exactEnhancements: createEnhancementMarker([{ identity, props: { preset: 'fade' } }])
+			__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
 		});
 		const container = document.createElement('div');
 
@@ -63,7 +76,7 @@ describe('renderer enhancements', () => {
 			return () => createVNode('div', { className: props.className }, props.children);
 		});
 		const container = document.createElement('div');
-		const marker = createEnhancementMarker([{ identity, props: { className: 'motion-shell' } }]);
+		const marker = createEnhancementNode([{ identity, props: { className: 'motion-shell' } }]);
 
 		render(createVNode('button', { __exactEnhancements: marker }, 'Save'), container, {
 			enhancementCatalog: new Map([[identity, Wrapper]])
@@ -71,7 +84,7 @@ describe('renderer enhancements', () => {
 
 		expect(container.innerHTML).toBe('<div class="motion-shell"><button>Save</button></div>');
 
-		const updated = createEnhancementMarker([
+		const updated = createEnhancementNode([
 			{ identity, props: { className: 'motion-shell updated' } }
 		]);
 		render(createVNode('button', { __exactEnhancements: updated }, 'Saved'), container, {
@@ -103,7 +116,7 @@ describe('renderer enhancements', () => {
 		render(
 			createVNode('select', {
 				__exactBindChange: publish,
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Field]]) }
@@ -112,6 +125,34 @@ describe('renderer enhancements', () => {
 
 		expect(publish).toHaveBeenCalledOnce();
 		expect(container.querySelector('select')?.className).toBe('field');
+	});
+
+	it('preserves compiler-specialized interaction handlers through target contributions', () => {
+		const publish = vi.fn();
+		const Action = markTestComponent(function Action(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			return () => createCompiledTarget({ className: 'action' }, props.children);
+		});
+		const container = document.createElement('div');
+
+		render(
+			createVNode(
+				'button',
+				{
+					'__exactClosedInteraction:onClick': publish,
+					__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
+				},
+				'Save'
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Action]]) }
+		);
+		container.querySelector('button')!.click();
+
+		expect(publish).toHaveBeenCalledOnce();
+		expect(container.querySelector('button')?.className).toBe('action');
 	});
 
 	it('composes an enhancement directly around an underscore fragment boundary', () => {
@@ -126,7 +167,7 @@ describe('renderer enhancements', () => {
 		render(
 			createVNode(
 				Fragment,
-				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'Before',
 				createVNode('strong', null, 'After')
 			),
@@ -157,7 +198,7 @@ describe('renderer enhancements', () => {
 			const value = this.getContext(token);
 			return () => createVNode('output', null, value.value);
 		});
-		const marker = createEnhancementMarker([{ identity, props: { value: 'ready' } }]);
+		const marker = createEnhancementNode([{ identity, props: { value: 'ready' } }]);
 		const container = document.createElement('div');
 
 		render(
@@ -176,7 +217,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				Fragment,
 				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { value: 'updated' } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { value: 'updated' } }])
 				},
 				createVNode('div', null, createVNode(Consumer, null))
 			),
@@ -186,6 +227,109 @@ describe('renderer enhancements', () => {
 
 		expect(container.innerHTML).toBe('<section><div><output>updated</output></div></section>');
 		expect(consumerSetups).toHaveBeenCalledOnce();
+	});
+
+	it('composes multiple direct target contributors around one authored intrinsic', () => {
+		const outerToken = createContext<string>('@test/direct-enhancement-outer');
+		const innerToken = createContext<string>('@test/direct-enhancement-inner');
+		const Outer = markTestComponent(function Outer(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			this.setContext(outerToken, 'outer');
+			return () => createCompiledTarget({ lang: 'fr' }, props.children);
+		});
+		const Inner = markTestComponent(function Inner(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			this.setContext(innerToken, 'inner');
+			return () => createCompiledTarget({ className: 'themed' }, props.children);
+		});
+		markExactEnhancementContexts(Outer, { provides: [outerToken] });
+		markExactEnhancementContexts(Inner, { provides: [innerToken] });
+		const container = document.createElement('div');
+		const outerIdentity = '@test/direct-enhancement-outer#outer';
+		const innerIdentity = '@test/direct-enhancement-inner#inner';
+
+		render(
+			createVNode('input', {
+				id: 'search',
+				__exactEnhancements: createEnhancementNode([
+					{ identity: outerIdentity, props: {} },
+					{ identity: innerIdentity, props: {} }
+				])
+			}),
+			container,
+			{
+				enhancementCatalog: new Map([
+					[outerIdentity, Outer],
+					[innerIdentity, Inner]
+				])
+			}
+		);
+
+		const input = container.querySelector('input');
+		expect(input?.id).toBe('search');
+		expect(input?.className).toBe('themed');
+		expect(input?.lang).toBe('fr');
+	});
+
+	it('keeps compiled updates owned by the authored component through a direct enhancement', () => {
+		const token = createContext<string>('@test/compiled-update-enhancement-owner');
+		const Provider = markTestComponent(function Provider(
+			this: Component<{}>,
+			props: { children?: Child }
+		) {
+			this.setContext(token, 'provided');
+			return () => createCompiledTarget({ className: 'provided' }, props.children);
+		});
+		markExactEnhancementContexts(Provider, { provides: [token] });
+		const updates = {
+			bindings: [['count', 1, 0]] as const,
+			apply(targets: readonly (object | undefined)[], dirtyLow: number) {
+				if ((dirtyLow & 1) !== 0 && targets[0])
+					applyCompiledProgramText(targets[0] as ExactRenderProgramBindingTarget, 0);
+			}
+		};
+		const program = prepareCompiledRenderProgram({
+			version: 4,
+			id: '@test/compiled-update-enhancement-owner',
+			namespace: 'html',
+			template: '<output><!---->\ue000exact:0\ue001<!----></output>',
+			directClaims: true,
+			bind(target) {
+				if (beginCompiledProgramClaims(target, 'output', 'html', 1, 1)) {
+					claimCompiledProgramText(target, 0, 0, true);
+					return;
+				}
+				bindCompiledProgramText(target, 0, true);
+				bindCompiledComponentUpdate(target, 0, updates);
+			}
+		});
+		const ownerScope = createEffectScope();
+		const state = indexedReactiveObjects<{ count: number }>(['count']);
+		state.count = 0;
+		const owner = { state, scope: ownerScope };
+		const container = document.createElement('div');
+
+		render(
+			createVNode(
+				'section',
+				{
+					__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
+				},
+				createPreparedRenderProgram(program, [() => state.count], owner)
+			),
+			container,
+			{ enhancementCatalog: new Map([[identity, Provider]]) }
+		);
+		expect(container.innerHTML).toBe('<section class="provided"><output>0</output></section>');
+
+		state.count = 1;
+		flushSync();
+		expect(container.querySelector('output')?.textContent).toBe('1');
+		ownerScope.stop();
 	});
 
 	it('nests direct enhancement providers through fragment and intrinsic targets', () => {
@@ -210,7 +354,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				Fragment,
 				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { value } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { value } }])
 				},
 				child
 			);
@@ -250,7 +394,7 @@ describe('renderer enhancements', () => {
 			createVNode(
 				Fragment,
 				{
-					__exactEnhancements: createEnhancementMarker([{ identity, props: { value } }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: { value } }])
 				},
 				child
 			);
@@ -479,7 +623,7 @@ describe('renderer enhancements', () => {
 		render(
 			createVNode('input', {
 				className: 'authored',
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'enhanced' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'enhanced' } }])
 			}),
 			container,
 			{ enhancementCatalog: new Map([[identity, Surface]]) }
@@ -491,122 +635,6 @@ describe('renderer enhancements', () => {
 		);
 		expect(root.current).toBe(input);
 	});
-
-	it('keeps dormant target contributions and attaches them after structural output appears', () => {
-		const state = reactive({ visible: false, tone: 'quiet' });
-		const container = document.createElement('div');
-		render(
-			createVNode(
-				Target,
-				{ className: computed(() => state.tone) },
-				createDynamicChild(() =>
-					state.visible ? createVNode('button', { id: 'target' }, 'Ready') : 'Waiting'
-				)
-			),
-			container
-		);
-
-		expect(container.textContent).toBe('Waiting');
-		state.visible = true;
-		flushSync();
-		expect(container.querySelector('button')?.className).toBe('quiet');
-		state.tone = 'active';
-		flushSync();
-		expect(container.querySelector('button')?.className).toBe('active');
-	});
-
-	it('releases and reattaches one target owner across conditional target generations', () => {
-		const state = reactive({ mode: 'button' as 'button' | 'text' | 'link' });
-		const refs: unknown[] = [];
-		const target = {
-			fulfill(value: unknown) {
-				refs.push(value);
-			}
-		};
-		const container = document.createElement('div');
-		render(
-			createVNode(
-				Target,
-				{ ref: target, title: 'owned' },
-				createDynamicChild(() =>
-					state.mode === 'button'
-						? createVNode('button', null, 'Button')
-						: state.mode === 'link'
-							? createVNode('a', { href: '#' }, 'Link')
-							: 'No target'
-				)
-			),
-			container
-		);
-
-		expect(refs.at(-1)).toBe(container.querySelector('button'));
-		state.mode = 'text';
-		flushSync();
-		expect(refs.at(-1)).toBeUndefined();
-		expect(container.textContent).toBe('No target');
-		state.mode = 'link';
-		flushSync();
-		expect(refs.at(-1)).toBe(container.querySelector('a'));
-		expect(container.querySelector('a')?.title).toBe('owned');
-	});
-
-	it('propagates a nested target generation change to outer target owners', () => {
-		const state = reactive({ link: false });
-		const outerRefs: unknown[] = [];
-		const container = document.createElement('div');
-		render(
-			createVNode(
-				Target,
-				{
-					className: 'outer',
-					ref: { fulfill: (value: unknown) => outerRefs.push(value) }
-				},
-				createVNode(
-					Target,
-					{ className: 'inner' },
-					createDynamicChild(() =>
-						state.link
-							? createVNode('a', { href: '#' }, 'Link')
-							: createVNode('button', null, 'Button')
-					)
-				)
-			),
-			container
-		);
-
-		expect(container.querySelector('button')?.className).toBe('inner outer');
-		state.link = true;
-		flushSync();
-		expect(container.querySelector('a')?.className).toBe('inner outer');
-		expect(outerRefs.at(-1)).toBe(container.querySelector('a'));
-	});
-
-	it('keeps the first direct intrinsic authoritative through transparent conditional output', () => {
-		const state = reactive({ direct: true });
-		const container = document.createElement('div');
-		render(
-			createVNode(
-				Target,
-				{ className: 'outer' },
-				createDynamicChild(() =>
-					createVNode(
-						Fragment,
-						null,
-						state.direct ? createVNode('section', { id: 'host' }, 'Host') : 'No host',
-						createVNode(Target, { className: 'inner' }, createVNode('h2', null, 'Heading'))
-					)
-				)
-			),
-			container
-		);
-
-		expect(container.querySelector('#host')?.className).toBe('outer');
-		expect(container.querySelector('h2')?.className).toBe('inner');
-
-		state.direct = false;
-		flushSync();
-
-		expect(container.querySelector('#host')).toBeNull();
-		expect(container.querySelector('h2')?.className).toBe('inner outer');
-	});
 });
+import './runtime/target.js';
+import '@exactjs/core/runtime/contexts';

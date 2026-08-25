@@ -1,4 +1,4 @@
-import { createEnhancementMarker, createVNode } from '@exactjs/core';
+import { createEnhancementNode, createVNode } from '@exactjs/core';
 import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
 import { adoptStatic, render, unmount, type RenderOptions } from '@exactjs/dom';
 import { registerDomEnhancementIntegration } from '@exactjs/dom/framework/enhancements';
@@ -223,11 +223,11 @@ function enhancementReroute(): ClientScenarioResult {
 	const left = computed(() => rootState.left);
 	const right = computed(() => !rootState.left);
 	const marker = (root: ReturnType<typeof computed<boolean>>) =>
-		createEnhancementMarker([{ identity: enhancementIdentity, props: {}, root }]);
+		createEnhancementNode([{ identity: enhancementIdentity, props: {}, root }]);
 	const tree = createVNode(
 		'section',
 		{
-			__exactEnhancements: createEnhancementMarker([
+			__exactEnhancements: createEnhancementNode([
 				{ identity: enhancementIdentity, props: { preset: 'fade' } }
 			])
 		},

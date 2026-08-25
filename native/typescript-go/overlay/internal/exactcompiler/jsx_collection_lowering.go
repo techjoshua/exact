@@ -41,6 +41,19 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if !plan.keyed {
 		return nil
 	}
+	if lowering.renderProgramListDepth > 0 && lowering.directRenderProgramKeyedMap(node) {
+		if emitted := lowering.lowerRenderProgramKeyedMap(node, plan); emitted != nil {
+			return emitted
+		}
+	}
+	// The authored expression is Array.prototype.map; the component list
+	// capability only becomes visible after this lowering creates this.map.
+	// Record that semantic decision directly so runtime import selection does
+	// not have to rediscover a synthesized node from the original source tree.
+	if lowering.target != TargetServer || !lowering.directServerFrameComponent(node) {
+		lowering.listCapabilityUsed = true
+		lowering.markComponentListCapability(node)
+	}
 	item := lowering.factory.NewIdentifier("__exactItem")
 	var key *ast.Node = item
 	if !plan.primitive {
@@ -62,6 +75,21 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		key,
 	)
+	emittedCollection := lowering.visitor.VisitNode(collection)
+	var provenance *ast.Node
+	if ast.IsIdentifier(collection) {
+		if _, derived := lowering.derivedBindingAtReference(collection); derived {
+			provenance = lowering.derivedCollectionProvenance(collection)
+		}
+	}
+	if provenance == nil {
+		provenance = lowering.factory.NewIdentifier("undefined")
+	}
+	identity := componentMapKeyIdentity(selector)
+	var emittedIdentity *ast.Node = lowering.factory.NewIdentifier("undefined")
+	if identity != "" {
+		emittedIdentity = lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone)
+	}
 	return lowering.factory.NewCallExpression(
 		lowering.factory.NewPropertyAccessExpression(
 			lowering.factory.NewThisExpression(),
@@ -72,11 +100,109 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		nil,
 		nil,
 		lowering.factory.NewNodeList([]*ast.Node{
-			lowering.visitor.VisitNode(collection),
+			emittedCollection,
 			selector,
 			lowering.visitor.VisitNode(render),
+			lowering.factory.NewStringLiteral(
+				exactStableID(lowering.sourceFile.FileName(), "list", lowering.nodeIDs[node]),
+				ast.TokenFlagsNone,
+			),
+			provenance,
+			emittedIdentity,
 		}),
 		ast.NodeFlagsNone,
+	)
+}
+
+// markComponentListCapability records the durable controller selected by one lowered list site.
+// Direct server frames use their request-local fallback operation and intentionally omit this ABI.
+func (lowering *jsxLowering) markComponentListCapability(node *ast.Node) {
+	owner := ""
+	ownerWidth := int(^uint(0) >> 1)
+	for name, component := range lowering.components {
+		if node.Pos() < component.Start || node.End() > component.Start+component.Length ||
+			component.Length >= ownerWidth {
+			continue
+		}
+		owner = name
+		ownerWidth = component.Length
+	}
+	if owner != "" {
+		component := lowering.components[owner]
+		component.Lists = true
+		lowering.components[owner] = component
+	}
+}
+
+func (lowering *jsxLowering) directRenderProgramKeyedMap(node *ast.Node) bool {
+	if lowering.target == TargetDefault || !ast.IsCallExpression(node) {
+		return false
+	}
+	plan, planned := lowering.collectionMaps[nodeSpanKey(node)]
+	if !planned || !plan.keyed || plan.declarative {
+		return false
+	}
+	call := node.AsCallExpression()
+	if call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+		return false
+	}
+	render := call.Arguments.Nodes[0]
+	return ast.IsArrowFunction(render) && len(render.Parameters()) == 1 &&
+		!ast.IsBlock(render.AsArrowFunction().Body) && ast.IsIdentifier(render.Parameters()[0].Name())
+}
+
+// lowerRenderProgramKeyedMap makes compiler-owned structural slots publish keyed item VNodes
+// directly. The generated component therefore owns collection evaluation and identity wiring;
+// the universal component list controller remains available only to non-program fallbacks.
+func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
+	node *ast.Node,
+	plan collectionMapPlan,
+) *ast.Node {
+	call := node.AsCallExpression()
+	render := call.Arguments.Nodes[0]
+	if !ast.IsArrowFunction(render) || ast.IsBlock(render.AsArrowFunction().Body) {
+		return nil
+	}
+	parameter := render.Parameters()[0].Name()
+	if !ast.IsIdentifier(parameter) {
+		return nil
+	}
+	key := parameter
+	if !plan.primitive {
+		key = lowering.factory.NewPropertyAccessExpression(
+			parameter,
+			nil,
+			lowering.factory.NewIdentifier(plan.member),
+			ast.NodeFlagsNone,
+		)
+	}
+	body := lowering.call(lowering.names.keyedElement, []*ast.Node{
+		lowering.visitor.VisitNode(render.AsArrowFunction().Body),
+		key,
+	})
+	arrow := render.AsArrowFunction()
+	emittedRender := lowering.factory.UpdateArrowFunction(
+		arrow,
+		arrow.Modifiers(),
+		arrow.TypeParameters,
+		arrow.Parameters,
+		arrow.Type,
+		arrow.FullSignature,
+		arrow.EqualsGreaterThanToken,
+		body,
+	)
+	expression := call.Expression.AsPropertyAccessExpression()
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewPropertyAccessExpression(
+			lowering.visitor.VisitNode(expression.Expression),
+			expression.QuestionDotToken,
+			expression.Name(),
+			expression.Flags,
+		),
+		call.QuestionDotToken,
+		call.TypeArguments,
+		lowering.factory.NewNodeList([]*ast.Node{emittedRender}),
+		call.Flags,
 	)
 }
 

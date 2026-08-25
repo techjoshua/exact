@@ -1,5 +1,5 @@
 import { unwrap, type StopHandle } from '@exactjs/core';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 
 /**

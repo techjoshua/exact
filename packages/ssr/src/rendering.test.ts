@@ -5,7 +5,7 @@ import {
 	Target as TargetBoundary,
 	TargetOverrides,
 	activateTaskForHost,
-	createEnhancementMarker,
+	createEnhancementNode,
 	createContext,
 	defineTask,
 	markExactEnhancementContexts,
@@ -13,7 +13,7 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it } from 'vitest';
 import { diffBoundaryHtml, renderToString, renderToStringAsync } from './index.js';
 import { createVNode } from './test-support/native-vnode.js';
@@ -39,7 +39,7 @@ describe('@exactjs/ssr rendering', () => {
 	it('renders bundle-local enhancements as ordinary server components', async () => {
 		const identity = '@exactjs/ssr:test-enhancement#default';
 		let tone: unknown;
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child; tone?: string }
 		) {
@@ -49,7 +49,7 @@ describe('@exactjs/ssr rendering', () => {
 		const vnode = createVNode(
 			'button',
 			{
-				__exactEnhancements: createEnhancementMarker([{ identity, props: { tone: 'quiet' } }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'quiet' } }])
 			},
 			'Save'
 		);
@@ -70,7 +70,7 @@ describe('@exactjs/ssr rendering', () => {
 
 	it('composes an enhancement directly around an underscore fragment boundary', () => {
 		const identity = '@exactjs/ssr:fragment-enhancement#default';
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
@@ -79,7 +79,7 @@ describe('@exactjs/ssr rendering', () => {
 		const output = renderToString(
 			createVNode(
 				Fragment,
-				{ __exactEnhancements: createEnhancementMarker([{ identity, props: {} }]) },
+				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'Before',
 				createVNode('strong', null, 'After')
 			),
@@ -90,7 +90,7 @@ describe('@exactjs/ssr rendering', () => {
 	});
 
 	it('forwards ordinary target properties through structural component output', async () => {
-		const Field = markExactComponent(function Field(
+		const Field = createExactFrameworkFixtureArtifact(function Field(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
@@ -199,7 +199,7 @@ describe('@exactjs/ssr rendering', () => {
 	it('leaves unavailable server enhancements inert and warns once per identity', () => {
 		const identity = '@exactjs/ssr:missing#default';
 		const events: Array<{ message: string }> = [];
-		const marker = () => createEnhancementMarker([{ identity, props: { tone: 'quiet' } }]);
+		const marker = () => createEnhancementNode([{ identity, props: { tone: 'quiet' } }]);
 		const output = renderToString(
 			createVNode(
 				'section',
@@ -219,26 +219,29 @@ describe('@exactjs/ssr rendering', () => {
 		const identity = '@exactjs/ssr:context-consumer#default';
 		const Theme = createContext('ssr enhancement theme');
 		const Enhancement = markExactEnhancementContexts(
-			markExactComponent(function Enhancement(this: Component<{}>, props: { children?: Child }) {
+			createExactFrameworkFixtureArtifact(function Enhancement(
+				this: Component<{}>,
+				props: { children?: Child }
+			) {
 				const theme = this.getContext(Theme);
 				return () => createVNode('strong', { 'data-theme': theme }, props.children);
 			}, '@exactjs/ssr:context-consumer'),
 			{ requires: [Theme] }
 		);
-		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+		const Boundary = createExactFrameworkFixtureArtifact(function Boundary(this: Component<{}>) {
 			this.setContext(Theme, 'dark');
 			return () => createVNode('button', null, 'Save');
 		}, '@exactjs/ssr:context-boundary');
 
 		const output = renderToString(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
 		const asyncOutput = await renderToStringAsync(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
@@ -252,38 +255,38 @@ describe('@exactjs/ssr rendering', () => {
 		let boundarySetups = 0;
 		let targetSetups = 0;
 		let enhancementSetups = 0;
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
 			enhancementSetups++;
 			return () => createVNode('aside', { 'data-enhanced': true }, props.children);
 		}, '@exactjs/ssr:routed');
-		const Target = markExactComponent(function Target(this: Component<{}>) {
+		const Target = createExactFrameworkFixtureArtifact(function Target(this: Component<{}>) {
 			targetSetups++;
 			return () =>
 				createVNode(
 					'main',
 					{
-						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 					},
 					'Target'
 				);
 		}, '@exactjs/ssr:routed-target');
-		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+		const Boundary = createExactFrameworkFixtureArtifact(function Boundary(this: Component<{}>) {
 			boundarySetups++;
 			return () => [createVNode('button', null, 'Fallback'), createVNode(Target, null)];
 		}, '@exactjs/ssr:routed-boundary');
 
 		const output = renderToString(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
 		const asyncOutput = await renderToStringAsync(
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			}),
 			{ markers: false, enhancementCatalog: new Map([[identity, Enhancement]]) }
 		);
@@ -300,13 +303,13 @@ describe('@exactjs/ssr rendering', () => {
 	it('reuses keyed list candidates materialized for SSR target routing', async () => {
 		const identity = '@exactjs/ssr:routed-list#default';
 		let renderedItems = 0;
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
 			return () => createVNode('strong', null, props.children);
 		}, '@exactjs/ssr:routed-list');
-		const Boundary = markExactComponent(function Boundary(this: Component<{}>) {
+		const Boundary = createExactFrameworkFixtureArtifact(function Boundary(this: Component<{}>) {
 			return () =>
 				createVNode(Fragment, {
 					list: {
@@ -317,7 +320,7 @@ describe('@exactjs/ssr rendering', () => {
 							return createVNode(
 								'li',
 								{
-									__exactEnhancements: createEnhancementMarker([
+									__exactEnhancements: createEnhancementNode([
 										{ identity, props: {}, root: item === 'target' }
 									])
 								},
@@ -329,7 +332,7 @@ describe('@exactjs/ssr rendering', () => {
 		}, '@exactjs/ssr:routed-list-boundary');
 		const render = () =>
 			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+				__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 			});
 		const options = {
 			markers: false,
@@ -486,7 +489,7 @@ describe('@exactjs/ssr rendering', () => {
 
 	it('routes an enhancement through the Suspense candidate selected by each SSR mode', async () => {
 		const identity = '@exactjs/ssr:suspense-route#default';
-		const Enhancement = markExactComponent(function Enhancement(
+		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
 			this: Component<{}>,
 			props: { children?: Child }
 		) {
@@ -507,7 +510,7 @@ describe('@exactjs/ssr rendering', () => {
 				createVNode(
 					'p',
 					{
-						__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 					},
 					this.state.label
 				);
@@ -519,11 +522,11 @@ describe('@exactjs/ssr rendering', () => {
 					fallback: createVNode(
 						'span',
 						{
-							__exactEnhancements: createEnhancementMarker([{ identity, props: {}, root: true }])
+							__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
 						},
 						'loading'
 					),
-					__exactEnhancements: createEnhancementMarker([{ identity, props: {} }])
+					__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
 				},
 				createVNode(AsyncPanel, {})
 			);

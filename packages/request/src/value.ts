@@ -6,7 +6,10 @@ import {
 	type RequestResponseState
 } from './contracts.js';
 
-/** Publishes normalized request data through the component context hierarchy. */
+/**
+ * Publishes normalized request data through the component context hierarchy.
+ * @exact shared
+ */
 export const RequestContext = createContext<RequestContextValue>('exact.request', {
 	global: true,
 	reactive: false,

@@ -1,12 +1,12 @@
 import { type AnyComponentFunction } from '@exactjs/core';
-import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
+import { composePreparedExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { mergeHydrationRegistration } from '../config.js';
 import type { ClientIslandLoader, ExactActivationDecision, HydrateOptions } from '../types.js';
 
 const pendingLoads = new WeakMap<ClientIslandLoader, Promise<AnyComponentFunction>>();
 const loadedContracts = new WeakMap<
 	AnyComponentFunction,
-	ReturnType<typeof composeExactComponentContracts>
+	ReturnType<typeof composePreparedExactComponentContracts>
 >();
 
 /** Creates a compiler-facing lazy island registry entry without conflating loaders and components. */
@@ -90,7 +90,7 @@ export function loadClientIsland(
 		// each hydration root that activates the shared artifact.
 		let contracts = loadedContracts.get(component);
 		if (!contracts) {
-			contracts = composeExactComponentContracts([component], 'client');
+			contracts = composePreparedExactComponentContracts([component], 'client');
 			loadedContracts.set(component, contracts);
 		}
 		mergeHydrationRegistration(options, {

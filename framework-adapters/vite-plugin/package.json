@@ -11,6 +11,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./build": {
+			"types": "./dist/build.d.ts",
+			"default": "./dist/build.js"
 		}
 	},
 	"main": "./dist/index.js",

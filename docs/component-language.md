@@ -113,6 +113,9 @@ lifecycle storage, task collections, and lifecycle cancellation are
 materialized when the component actually uses them. This does not make
 extracted unbound component methods valid: component methods use their
 instance receiver.
+Compiled artifacts also import ref and keyed-list ownership through focused runtime entries. A
+component graph without `this.ref`, `this.readRef`, `this.refs`, or `this.map` does not retain those
+implementations merely because the shared component interface exposes the methods.
 Reactive ownership follows the same rule: effect-scope methods are shared and
 their child, reaction, cleanup, and pause-waiter collections are created on
 first use. A DOM binding that observes no reactive dependency applies its value
@@ -138,14 +141,18 @@ reactive or continuation wrapper to component code.
 Every component accepted by the native renderer is compiler-branded. The key
 `Symbol.for('@exactjs/component')` stores the component's opaque stable ID; a
 function name or setup/render shape is never sufficient runtime ownership.
-Compilerless framework libraries may call `markExactComponent()` with an
-explicit stable package-qualified identity. React, Preact, and other foreign
-functions remain unbranded and cross their compatibility adapter.
+Published libraries carry precompiled target-local component artifacts, so an
+application can consume them without recompiling their source. React, Preact,
+and other foreign functions remain outside native component ownership and cross
+their explicit compatibility adapter.
 
 The compiler discovers function declarations and function-valued variable
 declarations. An uppercase function that contains JSX is a component by
 convention. A typed `this: Component<...>` receiver or use of the component
-protocol also identifies component ownership.
+protocol also identifies component ownership. Durable component definitions
+belong at module scope so every emitted target and package export receives one
+stable artifact identity. Use a component-body-local PascalCase view arrow for
+a lexical micro-component; a nested durable component declaration is rejected.
 
 ### Return forms
 
@@ -316,6 +323,11 @@ this.state.profile.tags.push('compiler');
 Reads connect the current compiler-owned expression, task, list, or derived
 value to the path it consumes. Writes transition the existing component state machine rather than
 calling the component again to redescribe its interface.
+
+The compiler assigns stable storage slots to known top-level fields, including fields reached
+through a state alias. This is transparent to application code and inspection: nested mutable
+values remain deeply reactive, dynamically indexed fields remain supported, and snapshots,
+DevTools, optimistic rollback, and server resumption continue to observe an ordinary state object.
 
 ### Supported writes
 
@@ -643,9 +655,10 @@ when their bundler or import map supports it.
 
 An enhancement-free client does not include enhancement mounting, routing, reconciliation, or
 adoption code. Framework-generated entries activate the host automatically. A low-level integration
-that constructs enhancement markers and supplies `enhancementCatalog` manually must import from
+that constructs enhancement nodes and supplies `enhancementCatalog` manually must import from
 `@exactjs/dom/enhanced` or `@exactjs/hydrate/enhanced` so the synchronous renderer is prepared
-before it encounters those markers.
+before it encounters those nodes. The compiler-facing constructor is `createEnhancementNode`;
+there is no alternate legacy marker constructor.
 
 Component libraries author the option, while consuming applications decide which providers their
 builds use. Enabling a provider constructs the selected enhancement as a normal component. Omitting
@@ -820,6 +833,11 @@ manual event cast is normally unnecessary. Event handlers are owned by the
 element and are released when it is removed. The server artifact omits
 client-only handlers; the compiler emits the matching client activation
 boundary.
+
+State writes made by a native event handler are published as one reactive update group. If a later
+statement throws, writes already made remain observable, matching ordinary JavaScript event
+semantics. Wrap a region in `batch()` when that region specifically requires synchronous rollback
+on failure.
 
 ### Classes
 
@@ -1130,8 +1148,9 @@ with `allowUnsafeHtml: true`. `dangerouslySetInnerHTML` is not supported.
 `iframe.srcdoc` likewise requires an `unsafeHtml()` value and root opt-in.
 Compiled calls select the DOM unsafe-HTML renderer in the module that uses the
 capability, so an application without such a call omits the range parser and
-binding implementation. Compilerless VNode construction must import
-`@exactjs/dom/unsafe-html` explicitly.
+binding implementation. Framework code that deliberately constructs the
+internal VNode operation at runtime must import `@exactjs/dom/unsafe-html`
+explicitly.
 
 ## Tasks
 
@@ -1431,8 +1450,9 @@ Nested boundaries own independent generations.
 The compiler selects the coordinated Activity/Suspense DOM implementation only
 for modules that author one of these native boundaries. This remains correct for
 lazy chunks and microfrontends because the importing module carries the
-registration. Compilerless VNode construction must import
-`@exactjs/dom/structural-boundaries` explicitly.
+registration. Framework code that deliberately constructs these internal VNode
+operations at runtime must import `@exactjs/dom/structural-boundaries`
+explicitly.
 
 `Activity` retains a mounted subtree while changing its connectivity and work
 policy:
@@ -1554,7 +1574,15 @@ this.onRender(({ duration, dependencies }) => {
 
 Mount and activation handlers receive an `AbortSignal`. Lifecycle return values
 are observed when promise-like; ordinary return values are ignored.
+Canonical mount, activate, and deactivate handlers belong to client activation and are not
+evaluated by the server artifact. `onRender`, `onUnmount`, and `own` retain server semantics where
+SSR rendering or request cleanup can exercise them.
 Task cleanup remains the preferred owner for resources acquired by a task.
+Use `this.own(resource)` for a disposable value created during component setup
+that must live until the durable component instance is unmounted. It returns
+the same value and accepts `dispose()`, `Symbol.dispose`, or
+`Symbol.asyncDispose`; the compiler records component ownership instead of
+forcing the resource into a shorter task lifetime.
 
 `this.log` is the component-scoped logger. It follows the nearest logger
 context and adds component identity to structured log records. Write ordinary

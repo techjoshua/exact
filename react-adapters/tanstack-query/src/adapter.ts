@@ -1,5 +1,4 @@
 import { createContext, type Child, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { createExternalSource, type ExternalSource, type ReactiveValue } from '@exactjs/reactive';
 import {
 	InfiniteQueryObserver,
@@ -47,7 +46,6 @@ export function ExactQueryClientProvider(
 	this.setContext(QueryClientContext, props.client);
 	return () => props.children ?? null;
 }
-markExactComponent(ExactQueryClientProvider, '@exactjs/tanstack-query:ExactQueryClientProvider');
 
 /** Defines the exact query source interface contract. */
 export interface ExactQuerySource<

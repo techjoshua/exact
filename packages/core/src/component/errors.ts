@@ -1,20 +1,18 @@
 import type {
 	AnyComponentInstance,
-	Child,
 	ErrorContextValue,
 	ErrorReport,
 	ErrorReportOptions,
 	ErrorSource,
 	RenderFunction,
-	RenderResult,
 	SuspensionContextValue
 } from './contracts.js';
 
 import { ErrorContext, SuspensionContext } from './contexts.js';
 
-import { batch, reactive, unwrap } from '@exactjs/reactive';
-import { normalizeChildren } from '../vnode.js';
-import { componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
+import { batch, unwrap } from '@exactjs/reactive/framework/runtime';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
+import { componentLogMethod, componentLogScope, isErrorReport, logFrameworkEvent } from './log.js';
 import { createDefaultErrorView } from './error-view.js';
 
 let nextErrorId = 1;
@@ -28,7 +26,7 @@ function createErrorContextWithLimit(
 	errors: ErrorReport[],
 	maxReports?: number
 ): ErrorContextValue {
-	const reactiveErrors = reactive(errors);
+	const reactiveErrors = reactiveObjects(errors);
 
 	return {
 		errors: reactiveErrors,
@@ -108,11 +106,18 @@ export function handleComponentError(
 	if (instance) {
 		instance.errorFallback = fallback;
 		instance.invalidate?.();
-		instance.log.error('root error context handled failure', event.error, {
-			source: event.source,
-			phase: event.phase,
-			component: event.component
-		});
+		componentLogMethod(
+			instance,
+			'error'
+		)?.(() => [
+			'root error context handled failure',
+			event.error,
+			{
+				source: event.source,
+				phase: event.phase,
+				component: event.component
+			}
+		]);
 	} else {
 		logFrameworkEvent('error', 'core', event.source, 'root error context handled failure', {
 			phase: event.phase,
@@ -139,10 +144,5 @@ export function handleComponentSuspension(
 	return false;
 }
 
-/** Normalizes any component render result into a flat child array. */
-export function normalizeRenderResult(result: RenderResult): Child[] {
-	return Array.isArray(result) ? normalizeChildren(result) : normalizeChildren([result]);
-}
-
 /** Provides the canonical default error context value. */
-export const defaultErrorContext = createErrorContextWithLimit([], 100);
+export const defaultErrorContext = /* @__PURE__ */ createErrorContextWithLimit([], 100);

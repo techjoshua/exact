@@ -49,7 +49,7 @@ export type * from './process-activation-contracts.js';
 export type * from './process-state-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.35.0';
+export const nativeCompilerProtocolVersion = '1.36.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -61,7 +61,7 @@ export type NativeCompilerRequest = Readonly<{
 	buildKey?: string;
 	configFile?: string;
 	target?: 'default' | 'client' | 'server';
-	componentContractProjection?: 'complete' | 'hydrate' | 'client';
+	componentContractProjection?: 'complete' | 'hydrate' | 'client' | 'server-render';
 	serverComponents?: boolean;
 	preserveComponentHoisting?: boolean;
 	diagnostics?: 'syntax' | 'semantic';
@@ -403,6 +403,8 @@ export type NativeCompilerResponse = Readonly<{
 	typescriptVersion: string;
 	backendVersion: string;
 	code?: string;
+	/** Bare package specifiers that survive target lowering in the emitted module. */
+	runtimeDependencies?: readonly string[];
 	sourceMap?: NativeCompilerSourceMap;
 	diagnostics: readonly NativeCompilerDiagnostic[];
 	analysis: NativeCompilerAnalysis;

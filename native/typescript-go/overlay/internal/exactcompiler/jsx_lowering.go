@@ -1,61 +1,104 @@
 package exactcompiler
 
 import (
+	"sort"
+
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/checker"
 	"github.com/microsoft/typescript-go/internal/printer"
 )
 
 type jsxLowering struct {
-	sourceFile             *ast.SourceFile
-	factory                *printer.NodeFactory
-	visitor                *ast.NodeVisitor
-	names                  jsxRuntimeNames
-	nodeIDs                map[*ast.Node]string
-	writes                 map[string]StateWrite
-	tasks                  map[string]Task
-	invokedTasks           map[int]Task
-	functionTasks          map[int]Task
-	taskDefinitions        map[ast.SymbolId]Task
-	taskDefinitionNames    map[string]Task
-	operations             map[string]InvokedTaskOperation
-	stateReads             []StateRead
-	bindings               []ReactiveBinding
-	formBindings           map[int]formBinding
-	componentBindings      map[int]componentBinding
-	checker                *checker.Checker
-	taskHelpers            map[string]string
-	derived                map[int]ReactiveBinding
-	elidedDerived          map[int]ReactiveBinding
-	target                 Target
-	contractProjection     ComponentContractProjection
-	serverComponents       bool
-	instrumentInspection   bool
-	components             map[string]Component
-	microComponents        map[ast.SymbolId]struct{}
-	renderEdges            map[string]RenderEdge
-	clientIslands          map[*ast.Node]clientElementIsland
-	clientDefinitions      []*ast.Node
-	captureValues          map[ast.SymbolId]string
-	interop                *JSXInterop
-	materializedNames      map[int]string
-	cachedDerivedNames     map[int]string
-	contextWrites          map[string][]string
-	collectionMaps         map[string]collectionMapPlan
-	enhancementImports     enhancementImports
-	partitionPlan          PartitionPlan
-	dynamicComponents      map[int]dynamicComponentUseKind
-	componentLocalization  bool
-	renderProgramFallback  bool
-	renderProgramContexts  map[int]renderProgramContext
-	declarativeRenderDepth int
-	timeActivation         string
-	timeActivationAdopted  bool
-	timePlanNode           *ast.Node
-	timePlanInputs         []*ast.Node
-	timePlanInputIndexes   map[*ast.Node]int
-	timeAdoptedRanges      []timeAdoptedRange
-	timeAdoptedSelection   *timeAdoptedRange
+	phase                        jsxLoweringPhase
+	sourceFile                   *ast.SourceFile
+	factory                      *printer.NodeFactory
+	visitor                      *ast.NodeVisitor
+	names                        jsxRuntimeNames
+	nodeIDs                      map[*ast.Node]string
+	writes                       map[string]StateWrite
+	tasks                        map[string]Task
+	invokedTasks                 map[int]Task
+	functionTasks                map[int]Task
+	taskDefinitions              map[ast.SymbolId]Task
+	taskDefinitionNames          map[string]Task
+	operations                   map[string]InvokedTaskOperation
+	stateReads                   []StateRead
+	bindings                     []ReactiveBinding
+	formBindings                 map[int]formBinding
+	componentBindings            map[int]componentBinding
+	checker                      *checker.Checker
+	taskHelpers                  map[string]string
+	derived                      map[int]ReactiveBinding
+	elidedDerived                map[int]ReactiveBinding
+	target                       Target
+	contractProjection           ComponentContractProjection
+	serverComponents             bool
+	instrumentInspection         bool
+	components                   map[string]Component
+	microComponents              map[ast.SymbolId]struct{}
+	renderEdges                  map[string]RenderEdge
+	clientIslands                map[*ast.Node]clientElementIsland
+	clientDefinitions            []*ast.Node
+	recordedClientIslands        map[string]struct{}
+	serverTaskSlices             map[string]string
+	captureValues                map[ast.SymbolId]string
+	interop                      *JSXInterop
+	materializedNames            map[int]string
+	cachedDerivedNames           map[int]string
+	contextWrites                map[string][]string
+	continuationComponents       map[string]struct{}
+	collectionMaps               map[string]collectionMapPlan
+	enhancementImports           enhancementImports
+	partitionPlan                PartitionPlan
+	dynamicComponents            map[int]dynamicComponentUseKind
+	componentLocalization        bool
+	externalImports              externalImportBindings
+	closedServerWriters          map[string]struct{}
+	listCapabilityUsed           bool
+	renderProgramChildDepth      int
+	renderProgramListDepth       int
+	renderProgramFallback        bool
+	serverClientFallbackDepth    int
+	renderProgramContexts        map[int]renderProgramContext
+	renderProgramDefinitions     map[int]string
+	renderProgramDefinitionNodes []namedRenderProgramDefinition
+	componentUpdates             map[string]*componentUpdateBuild
+	declarativeRenderDepth       int
+	timeActivation               string
+	timeActivationAdopted        bool
+	timePlanNode                 *ast.Node
+	timePlanInputs               []*ast.Node
+	timePlanInputIndexes         map[*ast.Node]int
+	timeAdoptedRanges            []timeAdoptedRange
+	timeAdoptedSelection         *timeAdoptedRange
+}
+
+type jsxLoweringPhase uint8
+
+const (
+	jsxLoweringPrepared jsxLoweringPhase = iota
+	jsxLoweringVisited
+	jsxLoweringProjected
+	jsxLoweringDefinitionsReady
+	jsxLoweringAssembled
+)
+
+// omitsComponentFromClient distinguishes a complete client-rendering artifact from the
+// same-build hydration projection. A mixed component can require client code solely for finite
+// interactive ranges; hydration retains those ranges but must not rerun server-owned setup.
+func (lowering *jsxLowering) omitsComponentFromClient(component Component) bool {
+	if componentOmittedFromClient(component, lowering.serverComponents) {
+		return true
+	}
+	return lowering.serverComponents &&
+		lowering.contractProjection == ComponentContractProjectionHydrate &&
+		component.ClientIslandCount != 0 &&
+		component.EnvironmentEffect == "server"
+}
+
+type namedRenderProgramDefinition struct {
+	name string
+	node *ast.Node
 }
 
 type timeAdoptedRange struct {
@@ -71,36 +114,87 @@ func lowerExactJSX(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
 	plan jsxLoweringPlan,
-) *ast.SourceFile {
+) (*ast.SourceFile, map[string]string) {
 	lowering, required := plan.prepare(sourceFile, factory)
 	if !required {
-		return sourceFile
+		return sourceFile, nil
 	}
+	transformed := lowering.lowerAuthoredTree(sourceFile)
+	transformed = lowering.projectTargetTree(transformed)
+	transformed, componentUpdateNames, sourceStatementCount := lowering.prepareDefinitions(transformed)
+	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames
+}
+
+func (lowering *jsxLowering) lowerAuthoredTree(sourceFile *ast.SourceFile) *ast.SourceFile {
+	lowering.advancePhase(jsxLoweringPrepared, jsxLoweringVisited)
 	lowering.visitor = ast.NewNodeVisitor(
 		lowering.visit,
-		&factory.NodeFactory,
+		&lowering.factory.NodeFactory,
 		ast.NodeVisitorHooks{},
 	)
-	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
-	transformed = lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
+	return lowering.lowerCompilerClosedSsrCalls(
+		lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile(),
+	)
+}
+
+func (lowering *jsxLowering) projectTargetTree(transformed *ast.SourceFile) *ast.SourceFile {
+	lowering.advancePhase(jsxLoweringVisited, jsxLoweringProjected)
+	if lowering.target == TargetClient &&
+		lowering.contractProjection == ComponentContractProjectionHydrate {
+		components := make([]Component, 0, len(lowering.components))
+		for _, component := range lowering.components {
+			components = append(components, component)
+		}
+		sort.Slice(components, func(left int, right int) bool {
+			return components[left].Start < components[right].Start
+		})
+		for _, component := range components {
+			if component.Placement != "client" && component.ClientIslandCount != 0 {
+				lowering.recordClientIslandDefinitions(component)
+			}
+		}
+	}
+	transformed = lowering.omitUnreachableServerComponentLocals(transformed.AsNode()).AsSourceFile()
+	return lowering.omitFullyMaterializedRenderLocals(transformed.AsNode()).AsSourceFile()
+}
+
+func (lowering *jsxLowering) prepareDefinitions(
+	transformed *ast.SourceFile,
+) (*ast.SourceFile, map[string]string, int) {
+	lowering.advancePhase(jsxLoweringProjected, jsxLoweringDefinitionsReady)
+	for _, definition := range lowering.renderProgramDefinitionNodes {
+		if containsIdentifier(transformed.AsNode(), definition.name) {
+			lowering.clientDefinitions = append(lowering.clientDefinitions, definition.node)
+		}
+	}
+	componentUpdateNames := lowering.emitComponentUpdateDefinitions()
+	sourceStatementCount := len(transformed.Statements.Nodes)
 	if len(lowering.clientDefinitions) != 0 {
 		statements := append(
 			[]*ast.Node(nil),
 			transformed.Statements.Nodes...,
 		)
 		statements = append(statements, lowering.clientDefinitions...)
-		transformed = factory.UpdateSourceFile(
+		transformed = lowering.factory.UpdateSourceFile(
 			transformed,
-			factory.NewNodeList(statements),
+			lowering.factory.NewNodeList(statements),
 			transformed.EndOfFileToken,
 		).AsSourceFile()
 		ast.SetParentInChildren(transformed.AsNode())
 	}
+	return transformed, componentUpdateNames, sourceStatementCount
+}
+
+func (lowering *jsxLowering) assembleModule(
+	transformed *ast.SourceFile,
+	sourceStatementCount int,
+) *ast.SourceFile {
+	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
 	runtimeImports := lowering.runtimeImports(transformed.AsNode())
 	interopImport := lowering.interopImport(transformed.AsNode())
 	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+1)
 	insertion := 0
-	for insertion < len(transformed.Statements.Nodes) &&
+	for insertion < sourceStatementCount &&
 		isDirectiveStatement(transformed.Statements.Nodes[insertion]) {
 		statements = append(statements, transformed.Statements.Nodes[insertion])
 		insertion++
@@ -109,14 +203,34 @@ func lowerExactJSX(
 	if interopImport != nil {
 		statements = append(statements, interopImport)
 	}
-	statements = append(statements, transformed.Statements.Nodes[insertion:]...)
-	result := factory.UpdateSourceFile(
+	definitionInsertion := insertion
+	for definitionInsertion < sourceStatementCount {
+		statement := transformed.Statements.Nodes[definitionInsertion]
+		if !ast.IsImportDeclaration(statement) && !isDirectiveStatement(statement) {
+			break
+		}
+		definitionInsertion++
+	}
+	statements = append(statements, transformed.Statements.Nodes[insertion:definitionInsertion]...)
+	// Generated render and update programs must be initialized before authored module work can
+	// synchronously mount a component. Appending them after a top-level render() call leaves their
+	// const bindings in the temporal dead zone during the component's first render.
+	statements = append(statements, transformed.Statements.Nodes[sourceStatementCount:]...)
+	statements = append(statements, transformed.Statements.Nodes[definitionInsertion:sourceStatementCount]...)
+	result := lowering.factory.UpdateSourceFile(
 		transformed,
-		factory.NewNodeList(statements),
+		lowering.factory.NewNodeList(statements),
 		transformed.EndOfFileToken,
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
 	return result
+}
+
+func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLoweringPhase) {
+	if lowering.phase != expected {
+		panic("invalid JSX lowering phase order")
+	}
+	lowering.phase = next
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
@@ -135,6 +249,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		return compiled
 	}
 	if compiled := lowering.lowerComponentLogCall(node); compiled != nil {
+		return compiled
+	}
+	if compiled := lowering.lowerComponentLifecycleCall(node); compiled != nil {
 		return compiled
 	}
 	if ast.IsCallExpression(node) && isComponentMapCall(node) {
@@ -176,7 +293,10 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			}
 			return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
 		}
-		if _, exists := lowering.functionTasks[node.Pos()]; exists {
+		if task, exists := lowering.functionTasks[node.Pos()]; exists {
+			if lowering.target == TargetServer && task.Placement == "client" {
+				return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
+			}
 			return nil
 		}
 	}
@@ -186,6 +306,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			AsVariableDeclarationList().
 			Declarations.Nodes
 		setupTasks := len(declarations) != 0
+		retainClientPlaceholder := false
 		for _, declarationNode := range declarations {
 			declaration := declarationNode.AsVariableDeclaration()
 			if declaration.Initializer == nil {
@@ -196,13 +317,20 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 				setupTasks = false
 				break
 			}
-			if _, setup := lowering.functionTasks[declaration.Initializer.Pos()]; !setup {
+			task, setup := lowering.functionTasks[declaration.Initializer.Pos()]
+			if !setup {
 				setupTasks = false
 				break
 			}
+			if lowering.target == TargetServer && task.Placement == "client" {
+				retainClientPlaceholder = true
+			}
 		}
 		if setupTasks {
-			return nil
+			if !retainClientPlaceholder {
+				return nil
+			}
+			return lowering.visitor.VisitEachChild(node)
 		}
 		if transformed := lowering.omitElidedDerivedDeclarations(node); transformed != nil {
 			return transformed
@@ -224,7 +352,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		name := node.Name()
 		if name != nil {
 			if component, exists := lowering.components[name.Text()]; exists &&
-				componentOmittedFromClient(component, lowering.serverComponents) {
+				lowering.omitsComponentFromClient(component) {
 				lowering.recordClientIslandDefinitions(component)
 				return lowering.clientComponentFunctionStub(
 					node.AsFunctionDeclaration(),
@@ -264,7 +392,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			if len(modifiers) != 0 {
 				nextModifiers = lowering.factory.NewModifierList(modifiers)
 			}
-			return lowering.factory.UpdateFunctionDeclaration(
+			updated := lowering.factory.UpdateFunctionDeclaration(
 				visited,
 				nextModifiers,
 				visited.AsteriskToken,
@@ -275,6 +403,20 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 				visited.FullSignature,
 				visited.Body,
 			)
+			if lowering.target != TargetServer && node.Parent != nil && ast.IsSourceFile(node.Parent) {
+				return lowering.withCompiledComponentThisParameter(updated.AsFunctionDeclaration())
+			}
+			return updated
+		}
+	}
+	if lowering.target != TargetServer && ast.IsFunctionDeclaration(node) &&
+		node.Parent != nil && ast.IsSourceFile(node.Parent) {
+		name := node.Name()
+		if name != nil {
+			if _, exists := lowering.components[name.Text()]; exists {
+				visited := lowering.visitor.VisitEachChild(node).AsFunctionDeclaration()
+				return lowering.withCompiledComponentThisParameter(visited)
+			}
 		}
 	}
 	if ast.IsVariableDeclaration(node) {
@@ -288,7 +430,16 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 				}
 				return lowering.lowerInvokedTaskValue(declaration, task, nil)
 			}
-			if _, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists {
+			if task, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists {
+				if lowering.target == TargetServer && task.Placement == "client" {
+					return lowering.factory.UpdateVariableDeclaration(
+						declaration,
+						name,
+						declaration.ExclamationToken,
+						declaration.Type,
+						lowering.inertClientTaskCallable(),
+					)
+				}
 				return nil
 			}
 		}
@@ -305,6 +456,16 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 					declaration.Type,
 					lowering.clientComponentValueStub(component),
 				)
+			}
+		}
+		if lowering.target != TargetServer && name != nil && ast.IsIdentifier(name) &&
+			declaration.Initializer != nil && componentVariableIsModuleLevel(node) {
+			if component, exists := lowering.components[name.Text()]; exists &&
+				component.Start == declaration.Initializer.Pos() &&
+				(ast.IsArrowFunction(declaration.Initializer) ||
+					ast.IsFunctionExpression(declaration.Initializer)) {
+				visited := lowering.visitor.VisitEachChild(node).AsVariableDeclaration()
+				return lowering.withCompiledComponentValueThisParameter(visited)
 			}
 		}
 		if transformed := lowering.lowerDerivedDeclaration(node); transformed != nil {
@@ -325,6 +486,19 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		}
 	}
 	if write, exists := lowering.writes[nodeSpanKey(node)]; exists {
+		if lowering.directServerArtifactComponent(node) {
+			if ast.IsBinaryExpression(node) {
+				expression := node.AsBinaryExpression()
+				if expression.OperatorToken.Kind == ast.KindEqualsToken {
+					if taskNode, task, exists := lowering.assignedTask(expression.Right); exists {
+						return lowering.lowerTask(taskNode, task)
+					}
+				}
+			}
+			// Compiler-closed server artifacts own plain request-local state. Preserve the
+			// authored JavaScript operation instead of routing it through reactive writes.
+			return lowering.visitor.VisitEachChild(node)
+		}
 		if transformed := lowering.lowerStateWrite(node, write); transformed != nil {
 			return transformed
 		}
@@ -344,4 +518,106 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	default:
 		return lowering.visitor.VisitEachChild(node)
 	}
+}
+
+func componentVariableIsModuleLevel(declaration *ast.Node) bool {
+	list := declaration.Parent
+	if list == nil || list.Parent == nil || !ast.IsVariableStatement(list.Parent) {
+		return false
+	}
+	return list.Parent.Parent != nil && ast.IsSourceFile(list.Parent.Parent)
+}
+
+func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
+	declaration *ast.VariableDeclaration,
+) *ast.Node {
+	initializer := declaration.Initializer
+	var implementation *ast.Node
+	if ast.IsArrowFunction(initializer) {
+		arrow := initializer.AsArrowFunction()
+		body := arrow.Body
+		if !ast.IsBlock(body) {
+			body = lowering.factory.NewBlock(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.factory.NewReturnStatement(body),
+				}),
+				true,
+			)
+		}
+		implementation = lowering.factory.NewFunctionExpression(
+			arrow.Modifiers(),
+			nil,
+			nil,
+			arrow.TypeParameters,
+			lowering.compiledComponentParameters(arrow.Parameters),
+			arrow.Type,
+			arrow.FullSignature,
+			body,
+		)
+	} else {
+		function := initializer.AsFunctionExpression()
+		implementation = lowering.factory.UpdateFunctionExpression(
+			function,
+			function.Modifiers(),
+			function.AsteriskToken,
+			function.Name(),
+			function.TypeParameters,
+			lowering.compiledComponentParameters(function.Parameters),
+			function.Type,
+			function.FullSignature,
+			function.Body,
+		)
+	}
+	return lowering.factory.UpdateVariableDeclaration(
+		declaration,
+		declaration.Name(),
+		declaration.ExclamationToken,
+		declaration.Type,
+		implementation,
+	)
+}
+
+// withCompiledComponentThisParameter gives generated owner references a concrete type even when a
+// stateless authored component did not need to declare `this`. The parameter is erased from
+// JavaScript and makes the compiler-owned instance requirement explicit in generated TypeScript.
+func (lowering *jsxLowering) withCompiledComponentThisParameter(
+	declaration *ast.FunctionDeclaration,
+) *ast.Node {
+	parameters := lowering.compiledComponentParameters(declaration.Parameters)
+	if parameters == declaration.Parameters {
+		return declaration.AsNode()
+	}
+	return lowering.factory.UpdateFunctionDeclaration(
+		declaration,
+		declaration.Modifiers(),
+		declaration.AsteriskToken,
+		declaration.Name(),
+		declaration.TypeParameters,
+		parameters,
+		declaration.Type,
+		declaration.FullSignature,
+		declaration.Body,
+	)
+}
+
+func (lowering *jsxLowering) compiledComponentParameters(parameters *ast.NodeList) *ast.NodeList {
+	nodes := parameters.Nodes
+	if len(nodes) != 0 {
+		name := nodes[0].Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() == "this" {
+			return parameters
+		}
+	}
+	thisParameter := lowering.factory.NewParameterDeclaration(
+		nil,
+		nil,
+		lowering.factory.NewIdentifier("this"),
+		nil,
+		lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword),
+		nil,
+	)
+	next := make([]*ast.Node, 0, len(nodes)+1)
+	next = append(next, thisParameter)
+	next = append(next, nodes...)
+	return lowering.factory.NewNodeList(next)
 }

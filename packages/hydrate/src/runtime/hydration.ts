@@ -12,13 +12,16 @@ import {
 	synchronizeFormBinding,
 	type DomWorkBudget,
 	type RenderOptions
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import { captureHydrationDom, restoreFormState } from '../adoption/form-state.js';
 import { adoptStaticTree, createStaticAdoptionBudget } from '../adoption/static-tree.js';
-import { resolveHydrateOptions } from '../config.js';
 import { reportMismatch } from '../mismatch.js';
 import type { CoreHydrationRoot, HydrateOptions, HydrateProfileEvent } from '../types.js';
-import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
+import {
+	checkpointComponentResumptions,
+	rollbackComponentResumptions,
+	withComponentResumptionFallback
+} from './resumption.js';
 import { roots } from './state.js';
 import { assertCurrentDocumentContainer } from './current-document.js';
 import { publishExactProfile } from '@exactjs/instrumentation';
@@ -29,10 +32,7 @@ export function hydrateWithClient<T extends CoreHydrationRoot>(
 	container: Element | Document,
 	options: HydrateOptions,
 	createClient: (container: Element, options: HydrateOptions) => T,
-	resolveOptions: (
-		container: Element,
-		options: HydrateOptions
-	) => HydrateOptions = resolveHydrateOptions
+	resolveOptions: (container: Element, options: HydrateOptions) => HydrateOptions
 ): T {
 	const started = options.onProfile ? performance.now() : undefined;
 	try {
@@ -57,10 +57,7 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 	container: Element | Document,
 	options: HydrateOptions,
 	createClient: (container: Element, options: HydrateOptions) => T,
-	resolveOptions: (
-		container: Element,
-		options: HydrateOptions
-	) => HydrateOptions = resolveHydrateOptions
+	resolveOptions: (container: Element, options: HydrateOptions) => HydrateOptions
 ): T {
 	assertCurrentDocumentContainer(container);
 	const documentNode = container.nodeType === 9 ? (container as Document) : undefined;
@@ -204,7 +201,7 @@ function adoptOrMountRoot(
 				: 'missing exact hydration markers',
 			options.allowMarkerless ? 'adoption-mismatch' : 'missing-markers'
 		);
-		mountFreshRoot(vnode, container, options, work);
+		mountFreshRoot(vnode, container, options, work, domain);
 		return 'mounted';
 	}
 	const checkpoint = checkpointComponentResumptions(domain);
@@ -222,7 +219,7 @@ function adoptOrMountRoot(
 	rollbackComponentResumptions(domain, checkpoint);
 	// Clear the SSR range before mounting so a failed adoption cannot leave a
 	// duplicate interactive tree beside stale server markup.
-	mountFreshRoot(vnode, container, options, work);
+	mountFreshRoot(vnode, container, options, work, domain);
 	return 'mounted';
 }
 
@@ -231,10 +228,13 @@ function mountFreshRoot(
 	vnode: VNode,
 	container: Element,
 	options: HydrateOptions,
-	work: DomWorkBudget
+	work: DomWorkBudget,
+	domain: ComponentDomain
 ): void {
 	container.replaceChildren();
-	render(vnode, container, rendererOptions(options, work));
+	withComponentResumptionFallback(domain, () =>
+		render(vnode, container, rendererOptions(options, work))
+	);
 }
 
 /** Creates renderer options against the one shared hydration traversal budget. */

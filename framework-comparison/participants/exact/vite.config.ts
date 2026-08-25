@@ -27,7 +27,7 @@ function rejectUnusedReactCompatibility(): Plugin {
 			if (retained)
 				throw new Error(`Native eXact bundle retained unused React compatibility: ${retained}`);
 			const unusedHydrationCapability = modules.find((id) =>
-				/[\\/]packages[\\/]hydrate[\\/]src[\\/](?:islands(?:[\\/]|\.ts)|patch(?:es|ing)(?:[\\/]|\.ts)|response[\\/]|runtime[\\/](?:client|operations)\.ts)/.test(
+				/[\\/]packages[\\/]hydrate[\\/](?:src|dist)[\\/](?:config\.(?:ts|js)|islands(?:[\\/]|\.(?:ts|js))|patch(?:es|ing)(?:[\\/]|\.(?:ts|js))|response[\\/]|runtime[\\/](?:client|operations)\.(?:ts|js))/.test(
 					id
 				)
 			);
@@ -43,6 +43,33 @@ function rejectUnusedReactCompatibility(): Plugin {
 			if (unusedEnhancementHost)
 				throw new Error(
 					`Enhancement-free eXact bundle retained the optional DOM enhancement host: ${unusedEnhancementHost}`
+				);
+			const unusedRefCapability = modules.find((id) =>
+				/[\\/]packages[\\/]core[\\/](?:src|dist)[\\/]component[\\/]ref-(?:capability-integration|runtime)\.(?:ts|js)$/.test(
+					id
+				)
+			);
+			if (unusedRefCapability)
+				throw new Error(
+					`Ref-free eXact bundle retained the optional component ref capability: ${unusedRefCapability}`
+				);
+			const unusedContextCapability = modules.find((id) =>
+				/[\\/]packages[\\/]core[\\/](?:src|dist)[\\/]component[\\/]context-(?:api|capability-integration|inspection|resumption)\.(?:ts|js)$/.test(
+					id
+				)
+			);
+			if (unusedContextCapability)
+				throw new Error(
+					`Context-free eXact bundle retained the optional component context capability: ${unusedContextCapability}`
+				);
+			const unusedTargetCapability = modules.find((id) =>
+				/[\\/]packages[\\/]dom[\\/](?:src|dist)[\\/](?:target-integration|renderer[\\/](?:target-contributions|target-routing))\.(?:ts|js)$/.test(
+					id
+				)
+			);
+			if (unusedTargetCapability)
+				throw new Error(
+					`Target-free eXact bundle retained the optional DOM capability: ${unusedTargetCapability}`
 				);
 		}
 	};

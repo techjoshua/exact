@@ -397,22 +397,21 @@
 		display: grid;
 		place-items: center;
 	}
+	.map-canvas {
+		position: relative;
+		inline-size: 100%;
+	}
+	.route-map-base {
+		display: block;
+		inline-size: 100%;
+		block-size: auto;
+	}
 	.route-map {
+		position: absolute;
+		inset: 0;
 		inline-size: 100%;
 		block-size: auto;
 		overflow: visible;
-	}
-	.land {
-		fill: var(--surface-soft);
-		stroke: color-mix(in srgb, var(--line) 78%, var(--ink));
-		stroke-width: 1;
-		stroke-linejoin: round;
-		vector-effect: non-scaling-stroke;
-	}
-	.state-ak,
-	.state-hi,
-	.state-pr {
-		fill: color-mix(in srgb, var(--surface-soft) 82%, var(--blue));
 	}
 	.route-arc {
 		fill: none;

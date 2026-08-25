@@ -17,12 +17,16 @@ import type {
 	VNode
 } from '@exactjs/core';
 import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render';
+
+/** Parent and first node of a marker-free final-child range proven by a generated program. */
+export type RenderProgramChildAnchor = readonly [parent: Node, start: Node | null];
 import type { ReadinessCoordinator } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { DomWorkBudget } from './work.js';
 import type { RetainedMountedRanges } from './renderer/retained-range.js';
 import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
+import type { ComponentDomainLogging } from '@exactjs/core/framework/component-domains';
 
 /** Defines the mounted type contract. */
 export type Mounted = {
@@ -41,10 +45,34 @@ export type Mounted = {
 		invocation: ExactRenderProgramInvocation;
 		/** Intrinsic root used for compiler-path ownership when `dom` is an SSR range marker. */
 		readonly programRoot: Node;
-		readonly slotNodes: readonly (Node | undefined)[];
+		readonly slotNodes: readonly (Node | RenderProgramChildAnchor | undefined)[];
+		/** Component structural slots encoded as a number until an unusually high index needs a set. */
+		readonly componentSlots?: number | ReadonlySet<number>;
 		readonly root: Root;
+		/** Durable authored owner used by compiler-generated state update wiring. */
+		readonly bindingOwner?: AnyComponentInstance;
+		/** Semantic parent used for contexts and structural child construction. */
+		readonly parentInstance?: AnyComponentInstance;
 		/** Last effective planned props, grouped by their target element. */
 		props?: Map<Element, Record<string, unknown>>;
+		/** Compact previous values for compiler-written property groups. */
+		compiledProps?: Array<
+			| Readonly<{
+					element: Element;
+					values: Record<string, unknown>;
+			  }>
+			| undefined
+		>;
+		/** Mounted structural ranges keyed by their compiler slot index. */
+		childSlots?: Array<{
+			readonly slot: number;
+			readonly parent: Node;
+			readonly before: Node | null;
+			children: Mounted[];
+			value?: readonly Child[];
+			/** Last scalar VNode for a compiler-proven fixed-cardinality component slot. */
+			componentValue?: VNode;
+		}>;
 		/** Applies replacement readers without recreating the retained slot watcher. */
 		refresh?: () => void;
 	};
@@ -129,6 +157,8 @@ export type Root = {
 	version: number;
 	boundary: ComponentFunction<{}, { version: number }>;
 	logger?: Logger;
+	/** Shared component-logger lane for this framework-owned root. */
+	componentLogging?: ComponentDomainLogging;
 	/** Root-provided contexts inherited by components without a logical parent. */
 	ambientContexts?: ComponentContextValues;
 	debugMarkers: boolean;
@@ -137,6 +167,10 @@ export type Root = {
 	maxTreeNodes: number;
 	traversedNodes: number;
 	workDepth: number;
+	/** Nested depth for the one focus-preservation transaction owned by this root. */
+	focusTransactionDepth: number;
+	/** Focus state captured by the outermost active DOM transaction. */
+	focusSnapshot?: DomFocusSnapshot;
 	/** Interaction-local reconciliation work collected only while an event is active. */
 	interactionWork?: { reconciliations: number; traversedNodes: number };
 	workBudget?: DomWorkBudget;
@@ -175,6 +209,22 @@ export type Root = {
 		readonly activityToken: symbol;
 		finalized: boolean;
 	}>;
+};
+
+/** Focus and selection state retained only for the duration of one root DOM transaction. */
+export type DomFocusSnapshot = {
+	active: HTMLElement;
+	inputSelection?: {
+		start: number | null;
+		end: number | null;
+		direction: HTMLInputElement['selectionDirection'];
+	};
+	documentSelection?: {
+		start: number[];
+		startOffset: number;
+		end: number[];
+		endOffset: number;
+	};
 };
 
 /** Configures render. */

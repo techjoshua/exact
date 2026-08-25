@@ -121,9 +121,18 @@ func continuationWorkByID(
 		}
 		if ast.IsCallExpression(node) {
 			call := node.AsCallExpression()
+			arguments := callArguments(node)
+			if ast.IsIdentifier(call.Expression) && len(arguments) >= 4 &&
+				ast.IsStringLiteral(arguments[2]) &&
+				(ast.IsArrowFunction(arguments[3]) || ast.IsFunctionExpression(arguments[3])) {
+				id := arguments[2].Text()
+				if _, exists := expected[id]; exists {
+					result[id] = arguments[3]
+					return
+				}
+			}
 			if ast.IsIdentifier(call.Expression) &&
-				len(callArguments(node)) == 2 {
-				arguments := callArguments(node)
+				len(arguments) == 2 {
 				if ast.IsStringLiteral(arguments[0]) &&
 					(ast.IsArrowFunction(arguments[1]) ||
 						ast.IsFunctionExpression(arguments[1])) {
@@ -666,6 +675,7 @@ func componentResumptionMetadata(
 		ComponentID: component.ID,
 		Client: ClientResumptionRecord{
 			StatePaths:    []string{},
+			StateInputs:   []StateInput{},
 			ValueCaptures: []string{},
 			Contexts:      []string{},
 			Boundaries:    []string{},
@@ -706,6 +716,11 @@ func componentResumptionMetadata(
 		),
 		contractProperty(
 			factory,
+			"stateInputs",
+			stateInputMetadata(factory, record.Client.StateInputs),
+		),
+		contractProperty(
+			factory,
 			"valueCaptures",
 			stringMetadata(factory, record.Client.ValueCaptures),
 		),
@@ -720,6 +735,21 @@ func componentResumptionMetadata(
 			stringMetadata(factory, record.Client.Boundaries),
 		),
 	)
+}
+
+func stateInputMetadata(factory *printer.NodeFactory, values []StateInput) *ast.Node {
+	entries := make([]*ast.Node, 0, len(values))
+	for _, value := range values {
+		if value.StatePath == "" || value.PropPath == "" {
+			continue
+		}
+		entries = append(entries, contractArray(
+			factory,
+			contractString(factory, value.StatePath),
+			contractString(factory, value.PropPath),
+		))
+	}
+	return contractArray(factory, entries...)
 }
 
 func stringMetadata(

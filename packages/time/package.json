@@ -13,27 +13,35 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./enhancements": {
 			"types": "./capability.d.ts",
-			"default": "./dist/enhancements.js"
+			"browser": "./dist/client/enhancements.js",
+			"default": "./dist/server/enhancements.js"
 		},
 		"./internal": {
 			"types": "./dist/internal.d.ts",
-			"default": "./dist/internal.js"
+			"browser": "./dist/client/internal.js",
+			"default": "./dist/server/internal.js"
 		},
 		"./testing": {
 			"types": "./dist/testing.d.ts",
-			"default": "./dist/testing.js"
+			"browser": "./dist/client/testing.js",
+			"default": "./dist/server/testing.js"
 		},
 		"./language": {
 			"types": "./dist/language.d.ts",
-			"node": "./dist/language.js"
+			"node": "./dist/server/language.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"TimeUpdate",
+		"TimeProvider"
+	],
 	"sideEffects": false,
 	"exact": {
 		"language": {
@@ -65,10 +73,11 @@
 		"@exactjs/component-library": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/language-extension-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc -b && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

@@ -5,7 +5,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { ServerSlot } from '@exactjs/core/runtime/render';
-import { type EffectScope } from '@exactjs/reactive';
+import { type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { childToVNode } from '../../children.js';
 import { placeMountedBefore } from '../../placement.js';
 import { adoptServerSlot } from '../../server-slots.js';
@@ -31,13 +31,24 @@ export function mountDetachedChildren(
 				countDomWork(root);
 				continue;
 			}
-			mounted.push(mount(root, vnode, parentInstance, parentScope, parentNode));
+			mounted.push(mountDetachedChild(root, vnode, parentInstance, parentScope, parentNode));
 		}
 		return mounted;
 	} catch (error) {
 		rollbackMountedChildren(mounted, undefined, error);
 		throw error;
 	}
+}
+
+/** Mounts one compiler-proven child without allocating or validating a sibling collection. */
+export function mountDetachedChild(
+	root: Root,
+	vnode: VNode,
+	parentInstance?: AnyComponentInstance,
+	parentScope?: EffectScope,
+	parentNode?: Node
+): Mounted {
+	return mount(root, vnode, parentInstance, parentScope, parentNode);
 }
 
 /** Performs the portal target domain operation. */

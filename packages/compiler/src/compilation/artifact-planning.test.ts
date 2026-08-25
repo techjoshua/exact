@@ -36,6 +36,12 @@ describe('@exactjs/compiler: artifact planning', () => {
 					clientFile: path.join(outDir, 'components', 'panel.exact.client.ts'),
 					serverFile: path.join(outDir, 'components', 'panel.exact.server.ts'),
 					sharedFile: path.join(outDir, 'components', 'panel.exact.shared.ts')
+				},
+				{
+					inputFile: path.join(src, 'skip.ts'),
+					clientFile: path.join(outDir, 'skip.exact.client.ts'),
+					serverFile: path.join(outDir, 'skip.exact.server.ts'),
+					sharedFile: path.join(outDir, 'skip.exact.shared.ts')
 				}
 			]
 		});

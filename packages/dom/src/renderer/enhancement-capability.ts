@@ -1,5 +1,5 @@
 import type { AnyComponentInstance, VNode } from '@exactjs/core';
-import type { EffectScope } from '@exactjs/reactive';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 
 /** Mount operation supplied by the base renderer without importing enhancement implementation code. */

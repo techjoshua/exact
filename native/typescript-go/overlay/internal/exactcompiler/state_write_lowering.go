@@ -9,18 +9,7 @@ import (
 )
 
 func (lowering *jsxLowering) componentReactive(expression *ast.Node) *ast.Node {
-	return lowering.factory.NewCallExpression(
-		lowering.factory.NewPropertyAccessExpression(
-			lowering.factory.NewThisExpression(),
-			nil,
-			lowering.factory.NewIdentifier("reactive"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		lowering.factory.NewNodeList([]*ast.Node{lowering.arrow(expression)}),
-		ast.NodeFlagsNone,
-	)
+	return lowering.call(lowering.names.derived, []*ast.Node{lowering.arrow(expression)})
 }
 
 func (lowering *jsxLowering) stateValue(path []string) *ast.Node {

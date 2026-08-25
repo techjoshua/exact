@@ -4,9 +4,10 @@ import process from 'node:process';
 const sampleMarker = 'EXACT_FRAMEWORK_SAMPLE=';
 const buildSampleMarker = 'EXACT_FRAMEWORK_BUILD_SAMPLE=';
 
-/** Runs one benchmark worker and returns its validated structured sample. */
-export async function runFrameworkWorker(worker, scenario, fixture, warmups) {
-	const output = await runProcess(process.execPath, ['--expose-gc', worker], {
+/** Runs one benchmark worker under Node or Bun and returns its validated structured sample. */
+export async function runFrameworkWorker(worker, scenario, fixture, warmups, runtime = 'node') {
+	const command = runtime === 'bun' ? 'bun' : process.execPath;
+	const output = await runProcess(command, ['--expose-gc', worker], {
 		...process.env,
 		EXACT_PERFORMANCE_FIXTURE: fixture,
 		EXACT_PERFORMANCE_SCENARIO: scenario,
@@ -83,13 +84,17 @@ export function summarizeScenario(scenario, samples) {
 	};
 }
 
-/** Returns median, p95, minimum, and maximum values for one portable metric. */
+/** Returns the common latency percentiles plus extrema for one portable metric. */
 export function summarizeValues(values) {
 	if (!Array.isArray(values) || values.length === 0) throw new Error('measurement requires values');
 	const sorted = [...values].sort((left, right) => left - right);
+	const p50 = percentile(sorted, 0.5);
 	return {
-		median: percentile(sorted, 0.5),
+		p50,
+		median: p50,
+		p75: percentile(sorted, 0.75),
 		p95: percentile(sorted, 0.95),
+		p99: percentile(sorted, 0.99),
 		min: sorted[0],
 		max: sorted.at(-1)
 	};

@@ -15,24 +15,25 @@ import {
 	ServerBoundary,
 	ServerSlot,
 	getCellVNode,
-	isCellVNode,
-	renderInstance
-} from '@exactjs/core/runtime/render';
-import { unwrap } from '@exactjs/reactive';
+	isCellVNode
+} from '@exactjs/core/framework/render-structure';
+import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText, voidElements } from '../html.js';
 import { exactMarkerId, markerId, renderAttrs, suspenseStatusMarkerId } from '../markup.js';
 import { SsrTreeDepthError, boundedJoin, countSsrNode, isSsrRenderLimitError } from './limits.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
-import {
-	componentMarkerId,
-	renderResumableComponentBoundary,
-	serverSlotOpening,
-	serverSlotVNodeReference
-} from './boundaries.js';
-import { renderClientBoundaryChunks } from './client-boundary-chunks.js';
+import type { DirectSsrComponentSnapshot } from '../types.js';
+import { componentMarkerId } from './component-markers.js';
+import { renderResumableComponentBoundary } from './resumption-boundary-capability.js';
+import { serverSlotOpening, serverSlotVNodeReference } from './server-slots.js';
+import { renderServerBoundaryChunks } from './server-boundary-chunk-capability.js';
 import { componentName, getComponentProps } from './component-vnode.js';
-import { handleSsrConstructionError } from './construction-errors.js';
-import { activateSsrEnhancements } from './enhancements.js';
+import { handleSsrConstructionError } from './construction-error-capability.js';
+import {
+	activateSsrEnhancements,
+	applySsrTargetContributions
+} from './enhancement-execution-capability.js';
 import {
 	claimRootText,
 	enterHost,
@@ -48,43 +49,39 @@ import {
 	resolveSsrFragmentChildren
 } from './logical-children.js';
 import { dynamicMarkerId } from './marker-identity.js';
-import { renderNativeSuspenseSync } from './native-boundaries.js';
-import { renderSsrProgramChunks } from './render-program.js';
-import {
-	createSsrComponentInstance,
-	resolveSsrComponentExecution
-} from './root-execution-cache.js';
+import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
+import { renderPreparedSsrProgramChunks } from './render-program.js';
+import { resolveSsrComponentExecution } from './root-execution-cache.js';
+import { renderDirectSsrComponent } from './direct-component.js';
+import type { DirectSsrComponentContent } from './direct-component.js';
+import { renderGenericSyncSsrComponentChunks } from './generic-component-capability.js';
 import { renderChildren } from './sync-children.js';
 import * as syncComponents from './sync-component.js';
 import { createSsrChunkMarker } from './sync-markers.js';
-import { applySsrTargetContributions } from './target-contributions.js';
 
 /** Streams one synchronous VNode tree while preserving marker and ownership semantics. */
 export function* renderVNodeChunks(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
-	depth: number
+	depth: number,
+	hasComponentAncestor = false,
+	omitCompilerOwnedBoundary = false
 ): Generator<string> {
 	if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
 	countSsrNode(context);
 	const enhanced = activateSsrEnhancements(context, vnode, parent);
 	if (enhanced !== vnode) {
-		yield* renderVNodeChunks(context, enhanced, parent, depth);
+		yield* renderVNodeChunks(context, enhanced, parent, depth, hasComponentAncestor);
 		return;
 	}
 	const marked = createSsrChunkMarker(context);
 
 	if (isCellVNode(vnode)) {
 		const id = markerId(context, 'cell', undefined, vnode.key);
-		yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
-		return;
-	}
-	const programChunks = renderSsrProgramChunks(context, vnode, parent, (fallback) =>
-		renderVNodeChunks(context, fallback, parent, depth + 1)
-	);
-	if (programChunks) {
-		yield* programChunks;
+		yield* marked(id, () =>
+			renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1, hasComponentAncestor)
+		);
 		return;
 	}
 	if (vnode.type === Text) {
@@ -102,19 +99,25 @@ export function* renderVNodeChunks(
 		const id = markerId(context, 'activity', undefined, vnode.key);
 		yield* marked(id, function* () {
 			for (const child of resolveSsrActivityChildren(context, vnode))
-				yield* renderChildChunks(context, child, parent, depth + 1);
+				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		});
 		return;
 	}
 	if (vnode.type === Suspense) {
 		const identity = markerId(context, 'suspense', undefined, vnode.key);
-		const prepared = context.preparedEnhancementSuspense.get(vnode);
+		const prepared = context.preparedEnhancementSuspense?.get(vnode);
 		if (prepared) {
 			const id = suspenseStatusMarkerId(identity, prepared.status);
 			try {
 				yield* marked(id, function* () {
 					for (const child of prepared.children)
-						yield* renderChildChunks(context, child, prepared.parent, depth + 1);
+						yield* renderChildChunks(
+							context,
+							child,
+							prepared.parent,
+							depth + 1,
+							hasComponentAncestor
+						);
 				});
 			} finally {
 				prepared.dispose();
@@ -137,13 +140,13 @@ export function* renderVNodeChunks(
 		yield* marked(id, function* () {
 			if (!fragment.list) {
 				for (const child of fragment.children)
-					yield* renderChildChunks(context, child, parent, depth + 1);
+					yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 				return;
 			}
 			for (const child of fragment.children) {
 				if (!isVNode(child)) continue;
 				yield* marked(markerId(context, 'item', undefined, child.key), () =>
-					renderVNodeChunks(context, child, parent, depth + 1)
+					renderVNodeChunks(context, child, parent, depth + 1, hasComponentAncestor)
 				);
 			}
 		});
@@ -154,7 +157,7 @@ export function* renderVNodeChunks(
 		const id = markerId(context, 'target', undefined, vnode.key);
 		yield* marked(id, function* () {
 			for (const child of vnode.children)
-				yield* renderChildChunks(context, child, parent, depth + 1);
+				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		});
 		return;
 	}
@@ -162,17 +165,17 @@ export function* renderVNodeChunks(
 		const id = dynamicMarkerId(context, vnode);
 		yield* marked(id, function* () {
 			for (const child of resolveSsrDynamicChildren(context, vnode))
-				yield* renderChildChunks(context, child, parent, depth + 1);
+				yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		});
 		return;
 	}
 	if (vnode.type === ServerBoundary) {
-		yield* renderClientBoundaryChunks(
+		yield* renderServerBoundaryChunks(
 			context,
 			vnode,
 			parent,
 			depth,
-			(child, owner, childDepth) => renderChildChunks(context, child, owner, childDepth),
+			(child, owner, childDepth) => renderChildChunks(context, child, owner, childDepth, true),
 			marked
 		);
 		return;
@@ -180,12 +183,21 @@ export function* renderVNodeChunks(
 	if (vnode.type === ServerSlot) {
 		if (!vnode.children.length) return;
 		yield serverSlotOpening(serverSlotVNodeReference(vnode), context);
-		for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1);
+		for (const child of vnode.children)
+			yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 		yield '</span>';
 		return;
 	}
 	if (typeof vnode.type === 'function') {
-		yield* renderComponentChunks(context, vnode, parent, depth, marked);
+		yield* renderComponentChunks(
+			context,
+			vnode,
+			parent,
+			depth,
+			hasComponentAncestor,
+			marked,
+			omitCompilerOwnedBoundary
+		);
 		return;
 	}
 
@@ -204,7 +216,7 @@ export function* renderVNodeChunks(
 				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
 				for (const child of hostVNode.children)
-					yield* renderChildChunks(context, child, parent, depth + 1);
+					yield* renderChildChunks(context, child, parent, depth + 1, hasComponentAncestor);
 			} finally {
 				context.selectValue = previousSelect;
 			}
@@ -220,16 +232,20 @@ function* renderComponentChunks(
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
 	depth: number,
-	marked: ReturnType<typeof createSsrChunkMarker>
+	hasComponentAncestor: boolean,
+	marked: ReturnType<typeof createSsrChunkMarker>,
+	omitCompilerOwnedBoundary: boolean
 ): Generator<string> {
 	const component = vnode.type as AnyEnhancementComponentFunction;
 	const blueprint = resolveSsrComponentExecution(context, component);
 	const componentId = componentMarkerId(context, vnode);
-	const enhancement = context.enhancementVNodes.has(vnode);
+	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
 	let childParent = parent;
 	let children: Child[];
+	let directProgram: DirectSsrComponentContent['program'];
+	let directSnapshot: DirectSsrComponentSnapshot | undefined;
 	let componentProps: Record<string, unknown> = {};
-	const prepared = context.preparedEnhancementComponents.get(vnode);
+	const prepared = context.preparedEnhancementComponents?.get(vnode);
 	if (prepared) {
 		componentProps = prepared.props;
 		childParent = prepared.failed ? parent : (prepared.instance ?? parent);
@@ -237,36 +253,74 @@ function* renderComponentChunks(
 	} else
 		try {
 			componentProps = getComponentProps(vnode);
-			const instance = createSsrComponentInstance(
-				context,
-				component,
-				componentProps,
-				parent,
-				blueprint
-			);
-			context.onComponentCreated?.(instance);
-			childParent = instance;
-			children = renderInstance(instance, () => undefined);
+			const direct = renderDirectSsrComponent(context, blueprint, componentProps);
+			if (direct) {
+				if (direct.content.program) {
+					directProgram = direct.content.program;
+					children = [];
+				} else children = direct.content.children;
+				componentProps = direct.props;
+				directSnapshot = direct.snapshot;
+			} else {
+				const generic = renderGenericSyncSsrComponentChunks({
+					context,
+					vnode,
+					parent,
+					blueprint,
+					rawProps: componentProps
+				});
+				childParent = generic.instance;
+				if (generic.content.program) {
+					directProgram = generic.content.program;
+					children = [];
+				} else children = generic.content.children;
+				componentProps = generic.props;
+			}
 		} catch (error) {
 			if (isSsrRenderLimitError(error)) throw error;
 			const fallback = handleSsrConstructionError(parent, error, componentName(component));
 			children = fallback ? normalizeRenderResult(fallback()) : [];
 		}
 	const rendered = function* () {
-		for (const child of children) yield* renderChildChunks(context, child, childParent, depth + 1);
+		if (directProgram) {
+			yield* renderPreparedSsrProgramChunks(
+				context,
+				directProgram,
+				childParent,
+				(fallback) => renderVNodeChunks(context, fallback, childParent, depth + 1, true),
+				(programChildren) =>
+					(function* () {
+						for (const child of programChildren)
+							yield* renderChildChunks(context, child, childParent, depth + 1, true);
+					})(),
+				(component) => renderVNodeChunks(context, component, childParent, depth + 1, true, true)
+			);
+			return;
+		}
+		for (const child of children)
+			yield* renderChildChunks(context, child, childParent, depth + 1, true);
 	};
-	if (enhancement) yield* rendered();
-	else if (context.documentProbe && context.hostStack.length === 0)
-		yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
-	else if (parent && blueprint.contract?.resumption)
-		yield renderResumableComponentBoundary(
-			context,
-			vnode,
-			componentId,
-			boundedJoin(context, [...rendered()]),
-			componentProps
-		);
-	else yield* marked(componentId, rendered);
+	const checkpoint = directSnapshot ? context.onComponentAttemptCheckpoint?.() : undefined;
+	try {
+		if (directSnapshot) context.onDirectComponentCreated?.(directSnapshot);
+		if (enhancement) yield* rendered();
+		else if (context.documentProbe && context.hostStack.length === 0)
+			yield* syncComponents.renderRootComponentChunks(context, componentId, rendered());
+		else if (hasComponentAncestor && blueprint.contract.continuations.length)
+			yield renderResumableComponentBoundary(
+				context,
+				vnode,
+				componentId,
+				boundedJoin(context, [...rendered()]),
+				componentProps
+			);
+		else if (omitCompilerOwnedBoundary) yield* rendered();
+		else yield* marked(componentId, rendered);
+		if (directSnapshot) context.onDirectComponentRendered?.(directSnapshot);
+	} catch (error) {
+		if (directSnapshot) context.onComponentAttemptRollback?.(checkpoint);
+		throw error;
+	}
 }
 
 /** Streams one child value, including scalar text and absent children. */
@@ -274,9 +328,26 @@ export function* renderChildChunks(
 	context: SsrContext,
 	child: Child,
 	parent: AnyComponentInstance | undefined,
-	depth: number
+	depth: number,
+	hasComponentAncestor = false
 ): Generator<string> {
-	if (isVNode(child)) yield* renderVNodeChunks(context, child, parent, depth);
+	const program = readPreparedServerRenderProgram(child);
+	if (program)
+		yield* renderPreparedSsrProgramChunks(
+			context,
+			program,
+			parent,
+			(fallback) => renderVNodeChunks(context, fallback, parent, depth, hasComponentAncestor),
+			(children) =>
+				(function* () {
+					for (const nested of children)
+						yield* renderChildChunks(context, nested, parent, depth, hasComponentAncestor);
+				})(),
+			(component) =>
+				renderVNodeChunks(context, component, parent, depth, hasComponentAncestor, true)
+		);
+	else if (isVNode(child))
+		yield* renderVNodeChunks(context, child, parent, depth, hasComponentAncestor);
 	else {
 		countSsrNode(context);
 		if (child === null || child === undefined || child === false || child === true) return;

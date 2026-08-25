@@ -412,6 +412,17 @@ func resolveCallableEffects(facts []callableFacts) {
 				contexts = append(contexts, target.Contexts...)
 			}
 			sources = uniqueEnvironmentSources(sources)
+			if fact.summary.ReevaluationSafe {
+				// A checked pure annotation resolves otherwise opaque calls but cannot erase a
+				// concrete browser or server dependency discovered by semantic analysis.
+				known := sources[:0]
+				for _, source := range sources {
+					if source.Environment != "unknown" {
+						known = append(known, source)
+					}
+				}
+				sources = known
+			}
 			reads = minimalStateEffects(reads)
 			writes = uniqueStateEffects(writes)
 			contexts = uniqueContextEffects(contexts)

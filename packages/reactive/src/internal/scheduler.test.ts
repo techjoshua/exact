@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { reactive, watch } from '../observation.js';
+import { watch } from '../observation.js';
+import { reactive } from '../reactive.js';
 import {
 	currentWorkPriority,
 	flushSync,

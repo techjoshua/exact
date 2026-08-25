@@ -1,5 +1,5 @@
 import { createVNode, type ComponentFunction } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactCompatibilityArtifact } from '@exactjs/core/framework/component-contracts';
 import type { ReactNode } from '@exactjs/react-compat';
 import {
 	ReactCacheContext,
@@ -13,6 +13,7 @@ import {
 	renderToString as renderExactToString,
 	renderToStringAsync as renderExactToStringAsync
 } from '@exactjs/ssr';
+import '@exactjs/ssr/runtime/generic-components';
 
 /** Configures server render. */
 export interface ServerRenderOptions {
@@ -47,7 +48,7 @@ const ServerRoot = function ExactReactServerRoot(
 	);
 	return () => toExactNode(props.node);
 } as ComponentFunction<Record<string, never>, ServerRootProps>;
-markExactComponent(ServerRoot, '@exactjs/react-dom-compat:ServerRoot');
+createExactCompatibilityArtifact(ServerRoot, '@exactjs/react-dom-compat:ServerRoot', 'server');
 
 function serverVNode(
 	node: ReactNode,

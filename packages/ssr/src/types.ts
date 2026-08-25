@@ -17,7 +17,10 @@ import type {
 	VNode
 } from '@exactjs/core';
 export type { AnyComponentInstance };
-import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
+import type {
+	ExactCompiledComponentContract,
+	ExactComponentContinuationContract
+} from '@exactjs/core/framework/component-contracts';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type {
@@ -80,6 +83,12 @@ export type RenderToStringOptions = {
 	onComponentAttemptCheckpoint?: () => unknown;
 	/** @internal Discards observations produced by an invalidated sync render attempt. */
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
+	/** @internal Reserves construction order for a compiler-closed request-local frame. */
+	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** @internal Publishes a compiler-closed component without manufacturing a durable instance. */
+	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** @internal Allows framework-owned observers to be replayed after independent sibling work. */
+	allowIndependentComponentObservation?: boolean;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
 	/** Internal request-owned observation boundary; omitted in hardened server output. */
@@ -116,6 +125,8 @@ export type HydrationScriptOptions = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
+	/** Publishes the rendered root component props as the single client bootstrap input. */
+	publishRootProps?: boolean;
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
@@ -309,17 +320,19 @@ export type SsrContext = {
 	reactMarkup: boolean | 18 | 19;
 	nextId: number;
 	logger?: Logger;
+	/** Request-local stabilization and task-drain pass budget. */
+	maxTaskPasses: number;
 	maxTreeDepth: number;
 	traversalDepth: number;
 	maxTreeNodes: number;
 	traversedNodes: number;
 	maxOutputBytes: number;
-	reactResourceHints: string[];
-	reactResourceKeys: Set<string>;
+	reactResourceHints?: string[];
+	reactResourceKeys?: Set<string>;
 	dynamicComponentArtifacts?: RenderToStringOptions['dynamicComponentArtifacts'];
 	maxDynamicComponentPreloads: number;
 	dynamicComponentPreloads: number;
-	resourceLinkHeaders: string[];
+	resourceLinkHeaders?: string[];
 	onEarlyHints?: RenderToStringOptions['onEarlyHints'];
 	selectValue?: unknown;
 	allowUnsafeHtml: boolean;
@@ -331,21 +344,21 @@ export type SsrContext = {
 	documentBodySeen: boolean;
 	hostStack: string[];
 	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
-	unavailableEnhancements: Set<string>;
+	unavailableEnhancements?: Set<string>;
 	/** Generated ordinary component vnodes whose internal SSR boundary is not authored hydration data. */
-	enhancementVNodes: WeakSet<VNode>;
+	enhancementVNodes?: WeakSet<VNode>;
 	/** Authored boundaries whose logical subtree has an SSR enhancement route plan. */
-	plannedEnhancementBoundaries: WeakSet<VNode>;
+	plannedEnhancementBoundaries?: WeakSet<VNode>;
 	/** `_target` boundaries whose logical children have been prepared once. */
-	plannedTargetBoundaries: WeakSet<VNode>;
+	plannedTargetBoundaries?: WeakSet<VNode>;
 	/** `_target` boundaries whose owned layer has been applied to the active target. */
-	appliedTargetBoundaries: WeakSet<VNode>;
+	appliedTargetBoundaries?: WeakSet<VNode>;
 	/** Effective layered props contributed to resolved semantic intrinsic targets. */
-	targetContributions: WeakMap<VNode, Record<string, unknown>>;
+	targetContributions?: WeakMap<VNode, Record<string, unknown>>;
 	/** Resolved intrinsic targets and their merged enhancement declarations. */
-	enhancementTargets: WeakMap<VNode, readonly EnhancementEntry[]>;
+	enhancementTargets?: WeakMap<VNode, readonly EnhancementEntry[]>;
 	/** Component work materialized once while resolving a logical enhancement target. */
-	preparedEnhancementComponents: WeakMap<
+	preparedEnhancementComponents?: WeakMap<
 		VNode,
 		{
 			readonly instance?: AnyComponentInstance;
@@ -355,9 +368,9 @@ export type SsrContext = {
 		}
 	>;
 	/** Dynamic/list children materialized while resolving an enhancement target. */
-	preparedEnhancementChildren: WeakMap<VNode, readonly Child[]>;
+	preparedEnhancementChildren?: WeakMap<VNode, readonly Child[]>;
 	/** Suspense candidate selected while resolving an enhancement route. */
-	preparedEnhancementSuspense: WeakMap<
+	preparedEnhancementSuspense?: WeakMap<
 		VNode,
 		{
 			readonly children: readonly Child[];
@@ -365,6 +378,11 @@ export type SsrContext = {
 			readonly status: 'content' | 'fallback';
 			dispose(): void;
 		}
+	>;
+	/** Request-local scheduled frames started from compiler-proven child reachability. */
+	preparedDirectScheduledComponents?: WeakMap<
+		VNode,
+		import('./render/direct-component.js').PreparedDirectScheduledSsrComponent
 	>;
 	componentContexts?: ComponentContextValues;
 	componentDomain?: ComponentDomain;
@@ -374,15 +392,25 @@ export type SsrContext = {
 	onComponentRendered?: (instance: AnyComponentInstance) => void;
 	onComponentAttemptCheckpoint?: () => unknown;
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
+	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
+	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** Request-local scheduler shared by every eligible sibling group. */
 	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
 	asyncFrame: boolean;
 	/** Response-local compiler-finite boundary table. */
-	hydrationTable: import('./render/hydration-table.js').SsrHydrationTable;
+	hydrationTable?: import('./render/hydration-table.js').SsrHydrationTable;
 	/** Reusable immutable plan cache selected by the rendered root component. */
 	rootExecutionBlueprint?: import('./render/root-execution-cache.js').SsrRootExecutionBlueprint;
 };
+
+/** Request-local state published by a compiler-closed synchronous server component. */
+export type DirectSsrComponentSnapshot = Readonly<{
+	componentId: string;
+	contract: ExactCompiledComponentContract;
+	state: Record<string, unknown>;
+	props: Record<string, unknown>;
+}>;
 
 export type {
 	Child,

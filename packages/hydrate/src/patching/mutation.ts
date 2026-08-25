@@ -4,7 +4,7 @@ import {
 	disposeOwnedSubtree,
 	walkDomSubtree,
 	type DomWorkBudget
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import { isExactItemStart } from './lookup.js';
 
 /** Performs the replace range domain operation. */

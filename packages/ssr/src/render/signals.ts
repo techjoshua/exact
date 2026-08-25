@@ -1,4 +1,4 @@
-import { combineTaskSignal } from '@exactjs/core/runtime/tasks';
+import { combineTaskSignal } from '@exactjs/core/framework/server-task-helpers';
 
 /** Combines request ownership with an optional render-specific cancellation source. */
 export function renderSignal(

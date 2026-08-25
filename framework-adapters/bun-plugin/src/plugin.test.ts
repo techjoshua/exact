@@ -19,6 +19,7 @@ import {
 	type BunLoadArgs,
 	type BunLoadResult
 } from './index.js';
+import { readBunImporterSource } from './microfrontends.js';
 
 type BunResolveHandler = Parameters<NonNullable<BunBuildLike['onResolve']>>[1];
 
@@ -71,6 +72,43 @@ describe('@exactjs/bun-plugin', () => {
 
 		expect(result?.code).not.toContain('resumption:');
 		expect(result?.code).not.toContain('render: "returned-function"');
+	});
+
+	it('projects SSR-only server contracts without continuation executors', () => {
+		const result = transformExactBunSource(
+			`import { TaskContext } from '@exactjs/core';
+			export function Loader() {
+				async function load(_task: TaskContext = TaskContext.server()) { return 1; }
+				load();
+				return () => <output>ready</output>;
+			}`,
+			'/src/Loader.tsx',
+			{ target: 'server', renderMode: 'server-render' }
+		);
+
+		expect(result?.code).toContain('role: "render"');
+		expect(result?.code).toContain('executors: []');
+		expect(result?.code).not.toContain('execute: async');
+	});
+
+	it('keeps routing shells isomorphic while projecting client lifecycle work by target', () => {
+		const source = `import type { Component } from '@exactjs/core';
+		export function RouteShell(this: Component) {
+			this.onMount(() => window.addEventListener('popstate', () => undefined));
+			return () => <main>route</main>;
+		}`;
+		const client = transformExactBunSource(source, '/src/RouteShell.tsx', {
+			target: 'client'
+		});
+		const server = transformExactBunSource(source, '/src/RouteShell.tsx', {
+			target: 'server'
+		});
+
+		expect(client?.code).toContain('window.addEventListener');
+		expect(client?.code).toContain('__exactComponentContract');
+		expect(server?.code).not.toContain('window.addEventListener');
+		expect(server?.code).not.toContain('__exactRegisterLifecycle(this, "mount"');
+		expect(server?.code).toContain('__exactComponentContract');
 	});
 
 	it('links attributed capabilities into the shared application-bundle catalog', () => {
@@ -291,6 +329,18 @@ describe('@exactjs/bun-plugin', () => {
 		]);
 	});
 
+	it('recovers filesystem importer source before Bun has invoked its load hook', () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-bun-importer-'));
+		const importer = path.join(root, 'runtime.js');
+		try {
+			writeFileSync(importer, `import { logFrameworkEvent } from '@exactjs/core';\n`);
+			expect(readBunImporterSource(importer)).toContain('logFrameworkEvent');
+			expect(readBunImporterSource('exact-remote:virtual')).toBeUndefined();
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it('adds filename context to transform errors', () => {
 		expect(() => transformExactBunSource('const view = <span>;', '/src/broken.tsx')).toThrow(
 			/eXact JSX transform failed for \/src\/broken\.tsx/
@@ -355,7 +405,7 @@ describe('@exactjs/bun-plugin', () => {
 				text: async () => 'const view = <span />;'
 			})
 		).resolves.toMatchObject({
-			contents: expect.stringContaining('__exactVNode("span"'),
+			contents: expect.stringContaining('createPreparedServerRenderProgram'),
 			loader: 'tsx'
 		});
 		expect(

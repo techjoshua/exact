@@ -2,7 +2,7 @@ import type { AnyTaskFunction, TaskActivation, TaskContext, TaskOwner } from './
 
 /** Brands internal task frame records without exposing their representation publicly. */
 export const taskFrameTokenBrand = Symbol('exact.task-frame-token');
-/** Brands durable task owners shared by compiler-authored and compilerless tasks. */
+/** Brands durable task owners shared by compiler-authored and explicit runtime tasks. */
 export const taskOwnerBrand = Symbol.for('@exactjs/task-owner');
 /** Releases one resource owned by a task frame, synchronously or asynchronously. */
 export type TaskFrameCleanup = () => void | Promise<void>;

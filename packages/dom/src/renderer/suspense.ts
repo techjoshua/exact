@@ -11,8 +11,10 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
-import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { registerComponentLifecycleHandler } from '@exactjs/core/framework/component-lifecycle';
+import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { placeMountedBefore } from '../placement.js';
 import { mountDetachedChildren } from './mounting/children.js';
@@ -96,7 +98,7 @@ export function prepareSuspense(
 			mounted.vnode.domain ?? parentInstance?.domain
 		)
 	);
-	owner.onUnmount(() => {
+	registerComponentLifecycleHandler(owner, 'unmount', () => {
 		releaseSuspenseTransition(mounted);
 		coordinator.dispose();
 	});
@@ -239,21 +241,26 @@ function releaseSuspenseTransition(mounted: Mounted): void {
 	release();
 }
 
-function ReadinessOwner(
-	this: Component<Record<string, never>>,
-	props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
-) {
-	this.setContext(ReadinessContext, props.context);
-	this.setContext(SuspensionContext, {
-		suspend: (settlement) => {
-			trackComponentAsync(this as unknown as AnyComponentInstance, settlement);
-			props.context.register({
-				owner: this as unknown as AnyComponentInstance,
-				taskGeneration: 0,
-				settlement,
-				retry: true
-			});
-		}
-	});
-	return () => null;
-}
+const ReadinessOwner = createExactInternalOwnerArtifact(
+	function ReadinessOwner(
+		this: Component<Record<string, never>>,
+		props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
+	) {
+		const owner = this as AnyComponentInstance;
+		owner.contexts.set(ReadinessContext.id, props.context);
+		owner.contexts.set(SuspensionContext.id, {
+			suspend: (settlement: PromiseLike<unknown>) => {
+				trackComponentAsync(owner, settlement);
+				props.context.register({
+					owner,
+					taskGeneration: 0,
+					settlement,
+					retry: true
+				});
+			}
+		});
+		return () => null;
+	},
+	'@exactjs/dom:SuspenseReadinessOwner',
+	'client'
+);

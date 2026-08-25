@@ -78,7 +78,8 @@ func (s *Session) Execute(request Request) Response {
 	}
 	if request.ComponentContractProjection != ComponentContractProjectionComplete &&
 		request.ComponentContractProjection != ComponentContractProjectionHydrate &&
-		request.ComponentContractProjection != ComponentContractProjectionClient {
+		request.ComponentContractProjection != ComponentContractProjectionClient &&
+		request.ComponentContractProjection != ComponentContractProjectionServerRender {
 		response.Error = fmt.Sprintf(
 			"unsupported component contract projection %q",
 			request.ComponentContractProjection,
@@ -235,6 +236,7 @@ func (s *Session) Execute(request Request) Response {
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
+	applyNormalizedSetupAssignmentExecutions(stateWrites, setupAssignmentExecutions, normalization)
 	preliminaryEnhancements := collectEnhancementImports(
 		sourceFile,
 		generation.checker,
@@ -380,6 +382,9 @@ func (s *Session) Execute(request Request) Response {
 		components,
 		callables,
 	)
+	if request.JSXInterop != nil {
+		components = applyJSXInteropBoundaries(components)
+	}
 	response.Timings.ProjectLinkMicroseconds = time.Since(
 		projectLinkStarted,
 	).Microseconds()
@@ -416,6 +421,7 @@ func (s *Session) Execute(request Request) Response {
 		tasks,
 		operations,
 		stateReads,
+		stateWrites,
 		policy,
 		boundaries,
 		clientIslands,
@@ -440,6 +446,14 @@ func (s *Session) Execute(request Request) Response {
 	boundaries = append(boundaries, partitionBoundaries...)
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
+	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
+	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop != nil)
+	if request.ServerComponents {
+		// Partition planning needs setup-task flow, but same-build SSR executes that setup
+		// directly and hydrates its published state. Only authored invocation paths retain
+		// transport continuations and executors in the emitted contract.
+		continuations = retainInvokedContinuations(continuations, operations)
+	}
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()
@@ -504,6 +518,7 @@ func (s *Session) Execute(request Request) Response {
 		islandPlacementDiagnostics(
 			sourceFile,
 			generation.checker,
+			callables,
 			components,
 			tasks,
 			stateAliases,
@@ -519,6 +534,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, dynamicComponents.diagnostics...)
+	response.Diagnostics = append(response.Diagnostics, nestedComponentDiagnostics(sourceFile)...)
 	response.Diagnostics = append(response.Diagnostics, partitionPlanDiagnostics(partitionPlan)...)
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, timeDiagnostics(sourceFile, generation.checker, enhancementImports)...)
@@ -582,7 +598,7 @@ func (s *Session) Execute(request Request) Response {
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
 	intlPlan := planIntlOperations(sourceFile, generation.checker)
-	transformed := lowerExactJSX(
+	transformed, componentUpdates := lowerExactJSX(
 		sourceFile,
 		emitContext.Factory,
 		jsxLoweringPlan{
@@ -630,6 +646,7 @@ func (s *Session) Execute(request Request) Response {
 		request.PreserveComponentHoisting,
 		request.JSXInterop != nil,
 		request.ComponentContractProjection,
+		componentUpdates,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,
@@ -672,6 +689,7 @@ func (s *Session) Execute(request Request) Response {
 			return response
 		}
 	}
+	response.RuntimeDependencies = emittedRuntimeDependencies(transformed)
 
 	printStarted := time.Now()
 	emitter := printer.NewPrinter(

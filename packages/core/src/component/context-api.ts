@@ -1,8 +1,10 @@
-import { updateReactive, type Reactive } from '@exactjs/reactive';
+import { updateReactive, type Reactive } from '@exactjs/reactive/framework/runtime';
 
 import type { AnyComponentInstance, ComponentContextValues, ContextToken } from './contracts.js';
 import { defaultContexts } from './plugins.js';
 import { reactiveValue } from './reactive-value.js';
+import { LoggerContext } from './contexts.js';
+import { markComponentDomainLoggerOverride } from './domain.js';
 
 /** Reports whether a component can resolve a context without materializing its value. */
 export function hasComponentContext(
@@ -44,6 +46,7 @@ export function setComponentContext<T>(
 	token: ContextToken<T>,
 	value: T
 ): void {
+	if (token.id === LoggerContext.id) markComponentDomainLoggerOverride(instance.domain);
 	const existing = instance.contexts.get(token.id);
 	if (
 		token.reactive &&

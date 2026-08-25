@@ -30,9 +30,14 @@ import {
 	transferEffectScope,
 	withEffectScope,
 	type EffectScope
-} from '@exactjs/reactive';
+} from '@exactjs/reactive/framework/runtime';
 import { getOwnedCellVNode } from '../../cells.js';
-import { getComponentProps, getListBinding, materializeList } from '../../children.js';
+import {
+	getComponentProps,
+	getListBinding,
+	materializeList,
+	takeMaterializedListScope
+} from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
 import { setElementOwner, setNodeOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
@@ -43,7 +48,7 @@ import { countDomWork, isDomRenderLimitError, withTreeDepth } from '../limits.js
 import { bindText, patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
-import { refreshTargetBoundary } from '../target-contributions.js';
+import { refreshTargetBoundary } from '../target-capability.js';
 import { createElement, createMarker } from '../root-support.js';
 import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { requireStructuralBoundaryCapability } from '../structural-capability.js';
@@ -91,7 +96,7 @@ export function mount(
 			);
 			if (direct) return direct;
 		}
-		const scope = createEffectScope(parentScope);
+		const scope = takeMaterializedListScope(vnode) ?? createEffectScope(parentScope);
 		if (hasEnhancements) root.enhancementNesting = nesting + 1;
 		try {
 			let mounted = mountInner(root, vnode, scope, parentInstance, parentNode);
@@ -233,16 +238,16 @@ export function mountInner(
 		mounted.children = list
 			? mountDetachedChildren(
 					root,
-					materializeList(list),
+					materializeList(list, mounted.scope),
 					parentInstance,
 					mounted.scope,
 					parentNode
 				)
 			: mountDetachedChildren(root, vnode.children, parentInstance, mounted.scope, parentNode);
-		if (list) {
+		if (list && vnode.props.__exactProgramList !== true) {
 			mounted.stop = watch(
 				() => {
-					const nextChildren = materializeList(list);
+					const nextChildren = materializeList(list, mounted.scope);
 					const parent = marker.parentNode;
 					if (!parent) return;
 					mounted.children = patchChildren(
@@ -339,7 +344,12 @@ export function mountInner(
 		return mounted;
 	}
 
-	const element = createElement(vnode.type as string, parentNode, vnode.props);
+	if (typeof vnode.type !== 'string')
+		throw new TypeError(
+			`Unsupported eXact vnode type: ${describeVNodeType(vnode.type)}${typeof vnode.props.name === 'string' ? ` (${vnode.props.name})` : ''}`
+		);
+
+	const element = createElement(vnode.type, parentNode, vnode.props);
 	const mounted: Mounted = { vnode, dom: element, scope, children: [] };
 	if (parentInstance) setElementOwner(element, parentInstance);
 	mounted.children = mountChildren(root, element, vnode.children, parentInstance, mounted.scope);

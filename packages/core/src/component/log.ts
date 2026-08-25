@@ -1,7 +1,8 @@
-import { peek, unwrap } from '@exactjs/reactive';
-import type { AnyComponentInstance, ErrorReport } from './contracts.js';
+import { peek, unwrap } from '@exactjs/reactive/framework/runtime';
+import type { AnyComponent, AnyComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';
+import { componentDomainLogging } from './domain.js';
 
 import {
 	createConsoleLogger,
@@ -15,15 +16,6 @@ import {
 
 /** Provides the canonical default console logger value. */
 export const defaultConsoleLogger = createConsoleLogger();
-
-const noopLogMethod = () => undefined;
-const noopComponentLog: ComponentLog = Object.freeze({
-	trace: noopLogMethod,
-	debug: noopLogMethod,
-	info: noopLogMethod,
-	warn: noopLogMethod,
-	error: noopLogMethod
-});
 
 /** Emits a framework-scoped log event through the supplied or default logger. */
 export function logFrameworkEvent(
@@ -46,11 +38,6 @@ export function logFrameworkEvent(
 		data: data === undefined ? undefined : evaluateLogValue(data),
 		scope
 	});
-}
-
-/** Creates a noop component log. */
-export function createNoopComponentLog(): ComponentLog {
-	return noopComponentLog;
 }
 
 /** Creates a component log. */
@@ -78,11 +65,12 @@ export type ComponentLogMethod = (
  * logger contexts or enabled levels without rebuilding its artifact.
  */
 export function componentLogMethod(
-	instance: AnyComponentInstance,
+	instance: AnyComponent,
 	level: LogLevel
 ): ComponentLogMethod | undefined {
-	const log = instance.log;
-	return log instanceof ComponentLogFacade ? log.method(level) : undefined;
+	// Compiler-generated component bodies receive the authored Component view, while execution
+	// always binds that view to the complete durable instance before this ABI can be called.
+	return prepareComponentLogMethod(instance as AnyComponentInstance, level);
 }
 
 class ComponentLogFacade implements ComponentLog {
@@ -122,17 +110,36 @@ class ComponentLogFacade implements ComponentLog {
 	 * mounted state is refreshed because the facade outlives activation transitions.
 	 */
 	method(level: LogLevel): ComponentLogMethod | undefined {
-		if (this.scope.component) this.scope.component.mounted = this.instance.mounted;
-		const logger = resolveLogger(this.instance);
-		if (!isLogEnabled(logger, level, this.scope)) return undefined;
-		return (readArguments) => {
-			peek(() => {
-				const [message, errorOrData, data] = readArguments();
-				emitPreparedComponentLog(logger, this.scope, level, message, errorOrData, data);
-			});
-		};
+		return prepareComponentLogMethod(this.instance, level, this.scope);
 	}
 }
+
+/** Prepares one shared compiled/runtime logging operation for a specific component instance. */
+function prepareComponentLogMethod(
+	instance: AnyComponentInstance,
+	level: LogLevel,
+	cachedScope?: LogScope
+): ComponentLogMethod | undefined {
+	const logger = resolveLogger(instance);
+	// The built-in logger's enablement is scope-independent. Avoid constructing a component scope
+	// for the overwhelmingly common disabled trace/debug checks on interaction and task hot paths.
+	if (
+		logger === defaultConsoleLogger &&
+		!isLogEnabled(logger, level, defaultComponentEnablementScope)
+	)
+		return undefined;
+	const scope = cachedScope ?? componentLogScope(instance);
+	if (scope.component) scope.component.mounted = instance.mounted;
+	if (logger !== defaultConsoleLogger && !isLogEnabled(logger, level, scope)) return undefined;
+	return (readArguments) => {
+		peek(() => {
+			const [message, errorOrData, data] = readArguments();
+			emitPreparedComponentLog(logger, scope, level, message, errorOrData, data);
+		});
+	};
+}
+
+const defaultComponentEnablementScope: LogScope = Object.freeze({ source: 'component' });
 
 function emitPreparedComponentLog(
 	logger: Logger,
@@ -204,6 +211,8 @@ function reportLoggerFailure(error: unknown): void {
 }
 
 function resolveLogger(instance: AnyComponentInstance): Logger {
+	const shared = componentDomainLogging(instance.domain);
+	if (shared && !shared.componentOverride) return shared.logger ?? defaultConsoleLogger;
 	let cursor: AnyComponentInstance | undefined = instance.parent;
 	while (cursor) {
 		if (cursor.contexts.has(LoggerContext.id)) {

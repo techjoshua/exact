@@ -8,9 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const executable = process.argv[2];
 if (!executable) {
-	throw new Error(
-		'Usage: node scripts/test-native-compiler-process.mjs <exactc-native executable>'
-	);
+	throw new Error('Usage: node scripts/test-native-compiler-process.mjs <exactc executable>');
 }
 
 const compilerModule = await import(

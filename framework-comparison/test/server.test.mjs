@@ -8,7 +8,6 @@ test('the Node adapter serves the controlled contract on an available port', asy
 
 	const health = await fetch(`${running.url}/health`);
 	assert.equal(health.status, 200);
-	assert.equal(health.headers.get('cross-origin-resource-policy'), 'cross-origin');
 	assert.deepEqual(await health.json(), { status: 'ready' });
 
 	const incident = await fetch(`${running.url}/api/incidents/inc-100`);

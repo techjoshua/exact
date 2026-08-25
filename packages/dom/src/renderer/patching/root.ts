@@ -13,9 +13,14 @@ import {
 	type VNode
 } from '@exactjs/core';
 import { isCellVNode, RenderProgram, ServerSlot } from '@exactjs/core/runtime/render';
-import { type EffectScope } from '@exactjs/reactive';
+import { type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { getOwnedCellVNode } from '../../cells.js';
-import { getComponentProps, getListBinding, materializeList } from '../../children.js';
+import {
+	getComponentProps,
+	getListBinding,
+	materializeList,
+	releaseRetiredListScopes
+} from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
 import { mountServerSlot } from '../../server-slots.js';
@@ -34,7 +39,7 @@ import { requireStructuralBoundaryCapability } from '../structural-capability.js
 import { bindText, patchChildren } from './children.js';
 import { releaseMountedRange, takeReversedRelease } from '../retained-release.js';
 import { requireDomEnhancementCapability } from '../enhancement-capability.js';
-import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-contributions.js';
+import { refreshTargetBoundary, updateTargetedIntrinsicProps } from '../target-capability.js';
 import { parkForeignMounts } from './replacement-parking.js';
 import { fallbackRenderProgram, patchRenderProgram } from '../render-program.js';
 import { patchDynamic } from '../dynamic.js';
@@ -262,25 +267,27 @@ export function patchInner(
 				root,
 				parent,
 				mounted.children,
-				nextList ? materializeList(nextList) : next.children,
+				nextList ? materializeList(nextList, mounted.scope) : next.children,
 				parentInstance,
 				mounted.scope,
 				afterMountedChildren(mounted),
 				mounted
 			);
-			if (nextList) {
+			if (nextList) releaseRetiredListScopes(nextList);
+			if (nextList && next.props.__exactProgramList !== true) {
 				mounted.stop = watch(
 					() => {
 						mounted.children = patchChildren(
 							root,
 							mounted.dom.parentNode ?? parent,
 							mounted.children,
-							materializeList(nextList),
+							materializeList(nextList, mounted.scope),
 							parentInstance,
 							mounted.scope,
 							afterMountedChildren(mounted),
 							mounted
 						);
+						releaseRetiredListScopes(nextList);
 					},
 					undefined,
 					{ scope: mounted.scope }

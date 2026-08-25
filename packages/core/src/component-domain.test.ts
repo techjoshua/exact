@@ -7,7 +7,7 @@ import {
 	pageComponentDomain,
 	withComponentDomain
 } from './index.js';
-import { createComponentInstance, renderInstance } from './runtime/render.js';
+import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
 import { componentDomainInspection, createFrameworkComponentDomain } from './component/domain.js';
 
 describe('component domains', () => {
@@ -27,7 +27,13 @@ describe('component domains', () => {
 			const setup = createVNode('span', { phase: 'setup' });
 			return () => [setup, createVNode('span', { count: this.state.count })];
 		}
-		const instance = createComponentInstance(Area, {}, undefined, undefined, remote);
+		const instance = createFrameworkFixtureComponentInstance(
+			Area,
+			{},
+			undefined,
+			undefined,
+			remote
+		);
 		const output = renderInstance(instance, () => undefined);
 		expect(instance.domain).toBe(remote);
 		expect(output.map((child) => (isVNode(child) ? child.domain : undefined))).toEqual([
@@ -38,7 +44,10 @@ describe('component domains', () => {
 	});
 
 	it('defaults ordinary roots to the page domain', () => {
-		const instance = createComponentInstance(() => () => null, {});
+		expect(
+			(globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exactjs/page-component-domain')]
+		).toBe(pageComponentDomain);
+		const instance = createFrameworkFixtureComponentInstance(() => () => null, {});
 		expect(instance.domain).toBe(pageComponentDomain);
 		instance.unmount();
 	});

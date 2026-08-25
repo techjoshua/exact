@@ -4,7 +4,7 @@ import {
 	createDomWorkBudget,
 	namespaceForTag,
 	type DomWorkBudget
-} from '@exactjs/dom';
+} from '@exactjs/dom/root';
 import {
 	applyStaticHydrationAttributes,
 	createStaticHydrationElement,

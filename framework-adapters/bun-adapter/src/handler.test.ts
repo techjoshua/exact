@@ -1,6 +1,6 @@
-import { defineExactOperationContract } from '@exactjs/server';
+import { createExactBufferedResponse, defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
-import { createExactBunHandler } from './index.js';
+import { createExactBunHandler, exactResponseToBunResponse } from './index.js';
 
 describe('@exactjs/bun-adapter', () => {
 	it('handles Bun Fetch-compatible requests', async () => {
@@ -38,6 +38,17 @@ describe('@exactjs/bun-adapter', () => {
 			state: { runtime: 'bun', url: 'https://example.com/__exact', platform: true }
 		});
 	});
+});
+
+it('passes chunked SSR bodies to the Fetch runtime without materializing a Web stream', async () => {
+	const exact = createExactBufferedResponse(200, { 'content-type': 'text/html' }, [
+		'<main>',
+		'Ready',
+		'</main>'
+	]);
+	const response = exactResponseToBunResponse(exact);
+
+	expect(await response.text()).toBe('<main>Ready</main>');
 });
 
 function stateAction(id: string) {

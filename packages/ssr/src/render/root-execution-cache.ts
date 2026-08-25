@@ -1,27 +1,16 @@
 import { type AnyComponentFunction, type VNode } from '@exactjs/core';
 import {
 	exactComponentContract,
-	exactComponentType,
-	readExactComponentContract,
-	type ExactComponentContract
+	exactComponentIdentity,
+	readPreparedExactCompiledComponentContract,
+	type ExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
-import {
-	createPreparedComponentInstance,
-	prepareComponentExecution,
-	type PreparedComponentExecution
-} from '@exactjs/core/framework/component-execution';
-import type {
-	AnyComponentInstance,
-	ComponentFunction,
-	ComponentInstance,
-	SsrContext
-} from '../types.js';
+import type { SsrContext } from '../types.js';
 
 /** Validated component metadata cached beneath one SSR root component. */
 export type SsrComponentExecutionBlueprint = Readonly<{
-	componentId?: string;
-	contract?: ExactComponentContract;
-	execution?: PreparedComponentExecution;
+	componentId: string;
+	contract: ExactCompiledComponentContract;
 }>;
 
 /** Root-scoped cache whose weak expansion entries accommodate dynamic component selection. */
@@ -45,27 +34,6 @@ export function resolveSsrComponentExecution(
 	return context.rootExecutionBlueprint?.resolve(component) ?? prepareComponentBlueprint(component);
 }
 
-/** Constructs a component without repeating contract validation or plan indexing. */
-export function createSsrComponentInstance<
-	State extends object,
-	Props extends Record<string, unknown>
->(
-	context: SsrContext,
-	component: ComponentFunction<State, Props>,
-	props: Props,
-	parent: AnyComponentInstance | undefined,
-	blueprint = resolveSsrComponentExecution(context, component)
-): ComponentInstance<State> {
-	return createPreparedComponentInstance(
-		component,
-		props,
-		blueprint.execution,
-		parent,
-		context.componentContexts,
-		context.componentDomain
-	);
-}
-
 /** Returns the stable cache object owned by one root component function. */
 export function ssrRootExecutionBlueprint(root: AnyComponentFunction): SsrRootExecutionBlueprint {
 	let blueprint = rootBlueprints.get(root);
@@ -74,7 +42,7 @@ export function ssrRootExecutionBlueprint(root: AnyComponentFunction): SsrRootEx
 		blueprint = {
 			resolve(component) {
 				const rawContract = attachedValue(component, exactComponentContract);
-				const componentId = attachedValue(component, exactComponentType);
+				const componentId = exactComponentIdentity(component);
 				const cached = components.get(component);
 				if (cached && cached.rawContract === rawContract && cached.componentId === componentId)
 					return cached.blueprint;
@@ -90,19 +58,18 @@ export function ssrRootExecutionBlueprint(root: AnyComponentFunction): SsrRootEx
 
 type CachedBlueprint = Readonly<{
 	rawContract: unknown;
-	componentId: unknown;
+	componentId: string;
 	blueprint: SsrComponentExecutionBlueprint;
 }>;
 
 function prepareComponentBlueprint(
 	component: AnyComponentFunction
 ): SsrComponentExecutionBlueprint {
-	const contract = readExactComponentContract(component);
-	const componentId = attachedValue(component, exactComponentType);
+	const contract = readPreparedExactCompiledComponentContract(component);
+	const componentId = exactComponentIdentity(component);
 	return Object.freeze({
-		...(typeof componentId === 'string' ? { componentId } : {}),
-		...(contract ? { contract } : {}),
-		...(contract?.execution ? { execution: prepareComponentExecution(contract.execution) } : {})
+		componentId,
+		contract
 	});
 }
 

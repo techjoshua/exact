@@ -3,6 +3,19 @@ import path from 'node:path';
 import { transformSource } from '../compilation/transformation.js';
 
 describe('@exactjs/compiler component value/callback bindings', () => {
+	it('gives module-level arrow components a bindable generated owner', () => {
+		const result = transformSource(
+			`export const Panel = () => () => <button type="button">Ready</button>;`,
+			{
+				filename: path.resolve('src/fixtures/arrow-component.tsx'),
+				generatedValidation: 'semantic'
+			}
+		);
+
+		expect(result.code).toContain('function (this: object)');
+		expect(result.code).toContain('[], this,');
+	});
+
 	it('lowers shorthand through the ordinary reactive value and state-write callback path', () => {
 		const result = transformSource(
 			`
@@ -79,10 +92,10 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		expect(result.code).toContain('open: __exactExpression(() => this.state.open ?? false)');
 		expect(result.code).toContain('__exactBindToggle:');
 		expect(result.code).toContain('event.currentTarget.open');
-		expect(result.code).toContain('onToggle: () => { }');
+		expect(result.code).toContain('"__exactClosedInteraction:onToggle": () => { }');
 	});
 
-	it('lowers modal dialog state through native method ownership without serializing open', () => {
+	it('lowers modal state without serializing an open HTML attribute', () => {
 		const source = `
 				export function Modal(this: Component<{ open: boolean }>) {
 					return () => <dialog modal:isOpen={this.state.open}>Settings</dialog>;
@@ -102,7 +115,8 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		expect(server.code).not.toContain('modal:isOpen');
 		expect(server.code).not.toContain('__exactModalOpen');
 		expect(server.code).not.toContain('@exactjs/dom/runtime/modal');
-		expect(server.code).not.toMatch(/\bopen:/);
+		expect(server.code).toContain('statePaths: [');
+		expect(server.code).toContain('"open"');
 	});
 
 	it('rejects invalid or multiply owned modal dialog bindings', () => {

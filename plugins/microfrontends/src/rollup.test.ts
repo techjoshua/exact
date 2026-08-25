@@ -101,4 +101,25 @@ describe('Rollup remote artifact adapter', () => {
 			)
 		).toThrow('Dynamic imports');
 	});
+
+	it('preserves an empty named import as package evaluation', async () => {
+		const plan = createExactRemoteArtifactPlan(
+			{
+				exposes: { './Area': { component: './Area.js' } },
+				remotes: {},
+				providedPackages: ['@company/runtime']
+			},
+			{ packageName: '@company/app', buildKey }
+		);
+		const adapter = createExactRemoteRollupAdapter({
+			plan,
+			applicationRoot: '/workspace/app',
+			registrationModules: { './Area': 'export const exactHydrationRegistration = {};' }
+		});
+		const importer = '/workspace/app/Area.js?exact-remote-scope=area';
+		adapter.recordModule('import {} from "@company/runtime";', importer);
+
+		const bridge = (await adapter.resolveId('@company/runtime', importer))! as string;
+		expect(adapter.load(bridge)).toContain('require("@company/runtime")');
+	});
 });

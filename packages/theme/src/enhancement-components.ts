@@ -1,6 +1,5 @@
-import { markExactEnhancementContexts, type Child, type Component } from '@exactjs/core';
+import { peek, type Child, type Component } from '@exactjs/core';
 import { createCompiledTarget } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type { ThemeSurfaceBundle, ThemeTone } from './contracts.js';
 import { ThemeSurfaceContext, type ThemeSurfaceEnvironment } from './components.js';
 
@@ -51,28 +50,32 @@ export function ThemeSurfaceEnhancement(this: Component<{}>, props: ThemeSurface
 	const parent = this.hasContext(ThemeSurfaceContext)
 		? this.getContext(ThemeSurfaceContext)
 		: undefined;
-	const environment: ThemeSurfaceEnvironment = Object.freeze({
-		get bundle() {
-			return surfaceBundle(parent?.bundle ?? 0, props.surface);
-		}
-	});
+	const environment: ThemeSurfaceEnvironment = peek(() =>
+		Object.freeze({
+			get bundle() {
+				return surfaceBundle(parent?.bundle ?? 0, props.surface);
+			}
+		})
+	);
 	this.setContext(ThemeSurfaceContext, environment);
-	return () => {
-		const bundle = environment.bundle,
-			variant = props.surface === true || props.surface === undefined ? 'auto' : props.surface;
-		return createCompiledTarget(
-			{
-				className: 'exact-theme-surface',
-				'data-exact-theme-role': 'surface',
-				'data-exact-theme-variant': variant,
-				'data-exact-theme-surface': String(bundle),
-				...(props.interactive || props.dragging ? { 'data-exact-theme-interactive': 'true' } : {}),
-				...(props.dragging ? { 'data-exact-theme-dragging': 'true' } : {}),
-				style: surfaceAliases(bundle, variant === 'transparent')
-			},
-			props.children
-		);
-	};
+	return () => renderThemeSurface(props, environment.bundle);
+}
+
+/** @exact pure */
+function renderThemeSurface(props: ThemeSurfaceEnhancementProps, bundle: ThemeSurfaceBundle) {
+	const variant = props.surface === true || props.surface === undefined ? 'auto' : props.surface;
+	return createCompiledTarget(
+		{
+			className: 'exact-theme-surface',
+			'data-exact-theme-role': 'surface',
+			'data-exact-theme-variant': variant,
+			'data-exact-theme-surface': String(bundle),
+			...(props.interactive || props.dragging ? { 'data-exact-theme-interactive': 'true' } : {}),
+			...(props.dragging ? { 'data-exact-theme-dragging': 'true' } : {}),
+			style: surfaceAliases(bundle, variant === 'transparent')
+		},
+		props.children
+	);
 }
 
 /** Styles an existing action target without replacing its behavior. */
@@ -175,15 +178,3 @@ function surfaceAliases(bundle: ThemeSurfaceBundle, transparent: boolean): strin
 		`--exact-theme-surface-shadow:${transparent ? 'none' : `${prefix}shadow)`}`
 	].join(';');
 }
-
-markExactComponent(ThemeSurfaceEnhancement, '@exactjs/theme:Surface');
-markExactComponent(ThemeActionEnhancement, '@exactjs/theme:Action');
-markExactComponent(ThemeFieldEnhancement, '@exactjs/theme:Field');
-markExactComponent(ThemeTextEnhancement, '@exactjs/theme:Text');
-markExactComponent(ThemeStatusEnhancement, '@exactjs/theme:Status');
-markExactComponent(ThemeSeparatorEnhancement, '@exactjs/theme:Separator');
-markExactComponent(ThemeSelectionEnhancement, '@exactjs/theme:Selection');
-markExactEnhancementContexts(ThemeSurfaceEnhancement, {
-	provides: [ThemeSurfaceContext],
-	optionallyConsumes: [ThemeSurfaceContext]
-});

@@ -22,8 +22,8 @@ test('calculates, updates the map, and stays within the viewport', async ({ page
 	const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
 	expect(scrollWidth).toBeLessThanOrEqual(viewportWidth);
 
-	await expect.poll(() => exactResponses).toContain(200);
-	exactResponses.length = 0;
+	await page.waitForTimeout(600);
+	expect(exactResponses).toEqual([]);
 	await page.getByLabel('To ZIP').fill('94105');
 	await expect
 		.poll(() => ({ exactResponses, pageErrors, consoleErrors }))

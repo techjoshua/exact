@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "npm run build:exact && npm run build:react && npm run build:sveltekit && npm run build:nuxt",
-		"build:exact": "vite build --config participants/exact/vite.config.ts && vite build --config participants/exact/vite.server.config.ts",
+		"build:exact": "node src/build-exact.mjs",
 		"build:react": "vite build --config participants/react/vite.config.ts && vite build --config participants/react/vite.server.config.ts",
 		"build:sveltekit": "cd participants/sveltekit && vite build",
 		"build:nuxt": "nuxt build --cwd participants/nuxt",
@@ -22,6 +22,8 @@
 		"measure:development": "npm run test:e2e && node src/measure.mjs --correctness-passed --allow-unreviewed",
 		"measure:startup-cpu": "npm run test:e2e && node src/measure-startup-cpu.mjs --correctness-passed",
 		"measure:startup-cpu:development": "npm run test:e2e && node src/measure-startup-cpu.mjs --correctness-passed --allow-unreviewed",
+		"measure:ssr": "npm run test:e2e && node src/measure-ssr.mjs --correctness-passed",
+		"measure:ssr:development": "npm run test:e2e && node src/measure-ssr.mjs --correctness-passed --allow-unreviewed",
 		"measure:native": "npm run test:native && node src/measure-native.mjs --correctness-passed",
 		"measure:native:development": "npm run test:native && node src/measure-native.mjs --correctness-passed --allow-unreviewed",
 		"start:service": "node src/server.mjs",
@@ -31,6 +33,7 @@
 		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck"
 	},
 	"dependencies": {
+		"@exactjs/bun-adapter": "^0.1.0",
 		"@exactjs/compiler": "^0.1.0",
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",

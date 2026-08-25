@@ -1,4 +1,9 @@
-import { peek, reactive, rollbackReactiveMutationJournals, scheduleWork } from '@exactjs/reactive';
+import {
+	peek,
+	rollbackReactiveMutationJournals,
+	scheduleWork
+} from '@exactjs/reactive/framework/runtime';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 
 import { TaskCancellation } from './cancellation.js';
 import { inheritComponentContinuationIdentity } from './component-continuation.js';
@@ -19,6 +24,7 @@ import {
 	attachTaskFrameSettlement,
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
+	materializeDeferredTaskFrame,
 	currentTaskOwnerRecord,
 	frameForTaskContext,
 	taskOwnerRecord,
@@ -40,7 +46,7 @@ import type {
 const defaultLaneKey = Symbol('exact.default-task-lane');
 
 /**
- * Defines one stable compilerless task using the same owner, lane, generation,
+ * Defines one stable runtime task using the same owner, lane, generation,
  * frame, cancellation, cleanup, and status runtime used by compiled tasks.
  */
 export function defineTask<Args extends unknown[], Result>(
@@ -157,7 +163,9 @@ function invokeDefinition<Args extends unknown[], Result>(
 	// Dependency-driven activations are durable-owner roots. A dependency can publish while an
 	// earlier generation's continuation is temporarily restored; inheriting that ambient frame
 	// would make the replacement generation a child of the generation it is about to supersede.
-	const ambient = dependencyDriven ? explicitParent : (explicitParent ?? currentTaskFrameRecord());
+	const ambient = dependencyDriven
+		? explicitParent
+		: (explicitParent ?? currentTaskFrameRecord() ?? materializeDeferredTaskFrame());
 	const owner =
 		explicitOwner ??
 		ambient?.owner ??
@@ -347,14 +355,18 @@ function ownerState<Args extends unknown[], Result>(
 ): InternalTaskOwnerState<Result> {
 	let state = definition.owners.get(owner);
 	if (!state) {
-		state = reactive<InternalTaskOwnerState<Result>>({
-			nextGeneration: 0,
-			generation: 0,
-			pendingCount: 0,
-			result: undefined,
-			error: undefined,
-			lanes: new Map()
-		});
+		state = reactiveObjects<InternalTaskOwnerState<Result>>(
+			{
+				nextGeneration: 0,
+				generation: 0,
+				pendingCount: 0,
+				result: undefined,
+				error: undefined,
+				lanes: new Map(),
+				lanesVersion: 0
+			},
+			{ passthroughKeys: ['lanes'] }
+		);
 		definition.owners.set(owner, state);
 	}
 	return state;
@@ -366,16 +378,20 @@ function taskLane<Result>(
 ): InternalTaskLane<Result> {
 	let lane = state.lanes.get(key);
 	if (!lane) {
-		lane = {
-			key,
-			active: new Set(),
-			queue: [],
-			pendingCount: 0,
-			generation: 0,
-			result: undefined,
-			error: undefined
-		};
+		lane = reactiveObjects<InternalTaskLane<Result>>(
+			{
+				key,
+				active: new Set<InternalTaskGeneration<Result>>(),
+				queue: [] as InternalTaskGeneration<Result>[],
+				pendingCount: 0,
+				generation: 0,
+				result: undefined,
+				error: undefined
+			},
+			{ passthroughKeys: ['active', 'queue'] }
+		);
 		state.lanes.set(key, lane);
+		state.lanesVersion++;
 	}
 	return lane;
 }
@@ -409,4 +425,3 @@ function resolveBoundOwner(owner?: TaskOwner): TaskOwnerRecord {
 		throw new Error('Binding task status requires an explicit owner outside a durable task host');
 	return ownerRecord;
 }
-import '../component/task-capability-integration.js';

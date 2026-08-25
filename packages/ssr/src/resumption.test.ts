@@ -17,12 +17,90 @@ import {
 	renderToHydratableString,
 	renderToHydratableStringAsync
 } from './index.js';
-import { renderResumableComponentBoundary } from './render/boundaries.js';
+import { renderResumableComponentBoundary } from './render/resumption-boundaries.js';
 import { createSsrContext } from './render/context.js';
 import { readRemainingStreamEvents } from './test-support/streams.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr component resumption', () => {
+	it('captures direct-frame state in parent-before-child construction order', () => {
+		const DirectChild = directResumableFixture(
+			'DirectChild',
+			['value'],
+			function DirectChild(this: { state: Record<string, unknown> }, props: { value: number }) {
+				this.state.value = props.value + 1;
+				return () => createVNode('output', null, String(this.state.value));
+			}
+		);
+		const DirectCounter = directResumableFixture(
+			'DirectCounter',
+			['count'],
+			function DirectCounter(this: { state: Record<string, unknown> }, props: { count: number }) {
+				this.state.count = props.count;
+				this.state.serverOnly = 'private';
+				return () =>
+					createVNode(
+						'section',
+						null,
+						createVNode(DirectChild, { value: this.state.count as number })
+					);
+			}
+		);
+
+		const rendered = renderToHydratableString(
+			createVNode(DirectCounter, { count: computed(() => 4) })
+		);
+
+		expect(rendered.html).toContain('<output>5</output>');
+		expect(rendered.resumptions).toEqual([
+			{
+				componentId: 'component:DirectCounter',
+				values: { count: 4 },
+				contexts: {},
+				settledContinuations: []
+			},
+			{
+				componentId: 'component:DirectChild',
+				values: { value: 5 },
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+		expect(rendered.hydrationScript).not.toContain('serverOnly');
+		expect(rendered.hydrationScript).not.toContain('private');
+	});
+
+	it('publishes root props once when compiled setup reconstructs the same state', () => {
+		const PublishedCounter = directResumableFixture(
+			'PublishedCounter',
+			['count'],
+			function PublishedCounter(
+				this: { state: Record<string, unknown> },
+				props: { count: number }
+			) {
+				this.state.count = props.count;
+				return () => createVNode('output', null, String(this.state.count));
+			},
+			'synchronous',
+			[['count', 'count']]
+		);
+
+		const rendered = renderToHydratableString(createVNode(PublishedCounter, { count: 4 }), {
+			publishRootProps: true
+		});
+
+		expect(rendered.state).toEqual({ count: 4 });
+		expect(rendered.resumptions).toEqual([
+			{
+				componentId: 'component:PublishedCounter',
+				values: {},
+				contexts: {},
+				settledContinuations: []
+			}
+		]);
+		expect(rendered.hydrationScript.match(/"count"/g)).toHaveLength(1);
+	});
+
 	it('discards resumptions from invalidated synchronous render attempts', () => {
 		const childImplementation = function Snapshot(
 			this: Component<{ value: number }>,
@@ -45,6 +123,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:Snapshot',
 					statePaths: ['value'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -61,7 +140,6 @@ describe('@exactjs/ssr component resumption', () => {
 					}
 				});
 		}
-
 		const rendered = renderToHydratableString(createVNode(Root, {}));
 
 		expect(rendered.html).toContain('<output>1</output>');
@@ -120,6 +198,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:Counter',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -146,6 +225,72 @@ describe('@exactjs/ssr component resumption', () => {
 		expect(rendered.hydrationScript).toContain('"resumptions"');
 		expect(rendered.hydrationScript).not.toContain('serverOnly');
 		expect(rendered.hydrationScript).not.toContain('private');
+	});
+
+	it('publishes resumable children beneath direct server component frames', async () => {
+		const implementation = function InteractiveChild(this: Component<{ count: number }>) {
+			this.state.count = 1;
+			return () => createVNode('button', null, String(this.state.count));
+		};
+		const InteractiveChild = Object.assign(implementation, {
+			[exactComponentType]: 'component:InteractiveChild',
+			[exactComponentContract]: {
+				version: 2 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [
+					{
+						id: 'implementation:InteractiveChild',
+						name: 'InteractiveChild',
+						role: 'root' as const,
+						implementation
+					}
+				],
+				continuations: [
+					{
+						id: 'task:interactive-child',
+						componentId: 'component:InteractiveChild',
+						kind: 'task' as const,
+						readiness: 'nonblocking' as const,
+						dependencies: [],
+						stateReads: [],
+						stateWrites: [],
+						publicContexts: [],
+						serverContexts: [],
+						contextWrites: [],
+						serverContextWrites: [],
+						boundaries: []
+					}
+				],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:InteractiveChild',
+					statePaths: ['count'],
+					stateInputs: [],
+					valueCaptures: [],
+					contexts: [],
+					boundaries: []
+				}
+			}
+		});
+		const directRoot = (classification: 'synchronous' | 'scheduled') =>
+			directResumableFixture(
+				`Direct${classification}`,
+				[],
+				function DirectRoot() {
+					return () => createVNode('main', null, createVNode(InteractiveChild, {}));
+				},
+				classification
+			);
+
+		const synchronous = renderToHydratableString(createVNode(directRoot('synchronous'), {}));
+		const scheduled = await renderToHydratableStringAsync(createVNode(directRoot('scheduled'), {}));
+
+		for (const rendered of [synchronous, scheduled]) {
+			expect(rendered.html).toContain('data-exact-client-name="InteractiveChild"');
+			expect(rendered.html).toContain('data-exact-client-resumption="true"');
+		}
 	});
 
 	it('does not promote state-only resumptions into islands or evaluate ignored reactive children', async () => {
@@ -181,6 +326,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:StateOnly',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -244,6 +390,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:ContinuationOwner',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -320,6 +467,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:StreamedCounter',
 					statePaths: ['count'],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: [],
 					boundaries: []
@@ -336,7 +484,7 @@ describe('@exactjs/ssr component resumption', () => {
 			expect.objectContaining({ event: 'replace', html: expect.stringContaining('>9</output>') })
 		);
 		expect(hydration.html).toContain(
-			'"resumptions":[{"componentId":"component:StreamedCounter","values":{"count":9},"settledContinuations":["task:stream"]}]'
+			'"resumptions":[["component:StreamedCounter",[[0,9]],[],["task:stream"]]]'
 		);
 	});
 
@@ -385,6 +533,7 @@ describe('@exactjs/ssr component resumption', () => {
 				resumption: {
 					componentId: 'component:Provider',
 					statePaths: [],
+					stateInputs: [],
 					valueCaptures: [],
 					contexts: ['Status'],
 					boundaries: []
@@ -405,3 +554,58 @@ describe('@exactjs/ssr component resumption', () => {
 		]);
 	});
 });
+
+/** Attaches the smallest prepared contract used by direct-frame resumption fixtures. */
+function directResumableFixture<Props extends Record<string, unknown>>(
+	name: string,
+	statePaths: readonly string[],
+	implementation: (
+		this: { state: Record<string, unknown> },
+		props: Props
+	) => () => ReturnType<typeof createVNode>,
+	classification: 'synchronous' | 'scheduled' = 'synchronous',
+	stateInputs: readonly (readonly [string, string])[] = []
+) {
+	const componentId = `component:${name}`;
+	return Object.assign(implementation, {
+		[exactComponentType]: componentId,
+		[exactComponentContract]: {
+			version: 2 as const,
+			placement: 'isomorphic' as const,
+			role: 'client' as const,
+			implementations: [
+				{
+					id: `implementation:${name}`,
+					name,
+					role: 'root' as const,
+					implementation
+				}
+			],
+			continuations: [],
+			executors: [],
+			boundaries: [],
+			definition: {
+				version: 1 as const,
+				instantiate: implementation,
+				abi: 1,
+				capabilities: ['resumption'] as const,
+				state: statePaths,
+				server: {
+					version: 1 as const,
+					classification,
+					lane: 'direct' as const,
+					deferredTaskProps: [],
+					render: implementation
+				}
+			},
+			resumption: {
+				componentId,
+				statePaths,
+				stateInputs,
+				valueCaptures: [],
+				contexts: [],
+				boundaries: []
+			}
+		}
+	});
+}

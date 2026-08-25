@@ -84,6 +84,12 @@ export function AdvancedPage(this: Component<{}>) {
 					Eligible controls can load their client code on first interaction. The compiler explains
 					why a component must hydrate eagerly when it cannot be deferred safely.
 				</p>
+				<p>
+					For request data passed into the root component, <code>publishRootProps</code> and
+					<code>readPublishedRootProps</code> provide one bootstrap copy for both client
+					construction and hydration. State derived directly from those inputs is not serialized a
+					second time.
+				</p>
 			</section>
 
 			<Callout title="Prepare production controls" tone="warning">

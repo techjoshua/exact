@@ -67,8 +67,8 @@ jobs:
           done
 
           cp \
-            .tmp/native-packages/compiler-native-linux-x64/exactc-native \
-            .tmp/native-artifact/exactc-native
+            .tmp/native-packages/compiler-native-linux-x64/exactc \
+            .tmp/native-artifact/exactc
       - uses: actions/upload-artifact@v4
         with:
           name: native-compiler
@@ -89,13 +89,13 @@ jobs:
         with:
           name: native-compiler
           path: .tmp/native-artifact
-      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: chmod +x .tmp/native-artifact/exactc
       - run: npm ci
       - run: npm run build:prerequisites
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
     env:
-      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+      EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
 
   acceptance:
     name: Compiler browser acceptance
@@ -111,14 +111,14 @@ jobs:
         with:
           name: native-compiler
           path: .tmp/native-artifact
-      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: chmod +x .tmp/native-artifact/exactc
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run build:prerequisites
       - run: npm run build:workspaces
       - run: npm run check:compiler-acceptance:built
     env:
-      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+      EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
 
   bun:
     name: Bun integration
@@ -137,12 +137,12 @@ jobs:
         with:
           name: native-compiler
           path: .tmp/native-artifact
-      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: chmod +x .tmp/native-artifact/exactc
       - run: npm ci
       - run: npm run build:prerequisites
       - run: npm run test:bun
     env:
-      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+      EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
 
   package:
     name: Package release artifacts
@@ -162,7 +162,7 @@ jobs:
         with:
           name: native-compiler
           path: .tmp/native-artifact
-      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: chmod +x .tmp/native-artifact/exactc
       - run: npm ci
       - name: Build release workspaces
         run: |
@@ -259,7 +259,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
     env:
-      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+      EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
 
   publish-native-packages:
     name: Publish native packages
@@ -303,7 +303,7 @@ jobs:
         with:
           name: native-compiler
           path: .tmp/native-artifact
-      - run: chmod +x .tmp/native-artifact/exactc-native
+      - run: chmod +x .tmp/native-artifact/exactc
       - run: npm ci
       - name: Build framework workspaces
         run: |
@@ -331,4 +331,4 @@ jobs:
           publish_dir: ./.tmp/gh-pages
           commit_message: 'Deploy documentation and sample apps'
     env:
-      EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-artifact/exactc-native
+      EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc

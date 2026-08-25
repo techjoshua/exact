@@ -43,7 +43,7 @@ describe('@exactjs/compiler: component build facts', () => {
 		]);
 	});
 
-	it('keeps client-only component imports descriptive for bundlers to ignore on the server', () => {
+	it('keeps unproven package component imports available to both artifacts', () => {
 		const result = transformSource(
 			`
 				import { Button } from '@acme/client-controls';
@@ -58,7 +58,7 @@ describe('@exactjs/compiler: component build facts', () => {
 			expect.objectContaining({
 				moduleSpecifier: '@acme/client-controls',
 				exportName: 'Button',
-				artifactTargets: ['client'],
+				artifactTargets: ['client', 'server'],
 				reason: 'render'
 			})
 		]);

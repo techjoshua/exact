@@ -8,7 +8,6 @@ import {
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 import { AsyncSsrScheduler } from './async-scheduler.js';
-import { SsrHydrationTable } from './hydration-table.js';
 
 /** Performs the drain tasks domain operation. */
 export async function drainTasks(
@@ -66,17 +65,15 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		reactMarkup: options.reactMarkup ?? false,
 		nextId: 0,
 		logger: options.logger,
+		maxTaskPasses: normalizePositiveLimit(options.maxTaskPasses, 10),
 		maxTreeDepth: normalizeSsrTreeDepth(options.maxTreeDepth),
 		traversalDepth: 0,
 		maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, defaultMaxSsrTreeNodes),
 		traversedNodes: 0,
 		maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, defaultMaxSsrOutputBytes),
-		reactResourceHints: [],
-		reactResourceKeys: new Set(),
 		dynamicComponentArtifacts: options.dynamicComponentArtifacts,
 		maxDynamicComponentPreloads: normalizePositiveLimit(options.maxDynamicComponentPreloads, 16),
 		dynamicComponentPreloads: 0,
-		resourceLinkHeaders: [],
 		onEarlyHints: options.onEarlyHints,
 		allowUnsafeHtml: options.allowUnsafeHtml ?? false,
 		onUnsafeHtml: options.onUnsafeHtml,
@@ -86,18 +83,9 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		documentBodySeen: false,
 		hostStack: [],
 		enhancementCatalog: options.enhancementCatalog,
-		unavailableEnhancements: new Set(),
-		enhancementVNodes: new WeakSet(),
-		plannedEnhancementBoundaries: new WeakSet(),
-		plannedTargetBoundaries: new WeakSet(),
-		appliedTargetBoundaries: new WeakSet(),
-		targetContributions: new WeakMap(),
-		enhancementTargets: new WeakMap(),
-		preparedEnhancementComponents: new WeakMap(),
-		preparedEnhancementChildren: new WeakMap(),
-		preparedEnhancementSuspense: new WeakMap(),
 		componentContexts: options.contexts,
 		componentDomain: createFrameworkComponentDomain({
+			target: 'server',
 			executionRoot: options.inspection?.executionRoot ?? options.executionRoot ?? 'page',
 			...(options.inspection ? { inspection: options.inspection } : {}),
 			wallClockSnapshot
@@ -107,8 +95,9 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		onComponentRendered: options.onComponentRendered,
 		onComponentAttemptCheckpoint: options.onComponentAttemptCheckpoint,
 		onComponentAttemptRollback: options.onComponentAttemptRollback,
+		onDirectComponentCreated: options.onDirectComponentCreated,
+		onDirectComponentRendered: options.onDirectComponentRendered,
 		asyncScheduler: new AsyncSsrScheduler(options.maxAsyncSsrConcurrency),
-		asyncFrame: false,
-		hydrationTable: new SsrHydrationTable()
+		asyncFrame: false
 	};
 }

@@ -1,5 +1,4 @@
 import { peek, type Component } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 
 import { FieldContext, FormContext } from './context.js';
 import type { FieldContextValue, FieldProps, FieldState, FormContextValue } from './contracts.js';
@@ -126,5 +125,3 @@ export function Field(this: Component<FieldState>, props: FieldProps) {
 	});
 	return () => (registered ? props.children : null);
 }
-
-markExactComponent(Field, '@exactjs/forms:Field');

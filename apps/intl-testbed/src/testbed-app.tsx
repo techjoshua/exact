@@ -9,9 +9,6 @@ import {
 	type EffectiveThemeAppearance,
 	type ThemeAppearancePreference
 } from '@exactjs/app-theme-preference';
-// The compiler consumes this namespace through the theme:* enhancement syntax below.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement' };
 import {
 	comparisonLocales,
 	localeEnvironments,

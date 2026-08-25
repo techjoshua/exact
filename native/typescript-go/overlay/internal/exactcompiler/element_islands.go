@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/printer"
 )
 
 type islandValueCapture struct {
@@ -57,18 +58,90 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 		return islands[left].index < islands[right].index
 	})
 	for _, island := range islands {
+		if _, recorded := lowering.recordedClientIslands[island.id]; recorded {
+			continue
+		}
+		lowering.recordedClientIslands[island.id] = struct{}{}
 		lowering.clientDefinitions = append(
 			lowering.clientDefinitions,
 			lowering.clientIslandDefinition(island),
 			lowering.factory.NewExpressionStatement(
-				componentBrandAttachment(
+				clientIslandArtifactAttachment(
 					lowering.factory,
 					lowering.factory.NewIdentifier(island.name),
-					island.id,
+					island,
 				),
 			),
 		)
 	}
+}
+
+// clientIslandArtifactAttachment gives compiler-synthesized island functions
+// the same executable authority as analyzed source components. An island is a
+// native component, not an identity-only exception to the artifact ABI.
+func clientIslandArtifactAttachment(
+	factory *printer.NodeFactory,
+	implementation *ast.Node,
+	island clientElementIsland,
+) *ast.Node {
+	state := []string{}
+	seenState := make(map[string]struct{})
+	for _, path := range island.statePaths {
+		if len(path) == 0 {
+			continue
+		}
+		if _, exists := seenState[path[0]]; !exists {
+			seenState[path[0]] = struct{}{}
+			state = append(state, path[0])
+		}
+	}
+	capabilities := []string{}
+	if island.interaction {
+		capabilities = append(capabilities, "interactions")
+	}
+	role := "client-island"
+	contract := contractObject(factory, true,
+		contractProperty(factory, "version", contractNumber(factory, 2)),
+		contractProperty(factory, "placement", contractString(factory, "client")),
+		contractProperty(factory, "role", contractString(factory, "client")),
+		contractProperty(factory, "implementations", contractArray(factory,
+			contractObject(factory, false,
+				contractProperty(factory, "id", contractString(factory, island.id+":implementation")),
+				contractProperty(factory, "name", contractString(factory, island.name)),
+				contractProperty(factory, "role", contractString(factory, role)),
+				contractProperty(factory, "implementation", implementation),
+			),
+		)),
+		contractProperty(factory, "continuations", contractArray(factory)),
+		contractProperty(factory, "executors", contractArray(factory)),
+		contractProperty(factory, "boundaries", contractArray(factory)),
+		contractProperty(factory, "definition", contractObject(factory, true,
+			contractProperty(factory, "version", contractNumber(factory, 1)),
+			contractProperty(factory, "instantiate", implementation),
+			contractProperty(factory, "state", stringMetadata(factory, state)),
+			contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
+		)),
+	)
+	return factory.NewCallExpression(
+		factory.NewPropertyAccessExpression(factory.NewIdentifier("Object"), nil, factory.NewIdentifier("assign"), ast.NodeFlagsNone),
+		nil,
+		nil,
+		factory.NewNodeList([]*ast.Node{implementation, contractObject(factory, false,
+			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
+				factory.NewCallExpression(
+					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
+					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component")}), ast.NodeFlagsNone,
+				),
+			), nil, nil, contractString(factory, island.id)),
+			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
+				factory.NewCallExpression(
+					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
+					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component-contract")}), ast.NodeFlagsNone,
+				),
+			), nil, nil, contract),
+		)}),
+		ast.NodeFlagsNone,
+	)
 }
 
 func (lowering *jsxLowering) clientIslandDefinition(
@@ -147,23 +220,45 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		element := island.node.AsJsxElement()
 		opening = element.OpeningElement
 		children = element.Children
+	} else if ast.IsJsxFragment(island.node) {
+		children = island.node.AsJsxFragment().Children
 	} else {
 		opening = island.node
 	}
-	tag := openingTag(opening)
-	tagText := sourceText(lowering.sourceFile, tag)
-	arguments := []*ast.Node{
-		lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone),
-		lowering.factory.NewObjectLiteralExpression(
-			lowering.factory.NewNodeList(
-				lowering.clientIslandAttributeProperties(
-					island,
-					opening.Attributes(),
-					props,
+	arguments := []*ast.Node{}
+	renderHelper := lowering.names.element
+	if opening == nil {
+		renderHelper = lowering.names.fragment
+		arguments = append(arguments, lowering.props(nil, "", false, ""))
+	} else {
+		tag := openingTag(opening)
+		tagText := sourceText(lowering.sourceFile, tag)
+		var emittedTag *ast.Node
+		if jsxIntrinsic(tagText) {
+			emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
+		} else {
+			emittedTag = lowering.visitor.VisitNode(tag)
+			if lowering.interop != nil &&
+				!lowering.localExactComponentTag(tag) &&
+				!lowering.exactCoreVNodeTag(tag) {
+				emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
+			}
+		}
+		arguments = append(
+			arguments,
+			emittedTag,
+			lowering.factory.NewObjectLiteralExpression(
+				lowering.factory.NewNodeList(
+					lowering.clientIslandAttributeProperties(
+						island,
+						opening.Attributes(),
+						props,
+						tagText,
+					),
 				),
+				false,
 			),
-			false,
-		),
+		)
 	}
 	if island.serverSlot {
 		arguments = append(
@@ -179,7 +274,7 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		arguments = append(arguments, lowering.children(children)...)
 	}
 	render := lowering.arrow(
-		lowering.call(lowering.names.element, arguments),
+		lowering.call(renderHelper, arguments),
 	)
 	lowering.captureValues = previousCaptures
 	bodyStatements := []*ast.Node{stateInitialization}
@@ -344,6 +439,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 	island clientElementIsland,
 	attributes *ast.Node,
 	props *ast.Node,
+	tag string,
 ) []*ast.Node {
 	properties := []*ast.Node{
 		lowering.property(
@@ -364,9 +460,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 		if ast.IsJsxSpreadAttribute(property) {
 			if members, finite := island.finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {
-					value := lowering.factory.NewPropertyAccessExpression(
-						props, nil, lowering.factory.NewIdentifier(member.name), ast.NodeFlagsNone,
-					)
+					value := lowering.propertyAccess(props, member.name)
 					if interactiveJSXAttribute(member.name) {
 						value = lowering.finiteSpreadPropertyValue(&member)
 					}
@@ -415,13 +509,11 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 			default:
 				value = lowering.visitor.VisitNode(attribute.Initializer)
 			}
+		} else if ast.IsJsxExpression(attribute.Initializer) &&
+			lowering.clientIslandAttributeReadsState(island, attribute.Initializer.AsJsxExpression().Expression) {
+			value = lowering.jsxAttributeInitializer(attribute, tag, name, true)
 		} else {
-			value = lowering.factory.NewPropertyAccessExpression(
-				props,
-				nil,
-				lowering.factory.NewIdentifier(name),
-				ast.NodeFlagsNone,
-			)
+			value = lowering.propertyAccess(props, name)
 		}
 		properties = append(
 			properties,
@@ -429,6 +521,22 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 		)
 	}
 	return properties
+}
+
+func (lowering *jsxLowering) clientIslandAttributeReadsState(
+	island clientElementIsland,
+	expression *ast.Node,
+) bool {
+	if expression == nil {
+		return false
+	}
+	for _, read := range lowering.stateReads {
+		if read.Component == island.component.Name &&
+			read.Start >= expression.Pos() && read.Start < expression.End() {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) finiteSpreadPropertyValue(
@@ -659,7 +767,7 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 			island.finiteSpreads,
 		)...,
 	)
-	if island.interaction {
+	if island.interaction && jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(opening))) {
 		properties = append(
 			properties,
 			lowering.property(
@@ -706,6 +814,55 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 	)
 }
 
+// lowerServerClientFragment preserves the complete server-rendered range while assigning all
+// state-connected client work to one generated component instance. The eager boundary adopts the
+// fallback immediately; no renderer-side state synchronization is required.
+func (lowering *jsxLowering) lowerServerClientFragment(
+	_ *ast.Node,
+	children *ast.NodeList,
+	island clientElementIsland,
+) *ast.Node {
+	properties := []*ast.Node{}
+	if len(island.statePaths) != 0 {
+		properties = append(
+			properties,
+			lowering.property(
+				lowering.factory.NewStringLiteral("__exactState", ast.TokenFlagsNone),
+				lowering.islandStateSnapshot(island.statePaths),
+			),
+		)
+	}
+	if len(island.valueCaptures) != 0 {
+		captures := make([]*ast.Node, 0, len(island.valueCaptures))
+		for _, capture := range island.valueCaptures {
+			captures = append(captures, lowering.property(
+				jsxPropertyName(lowering.factory, capture.name),
+				lowering.factory.NewIdentifier(capture.name),
+			))
+		}
+		properties = append(properties, lowering.property(
+			lowering.factory.NewStringLiteral("__exactCapture", ast.TokenFlagsNone),
+			lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(captures), false),
+		))
+	}
+	fallbackArguments := []*ast.Node{lowering.props(nil, "", false, "")}
+	lowering.serverClientFallbackDepth++
+	fallbackArguments = append(fallbackArguments, lowering.children(children)...)
+	lowering.serverClientFallbackDepth--
+	properties = append(properties, lowering.property(
+		lowering.factory.NewIdentifier("__exactHydration"),
+		lowering.factory.NewStringLiteral("eager", ast.TokenFlagsNone),
+	), lowering.property(
+		lowering.factory.NewIdentifier("__exactHydrationFallback"),
+		lowering.call(lowering.names.fragment, fallbackArguments),
+	))
+	return lowering.call(lowering.names.boundary, []*ast.Node{
+		lowering.factory.NewStringLiteral(island.id, ast.TokenFlagsNone),
+		lowering.factory.NewStringLiteral(island.name, ast.TokenFlagsNone),
+		lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false),
+	})
+}
+
 func (lowering *jsxLowering) serverIslandFallback(
 	identityNode *ast.Node,
 	opening *ast.Node,
@@ -714,21 +871,37 @@ func (lowering *jsxLowering) serverIslandFallback(
 ) *ast.Node {
 	tag := openingTag(opening)
 	tagText := sourceText(lowering.sourceFile, tag)
+	intrinsic := jsxIntrinsic(tagText)
 	properties := lowering.serverIslandAttributeProperties(
 		opening.Attributes(),
 		true,
 		lowering.elementID(identityNode),
 		finiteSpreads,
 	)
+	var emittedTag *ast.Node
+	if intrinsic {
+		emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
+	} else {
+		emittedTag = lowering.visitor.VisitNode(tag)
+		if lowering.interop != nil &&
+			!lowering.localExactComponentTag(tag) &&
+			!lowering.exactCoreVNodeTag(tag) {
+			emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
+		}
+	}
 	arguments := []*ast.Node{
-		lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone),
+		emittedTag,
 		lowering.factory.NewObjectLiteralExpression(
 			lowering.factory.NewNodeList(properties),
 			false,
 		),
 	}
 	arguments = append(arguments, lowering.children(children)...)
-	return lowering.call(lowering.names.element, arguments)
+	helper := lowering.names.element
+	if !intrinsic && lowering.localExactComponentTag(tag) {
+		helper = lowering.names.componentElement
+	}
+	return lowering.call(helper, arguments)
 }
 
 func (lowering *jsxLowering) serverIslandAttributeProperties(
@@ -756,7 +929,19 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 	if attributes == nil {
 		return properties
 	}
+	conditionalClasses := jsxHasConditionalClassName(attributes)
+	classNameEmitted := false
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if conditionalClasses && jsxClassNameContribution(property) {
+			if !classNameEmitted {
+				properties = append(properties, lowering.property(
+					lowering.factory.NewIdentifier("className"),
+					lowering.lowerClassNameValue(attributes, false),
+				))
+				classNameEmitted = true
+			}
+			continue
+		}
 		if ast.IsJsxSpreadAttribute(property) {
 			if members, finite := finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {

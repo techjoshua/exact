@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import '../localization.js';
-import { createComponentInstance } from '../component/runtime.js';
+import '../runtime/localization.js';
+import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import type { Component } from '../component/contracts.js';
 import { LocalizationContext } from './context.js';
 import { intl } from './facade.js';
@@ -23,8 +23,8 @@ describe('realm Intl formatter facade', () => {
 			this.setContext(LocalizationContext, { locale: 'fr-FR', sourceLocale: 'en-US' });
 			return () => null;
 		}
-		const parent = createComponentInstance(Parent, {});
-		const child = createComponentInstance(
+		const parent = createFrameworkFixtureComponentInstance(Parent, {});
+		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
 				expect(this.intl.NumberFormat()).toBe(intl.NumberFormat('fr-FR'));
 				expect(this.intl.NumberFormat('en-US')).toBe(intl.NumberFormat('fr-FR'));
@@ -68,3 +68,4 @@ describe('realm Intl formatter facade', () => {
 		expect(intl.formatDate(new Date(Number.NaN), 'date-time', 'en-US')).toBe('Invalid Date');
 	});
 });
+import '../runtime/contexts.js';

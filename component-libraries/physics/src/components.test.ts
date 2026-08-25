@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { Activity, type Component } from '@exactjs/core';
+import '@exactjs/core/runtime/refs';
 import { render, unmount } from '@exactjs/dom';
 import '@exactjs/dom/structural-boundaries';
 import { computed, flushSync } from '@exactjs/reactive';
@@ -14,6 +15,9 @@ import { PhysicsElement, PhysicsWorldComponent } from './components.js';
 import { PhysicsBodyContext } from './context.js';
 import type { PhysicsBody, PhysicsWorld } from './contracts.js';
 import { createPhysicsWorld } from './world.js';
+
+// Source-level unit tests bypass the package compiler. The package build separately verifies the
+// public client and server exports as compiled artifacts.
 
 const containers: Element[] = [];
 

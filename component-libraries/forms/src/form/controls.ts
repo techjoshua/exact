@@ -1,5 +1,4 @@
 import { createVNode, type Child, type Component, type RefBinding } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 
 import { ControlRef, FieldContext, FormContext } from './context.js';
 import type { LabelProps, SubmitProps } from './contracts.js';
@@ -63,16 +62,6 @@ export function Submit(this: Component<{}>, props: SubmitProps) {
 			...childrenArray(form.submitting && pendingText !== undefined ? pendingText : children)
 		);
 }
-
-for (const [component, identity] of [
-	[Label, '@exactjs/forms:Label'],
-	[Input, '@exactjs/forms:Input'],
-	[Textarea, '@exactjs/forms:Textarea'],
-	[Select, '@exactjs/forms:Select'],
-	[Checkbox, '@exactjs/forms:Checkbox'],
-	[Submit, '@exactjs/forms:Submit']
-] as const)
-	markExactComponent(component, identity);
 
 function controlComponent(
 	this: Component<{}>,

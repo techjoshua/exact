@@ -8,7 +8,6 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { computed } from '@exactjs/reactive';
 
 /** Stable enhancement identity used by the client routing workload. */
@@ -129,11 +128,9 @@ export function KeyedList(this: Component<{ items: Item[] }>, props: { items: It
 }
 
 /** Transparent enhancement used to measure explicit-target rerouting. */
-export const RoutingEnhancement = markExactComponent(function RoutingEnhancement(_props: {
-	children?: Child;
-}) {
+export function RoutingEnhancement(_props: { children?: Child }) {
 	return () => _props.children;
-}, '@exactjs/performance:RoutingEnhancement');
+}
 
 /** Exposes an Activity boundary whose retained mode can be cycled by the workload. */
 export function ActivityBoundary(this: Component<{ mode: ActivityMode }>) {

@@ -37,5 +37,29 @@ describe('@exactjs/dom focus preservation', () => {
 		expect(input.selectionStart).toBe(1);
 		expect(input.selectionEnd).toBe(4);
 		expect(input.selectionDirection).toBe('backward');
+		expect(root.focusTransactionDepth).toBe(0);
+		expect(root.focusSnapshot).toBeUndefined();
+	});
+
+	it('reuses the outer root transaction for nested DOM work', () => {
+		preserveFocus(root, () => {
+			expect(root.focusTransactionDepth).toBe(1);
+			preserveFocus(root, () => expect(root.focusTransactionDepth).toBe(2));
+			expect(root.focusTransactionDepth).toBe(1);
+		});
+
+		expect(root.focusTransactionDepth).toBe(0);
+		expect(root.focusSnapshot).toBeUndefined();
+	});
+
+	it('releases root transaction state when DOM work throws', () => {
+		expect(() =>
+			preserveFocus(root, () => {
+				throw new Error('failed DOM work');
+			})
+		).toThrow('failed DOM work');
+
+		expect(root.focusTransactionDepth).toBe(0);
+		expect(root.focusSnapshot).toBeUndefined();
 	});
 });

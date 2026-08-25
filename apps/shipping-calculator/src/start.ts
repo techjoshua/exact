@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleParcelLabRequest } from './server-app.js';
+import { encodedRepresentation, staticContentType } from './static-assets.js';
 
 const distRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const clientRoot = path.join(distRoot, 'client');
@@ -23,19 +24,20 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 				response.end();
 				return;
 			}
-			const info = await stat(file);
+			const representation = await encodedRepresentation(file, request.headers['accept-encoding']);
+			const info = await stat(representation.file);
 			response.statusCode = 200;
 			response.setHeader('content-length', info.size);
-			response.setHeader('cache-control', 'public, max-age=31536000, immutable');
 			response.setHeader(
-				'content-type',
-				file.endsWith('.css')
-					? 'text/css; charset=utf-8'
-					: file.endsWith('.js')
-						? 'text/javascript; charset=utf-8'
-						: 'application/octet-stream'
+				'cache-control',
+				file.endsWith(`${path.sep}us-states.svg`)
+					? 'public, max-age=86400'
+					: 'public, max-age=31536000, immutable'
 			);
-			createReadStream(file).pipe(response);
+			response.setHeader('content-type', staticContentType(file));
+			response.setHeader('vary', 'Accept-Encoding');
+			if (representation.encoding) response.setHeader('content-encoding', representation.encoding);
+			createReadStream(representation.file).pipe(response);
 			return;
 		}
 		await handleParcelLabRequest(request, response, {

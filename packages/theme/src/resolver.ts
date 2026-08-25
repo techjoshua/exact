@@ -30,7 +30,10 @@ import { exactThemeContract, themeTones } from './token-contract.js';
 
 export { builtInTemperaments };
 
-/** Resolves a compact source into the complete immutable exact-theme/1 contract. */
+/**
+ * Resolves a compact source into the complete immutable exact-theme/1 contract.
+ * @exact pure
+ */
 export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 	if (!input || !input.environment)
 		throw new ThemeResolutionError(
@@ -171,7 +174,10 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 	});
 }
 
-/** Converts all generated tokens into a sorted, frozen null-prototype custom-property map. */
+/**
+ * Converts all generated tokens into a sorted, frozen null-prototype custom-property map.
+ * @exact pure
+ */
 export function serializeThemeVariables(
 	theme: ResolvedTheme
 ): import('./contracts.js').ThemeVariableMap {

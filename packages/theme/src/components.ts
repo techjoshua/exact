@@ -1,12 +1,11 @@
 import {
 	createContext,
 	createVNode,
-	markExactEnhancementContexts,
+	peek,
 	type Child,
 	type Component,
 	type ContextToken
 } from '@exactjs/core';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import type {
 	ResolvedTheme,
 	ResolvedThemeSource,
@@ -47,16 +46,9 @@ export const ThemeSurfaceContext: ContextToken<ThemeSurfaceEnvironment> =
 	});
 
 type ThemeState = {
-	environment: MutableThemeEnvironment;
 	appearance: 'light' | 'dark';
 	contrast: 'standard' | 'more';
 	motion: 'full' | 'reduced';
-};
-type MutableThemeEnvironment = {
-	contract: 'exact-theme/1';
-	source: ResolvedThemeSource;
-	current: ResolvedTheme;
-	revision: number;
 };
 type Children = { children?: Child | readonly Child[] };
 /** Props selected by the root or nested `theme:scope` activator. */
@@ -80,25 +72,37 @@ export function ThemeScopeEnhancement(
 	props: ThemeScopeEnhancementProps
 ) {
 	const parent = this.hasContext(ThemeContext) ? this.getContext(ThemeContext) : undefined;
-	const initialPreferences = readSystemPreferences();
-	this.state.appearance = initialPreferences.appearance;
-	this.state.contrast = initialPreferences.contrast;
-	this.state.motion = initialPreferences.motion;
-	const initial = resolveTheme({
-		parent: parent?.current,
-		source: sourceFromProps(props),
-		environment: initialPreferences
-	});
-	this.state.environment = {
-		contract: 'exact-theme/1',
-		source: initial.source,
-		current: initial,
-		revision: 0
-	};
+	// Shared setup must be deterministic across SSR and browser activation. The mounted client
+	// lifecycle applies its host preferences after the server-compatible state has been established.
+	this.state.appearance = 'light';
+	this.state.contrast = 'standard';
+	this.state.motion = 'full';
 	const state = this.state;
-	const environment = state.environment;
-	let next = initial;
-	let initialRender = true;
+	const resolved = this.reactive(() =>
+		resolveTheme({
+			parent: parent?.current,
+			source: sourceFromProps(props),
+			environment: {
+				appearance: state.appearance,
+				contrast: state.contrast,
+				motion: state.motion
+			}
+		})
+	);
+	const environment: ThemeEnvironment = peek(() =>
+		Object.freeze({
+			contract: 'exact-theme/1' as const,
+			get source() {
+				return resolved.get().source;
+			},
+			get current() {
+				return resolved.get();
+			},
+			get revision() {
+				return themeRevision(resolved.get().fingerprint);
+			}
+		})
+	);
 	this.setContext(ThemeContext, environment);
 	this.setContext(
 		ThemeSurfaceContext,
@@ -108,50 +112,40 @@ export function ThemeScopeEnhancement(
 			}
 		})
 	);
-	this.onMount(() =>
-		observeSystemPreferences((next) => {
+	this.onMount(() => {
+		const applyPreferences = (next: ThemeSystemPreferences) => {
 			state.appearance = next.appearance;
 			state.contrast = next.contrast;
 			state.motion = next.motion;
-		})
-	);
-	return () => {
-		// The revision read is the explicit reactive dependency for inherited source fields.
-		const parentRevision = parent?.revision ?? 0;
-		const resolutionInput = {
-			parent: parent?.current,
-			source: sourceFromProps(props),
-			environment: {
-				appearance: state.appearance,
-				contrast: state.contrast,
-				motion: state.motion
-			}
-		} as const;
-		if (initialRender && parentRevision >= 0) initialRender = false;
-		else next = resolveTheme(resolutionInput);
-		if (next.fingerprint !== environment.current.fingerprint) {
-			environment.source = next.source;
-			environment.current = next;
-			environment.revision++;
-			// Reactive contexts publish through setContext(). Mutating only the raw backing object updates
-			// scope CSS but leaves descendant exterior derivations subscribed to the previous snapshot.
-			this.setContext(ThemeContext, environment);
-		}
-		const variables = serializeThemeVariables(next);
-		return createVNode(
+		};
+		applyPreferences(readSystemPreferences());
+		return observeSystemPreferences(applyPreferences);
+	});
+	return () =>
+		createVNode(
 			props.element ?? 'div',
 			{
 				'data-exact-theme': 'exact-theme/1',
-				'data-exact-theme-appearance': next.source.appearance,
+				'data-exact-theme-appearance': environment.current.source.appearance,
 				'data-exact-theme-background': props.background ?? 'canvas',
-				'data-exact-theme-fingerprint': next.fingerprint,
-				style: themeStyleAttribute(variables)
+				'data-exact-theme-fingerprint': environment.current.fingerprint,
+				style: themeStyleAttribute(serializeThemeVariables(environment.current))
 			},
 			props.children
 		);
-	};
 }
 
+/** @exact pure */
+function themeRevision(fingerprint: string): number {
+	let revision = 2_166_136_261;
+	for (let index = 0; index < fingerprint.length; index++) {
+		revision ^= fingerprint.charCodeAt(index);
+		revision = Math.imul(revision, 16_777_619);
+	}
+	return revision >>> 0;
+}
+
+/** @exact pure */
 function sourceFromProps(props: ThemeScopeEnhancementProps): ThemeSource {
 	return {
 		keyColor:
@@ -184,6 +178,7 @@ export const builtInThemeKeys: Readonly<Record<BuiltInThemeKey, string>> = Objec
 	rose: '#be185d',
 	green: '#15803d'
 });
+/** @exact client */
 function readSystemPreferences(): ThemeSystemPreferences {
 	if (typeof globalThis.matchMedia !== 'function')
 		return { appearance: 'light', contrast: 'standard', motion: 'full' };
@@ -193,6 +188,7 @@ function readSystemPreferences(): ThemeSystemPreferences {
 		motion: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'full'
 	};
 }
+/** @exact client */
 function observeSystemPreferences(
 	publish: (preferences: ThemeSystemPreferences) => void
 ): () => void {
@@ -213,9 +209,3 @@ function observeSystemPreferences(
 		for (const query of queries) query.removeEventListener('change', update);
 	};
 }
-
-markExactComponent(ThemeScopeEnhancement, '@exactjs/theme:Scope');
-markExactEnhancementContexts(ThemeScopeEnhancement, {
-	provides: [ThemeContext, ThemeSurfaceContext],
-	optionallyConsumes: [ThemeContext]
-});

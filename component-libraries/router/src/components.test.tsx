@@ -12,6 +12,7 @@ import {
 	type RequestResponseState
 } from '@exactjs/request';
 import { renderToString } from '@exactjs/ssr';
+import '@exactjs/ssr/runtime/generic-components';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	ApplePage,

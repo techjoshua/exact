@@ -126,6 +126,8 @@ func collectTasks(
 			task.FunctionDefined = true
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
+			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
+				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
 			task.Invoked = taskRegistrationInsideNestedFunction(node, candidate.node)
 			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
 			task.ArgumentCount = len(work.Parameters())
@@ -526,7 +528,11 @@ func functionTaskActivation(
 			break
 		}
 	}
-	if work == nil || work == component.node {
+	// A declaration or ambient signature can contribute placement facts, but it
+	// has no executable body the compiler can schedule as component-owned work.
+	// Keep its invocation in ordinary setup so lowering never manufactures a
+	// task closure with a missing body.
+	if work == nil || work == component.node || work.Body() == nil {
 		return nil, nil, false
 	}
 	facets, explicit := functionTaskPolicy(

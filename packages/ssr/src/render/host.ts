@@ -1,5 +1,5 @@
 import { isVNode, normalizeDocumentVNode, type VNode } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr, escapeText, voidElements } from '../html.js';
 import { renderAttrs } from '../markup.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
@@ -9,9 +9,10 @@ import { renderChildren } from './sync-tree.js';
 export function renderElement(
 	context: SsrContext,
 	vnode: VNode,
-	parent?: AnyComponentInstance
+	parent?: AnyComponentInstance,
+	hasComponentAncestor = false
 ): string {
-	const contributed = context.targetContributions.get(vnode);
+	const contributed = context.targetContributions?.get(vnode);
 	if (contributed) vnode = { ...vnode, props: contributed };
 	const host = enterHost(context, vnode);
 	const hostVNode = host.vnode;
@@ -30,7 +31,7 @@ export function renderElement(
 			if (tag === 'select')
 				context.selectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
 			try {
-				content = renderChildren(context, hostVNode.children, parent);
+				content = renderChildren(context, hostVNode.children, parent, hasComponentAncestor);
 			} finally {
 				context.selectValue = previousSelect;
 			}
@@ -183,12 +184,12 @@ export function registerReactImagePreload(
 	)
 		return;
 	const key = `image:${src}`;
-	if (context.reactResourceKeys.has(key)) return;
-	context.reactResourceKeys.add(key);
+	if (context.reactResourceKeys?.has(key)) return;
+	(context.reactResourceKeys ??= new Set()).add(key);
 	const crossOrigin = unwrap(props.crossOrigin);
 	const suffix =
 		crossOrigin === undefined ? '' : ` crossorigin="${escapeAttr(String(crossOrigin))}"`;
-	context.reactResourceHints.push(
+	(context.reactResourceHints ??= []).push(
 		`<link rel="preload" as="image" href="${escapeAttr(src)}"${suffix}/>`
 	);
 }

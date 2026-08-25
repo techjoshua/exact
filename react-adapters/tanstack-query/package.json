@@ -10,20 +10,29 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./react": {
 			"types": "./dist/provider.d.ts",
-			"default": "./dist/provider.js"
+			"browser": "./dist/client/provider.js",
+			"default": "./dist/server/provider.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"ExactQueryClientProvider"
+	],
+	"exactCompileModules": [
+		"src/adapter.ts"
+	],
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/react-compat-adapter-api": "^0.1.0",
 		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0",
 		"@tanstack/query-core": "^5.101.2"
 	},
 	"peerDependencies": {
@@ -59,8 +68,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -b",
-		"test": "vitest run",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
+		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

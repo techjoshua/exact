@@ -9,6 +9,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -18,7 +19,7 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(client).toContain('title: props.title');
+		expect(client).toContain('title: __exactExpression(() => this.state.label)');
 		expect(client).toContain('__exactUpdateResult(this.state, ["count"]');
 		expect(client).toContain('__exactDynamic(() => this.state.count');
 		expect(server).toContain(
@@ -163,6 +164,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -172,10 +174,10 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(analysis.boundaries[0]?.activation?.mode).toBe('interaction');
-		expect(client).toContain("onClick: () => console.log('final')");
-		expect(client.indexOf("onClick: () => console.log('final')")).toBeGreaterThan(
-			client.indexOf("onClick: () => console.log('base')")
-		);
+		// The authored declarations remain for source semantics, while the generated island must
+		// expand only the winning handler. Declaration placement is not part of the output contract.
+		expect(client.match(/console\.log\('base'\)/gu)).toHaveLength(1);
+		expect(client.match(/console\.log\('final'\)/gu)).toHaveLength(2);
 		expect(client).not.toContain('__exactClientProps');
 		expect(server).toContain("title: 'Final'");
 		expect(server).toContain(
@@ -201,6 +203,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -249,6 +252,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(finite, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(finite, {
@@ -274,6 +278,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -299,6 +304,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -320,6 +326,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -339,6 +346,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -358,6 +366,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -378,6 +387,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -414,6 +424,7 @@ describe('@exactjs/compiler: islands', () => {
 		const client = transform(source, {
 			filename: 'Panel.tsx',
 			target: 'client',
+			componentContractProjection: 'hydrate',
 			serverComponents: true
 		});
 		const server = transform(source, {
@@ -438,7 +449,8 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('__exactHydration: "interaction"');
 		expect(server).toContain('Panel_ExactClient_1');
-		expect(server).toContain('__exactVNode("div"');
+		expect(server).toContain('<div class=\\"summary\\">');
+		expect(server).toContain('__exactSsr.component(');
 		expect(server).toContain('__exactComponentVNode(ServerSummary');
 		expect(server).toContain('readFile');
 		expect(

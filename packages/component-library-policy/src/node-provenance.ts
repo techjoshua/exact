@@ -11,6 +11,7 @@ import type {
 /** Resolver-derived package evidence recorded for one component candidate. */
 export type ExactNodeComponentProvenance = Readonly<{
 	instance: ExactResolvedPackageInstance;
+	applicationOwned: boolean;
 	watchFiles: readonly string[];
 }>;
 
@@ -41,6 +42,9 @@ export async function recordExactNodeComponentProvenance(
 	if (!applicationManifestPath)
 		throw new Error(`No application package.json found from ${applicationRoot}`);
 	const applicationManifest = await readManifest(applicationManifestPath);
+	const applicationPackageRoot = await realpath(path.dirname(applicationManifestPath));
+	const applicationOwned =
+		path.resolve(candidate.instance.root) === path.resolve(applicationPackageRoot);
 	let importer = await optionalPackageInstanceForModule(options.importerModuleId);
 	if (importer && lockfile) importer = await withNpmIntegrity(importer, lockfile);
 	const importerIsApplication =
@@ -73,6 +77,7 @@ export async function recordExactNodeComponentProvenance(
 	}
 	return Object.freeze({
 		instance: candidate.instance,
+		applicationOwned,
 		watchFiles: Object.freeze([...watchFiles].sort())
 	});
 }

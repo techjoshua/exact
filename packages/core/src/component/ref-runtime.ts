@@ -1,4 +1,5 @@
-import { reactive, type Reactive } from '@exactjs/reactive';
+import type { Reactive } from '@exactjs/reactive/framework/runtime';
+import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import type { AnyComponentInstance, RefBinding, RefKey, RefRegistry } from './contracts.js';
 import { bindComponentRoot, componentRootLifecycle } from './root-lifecycle.js';
 
@@ -14,7 +15,10 @@ class ComponentRefBinding<T> implements RefBinding<T> {
 	constructor(owner: AnyComponentInstance, key: RefKey<T>) {
 		this.owner = owner;
 		this.key = key;
-		this.slot = reactive({ current: undefined as T | undefined }, { passthroughKeys: ['current'] });
+		this.slot = reactiveObjects(
+			{ current: undefined as T | undefined },
+			{ passthroughKeys: ['current'] }
+		);
 	}
 
 	get current(): T | undefined {

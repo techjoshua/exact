@@ -235,6 +235,10 @@ export function InternationalizationPage(this: Component<{}>) {
 					targets and notes, removes obsolete messages, and validates required placeholders.
 					Regional locales fall back through matching script and language catalogs.
 				</p>
+				<p>
+					Regenerate source XLIFF when its message contract changes. Import accepts the current
+					generic placeholder format rather than translating older eXact runtime metadata.
+				</p>
 			</section>
 			<section>
 				<h2>Translate selected intrinsic properties</h2>

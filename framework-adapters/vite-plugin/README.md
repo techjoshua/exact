@@ -8,24 +8,35 @@ Vite integration for compiling and serving eXact applications.
 import { exact } from '@exactjs/vite-plugin';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-	plugins: [exact()]
-});
+export default defineConfig({ plugins: [exact()] });
+```
+
+Applications with separate client and server configs can build both in one process and reuse one
+native compiler project generation:
+
+```ts
+import { buildExactViteApplication } from '@exactjs/vite-plugin/build';
+
+await buildExactViteApplication(['vite.config.ts', 'vite.server.config.ts']);
 ```
 
 Use `target: 'server'` for server artifacts, `serverComponents: true` for split server-component
 builds, and `reactCompatibility` only when the application consumes React-owned packages.
+The plugin rejects a Vite `build.ssr` configuration that omits `target: 'server'`, as well as a
+server-target plugin placed in a browser build, so a production server cannot silently bundle
+client component artifacts.
 Set `renderMode: 'hydrate'` for a browser bundle that adopts SSR HTML, or `renderMode: 'client'`
-for a fresh-mount-only browser bundle. These modes keep the compiler's complete analysis result
-available to the build while omitting analysis-only component inventories from emitted JavaScript;
-client-only bundles also omit resumption metadata. The default `universal` behavior preserves the
-complete contract when one artifact may serve more than one mode.
+for a fresh-mount-only browser bundle. These modes prune unused emitted contract fields; the
+default `universal` behavior preserves the complete contract.
+For an SSR-only server entry, combine `target: 'server'` with `renderMode: 'server-render'` to omit
+later continuation-dispatch executors. Keep the default for a server bundle that also calls
+`composeExactExecutorContract()` or handles continuation requests.
 
 ## What the plugin handles
 
 The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact`
-facades, applies client or server export conditions, supports HMR, and verifies that server-only
-code does not enter the final browser graph.
+facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the
+final browser graph.
 
 For `target: 'server'`, compiler-recorded component package requests are resolved and authorized
 before Vite loads their implementations. Configure trust once through `componentLibraries` in
@@ -35,24 +46,19 @@ Automatic dependency discovery is disabled for server targets so unresolved comp
 cannot be prebundled before that gate; authorized packages still participate in ordinary Rollup
 chunking after resolution.
 
-Attributed enhancement imports reached by an application bundle populate the shared bundle-local
-enhancement catalog. The adapter redirects DOM, hydration, and SSR entry points through the common
-renderer facades that supply that catalog;
-the compiler does not consult or maintain a plugin registry for this decision.
-An attributed namespace export with `scope: 'package'` in `exact.config.*` supplies a virtual namespace to
-every package component; Vite emits its catalog registration only from modules that activate it.
+Attributed enhancement imports populate the shared bundle-local enhancement catalog. The adapter
+routes renderers through facades that supply it; the compiler maintains no plugin registry. An
+attributed `scope: 'package'` namespace supplies a virtual namespace to every package component,
+with registration emitted only from modules that activate it.
 
-The `internationalization` option runs `@exactjs/intl-analyzer` over original TSX
-before this ordinary compiler transform. It accepts generated data-only `catalogs` or watched
-XLIFF 2.1/protocol-JSON `catalogFiles` and generates validated per-source companion modules with
-generation fencing. XLIFF is the recommended persisted translation source; runtime protocol JSON
-is derived build data. The
-owner and source locale can be explicit or derived from entry-package intl metadata; an optional
+The `internationalization` option runs `@exactjs/intl-analyzer` before compilation. It accepts
+data-only `catalogs` or watched XLIFF 2.1/protocol-JSON `catalogFiles` and generates companions with
+generation fencing. XLIFF is the recommended persisted source; runtime protocol JSON is derived
+build data. The owner and source locale may be explicit or come from package intl metadata; an optional
 `developmentLocale` overrides only development catalog selection. Catalog-file edits relink and
-invalidate those companions without recompiling component source. Analyzer-local ownership is joined to public compiler component facts, so
-messages outside recognized components fail the build. Generated companions are component-owned
-and side-effect-free when unused, allowing Rollup to prune translations for an unused component in
-a shared source module. An
+invalidate those companions without recompiling component source. Analyzer ownership joins public
+compiler facts, so messages outside components fail the build. Generated companions are
+component-owned and side-effect-free when unused, allowing Rollup to prune unused translations. An
 optional `onDescriptors(descriptors, moduleId)` callback supports external translation tools. The
 optional `onClientRequirements(requirements, moduleId)` callback reports finite `temporal` and
 `intl-duration-format` requirements for generator-owned polyfill planning. Generated companions
@@ -69,8 +75,6 @@ are left to the runner by default; imported application components are still com
 
 Optional `debug` settings control private server inspection catalogs and compact browser
 instrumentation. Production client and server builds should share a stable build identity.
-Disable both controls for hardened output.
 
-See [eXact DevTools](../../docs/devtools.md) and
-[component registries](../../docs/component-registries.md). Component authorization permits
+See [eXact DevTools](../../docs/devtools.md) and [component registries](../../docs/component-registries.md). Component authorization permits
 in-process server execution and is not a JavaScript sandbox.

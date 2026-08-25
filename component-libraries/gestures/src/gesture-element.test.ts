@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { render, unmount } from '@exactjs/dom';
+import '@exactjs/core/runtime/refs';
 import { createTestVNode as createVNode } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineGesture } from './definitions.js';

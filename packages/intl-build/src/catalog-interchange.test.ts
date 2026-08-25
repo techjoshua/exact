@@ -1,4 +1,4 @@
-import type { IntlRuntimeDescriptorV1 } from '@exactjs/intl';
+import { projectIntlTranslationContract, type IntlRuntimeDescriptorV1 } from '@exactjs/intl';
 import { validateIntlCatalog } from '@exactjs/intl/internal';
 import { analyzeIntlSource } from '@exactjs/intl-analyzer';
 import { describe, expect, it } from 'vitest';
@@ -83,7 +83,12 @@ describe('intl catalog interchange', () => {
 			protocol: 1 as const,
 			locale: 'pl-PL',
 			owner: rangeDescriptor.owner,
-			messages: { [rangeDescriptor.key]: rangeDescriptor.source }
+			messages: {
+				[rangeDescriptor.key]: projectIntlTranslationContract(
+					rangeDescriptor.bindings,
+					rangeDescriptor.source
+				).source
+			}
 		};
 
 		const encoded = xliff21CatalogInterchange.exportCatalog(translated, [rangeDescriptor]);
@@ -124,19 +129,18 @@ describe('intl catalog interchange', () => {
 				[ordinalDescriptor.key]: [
 					{
 						kind: 'select' as const,
-						binding: 0,
-						selection: 'plural-ordinal' as const,
+						id: 'n0',
 						cases: [
 							{
 								key: 'one',
 								value: [
-									{ kind: 'value' as const, binding: 0 },
+									{ kind: 'placeholder' as const, id: 'n0.f.1' },
 									{ kind: 'text' as const, value: 'st' }
 								]
 							}
 						],
 						fallback: [
-							{ kind: 'value' as const, binding: 0 },
+							{ kind: 'placeholder' as const, id: 'n0.f.1' },
 							{ kind: 'text' as const, value: 'th' }
 						]
 					}
@@ -179,10 +183,10 @@ describe('intl catalog interchange', () => {
 		expect(encoded).not.toContain('m1_formatter_only');
 		expect(encoded).not.toContain('<target>');
 
-		const legacyFormatterUnit = xliff21CatalogInterchange
+		const obsoleteFormatterUnit = xliff21CatalogInterchange
 			.exportCatalog(catalog, [descriptor])
 			.replaceAll(descriptor.key, formatterOnly.key);
-		const synchronized = synchronizeXliff21Catalog(legacyFormatterUnit, [formatterOnly], {
+		const synchronized = synchronizeXliff21Catalog(obsoleteFormatterUnit, [formatterOnly], {
 			owner: descriptor.owner,
 			locale: 'fr'
 		});
@@ -230,7 +234,10 @@ describe('intl catalog interchange', () => {
 			protocol: 1,
 			locale: 'fr',
 			owner: structured.owner,
-			messages: { [structured.key]: structured.source }
+			messages: {
+				[structured.key]: projectIntlTranslationContract(structured.bindings, structured.source)
+					.source
+			}
 		};
 		const encoded = xliff21CatalogInterchange.exportCatalog(translated, [structured]);
 		expect(encoded).toContain('<file id="f1" original="@acme/card">');
@@ -283,26 +290,19 @@ describe('intl catalog interchange', () => {
 		).toBe(synchronized);
 	});
 
-	it('drops obsolete legacy units and emits only generic current source', () => {
-		const legacy = `<?xml version="1.0" encoding="UTF-8"?>
+	it('rejects superseded eXact runtime metadata instead of migrating it', () => {
+		const input = `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" xmlns:exact="https://exactjs.dev/intl/xliff/1" version="2.1" srcLang="en-US" trgLang="fr">
-  <file id="@acme/card">
-    <unit id="m1_legacy">
-      <segment><source>Hello <ph id="n0" type="x-exact-value" equiv="{0}" exact:kind="value" exact:binding="0"></ph></source></segment>
+  <file id="f1" original="@acme/card">
+    <unit id="${descriptor.key}">
+      <segment><source>Hello &amp; welcome</source><target exact:binding="0">Bonjour</target></segment>
     </unit>
   </file>
 </xliff>`;
-		const synchronized = synchronizeXliff21Catalog(legacy, [descriptor], {
-			owner: descriptor.owner,
-			locale: 'fr'
-		});
-		expect(synchronized).toContain(`id="${descriptor.key}"`);
-		expect(synchronized).not.toContain('m1_legacy');
-		expect(synchronized).not.toContain('subType=');
-		expect(synchronized).not.toContain('exact:obsolete');
-		expect(synchronized).not.toContain('xmlns:exact');
-		expect(synchronized).not.toMatch(/\sexact:[\w-]+=/u);
-		expect(() => xliff21CatalogInterchange.importCatalog(synchronized, [descriptor])).not.toThrow();
+
+		expect(() => xliff21CatalogInterchange.importCatalog(input, [descriptor])).toThrow(
+			'unsupported eXact runtime metadata'
+		);
 	});
 
 	it('rejects XLIFF entity declarations before parsing translation data', () => {

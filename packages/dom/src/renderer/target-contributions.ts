@@ -10,9 +10,9 @@ import {
 	mergeTargetClassContributions,
 	mergeTargetTokenContributions
 } from '@exactjs/core/framework/target-contributions';
-import { computed, scheduleWork, watch } from '@exactjs/reactive';
+import { computed, scheduleWork, watch } from '@exactjs/reactive/framework/runtime';
 import { installOwnedEventSubscription } from '../events.js';
-import { isCompilerFormBindingProp, updateProps } from '../props.js';
+import { isCompilerFormBindingProp, isEventHandlerProp, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { resolveTargetBoundary } from './target-routing.js';
 
@@ -204,7 +204,7 @@ function composeTargetProps(
 			if (key in authored) result[key] = authored[key];
 			continue;
 		}
-		if (/^on[A-Z]/.test(key)) {
+		if (isEventHandlerProp(key)) {
 			const contributed = innerToOuter.filter((layer) => key in layer.props);
 			if (!contributed.length) {
 				if (key in authored) result[key] = authored[key];

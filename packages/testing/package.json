@@ -10,27 +10,40 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client-artifact/index.js",
+			"default": "./dist/server-artifact/index.js"
 		},
 		"./plugins": {
 			"types": "./dist/plugins.d.ts",
-			"default": "./dist/plugins.js"
+			"browser": "./dist/client-artifact/plugins.js",
+			"default": "./dist/server-artifact/plugins.js"
 		},
 		"./vitest": {
 			"types": "./dist/vitest.d.ts",
-			"default": "./dist/vitest.js"
+			"browser": "./dist/client-artifact/vitest.js",
+			"default": "./dist/server-artifact/vitest.js"
 		},
 		"./jest": {
 			"types": "./dist/jest.d.ts",
-			"default": "./dist/jest.js"
+			"browser": "./dist/client-artifact/jest.js",
+			"default": "./dist/server-artifact/jest.js"
 		},
 		"./internal/fixtures": {
 			"types": "./dist/internal/fixtures.d.ts",
-			"default": "./dist/internal/fixtures.js"
+			"browser": "./dist/client-artifact/internal/fixtures.js",
+			"default": "./dist/server-artifact/internal/fixtures.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server-artifact/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [],
+	"exactCompileModules": [
+		"src/mounting/mount.ts"
+	],
+	"exactTargetDirectories": {
+		"client": "client-artifact",
+		"server": "server-artifact"
+	},
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",
@@ -45,8 +58,8 @@
 		"vitest": "^4.1.10"
 	},
 	"scripts": {
-		"build": "tsc -b",
-		"test": "vitest run",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
+		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

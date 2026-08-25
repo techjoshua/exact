@@ -2,13 +2,17 @@
 import '@exactjs/dom/framework/enhancements';
 import { Fragment, createEnhancementNode, createVNode, type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import '@exactjs/core/runtime/contexts';
 import { render } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
 import { renderToString } from '@exactjs/ssr';
+import '@exactjs/ssr/runtime/generic-components';
 import { describe, expect, it } from 'vitest';
 import { ThemeContext, ThemeScopeEnhancement } from './components.js';
+
+createExactFrameworkFixtureArtifact(ThemeScopeEnhancement, '@exactjs/theme:test-scope-artifact');
 
 describe('reactive theme scopes', () => {
 	it('updates an explicit reactive axis on a nested scope enhancement', () => {
@@ -39,7 +43,7 @@ describe('reactive theme scopes', () => {
 					)
 				);
 		}
-		markExactComponent(App, '@exactjs/theme:test-reactive-nested-axis');
+		createExactFrameworkFixtureArtifact(App, '@exactjs/theme:test-reactive-nested-axis');
 		const container = document.createElement('div');
 		render(createVNode(App, {}), container, {
 			enhancementCatalog: new Map([['@exactjs/theme/enhancements#scope', ThemeScopeEnhancement]])
@@ -69,7 +73,7 @@ describe('reactive theme scopes', () => {
 					)
 				);
 		}
-		markExactComponent(App, '@exactjs/theme:test-nested-app');
+		createExactFrameworkFixtureArtifact(App, '@exactjs/theme:test-nested-app');
 		const container = document.createElement('div');
 		render(createVNode(App, {}), container);
 		const scopes = container.querySelectorAll<HTMLElement>('[data-exact-theme]');
@@ -96,7 +100,7 @@ describe('reactive theme scopes', () => {
 					)
 				);
 		}
-		markExactComponent(App, '@exactjs/theme:test-explicit-inherit');
+		createExactFrameworkFixtureArtifact(App, '@exactjs/theme:test-explicit-inherit');
 		const container = document.createElement('div');
 		render(createVNode(App, {}), container);
 		const scopes = container.querySelectorAll<HTMLElement>('[data-exact-theme]');
@@ -121,7 +125,7 @@ describe('reactive theme scopes', () => {
 					createVNode('p', null, 'Custom tonic')
 				);
 		}
-		markExactComponent(App, '@exactjs/theme:test-custom-tonic');
+		createExactFrameworkFixtureArtifact(App, '@exactjs/theme:test-custom-tonic');
 		const container = document.createElement('div');
 		render(createVNode(App, {}), container);
 		const scope = container.querySelector<HTMLElement>('[data-exact-theme]')!;
@@ -172,8 +176,8 @@ describe('reactive theme scopes', () => {
 					createVNode('div', null, createVNode(Child, {}))
 				);
 		}
-		markExactComponent(Child, '@exactjs/theme:test-child');
-		markExactComponent(App, '@exactjs/theme:test-app');
+		createExactFrameworkFixtureArtifact(Child, '@exactjs/theme:test-child');
+		createExactFrameworkFixtureArtifact(App, '@exactjs/theme:test-app');
 		const container = document.createElement('div');
 		document.body.append(container);
 		render(createVNode(App, {}), container);

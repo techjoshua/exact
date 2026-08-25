@@ -1,30 +1,36 @@
 import {
 	type AnyComponentInstance,
 	type AnyComponentFunction,
-	type AnyEnhancementComponentFunction,
 	normalizeRenderResult,
 	type Child,
 	type VNode
 } from '@exactjs/core';
-import { renderInstance } from '@exactjs/core/runtime/render';
-import { flushSync } from '@exactjs/reactive';
+import { readPreparedExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
 import { componentName, getComponentProps } from './component-vnode.js';
-import { handleSsrConstructionError } from './construction-errors.js';
+import { handleSsrConstructionError } from './construction-error-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderLimitError } from './limits.js';
-import {
-	createSsrComponentInstance,
-	resolveSsrComponentExecution
-} from './root-execution-cache.js';
+import { renderDirectSsrComponent } from './direct-component.js';
+import { renderPreparedSsrProgramString } from './render-program.js';
+import { renderGenericSyncSsrComponent } from './generic-component-capability.js';
+import { resolveSsrComponentExecution } from './root-execution-cache.js';
 
 /** Renderer operations supplied by the sync tree without creating an import cycle. */
 export type SyncComponentOperations = Readonly<{
 	renderChildren(
 		context: SsrContext,
 		children: readonly Child[],
-		parent?: AnyComponentInstance
+		parent?: AnyComponentInstance,
+		hasComponentAncestor?: boolean
+	): string;
+	renderVNode(
+		context: SsrContext,
+		vnode: VNode,
+		parent?: AnyComponentInstance,
+		hasComponentAncestor?: boolean,
+		omitCompilerOwnedBoundary?: boolean
 	): string;
 	componentMarkerId(context: SsrContext, vnode: VNode): string;
 	renderResumable(
@@ -41,88 +47,112 @@ export function renderSyncComponent(
 	context: SsrContext,
 	vnode: VNode,
 	parent: AnyComponentInstance | undefined,
-	operations: SyncComponentOperations
+	hasComponentAncestor: boolean,
+	operations: SyncComponentOperations,
+	omitCompilerOwnedBoundary = false
 ): string {
 	const componentId = operations.componentMarkerId(context, vnode);
-	const enhancement = context.enhancementVNodes.has(vnode);
+	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	let instance: AnyComponentInstance | undefined;
 	let output!: string;
 	try {
-		const prepared = context.preparedEnhancementComponents.get(vnode);
+		const prepared = context.preparedEnhancementComponents?.get(vnode);
 		if (prepared) {
 			instance = prepared.instance;
 			if (documentProbe) resetDocumentProbe(context);
 			const html = operations.renderChildren(
 				context,
 				prepared.children,
-				prepared.failed ? parent : (instance ?? parent)
+				prepared.failed ? parent : (instance ?? parent),
+				true
 			);
 			output = componentOutput(
 				context,
 				vnode,
-				parent,
 				componentId,
 				html,
 				prepared.props,
 				enhancement,
 				documentProbe,
-				operations
+				hasComponentAncestor,
+				operations,
+				omitCompilerOwnedBoundary
 			);
 			if (instance) context.onComponentRendered?.(instance);
 			return output;
 		}
 		const componentProps = getComponentProps(vnode);
 		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
-		instance = createSsrComponentInstance(
-			context,
-			vnode.type as AnyEnhancementComponentFunction,
-			componentProps,
-			parent,
-			blueprint
-		);
-		context.onComponentCreated?.(instance);
-		let stabilized = false;
-		for (let pass = 0; pass < 25; pass++) {
-			if (documentProbe) resetDocumentProbe(context);
+		const direct = renderDirectSsrComponent(context, blueprint, componentProps);
+		if (direct) {
 			const checkpoint = context.onComponentAttemptCheckpoint?.();
-			let invalidated = false;
-			let html: string;
 			try {
-				const children = renderInstance(instance, () => {
-					invalidated = true;
-				});
-				html = operations.renderChildren(context, children, instance);
+				context.onDirectComponentCreated?.(direct.snapshot);
+				if (documentProbe) resetDocumentProbe(context);
+				const html = direct.content.program
+					? renderPreparedSsrProgramString(
+							context,
+							direct.content.program,
+							parent,
+							(fallback) => operations.renderVNode(context, fallback, parent, true),
+							(children) => operations.renderChildren(context, children, parent, true),
+							(component) => operations.renderVNode(context, component, parent, true, true)
+						)
+					: operations.renderChildren(context, direct.content.children, parent, true);
+				const directOutput = componentOutput(
+					context,
+					vnode,
+					componentId,
+					html,
+					direct.props,
+					enhancement,
+					documentProbe,
+					hasComponentAncestor,
+					operations,
+					omitCompilerOwnedBoundary
+				);
+				context.onDirectComponentRendered?.(direct.snapshot);
+				return directOutput;
 			} catch (error) {
 				context.onComponentAttemptRollback?.(checkpoint);
 				throw error;
 			}
-			flushSync();
-			if (invalidated) {
-				context.onComponentAttemptRollback?.(checkpoint);
-				continue;
-			}
-			output = componentOutput(
-				context,
-				vnode,
-				parent,
-				componentId,
-				html,
-				componentProps,
-				enhancement,
-				documentProbe,
-				operations
-			);
-			stabilized = true;
-			break;
 		}
-		if (!stabilized)
-			throw new Error('eXact SSR component did not stabilize after 25 render passes');
+		if (documentProbe) resetDocumentProbe(context);
+		const generic = renderGenericSyncSsrComponent({
+			context,
+			vnode,
+			parent,
+			operations,
+			blueprint,
+			rawProps: componentProps,
+			onInstance: (created) => {
+				instance = created;
+			}
+		});
+		output = componentOutput(
+			context,
+			vnode,
+			componentId,
+			generic.html,
+			generic.props,
+			enhancement,
+			documentProbe,
+			hasComponentAncestor,
+			operations,
+			omitCompilerOwnedBoundary
+		);
 	} catch (error) {
 		if (isSsrRenderLimitError(error)) throw error;
 		const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
 		const html = fallback
-			? operations.renderChildren(context, normalizeRenderResult(fallback()), parent)
+			? operations.renderChildren(
+					context,
+					normalizeRenderResult(fallback()),
+					parent,
+					hasComponentAncestor
+				)
 			: '';
 		output =
 			enhancement || (documentProbe && context.documentRootSeen)
@@ -150,16 +180,25 @@ export function* renderRootComponentChunks(
 function componentOutput(
 	context: SsrContext,
 	vnode: VNode,
-	parent: AnyComponentInstance | undefined,
 	componentId: string,
 	html: string,
 	props: Record<string, unknown>,
 	enhancement: boolean,
 	documentProbe: boolean,
-	operations: SyncComponentOperations
+	hasComponentAncestor: boolean,
+	operations: SyncComponentOperations,
+	omitCompilerOwnedBoundary: boolean
 ): string {
-	if (enhancement || (documentProbe && context.documentRootSeen)) return html;
-	return parent
+	const resumable =
+		readPreparedExactCompiledComponentContract(vnode.type as AnyComponentFunction).continuations
+			.length !== 0;
+	if (
+		enhancement ||
+		(documentProbe && context.documentRootSeen) ||
+		(omitCompilerOwnedBoundary && !resumable)
+	)
+		return html;
+	return hasComponentAncestor
 		? operations.renderResumable(context, vnode, componentId, html, props)
 		: markerPair(context, componentId, () => html);
 }

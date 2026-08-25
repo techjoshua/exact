@@ -7,10 +7,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
-import {
-	planSsrEnhancementBoundary,
-	planSsrEnhancementBoundaryAsync
-} from './enhancement-planning.js';
+import { ssrEnhancementPlanningCapability } from './enhancement-planning-capability.js';
 
 /** Activates declarations carried by one SSR vnode boundary. */
 export function activateSsrEnhancements(
@@ -31,11 +28,11 @@ export async function activateSsrEnhancementsAsync(
 ): Promise<VNode> {
 	const declarations = localDeclarations(vnode);
 	if (declarations.length) reportUnavailableEntries(context, declarations);
-	if (declarations.length && !context.plannedEnhancementBoundaries.has(vnode)) {
+	if (declarations.length && !context.plannedEnhancementBoundaries?.has(vnode)) {
 		if (declarations.some((entry) => activeEnhancement(context, entry.identity))) {
-			await planSsrEnhancementBoundaryAsync(context, vnode, parent, options);
+			await ssrEnhancementPlanningCapability().planBoundaryAsync(context, vnode, parent, options);
 		} else {
-			context.plannedEnhancementBoundaries.add(vnode);
+			(context.plannedEnhancementBoundaries ??= new WeakSet()).add(vnode);
 		}
 	}
 	return activatePlannedTarget(context, vnode);
@@ -49,16 +46,16 @@ function planBoundaryIfNeeded(
 	const declarations = localDeclarations(vnode);
 	if (!declarations.length) return;
 	reportUnavailableEntries(context, declarations);
-	if (context.plannedEnhancementBoundaries.has(vnode)) return;
+	if (context.plannedEnhancementBoundaries?.has(vnode)) return;
 	if (declarations.some((entry) => activeEnhancement(context, entry.identity))) {
-		planSsrEnhancementBoundary(context, vnode, parent);
+		ssrEnhancementPlanningCapability().planBoundary(context, vnode, parent);
 	} else {
-		context.plannedEnhancementBoundaries.add(vnode);
+		(context.plannedEnhancementBoundaries ??= new WeakSet()).add(vnode);
 	}
 }
 
 function activatePlannedTarget(context: SsrContext, vnode: VNode): VNode {
-	const declarations = context.enhancementTargets.get(vnode) ?? [];
+	const declarations = context.enhancementTargets?.get(vnode) ?? [];
 	if (!declarations.length) return vnode;
 	const active = declarations.filter((entry) => {
 		if (activeEnhancement(context, entry.identity)) return true;
@@ -100,7 +97,7 @@ function enhancementVNode(
 ): VNode {
 	const vnode = createVNode(component, { ...entry.props }, child);
 	const owned = domain ? { ...vnode, domain } : vnode;
-	context.enhancementVNodes.add(owned);
+	(context.enhancementVNodes ??= new WeakSet()).add(owned);
 	return owned;
 }
 
@@ -168,8 +165,8 @@ function orderEnhancementEntries(
 
 function reportUnavailable(context: SsrContext, identity: string): void {
 	if (isExactEnhancementPassThrough(context.enhancementCatalog?.get(identity))) return;
-	if (context.unavailableEnhancements.has(identity)) return;
-	context.unavailableEnhancements.add(identity);
+	if (context.unavailableEnhancements?.has(identity)) return;
+	(context.unavailableEnhancements ??= new Set()).add(identity);
 	context.logger?.log({
 		level: 'warn',
 		message: `Optional renderer enhancement "${identity}" is unavailable`,

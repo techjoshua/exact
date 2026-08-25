@@ -1,22 +1,57 @@
 /** @vitest-environment jsdom */
-import { createCompiledVNode } from '@exactjs/core/runtime/render';
-import { createCompiledRenderProgram } from '@exactjs/core/runtime/render';
+import { encodeExactMarkerPart, type Component } from '@exactjs/core';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
+import {
+	createCompiledVNode,
+	createFrameworkFixtureComponentInstance,
+	createPreparedRenderProgram,
+	createServerBoundary,
+	prepareCompiledRenderProgram as prepareCoreRenderProgram
+} from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
-import { expect, it } from 'vitest';
-import { render, unmount } from './index.js';
+import { expect, it, vi } from 'vitest';
+import { adoptStatic, render, unmount } from './index.js';
+import { createVNode } from './test-support/native-vnode.js';
+import { withGenericRenderProgramBindings } from './testing.js';
+
+function RenderProgramOwner(this: Component<{}>) {
+	return () => null;
+}
+const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgramOwner, {});
+
+const createCompiledRenderProgram = (
+	_cacheKey: string,
+	createProgram: () => Parameters<typeof prepareCoreRenderProgram>[0],
+	readers: Parameters<typeof createPreparedRenderProgram>[1],
+	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
+) =>
+	createPreparedRenderProgram(
+		prepareCoreRenderProgram(withGenericRenderProgramBindings(createProgram())),
+		readers,
+		renderProgramOwner,
+		fallback
+	);
+
+it('fails closed with the unsupported compiler boundary identity', () => {
+	const container = document.createElement('div');
+	render(createServerBoundary('router', 'Router'), container);
+	expect(container.textContent).toContain(
+		'Unsupported eXact vnode type: exact.server-boundary (Router)'
+	);
+});
 
 it('clones one compiler template and updates scalar slots without a generic vnode subtree', () => {
 	const state = reactive({ label: 'first' });
 	const vnode = createCompiledRenderProgram(
 		'render-program:test',
 		() => ({
-			version: 1,
+			version: 4,
 			id: 'render-program:test',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
-			parts: ['<span data-exact-id="planned">', '</span>'],
-			slots: [{ id: 'label', kind: 'text', path: [0] }],
-			nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }]
+			slots: [['text', 'label', [0]]],
+			bindings: [['text', 0]],
+			nodes: [[0, 'span']]
 		}),
 		[() => state.label],
 		() => createCompiledVNode('span', { 'data-exact-id': 'planned' }, state.label)
@@ -29,6 +64,60 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 	expect(container.textContent).toBe('second');
 });
 
+it('mounts and patches a static compiler program without reactive bindings', () => {
+	const program = () =>
+		createCompiledRenderProgram(
+			'render-program:static',
+			() => ({
+				version: 4,
+				id: 'render-program:static',
+				namespace: 'html',
+				template: '<p data-exact-id="static" class="message">Ready</p>',
+				slots: [],
+				bindings: [],
+				nodes: [[0, 'p']]
+			}),
+			[]
+		);
+	const container = document.createElement('div');
+	render(program(), container);
+	const paragraph = container.firstElementChild;
+	render(program(), container);
+	expect(container.firstElementChild).toBe(paragraph);
+	expect(paragraph?.className).toBe('message');
+	expect(paragraph?.textContent).toBe('Ready');
+	unmount(container);
+	expect(container.childNodes).toHaveLength(0);
+});
+
+it('materializes repeated program templates without sharing live DOM', () => {
+	const program = () =>
+		createCompiledRenderProgram(
+			'render-program:repeated-template',
+			() => ({
+				version: 4,
+				id: 'render-program:repeated-template',
+				namespace: 'html',
+				template: '<p data-exact-id="repeated">Repeated</p>',
+				slots: [],
+				bindings: [],
+				nodes: [[0, 'p']]
+			}),
+			[]
+		);
+	const first = document.createElement('div');
+	const second = document.createElement('div');
+	const third = document.createElement('div');
+	render(program(), first);
+	render(program(), second);
+	render(program(), third);
+	expect(first.textContent).toBe('Repeated');
+	expect(second.textContent).toBe('Repeated');
+	expect(third.textContent).toBe('Repeated');
+	expect(first.firstElementChild).not.toBe(second.firstElementChild);
+	expect(second.firstElementChild).not.toBe(third.firstElementChild);
+});
+
 it('uses ordinary host semantics for planned properties, styles, events, and refs', () => {
 	const state = reactive({ disabled: false, tone: 'red', clicks: 0 });
 	const refValues: unknown[] = [];
@@ -36,18 +125,18 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 	const vnode = createCompiledRenderProgram(
 		'render-program:props',
 		() => ({
-			version: 1,
+			version: 4,
 			id: 'render-program:props',
 			namespace: 'html',
 			template: '<button data-exact-id="planned-button">Save</button>',
-			parts: ['<button data-exact-id="planned-button"', '', '', '', '>Save</button>'],
 			slots: [
-				{ id: 'disabled', kind: 'property', path: [], name: 'disabled' },
-				{ id: 'style', kind: 'style', path: [], name: 'style' },
-				{ id: 'click', kind: 'property', path: [], name: 'onClick' },
-				{ id: 'ref', kind: 'property', path: [], name: 'ref' }
+				['property', 0, 'disabled'],
+				['style', 0, 'style'],
+				['property', 0, 'onClick'],
+				['property', 0, 'ref']
 			],
-			nodes: [{ id: 'planned-button', path: [], tag: 'button', namespace: 'html' }]
+			bindings: [['properties', [0, 1, 2, 3]]],
+			nodes: [[0, 'button']]
 		}),
 		[() => state.disabled, () => ({ color: state.tone }), () => () => state.clicks++, () => ref],
 		() => createCompiledVNode('button', {}, 'Save')
@@ -73,26 +162,25 @@ it('applies a controlled select value after slotted option values', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:select-value-order',
 		() => ({
-			version: 1,
+			version: 4,
 			id: 'render-program:select-value-order',
 			namespace: 'html',
 			template:
 				'<select data-exact-id="page"><option data-exact-id="letter">Letter</option><option data-exact-id="a4">A4</option></select>',
-			parts: [
-				'<select data-exact-id="page"',
-				'><option data-exact-id="letter"',
-				'>Letter</option><option data-exact-id="a4"',
-				'>A4</option></select>'
-			],
 			slots: [
-				{ id: 'selected', kind: 'property', path: [], name: 'value' },
-				{ id: 'letter-value', kind: 'property', path: [0], name: 'value' },
-				{ id: 'a4-value', kind: 'property', path: [1], name: 'value' }
+				['property', 0, 'value'],
+				['property', 1, 'value'],
+				['property', 2, 'value']
+			],
+			bindings: [
+				['properties', [1]],
+				['properties', [2]],
+				['properties', [0]]
 			],
 			nodes: [
-				{ id: 'page', path: [], tag: 'select', namespace: 'html' },
-				{ id: 'letter', path: [0], tag: 'option', namespace: 'html' },
-				{ id: 'a4', path: [1], tag: 'option', namespace: 'html' }
+				[0, 'select'],
+				[1, 'option'],
+				[2, 'option']
 			]
 		}),
 		[() => state.value, () => 'letter', () => 'a4'],
@@ -115,15 +203,15 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg',
 		() => ({
-			version: 1,
+			version: 4,
 			id: 'render-program:svg',
 			namespace: 'svg',
 			template: '<svg data-exact-id="svg"><circle data-exact-id="circle"></circle></svg>',
-			parts: ['<svg data-exact-id="svg"><circle data-exact-id="circle"', '></circle></svg>'],
-			slots: [{ id: 'ref', kind: 'property', path: [0], name: 'ref' }],
+			slots: [['property', 1, 'ref']],
+			bindings: [['properties', [0]]],
 			nodes: [
-				{ id: 'svg', path: [], tag: 'svg', namespace: 'svg' },
-				{ id: 'circle', path: [0], tag: 'circle', namespace: 'svg' }
+				[0, 'svg'],
+				[1, 'circle']
 			]
 		}),
 		[() => ref],
@@ -140,13 +228,13 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 	const vnode = createCompiledRenderProgram(
 		'render-program:svg-path',
 		() => ({
-			version: 1,
+			version: 4,
 			id: 'render-program:svg-path',
 			namespace: 'svg',
 			template: '<path data-exact-id="route"></path>',
-			parts: ['<path data-exact-id="route"', '></path>'],
-			slots: [{ id: 'path', kind: 'property', path: [], name: 'd' }],
-			nodes: [{ id: 'route', path: [], tag: 'path', namespace: 'svg' }]
+			slots: [['property', 0, 'd']],
+			bindings: [['properties', [0]]],
+			nodes: [[0, 'path']]
 		}),
 		[() => 'M 0 0 L 10 10'],
 		() => createCompiledVNode('path', { 'data-exact-id': 'route' })
@@ -164,13 +252,13 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 		createCompiledRenderProgram(
 			'render-program:patched-event',
 			() => ({
-				version: 1,
+				version: 4,
 				id: 'render-program:patched-event',
 				namespace: 'html',
 				template: '<button data-exact-id="patched">Run</button>',
-				parts: ['<button data-exact-id="patched"', '>Run</button>'],
-				slots: [{ id: 'click', kind: 'property', path: [], name: 'onClick' }],
-				nodes: [{ id: 'patched', path: [], tag: 'button', namespace: 'html' }]
+				slots: [['property', 0, 'onClick']],
+				bindings: [['properties', [0]]],
+				nodes: [[0, 'button']]
 			}),
 			[() => () => calls.push(label)],
 			() => createCompiledVNode('button', {}, 'Run')
@@ -188,13 +276,13 @@ it('evaluates an initial planned slot exactly once', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:single-read',
 		() => ({
-			version: 1,
+			version: 4,
 			id: 'render-program:single-read',
 			namespace: 'html',
 			template: '<span data-exact-id="single-read">\ue000exact:0\ue001</span>',
-			parts: ['<span data-exact-id="single-read">', '</span>'],
-			slots: [{ id: 'value', kind: 'text', path: [0] }],
-			nodes: [{ id: 'single-read', path: [], tag: 'span', namespace: 'html' }]
+			slots: [['text', 'value', [0]]],
+			bindings: [['text', 0]],
+			nodes: [[0, 'span']]
 		}),
 		[
 			() => {
@@ -210,17 +298,125 @@ it('evaluates an initial planned slot exactly once', () => {
 	expect(reads).toBe(1);
 });
 
+it('refreshes only the compiled slot group whose dependency changed', () => {
+	const state = reactive({ first: 'a', second: 'b' });
+	const reads = { first: 0, second: 0 };
+	const vnode = createCompiledRenderProgram(
+		'render-program:independent-slots',
+		() => ({
+			version: 4,
+			id: 'render-program:independent-slots',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="slots"><span data-exact-id="first">\ue000exact:0\ue001</span><span data-exact-id="second">\ue000exact:1\ue001</span></section>',
+			slots: [
+				['text', 'first', [0, 0]],
+				['text', 'second', [1, 0]]
+			],
+			bindings: [
+				['text', 0],
+				['text', 1]
+			],
+			nodes: [
+				[0, 'section'],
+				[1, 'span'],
+				[2, 'span']
+			]
+		}),
+		[
+			() => {
+				reads.first++;
+				return state.first;
+			},
+			() => {
+				reads.second++;
+				return state.second;
+			}
+		]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(reads).toEqual({ first: 1, second: 1 });
+	state.first = 'changed';
+	flushSync();
+	expect(reads).toEqual({ first: 2, second: 1 });
+	expect(container.textContent).toBe('changedb');
+});
+
+it('preserves static text between compiler-separated scalar slots', () => {
+	const state = reactive({ owner: 'Assigned', status: 'open' });
+	const vnode = createCompiledRenderProgram(
+		'render-program:adjacent-scalars',
+		() => ({
+			version: 4,
+			id: 'render-program:adjacent-scalars',
+			namespace: 'html',
+			template:
+				'<small data-exact-id="adjacent"><!---->\ue000exact:0\ue001<!----> · <!---->\ue000exact:1\ue001<!----></small>',
+			slots: [
+				['text', 'owner', [1]],
+				['text', 'status', [5]]
+			],
+			bindings: [
+				['text', 0],
+				['text', 1]
+			],
+			nodes: [[0, 'small']]
+		}),
+		[() => state.owner, () => state.status]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(container.textContent).toBe('Assigned · open');
+	state.status = 'closed';
+	flushSync();
+	expect(container.textContent).toBe('Assigned · closed');
+});
+
+it('retracks replacement readers when a compiled program invocation is patched', () => {
+	const state = reactive({ first: 'a', second: 'b' });
+	const program = (reader: () => string) =>
+		createCompiledRenderProgram(
+			'render-program:replacement-dependency',
+			() => ({
+				version: 4,
+				id: 'render-program:replacement-dependency',
+				namespace: 'html',
+				template: '<span data-exact-id="replacement">\ue000exact:0\ue001</span>',
+				slots: [['text', 'replacement', [0]]],
+				bindings: [['text', 0]],
+				nodes: [[0, 'span']]
+			}),
+			[reader]
+		);
+	const container = document.createElement('div');
+	render(
+		program(() => state.first),
+		container
+	);
+	render(
+		program(() => state.second),
+		container
+	);
+	state.first = 'ignored';
+	flushSync();
+	expect(container.textContent).toBe('b');
+	state.second = 'tracked';
+	flushSync();
+	expect(container.textContent).toBe('tracked');
+});
+
 it('falls back locally when an initial text slot violates its scalar contract', () => {
 	const vnode = createCompiledRenderProgram(
 		'render-program:shape-fallback',
 		() => ({
-			version: 1,
+			version: 4,
 			id: 'render-program:shape-fallback',
 			namespace: 'html',
 			template: '<span data-exact-id="planned">\ue000exact:0\ue001</span>',
-			parts: ['<span data-exact-id="planned">', '</span>'],
-			slots: [{ id: 'value', kind: 'text', path: [0] }],
-			nodes: [{ id: 'planned', path: [], tag: 'span', namespace: 'html' }]
+			slots: [['text', 'value', [0]]],
+			bindings: [['text', 0]],
+			nodes: [[0, 'span']]
 		}),
 		[() => createCompiledVNode('strong', {}, 'generic')],
 		() => createCompiledVNode('span', { 'data-exact-id': 'fallback' }, 'fallback')
@@ -228,4 +424,177 @@ it('falls back locally when an initial text slot violates its scalar contract', 
 	const container = document.createElement('div');
 	render(vnode, container);
 	expect(container.querySelector('[data-exact-id="fallback"]')?.textContent).toBe('fallback');
+});
+
+it('claims marked SSR nodes through compiler-generated hydration calls without indexing the subtree', () => {
+	const state = reactive({ label: '', disabled: false });
+	const vnode = createCompiledRenderProgram(
+		'render-program:hydration-plan',
+		() => ({
+			version: 4,
+			id: 'render-program:hydration-plan',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="root"><button data-exact-id="button">\ue000exact:0\ue001</button></section>',
+			slots: [
+				['property', 1, 'disabled'],
+				['text', 'label', [0, 0]]
+			],
+			bindings: [
+				['text', 1],
+				['properties', [0]]
+			],
+			nodes: [
+				[0, 'section'],
+				[1, 'button']
+			]
+		}),
+		[() => state.disabled, () => state.label],
+		() => createCompiledVNode('section', {}, createCompiledVNode('button', {}, state.label))
+	);
+	const container = document.createElement('div');
+	container.innerHTML =
+		'<!--exact:cell:root--><section data-exact-id="root"><!--exact:cell:button--><button data-exact-id="button"><!--exact:dynamic:label--><!--/exact:dynamic:label--></button><!--/exact:cell:button--></section><!--/exact:cell:root-->';
+	const button = container.querySelector('button')!;
+	const querySelectorAll = vi.spyOn(button.parentElement!, 'querySelectorAll');
+	const createTreeWalker = vi.spyOn(document, 'createTreeWalker');
+
+	expect(adoptStatic(vnode, container)).toBe(true);
+	expect(querySelectorAll).not.toHaveBeenCalled();
+	expect(createTreeWalker).not.toHaveBeenCalled();
+	state.label = 'client';
+	state.disabled = true;
+	flushSync();
+	expect(container.querySelector('button')).toBe(button);
+	expect(button.textContent).toBe('client');
+	expect(button.disabled).toBe(true);
+});
+
+it('mounts and updates compiler-owned structural child slots without replacing their host', () => {
+	const state = reactive({ shown: true, label: 'first' });
+	const vnode = createCompiledRenderProgram(
+		'render-program:child-slot',
+		() => ({
+			version: 4,
+			id: 'render-program:child-slot',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="child-root"><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section>',
+			slots: [['child', 'child']],
+			bindings: [['child', 0]],
+			nodes: [
+				[0, 'section'],
+				[1, 'footer']
+			]
+		}),
+		[() => (state.shown ? createCompiledVNode('strong', {}, state.label) : null)]
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	const host = container.firstElementChild;
+	expect(container.textContent).toBe('firstAfter');
+	state.label = 'second';
+	flushSync();
+	expect(container.textContent).toBe('secondAfter');
+	state.shown = false;
+	flushSync();
+	expect(container.textContent).toBe('After');
+	expect(container.firstElementChild).toBe(host);
+});
+
+it('claims a variable-width structural child range before later planned elements', () => {
+	const state = reactive({ label: 'server' });
+	const vnode = createCompiledRenderProgram(
+		'render-program:adopt-child-slot',
+		() => ({
+			version: 4,
+			id: 'render-program:adopt-child-slot',
+			namespace: 'html',
+			template:
+				'<section><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer>After</footer></section>',
+			slots: [['child', 'child']],
+			bindings: [['child', 0]],
+			nodes: [
+				[0, 'section'],
+				[1, 'footer']
+			]
+		}),
+		[() => createCompiledVNode('strong', { 'data-exact-id': 'nested' }, state.label)]
+	);
+	const container = document.createElement('div');
+	container.innerHTML =
+		'<!--exact:cell:root--><section data-exact-id="child-root"><!--exact:dynamic:child--><!--exact:cell:nested--><strong data-exact-id="nested">server</strong><!--/exact:cell:nested--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section><!--/exact:cell:root-->';
+	const host = container.querySelector('section');
+	const nested = container.querySelector('strong');
+	expect(adoptStatic(vnode, container)).toBe(true);
+	state.label = 'client';
+	flushSync();
+	expect(container.querySelector('section')).toBe(host);
+	expect(container.querySelector('strong')).toBe(nested);
+	expect(nested?.textContent).toBe('client');
+});
+
+it.each([
+	['compiler-owned', false],
+	['generic-list', true]
+])('adopts a %s component boundary inside a component slot', (_lane, marked) => {
+	function Child() {
+		return () => createVNode('strong', {}, 'server');
+	}
+	const childVNode = createVNode(Child, {});
+	const vnode = createCompiledRenderProgram(
+		'render-program:adopt-component-slot',
+		() => ({
+			version: 4,
+			id: 'render-program:adopt-component-slot',
+			namespace: 'html',
+			template:
+				'<section><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer>After</footer></section>',
+			slots: [['component', 'child']],
+			bindings: [['component', 0]],
+			nodes: [
+				[0, 'section'],
+				[1, 'footer']
+			]
+		}),
+		[() => childVNode]
+	);
+	const componentIdentity = encodeExactMarkerPart(exactComponentIdentity(Child));
+	const componentMarker = `exact:component:0:${componentIdentity}`;
+	const componentHtml = marked
+		? `<!--${componentMarker}--><strong>server</strong><!--/${componentMarker}-->`
+		: '<strong>server</strong>';
+	const container = document.createElement('div');
+	container.innerHTML = `<!--exact:cell:root--><section><!--exact:dynamic:child-->${componentHtml}<!--/exact:dynamic:child--><footer>After</footer></section><!--/exact:cell:root-->`;
+	const strong = container.querySelector('strong');
+
+	expect(adoptStatic(vnode, container)).toBe(true);
+	expect(container.querySelector('strong')).toBe(strong);
+	expect(container.textContent).toBe('serverAfter');
+});
+
+it('rejects a marked SSR program when its generated hydration claims do not match the DOM', () => {
+	const vnode = createCompiledRenderProgram(
+		'render-program:invalid-hydration-plan',
+		() => ({
+			version: 4,
+			id: 'render-program:invalid-hydration-plan',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="root"><button data-exact-id="button">Save</button></section>',
+			slots: [],
+			bindings: [],
+			nodes: [
+				[0, 'section'],
+				[1, 'a']
+			]
+		}),
+		[],
+		() => createCompiledVNode('section', {}, createCompiledVNode('button', {}, 'Save'))
+	);
+	const container = document.createElement('div');
+	container.innerHTML =
+		'<!--exact:cell:root--><section data-exact-id="root"><!--exact:cell:button--><button data-exact-id="button">Save</button><!--/exact:cell:button--></section><!--/exact:cell:root-->';
+
+	expect(adoptStatic(vnode, container)).toBe(false);
 });

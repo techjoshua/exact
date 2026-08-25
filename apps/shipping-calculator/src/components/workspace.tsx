@@ -100,6 +100,8 @@ export function CalculatorWorkspace(
 		draft: ShipmentDraft = this.state.draft,
 		ids: readonly ProviderId[] = initial.configuredProviders
 	) => {
+		// SSR already supplied revision zero. Only restored or user-edited drafts need new work.
+		if (_revision === 0 && !this.state.restored) return;
 		await delay(450);
 		let request;
 		try {

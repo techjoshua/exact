@@ -9,12 +9,10 @@ import {
 	unwrap,
 	type Child,
 	type Component,
-	type ComponentFunction,
 	type InteractionHandler,
 	type VNode
 } from '@exactjs/core';
 import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
-import { markExactComponent } from '@exactjs/core/framework/component-contracts';
 import { reactive } from '@exactjs/reactive';
 import { getRequestContext, RequestContext, type RequestContextValue } from '@exactjs/request';
 import { RouterControllerContext } from './context.js';
@@ -104,16 +102,18 @@ type RouterState = { version: number };
 /** Performs the router domain operation. */
 export function Router(this: Component<RouterState>, props: RouterProps) {
 	this.state.version = 0;
-	const mode = props.mode ?? 'history';
-	const basename = normalizeBasename(props.basename);
+	const mode = peek(() => props.mode ?? 'history');
+	const basename = peek(() => normalizeBasename(props.basename));
 	const request = componentRequestContext(this) ?? getRequestContext();
 	if (request) this.setContext(RequestContext, request);
-	const source = props.source ?? requestSource(request) ?? createBrowserLocationSource(mode);
+	const source = peek(
+		() => props.source ?? requestSource(request) ?? createBrowserLocationSource(mode)
+	);
 	if (!source)
 		throw new Error(
 			'Router requires a location source outside a browser or ambient request context'
 		);
-	const routes = routeChildren(props.children);
+	const routes = peek(() => routeChildren(props.children));
 	const controller = createExactRouter({ source, routes, basename, mode });
 	const routeContext = peek(() => reactive(routeContextValue(controller, basename)));
 	this.setContext(RouteContext, routeContext);
@@ -177,13 +177,9 @@ export type RouteProps = {
 };
 
 /** Declarative route marker consumed by Router; it does not render independently. */
-export function Route(_props: RouteProps): null {
-	return null;
+export function Route(this: Component<Record<string, never>>, _props: RouteProps) {
+	return () => null;
 }
-
-// The compiler preserves function identity while normalizing Route's direct result to a render
-// closure. VNodes therefore carry this same value under the canonical runtime component type.
-const RouteComponent = Route as unknown as ComponentFunction<Record<string, never>, RouteProps>;
 
 type RouteRecord = RouteProps & ExactRouteDefinition & { children: RouteRecord[] };
 
@@ -207,7 +203,7 @@ function routeChildren(children: Child | Child[] | undefined, parentId = 'root')
 			for (const child of vnode.children) collect(child);
 			return;
 		}
-		if (vnode.type !== RouteComponent) return;
+		if (vnode.type !== Route) return;
 		const rawProps = vnode.props as RouteProps;
 		const props: RouteProps = {
 			...rawProps,
@@ -314,12 +310,11 @@ export function Link(this: Component<{}>, props: LinkProps) {
 	const route = this.getContext(RouteContext);
 	const click = peek(() => createLinkClickHandler(this, route, props));
 	const { to, replace: _replace, state: _state, children, onClick: _onClick, ...rest } = props;
-	return () =>
-		createVNode(
-			'a',
-			{ ...rest, href: route.href(to), onClick: click },
-			...(Array.isArray(children) ? children : children === undefined ? [] : [children])
-		);
+	return () => (
+		<a {...rest} href={route.href(to)} onClick={click}>
+			{children}
+		</a>
+	);
 }
 
 /** Defines the properties accepted by nav link. */
@@ -337,10 +332,6 @@ export function NavLink(this: Component<{}>, props: NavLinkProps) {
 		void props.end;
 		return peek(() => navLinkActive(route, props));
 	});
-	const className = this.reactive(() =>
-		typeof props.className === 'function' ? props.className(active.get()) : props.className
-	);
-	const ariaCurrent = this.reactive(() => (active.get() ? ('page' as const) : undefined));
 	const {
 		to,
 		end: _end,
@@ -351,18 +342,19 @@ export function NavLink(this: Component<{}>, props: NavLinkProps) {
 		onClick: _onClick,
 		...rest
 	} = props;
-	return () =>
-		createVNode(
-			'a',
-			{
-				...rest,
-				href: route.href(to),
-				onClick: click,
-				className,
-				'aria-current': ariaCurrent
-			},
-			...(Array.isArray(children) ? children : children === undefined ? [] : [children])
-		);
+	return () => (
+		<a
+			{...rest}
+			href={route.href(to)}
+			onClick={click}
+			className={
+				typeof props.className === 'function' ? props.className(active.get()) : props.className
+			}
+			aria-current={active.get() ? 'page' : undefined}
+		>
+			{children}
+		</a>
+	);
 }
 
 /** Performs the navigate domain operation. */
@@ -374,17 +366,6 @@ export function Navigate(
 	route.navigate(props.to, { replace: props.replace ?? true, status: props.status });
 	return null;
 }
-
-for (const [component, identity] of [
-	[Router, '@exactjs/router:Router'],
-	[Route, '@exactjs/router:Route'],
-	[Outlet, '@exactjs/router:Outlet'],
-	[Link, '@exactjs/router:Link'],
-	[NavLink, '@exactjs/router:NavLink'],
-	[Navigate, '@exactjs/router:Navigate'],
-	[MatchedRoute, '@exactjs/router:MatchedRoute']
-] as const)
-	markExactComponent(component, identity);
 
 function requestSource(request: RequestContextValue | undefined): LocationSource | undefined {
 	if (!request) return undefined;

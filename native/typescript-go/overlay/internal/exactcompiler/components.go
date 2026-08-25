@@ -41,6 +41,20 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		if len(signals) == 0 {
 			continue
 		}
+		surface := ComponentSurfacePlan{
+			Logging:      componentUsesProtocolMember(candidate.node, "log"),
+			Localization: componentUsesProtocolMember(candidate.node, "intl"),
+			Refs:         componentUsesProtocolMember(candidate.node, "ref", "readRef", "refs"),
+			Contexts: componentUsesProtocolMember(
+				candidate.node,
+				"hasContext", "getContext", "setContext",
+			),
+			Reactivity: componentUsesProtocolMember(candidate.node, "reactive"),
+			ServerLifecycle: componentUsesProtocolMember(
+				candidate.node,
+				"onUnmount", "onRender", "own",
+			),
+		}
 		components = append(components, Component{
 			ID:                nativeComponentIDForNode(sourceFile, candidate.node),
 			Name:              candidate.name,
@@ -61,12 +75,76 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			},
 			SplitBoundaries: []string{},
 			Diagnostics:     []string{},
+			CompiledRender:  componentHasCompiledRender(candidate.node),
+			Lifecycle: componentUsesProtocolMember(
+				candidate.node,
+				"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
+			),
+			Lists:   componentUsesProtocolMember(candidate.node, "map"),
+			Surface: surface,
 		})
 	}
 	sort.Slice(components, func(left int, right int) bool {
 		return components[left].Start < components[right].Start
 	})
 	return components
+}
+
+func componentHasCompiledRender(node *ast.Node) bool {
+	if ast.IsArrowFunction(node) && containsJSX(unwrapRenderExpression(node.Body())) {
+		return true
+	}
+	for _, returned := range directCallableReturns(node) {
+		callable := unwrapRenderExpression(returned)
+		if ast.IsArrowFunction(callable) && containsJSX(callable) {
+			return true
+		}
+	}
+	return false
+}
+
+func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
+	accepted := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		accepted[name] = struct{}{}
+	}
+	found := false
+	walkNode(node, func(candidate *ast.Node) bool {
+		name, componentMember, dynamic := componentProtocolMember(candidate)
+		if !componentMember {
+			return true
+		}
+		if _, exists := accepted[name]; exists || dynamic {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// componentProtocolMember identifies direct and computed access to the authored component view.
+// A dynamic computed key conservatively selects every queried capability family because the
+// compiler cannot prove which operation the running program will choose.
+func componentProtocolMember(node *ast.Node) (name string, componentMember bool, dynamic bool) {
+	if ast.IsPropertyAccessExpression(node) {
+		member := node.AsPropertyAccessExpression()
+		if member.Expression.Kind == ast.KindThisKeyword && member.Name() != nil {
+			return member.Name().Text(), true, false
+		}
+		return "", false, false
+	}
+	if !ast.IsElementAccessExpression(node) {
+		return "", false, false
+	}
+	member := node.AsElementAccessExpression()
+	if member.Expression.Kind != ast.KindThisKeyword || member.ArgumentExpression == nil {
+		return "", false, false
+	}
+	if ast.IsStringLiteral(member.ArgumentExpression) {
+		return member.ArgumentExpression.Text(), true, false
+	}
+	return "", true, true
 }
 
 // usesForeignJSXRuntime keeps React, Preact, and other explicitly authored JSX
@@ -148,6 +226,13 @@ func markExportedComponents(
 }
 
 func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
+	return durableComponentCandidates(sourceFile)
+}
+
+// durableComponentCandidates retains nested durable definitions long enough for diagnostics to
+// reject them. Only module-level definitions can receive stable, target-local artifact contracts;
+// setup-local PascalCase view arrows are handled separately as lexical micro-components.
+func durableComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 	candidates := rawComponentCandidates(sourceFile)
 	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
 	filtered := make([]componentCandidate, 0, len(candidates))
@@ -161,6 +246,40 @@ func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 		}
 	}
 	return filtered
+}
+
+func componentCandidateIsModuleLevel(candidate componentCandidate) bool {
+	if ast.IsFunctionDeclaration(candidate.node) {
+		return candidate.node.Parent != nil && ast.IsSourceFile(candidate.node.Parent)
+	}
+	if candidate.node.Parent == nil || !ast.IsVariableDeclaration(candidate.node.Parent) {
+		return false
+	}
+	return componentVariableIsModuleLevel(candidate.node.Parent)
+}
+
+// nestedComponentDiagnostics prevents analysis from promising an artifact that module emission
+// cannot attach. Durable component definitions have module identity; narrower setup-local view
+// helpers must use the compiler-owned lexical micro-component form instead.
+func nestedComponentDiagnostics(sourceFile *ast.SourceFile) []Diagnostic {
+	diagnostics := []Diagnostic{}
+	for _, candidate := range durableComponentCandidates(sourceFile) {
+		if componentCandidateIsModuleLevel(candidate) {
+			continue
+		}
+		if !componentName(candidate.name) || !componentHasCompiledRender(candidate.node) {
+			continue
+		}
+		diagnostics = append(diagnostics, Diagnostic{
+			Severity: "error",
+			Code:     "EXACT2216",
+			Message: "Native eXact component " + candidate.name +
+				" must be defined at module scope so every target can receive one stable compiled artifact",
+			Start:  candidate.node.Pos(),
+			Length: candidate.node.End() - candidate.node.Pos(),
+		})
+	}
+	return diagnostics
 }
 
 // lexicalMicroComponentTargets identifies PascalCase, synchronous view arrows

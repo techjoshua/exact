@@ -7,10 +7,10 @@ import (
 	"github.com/microsoft/typescript-go/internal/printer"
 )
 
-// lowerComponentContracts attaches the target-local ownership brand for
-// components whose complete descriptor contains no generated implementations
-// or distributed continuations. Rich contracts are added by the continuation
-// and artifact passes as those records become available.
+// lowerComponentContracts attaches a target-local executable artifact to every
+// native component. Exported roots may additionally own continuations,
+// resumption, and boundary records, but private children are not reduced to a
+// ad hoc identity-only callable without executable compiler artifacts.
 func lowerComponentContracts(
 	sourceFile *ast.SourceFile,
 	emitContext *printer.EmitContext,
@@ -23,27 +23,19 @@ func lowerComponentContracts(
 	preserveComponentHoisting bool,
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
 	}
 	factory := emitContext.Factory
-	eligible := make(map[string]Component)
 	rootContracts := make(map[string]Component)
 	for _, component := range components {
-		if componentRootContract(
-			component,
-			target,
-			continuations,
-			resumptions,
-			boundaries,
-		) {
+		if componentHasTargetArtifact(component, target) {
 			rootContracts[component.Name] = component
-		} else {
-			eligible[component.Name] = component
 		}
 	}
-	if len(eligible) == 0 && len(rootContracts) == 0 {
+	if len(rootContracts) == 0 {
 		return sourceFile
 	}
 
@@ -52,13 +44,15 @@ func lowerComponentContracts(
 	statements := make(
 		[]*ast.Node,
 		0,
-		len(sourceFile.Statements.Nodes)+len(eligible)+len(rootContracts)+1,
+		len(sourceFile.Statements.Nodes)+len(rootContracts)+1,
 	)
 	for _, statement := range sourceFile.Statements.Nodes {
 		if ast.IsFunctionDeclaration(statement) {
 			name := statement.Name()
 			if name != nil {
 				if component, wrap := rootContracts[name.Text()]; wrap {
+					preserveHoisting := preserveComponentHoisting ||
+						componentFunctionReferencedEarlier(sourceFile, statement, name.Text())
 					statements = append(
 						statements,
 						wrapRootComponentFunction(
@@ -72,28 +66,11 @@ func lowerComponentContracts(
 							boundaries,
 							target,
 							used,
-							preserveComponentHoisting,
+							preserveHoisting,
 							compatibility,
 							projection,
+							componentUpdates,
 						)...,
-					)
-					continue
-				}
-				if component, attach := eligible[name.Text()]; attach {
-					if !preserveComponentHoisting &&
-						!componentFunctionReferencedEarlier(sourceFile, statement, name.Text()) {
-						statements = append(
-							statements,
-							brandComponentFunctionValue(emitContext, statement.AsFunctionDeclaration(), component)...,
-						)
-						continue
-					}
-					statements = append(
-						statements,
-						statement,
-						factory.NewExpressionStatement(
-							componentBrandAttachment(factory, name, component.ID),
-						),
 					)
 					continue
 				}
@@ -113,18 +90,10 @@ func lowerComponentContracts(
 				used,
 				compatibility,
 				projection,
+				componentUpdates,
 			)
 			if rootChanged {
 				statements = append(statements, updatedRoot)
-				continue
-			}
-			updated, changed := brandComponentVariables(
-				emitContext,
-				statement,
-				eligible,
-			)
-			if changed {
-				statements = append(statements, updated)
 				continue
 			}
 		}
@@ -136,6 +105,9 @@ func lowerComponentContracts(
 				continue
 			}
 			if component.ClientIslandCount == 0 {
+				continue
+			}
+			if component.Placement == "client" {
 				continue
 			}
 			generatedName := generatedComponentName(
@@ -164,6 +136,8 @@ func lowerComponentContracts(
 		}
 	}
 	if len(rootContracts) != 0 {
+		updateDefinitions, retained := extractComponentUpdateDefinitions(statements, componentUpdates)
+		statements = retained
 		insertionIndex := 0
 		for insertionIndex < len(statements) {
 			statement := statements[insertionIndex]
@@ -178,9 +152,12 @@ func lowerComponentContracts(
 			emitContext,
 			descriptorName,
 		)
-		statements = append(statements, nil)
-		copy(statements[insertionIndex+1:], statements[insertionIndex:])
-		statements[insertionIndex] = descriptor
+		ordered := make([]*ast.Node, 0, len(statements)+len(updateDefinitions)+1)
+		ordered = append(ordered, statements[:insertionIndex]...)
+		ordered = append(ordered, descriptor)
+		ordered = append(ordered, updateDefinitions...)
+		ordered = append(ordered, statements[insertionIndex:]...)
+		statements = ordered
 	}
 	result := factory.UpdateSourceFile(
 		sourceFile,
@@ -189,6 +166,35 @@ func lowerComponentContracts(
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
 	return result
+}
+
+func extractComponentUpdateDefinitions(
+	statements []*ast.Node,
+	componentUpdates map[string]string,
+) ([]*ast.Node, []*ast.Node) {
+	names := make(map[string]struct{}, len(componentUpdates))
+	for _, name := range componentUpdates {
+		names[name] = struct{}{}
+	}
+	definitions := make([]*ast.Node, 0, len(names))
+	retained := make([]*ast.Node, 0, len(statements))
+	for _, statement := range statements {
+		if ast.IsVariableStatement(statement) {
+			declarations := statement.AsVariableStatement().DeclarationList.
+				AsVariableDeclarationList().Declarations.Nodes
+			if len(declarations) == 1 {
+				name := declarations[0].AsVariableDeclaration().Name()
+				if name != nil && ast.IsIdentifier(name) {
+					if _, generated := names[name.Text()]; generated {
+						definitions = append(definitions, statement)
+						continue
+					}
+				}
+			}
+		}
+		retained = append(retained, statement)
+	}
+	return definitions, retained
 }
 
 func componentFunctionReferencedEarlier(
@@ -215,211 +221,11 @@ func componentFunctionReferencedEarlier(
 	return false
 }
 
-// brandComponentFunctionValue makes the brand part of the declaration's owned value. Bundlers
-// therefore retain the brand whenever the component is reachable and remove both together when it
-// is not. This lowering is used only when preserving function-declaration hoisting was not
-// requested.
-func brandComponentFunctionValue(
-	emitContext *printer.EmitContext,
-	declaration *ast.FunctionDeclaration,
-	component Component,
-) []*ast.Node {
-	factory := emitContext.Factory
-	name := declaration.Name()
-	functionModifiers := []*ast.Node{}
-	if modifiers := declaration.Modifiers(); modifiers != nil {
-		for _, modifier := range modifiers.Nodes {
-			if modifier.Kind != ast.KindExportKeyword &&
-				modifier.Kind != ast.KindDefaultKeyword {
-				functionModifiers = append(functionModifiers, modifier)
-			}
-		}
-	}
-	var implementationModifiers *ast.ModifierList
-	if len(functionModifiers) != 0 {
-		implementationModifiers = factory.NewModifierList(functionModifiers)
-	}
-	implementation := factory.NewFunctionExpression(
-		implementationModifiers,
-		declaration.AsteriskToken,
-		factory.NewIdentifier(name.Text()),
-		declaration.TypeParameters,
-		declaration.Parameters,
-		declaration.Type,
-		declaration.FullSignature,
-		declaration.Body,
-	)
-	defaultExport := ast.HasSyntacticModifier(
-		declaration.AsNode(),
-		ast.ModifierFlagsDefault,
-	)
-	var publicModifiers *ast.ModifierList
-	if ast.HasSyntacticModifier(declaration.AsNode(), ast.ModifierFlagsExport) &&
-		!defaultExport {
-		publicModifiers = factory.NewModifierList([]*ast.Node{
-			factory.NewModifier(ast.KindExportKeyword),
-		})
-	}
-	publicDeclaration := factory.NewVariableStatement(
-		publicModifiers,
-		factory.NewVariableDeclarationList(
-			factory.NewNodeList([]*ast.Node{
-				factory.NewVariableDeclaration(
-					factory.NewIdentifier(name.Text()),
-					nil,
-					nil,
-					pureComponentBrandAttachment(emitContext, implementation, component.ID),
-				),
-			}),
-			ast.NodeFlagsConst,
-		),
-	)
-	result := []*ast.Node{publicDeclaration}
-	if defaultExport {
-		result = append(
-			result,
-			factory.NewExportAssignment(
-				nil,
-				false,
-				nil,
-				factory.NewIdentifier(name.Text()),
-			),
-		)
-	}
-	return result
-}
-
-func componentRootContract(
-	component Component,
-	target Target,
-	_ []Continuation,
-	_ []ComponentResumption,
-	_ []Boundary,
-) bool {
-	if !component.Exported {
-		return false
-	}
-	if target == TargetClient && component.Placement == "client" {
-		return true
-	}
-	if target == TargetServer && component.Placement == "server" {
-		return true
-	}
-	if component.Placement != "isomorphic" {
-		return false
-	}
-	// Every exported isomorphic component carries the same canonical definition,
-	// including task-free components whose target-local execution graph is empty.
-	return true
-}
-
-func brandComponentVariables(
-	emitContext *printer.EmitContext,
-	statement *ast.Node,
-	eligible map[string]Component,
-) (*ast.Node, bool) {
-	factory := emitContext.Factory
-	variable := statement.AsVariableStatement()
-	list := variable.DeclarationList.AsVariableDeclarationList()
-	declarations := append([]*ast.Node(nil), list.Declarations.Nodes...)
-	changed := false
-	for index, node := range declarations {
-		declaration := node.AsVariableDeclaration()
-		name := declaration.Name()
-		if name == nil || !ast.IsIdentifier(name) ||
-			declaration.Initializer == nil {
-			continue
-		}
-		component, attach := eligible[name.Text()]
-		if !attach {
-			continue
-		}
-		if !ast.IsArrowFunction(declaration.Initializer) &&
-			!ast.IsFunctionExpression(declaration.Initializer) {
-			continue
-		}
-		declarations[index] = factory.UpdateVariableDeclaration(
-			declaration,
-			name,
-			declaration.ExclamationToken,
-			declaration.Type,
-			pureComponentBrandAttachment(emitContext, declaration.Initializer, component.ID),
-		)
-		changed = true
-	}
-	if !changed {
-		return statement, false
-	}
-	declarationList := factory.UpdateVariableDeclarationList(
-		list,
-		factory.NewNodeList(declarations),
-		list.Flags,
-	)
-	return factory.UpdateVariableStatement(
-		variable,
-		variable.Modifiers(),
-		declarationList,
-	), true
-}
-
-// pureComponentBrandAttachment permits a bundler to remove an unreachable
-// variable component together with the initializer that owns its brand.
-func pureComponentBrandAttachment(
-	emitContext *printer.EmitContext,
-	component *ast.Node,
-	identity string,
-) *ast.Node {
-	return emitContext.AddSyntheticLeadingComment(
-		componentBrandAttachment(emitContext.Factory, component, identity),
-		ast.KindMultiLineCommentTrivia,
-		" @__PURE__ ",
-		false,
-	)
-}
-
-func componentBrandAttachment(
-	factory *printer.NodeFactory,
-	component *ast.Node,
-	identity string,
-) *ast.Node {
-	symbol := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Symbol"),
-			nil,
-			factory.NewIdentifier("for"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			factory.NewStringLiteral("@exactjs/component", ast.TokenFlagsNone),
-		}),
-		ast.NodeFlagsNone,
-	)
-	properties := factory.NewObjectLiteralExpression(
-		factory.NewNodeList([]*ast.Node{
-			factory.NewPropertyAssignment(
-				nil,
-				factory.NewComputedPropertyName(symbol),
-				nil,
-				nil,
-				contractString(factory, identity),
-			),
-		}),
-		false,
-	)
-	return factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Object"),
-			nil,
-			factory.NewIdentifier("assign"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{component, properties}),
-		ast.NodeFlagsNone,
-	)
+func componentHasTargetArtifact(_ Component, target Target) bool {
+	// Partition lowering has already replaced opposite-target implementations
+	// with target-local boundary callables. Those stubs are compiled artifacts
+	// too; placement does not authorize an identity-only native value.
+	return target != TargetDefault
 }
 
 func wrapRootComponentFunction(
@@ -436,6 +242,7 @@ func wrapRootComponentFunction(
 	preserveComponentHoisting bool,
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) []*ast.Node {
 	if !preserveComponentHoisting {
 		return wrapRootComponentFunctionValue(
@@ -451,6 +258,7 @@ func wrapRootComponentFunction(
 			used,
 			compatibility,
 			projection,
+			componentUpdates,
 		)
 	}
 	factory := emitContext.Factory
@@ -471,6 +279,7 @@ func wrapRootComponentFunction(
 		false,
 		compatibility,
 		projection,
+		componentUpdates,
 	)
 	attachmentStatement := factory.NewExpressionStatement(attachment)
 	return []*ast.Node{declaration.AsNode(), attachmentStatement}
@@ -489,6 +298,7 @@ func wrapRootComponentFunctionValue(
 	used map[string]struct{},
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) []*ast.Node {
 	factory := emitContext.Factory
 	name := declaration.Name()
@@ -533,6 +343,7 @@ func wrapRootComponentFunctionValue(
 		true,
 		compatibility,
 		projection,
+		componentUpdates,
 	)
 	implementationDeclaration := factory.NewVariableStatement(
 		nil,
@@ -603,6 +414,7 @@ func rootComponentContractAttachment(
 	wrapIIFE bool,
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) *ast.Node {
 	factory := emitContext.Factory
 	implementationName := component.Name
@@ -614,7 +426,7 @@ func rootComponentContractAttachment(
 		"root",
 		component.Name,
 	)
-	if target == TargetServer && component.ClientIslandCount != 0 {
+	if target == TargetServer && component.Placement != "client" && component.ClientIslandCount != 0 {
 		implementationName = generatedComponentName(
 			component.Name,
 			"server-part",
@@ -638,21 +450,56 @@ func rootComponentContractAttachment(
 		continuations,
 		component.ID,
 	)
-	executors := contractArray(factory)
+	projectedExecution := componentTargetExecution(component, target)
+	runtimeContinuations := componentContinuations
 	if target == TargetServer {
+		runtimeContinuations = omitDirectServerSetupContinuations(
+			componentContinuations,
+			component.Execution,
+		)
+	}
+	executors := contractArray(factory)
+	if target == TargetServer && projection != ComponentContractProjectionServerRender {
 		executors = continuationExecutorMetadata(
 			factory,
 			componentFunction,
-			componentContinuations,
+			runtimeContinuations,
 			used,
 		)
 	}
 	role := "executor"
 	if target == TargetClient {
 		role = "client"
+	} else if projection == ComponentContractProjectionServerRender {
+		role = "render"
 	}
-	projectedExecution := projectComponentExecution(component.Execution, target)
+	projectedContinuations := continuationMetadata(factory, componentContinuations, target == TargetClient)
+	projectedBoundaries := componentBoundaryMetadata(factory, component, boundaries)
+	if target == TargetClient && projection == ComponentContractProjectionHydrate {
+		// A hydration-only client executes its compiled local task definitions directly and
+		// receives server-operation authorization through the serialized hydration config.
+		// The verbose composition catalogs are needed only by complete and island clients.
+		projectedContinuations = contractArray(factory)
+		projectedBoundaries = contractArray(factory)
+	}
 	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
+	hasResumption := component.Placement == "isomorphic" &&
+		componentHasResumption(component.ID, resumptions)
+	directResumption := hasResumption && directServerResumptionSupported(component.ID, resumptions)
+	hasInteractions := target == TargetClient && component.Interactions
+	hasLifecycle := component.Lifecycle
+	unsupportedServerSurface := component.Surface.Logging || component.Surface.Localization ||
+		component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
+		component.Surface.ServerLifecycle
+	if target == TargetServer {
+		// Mount/activation registrations are absent from the projected server function.
+		// Only lifecycle phases that can run during SSR require the lifecycle ABI there.
+		hasLifecycle = component.Surface.ServerLifecycle
+	}
+	var updates *ast.Node
+	if name, exists := componentUpdates[component.Name]; exists {
+		updates = factory.NewIdentifier(name)
+	}
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
@@ -673,27 +520,10 @@ func rootComponentContractAttachment(
 		contractProperty(
 			factory,
 			"continuations",
-			continuationMetadata(
-				factory,
-				componentContinuations,
-				target == TargetClient,
-			),
+			projectedContinuations,
 		),
 		contractProperty(factory, "executors", executors),
-		contractProperty(
-			factory,
-			"boundaries",
-			componentBoundaryMetadata(factory, component, boundaries),
-		),
-		contractProperty(
-			factory,
-			"execution",
-			componentExecutionMetadata(
-				factory,
-				projectedExecution,
-				projection != ComponentContractProjectionComplete,
-			),
-		),
+		contractProperty(factory, "boundaries", projectedBoundaries),
 		contractProperty(
 			factory,
 			"definition",
@@ -701,16 +531,45 @@ func rootComponentContractAttachment(
 				factory,
 				implementation,
 				projectedExecution,
-				componentContinuations,
-				componentHasResumption(component.ID, resumptions),
-				target == TargetClient && component.Interactions,
+				component.TargetPlan.DeferredTaskProps,
+				component.StateSlots,
+				runtimeContinuations,
+				hasResumption,
+				directResumption,
+				hasInteractions,
 				usesCompatibility,
 				component.DynamicComponents,
+				component.Collections,
+				componentRuntimeABI(
+					component,
+					projectedExecution,
+					hasLifecycle,
+					hasInteractions,
+					usesCompatibility,
+				),
+				unsupportedServerSurface,
+				component.TargetPlan.DirectServer,
+				target == TargetServer,
 				projection != ComponentContractProjectionComplete,
+				updates,
 			),
 		),
 	}
-	if component.Placement != "server" && projection != ComponentContractProjectionClient {
+	if projection != ComponentContractProjectionHydrate &&
+		!(target == TargetServer && component.TargetPlan.DirectServer) {
+		contractProperties = append(contractProperties, contractProperty(
+			factory,
+			"execution",
+			componentExecutionMetadata(
+				factory,
+				projectedExecution,
+				projection != ComponentContractProjectionComplete,
+			),
+		))
+	}
+	if component.Placement == "isomorphic" &&
+		projection != ComponentContractProjectionClient &&
+		hasResumption {
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"resumption",
@@ -826,6 +685,44 @@ func componentHasResumption(componentID string, resumptions []ComponentResumptio
 	return false
 }
 
+// directServerResumptionSupported identifies records a request-local state frame can publish
+// without constructing context capability or durable continuation ownership. State paths, finite
+// value captures, and boundary identities are compiler data; resumable contexts still require the
+// generic component lane until they have a dedicated direct-frame ABI.
+func directServerResumptionSupported(
+	componentID string,
+	resumptions []ComponentResumption,
+) bool {
+	for _, resumption := range resumptions {
+		if resumption.ComponentID == componentID {
+			return len(resumption.Client.Contexts) == 0
+		}
+	}
+	return false
+}
+
+func omitDirectServerSetupContinuations(
+	continuations []Continuation,
+	execution ComponentExecution,
+) []Continuation {
+	direct := make(map[string]struct{})
+	for _, transition := range execution.Transitions {
+		if transition.DirectServerSetup {
+			direct[transition.ID] = struct{}{}
+		}
+	}
+	if len(direct) == 0 {
+		return continuations
+	}
+	result := make([]Continuation, 0, len(continuations))
+	for _, continuation := range continuations {
+		if _, omitted := direct[continuation.ID]; !omitted {
+			result = append(result, continuation)
+		}
+	}
+	return result
+}
+
 func wrapRootComponentVariables(
 	emitContext *printer.EmitContext,
 	statement *ast.Node,
@@ -839,6 +736,7 @@ func wrapRootComponentVariables(
 	used map[string]struct{},
 	compatibility bool,
 	projection ComponentContractProjection,
+	componentUpdates map[string]string,
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
@@ -892,6 +790,7 @@ func wrapRootComponentVariables(
 			false,
 			compatibility,
 			projection,
+			componentUpdates,
 		)
 		body := factory.NewBlock(
 			factory.NewNodeList([]*ast.Node{

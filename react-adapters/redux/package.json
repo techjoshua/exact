@@ -10,20 +10,29 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./react": {
 			"types": "./dist/react.d.ts",
-			"default": "./dist/react.js"
+			"browser": "./dist/client/react.js",
+			"default": "./dist/server/react.js"
 		}
 	},
-	"main": "./dist/index.js",
+	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
+	"exactCompiledComponents": [
+		"ExactReduxProvider"
+	],
+	"exactCompileModules": [
+		"src/adapter.ts"
+	],
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/react-compat-adapter-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"peerDependencies": {
 		"@exactjs/react-compat": "^0.1.0",
@@ -70,8 +79,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -b",
-		"test": "vitest run",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
+		"test": "vitest run --config vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

@@ -2,11 +2,12 @@ import {
 	type AnyComponentInstance,
 	normalizeRenderResult,
 	unwrap,
-	type Child
+	type Child,
+	type VNode
 } from '@exactjs/core';
 import { renderInstance, ServerSlot } from '@exactjs/core/runtime/render';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
-import { withEffectScope, type EffectScope } from '@exactjs/reactive';
+import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { childToVNode, childrenToVNodes, planChildReconciliation } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { preserveFocus } from '../../focus.js';
@@ -25,7 +26,7 @@ import {
 import { patch } from './root.js';
 import { refreshComponentRoot } from '../component-roots.js';
 import { releaseMountedRange } from '../retained-release.js';
-import { refreshTargetDependents } from '../target-contributions.js';
+import { refreshTargetDependents } from '../target-capability.js';
 
 /** Performs the patch children domain operation. */
 export function patchChildren(
@@ -51,11 +52,18 @@ export function patchChildren(
 		preserveFocus(root, () => {
 			if (oldChildren.length === 1 && nextChildren.length === 1) {
 				const next = childToVNode(nextChildren[0]!);
-				if (next) {
-					const patched = patch(root, parent, oldChildren[0], next, parentInstance, parentScope);
-					completeChildReconciliation(root, parentInstance, structuralOwner);
-					return [patched];
-				}
+				if (next)
+					return [
+						patchSingleChildInner(
+							root,
+							parent,
+							oldChildren[0]!,
+							next,
+							parentInstance,
+							parentScope,
+							structuralOwner
+						)
+					];
 			}
 			for (const child of nextChildren) if (!childToVNode(child)) countDomWork(root);
 			return patchChildrenInner(
@@ -70,6 +78,47 @@ export function patchChildren(
 			);
 		})
 	);
+}
+
+/** Patches one compiler-proven child without entering collection reconciliation. */
+export function patchSingleChild(
+	root: Root,
+	parent: Node,
+	oldChild: Mounted,
+	next: VNode,
+	parentInstance?: AnyComponentInstance,
+	parentScope?: EffectScope,
+	structuralOwner?: Mounted
+): Mounted {
+	if (root.interactionWork) root.interactionWork.reconciliations++;
+	const patched = withDomWork(root, () =>
+		preserveFocus(root, () =>
+			patchSingleChildInner(
+				root,
+				parent,
+				oldChild,
+				next,
+				parentInstance,
+				parentScope,
+				structuralOwner
+			)
+		)
+	);
+	return patched;
+}
+
+function patchSingleChildInner(
+	root: Root,
+	parent: Node,
+	oldChild: Mounted,
+	next: VNode,
+	parentInstance?: AnyComponentInstance,
+	parentScope?: EffectScope,
+	structuralOwner?: Mounted
+): Mounted {
+	const patched = patch(root, parent, oldChild, next, parentInstance, parentScope);
+	completeChildReconciliation(root, parentInstance, structuralOwner);
+	return patched;
 }
 
 /** Performs the patch children inner domain operation. */
