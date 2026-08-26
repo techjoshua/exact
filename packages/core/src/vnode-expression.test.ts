@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computed, flushSync, reactive, unwrap } from '@exactjs/reactive';
 import { createForwardedExpression } from './component/reactive-vnodes.js';
+import type { VNodeType } from './component/contracts.js';
 import { createExactFrameworkFixtureArtifact } from './component-contract/runtime-artifacts.js';
 import {
 	createCompiledComponentVNode,
@@ -45,7 +46,9 @@ describe('compiled vnode marker ownership', () => {
 		const vnode = createCompiledIntrinsicVNode('div', { className: 'late' }, 'ready');
 		expect(isCellVNode(vnode)).toBe(false);
 		expect(vnode.type).toBe('div');
-		expect(() => createCompiledIntrinsicVNode(() => null, null)).toThrow(
+		expect(() =>
+			createCompiledIntrinsicVNode((() => null) as unknown as VNodeType, null)
+		).toThrow(
 			'Compiled intrinsic invocation requires an intrinsic tag'
 		);
 	});

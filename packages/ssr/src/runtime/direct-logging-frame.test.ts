@@ -18,7 +18,9 @@ describe('direct SSR logging frames', () => {
 			target: 'server',
 			logger
 		});
-		function LoggedPanel() {}
+		function LoggedPanel() {
+			return () => null;
+		}
 		const frame = createDirectSsrLoggingFrame(
 			{ componentDomain: domain } as SsrContext,
 			LoggedPanel as AnyComponentFunction,
