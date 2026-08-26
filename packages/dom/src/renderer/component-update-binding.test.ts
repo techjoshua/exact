@@ -4,12 +4,21 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
-import { batch, computed, createEffectScope, flushSync } from '@exactjs/reactive/framework/runtime';
+import {
+	batch,
+	computed,
+	createEffectScope,
+	flushSync,
+	updateIndexedReactiveValue
+} from '@exactjs/reactive/framework/runtime';
 import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-objects';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mounted } from '../types.js';
 import { bindCompiledComponentUpdate } from './component-update-binding.js';
-import { bindCompiledWideComponentUpdate } from './component-update-wide-binding.js';
+import {
+	bindCompiledStateComponentUpdate,
+	bindCompiledWideStateComponentUpdate
+} from './component-state-update-binding.js';
 
 describe('compiler-generated component updates', () => {
 	it('shares one fixed dependency reaction across indexed region targets', () => {
@@ -40,7 +49,7 @@ describe('compiler-generated component updates', () => {
 				renderProgram: { parentInstance: owner }
 			} as unknown as Mounted;
 			const target = { mounted, stopBindings: releases, valid: true };
-			bindCompiledComponentUpdate(target, index, updates);
+			bindCompiledStateComponentUpdate(target, index, updates);
 			return target;
 		});
 
@@ -94,6 +103,41 @@ describe('compiler-generated component updates', () => {
 		scope.stop();
 	});
 
+	it('transfers a generated prop binding when its forwarded source changes', () => {
+		const first = indexedReactiveObjects<{ label: string }>(['label']);
+		const second = indexedReactiveObjects<{ label: string }>(['label']);
+		first.label = 'first';
+		second.label = 'second';
+		const props = indexedReactiveObjects<{ label: string }>(
+			['label'],
+			{},
+			{ label: computed(() => first.label) } as unknown as { label: string },
+			true
+		);
+		const updates = {
+			bindings: [['props', 'label', 1, 0]] as const,
+			apply: vi.fn()
+		};
+		const scope = createEffectScope();
+		const owner = { state: {}, props, scope } as unknown as AnyComponentInstance;
+		const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
+		const target = { mounted, stopBindings: [], valid: true };
+		bindCompiledComponentUpdate(target, 0, updates);
+
+		updateIndexedReactiveValue(props, 0, () => computed(() => second.label));
+		flushSync();
+		expect(updates.apply).toHaveBeenLastCalledWith([target], 1, 0);
+		updates.apply.mockClear();
+
+		first.label = 'stale';
+		flushSync();
+		expect(updates.apply).not.toHaveBeenCalled();
+		second.label = 'current';
+		flushSync();
+		expect(updates.apply).toHaveBeenLastCalledWith([target], 1, 0);
+		scope.stop();
+	});
+
 	it('publishes compiler-selected operation words beyond the first 64 operations', () => {
 		const state = indexedReactiveObjects<{ first: number; last: number }>(['first', 'last']);
 		state.first = 1;
@@ -121,7 +165,7 @@ describe('compiler-generated component updates', () => {
 		const owner = { state, scope } as unknown as AnyComponentInstance;
 		const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
 		const target = { mounted, stopBindings: [], valid: true };
-		bindCompiledWideComponentUpdate(target, 0, updates);
+		bindCompiledWideStateComponentUpdate(target, 0, updates);
 
 		batch(() => {
 			state.first = 2;

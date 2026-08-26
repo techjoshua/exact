@@ -168,6 +168,10 @@ watcher. Each finite region registers its generated operation function with the 
 component definition. The artifact carries one fixed dependency/mask table and one generated
 component updater; each mounted region contributes only its compiler-assigned target index. Every
 region in that component therefore shares one dependency subscription and mutation-version table.
+When every generated dependency is component state, the artifact imports a state-only binder and
+omits forwarded-prop inspection, subscription, and refresh storage. Mixed state/prop artifacts use
+the source-qualified binder instead. This keeps the richer prop semantics available without making
+them part of the state-only startup and retained-heap floor.
 The ordinary case keeps two inline 32-bit mask words. When a component contains more than 64 direct
 operations, the compiler extends that same artifact with the exact number of additional words; only
 instances of that component allocate the corresponding typed mask storage. Capacity never selects

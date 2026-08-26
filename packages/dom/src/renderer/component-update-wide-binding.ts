@@ -44,8 +44,8 @@ export function bindCompiledWideComponentUpdate(
 	let state = component[wideComponentUpdateState];
 	if (!state) {
 		let initialized: CompiledWideComponentUpdateState;
-		const dependencies = createCompiledComponentDependencies(owner, updates.bindings, () =>
-			publishCompiledWideComponentUpdate(updates, initialized)
+		const dependencies = createCompiledComponentDependencies(owner, updates.bindings, (binding) =>
+			publishCompiledWideComponentUpdate(updates, initialized, binding)
 		);
 		if (!dependencies) {
 			context.valid = false;
@@ -70,20 +70,25 @@ export function bindCompiledWideComponentUpdate(
 /** Publishes every changed compiler-sized mask word through the generated wide updater. */
 function publishCompiledWideComponentUpdate(
 	updates: ExactWideComponentUpdateContract,
-	state: CompiledWideComponentUpdateState
+	state: CompiledWideComponentUpdateState,
+	forwardedBinding?: number
 ): void {
 	let dirtyLow = 0;
 	let dirtyHigh = 0;
 	let changed = false;
-	changed = visitChangedCompiledComponentDependencies(state.d, (index) => {
-		const binding = updates.bindings[index]!;
-		dirtyLow |= binding[2];
-		dirtyHigh |= binding[3];
-		const bindingWords = binding as unknown as readonly number[];
-		for (let word = 0; word < state.w.length; word++) {
-			state.w[word] = state.w[word]! | (bindingWords[word + 4] ?? 0);
-		}
-	});
+	changed = visitChangedCompiledComponentDependencies(
+		state.d,
+		(index) => {
+			const binding = updates.bindings[index]!;
+			dirtyLow |= binding[2];
+			dirtyHigh |= binding[3];
+			const bindingWords = binding as unknown as readonly number[];
+			for (let word = 0; word < state.w.length; word++) {
+				state.w[word] = state.w[word]! | (bindingWords[word + 4] ?? 0);
+			}
+		},
+		forwardedBinding
+	);
 	if (!changed) return;
 	try {
 		updates.apply(state.t, dirtyLow, dirtyHigh, state.w);
