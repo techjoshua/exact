@@ -858,12 +858,76 @@ func TestServerProjectionRetainsObservableRefReads(t *testing.T) {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	for _, expected := range []string{
+		`directSsrReadRef as __exactDirectSsrReadRef`,
+		`@exactjs/ssr/runtime/direct-refs`,
+		`__exactDirectSsrReadRef(this, buttonRef)`,
+		`lane: "direct"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("observable server ref read omitted direct operation %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, excluded := range []string{
 		`@exactjs/core/runtime/refs`,
 		`@exactjs/ssr/runtime/generic-components`,
 		`lane: "generic"`,
 	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("observable server ref read retained %q:\n%s", excluded, response.Code)
+		}
+	}
+}
+
+func TestServerProjectionLinksCanonicalRefBindingAndRootOperations(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-ref-operations.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare const rootKey: unknown;
+			declare class Component<State> {
+				state: State;
+				ref(key: unknown): any;
+				refs: { get(key: unknown): unknown; root(binding?: unknown): unknown };
+			}
+			export function RefState(this: Component<{}>) {
+				const binding = this.ref(rootKey);
+				const current = this.refs.get(rootKey);
+				const root = this.refs.root(binding);
+				return () => <output>{String(current)}:{String(root)}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`__exactDirectSsrRef(this, rootKey)`,
+		`__exactDirectSsrReadRef(this, rootKey)`,
+		`__exactDirectSsrRoot(this, binding)`,
+		`lane: "direct"`,
+	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("observable server ref read omitted %q:\n%s", expected, response.Code)
+			t.Fatalf("server ref operations omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestServerProjectionKeepsExtractedRefSurfaceGeneric(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-ref-extracted.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State; readRef(key: unknown): unknown }
+			export function RefState(this: Component<{}>) {
+				const read = this.readRef;
+				return () => <output>{String(read)}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{`@exactjs/core/runtime/refs`, `generic-components`, `lane: "generic"`} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("extracted ref surface failed to retain %q:\n%s", expected, response.Code)
 		}
 	}
 }

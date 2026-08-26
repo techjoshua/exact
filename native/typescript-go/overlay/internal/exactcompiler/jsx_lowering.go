@@ -262,6 +262,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if compiled := lowering.lowerComponentRegistryCreation(node); compiled != nil {
 		return compiled
 	}
+	if compiled := lowering.lowerDirectServerRefCall(node); compiled != nil {
+		return compiled
+	}
 	if compiled := lowering.lowerComponentLogCall(node); compiled != nil {
 		return compiled
 	}

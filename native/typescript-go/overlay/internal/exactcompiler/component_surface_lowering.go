@@ -151,6 +151,53 @@ func (lowering *jsxLowering) lowerComponentIntlAccess(node *ast.Node) *ast.Node 
 	)
 }
 
+// lowerDirectServerRefCall links canonical ref operations to the non-reactive request-local SSR
+// lane. The server never publishes a DOM target, but bindings retain stable identity and authored
+// fulfillment remains observable. Unsupported extraction or dynamic dispatch stays generic.
+func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node {
+	if lowering.target != TargetServer || !ast.IsCallExpression(node) ||
+		!lowering.directServerFrameComponent(node) {
+		return nil
+	}
+	call := node.AsCallExpression()
+	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
+		return nil
+	}
+	method := call.Expression.AsPropertyAccessExpression()
+	helper := ""
+	if method.QuestionDotToken == nil && method.Expression.Kind == ast.KindThisKeyword {
+		switch method.Name().Text() {
+		case "ref":
+			helper = lowering.names.directSsrRef
+		case "readRef":
+			helper = lowering.names.directSsrReadRef
+		}
+	} else if method.QuestionDotToken == nil && ast.IsPropertyAccessExpression(method.Expression) {
+		refs := method.Expression.AsPropertyAccessExpression()
+		if refs.QuestionDotToken == nil && refs.Expression.Kind == ast.KindThisKeyword &&
+			refs.Name().Text() == "refs" {
+			switch method.Name().Text() {
+			case "get":
+				helper = lowering.names.directSsrReadRef
+			case "root":
+				helper = lowering.names.directSsrRoot
+			}
+		}
+	}
+	if helper == "" {
+		return nil
+	}
+	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+1)
+	arguments = append(arguments, lowering.factory.NewThisExpression())
+	for _, argument := range call.Arguments.Nodes {
+		arguments = append(arguments, lowering.visitor.VisitNode(argument))
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(helper), nil, call.TypeArguments,
+		lowering.factory.NewNodeList(arguments), call.Flags,
+	)
+}
+
 // insideComponent prevents the logging ABI from rewriting unrelated objects which
 // happen to expose a this.log property in the same TypeScript project.
 func (lowering *jsxLowering) insideComponent(node *ast.Node) bool {

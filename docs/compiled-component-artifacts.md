@@ -201,6 +201,15 @@ provider context semantics. A localized server component therefore does not allo
 component instance, effect scope, state proxy, or generic localization surface solely to format
 output.
 
+Canonical server ref operations use a separate request-local ref lane. Because SSR cannot publish
+a DOM target, `readRef()` and `refs.get()` initially return `undefined`, while `ref()` still returns
+one stable binding per key and preserves explicitly authored `fulfill()` calls. `refs.root()`
+returns a stable empty server lifecycle and enforces the same owned-binding and single-explicit-root
+invariants as the browser runtime. This lane allocates its binding map only when a binding is
+created and does not install reactive ref storage, the generic ref capability, or durable component
+ownership. Extracted, dynamically selected, and forwarded ref APIs remain conservative because the
+compiler cannot prove which operation they eventually invoke.
+
 Static SSR capability installers use one bundle-local ESM registry. It contains only
 module-lifetime functions selected by reachable server artifacts; request state and component
 instances never enter it, and omitting an installer still lets bundlers remove the corresponding
@@ -226,8 +235,9 @@ Capability planning is target-local as well as component-local. The compiler kee
 surface facts separate from requirements propagated through receiver-forwarding helpers, then
 projects only expressions which survive each target's lowering. For example, a `ref` attribute and
 its binding expression are client behavior and do not select ref storage or durable component
-construction in the paired server artifact. A server-observable ref read, a dynamic component
-member, or an unresolved forwarded helper remains conservative and retains the generic capability.
+construction in the paired server artifact. Canonical server-observable ref operations select the
+focused direct-ref lane. A dynamic component member, extracted ref method, or unresolved forwarded
+helper remains conservative and retains the generic capability.
 
 Client construction is linked by the artifact rather than inferred by the runtime. The compiler
 imports one target-local constructor and stores it in each component definition. An artifact with

@@ -99,6 +99,9 @@ type jsxRuntimeNames struct {
 	omitEnhancementProps      string
 	componentLog              string
 	componentIntl             string
+	directSsrRef              string
+	directSsrReadRef          string
+	directSsrRoot             string
 	registerLifecycle         string
 	registerRender            string
 	ownResource               string
@@ -133,6 +136,7 @@ const (
 	runtimeTime                     runtimeImportGroupID = "time"
 	runtimeLists                    runtimeImportGroupID = "lists"
 	runtimeRefs                     runtimeImportGroupID = "refs"
+	runtimeDirectSSRRefs            runtimeImportGroupID = "direct-ssr-refs"
 	runtimeComponentExecution       runtimeImportGroupID = "component-execution"
 	runtimeCollections              runtimeImportGroupID = "collections"
 	runtimeRenderProgram            runtimeImportGroupID = "render-program"
@@ -195,6 +199,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{id: runtimeTime, module: "@exactjs/time/internal"},
 		{id: runtimeLists, module: "@exactjs/core/runtime/lists"},
 		{id: runtimeRefs, module: "@exactjs/core/runtime/refs"},
+		{id: runtimeDirectSSRRefs, module: "@exactjs/ssr/runtime/direct-refs"},
 		{id: runtimeComponentExecution, module: "@exactjs/core/runtime/component-execution"},
 		{id: runtimeCollections, module: "@exactjs/core/runtime/collections"},
 		{id: runtimeRenderProgram, module: "@exactjs/dom/runtime/render-program"},
@@ -279,6 +284,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"omitKnownProps", lowering.names.omitEnhancementProps, runtimeEnhancements},
 		{"componentLogMethod", lowering.names.componentLog, runtimeLogging},
 		{"componentIntl", lowering.names.componentIntl, runtimeLocalization},
+		{"directSsrRef", lowering.names.directSsrRef, runtimeDirectSSRRefs},
+		{"directSsrReadRef", lowering.names.directSsrReadRef, runtimeDirectSSRRefs},
+		{"directSsrRoot", lowering.names.directSsrRoot, runtimeDirectSSRRefs},
 		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, runtimeFrameworkLifecycle},
 		{"registerComponentRenderHandler", lowering.names.registerRender, runtimeFrameworkLifecycle},
 		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
@@ -412,9 +420,13 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		// Direct server frames implement the compiler-known context surface themselves. Install the
 		// durable context capability only when a context-bearing component remains on the generic lane.
 		contextsUsed = false
+		refsUsed = false
 		for _, component := range lowering.components {
 			if component.TargetPlan.ServerSurface.Contexts && component.TargetPlan.GenericServerRuntime {
 				contextsUsed = true
+			}
+			if component.TargetPlan.ServerSurface.Refs && component.TargetPlan.GenericServerRuntime {
+				refsUsed = true
 			}
 		}
 	}
@@ -879,6 +891,9 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		omitEnhancementProps:      allocate("__exactOmitEnhancementProps"),
 		componentLog:              allocate("__exactComponentLog"),
 		componentIntl:             allocate("__exactComponentIntl"),
+		directSsrRef:              allocate("__exactDirectSsrRef"),
+		directSsrReadRef:          allocate("__exactDirectSsrReadRef"),
+		directSsrRoot:             allocate("__exactDirectSsrRoot"),
 		registerLifecycle:         allocate("__exactRegisterLifecycle"),
 		registerRender:            allocate("__exactRegisterRender"),
 		ownResource:               allocate("__exactOwnResource"),
