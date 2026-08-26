@@ -1,17 +1,18 @@
 import {
 	createDirectSsrComponentFrame,
-	type DirectSsrComponentFrameConstructor,
 	type DirectSsrLoggingFrame
 } from '../render/direct-component-support.js';
+import type { AnyComponentFunction, AnyComponentInstance } from '@exactjs/core';
+import type { SsrContext } from '../types.js';
 
 /** Constructs the focused request-local frame selected for a direct component that logs. */
-export const createDirectSsrLoggingFrame: DirectSsrComponentFrameConstructor = (
-	context,
-	type,
-	componentId,
-	parent
-) =>
-	Object.assign(createDirectSsrComponentFrame(), {
+export function createDirectSsrLoggingFrame(
+	context: SsrContext,
+	type: AnyComponentFunction,
+	componentId: string,
+	parent: AnyComponentInstance | undefined
+): DirectSsrLoggingFrame {
+	return Object.assign(createDirectSsrComponentFrame(), {
 		type,
 		id: componentId,
 		mounted: false as const,
@@ -19,3 +20,4 @@ export const createDirectSsrLoggingFrame: DirectSsrComponentFrameConstructor = (
 		domain: context.componentDomain!,
 		ambientContexts: context.componentContexts
 	}) satisfies DirectSsrLoggingFrame;
+}

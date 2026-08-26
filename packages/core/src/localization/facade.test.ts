@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import '../runtime/localization.js';
 import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import type { Component } from '../component/contracts.js';
+import type { ComponentLocalizationOwner } from '../component/localization-capability.js';
 import { LocalizationContext } from './context.js';
 import { intl } from './facade.js';
 import { clearIntlFormatterCache } from './formatter-pool.js';
@@ -41,13 +42,13 @@ describe('realm Intl formatter facade', () => {
 
 	it('resolves localization from a compiler-owned request frame without a durable instance', () => {
 		clearIntlFormatterCache();
-		const owner = {
+		const owner: ComponentLocalizationOwner = {
 			hasContext(token: unknown) {
 				return token === LocalizationContext;
 			},
-			getContext(token: unknown) {
+			getContext<T>(token: unknown): T {
 				if (token !== LocalizationContext) throw new Error('unexpected context');
-				return { locale: 'ja-JP', sourceLocale: 'en-US' };
+				return { locale: 'ja-JP', sourceLocale: 'en-US' } as T;
 			}
 		};
 

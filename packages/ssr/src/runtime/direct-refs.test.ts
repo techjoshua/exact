@@ -8,7 +8,7 @@ const second = { id: Symbol('second'), description: 'second' } satisfies RefKey<
 describe('direct SSR refs', () => {
 	it('retains binding identity and observes explicit fulfillment without reactive storage', () => {
 		const owner = {};
-		const binding = directSsrRef(owner, first);
+		const binding = directSsrRef<object>(owner, first);
 		expect(directSsrRef(owner, first)).toBe(binding);
 		expect(directSsrReadRef(owner, first)).toBeUndefined();
 
@@ -32,11 +32,11 @@ describe('direct SSR refs', () => {
 
 	it('augments one owned binding and rejects cross-owner or competing roots', () => {
 		const owner = {};
-		const binding = directSsrRef(owner, first);
+		const binding = directSsrRef<object>(owner, first);
 		const root = directSsrRoot(owner, binding);
 		expect(directSsrRoot(owner, binding)).toBe(root);
 		expect(root.current).toBeUndefined();
 		expect(() => directSsrRoot({}, binding)).toThrow(/owned/);
-		expect(() => directSsrRoot(owner, directSsrRef(owner, second))).toThrow(/only one/);
+		expect(() => directSsrRoot(owner, directSsrRef<object>(owner, second))).toThrow(/only one/);
 	});
 });
