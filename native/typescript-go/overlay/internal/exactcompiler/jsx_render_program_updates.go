@@ -83,7 +83,12 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 			call(lowering.names.bindProgramText, arguments...)
 		case "child", "component":
 			arguments := []*ast.Node{slotIndex}
-			if _, direct := directChildren[index]; direct {
+			// A statically resolved component slot constructs its child VNode once. Every live prop
+			// reader inside that VNode is already a compiler-owned forwarded expression, so wrapping
+			// the component constructor in another retained structural watcher can observe no useful
+			// dependency and only adds activation work.
+			_, directChild := directChildren[index]
+			if slot.kind == "component" || directChild {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
 			call(lowering.names.bindProgramChild, arguments...)

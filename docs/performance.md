@@ -178,6 +178,10 @@ into the operation's dirty mask for scalar arithmetic, comparisons, logical comp
 conditionals, avoiding a retained watcher merely because a text or property value has more than
 one input. It deliberately leaves nested object reads and arbitrary calls tracked until their full
 mutation and dependency behavior is proven.
+The binder likewise mounts statically resolved native-component slots directly. Generated
+forwarded prop readers already publish subsequent parent changes to the durable child; an outer
+structural watcher would execute once, discover no eager dependency, and retain avoidable setup
+machinery. Runtime-selected component identities remain structural ranges.
 The ordinary case keeps two inline 32-bit mask words. When a component contains more than 64 direct
 operations, the compiler extends that same artifact with the exact number of additional words; only
 instances of that component allocate the corresponding typed mask storage. Capacity never selects

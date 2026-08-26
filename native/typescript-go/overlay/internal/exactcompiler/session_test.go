@@ -639,7 +639,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	for _, expected := range []string{
 		`__exactClaimProgramChild(__exactBindingTarget, 0, 0,`,
 		`, true)`,
-		`__exactBindProgramChild(__exactBindingTarget, 0)`,
+		`__exactBindProgramChild(__exactBindingTarget, 0, true)`,
 		`__exactComponentVNode(Detail`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -714,7 +714,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	if !strings.Contains(stateful.Code, `__exactClaimProgramChild(__exactBindingTarget, 0, 0,`) ||
 		!strings.Contains(stateful.Code, `, true)`) ||
-		!strings.Contains(stateful.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
+		!strings.Contains(stateful.Code, `__exactBindProgramChild(__exactBindingTarget, 0, true)`) ||
 		strings.Contains(stateful.Code, `__exactVNode("main"`) {
 		t.Fatalf("stateful component child did not enter its compiler-owned lifecycle slot:\n%s", stateful.Code)
 	}
