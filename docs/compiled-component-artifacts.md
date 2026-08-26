@@ -210,6 +210,14 @@ created and does not install reactive ref storage, the generic ref capability, o
 ownership. Extracted, dynamically selected, and forwarded ref APIs remain conservative because the
 compiler cannot prove which operation they eventually invoke.
 
+Canonical `this.reactive()` values also have a direct server representation. The compiler links
+setup-time calls to a small request-local readonly value whose observations execute the generated
+reader against the current direct-frame state. Reads intentionally do not cache: generated server
+tasks mutate plain frame storage, and caching without a dependency graph would preserve stale
+pre-task state. The value retains ordinary `get()`, unwrapping, JSON, and primitive-conversion
+semantics without constructing a computed node, dependency sets, scheduler hooks, or effect-scope
+ownership. Extracted or dynamically dispatched reactive factories remain on the durable lane.
+
 Static SSR capability installers use one bundle-local ESM registry. It contains only
 module-lifetime functions selected by reachable server artifacts; request state and component
 instances never enter it, and omitting an installer still lets bundlers remove the corresponding

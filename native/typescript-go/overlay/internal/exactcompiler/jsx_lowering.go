@@ -256,6 +256,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return read
 		}
 	}
+	if direct := lowering.lowerDirectServerReactive(node); direct != nil {
+		return direct
+	}
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {
 		return captured
 	}
