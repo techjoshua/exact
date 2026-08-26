@@ -6,7 +6,7 @@ import {
 	type ComponentContextValues,
 	type VNode
 } from '@exactjs/core';
-import { createLinkedComponentInstance } from '@exactjs/core/runtime/render';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { readPreparedExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 
 import { getComponentProps } from '../../children.js';
@@ -22,13 +22,13 @@ export function constructAdoptedComponent(
 	);
 	const domain = vnode.domain ?? parent?.domain ?? pageComponentDomain;
 	return withComponentResumption(domain, () =>
-		createLinkedComponentInstance(
+		createComponentInstance(
 			vnode.type as AnyEnhancementComponentFunction,
 			getComponentProps(vnode),
-			contract,
 			parent,
 			parent?.ambientContexts ?? ambientContexts,
-			domain
+			domain,
+			contract
 		)
 	);
 }
