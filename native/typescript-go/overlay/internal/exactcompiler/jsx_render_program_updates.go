@@ -19,7 +19,7 @@ type renderProgramDirectUpdate struct {
 
 type componentUpdateDependency struct {
 	source string
-	key    string
+	slot   int
 }
 
 // directRenderProgramBinder emits the exact client binding calls in browser-safe application order.
@@ -212,11 +212,11 @@ func (lowering *jsxLowering) directRenderProgramDependency(
 	if node == nil {
 		return componentUpdateDependency{}, false
 	}
-	if key, exists := lowering.indexedStateReadKeys[node]; exists {
-		return componentUpdateDependency{source: "state", key: key}, true
+	if read, exists := lowering.indexedStateReads[node]; exists {
+		return componentUpdateDependency{source: "state", slot: read.slot}, true
 	}
-	if key, exists := lowering.indexedPropsReadKeys[node]; exists {
-		return componentUpdateDependency{source: "props", key: key}, true
+	if read, exists := lowering.indexedPropsReads[node]; exists {
+		return componentUpdateDependency{source: "props", slot: read.slot}, true
 	}
 	for _, read := range lowering.stateReads {
 		if read.Confidence != "exact" || len(read.Path) != 1 ||
@@ -224,7 +224,15 @@ func (lowering *jsxLowering) directRenderProgramDependency(
 			continue
 		}
 		if scalarDerivedType(lowering.checker.GetTypeAtLocation(node)) {
-			return componentUpdateDependency{source: "state", key: read.Path[0]}, true
+			component, exists := lowering.componentContaining(node)
+			if !exists {
+				return componentUpdateDependency{}, false
+			}
+			for slot, key := range component.StateSlots {
+				if key == read.Path[0] {
+					return componentUpdateDependency{source: "state", slot: slot}, true
+				}
+			}
 		}
 	}
 	return componentUpdateDependency{}, false
@@ -267,7 +275,7 @@ func uniqueSortedComponentUpdateDependencies(
 ) []componentUpdateDependency {
 	seen := make(map[string]componentUpdateDependency, len(values))
 	for _, value := range values {
-		seen[value.source+"\x00"+value.key] = value
+		seen[value.source+"\x00"+strconv.Itoa(value.slot)] = value
 	}
 	keys := make([]string, 0, len(seen))
 	for key := range seen {

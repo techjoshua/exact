@@ -1,28 +1,19 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import {
 	isReactiveValue,
-	reactiveOwnDependencies,
-	readMutationVersion,
-	readReactiveOwnProperty,
+	readIndexedReactiveSource,
 	ref,
 	subscribe,
 	subscribeKeys,
 	type StopHandle
 } from '@exactjs/reactive/framework/runtime';
+import {
+	createComponentDependencyGroup,
+	visitChangedComponentDependencyGroup,
+	type CompiledComponentDependencyGroup
+} from './component-update-storage.js';
 
-type CompiledDependencyBinding = readonly [
-	source: 'state' | 'props',
-	key: string,
-	...masks: number[]
-];
-
-/** One source-qualified dependency group shared by the generated component update lanes. */
-export type CompiledComponentDependencyGroup = {
-	readonly d: object;
-	readonly k: readonly PropertyKey[];
-	readonly v: number[];
-	readonly b: readonly number[];
-};
+type CompiledDependencyBinding = readonly [slot: number, ...masks: number[]];
 
 /** Source-qualified subscriptions, including forwarded reactive prop values. */
 export type CompiledComponentDependencies = {
@@ -30,6 +21,7 @@ export type CompiledComponentDependencies = {
 	readonly f: Array<{ readonly value: object; readonly stop: StopHandle } | undefined>;
 	readonly owner: AnyComponentInstance;
 	readonly bindings: readonly CompiledDependencyBinding[];
+	readonly props: number;
 	readonly publish: (forwardedBinding?: number) => void;
 };
 
@@ -37,6 +29,7 @@ export type CompiledComponentDependencies = {
 export function createCompiledComponentDependencies(
 	owner: AnyComponentInstance,
 	bindings: readonly CompiledDependencyBinding[],
+	props: number,
 	publish: (forwardedBinding?: number) => void
 ): CompiledComponentDependencies | undefined {
 	const groups: CompiledComponentDependencyGroup[] = [];
@@ -45,26 +38,16 @@ export function createCompiledComponentDependencies(
 		f: [],
 		owner,
 		bindings,
+		props,
 		publish
 	};
-	for (const source of ['state', 'props'] as const) {
-		const indexes: number[] = [];
-		const keys: string[] = [];
-		for (let index = 0; index < bindings.length; index++) {
-			const binding = bindings[index]!;
-			if (binding[0] !== source) continue;
-			indexes.push(index);
-			keys.push(binding[1]);
-		}
-		if (keys.length === 0) continue;
-		const dependencies = reactiveOwnDependencies(owner[source], keys);
-		if (!dependencies) return undefined;
-		const group = {
-			d: dependencies.target,
-			k: dependencies.keys,
-			v: dependencies.keys.map((key) => readMutationVersion(dependencies.target, key)),
-			b: indexes
-		};
+	for (const [source, start, end] of [
+		['props', 0, props],
+		['state', props, bindings.length]
+	] as const) {
+		const group = createComponentDependencyGroup(owner, bindings, source, start, end);
+		if (group === undefined) return undefined;
+		if (!group) continue;
 		groups.push(group);
 		subscribeKeys(group.d, group.k, publish, { scope: owner.scope });
 	}
@@ -81,23 +64,19 @@ export function visitChangedCompiledComponentDependencies(
 	let changed = forwardedBinding >= 0;
 	if (changed) visit(forwardedBinding);
 	for (const group of dependencies.g) {
-		for (let index = 0; index < group.k.length; index++) {
-			const version = readMutationVersion(group.d, group.k[index]!);
-			if (version === group.v[index]) continue;
-			group.v[index] = version;
-			const binding = group.b[index]!;
-			if (binding !== forwardedBinding) visit(binding);
-			changed = true;
-			refreshForwardedProp(dependencies, binding);
-		}
+		changed =
+			visitChangedComponentDependencyGroup(group, (binding) => {
+				if (binding !== forwardedBinding) visit(binding);
+				refreshForwardedProp(dependencies, binding);
+			}) || changed;
 	}
 	return changed;
 }
 
 function refreshForwardedProp(dependencies: CompiledComponentDependencies, index: number): void {
 	const binding = dependencies.bindings[index];
-	if (!binding || binding[0] !== 'props') return;
-	const read = readReactiveOwnProperty(dependencies.owner.props, binding[1]);
+	if (!binding || index >= dependencies.props) return;
+	const read = readIndexedReactiveSource(dependencies.owner.props, binding[0]);
 	const value = read.present && isReactiveValue(read.value) ? read.value : undefined;
 	const current = dependencies.f[index];
 	if (current?.value === value) return;

@@ -61,7 +61,7 @@ Browser-target artifacts carry only their specialized template, claims, readers,
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
 All compiler-proven direct updates belong to the component artifact. Each dependency identifies
-its component storage source (`state` or `props`) and field, and each dirty bit selects a generated
+its compiler-indexed component storage slot, and each dirty bit selects a generated
 text, property, or structural-child call. Forwarded reactive props join that exact field binding
 rather than forcing the child program through a general render watcher. The compiler emits as many
 32-operation mask words as the component requires; a large component does not fall back to a
@@ -70,8 +70,10 @@ component can use ordinary expression bindings, but it cannot manufacture a seco
 component update owner.
 The dependency source is itself part of target specialization. An update artifact whose complete
 dependency set is component state imports a state-only binder with one indexed target/version
-table. Only artifacts that read props import the source-qualified binder and its forwarded-reactive
-prop subscription lane; state-only applications do not retain that machinery merely because the
+table. Mixed artifacts encode a counted prefix of prop slots followed by state slots; they do not
+repeat source or property-name strings, rebuild binding-index tables, or resolve the component's
+property layout per instance. Only artifacts that read props import the forwarded-reactive prop
+subscription lane; state-only applications do not retain that machinery merely because the
 framework supports reactive props elsewhere.
 When a render arrow returns an otherwise unstructured value such as `props.children`, the client
 artifact marks that authored render function as its component-range output operation. The existing

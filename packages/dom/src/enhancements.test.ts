@@ -33,8 +33,8 @@ import { createVNode } from './test-support/native-vnode.js';
 import {
 	applyCompiledProgramText,
 	beginCompiledProgramClaims,
-	bindCompiledComponentUpdate,
 	bindCompiledProgramText,
+	bindCompiledStateComponentUpdate,
 	claimCompiledProgramText
 } from './runtime/render-program.js';
 
@@ -286,7 +286,7 @@ describe('renderer enhancements', () => {
 		});
 		markExactEnhancementContexts(Provider, { provides: [token] });
 		const updates = {
-			bindings: [['state', 'count', 1, 0]] as const,
+			bindings: [[0, 1, 0]] as const,
 			apply(targets: readonly (object | undefined)[], dirtyLow: number) {
 				if ((dirtyLow & 1) !== 0 && targets[0])
 					applyCompiledProgramText(targets[0] as ExactRenderProgramBindingTarget, 0);
@@ -304,7 +304,7 @@ describe('renderer enhancements', () => {
 					return;
 				}
 				bindCompiledProgramText(target, 0, true);
-				bindCompiledComponentUpdate(target, 0, updates);
+				bindCompiledStateComponentUpdate(target, 0, updates);
 			}
 		});
 		const ownerScope = createEffectScope();

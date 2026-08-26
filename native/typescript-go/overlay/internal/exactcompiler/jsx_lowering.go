@@ -19,8 +19,8 @@ type jsxLowering struct {
 	stateReadSlots               map[string]indexedStateRead
 	propsReadSlots               map[string]indexedPropsRead
 	stateWriteSlots              map[string]int
-	indexedStateReadKeys         map[*ast.Node]string
-	indexedPropsReadKeys         map[*ast.Node]string
+	indexedStateReads            map[*ast.Node]indexedStateRead
+	indexedPropsReads            map[*ast.Node]indexedPropsRead
 	tasks                        map[string]Task
 	invokedTasks                 map[int]Task
 	functionTasks                map[int]Task

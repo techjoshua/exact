@@ -91,7 +91,7 @@ func (lowering *jsxLowering) lowerIndexedStateRead(node *ast.Node) *ast.Node {
 		result = lowering.factory.NewAsExpression(call, typeNode)
 	}
 	if scalarDerivedType(valueType) {
-		lowering.indexedStateReadKeys[result] = read.key
+		lowering.indexedStateReads[result] = read
 	}
 	return result
 }

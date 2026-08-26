@@ -163,15 +163,16 @@ second generic VNode topology for region-local recovery. It does not allocate a 
 or repeat cache lookup and freezing. For compiler-proven direct top-level state and props reads,
 closed client output assigns dirty bits to the affected text, property, and conditional
 structural-child operations. Forwarded reactive props retain their source subscription while
-publishing through the same source-qualified dirty table, so a branch does not need a retained slot
+publishing through the same compiler-indexed dirty table, so a branch does not need a retained slot
 watcher. Each finite region registers its generated operation function with the durable
 component definition. The artifact carries one fixed dependency/mask table and one generated
 component updater; each mounted region contributes only its compiler-assigned target index. Every
 region in that component therefore shares one dependency subscription and mutation-version table.
 When every generated dependency is component state, the artifact imports a state-only binder and
 omits forwarded-prop inspection, subscription, and refresh storage. Mixed state/prop artifacts use
-the source-qualified binder instead. This keeps the richer prop semantics available without making
-them part of the state-only startup and retained-heap floor.
+a counted prop-slot prefix followed by state slots, so their runtime does not rediscover sources,
+map authored field names, or allocate binding-index arrays. This keeps the richer prop semantics
+available without making them part of the state-only startup and retained-heap floor.
 The ordinary case keeps two inline 32-bit mask words. When a component contains more than 64 direct
 operations, the compiler extends that same artifact with the exact number of additional words; only
 instances of that component allocate the corresponding typed mask storage. Capacity never selects
