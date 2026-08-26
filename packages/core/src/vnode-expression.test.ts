@@ -46,9 +46,7 @@ describe('compiled vnode marker ownership', () => {
 		const vnode = createCompiledIntrinsicVNode('div', { className: 'late' }, 'ready');
 		expect(isCellVNode(vnode)).toBe(false);
 		expect(vnode.type).toBe('div');
-		expect(() =>
-			createCompiledIntrinsicVNode((() => null) as unknown as VNodeType, null)
-		).toThrow(
+		expect(() => createCompiledIntrinsicVNode((() => null) as unknown as VNodeType, null)).toThrow(
 			'Compiled intrinsic invocation requires an intrinsic tag'
 		);
 	});

@@ -12,10 +12,7 @@ import { componentName, getComponentProps } from './component-vnode.js';
 import { handleSsrConstructionError } from './construction-error-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderLimitError } from './limits.js';
-import {
-	disposeDirectSsrLifetimeSync,
-	renderDirectSsrComponent
-} from './direct-component.js';
+import { disposeDirectSsrLifetimeSync, renderDirectSsrComponent } from './direct-component.js';
 import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderPreparedSsrProgramString } from './render-program.js';
 import { renderGenericSyncSsrComponent } from './generic-component-capability.js';

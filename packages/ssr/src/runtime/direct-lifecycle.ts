@@ -102,4 +102,7 @@ function dispose(frame: DirectSsrComponentFrame, reason: string): void | Promise
 }
 
 /** Artifact-linked lifecycle operations for a compiler-specialized direct server component. */
-export const directSsrLifecycle = Object.freeze({ rendered, dispose }) satisfies DirectSsrLifecycleCapability;
+export const directSsrLifecycle = Object.freeze({
+	rendered,
+	dispose
+}) satisfies DirectSsrLifecycleCapability;

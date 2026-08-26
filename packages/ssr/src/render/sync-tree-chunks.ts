@@ -52,10 +52,7 @@ import { dynamicMarkerId } from './marker-identity.js';
 import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
 import { renderPreparedSsrProgramChunks } from './render-program.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
-import {
-	disposeDirectSsrLifetimeSync,
-	renderDirectSsrComponent
-} from './direct-component.js';
+import { disposeDirectSsrLifetimeSync, renderDirectSsrComponent } from './direct-component.js';
 import type { DirectSsrComponentLifetime } from './direct-component-contracts.js';
 import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import type { DirectSsrComponentContent } from './direct-component.js';
