@@ -263,7 +263,7 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 		`__exactBindProgramProperties(__exactBindingTarget, 0, 0, true)`,
 		`__exactBindStateComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`updates: __exact_component_updates_1`,
-		`bindings: [["state", "count", 1, 0], ["state", "disabled", 2, 0]] as const`,
+		`bindings: [[0, 1, 0], [1, 2, 0]] as const`,
 		`apply: (__exactTargets: object[], __exactDirtyLow: number, __exactDirtyHigh: number) =>`,
 		`__exactApplyProgramText(__exactTarget0, 2)`,
 		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
@@ -349,8 +349,8 @@ func TestSessionAddressesPropertyTargetsFromStableEdgeAfterStructuralContent(t *
 	if !strings.Contains(
 		response.Code,
 		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
-	) || !strings.Contains(response.Code, `["props", "visible"`) ||
-		!strings.Contains(response.Code, `["state", "draft"`) {
+	) || !strings.Contains(response.Code, `props: 1`) ||
+		!strings.Contains(response.Code, `bindings: [[0,`) {
 		t.Fatalf("mixed state/prop dependencies did not retain the source-qualified binder:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, "__exactBindStateComponentUpdate(") {
@@ -377,7 +377,7 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	for _, expected := range []string{
 		`__exactBindStateComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`__exactBindStateComponentUpdate(__exactBindingTarget, 1, __exact_component_updates_1)`,
-		`bindings: [["state", "first", 1, 0], ["state", "second", 2, 0]] as const`,
+		`bindings: [[0, 1, 0], [1, 2, 0]] as const`,
 		`const __exactTarget0 = __exactTargets[0]`,
 		`const __exactTarget1 = __exactTargets[1]`,
 	} {
@@ -417,7 +417,7 @@ func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *te
 	for _, expected := range []string{
 		`words: 3`,
 		`__exactBindWideStateComponentUpdate(__exactBindingTarget, 64, __exact_component_updates_1)`,
-		`["state", "value64", 0, 0, 1]`,
+		`[61, 0, 0, 1]`,
 		`__exactDirtyWords: Uint32Array`,
 		`__exactDirtyWords[0] & 1`,
 	} {

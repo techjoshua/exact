@@ -4,7 +4,12 @@ import { batch, captureReactiveMutations } from './internal/deps.js';
 import { flushSync } from './internal/scheduler.js';
 import { collectionRef } from './observation.js';
 import { indexedReactive, readReactiveOwnProperty } from './indexed.js';
-import { reactiveOwnDependencies, readIndexedReactiveSlot } from './indexed-base.js';
+import {
+	reactiveIndexedDependencies,
+	reactiveOwnDependencies,
+	readIndexedReactiveSource,
+	readIndexedReactiveSlot
+} from './indexed-base.js';
 import { subscribeKeys } from './observation.js';
 import { snapshot } from './snapshot.js';
 import { watch } from './observation.js';
@@ -122,6 +127,23 @@ describe('indexed reactive state', () => {
 		state.count = 1;
 		expect(reactiveOwnDependencies(state, ['count'])?.keys).toEqual([0]);
 		expect(reactiveOwnDependencies(state, ['missing'])).toBeUndefined();
+		expect(reactiveIndexedDependencies(state, [0])?.keys).toEqual([0]);
+		expect(reactiveIndexedDependencies(state, [1])).toBeUndefined();
+	});
+
+	it('reads a retained indexed source without evaluating a forwarded computation', () => {
+		const source = indexedReactive<{ label: string }>(['label']);
+		source.label = 'first';
+		const forwarded = computed(() => source.label);
+		const props = indexedReactiveObjects<{ label: string }>(
+			['label'],
+			{},
+			{ label: forwarded } as unknown as { label: string },
+			true
+		);
+
+		expect(readIndexedReactiveSource(props, 0)).toEqual({ present: true, value: forwarded });
+		expect(readIndexedReactiveSource(props, 1)).toEqual({ present: false });
 	});
 
 	it('reads compiler-known slots directly while retaining dependency tracking', () => {

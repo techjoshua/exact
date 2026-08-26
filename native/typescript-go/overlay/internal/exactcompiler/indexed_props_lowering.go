@@ -115,7 +115,7 @@ func (lowering *jsxLowering) lowerIndexedPropsRead(node *ast.Node) *ast.Node {
 	); typeNode != nil {
 		result = lowering.factory.NewAsExpression(call, typeNode)
 	}
-	lowering.indexedPropsReadKeys[result] = read.key
+	lowering.indexedPropsReads[result] = read
 	return result
 }
 

@@ -44,8 +44,11 @@ export function bindCompiledWideComponentUpdate(
 	let state = component[wideComponentUpdateState];
 	if (!state) {
 		let initialized: CompiledWideComponentUpdateState;
-		const dependencies = createCompiledComponentDependencies(owner, updates.bindings, (binding) =>
-			publishCompiledWideComponentUpdate(updates, initialized, binding)
+		const dependencies = createCompiledComponentDependencies(
+			owner,
+			updates.bindings,
+			updates.props!,
+			(binding) => publishCompiledWideComponentUpdate(updates, initialized, binding)
 		);
 		if (!dependencies) {
 			context.valid = false;
@@ -80,11 +83,11 @@ function publishCompiledWideComponentUpdate(
 		state.d,
 		(index) => {
 			const binding = updates.bindings[index]!;
-			dirtyLow |= binding[2];
-			dirtyHigh |= binding[3];
+			dirtyLow |= binding[1];
+			dirtyHigh |= binding[2];
 			const bindingWords = binding as unknown as readonly number[];
 			for (let word = 0; word < state.w.length; word++) {
-				state.w[word] = state.w[word]! | (bindingWords[word + 4] ?? 0);
+				state.w[word] = state.w[word]! | (bindingWords[word + 3] ?? 0);
 			}
 		},
 		forwardedBinding

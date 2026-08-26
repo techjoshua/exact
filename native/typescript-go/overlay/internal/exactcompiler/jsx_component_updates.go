@@ -55,7 +55,7 @@ func (lowering *jsxLowering) registerComponentUpdates(
 			update: update,
 		})
 		for _, dependency := range update.dependencies {
-			key := dependency.source + "\x00" + dependency.key
+			key := dependency.source + "\x00" + strconv.Itoa(dependency.slot)
 			word := bit / 32
 			masks := build.bindings[key]
 			for len(masks) <= word {
@@ -155,12 +155,15 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 		binder.AsIdentifier().Text = binderName
 	}
 	bindings := make([]*ast.Node, 0, len(keys))
+	propBindings := 0
 	for _, key := range keys {
 		masks := build.bindings[key]
 		dependency := build.dependencies[key]
-		values := make([]*ast.Node, 2, wordCount+2)
-		values[0] = lowering.factory.NewStringLiteral(dependency.source, ast.TokenFlagsNone)
-		values[1] = lowering.factory.NewStringLiteral(dependency.key, ast.TokenFlagsNone)
+		if dependency.source == "props" {
+			propBindings++
+		}
+		values := make([]*ast.Node, 1, wordCount+1)
+		values[0] = lowering.factory.NewNumericLiteral(strconv.Itoa(dependency.slot), ast.TokenFlagsNone)
 		for word := 0; word < wordCount; word++ {
 			var mask uint32
 			if word < len(masks) {
@@ -183,6 +186,12 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 				),
 			),
 		),
+	}
+	if propBindings != 0 {
+		properties = append(properties, lowering.property(
+			lowering.factory.NewIdentifier("props"),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(propBindings), ast.TokenFlagsNone),
+		))
 	}
 	if wordCount > 2 {
 		properties = append(properties, lowering.property(

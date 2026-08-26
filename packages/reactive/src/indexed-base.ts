@@ -317,6 +317,37 @@ export function reactiveOwnDependencies(
 	};
 }
 
+/** Resolves compiler-emitted numeric fields without repeating a property-layout lookup. */
+export function reactiveIndexedDependencies(
+	value: object,
+	indexes: readonly number[]
+): ReactiveOwnDependencies | undefined {
+	const indexed = indexedRecords.get(value);
+	if (!indexed) return undefined;
+	for (const index of indexes) {
+		if (!Number.isSafeInteger(index) || index < 0 || index >= indexed.initialized.length)
+			return undefined;
+	}
+	return { target: indexed.target, keys: indexes };
+}
+
+/** Reads the retained source value for one validated compiler-indexed field without evaluating it. */
+export function readIndexedReactiveSource(
+	value: object,
+	index: number
+): { present: true; value: unknown } | { present: false } {
+	const indexed = indexedRecords.get(value);
+	if (
+		!indexed ||
+		!Number.isSafeInteger(index) ||
+		index < 0 ||
+		index >= indexed.initialized.length ||
+		!indexed.initialized[index]
+	)
+		return { present: false };
+	return { present: true, value: indexed.target[indexedRecordKey(indexed, index)] };
+}
+
 function indexedLayout(keys: readonly PropertyKey[]): IndexedLayout {
 	const identity = keys as object;
 	const cached = indexedLayouts.get(identity);

@@ -54,7 +54,9 @@ export {
 	watch
 } from '../observation.js';
 export {
+	reactiveIndexedDependencies,
 	reactiveOwnDependencies,
+	readIndexedReactiveSource,
 	readIndexedReactiveSlot,
 	readReactiveOwnProperty
 } from '../indexed-base.js';

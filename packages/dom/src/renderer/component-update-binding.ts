@@ -1,12 +1,16 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactNarrowComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
-import type { Mounted } from '../types.js';
 import {
 	createCompiledComponentDependencies,
 	type CompiledComponentDependencies,
 	visitChangedCompiledComponentDependencies
 } from './component-update-dependencies.js';
+import {
+	bindComponentUpdateTarget,
+	compiledComponentUpdateState,
+	componentUpdateOwner
+} from './component-update-storage.js';
 
 /** Lazily allocated component-owned state for one compiler-generated update program. */
 type CompiledComponentUpdateState = {
@@ -15,15 +19,7 @@ type CompiledComponentUpdateState = {
 };
 
 type ComponentUpdateOwner = AnyComponentInstance & {
-	[componentUpdateState]?: CompiledComponentUpdateState;
-};
-
-const componentUpdateState = Symbol('exact.dom.component-updates');
-
-type ProgramBindingTarget = {
-	readonly mounted: Mounted;
-	readonly stopBindings: Array<{ stop(): void }>;
-	valid: boolean;
+	[compiledComponentUpdateState]?: CompiledComponentUpdateState;
 };
 
 /**
@@ -38,34 +34,26 @@ export function bindCompiledComponentUpdate(
 	index: number,
 	updates: ExactNarrowComponentUpdateContract
 ): void {
-	const context = target as ProgramBindingTarget;
-	const owner =
-		context.mounted.renderProgram?.bindingOwner ?? context.mounted.renderProgram?.parentInstance;
-	if (!owner) {
-		context.valid = false;
-		return;
-	}
+	const owner = componentUpdateOwner(target);
+	if (!owner) return;
 	const component = owner as ComponentUpdateOwner;
-	let state = component[componentUpdateState];
+	let state = component[compiledComponentUpdateState];
 	if (!state) {
 		let initialized: CompiledComponentUpdateState;
-		const dependencies = createCompiledComponentDependencies(owner, updates.bindings, (binding) =>
-			publishCompiledComponentUpdate(updates, initialized, binding)
+		const dependencies = createCompiledComponentDependencies(
+			owner,
+			updates.bindings,
+			updates.props!,
+			(binding) => publishCompiledComponentUpdate(updates, initialized, binding)
 		);
 		if (!dependencies) {
-			context.valid = false;
+			(target as { valid: boolean }).valid = false;
 			return;
 		}
 		state = initialized = { d: dependencies, t: [] };
-		component[componentUpdateState] = state;
+		component[compiledComponentUpdateState] = state;
 	}
-	state.t[index] = target;
-
-	context.stopBindings.push({
-		stop: () => {
-			if (state!.t[index] === target) state!.t[index] = undefined;
-		}
-	});
+	bindComponentUpdateTarget(target, state.t, index);
 }
 
 /** Converts one mutation-version snapshot into the component's generated dirty operation mask. */
@@ -79,8 +67,8 @@ function publishCompiledComponentUpdate(
 	visitChangedCompiledComponentDependencies(
 		state.d,
 		(index) => {
-			dirtyLow |= updates.bindings[index]![2];
-			dirtyHigh |= updates.bindings[index]![3];
+			dirtyLow |= updates.bindings[index]![1];
+			dirtyHigh |= updates.bindings[index]![2];
 		},
 		forwardedBinding
 	);

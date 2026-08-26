@@ -28,8 +28,8 @@ describe('compiler-generated component updates', () => {
 		const apply = vi.fn();
 		const updates = {
 			bindings: [
-				['state', 'count', 1, 0],
-				['state', 'label', 2, 0]
+				[0, 1, 0],
+				[1, 2, 0]
 			] as const,
 			apply
 		};
@@ -83,9 +83,10 @@ describe('compiler-generated component updates', () => {
 		const apply = vi.fn();
 		const updates = {
 			bindings: [
-				['state', 'count', 1, 0],
-				['props', 'label', 2, 0]
+				[0, 2, 0],
+				[0, 1, 0]
 			] as const,
+			props: 1,
 			apply
 		};
 		const scope = createEffectScope();
@@ -115,7 +116,8 @@ describe('compiler-generated component updates', () => {
 			true
 		);
 		const updates = {
-			bindings: [['props', 'label', 1, 0]] as const,
+			bindings: [[0, 1, 0]] as const,
+			props: 1,
 			apply: vi.fn()
 		};
 		const scope = createEffectScope();
@@ -155,8 +157,8 @@ describe('compiler-generated component updates', () => {
 		);
 		const updates = {
 			bindings: [
-				['state', 'first', 1, 0, 0],
-				['state', 'last', 0, 0, 2]
+				[0, 1, 0, 0],
+				[1, 0, 0, 2]
 			] as const,
 			words: 3,
 			apply
