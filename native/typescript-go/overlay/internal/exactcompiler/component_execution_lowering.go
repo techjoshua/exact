@@ -25,16 +25,18 @@ func planComponentTargets(
 			continue
 		}
 		execution := projectComponentExecution(component.Execution, TargetServer)
+		serverSurface := projectServerComponentSurface(componentNode, *component, tasks)
 		hasResumption := component.Placement == "isomorphic" &&
 			componentHasResumption(component.ID, resumptions)
 		directResumption := hasResumption &&
 			directServerResumptionSupported(component.ID, resumptions)
 		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
-		hasLifecycle := component.Surface.ServerLifecycle
-		unsupportedSurface := component.Surface.Reactivity || component.Surface.Refs ||
-			component.Surface.ServerLifecycle
+		hasLifecycle := serverSurface.ServerLifecycle
+		unsupportedSurface := serverSurface.Reactivity || serverSurface.Refs ||
+			serverSurface.ServerLifecycle
 		abi := componentRuntimeABI(
 			*component,
+			serverSurface,
 			execution,
 			hasLifecycle,
 			false,
@@ -55,11 +57,95 @@ func planComponentTargets(
 		component.TargetPlan = ComponentTargetPlan{
 			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
 			ServerExecution:      execution,
+			ClientSurface:        component.Surface,
+			ServerSurface:        serverSurface,
 			DeferredTaskProps:    deferredServerTaskProps(*component, execution, componentNode, tasks),
 			DirectServer:         directServer,
 			DirectServerFrame:    directServer && len(execution.Transitions) == 0,
 			GenericServerRuntime: component.Placement != "client" && !directServer,
 		}
+	}
+}
+
+func componentTargetSurface(component Component, target Target) ComponentSurfacePlan {
+	if target == TargetServer {
+		return component.TargetPlan.ServerSurface
+	}
+	return component.TargetPlan.ClientSurface
+}
+
+// projectServerComponentSurface removes only capability uses whose complete expression is erased
+// by server lowering. Requirements propagated from external helpers remain conservative because
+// their call-site reachability cannot be recovered from a target-neutral boolean summary.
+func projectServerComponentSurface(
+	componentNode *ast.Node,
+	component Component,
+	tasks []Task,
+) ComponentSurfacePlan {
+	result := component.ForwardedSurface
+	clientLifecycle := componentClientLifecycleCallbackSpans(componentNode)
+	clientTasks := make([]SourceSpan, 0)
+	for _, task := range tasks {
+		if task.Component != component.Name || task.Placement != "client" {
+			continue
+		}
+		if task.Length != 0 {
+			clientTasks = append(clientTasks, SourceSpan{Start: task.Start, Length: task.Length})
+		}
+		if task.WorkLength != 0 {
+			clientTasks = append(clientTasks, SourceSpan{Start: task.WorkStart, Length: task.WorkLength})
+		}
+	}
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if insideSourceSpans(node.Pos(), clientLifecycle) || withinAnySourceSpan(node, clientTasks) {
+			return false
+		}
+		if serverErasesJSXAttribute(node, componentNode) {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member {
+			return true
+		}
+		mergeComponentSurfaceMember(&result, name, dynamic)
+		return true
+	})
+	return result
+}
+
+func serverErasesJSXAttribute(node *ast.Node, componentNode *ast.Node) bool {
+	for current := node; current != nil && current != componentNode; current = current.Parent {
+		if !ast.IsJsxAttribute(current) {
+			continue
+		}
+		return interactiveJSXAttribute(jsxAttributeText(current.AsJsxAttribute().Name()))
+	}
+	return false
+}
+
+func mergeComponentSurfaceMember(surface *ComponentSurfacePlan, name string, dynamic bool) {
+	if dynamic {
+		surface.Logging = true
+		surface.Localization = true
+		surface.Refs = true
+		surface.Contexts = true
+		surface.Reactivity = true
+		surface.ServerLifecycle = true
+		return
+	}
+	switch name {
+	case "log":
+		surface.Logging = true
+	case "intl":
+		surface.Localization = true
+	case "ref", "readRef", "refs":
+		surface.Refs = true
+	case "hasContext", "getContext", "setContext":
+		surface.Contexts = true
+	case "reactive":
+		surface.Reactivity = true
+	case "onUnmount", "onRender", "own":
+		surface.ServerLifecycle = true
 	}
 }
 
@@ -407,6 +493,7 @@ func withinAnySourceSpan(node *ast.Node, spans []SourceSpan) bool {
 // componentRuntimeABI compacts compiler-proven execution needs into the hot construction record.
 func componentRuntimeABI(
 	component Component,
+	surface ComponentSurfacePlan,
 	execution ComponentExecution,
 	hasLifecycle bool,
 	hasInteractions bool,
@@ -433,7 +520,7 @@ func componentRuntimeABI(
 	if component.Collections {
 		abi |= componentABICollections
 	}
-	if component.Surface.Contexts {
+	if surface.Contexts {
 		abi |= componentABIContexts
 	}
 	return abi

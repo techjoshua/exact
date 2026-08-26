@@ -796,6 +796,78 @@ func TestServerLocalizationUsesDirectContextFrame(t *testing.T) {
 	}
 }
 
+func TestServerProjectionRemovesClientOnlyRefCapability(t *testing.T) {
+	source := `
+		declare const buttonRef: unknown;
+		declare class Component<State> {
+			state: State;
+			ref(key: unknown): any;
+		}
+		export function RefPage(this: Component<{}>) {
+			return () => <button ref={this.ref(buttonRef)}>Save</button>;
+		}
+	`
+	server := NewSession().Execute(Request{
+		ID: "server-ref-projection.tsx", Kind: "compile", Target: TargetServer, Source: source,
+	})
+	if server.Error != "" || len(server.Diagnostics) != 0 {
+		t.Fatalf("server compile failed: %s %#v", server.Error, server.Diagnostics)
+	}
+	for _, excluded := range []string{
+		`runtime/refs`,
+		`generic-components`,
+		`lane: "generic"`,
+		`this.ref`,
+	} {
+		if strings.Contains(server.Code, excluded) {
+			t.Fatalf("server ref projection retained %q:\n%s", excluded, server.Code)
+		}
+	}
+	if !strings.Contains(server.Code, `lane: "direct"`) {
+		t.Fatalf("client-only ref prevented direct SSR:\n%s", server.Code)
+	}
+
+	client := NewSession().Execute(Request{
+		ID: "client-ref-projection.tsx", Kind: "compile", Target: TargetClient, Source: source,
+	})
+	if client.Error != "" || len(client.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", client.Error, client.Diagnostics)
+	}
+	if !strings.Contains(client.Code, `@exactjs/core/runtime/refs`) ||
+		!strings.Contains(client.Code, `this.ref(buttonRef)`) {
+		t.Fatalf("server projection weakened the client ref surface:\n%s", client.Code)
+	}
+}
+
+func TestServerProjectionRetainsObservableRefReads(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-ref-read.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare const buttonRef: unknown;
+			declare class Component<State> {
+				state: State;
+				readRef(key: unknown): unknown;
+			}
+			export function RefState(this: Component<{}>) {
+				const current = this.readRef(buttonRef);
+				return () => <output>{String(current)}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`@exactjs/core/runtime/refs`,
+		`@exactjs/ssr/runtime/generic-components`,
+		`lane: "generic"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("observable server ref read omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";

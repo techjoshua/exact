@@ -401,18 +401,19 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"reactive",
 	)
 	for _, component := range lowering.components {
-		localizationUsed = localizationUsed || component.Surface.Localization
-		loggingSurfaceUsed = loggingSurfaceUsed || component.Surface.Logging
-		refsUsed = refsUsed || component.Surface.Refs
-		contextsUsed = contextsUsed || component.Surface.Contexts
-		componentReactivityUsed = componentReactivityUsed || component.Surface.Reactivity
+		surface := componentTargetSurface(component, lowering.target)
+		localizationUsed = localizationUsed || surface.Localization
+		loggingSurfaceUsed = loggingSurfaceUsed || surface.Logging
+		refsUsed = refsUsed || surface.Refs
+		contextsUsed = contextsUsed || surface.Contexts
+		componentReactivityUsed = componentReactivityUsed || surface.Reactivity
 	}
 	if lowering.target == TargetServer {
 		// Direct server frames implement the compiler-known context surface themselves. Install the
 		// durable context capability only when a context-bearing component remains on the generic lane.
 		contextsUsed = false
 		for _, component := range lowering.components {
-			if component.Surface.Contexts && component.TargetPlan.GenericServerRuntime {
+			if component.TargetPlan.ServerSurface.Contexts && component.TargetPlan.GenericServerRuntime {
 				contextsUsed = true
 			}
 		}
