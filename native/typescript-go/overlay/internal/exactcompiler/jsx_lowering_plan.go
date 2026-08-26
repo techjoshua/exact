@@ -116,8 +116,15 @@ func (lowering *jsxLowering) indexComponentRangeOutputs() {
 		return
 	}
 	record := func(expression *ast.Node) {
-		if expression == nil || containsJSX(expression) ||
-			!lowering.hasReactiveComponentCapture(expression) {
+		if expression == nil || containsJSX(expression) {
+			return
+		}
+		// An opaque output call may read component props or state inside its body. Its execution is
+		// the dependency observation boundary even when the call site contains no direct read. Only
+		// a same-project JSX helper is proven to lower into a finite program of its own.
+		opaqueOutputCall := ast.IsCallExpression(unwrapRenderExpression(expression)) &&
+			!lowering.compilerOwnedRenderHelperCall(expression)
+		if !opaqueOutputCall && !lowering.hasReactiveComponentCapture(expression) {
 			return
 		}
 		component, exists := lowering.componentContaining(expression)

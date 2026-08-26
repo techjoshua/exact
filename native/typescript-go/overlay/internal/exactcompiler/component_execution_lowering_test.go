@@ -1322,6 +1322,27 @@ func TestClientRenderHelperStateFacadeUsesItsCompiledBoundaryRange(t *testing.T)
 	}
 }
 
+func TestClientLocalOpaqueRenderHelperOwnsComponentRangeObservation(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "local-render-helper.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			export function Presence(props: { when: boolean }) {
+				function render() {
+					return props.when ? "shown" : null;
+				}
+				return () => render();
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "return () => render()") ||
+		!strings.Contains(response.Code, "abi: 32") {
+		t.Fatalf("local opaque render helper did not retain its component observation range:\n%s", response.Code)
+	}
+}
+
 func TestClientCompiledRenderHelperUsesFiniteProgramABI(t *testing.T) {
 	root := t.TempDir()
 	helper := filepath.Join(root, "view.tsx")

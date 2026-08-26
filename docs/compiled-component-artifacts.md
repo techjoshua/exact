@@ -74,10 +74,14 @@ conditional composition therefore reruns through the component artifact without 
 retained watcher per DOM binding. Nested object reads, arbitrary calls, and deferred functions stay
 on the reactive lane unless their complete dependency semantics are separately proven; a top-level
 slot change cannot safely stand in for an observable nested mutation.
-Static native-component slots are also installed directly. Their generated VNode contains the
-compiler-owned forwarded readers for every live prop, so a second structural watcher around that
-VNode would have no dependency to observe. Dynamic component identity and authored dynamic child
-ranges continue to own an explicit structural reaction.
+Static native-component slots are also installed directly when they are inert or their live props
+resolve completely to compiler-indexed dependencies. In the latter case, the component update
+artifact regenerates the VNode description only to publish changed props to the durable child; it
+does not replace that child. Dynamic component identity and unresolved authored dependency surfaces
+continue to own an explicit structural reaction.
+An authored render helper that returns opaque output owns the component's observation range. The
+compiler only treats a helper call as a one-time finite program when its same-project implementation
+is proven to return JSX that is compiled for the same target.
 The dependency source is itself part of target specialization. An update artifact whose complete
 dependency set is component state imports a state-only binder with one indexed target/version
 table. Mixed artifacts encode a counted prefix of prop slots followed by state slots; they do not
