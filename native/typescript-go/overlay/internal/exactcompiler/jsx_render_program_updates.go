@@ -140,9 +140,9 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 	updates := make([]renderProgramDirectUpdate, 0, len(build.slots))
 	for index, slot := range build.slots {
 		if slot.kind == "text" {
-			if dependency, direct := lowering.directRenderProgramDependency(slot.reader); direct {
+			if dependencies, direct := lowering.directScalarProgramDependencies(slot.reader); direct {
 				updates = append(updates, renderProgramDirectUpdate{
-					kind: "text", index: index, dependencies: []componentUpdateDependency{dependency},
+					kind: "text", index: index, dependencies: dependencies,
 				})
 			}
 			continue
@@ -160,8 +160,8 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 		direct := true
 		for _, index := range binding.slots {
 			slot := build.slots[index]
-			if dependency, direct := lowering.directRenderProgramDependency(slot.reader); direct {
-				dependencies = append(dependencies, dependency)
+			if slotDependencies, direct := lowering.directScalarProgramDependencies(slot.reader); direct {
+				dependencies = append(dependencies, slotDependencies...)
 				continue
 			}
 			if lowering.directRenderProgramInertReader(slot) {
@@ -178,6 +178,49 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 		}
 	}
 	return updates
+}
+
+// directScalarProgramDependencies closes over scalar expressions composed from compiler-indexed
+// top-level state and prop reads. The generated component update reruns the authored reader when
+// any input slot changes, so expressions such as `state.first + state.last` need no retained
+// runtime watcher. Calls, nested property reads, and deferred functions remain on the reactive
+// lane because their complete dependency set is not represented by those top-level slots.
+func (lowering *jsxLowering) directScalarProgramDependencies(
+	node *ast.Node,
+) ([]componentUpdateDependency, bool) {
+	if node == nil {
+		return nil, false
+	}
+	dependencies := []componentUpdateDependency{}
+	supported := true
+	walkNode(node, func(current *ast.Node) bool {
+		if dependency, direct := lowering.directRenderProgramDependency(current); direct {
+			dependencies = append(dependencies, dependency)
+			return false
+		}
+		if ast.IsCallExpression(current) || ast.IsTaggedTemplateExpression(current) ||
+			ast.IsAwaitExpression(current) || ast.IsFunctionLike(current) {
+			supported = false
+			return false
+		}
+		if ast.IsPropertyAccessExpression(current) {
+			expression := current.AsPropertyAccessExpression().Expression
+			if _, direct := lowering.directRenderProgramDependency(expression); direct {
+				supported = false
+				return false
+			}
+		}
+		if ast.IsElementAccessExpression(current) {
+			expression := current.AsElementAccessExpression().Expression
+			if _, direct := lowering.directRenderProgramDependency(expression); direct {
+				supported = false
+				return false
+			}
+		}
+		return true
+	})
+	dependencies = uniqueSortedComponentUpdateDependencies(dependencies)
+	return dependencies, supported && len(dependencies) != 0
 }
 
 func (lowering *jsxLowering) directRenderProgramInertReader(slot renderProgramSlot) bool {

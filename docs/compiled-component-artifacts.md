@@ -68,6 +68,12 @@ rather than forcing the child program through a general render watcher. The comp
 runtime lane registry, per-region subscriptions, or a render-program updater. JSX outside a native
 component can use ordinary expression bindings, but it cannot manufacture a second implicit
 component update owner.
+Scalar expressions composed from several top-level state or prop slots share one generated update
+operation whose mask is attached to every input slot. Arithmetic, comparison, logical, and
+conditional composition therefore reruns through the component artifact without allocating a
+retained watcher per DOM binding. Nested object reads, arbitrary calls, and deferred functions stay
+on the reactive lane unless their complete dependency semantics are separately proven; a top-level
+slot change cannot safely stand in for an observable nested mutation.
 The dependency source is itself part of target specialization. An update artifact whose complete
 dependency set is component state imports a state-only binder with one indexed target/version
 table. Mixed artifacts encode a counted prefix of prop slots followed by state slots; they do not

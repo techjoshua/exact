@@ -173,6 +173,11 @@ omits forwarded-prop inspection, subscription, and refresh storage. Mixed state/
 a counted prop-slot prefix followed by state slots, so their runtime does not rediscover sources,
 map authored field names, or allocate binding-index arrays. This keeps the richer prop semantics
 available without making them part of the state-only startup and retained-heap floor.
+One generated operation may depend on several top-level slots. The compiler merges those inputs
+into the operation's dirty mask for scalar arithmetic, comparisons, logical composition, and
+conditionals, avoiding a retained watcher merely because a text or property value has more than
+one input. It deliberately leaves nested object reads and arbitrary calls tracked until their full
+mutation and dependency behavior is proven.
 The ordinary case keeps two inline 32-bit mask words. When a component contains more than 64 direct
 operations, the compiler extends that same artifact with the exact number of additional words; only
 instances of that component allocate the corresponding typed mask storage. Capacity never selects

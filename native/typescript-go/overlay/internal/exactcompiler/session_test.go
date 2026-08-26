@@ -390,6 +390,36 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	}
 }
 
+func TestSessionCompilesMultiSlotScalarExpressionsIntoComponentUpdates(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "component-scalar-expression-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type State = { first: string; last: string };
+			export function Planned(this: { state: State }, props: { active: boolean }) {
+				this.state.first = "Ada";
+				this.state.last = "Lovelace";
+				return () => <p className:active={props.active && this.state.first !== ""}>
+					{this.state.first + " " + this.state.last}
+				</p>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`bindings: [[0, 2, 0], [0, 3, 0], [1, 1, 0]] as const`,
+		`__exactApplyProgramText(__exactTarget0, 1)`,
+		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
+		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("multi-slot scalar update omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *testing.T) {
 	var fields strings.Builder
 	var initializers strings.Builder
