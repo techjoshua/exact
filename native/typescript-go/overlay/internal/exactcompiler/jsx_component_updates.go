@@ -134,10 +134,25 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 	if wordCount < 2 {
 		wordCount = 2
 	}
-	if wordCount > 2 {
-		for _, binder := range build.binders {
-			binder.AsIdentifier().Text = lowering.names.bindWideComponentUpdate
+	stateOnly := true
+	for _, dependency := range build.dependencies {
+		if dependency.source != "state" {
+			stateOnly = false
+			break
 		}
+	}
+	binderName := lowering.names.bindComponentUpdate
+	if stateOnly {
+		binderName = lowering.names.bindStateComponentUpdate
+	}
+	if wordCount > 2 {
+		binderName = lowering.names.bindWideComponentUpdate
+		if stateOnly {
+			binderName = lowering.names.bindWideStateUpdate
+		}
+	}
+	for _, binder := range build.binders {
+		binder.AsIdentifier().Text = binderName
 	}
 	bindings := make([]*ast.Node, 0, len(keys))
 	for _, key := range keys {

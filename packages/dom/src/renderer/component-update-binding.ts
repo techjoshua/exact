@@ -49,8 +49,8 @@ export function bindCompiledComponentUpdate(
 	let state = component[componentUpdateState];
 	if (!state) {
 		let initialized: CompiledComponentUpdateState;
-		const dependencies = createCompiledComponentDependencies(owner, updates.bindings, () =>
-			publishCompiledComponentUpdate(updates, initialized)
+		const dependencies = createCompiledComponentDependencies(owner, updates.bindings, (binding) =>
+			publishCompiledComponentUpdate(updates, initialized, binding)
 		);
 		if (!dependencies) {
 			context.valid = false;
@@ -71,13 +71,18 @@ export function bindCompiledComponentUpdate(
 /** Converts one mutation-version snapshot into the component's generated dirty operation mask. */
 function publishCompiledComponentUpdate(
 	updates: ExactNarrowComponentUpdateContract,
-	state: CompiledComponentUpdateState
+	state: CompiledComponentUpdateState,
+	forwardedBinding?: number
 ): void {
 	let dirtyLow = 0;
 	let dirtyHigh = 0;
-	visitChangedCompiledComponentDependencies(state.d, (index) => {
-		dirtyLow |= updates.bindings[index]![2];
-		dirtyHigh |= updates.bindings[index]![3];
-	});
+	visitChangedCompiledComponentDependencies(
+		state.d,
+		(index) => {
+			dirtyLow |= updates.bindings[index]![2];
+			dirtyHigh |= updates.bindings[index]![3];
+		},
+		forwardedBinding
+	);
 	if (dirtyLow || dirtyHigh) updates.apply(state.t, dirtyLow, dirtyHigh);
 }

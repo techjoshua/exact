@@ -68,6 +68,11 @@ rather than forcing the child program through a general render watcher. The comp
 runtime lane registry, per-region subscriptions, or a render-program updater. JSX outside a native
 component can use ordinary expression bindings, but it cannot manufacture a second implicit
 component update owner.
+The dependency source is itself part of target specialization. An update artifact whose complete
+dependency set is component state imports a state-only binder with one indexed target/version
+table. Only artifacts that read props import the source-qualified binder and its forwarded-reactive
+prop subscription lane; state-only applications do not retain that machinery merely because the
+framework supports reactive props elsewhere.
 When a render arrow returns an otherwise unstructured value such as `props.children`, the client
 artifact marks that authored render function as its component-range output operation. The existing
 component boundary owns its dependency subscription and child reconciliation; the artifact does

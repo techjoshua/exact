@@ -27,24 +27,22 @@ export type CompiledComponentDependencyGroup = {
 /** Source-qualified subscriptions, including forwarded reactive prop values. */
 export type CompiledComponentDependencies = {
 	readonly g: readonly CompiledComponentDependencyGroup[];
-	readonly p: Set<number>;
-	readonly f: Map<number, { readonly value: object; readonly stop: StopHandle }>;
+	readonly f: Array<{ readonly value: object; readonly stop: StopHandle } | undefined>;
 	readonly owner: AnyComponentInstance;
 	readonly bindings: readonly CompiledDependencyBinding[];
-	readonly publish: () => void;
+	readonly publish: (forwardedBinding?: number) => void;
 };
 
 /** Resolves generated state/props dependencies and installs one subscription per backing object. */
 export function createCompiledComponentDependencies(
 	owner: AnyComponentInstance,
 	bindings: readonly CompiledDependencyBinding[],
-	publish: () => void
+	publish: (forwardedBinding?: number) => void
 ): CompiledComponentDependencies | undefined {
 	const groups: CompiledComponentDependencyGroup[] = [];
 	const result: CompiledComponentDependencies = {
 		g: groups,
-		p: new Set(),
-		f: new Map(),
+		f: [],
 		owner,
 		bindings,
 		publish
@@ -77,24 +75,21 @@ export function createCompiledComponentDependencies(
 /** Visits the generated binding identity for every dependency whose mutation version advanced. */
 export function visitChangedCompiledComponentDependencies(
 	dependencies: CompiledComponentDependencies,
-	visit: (binding: number) => void
+	visit: (binding: number) => void,
+	forwardedBinding = -1
 ): boolean {
-	let changed = false;
-	const visited = new Set(dependencies.p);
-	dependencies.p.clear();
+	let changed = forwardedBinding >= 0;
+	if (changed) visit(forwardedBinding);
 	for (const group of dependencies.g) {
 		for (let index = 0; index < group.k.length; index++) {
 			const version = readMutationVersion(group.d, group.k[index]!);
 			if (version === group.v[index]) continue;
 			group.v[index] = version;
 			const binding = group.b[index]!;
-			visited.add(binding);
+			if (binding !== forwardedBinding) visit(binding);
+			changed = true;
 			refreshForwardedProp(dependencies, binding);
 		}
-	}
-	for (const binding of visited) {
-		changed = true;
-		visit(binding);
 	}
 	return changed;
 }
@@ -104,10 +99,10 @@ function refreshForwardedProp(dependencies: CompiledComponentDependencies, index
 	if (!binding || binding[0] !== 'props') return;
 	const read = readReactiveOwnProperty(dependencies.owner.props, binding[1]);
 	const value = read.present && isReactiveValue(read.value) ? read.value : undefined;
-	const current = dependencies.f.get(index);
+	const current = dependencies.f[index];
 	if (current?.value === value) return;
 	current?.stop();
-	dependencies.f.delete(index);
+	dependencies.f[index] = undefined;
 	if (!value) return;
 	const source = ref(value);
 	if (!source) return;
@@ -115,10 +110,9 @@ function refreshForwardedProp(dependencies: CompiledComponentDependencies, index
 		source,
 		() => {
 			value.get();
-			dependencies.p.add(index);
-			dependencies.publish();
+			dependencies.publish(index);
 		},
 		{ scope: dependencies.owner.scope }
 	);
-	dependencies.f.set(index, { value, stop });
+	dependencies.f[index] = { value, stop };
 }
