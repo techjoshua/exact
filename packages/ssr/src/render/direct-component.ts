@@ -1,7 +1,6 @@
 import {
 	attachSuppressedCleanupFailure,
 	isVNode,
-	type AnyComponentFunction,
 	type AnyComponentInstance,
 	type Child,
 	type VNode
@@ -18,7 +17,7 @@ import { getComponentProps } from './component-vnode.js';
 import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { prepareComponentProps } from './component-props.js';
 import {
-	resolveSsrComponentExecution,
+	resolveSsrVNodeExecution,
 	type SsrComponentExecutionBlueprint
 } from './root-execution-cache.js';
 import { readDirectSsrContent, renderDirectSsrContent } from './direct-component-content.js';
@@ -64,7 +63,7 @@ export async function renderDirectSsrComponentOutput<Publication>(
 	publish: DirectSsrComponentPublisher<Publication>,
 	publication: Publication
 ): Promise<string | undefined> {
-	const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
+	const blueprint = resolveSsrVNodeExecution(context, vnode);
 	const rawProps = getComponentProps(vnode);
 	const scheduled = await (takePreparedDirectScheduledSsrComponent(context, vnode) ??
 		createDirectScheduledSsrComponent(context, blueprint, rawProps, parent, options));
@@ -353,7 +352,7 @@ export function renderIssuedServerComponentChildren(
 			try {
 				created = createDirectScheduledSsrComponent(
 					context,
-					resolveSsrComponentExecution(context, candidate.type),
+					resolveSsrVNodeExecution(context, candidate),
 					getComponentProps(candidate),
 					owner,
 					options

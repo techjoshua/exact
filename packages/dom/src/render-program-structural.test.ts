@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
 import { Fragment, createVNode, type Component } from '@exactjs/core';
 import {
-	createCompiledComponentVNode,
 	createCompiledVNode,
 	createExpression,
 	createFrameworkFixtureComponentInstance,
@@ -52,12 +51,7 @@ it('reconciles compiler-keyed program children without list or item marker range
 			bindings: [['lists', [0]]],
 			nodes: [[0, 'ul']]
 		}),
-		[
-			() =>
-				state.items.map((item) =>
-					keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
-				)
-		]
+		[() => state.items.map((item) => keyCompiledVNode(createVNode('li', {}, item.id), item.id))]
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -94,12 +88,7 @@ it('owns a final compiler-keyed child lane without structural marker nodes', () 
 	});
 	const vnode = createPreparedRenderProgram(
 		program,
-		[
-			() =>
-				state.items.map((item) =>
-					keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
-				)
-		],
+		[() => state.items.map((item) => keyCompiledVNode(createVNode('li', {}, item.id), item.id))],
 		renderProgramOwner
 	);
 	const container = document.createElement('div');

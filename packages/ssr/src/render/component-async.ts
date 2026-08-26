@@ -1,4 +1,4 @@
-import { type AnyComponentFunction, normalizeRenderResult, type VNode } from '@exactjs/core';
+import { normalizeRenderResult, type VNode } from '@exactjs/core';
 import { markerPair } from '../markup.js';
 import type { AnyComponentInstance, SsrContext } from '../types.js';
 import { renderChildrenAsync, renderVNodeAsync } from './async-tree.js';
@@ -11,7 +11,7 @@ import type { SsrRenderOptions } from './entrypoints.js';
 import { renderGenericSsrComponent } from './generic-component-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderInterruption } from './limits.js';
-import { resolveSsrComponentExecution } from './root-execution-cache.js';
+import { resolveSsrVNodeExecution } from './root-execution-cache.js';
 
 type DirectComponentPublication = Readonly<{
 	componentId: string;
@@ -82,7 +82,7 @@ export async function renderComponentAsync(
 			}
 		);
 		if (direct !== undefined) return direct;
-		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
+		const blueprint = resolveSsrVNodeExecution(context, vnode);
 		const rawProps = getComponentProps(vnode);
 		return await renderGenericSsrComponent({
 			context,

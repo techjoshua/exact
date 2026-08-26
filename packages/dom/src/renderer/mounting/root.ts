@@ -17,13 +17,17 @@ import {
 } from '@exactjs/core';
 import {
 	createComponentInstance,
+	createLinkedComponentInstance,
 	isCellVNode,
 	RenderProgram,
 	reparentComponentInstance,
 	renderInstance,
 	ServerSlot
 } from '@exactjs/core/runtime/render';
-import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
+import {
+	exactComponentIdentity,
+	readLinkedExactCompiledComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import {
 	createEffectScope,
 	flushSync,
@@ -285,9 +289,10 @@ export function mountInner(
 	}
 
 	if (typeof vnode.type === 'function') {
+		const linkedContract = readLinkedExactCompiledComponentContract(vnode);
 		// The compiler or a framework library must claim native ownership. Foreign
 		// function components cross an explicit compatibility adapter instead.
-		exactComponentIdentity(vnode.type);
+		if (!linkedContract) exactComponentIdentity(vnode.type);
 		const wrapper = createMarker(root, 'component');
 		const mounted: Mounted = { vnode, dom: wrapper, scope, children: [] };
 		let constructing = true;
@@ -301,13 +306,22 @@ export function mountInner(
 		};
 		try {
 			const instance = withEffectScope(mounted.scope, () =>
-				createComponentInstance(
-					vnode.type as AnyEnhancementComponentFunction,
-					getComponentProps(vnode),
-					parentInstance,
-					parentInstance?.ambientContexts ?? root.ambientContexts,
-					vnode.domain ?? parentInstance?.domain
-				)
+				linkedContract
+					? createLinkedComponentInstance(
+							vnode.type as AnyEnhancementComponentFunction,
+							getComponentProps(vnode),
+							linkedContract,
+							parentInstance,
+							parentInstance?.ambientContexts ?? root.ambientContexts,
+							vnode.domain ?? parentInstance?.domain
+						)
+					: createComponentInstance(
+							vnode.type as AnyEnhancementComponentFunction,
+							getComponentProps(vnode),
+							parentInstance,
+							parentInstance?.ambientContexts ?? root.ambientContexts,
+							vnode.domain ?? parentInstance?.domain
+						)
 			);
 			ownMountedInstance(mounted, instance);
 			// Compiler-owned setup activations may synchronously initialize state

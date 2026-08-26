@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { computed, flushSync, reactive, unwrap } from '@exactjs/reactive';
 import { createForwardedExpression } from './component/reactive-vnodes.js';
+import { createExactFrameworkFixtureArtifact } from './component-contract/runtime-artifacts.js';
 import {
 	createCompiledComponentVNode,
 	createCompiledVNode,
+	createVNode,
 	isCellVNode,
 	keyCompiledVNode
 } from './vnode.js';
@@ -30,19 +32,28 @@ describe('compiled vnode marker ownership', () => {
 		function Child() {
 			return () => null;
 		}
+		createExactFrameworkFixtureArtifact(Child, 'fixture:vnode-expression:Child');
 
 		expect(isCellVNode(createCompiledVNode(Child, null))).toBe(true);
 		expect(isCellVNode(createCompiledComponentVNode(Child, null))).toBe(false);
-		expect(createCompiledComponentVNode(Child, { label: 'ready' }).type).toBe(Child);
+		const vnode = createCompiledComponentVNode(Child, { label: 'ready' });
+		expect(vnode.type).toBe(Child);
+		expect(vnode.artifact).toBeDefined();
 	});
 
 	it('assigns inferred list identity to the unpublished compiler allocation', () => {
-		const vnode = createCompiledComponentVNode('li', null, 'row');
+		const vnode = createVNode('li', null, 'row');
 
 		expect(keyCompiledVNode(vnode, 42)).toBe(vnode);
 		expect(vnode.key).toBe('42');
-		expect(() => keyCompiledVNode(createCompiledComponentVNode('li', null), undefined)).toThrow(
+		expect(() => keyCompiledVNode(createVNode('li', null), undefined)).toThrow(
 			'Compiled keyed lists require a key'
+		);
+	});
+
+	it('rejects an uncompiled function at the compiler-only invocation boundary', () => {
+		expect(() => createCompiledComponentVNode(() => () => null, null)).toThrow(
+			'compiled component artifact'
 		);
 	});
 });

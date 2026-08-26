@@ -307,6 +307,12 @@ Hydration entry points likewise pass their owned configuration resolver explicit
 adoption engine has no complete-runtime default import, so a hydration-only client does not retain
 endpoint, continuation, island, or patch configuration merely because the full client supports it.
 
+Statically resolved component JSX carries its prepared target artifact on the invocation. Client
+mounting, hydration, and the primary SSR lanes use that direct link, avoiding repeated native
+identity classification and contract-cache lookup for every instance. Dynamic component and
+compatibility boundaries retain runtime contract resolution because their selected callable is not
+known until execution.
+
 Scalar text slots may sit beside static text or other scalar slots in one planned host. When static
 markup bounds a slot on both sides, hydratable SSR writes the escaped value directly and the
 generated claim lane adopts it without emitting comment delimiters. An empty value receives an
