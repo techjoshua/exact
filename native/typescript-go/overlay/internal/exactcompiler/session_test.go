@@ -1510,6 +1510,59 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 	}
 }
 
+func TestSessionPropagatesComponentSurfaceThroughBoundLocalHelpers(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component-helper.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare const FormContext: unknown;
+			interface Component<State = {}> {
+				getContext<T>(token: unknown): T;
+				onUnmount(handler: () => void): void;
+			}
+			function control(this: Component) {
+				this.getContext(FormContext);
+				this.onUnmount(() => undefined);
+				return () => <input />;
+			}
+			export function Input(this: Component) {
+				return control.call(this);
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	receiverResolved := false
+	for _, callable := range response.Analysis.Callables {
+		for _, edge := range callable.Calls {
+			if strings.Contains(edge.Name, "control.call") && edgeForwardsComponentReceiver(edge) {
+				receiverResolved = true
+			}
+		}
+	}
+	if !receiverResolved {
+		t.Fatalf("bound helper receiver was not resolved: %#v", response.Analysis.Callables)
+	}
+	inputStart := strings.Index(response.Code, "const __exactImplementation_Input_")
+	if inputStart < 0 {
+		t.Fatalf("compiled Input implementation is missing:\n%s", response.Code)
+	}
+	inputContract := response.Code[inputStart:]
+	if next := strings.Index(inputContract[1:], "const __exactImplementation_"); next >= 0 {
+		inputContract = inputContract[:next+1]
+	}
+	if !strings.Contains(inputContract, `construct: __exactConstructDurableComponent`) ||
+		!strings.Contains(inputContract, `"contexts"`) {
+		t.Fatalf("bound helper requirements did not widen the owning component ABI:\n%s", response.Code)
+	}
+	if !strings.Contains(inputContract, `return control.call(this)`) ||
+		strings.Contains(inputContract, `return () => control.call(this)`) {
+		t.Fatalf("bound setup helper gained an extra render callable layer:\n%s", response.Code)
+	}
+}
+
 func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "component.tsx",

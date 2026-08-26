@@ -136,6 +136,94 @@ func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
 	return found
 }
 
+// propagateComponentSurfacePlans carries instance requirements through statically resolved
+// helpers only when the caller forwards its component receiver. A helper invoked with another
+// receiver must not widen the component ABI merely because it happens to use similarly named
+// methods on its own `this` value.
+func propagateComponentSurfacePlans(
+	sourceFile *ast.SourceFile,
+	components []Component,
+	callables callableAnalysis,
+) {
+	factsByID := make(map[string]int, len(callables.facts))
+	for index := range callables.facts {
+		factsByID[callables.facts[index].summary.ID] = index
+	}
+	renderRoots := make(map[int][]int)
+	for _, render := range resolveComponentRenders(sourceFile) {
+		for factIndex := range callables.facts {
+			if callables.facts[factIndex].node == render.callable {
+				renderRoots[render.component.node.Pos()] = append(
+					renderRoots[render.component.node.Pos()],
+					factIndex,
+				)
+				break
+			}
+		}
+	}
+	for componentIndex := range components {
+		root := -1
+		for factIndex := range callables.facts {
+			fact := &callables.facts[factIndex]
+			if fact.sourceFile == sourceFile && fact.node.Pos() == components[componentIndex].Start {
+				root = factIndex
+				break
+			}
+		}
+		if root < 0 {
+			continue
+		}
+		pending := append([]int{root}, renderRoots[components[componentIndex].Start]...)
+		visited := make(map[int]struct{})
+		for len(pending) != 0 {
+			factIndex := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if _, exists := visited[factIndex]; exists {
+				continue
+			}
+			visited[factIndex] = struct{}{}
+			mergeComponentSurfaceFromCallable(&components[componentIndex], callables.facts[factIndex].node)
+			for _, edge := range callables.facts[factIndex].summary.Calls {
+				if !edge.Resolved || !edgeForwardsComponentReceiver(edge) {
+					continue
+				}
+				if target, exists := factsByID[edge.TargetID]; exists {
+					pending = append(pending, target)
+				}
+			}
+		}
+	}
+}
+
+func edgeForwardsComponentReceiver(edge CallEdge) bool {
+	for _, binding := range edge.ReceiverBindings {
+		if binding.Source == "component" {
+			return true
+		}
+	}
+	return false
+}
+
+func mergeComponentSurfaceFromCallable(component *Component, node *ast.Node) {
+	component.Surface.Logging = component.Surface.Logging || componentUsesProtocolMember(node, "log")
+	component.Surface.Localization = component.Surface.Localization || componentUsesProtocolMember(node, "intl")
+	component.Surface.Refs = component.Surface.Refs || componentUsesProtocolMember(node, "ref", "readRef", "refs")
+	component.Surface.Contexts = component.Surface.Contexts || componentUsesProtocolMember(
+		node,
+		"hasContext", "getContext", "setContext",
+	)
+	component.Surface.Reactivity = component.Surface.Reactivity || componentUsesProtocolMember(node, "reactive")
+	component.Surface.ServerLifecycle = component.Surface.ServerLifecycle || componentUsesProtocolMember(
+		node,
+		"onUnmount", "onRender", "own",
+	)
+	component.Lifecycle = component.Lifecycle || componentUsesProtocolMember(
+		node,
+		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
+	)
+	component.Lists = component.Lists || componentUsesProtocolMember(node, "map")
+}
+
 // componentProtocolMember identifies direct and computed access to the authored component view.
 // A dynamic computed key conservatively selects every queried capability family because the
 // compiler cannot prove which operation the running program will choose.

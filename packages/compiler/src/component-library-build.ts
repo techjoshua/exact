@@ -15,7 +15,7 @@ export type ExactComponentLibraryBuildInput = Readonly<{
 	exports: ExactPublishedComponentBuildFacts['exports'];
 }>;
 
-/** Creates deterministic protocol-1 static facts without adding trust decisions. */
+/** Creates deterministic protocol-2 static facts without adding trust decisions. */
 export function createExactPublishedComponentBuildFacts(
 	input: ExactComponentLibraryBuildInput
 ): ExactPublishedComponentBuildFacts {
@@ -44,7 +44,8 @@ export function createExactPublishedComponentBuildFacts(
 		.map((record) =>
 			Object.freeze({
 				...record,
-				module: normalizePackagePath(record.module)
+				module: normalizePackagePath(record.module),
+				componentModule: normalizePackagePath(record.componentModule)
 			})
 		)
 		.sort((left, right) =>
@@ -57,7 +58,7 @@ export function createExactPublishedComponentBuildFacts(
 	const exportSelections = new Map<string, string>();
 	for (const record of exports) {
 		const selection = [record.subpath, record.condition, record.exportName].join('\0');
-		const target = [record.module, record.componentId].join('\0');
+		const target = [record.module, record.componentModule, record.componentId].join('\0');
 		const existing = exportSelections.get(selection);
 		if (existing)
 			throw new Error(
@@ -74,12 +75,12 @@ export function createExactPublishedComponentBuildFacts(
 		])
 	);
 	for (const record of exports)
-		if (!moduleComponents.get(record.module)?.has(record.componentId))
+		if (!moduleComponents.get(record.componentModule)?.has(record.componentId))
 			throw new Error(
-				`Published export ${record.subpath}#${record.exportName} has no ${record.componentId} component in ${record.module}`
+				`Published export ${record.subpath}#${record.exportName} has no ${record.componentId} component in ${record.componentModule}`
 			);
 	return Object.freeze({
-		protocol: 1,
+		protocol: 2,
 		package: Object.freeze({ ...input.package }),
 		modules: Object.freeze(modules),
 		exports: Object.freeze(exports)

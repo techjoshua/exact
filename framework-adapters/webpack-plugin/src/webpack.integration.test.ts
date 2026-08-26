@@ -257,7 +257,7 @@ function createFixture(denied: boolean): { root: string } {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 1
+			exactComponentLibraryProtocol: 2
 		})
 	);
 	writeFileSync(
@@ -267,7 +267,7 @@ function createFixture(denied: boolean): { root: string } {
 			version: '1.0.0',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(
@@ -277,7 +277,7 @@ function createFixture(denied: boolean): { root: string } {
 	writeFileSync(
 		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
 		JSON.stringify({
-			protocol: 1,
+			protocol: 2,
 			package: { name: '@acme/cards', version: '1.0.0' },
 			modules: [
 				{
@@ -301,6 +301,7 @@ function createFixture(denied: boolean): { root: string } {
 					subpath: '.',
 					condition: 'default',
 					module: 'dist/index.js',
+					componentModule: 'dist/index.js',
 					exportName: 'Card',
 					componentId: '@acme/cards:Card'
 				}

@@ -233,9 +233,9 @@ export type ExactComponentBuildFacts = Readonly<{
 	}>[];
 }>;
 
-/** Static protocol-1 build facts published by a precompiled eXact component library. */
+/** Static protocol-2 build facts published by a precompiled eXact component library. */
 export type ExactPublishedComponentBuildFacts = Readonly<{
-	protocol: 1;
+	protocol: 2;
 	package: Readonly<{ name: string; version: string }>;
 	modules: readonly Readonly<{
 		path: string;
@@ -244,7 +244,10 @@ export type ExactPublishedComponentBuildFacts = Readonly<{
 	exports: readonly Readonly<{
 		subpath: string;
 		condition: string;
+		/** Package-export facade selected by the consumer's resolver. */
 		module: string;
+		/** Target-local compiler artifact that owns the component and its relative dependency edges. */
+		componentModule: string;
 		exportName: string;
 		componentId: string;
 	}>[];

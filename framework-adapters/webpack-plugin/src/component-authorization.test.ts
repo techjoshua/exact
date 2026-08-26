@@ -167,7 +167,7 @@ function createFixture(transitive = false) {
 				'@exactjs/component-library': '^0.1.0',
 				...(transitive ? { '@vendor/icons': '2.0.0' } : {})
 			},
-			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(
@@ -175,7 +175,7 @@ function createFixture(transitive = false) {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 1
+			exactComponentLibraryProtocol: 2
 		})
 	);
 	writeFileSync(
@@ -183,7 +183,7 @@ function createFixture(transitive = false) {
 		`import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(executedFile)}, 'executed'); export function Card() { return () => null; }\n`
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 1,
+		protocol: 2,
 		package: { name: '@acme/cards', version: '1.0.0' },
 		modules: [
 			{
@@ -217,6 +217,7 @@ function createFixture(transitive = false) {
 				subpath: '.',
 				condition: 'default',
 				module: 'dist/index.js',
+				componentModule: 'dist/index.js',
 				exportName: 'Card',
 				componentId: '@acme/cards:Card'
 			}
@@ -244,14 +245,14 @@ function writeTransitiveLibrary(root: string): string {
 			version: '2.0.0',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(module, 'export const Icon = () => null;\n');
 	writeFileSync(
 		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
 		JSON.stringify({
-			protocol: 1,
+			protocol: 2,
 			package: { name: '@vendor/icons', version: '2.0.0' },
 			modules: [
 				{
@@ -275,6 +276,7 @@ function writeTransitiveLibrary(root: string): string {
 					subpath: '.',
 					condition: 'default',
 					module: 'dist/index.js',
+					componentModule: 'dist/index.js',
 					exportName: 'Icon',
 					componentId: '@vendor/icons:Icon'
 				}

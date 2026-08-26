@@ -26,16 +26,13 @@ test('the root build prepares package-export prerequisites before building depen
 	assert.match(manifest.scripts['test:bun'], /^npm run build:bun-prerequisites && /);
 	assert.equal(
 		manifest.scripts['build:workspaces'],
-		'npm run generate:app-artifacts && tsc6 -b && node scripts/compile-all-exact-packages.mjs && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator'
+		'npm run generate:app-artifacts && tsc6 -b && node scripts/compile-all-exact-packages.mjs && npm run build:chromium-devtools && npm run typecheck -w @exactjs/sample-puzzle-generator'
 	);
 	assert.equal(
 		manifest.scripts['build:chromium-devtools'],
 		'node packages/chromium-devtools/build.mjs'
 	);
-	assert.equal(
-		manifest.scripts['generate:component-library-build-facts'],
-		'node scripts/generate-all-component-library-build-facts.mjs'
-	);
+	assert.equal(manifest.scripts['generate:component-library-build-facts'], undefined);
 	assert.equal(manifest.devDependencies['@typescript/native'], 'npm:typescript@^7.0.2');
 });
 
@@ -53,6 +50,18 @@ test('target-local package compilation includes private application component li
 		names.indexOf('@exactjs/physics') < names.indexOf('@exactjs/gravity'),
 		'compiled dependencies must precede their consumers'
 	);
+});
+
+test('target-local package compilation preserves intentionally exported fixture support', async () => {
+	const manifest = JSON.parse(
+		await readFile(path.resolve('packages/testing/package.json'), 'utf8')
+	);
+	const compiler = await readFile(path.resolve('scripts/compile-exact-package.mjs'), 'utf8');
+
+	assert.ok(manifest.exports['./internal/fixtures']);
+	assert.doesNotMatch(manifest.files.join('\n'), /^!.*\.fixtures\./m);
+	assert.match(compiler, /excludesFixtureArtifacts/);
+	assert.match(compiler, /isUnpublishedSupportArtifact/);
 });
 
 test('target-local package compilation rejects dependency cycles', () => {

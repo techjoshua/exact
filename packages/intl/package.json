@@ -45,7 +45,7 @@
 		"IntlAttributes"
 	],
 	"exactComponentLibrary": {
-		"protocol": 1,
+		"protocol": 2,
 		"build": "./dist/exact-component-build.json"
 	},
 	"exact": {
@@ -92,7 +92,7 @@
 	"scripts": {
 		"generate:cldr": "node scripts/generate-cldr-unit-data.mjs",
 		"check:cldr": "node scripts/generate-cldr-unit-data.mjs --check",
-		"build": "npm run check:cldr && tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "npm run check:cldr && tsc -b && node ../../scripts/compile-exact-package.mjs .",
 		"test": "npm run check:cldr && vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

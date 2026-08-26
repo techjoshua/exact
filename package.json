@@ -16,12 +16,11 @@
 	],
 	"scripts": {
 		"generate:app-artifacts": "npm run generate -w @exactjs/sample-server-components && npm run generate -w @exactjs/sample-shipping-calculator",
-		"generate:component-library-build-facts": "node scripts/generate-all-component-library-build-facts.mjs",
 		"build": "npm run generate:compiler-abi && npm run build:prerequisites && npm run build:native-compiler && npm run build:workspaces",
 		"generate:compiler-abi": "node scripts/generate-compiler-abi.mjs",
 		"build:prerequisites": "npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer -w @exactjs/dom -w @exactjs/ssr",
 		"build:bun-prerequisites": "npm run build -w @exactjs/compiler && npm run build -w @exactjs/request && npm run build -w @exactjs/intl && npm run build -w @exactjs/testing && npm run build -w @exactjs/microfrontends",
-		"build:workspaces": "npm run generate:app-artifacts && tsc6 -b && node scripts/compile-all-exact-packages.mjs && npm run build:chromium-devtools && npm run generate:component-library-build-facts && npm run typecheck -w @exactjs/sample-puzzle-generator",
+		"build:workspaces": "npm run generate:app-artifacts && tsc6 -b && node scripts/compile-all-exact-packages.mjs && npm run build:chromium-devtools && npm run typecheck -w @exactjs/sample-puzzle-generator",
 		"build:typescript7": "npm run generate:app-artifacts && tsc -b && npm run build:chromium-devtools",
 		"build:chromium-devtools": "node packages/chromium-devtools/build.mjs",
 		"format": "prettier --write .",

@@ -330,6 +330,7 @@ func (s *Session) Execute(request Request) Response {
 		stateWrites,
 		componentBindings,
 	)
+	propagateComponentSurfacePlans(sourceFile, components, callables)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
 	policy := collectPolicyAnalysis(
