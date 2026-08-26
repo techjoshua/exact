@@ -640,6 +640,8 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		`__exactClaimProgramChild(__exactBindingTarget, 0, 0,`,
 		`, true)`,
 		`__exactBindProgramChild(__exactBindingTarget, 0, true)`,
+		`__exactApplyProgramChild(__exactTarget0, 0)`,
+		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`__exactComponentVNode(Detail`,
 	} {
 		if !strings.Contains(client.Code, expected) {

@@ -83,12 +83,15 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 			call(lowering.names.bindProgramText, arguments...)
 		case "child", "component":
 			arguments := []*ast.Node{slotIndex}
-			// A statically resolved component slot constructs its child VNode once. Every live prop
-			// reader inside that VNode is already a compiler-owned forwarded expression, so wrapping
-			// the component constructor in another retained structural watcher can observe no useful
-			// dependency and only adds activation work.
 			_, directChild := directChildren[index]
-			if slot.kind == "component" || directChild {
+			// Static components without reactive captures construct once. Components with completely
+			// indexed live props use the generated direct-child operation above; unresolved authored
+			// dependency surfaces retain the structural reaction needed to refresh child props.
+			closedComponent := false
+			if slot.kind == "component" {
+				_, closedComponent = lowering.directComponentProgramReader(slot.reader)
+			}
+			if directChild || (slot.kind == "component" && closedComponent) {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
 			call(lowering.names.bindProgramChild, arguments...)
@@ -153,7 +156,11 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 			continue
 		}
 		if slot.kind == "child" || slot.kind == "component" {
-			if dependencies, direct := lowering.directStructuralProgramDependencies(slot.reader); direct {
+			dependencies, direct := lowering.directStructuralProgramDependencies(slot.reader)
+			if slot.kind == "component" {
+				dependencies, direct = lowering.directComponentProgramDependencies(slot.reader)
+			}
+			if direct {
 				updates = append(updates, renderProgramDirectUpdate{
 					kind: "child", index: index, dependencies: dependencies,
 				})
@@ -183,6 +190,61 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 		}
 	}
 	return updates
+}
+
+// directComponentProgramDependencies closes over live props on one statically resolved component
+// VNode. Unlike a conditional child range, the component constructor call is generated topology:
+// rerunning it updates the durable child's props rather than replacing the child. Authored eager
+// calls remain on the retained structural lane because their dependency surface may extend beyond
+// the indexed reads visible here.
+func (lowering *jsxLowering) directComponentProgramDependencies(
+	node *ast.Node,
+) ([]componentUpdateDependency, bool) {
+	dependencies, supported := lowering.directComponentProgramReader(node)
+	return dependencies, supported && len(dependencies) != 0
+}
+
+func (lowering *jsxLowering) directComponentProgramReader(
+	node *ast.Node,
+) ([]componentUpdateDependency, bool) {
+	if node == nil {
+		return nil, false
+	}
+	dependencies := []componentUpdateDependency{}
+	supported := true
+	walkNode(node, func(current *ast.Node) bool {
+		if dependency, direct := lowering.directRenderProgramDependency(current); direct {
+			dependencies = append(dependencies, dependency)
+			return false
+		}
+		if ast.IsCallExpression(current) {
+			call := current.AsCallExpression()
+			if !ast.IsIdentifier(call.Expression) || !lowering.generatedComponentReaderCall(call.Expression.Text()) {
+				supported = false
+				return false
+			}
+		}
+		if ast.IsTaggedTemplateExpression(current) || ast.IsAwaitExpression(current) {
+			supported = false
+			return false
+		}
+		return true
+	})
+	dependencies = uniqueSortedComponentUpdateDependencies(dependencies)
+	return dependencies, supported
+}
+
+// generatedComponentReaderCall identifies compiler-owned VNode/reader construction. These calls
+// allocate inert descriptions or lazy expressions; they do not execute authored component work.
+func (lowering *jsxLowering) generatedComponentReaderCall(name string) bool {
+	return name == lowering.names.componentElement ||
+		name == lowering.names.element ||
+		name == lowering.names.intrinsicElement ||
+		name == lowering.names.keyedElement ||
+		name == lowering.names.preparedRenderProgram ||
+		name == lowering.names.expression ||
+		name == lowering.names.forwardedExpression ||
+		name == lowering.names.enhancements
 }
 
 // directScalarProgramDependencies closes over scalar expressions composed from compiler-indexed
