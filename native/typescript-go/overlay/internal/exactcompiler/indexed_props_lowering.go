@@ -10,6 +10,7 @@ import (
 )
 
 type indexedPropsRead struct {
+	key  string
 	slot int
 }
 
@@ -82,7 +83,7 @@ func indexPropsReadSlots(
 				return true
 			}
 			if slot, exists := slots[key]; exists {
-				result[nodeSpanKey(node)] = indexedPropsRead{slot: slot}
+				result[nodeSpanKey(node)] = indexedPropsRead{key: key, slot: slot}
 			}
 			return true
 		})
@@ -105,15 +106,17 @@ func (lowering *jsxLowering) lowerIndexedPropsRead(node *ast.Node) *ast.Node {
 		lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
 	})
 	valueType := lowering.checker.GetTypeAtLocation(node)
+	result := call
 	if typeNode := lowering.checker.TypeToTypeNode(
 		valueType,
 		node,
 		nodebuilder.FlagsNoTruncation,
 		nil,
 	); typeNode != nil {
-		return lowering.factory.NewAsExpression(call, typeNode)
+		result = lowering.factory.NewAsExpression(call, typeNode)
 	}
-	return call
+	lowering.indexedPropsReadKeys[result] = read.key
+	return result
 }
 
 func directPropsRead(node *ast.Node) (string, *ast.Node, bool) {

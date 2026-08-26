@@ -97,6 +97,17 @@ export function createCompiledComponentVNode(
 	return createVNodeRecord(type, props, children);
 }
 
+/** Creates a marker-free intrinsic vnode for a compiler-owned structural range. */
+export function createCompiledIntrinsicVNode(
+	type: VNodeType,
+	props: Record<string, unknown> | null,
+	...children: unknown[]
+): VNode {
+	if (typeof type !== 'string')
+		throw new TypeError('Compiled intrinsic invocation requires an intrinsic tag');
+	return createVNodeRecord(type, props, children);
+}
+
 /**
  * Assigns compiler-proven keyed-list identity to a newly created VNode.
  *

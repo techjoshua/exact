@@ -9,6 +9,7 @@ import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted } from '../types.js';
 import {
+	applyProgramChild,
 	bindProgramChild,
 	bindProgramKeyedChild,
 	bindProgramLists
@@ -30,6 +31,7 @@ export function bindRenderProgram(mounted: Mounted): boolean {
 	const stopCurrentBindings = () => {
 		for (const binding of stopBindings) binding.stop();
 		stopBindings = [];
+		state.directChildUpdates = undefined;
 	};
 	const release = () => {
 		if (released) return;
@@ -101,11 +103,23 @@ export function applyCompiledProgramText(
 /** Binds one compiler-selected structural child slot. */
 export function bindCompiledProgramChild(
 	target: ExactRenderProgramBindingTarget,
+	index: number,
+	direct?: true
+): void {
+	const context = target as ProgramBindingTarget;
+	if (
+		!bindProgramChild(context.mounted, index, context.initialBinding, context.stopBindings, direct)
+	)
+		context.valid = false;
+}
+
+/** Applies one compiler-selected structural operation without installing a dynamic watcher. */
+export function applyCompiledProgramChild(
+	target: ExactRenderProgramBindingTarget,
 	index: number
 ): void {
 	const context = target as ProgramBindingTarget;
-	if (!bindProgramChild(context.mounted, index, context.initialBinding, context.stopBindings))
-		context.valid = false;
+	if (!applyProgramChild(context.mounted, index)) context.valid = false;
 }
 
 /** Binds the compiler-selected keyed-list slots as one render transaction. */

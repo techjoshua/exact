@@ -13,8 +13,13 @@ export type ExactCompiledComponentCapability =
 
 /** Ordinary component update program whose operations fit in two inline mask words. */
 export type ExactNarrowComponentUpdateContract = Readonly<{
-	/** Stable state field plus its low/high operation masks. */
-	bindings: readonly (readonly [key: string, dirtyLow: number, dirtyHigh: number])[];
+	/** Stable component storage field plus its low/high operation masks. */
+	bindings: readonly (readonly [
+		source: 'state' | 'props',
+		key: string,
+		dirtyLow: number,
+		dirtyHigh: number
+	])[];
 	words?: never;
 	/** Applies compiler-selected operations to the currently mounted finite-region targets. */
 	apply(targets: readonly (object | undefined)[], dirtyLow: number, dirtyHigh: number): void;
@@ -22,8 +27,9 @@ export type ExactNarrowComponentUpdateContract = Readonly<{
 
 /** Large component update program with compiler-sized mask storage beyond its inline words. */
 export type ExactWideComponentUpdateContract = Readonly<{
-	/** Stable state field plus every 32-operation mask affected by that field. */
+	/** Stable component storage field plus every 32-operation mask affected by that field. */
 	bindings: readonly (readonly [
+		source: 'state' | 'props',
 		key: string,
 		dirtyLow: number,
 		dirtyHigh: number,

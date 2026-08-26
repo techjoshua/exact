@@ -4,6 +4,7 @@ import { createForwardedExpression } from './component/reactive-vnodes.js';
 import { createExactFrameworkFixtureArtifact } from './component-contract/runtime-artifacts.js';
 import {
 	createCompiledComponentVNode,
+	createCompiledIntrinsicVNode,
 	createCompiledVNode,
 	createVNode,
 	isCellVNode,
@@ -40,6 +41,15 @@ describe('compiled vnode marker ownership', () => {
 		expect(vnode.type).toBe(Child);
 	});
 
+	it('leaves compiler-owned intrinsic identity to its structural range', () => {
+		const vnode = createCompiledIntrinsicVNode('div', { className: 'late' }, 'ready');
+		expect(isCellVNode(vnode)).toBe(false);
+		expect(vnode.type).toBe('div');
+		expect(() => createCompiledIntrinsicVNode(() => null, null)).toThrow(
+			'Compiled intrinsic invocation requires an intrinsic tag'
+		);
+	});
+
 	it('assigns inferred list identity to the unpublished compiler allocation', () => {
 		const vnode = createVNode('li', null, 'row');
 
@@ -49,5 +59,4 @@ describe('compiled vnode marker ownership', () => {
 			'Compiled keyed lists require a key'
 		);
 	});
-
 });

@@ -179,10 +179,11 @@ function isComponentUpdates(value: unknown): boolean {
 		value.bindings.every(
 			(binding) =>
 				Array.isArray(binding) &&
-				binding.length === words + 1 &&
-				isContractString(binding[0]) &&
+				binding.length === words + 2 &&
+				(binding[0] === 'state' || binding[0] === 'props') &&
+				isContractString(binding[1]) &&
 				binding
-					.slice(1)
+					.slice(2)
 					.every((mask) => Number.isSafeInteger(mask) && mask >= 0 && mask <= 0xffff_ffff)
 		) &&
 		typeof value.apply === 'function'

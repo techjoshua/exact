@@ -119,12 +119,26 @@ export function bindProgramChild(
 	mounted: Mounted,
 	index: number,
 	initialBinding: boolean,
-	stopBindings: OwnedRetainedWatch[]
+	stopBindings: OwnedRetainedWatch[],
+	direct = false
 ): boolean {
 	const applyChildren = prepareProgramChildBinding(mounted, index, initialBinding);
 	if (!applyChildren) return false;
+	if (direct) {
+		(mounted.renderProgram!.directChildUpdates ??= [])[index] = applyChildren;
+		applyChildren();
+		return true;
+	}
 	const watcher = watchRetained(applyChildren, undefined, { scope: mounted.scope, owned: true });
 	if (watcher) stopBindings.push(watcher);
+	return true;
+}
+
+/** Applies one compiler-selected structural slot without a retained dependency watcher. */
+export function applyProgramChild(mounted: Mounted, index: number): boolean {
+	const apply = mounted.renderProgram?.directChildUpdates?.[index];
+	if (!apply) return false;
+	apply();
 	return true;
 }
 

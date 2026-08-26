@@ -12,8 +12,11 @@ import { collectionRef, flushSync, indexedReactive, reactive, ref } from '@exact
 import { expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 import {
+	applyCompiledProgramChild,
 	beginCompiledProgramClaims,
+	bindCompiledProgramChild,
 	bindCompiledProgramKeyedChild,
+	claimCompiledProgramChild,
 	claimCompiledProgramKeyedChild
 } from './runtime/render-program.js';
 import { jsx } from './test-support/native-vnode.js';
@@ -37,6 +40,40 @@ const createCompiledRenderProgram = (
 	);
 const prepareCompiledRenderProgram: typeof prepareCoreRenderProgram = (program) =>
 	prepareCoreRenderProgram(withGenericRenderProgramBindings(program));
+
+it('applies a compiler-owned structural child operation without a retained watcher', () => {
+	const state = reactive({ shown: true });
+	let target: Parameters<typeof bindCompiledProgramChild>[0] | undefined;
+	const program = prepareCoreRenderProgram({
+		version: 4,
+		id: 'render-program:direct-child-update',
+		namespace: 'html',
+		template:
+			'<section><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer>After</footer></section>',
+		directClaims: true,
+		bind(nextTarget) {
+			target = nextTarget;
+			if (beginCompiledProgramClaims(nextTarget, 'section', 'html', 2, 1)) {
+				claimCompiledProgramChild(nextTarget, 0, 0, 'child');
+				return;
+			}
+			bindCompiledProgramChild(nextTarget, 0, true);
+		}
+	});
+	const vnode = createPreparedRenderProgram(
+		program,
+		[() => (state.shown ? createCompiledVNode('strong', {}, 'Shown') : null)],
+		renderProgramOwner
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(container.textContent).toBe('ShownAfter');
+	state.shown = false;
+	flushSync();
+	expect(container.textContent).toBe('ShownAfter');
+	applyCompiledProgramChild(target!, 0);
+	expect(container.textContent).toBe('After');
+});
 
 it('reconciles compiler-keyed program children without list or item marker ranges', () => {
 	const state = reactive({ items: [{ id: 'a' }, { id: 'b' }] });

@@ -286,7 +286,7 @@ describe('renderer enhancements', () => {
 		});
 		markExactEnhancementContexts(Provider, { provides: [token] });
 		const updates = {
-			bindings: [['count', 1, 0]] as const,
+			bindings: [['state', 'count', 1, 0]] as const,
 			apply(targets: readonly (object | undefined)[], dirtyLow: number) {
 				if ((dirtyLow & 1) !== 0 && targets[0])
 					applyCompiledProgramText(targets[0] as ExactRenderProgramBindingTarget, 0);

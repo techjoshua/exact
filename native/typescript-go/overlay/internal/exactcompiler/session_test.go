@@ -263,7 +263,7 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 		`__exactBindProgramProperties(__exactBindingTarget, 0, 0, true)`,
 		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`updates: __exact_component_updates_1`,
-		`bindings: [["count", 1, 0], ["disabled", 2, 0]] as const`,
+		`bindings: [["state", "count", 1, 0], ["state", "disabled", 2, 0]] as const`,
 		`apply: (__exactTargets: object[], __exactDirtyLow: number, __exactDirtyHigh: number) =>`,
 		`__exactApplyProgramText(__exactTarget0, 2)`,
 		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
@@ -364,7 +364,7 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	for _, expected := range []string{
 		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
 		`__exactBindComponentUpdate(__exactBindingTarget, 1, __exact_component_updates_1)`,
-		`bindings: [["first", 1, 0], ["second", 2, 0]] as const`,
+		`bindings: [["state", "first", 1, 0], ["state", "second", 2, 0]] as const`,
 		`const __exactTarget0 = __exactTargets[0]`,
 		`const __exactTarget1 = __exactTargets[1]`,
 	} {
@@ -404,7 +404,7 @@ func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *te
 	for _, expected := range []string{
 		`words: 3`,
 		`__exactBindWideComponentUpdate(__exactBindingTarget, 64, __exact_component_updates_1)`,
-		`["value64", 0, 0, 1]`,
+		`["state", "value64", 0, 0, 1]`,
 		`__exactDirtyWords: Uint32Array`,
 		`__exactDirtyWords[0] & 1`,
 	} {
@@ -518,8 +518,8 @@ func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 		`<!---->\uE000exact:1\uE001<!---->`,
 		`__exactClaimProgramText(__exactBindingTarget, 0, 0,`,
 		`__exactClaimProgramText(__exactBindingTarget, 1, 1,`,
-		`__exactBindProgramText(__exactBindingTarget, 0)`,
-		`__exactBindProgramText(__exactBindingTarget, 1)`,
+		`__exactBindProgramText(__exactBindingTarget, 0, true)`,
+		`__exactBindProgramText(__exactBindingTarget, 1, true)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("adjacent scalar program omitted %q:\n%s", expected, response.Code)
@@ -546,7 +546,7 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 	for _, expected := range []string{
 		`<!--exact:dynamic:`,
 		`__exactClaimProgramChild(__exactBindingTarget, 0, 0,`,
-		`__exactBindProgramChild(__exactBindingTarget, 0)`,
+		`__exactBindProgramChild(__exactBindingTarget, 0, true)`,
 		`createPreparedRenderProgram`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -778,15 +778,36 @@ func TestSessionInlinesConditionalFragmentsIntoTheirProgramRange(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `__exactReadState(props, 0) as boolean ? [__exactPreparedRenderProgram(`) ||
-		!strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
+		!strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0, true)`) ||
 		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0)`) ||
 		!strings.Contains(response.Code, `template: "<section></section>"`) {
 		t.Fatalf("conditional fragment was not inlined into its generated structural range:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactFragment(`) ||
+		strings.Contains(response.Code, `__exactComponentVNode("h2"`) ||
 		strings.Contains(response.Code, `__exactVNode("h2"`) ||
 		strings.Contains(response.Code, `__exactVNode("p"`) {
 		t.Fatalf("closed conditional retained generic fragment or cell construction:\n%s", response.Code)
+	}
+}
+
+func TestSessionUsesMarkerFreeIntrinsicVNodesInsideStructuralPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compiled-program-late-intrinsic.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			const attributes = { title: "late" };
+			export function Detail(props: { open: boolean }) {
+				return () => <section>{props.open ? <div {...attributes}>Ready</div> : null}</section>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactIntrinsicVNode("div"`) ||
+		strings.Contains(response.Code, `__exactComponentVNode("div"`) {
+		t.Fatalf("late intrinsic branch did not preserve marker-free intrinsic identity:\n%s", response.Code)
 	}
 }
 
@@ -803,8 +824,8 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 0, 1)`) ||
-		!strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 1, 0)`) {
+	if !strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 0, 1, true)`) ||
+		!strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 1, 0, true)`) {
 		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||

@@ -160,9 +160,11 @@ converted to the direct ABI by the testing entry point and are not a browser com
 Render-program descriptors are emitted once as immutable module records. Component instances join
 only their local expression readers to that shared record; closed client output does not retain a
 second generic VNode topology for region-local recovery. It does not allocate a descriptor factory
-or repeat cache lookup and freezing. For compiler-proven direct
-top-level state reads, closed client output assigns dirty bits to the affected text and property
-operations. Each finite region registers its generated operation function with the durable
+or repeat cache lookup and freezing. For compiler-proven direct top-level state and props reads,
+closed client output assigns dirty bits to the affected text, property, and conditional
+structural-child operations. Forwarded reactive props retain their source subscription while
+publishing through the same source-qualified dirty table, so a branch does not need a retained slot
+watcher. Each finite region registers its generated operation function with the durable
 component definition. The artifact carries one fixed dependency/mask table and one generated
 component updater; each mounted region contributes only its compiler-assigned target index. Every
 region in that component therefore shares one dependency subscription and mutation-version table.
@@ -186,7 +188,10 @@ a general update plan. Closed client output emits each property group as one dir
 operation: one
 invocation applies its known keys in browser-safe order without allocating and enumerating a
 temporary props record or redispatching through the generic slot reader for every property. Those
-properties are omitted from the client slot dispatcher. Their previous values occupy a compact
+properties are omitted from the client slot dispatcher. Conditional intrinsic roots created inside
+a compiler-owned structural range use marker-free intrinsic VNodes; native components retain their
+separate marker-free component constructor, so the two identities cannot be confused. Previous
+property values occupy a compact
 group-indexed array; programs with only text or structural work allocate no property map at all.
 Closed hydrate and client artifacts emit their complete claim and binding topology in one direct
 executor. Its claim lane wires intrinsic and slot identities; its binding lane calls text,

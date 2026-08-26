@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 
@@ -9,11 +10,16 @@ import (
 )
 
 type renderProgramDirectUpdate struct {
-	kind      string
-	index     int
-	group     int
-	firstSlot int
-	keys      []string
+	kind         string
+	index        int
+	group        int
+	firstSlot    int
+	dependencies []componentUpdateDependency
+}
+
+type componentUpdateDependency struct {
+	source string
+	key    string
 }
 
 // directRenderProgramBinder emits the exact client binding calls in browser-safe application order.
@@ -47,10 +53,13 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 	))
 	listSlots := make([]*ast.Node, 0, len(build.slots))
 	directText := make(map[int]struct{}, len(directUpdates))
+	directChildren := make(map[int]struct{}, len(directUpdates))
 	directProperties := make(map[int]struct{}, len(directUpdates))
 	for _, update := range directUpdates {
 		if update.kind == "text" {
 			directText[update.index] = struct{}{}
+		} else if update.kind == "child" {
+			directChildren[update.index] = struct{}{}
 		} else {
 			directProperties[update.group] = struct{}{}
 		}
@@ -73,7 +82,11 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 			}
 			call(lowering.names.bindProgramText, arguments...)
 		case "child", "component":
-			call(lowering.names.bindProgramChild, slotIndex)
+			arguments := []*ast.Node{slotIndex}
+			if _, direct := directChildren[index]; direct {
+				arguments = append(arguments, lowering.factory.NewTrueExpression())
+			}
+			call(lowering.names.bindProgramChild, arguments...)
 		}
 	}
 	if len(listSlots) != 0 {
@@ -126,22 +139,29 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 ) []renderProgramDirectUpdate {
 	updates := make([]renderProgramDirectUpdate, 0, len(build.slots))
 	for index, slot := range build.slots {
-		if slot.kind != "text" {
+		if slot.kind == "text" {
+			if dependency, direct := lowering.directRenderProgramDependency(slot.reader); direct {
+				updates = append(updates, renderProgramDirectUpdate{
+					kind: "text", index: index, dependencies: []componentUpdateDependency{dependency},
+				})
+			}
 			continue
 		}
-		if key, direct := lowering.directRenderProgramStateKey(slot.reader); direct {
-			updates = append(updates, renderProgramDirectUpdate{
-				kind: "text", index: index, keys: []string{key},
-			})
+		if slot.kind == "child" || slot.kind == "component" {
+			if dependencies, direct := lowering.directStructuralProgramDependencies(slot.reader); direct {
+				updates = append(updates, renderProgramDirectUpdate{
+					kind: "child", index: index, dependencies: dependencies,
+				})
+			}
 		}
 	}
 	for group, binding := range build.propertyBindings() {
-		keys := []string{}
+		dependencies := []componentUpdateDependency{}
 		direct := true
 		for _, index := range binding.slots {
 			slot := build.slots[index]
-			if key, state := lowering.directRenderProgramStateKey(slot.reader); state {
-				keys = append(keys, key)
+			if dependency, direct := lowering.directRenderProgramDependency(slot.reader); direct {
+				dependencies = append(dependencies, dependency)
 				continue
 			}
 			if lowering.directRenderProgramInertReader(slot) {
@@ -150,10 +170,10 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 			direct = false
 			break
 		}
-		if direct && len(keys) != 0 {
+		if direct && len(dependencies) != 0 {
 			updates = append(updates, renderProgramDirectUpdate{
 				kind: "properties", group: group, firstSlot: binding.slots[0],
-				keys: uniqueSortedStrings(keys),
+				dependencies: uniqueSortedComponentUpdateDependencies(dependencies),
 			})
 		}
 	}
@@ -186,12 +206,17 @@ func (lowering *jsxLowering) directRenderProgramInertReader(slot renderProgramSl
 	return !lowering.hasReactiveComponentCapture(slot.reader)
 }
 
-func (lowering *jsxLowering) directRenderProgramStateKey(node *ast.Node) (string, bool) {
+func (lowering *jsxLowering) directRenderProgramDependency(
+	node *ast.Node,
+) (componentUpdateDependency, bool) {
 	if node == nil {
-		return "", false
+		return componentUpdateDependency{}, false
 	}
 	if key, exists := lowering.indexedStateReadKeys[node]; exists {
-		return key, true
+		return componentUpdateDependency{source: "state", key: key}, true
+	}
+	if key, exists := lowering.indexedPropsReadKeys[node]; exists {
+		return componentUpdateDependency{source: "props", key: key}, true
 	}
 	for _, read := range lowering.stateReads {
 		if read.Confidence != "exact" || len(read.Path) != 1 ||
@@ -199,10 +224,61 @@ func (lowering *jsxLowering) directRenderProgramStateKey(node *ast.Node) (string
 			continue
 		}
 		if scalarDerivedType(lowering.checker.GetTypeAtLocation(node)) {
-			return read.Path[0], true
+			return componentUpdateDependency{source: "state", key: read.Path[0]}, true
 		}
 	}
-	return "", false
+	return componentUpdateDependency{}, false
+}
+
+// directStructuralProgramDependencies accepts a compiler-owned conditional range when every call
+// in its discriminator is one of the indexed state/props reads already linked to the component.
+// Branch-local programs retain their own generated updates and are intentionally not dependencies
+// of the outer range identity.
+func (lowering *jsxLowering) directStructuralProgramDependencies(
+	node *ast.Node,
+) ([]componentUpdateDependency, bool) {
+	if node == nil {
+		return nil, false
+	}
+	control := unwrapRenderExpression(node)
+	if ast.IsConditionalExpression(control) {
+		control = unwrapRenderExpression(control.AsConditionalExpression().Condition)
+	}
+	dependencies := []componentUpdateDependency{}
+	supported := true
+	walkNode(control, func(current *ast.Node) bool {
+		if dependency, direct := lowering.directRenderProgramDependency(current); direct {
+			dependencies = append(dependencies, dependency)
+			return false
+		}
+		if ast.IsCallExpression(current) || ast.IsTaggedTemplateExpression(current) ||
+			ast.IsAwaitExpression(current) || ast.IsFunctionLike(current) {
+			supported = false
+			return false
+		}
+		return true
+	})
+	dependencies = uniqueSortedComponentUpdateDependencies(dependencies)
+	return dependencies, supported && len(dependencies) != 0
+}
+
+func uniqueSortedComponentUpdateDependencies(
+	values []componentUpdateDependency,
+) []componentUpdateDependency {
+	seen := make(map[string]componentUpdateDependency, len(values))
+	for _, value := range values {
+		seen[value.source+"\x00"+value.key] = value
+	}
+	keys := make([]string, 0, len(seen))
+	for key := range seen {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	result := make([]componentUpdateDependency, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, seen[key])
+	}
+	return result
 }
 
 func (lowering *jsxLowering) directUpdateStatement(
@@ -246,6 +322,8 @@ func (lowering *jsxLowering) directUpdateStatement(
 			lowering.factory.NewNumericLiteral(strconv.Itoa(update.group), ast.TokenFlagsNone),
 			lowering.factory.NewNumericLiteral(strconv.Itoa(update.firstSlot), ast.TokenFlagsNone),
 		}
+	} else if update.kind == "child" {
+		helper = lowering.names.applyProgramChild
 	}
 	return lowering.factory.NewIfStatement(
 		condition,

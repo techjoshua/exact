@@ -4,7 +4,7 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
-import { batch, createEffectScope, flushSync } from '@exactjs/reactive/framework/runtime';
+import { batch, computed, createEffectScope, flushSync } from '@exactjs/reactive/framework/runtime';
 import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-objects';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mounted } from '../types.js';
@@ -19,8 +19,8 @@ describe('compiler-generated component updates', () => {
 		const apply = vi.fn();
 		const updates = {
 			bindings: [
-				['count', 1, 0],
-				['label', 2, 0]
+				['state', 'count', 1, 0],
+				['state', 'label', 2, 0]
 			] as const,
 			apply
 		};
@@ -60,6 +60,40 @@ describe('compiler-generated component updates', () => {
 		scope.stop();
 	});
 
+	it('subscribes source-qualified prop dependencies without a generic watcher', () => {
+		const state = indexedReactiveObjects<{ count: number }>(['count']);
+		const parent = indexedReactiveObjects<{ label: string }>(['label']);
+		parent.label = 'first';
+		const props = indexedReactiveObjects<{ label: string }>(
+			['label'],
+			{},
+			{ label: computed(() => parent.label) } as unknown as { label: string },
+			true
+		);
+		state.count = 1;
+		const apply = vi.fn();
+		const updates = {
+			bindings: [
+				['state', 'count', 1, 0],
+				['props', 'label', 2, 0]
+			] as const,
+			apply
+		};
+		const scope = createEffectScope();
+		const owner = { state, props, scope } as unknown as AnyComponentInstance;
+		const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
+		const target = { mounted, stopBindings: [], valid: true };
+		bindCompiledComponentUpdate(target, 0, updates);
+
+		parent.label = 'second';
+		flushSync();
+		expect(apply).toHaveBeenLastCalledWith([target], 2, 0);
+		state.count = 2;
+		flushSync();
+		expect(apply).toHaveBeenLastCalledWith([target], 1, 0);
+		scope.stop();
+	});
+
 	it('publishes compiler-selected operation words beyond the first 64 operations', () => {
 		const state = indexedReactiveObjects<{ first: number; last: number }>(['first', 'last']);
 		state.first = 1;
@@ -77,8 +111,8 @@ describe('compiler-generated component updates', () => {
 		);
 		const updates = {
 			bindings: [
-				['first', 1, 0, 0],
-				['last', 0, 0, 2]
+				['state', 'first', 1, 0, 0],
+				['state', 'last', 0, 0, 2]
 			] as const,
 			words: 3,
 			apply
