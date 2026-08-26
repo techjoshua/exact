@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
 )
 
 type renderProgramDirectUpdate struct {
@@ -27,6 +26,7 @@ type componentUpdateDependency struct {
 func (lowering *jsxLowering) directRenderProgramBinder(
 	build *renderProgramBuild,
 	directUpdates []renderProgramDirectUpdate,
+	closedComponents map[int]struct{},
 	componentTarget *int,
 	componentUpdates string,
 	componentUpdate *componentUpdateBuild,
@@ -87,10 +87,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 			// Static components without reactive captures construct once. Components with completely
 			// indexed live props use the generated direct-child operation above; unresolved authored
 			// dependency surfaces retain the structural reaction needed to refresh child props.
-			closedComponent := false
-			if slot.kind == "component" {
-				_, closedComponent = lowering.directComponentProgramReader(slot.reader)
-			}
+			_, closedComponent := closedComponents[index]
 			if directChild || (slot.kind == "component" && closedComponent) {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
@@ -144,8 +141,9 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 
 func (lowering *jsxLowering) directRenderProgramUpdates(
 	build *renderProgramBuild,
-) []renderProgramDirectUpdate {
+) ([]renderProgramDirectUpdate, map[int]struct{}) {
 	updates := make([]renderProgramDirectUpdate, 0, len(build.slots))
+	closedComponents := make(map[int]struct{})
 	for index, slot := range build.slots {
 		if slot.kind == "text" {
 			if dependencies, direct := lowering.directScalarProgramDependencies(slot.reader); direct {
@@ -155,11 +153,20 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 			}
 			continue
 		}
-		if slot.kind == "child" || slot.kind == "component" {
-			dependencies, direct := lowering.directStructuralProgramDependencies(slot.reader)
-			if slot.kind == "component" {
-				dependencies, direct = lowering.directComponentProgramDependencies(slot.reader)
+		if slot.kind == "component" {
+			dependencies, closed := lowering.directComponentProgramReader(slot.reader)
+			if closed {
+				closedComponents[index] = struct{}{}
 			}
+			if len(dependencies) != 0 && closed {
+				updates = append(updates, renderProgramDirectUpdate{
+					kind: "child", index: index, dependencies: dependencies,
+				})
+			}
+			continue
+		}
+		if slot.kind == "child" {
+			dependencies, direct := lowering.directStructuralProgramDependencies(slot.reader)
 			if direct {
 				updates = append(updates, renderProgramDirectUpdate{
 					kind: "child", index: index, dependencies: dependencies,
@@ -189,19 +196,7 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 			})
 		}
 	}
-	return updates
-}
-
-// directComponentProgramDependencies closes over live props on one statically resolved component
-// VNode. Unlike a conditional child range, the component constructor call is generated topology:
-// rerunning it updates the durable child's props rather than replacing the child. Authored eager
-// calls remain on the retained structural lane because their dependency surface may extend beyond
-// the indexed reads visible here.
-func (lowering *jsxLowering) directComponentProgramDependencies(
-	node *ast.Node,
-) ([]componentUpdateDependency, bool) {
-	dependencies, supported := lowering.directComponentProgramReader(node)
-	return dependencies, supported && len(dependencies) != 0
+	return updates, closedComponents
 }
 
 func (lowering *jsxLowering) directComponentProgramReader(
@@ -210,9 +205,21 @@ func (lowering *jsxLowering) directComponentProgramReader(
 	if node == nil {
 		return nil, false
 	}
+	value := unwrapRenderExpression(node)
+	if !ast.IsCallExpression(value) {
+		return nil, false
+	}
+	component := value.AsCallExpression()
+	if !ast.IsIdentifier(component.Expression) ||
+		component.Expression.Text() != lowering.names.componentElement ||
+		component.Arguments == nil || len(component.Arguments.Nodes) < 2 {
+		return nil, false
+	}
 	dependencies := []componentUpdateDependency{}
 	supported := true
-	walkNode(node, func(current *ast.Node) bool {
+	// Children own their compiled readers and structural ranges. Only the props description must be
+	// rerun to publish parent inputs into the durable component instance.
+	walkNode(component.Arguments.Nodes[1], func(current *ast.Node) bool {
 		if dependency, direct := lowering.directRenderProgramDependency(current); direct {
 			dependencies = append(dependencies, dependency)
 			return false
@@ -307,10 +314,10 @@ func (lowering *jsxLowering) directRenderProgramInertReader(slot renderProgramSl
 	if !bound {
 		return false
 	}
-	if len(lowering.checker.GetSignaturesOfType(
-		lowering.checker.GetTypeAtLocation(slot.reader),
-		checker.SignatureKindCall,
-	)) != 0 {
+	// Deferred inline callbacks are inert as values even when their bodies read component state.
+	// Named callbacks and method references have no reactive source span inside the identifier, so
+	// they fall through to the same inert result without a type-checker query per binding slot.
+	if ast.IsFunctionLike(unwrapRenderExpression(slot.reader)) {
 		return true
 	}
 	return !lowering.hasReactiveComponentCapture(slot.reader)
@@ -328,22 +335,12 @@ func (lowering *jsxLowering) directRenderProgramDependency(
 	if read, exists := lowering.indexedPropsReads[node]; exists {
 		return componentUpdateDependency{source: "props", slot: read.slot}, true
 	}
-	for _, read := range lowering.stateReads {
-		if read.Confidence != "exact" || len(read.Path) != 1 ||
-			read.Start != node.Pos() || read.Length != node.End()-node.Pos() {
-			continue
-		}
-		if scalarDerivedType(lowering.checker.GetTypeAtLocation(node)) {
-			component, exists := lowering.componentContaining(node)
-			if !exists {
-				return componentUpdateDependency{}, false
-			}
-			for slot, key := range component.StateSlots {
-				if key == read.Path[0] {
-					return componentUpdateDependency{source: "state", slot: slot}, true
-				}
-			}
-		}
+	// Readers which have not yet been visited still use their source node. The state-slot index
+	// already joins exact semantic reads to the containing component, so use its constant-time
+	// span lookup instead of rescanning every state read and component layout for every AST node.
+	if read, exists := lowering.stateReadSlots[nodeSpanKey(node)]; exists &&
+		scalarDerivedType(lowering.checker.GetTypeAtLocation(node)) {
+		return componentUpdateDependency{source: "state", slot: read.slot}, true
 	}
 	return componentUpdateDependency{}, false
 }

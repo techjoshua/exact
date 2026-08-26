@@ -1121,11 +1121,12 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}
 	directUpdates := []renderProgramDirectUpdate{}
+	closedComponents := map[int]struct{}{}
 	var componentTarget *int
 	componentUpdates := ""
 	var componentUpdate *componentUpdateBuild
 	if lowering.target == TargetClient {
-		directUpdates = lowering.directRenderProgramUpdates(build)
+		directUpdates, closedComponents = lowering.directRenderProgramUpdates(build)
 		if target, updates, update, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
 			componentTarget = &target
 			componentUpdates = updates
@@ -1141,7 +1142,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	}
 	if lowering.target == TargetClient {
 		if len(bindings) != 0 || len(directListSlots) != 0 || len(build.nodes) > 1 {
-			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, componentTarget, componentUpdates, componentUpdate)))
+			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, closedComponents, componentTarget, componentUpdates, componentUpdate)))
 		} else {
 			members = append(
 				members,
