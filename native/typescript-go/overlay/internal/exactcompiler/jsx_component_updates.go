@@ -14,12 +14,13 @@ type componentUpdateOperation struct {
 }
 
 type componentUpdateBuild struct {
-	component  Component
-	name       string
-	bindings   map[string][]uint32
-	binders    []*ast.Node
-	targets    int
-	operations []componentUpdateOperation
+	component    Component
+	name         string
+	bindings     map[string][]uint32
+	dependencies map[string]componentUpdateDependency
+	binders      []*ast.Node
+	targets      int
+	operations   []componentUpdateOperation
 }
 
 // registerComponentUpdates assigns component-wide target and dirty-bit identities to one region.
@@ -37,9 +38,10 @@ func (lowering *jsxLowering) registerComponentUpdates(
 	build := lowering.componentUpdates[component.Name]
 	if build == nil {
 		build = &componentUpdateBuild{
-			component: component,
-			name:      lowering.materializedName("component_updates", component.Start),
-			bindings:  make(map[string][]uint32),
+			component:    component,
+			name:         lowering.materializedName("component_updates", component.Start),
+			bindings:     make(map[string][]uint32),
+			dependencies: make(map[string]componentUpdateDependency),
 		}
 		lowering.componentUpdates[component.Name] = build
 	}
@@ -52,7 +54,8 @@ func (lowering *jsxLowering) registerComponentUpdates(
 			bit:    bit,
 			update: update,
 		})
-		for _, key := range update.keys {
+		for _, dependency := range update.dependencies {
+			key := dependency.source + "\x00" + dependency.key
 			word := bit / 32
 			masks := build.bindings[key]
 			for len(masks) <= word {
@@ -60,6 +63,7 @@ func (lowering *jsxLowering) registerComponentUpdates(
 			}
 			masks[word] |= uint32(1) << (bit % 32)
 			build.bindings[key] = masks
+			build.dependencies[key] = dependency
 		}
 	}
 	return target, build.name, build, true
@@ -138,8 +142,10 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 	bindings := make([]*ast.Node, 0, len(keys))
 	for _, key := range keys {
 		masks := build.bindings[key]
-		values := make([]*ast.Node, 1, wordCount+1)
-		values[0] = lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone)
+		dependency := build.dependencies[key]
+		values := make([]*ast.Node, 2, wordCount+2)
+		values[0] = lowering.factory.NewStringLiteral(dependency.source, ast.TokenFlagsNone)
+		values[1] = lowering.factory.NewStringLiteral(dependency.key, ast.TokenFlagsNone)
 		for word := 0; word < wordCount; word++ {
 			var mask uint32
 			if word < len(masks) {

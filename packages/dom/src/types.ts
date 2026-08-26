@@ -73,6 +73,8 @@ export type Mounted = {
 			/** Last scalar VNode for a compiler-proven fixed-cardinality component slot. */
 			componentValue?: VNode;
 		}>;
+		/** Compiler-selected structural slot operations invoked by the component dirty program. */
+		directChildUpdates?: Array<(() => void) | undefined>;
 		/** Applies replacement readers without recreating the retained slot watcher. */
 		refresh?: () => void;
 	};

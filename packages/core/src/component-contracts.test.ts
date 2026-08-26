@@ -333,13 +333,13 @@ describe('@exactjs/core component contracts', () => {
 					state: [],
 					props: [],
 					capabilities: [],
-					updates: { bindings: [['count', 1, 0]], apply() {} }
+					updates: { bindings: [['state', 'count', 1, 0]], apply() {} }
 				}
 			}
 		});
 
 		expect(readExactCompiledComponentContract(component).definition.updates?.bindings).toEqual([
-			['count', 1, 0]
+			['state', 'count', 1, 0]
 		]);
 	});
 
@@ -347,8 +347,8 @@ describe('@exactjs/core component contracts', () => {
 		const instantiate = () => undefined;
 		const updates = {
 			bindings: [
-				['first', 1, 0, 0],
-				['last', 0, 0, 1]
+				['state', 'first', 1, 0, 0],
+				['state', 'last', 0, 0, 1]
 			] as const,
 			words: 3,
 			apply() {}
@@ -397,7 +397,7 @@ describe('@exactjs/core component contracts', () => {
 					construct,
 					abi: 0,
 					capabilities: [],
-					updates: { bindings: [['count', -1, 0]], apply() {} }
+					updates: { bindings: [['state', 'count', -1, 0]], apply() {} }
 				}
 			}
 		});
@@ -425,7 +425,7 @@ describe('@exactjs/core component contracts', () => {
 					construct,
 					abi: 0,
 					capabilities: [],
-					updates: { bindings: [['count', 0, 0]], words: 3, apply() {} }
+					updates: { bindings: [['state', 'count', 0, 0]], words: 3, apply() {} }
 				}
 			}
 		});

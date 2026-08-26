@@ -11,6 +11,7 @@ import (
 type jsxRuntimeNames struct {
 	element                   string
 	componentElement          string
+	intrinsicElement          string
 	keyedElement              string
 	preparedRenderProgram     string
 	preparedServerProgram     string
@@ -23,6 +24,7 @@ type jsxRuntimeNames struct {
 	bindComponentUpdate       string
 	bindWideComponentUpdate   string
 	applyProgramText          string
+	applyProgramChild         string
 	applyProgramProperties    string
 	beginProgramClaims        string
 	claimProgramElement       string
@@ -251,6 +253,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	helpers := []runtimeImportHelper{
 		{"createCompiledVNode", lowering.names.element, runtimeRender},
 		{"createCompiledComponentVNode", lowering.names.componentElement, runtimeRender},
+		{"createCompiledIntrinsicVNode", lowering.names.intrinsicElement, runtimeRender},
 		{"keyCompiledVNode", lowering.names.keyedElement, runtimeRender},
 		{"createPreparedRenderProgram", lowering.names.preparedRenderProgram, runtimeRender},
 		{"createPreparedServerRenderProgram", lowering.names.preparedServerProgram, preparedServerProgramGroup},
@@ -315,6 +318,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"bindCompiledComponentUpdate", lowering.names.bindComponentUpdate, runtimeRenderProgram},
 		{"bindCompiledWideComponentUpdate", lowering.names.bindWideComponentUpdate, runtimeRenderProgram},
 		{"applyCompiledProgramText", lowering.names.applyProgramText, runtimeRenderProgram},
+		{"applyCompiledProgramChild", lowering.names.applyProgramChild, runtimeRenderProgram},
 		{"applyCompiledProgramProperties", lowering.names.applyProgramProperties, runtimeRenderProgram},
 		{"beginCompiledProgramClaims", lowering.names.beginProgramClaims, runtimeRenderProgram},
 		{"claimCompiledProgramElement", lowering.names.claimProgramElement, runtimeRenderProgram},
@@ -819,6 +823,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	return jsxRuntimeNames{
 		element:                   allocate("__exactVNode"),
 		componentElement:          allocate("__exactComponentVNode"),
+		intrinsicElement:          allocate("__exactIntrinsicVNode"),
 		keyedElement:              allocate("__exactKeyedVNode"),
 		preparedRenderProgram:     allocate("__exactPreparedRenderProgram"),
 		preparedServerProgram:     allocate("__exactPreparedServerRenderProgram"),
@@ -831,6 +836,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		bindComponentUpdate:       allocate("__exactBindComponentUpdate"),
 		bindWideComponentUpdate:   allocate("__exactBindWideComponentUpdate"),
 		applyProgramText:          allocate("__exactApplyProgramText"),
+		applyProgramChild:         allocate("__exactApplyProgramChild"),
 		applyProgramProperties:    allocate("__exactApplyProgramProperties"),
 		beginProgramClaims:        allocate("__exactBeginProgramClaims"),
 		claimProgramElement:       allocate("__exactClaimProgramElement"),

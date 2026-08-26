@@ -149,9 +149,10 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	}
 	arguments = append(arguments, lowering.children(children)...)
 	elementHelper := lowering.names.element
-	if (!intrinsic && lowering.localExactComponentTag(tag)) ||
-		(intrinsic && lowering.renderProgramChildDepth > 0) {
+	if !intrinsic && lowering.localExactComponentTag(tag) {
 		elementHelper = lowering.names.componentElement
+	} else if intrinsic && lowering.renderProgramChildDepth > 0 {
+		elementHelper = lowering.names.intrinsicElement
 	}
 	element := lowering.call(elementHelper, arguments)
 	if lowering.directScheduledServerComponent(tag) {

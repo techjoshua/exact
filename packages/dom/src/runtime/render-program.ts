@@ -1,5 +1,6 @@
 /** Compiler-selected direct render-program binding operations. */
 export {
+	applyCompiledProgramChild,
 	applyCompiledProgramProperties,
 	applyCompiledProgramText,
 	bindCompiledProgramChild,

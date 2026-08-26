@@ -31,6 +31,7 @@ export {
 export {
 	createCompiledFragment,
 	createCompiledComponentVNode,
+	createCompiledIntrinsicVNode,
 	createCompiledTarget,
 	createCompiledVNode,
 	createCellVNode,

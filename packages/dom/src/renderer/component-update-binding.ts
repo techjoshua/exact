@@ -1,18 +1,16 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactNarrowComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
-import {
-	reactiveOwnDependencies,
-	readMutationVersion,
-	subscribeKeys
-} from '@exactjs/reactive/framework/runtime';
 import type { Mounted } from '../types.js';
+import {
+	createCompiledComponentDependencies,
+	type CompiledComponentDependencies,
+	visitChangedCompiledComponentDependencies
+} from './component-update-dependencies.js';
 
 /** Lazily allocated component-owned state for one compiler-generated update program. */
 type CompiledComponentUpdateState = {
-	readonly d: object;
-	readonly k: readonly PropertyKey[];
-	readonly v: number[];
+	readonly d: CompiledComponentDependencies;
 	readonly t: Array<ExactRenderProgramBindingTarget | undefined>;
 };
 
@@ -50,24 +48,16 @@ export function bindCompiledComponentUpdate(
 	const component = owner as ComponentUpdateOwner;
 	let state = component[componentUpdateState];
 	if (!state) {
-		const dependencies = reactiveOwnDependencies(
-			owner.state,
-			updates.bindings.map(([key]) => key)
+		let initialized: CompiledComponentUpdateState;
+		const dependencies = createCompiledComponentDependencies(owner, updates.bindings, () =>
+			publishCompiledComponentUpdate(updates, initialized)
 		);
 		if (!dependencies) {
 			context.valid = false;
 			return;
 		}
-		state = {
-			d: dependencies.target,
-			k: dependencies.keys,
-			v: dependencies.keys.map((key) => readMutationVersion(dependencies.target, key)),
-			t: []
-		};
+		state = initialized = { d: dependencies, t: [] };
 		component[componentUpdateState] = state;
-		subscribeKeys(state.d, state.k, () => publishCompiledComponentUpdate(updates, state!), {
-			scope: owner.scope
-		});
 	}
 	state.t[index] = target;
 
@@ -85,12 +75,9 @@ function publishCompiledComponentUpdate(
 ): void {
 	let dirtyLow = 0;
 	let dirtyHigh = 0;
-	for (let index = 0; index < state.k.length; index++) {
-		const version = readMutationVersion(state.d, state.k[index]!);
-		if (version === state.v[index]) continue;
-		state.v[index] = version;
-		dirtyLow |= updates.bindings[index]![1];
-		dirtyHigh |= updates.bindings[index]![2];
-	}
+	visitChangedCompiledComponentDependencies(state.d, (index) => {
+		dirtyLow |= updates.bindings[index]![2];
+		dirtyHigh |= updates.bindings[index]![3];
+	});
 	if (dirtyLow || dirtyHigh) updates.apply(state.t, dirtyLow, dirtyHigh);
 }

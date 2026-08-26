@@ -60,7 +60,10 @@ component's topology or interpret a universal component plan when the artifact a
 Browser-target artifacts carry only their specialized template, claims, readers, bindings, and
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
-All compiler-proven direct updates belong to the component artifact. The compiler emits as many
+All compiler-proven direct updates belong to the component artifact. Each dependency identifies
+its component storage source (`state` or `props`) and field, and each dirty bit selects a generated
+text, property, or structural-child call. Forwarded reactive props join that exact field binding
+rather than forcing the child program through a general render watcher. The compiler emits as many
 32-operation mask words as the component requires; a large component does not fall back to a
 runtime lane registry, per-region subscriptions, or a render-program updater. JSX outside a native
 component can use ordinary expression bindings, but it cannot manufacture a second implicit
