@@ -70,17 +70,3 @@ logs, diagnostics, profiling, or public source maps.
 Open questions include whether the reactive value represents availability,
 value, version, or a combination; how in-flight work is cancelled; and which
 contract survives package publication.
-
-## Reactive Sudoku sample
-
-A polished Sudoku application remains a useful dogfooding project for
-fine-grained structured state, derived validation, keyboard and touch input,
-accessibility, undo/redo, and stable list/grid identity.
-
-The first version should include givens, entries, pencil marks, conflicts,
-selection, completion, accessible grid semantics, keyboard controls, mobile
-controls, and transactional undo. Rows, columns, houses, peers, conflicts, and
-candidates should be derived rather than copied into parallel mutable stores.
-
-The sample should measure that a one-cell edit does not recreate the board and
-should add tests in proportion to the risk of its rule and history engines.
