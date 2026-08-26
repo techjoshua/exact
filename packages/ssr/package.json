@@ -29,6 +29,10 @@
 			"types": "./dist/runtime/direct-context-frame.d.ts",
 			"default": "./dist/runtime/direct-context-frame.js"
 		},
+		"./runtime/direct-logging-frame": {
+			"types": "./dist/runtime/direct-logging-frame.d.ts",
+			"default": "./dist/runtime/direct-logging-frame.js"
+		},
 		"./runtime/structural-boundaries": {
 			"types": "./dist/runtime/structural-boundaries.d.ts",
 			"default": "./dist/runtime/structural-boundaries.js"

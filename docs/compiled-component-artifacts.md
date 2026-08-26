@@ -187,6 +187,13 @@ normal nearest-provider semantics across direct and durable descendants without 
 effect scope, state proxy, lifecycle registry, or generic context capability. The frame is passed
 as the descendant owner during serialization and is discarded with its request.
 
+Canonical server logging is also a direct-frame capability. A logging-only component receives its
+component identity, logical parent, request domain, and ambient contexts without allocating the
+context map or any durable instance machinery. A context-bearing frame already has that ownership
+and serves both capabilities. The shared logging operation checks the current request logger and
+level before evaluating generated message or data readers, so disabled logging remains inert while
+logger changes inside a request remain observable.
+
 Static SSR capability installers use one bundle-local ESM registry. It contains only
 module-lifetime functions selected by reachable server artifacts; request state and component
 instances never enter it, and omitting an installer still lets bundlers remove the corresponding

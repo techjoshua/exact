@@ -1,5 +1,12 @@
 import { peek, unwrap } from '@exactjs/reactive/framework/runtime';
-import type { AnyComponent, AnyComponentInstance, ErrorReport } from './contracts.js';
+import type {
+	AnyComponent,
+	AnyComponentFunction,
+	AnyComponentInstance,
+	ComponentContextValues,
+	ComponentDomain,
+	ErrorReport
+} from './contracts.js';
 
 import { LoggerContext } from './contexts.js';
 import { componentDomainLogging } from './domain.js';
@@ -59,18 +66,28 @@ export type ComponentLogMethod = (
 	]
 ) => void;
 
+/** Minimum durable or request-local ownership needed by compiler-lowered component logging. */
+export type ComponentLogOwner = Readonly<{
+	domain: ComponentDomain;
+	parent?: AnyComponentInstance;
+	ambientContexts?: ComponentContextValues;
+	id: string;
+	type: AnyComponentFunction;
+	mounted: boolean;
+}>;
+
 /**
  * Resolves an enabled component-log method without evaluating authored log arguments.
  * The result is intentionally decided at call time so a running application can change
  * logger contexts or enabled levels without rebuilding its artifact.
  */
 export function componentLogMethod(
-	instance: AnyComponent,
+	instance: AnyComponent | ComponentLogOwner,
 	level: LogLevel
 ): ComponentLogMethod | undefined {
-	// Compiler-generated component bodies receive the authored Component view, while execution
-	// always binds that view to the complete durable instance before this ABI can be called.
-	return prepareComponentLogMethod(instance as AnyComponentInstance, level);
+	// Compiler-generated component bodies receive either a durable instance or a compiler-selected
+	// request-local server frame. Both deliberately expose only this logging ownership contract.
+	return prepareComponentLogMethod(instance as ComponentLogOwner, level);
 }
 
 class ComponentLogFacade implements ComponentLog {
@@ -116,7 +133,7 @@ class ComponentLogFacade implements ComponentLog {
 
 /** Prepares one shared compiled/runtime logging operation for a specific component instance. */
 function prepareComponentLogMethod(
-	instance: AnyComponentInstance,
+	instance: ComponentLogOwner,
 	level: LogLevel,
 	cachedScope?: LogScope
 ): ComponentLogMethod | undefined {
@@ -210,7 +227,7 @@ function reportLoggerFailure(error: unknown): void {
 	}
 }
 
-function resolveLogger(instance: AnyComponentInstance): Logger {
+function resolveLogger(instance: ComponentLogOwner): Logger {
 	const shared = componentDomainLogging(instance.domain);
 	if (shared && !shared.componentOverride) return shared.logger ?? defaultConsoleLogger;
 	let cursor: AnyComponentInstance | undefined = instance.parent;
@@ -228,7 +245,7 @@ function resolveLogger(instance: AnyComponentInstance): Logger {
 }
 
 /** Performs the component log scope domain operation. */
-export function componentLogScope(instance: AnyComponentInstance): LogScope {
+export function componentLogScope(instance: ComponentLogOwner): LogScope {
 	return {
 		source: 'component',
 		component: {

@@ -10,6 +10,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import type { ComponentContextOwner } from '@exactjs/core/framework/server-component-contexts';
+import type { ComponentLogOwner } from '@exactjs/core/runtime/logging';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrContext } from '../types.js';
 
@@ -31,6 +32,9 @@ export type DirectSsrContextFrame = DirectSsrComponentFrame &
 		getContext<T>(token: ContextToken<T>): Reactive<T>;
 		setContext<T>(token: ContextToken<T>, value: T): void;
 	}>;
+
+/** Logging-bearing direct frame without durable state, effects, contexts, or lifecycle storage. */
+export type DirectSsrLoggingFrame = DirectSsrComponentFrame & ComponentLogOwner;
 
 /** Artifact-linked constructor for one target-specialized direct server frame. */
 export type DirectSsrComponentFrameConstructor = (
