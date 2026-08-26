@@ -88,8 +88,6 @@ export type VNode<Props = Record<string, unknown>> = {
 	props: Props;
 	children: Child[];
 	key?: string;
-	/** Target-local component definition linked by compiled JSX; absent for dynamic boundaries. */
-	readonly artifact?: object;
 	/** Canonical compiler-owned enhancement render node for this authored JSX boundary. */
 	readonly enhancement?: CompiledEnhancementNode;
 	/** Captured when authored; explicit ownership survives cross-root composition. */

@@ -15,7 +15,7 @@ describe('@exactjs/dom component identity', () => {
 		render(createVNode(ForeignComponent, null), container);
 
 		expect(container.textContent).toContain(
-			'Native eXact components require compiler-owned identity'
+			'Native eXact component execution requires a compiled component artifact'
 		);
 	});
 });

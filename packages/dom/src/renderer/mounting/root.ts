@@ -16,7 +16,6 @@ import {
 	type VNode
 } from '@exactjs/core';
 import {
-	createComponentInstance,
 	createLinkedComponentInstance,
 	isCellVNode,
 	RenderProgram,
@@ -24,10 +23,7 @@ import {
 	renderInstance,
 	ServerSlot
 } from '@exactjs/core/runtime/render';
-import {
-	exactComponentIdentity,
-	readLinkedExactCompiledComponentContract
-} from '@exactjs/core/framework/component-contracts';
+import { readPreparedExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
 import {
 	createEffectScope,
 	flushSync,
@@ -289,10 +285,7 @@ export function mountInner(
 	}
 
 	if (typeof vnode.type === 'function') {
-		const linkedContract = readLinkedExactCompiledComponentContract(vnode);
-		// The compiler or a framework library must claim native ownership. Foreign
-		// function components cross an explicit compatibility adapter instead.
-		if (!linkedContract) exactComponentIdentity(vnode.type);
+		const linkedContract = readPreparedExactCompiledComponentContract(vnode.type);
 		const wrapper = createMarker(root, 'component');
 		const mounted: Mounted = { vnode, dom: wrapper, scope, children: [] };
 		let constructing = true;
@@ -306,22 +299,14 @@ export function mountInner(
 		};
 		try {
 			const instance = withEffectScope(mounted.scope, () =>
-				linkedContract
-					? createLinkedComponentInstance(
-							vnode.type as AnyEnhancementComponentFunction,
-							getComponentProps(vnode),
-							linkedContract,
-							parentInstance,
-							parentInstance?.ambientContexts ?? root.ambientContexts,
-							vnode.domain ?? parentInstance?.domain
-						)
-					: createComponentInstance(
-							vnode.type as AnyEnhancementComponentFunction,
-							getComponentProps(vnode),
-							parentInstance,
-							parentInstance?.ambientContexts ?? root.ambientContexts,
-							vnode.domain ?? parentInstance?.domain
-						)
+				createLinkedComponentInstance(
+					vnode.type as AnyEnhancementComponentFunction,
+					getComponentProps(vnode),
+					linkedContract,
+					parentInstance,
+					parentInstance?.ambientContexts ?? root.ambientContexts,
+					vnode.domain ?? parentInstance?.domain
+				)
 			);
 			ownMountedInstance(mounted, instance);
 			// Compiler-owned setup activations may synchronously initialize state

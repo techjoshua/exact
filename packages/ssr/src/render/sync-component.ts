@@ -15,7 +15,7 @@ import { isSsrRenderLimitError } from './limits.js';
 import { renderDirectSsrComponent } from './direct-component.js';
 import { renderPreparedSsrProgramString } from './render-program.js';
 import { renderGenericSyncSsrComponent } from './generic-component-capability.js';
-import { resolveSsrVNodeExecution } from './root-execution-cache.js';
+import { resolveSsrComponentExecution } from './root-execution-cache.js';
 
 /** Renderer operations supplied by the sync tree without creating an import cycle. */
 export type SyncComponentOperations = Readonly<{
@@ -83,7 +83,7 @@ export function renderSyncComponent(
 			return output;
 		}
 		const componentProps = getComponentProps(vnode);
-		const blueprint = resolveSsrVNodeExecution(context, vnode);
+		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
 		const direct = renderDirectSsrComponent(context, blueprint, componentProps, parent);
 		if (direct) {
 			const checkpoint = context.onComponentAttemptCheckpoint?.();
