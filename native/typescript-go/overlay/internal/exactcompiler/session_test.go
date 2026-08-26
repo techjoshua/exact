@@ -1525,6 +1525,31 @@ func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 	}
 }
 
+func TestSessionDoesNotSubscribeComponentPropsToDeferredCallbackReads(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-component-callback.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			function Detail(_props: { readCount: () => number }) {
+				return () => <strong>Detail</strong>;
+			}
+			export function Page(this: { state: { count: number } }) {
+				this.state.count = 0;
+				return () => <main><Detail readCount={() => this.state.count} /></main>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0, true)`) {
+		t.Fatalf("static component callback did not select direct child construction:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactApplyProgramChild(`) {
+		t.Fatalf("deferred callback state read became an eager component-prop update:\n%s", response.Code)
+	}
+}
+
 func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
