@@ -236,6 +236,12 @@ ownership validation, and the empty server root lifecycle remain observable. The
 not import reactive ref objects or install the universal ref surface. Extracted or dynamic ref
 operations stay generic because their eventual semantics are not statically known.
 
+Canonical setup-time `this.reactive()` calls likewise select a focused direct-server value. Its
+reader evaluates against the current request-frame state on each observation, preserving freshness
+after compiler-scheduled task writes without allocating computed nodes, dependency links, scheduler
+registrations, or effect-scope ownership. It remains a framework-branded readonly reactive value
+for unwrapping and serialization. Extracted and dynamic factory access stays on the generic lane.
+
 Compiler-closed scheduled server components use the same request-local frame plus only their
 generated transition slices and disposable port storage. They do not construct a durable
 component instance, effect scope, state proxy, lifecycle sidecars, or the generic component

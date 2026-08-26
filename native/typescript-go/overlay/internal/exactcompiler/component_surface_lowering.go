@@ -198,6 +198,47 @@ func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node 
 	)
 }
 
+// lowerDirectServerReactive links the component convenience API to a request-local value whose
+// reads evaluate against the current direct frame. The generated server task plan owns ordering;
+// no runtime dependency graph or effect scope is required for this value.
+func (lowering *jsxLowering) lowerDirectServerReactive(node *ast.Node) *ast.Node {
+	if lowering.target != TargetServer || !lowering.directServerFrameComponent(node) {
+		return nil
+	}
+	var value *ast.Node
+	var typeArguments *ast.NodeList
+	var flags ast.NodeFlags
+	switch {
+	case ast.IsCallExpression(node):
+		call := node.AsCallExpression()
+		if call.QuestionDotToken != nil || !componentReactiveMember(call.Expression) ||
+			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+			return nil
+		}
+		value = call.Arguments.Nodes[0]
+		typeArguments = call.TypeArguments
+		flags = call.Flags
+	case ast.IsTaggedTemplateExpression(node):
+		tagged := node.AsTaggedTemplateExpression()
+		if !componentReactiveMember(tagged.Tag) {
+			return nil
+		}
+		value = tagged.Template
+		typeArguments = tagged.TypeArguments
+		flags = tagged.Flags
+	default:
+		return nil
+	}
+	value = lowering.visitor.VisitNode(value)
+	if !ast.IsArrowFunction(value) && !ast.IsFunctionExpression(value) {
+		value = lowering.arrow(value)
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.directSsrReactive), nil, typeArguments,
+		lowering.factory.NewNodeList([]*ast.Node{value}), flags,
+	)
+}
+
 // insideComponent prevents the logging ABI from rewriting unrelated objects which
 // happen to expose a this.log property in the same TypeScript project.
 func (lowering *jsxLowering) insideComponent(node *ast.Node) bool {

@@ -932,6 +932,66 @@ func TestServerProjectionKeepsExtractedRefSurfaceGeneric(t *testing.T) {
 	}
 }
 
+func TestServerProjectionLinksCanonicalComponentReactiveValues(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-component-reactive.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import type { Component } from "@exactjs/core";
+			export function ReactiveState(this: Component<{ count: number }>) {
+				this.state.count = 2;
+				this.reactive(() => this.state.count * 2);
+				this.reactive(this.state.count);
+				return () => <output>ready</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`directSsrReactive as __exactDirectSsrReactive`,
+		`__exactDirectSsrReactive(() => this.state.count * 2)`,
+		`__exactDirectSsrReactive(() => this.state.count)`,
+		`lane: "direct"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("server reactive operation omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, excluded := range []string{
+		`@exactjs/core/runtime/component-reactivity`,
+		`@exactjs/ssr/runtime/generic-components`,
+		`lane: "generic"`,
+	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("server reactive operation retained %q:\n%s", excluded, response.Code)
+		}
+	}
+}
+
+func TestServerProjectionKeepsExtractedReactiveSurfaceGeneric(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-component-reactive-extracted.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import type { Component } from "@exactjs/core";
+			export function ReactiveState(this: Component<{}>) {
+				const create = this.reactive;
+				return () => <output>{String(create)}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`@exactjs/core/runtime/component-reactivity`, `generic-components`, `lane: "generic"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("extracted reactive surface failed to retain %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";

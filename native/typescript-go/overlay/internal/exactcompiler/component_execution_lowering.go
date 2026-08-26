@@ -32,7 +32,8 @@ func planComponentTargets(
 			directServerResumptionSupported(component.ID, resumptions)
 		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
 		hasLifecycle := serverSurface.ServerLifecycle
-		unsupportedSurface := serverSurface.Reactivity || serverSurface.ServerLifecycle ||
+		unsupportedSurface := serverSurface.ServerLifecycle ||
+			(serverSurface.Reactivity && !directServerReactivitySupported(componentNode)) ||
 			(serverSurface.Refs && !directServerRefsSupported(componentNode))
 		abi := componentRuntimeABI(
 			*component,
@@ -65,6 +66,34 @@ func planComponentTargets(
 			GenericServerRuntime: component.Placement != "client" && !directServer,
 		}
 	}
+}
+
+// directServerReactivitySupported accepts the canonical component convenience operation. Its
+// request-local value recomputes on observation, so task-driven plain-frame state writes remain
+// fresh without constructing a dependency graph. Extraction and forwarded helpers remain durable.
+func directServerReactivitySupported(componentNode *ast.Node) bool {
+	supported := true
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if !supported {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member || name != "reactive" {
+			return true
+		}
+		if dynamic {
+			supported = false
+			return false
+		}
+		parent := node.Parent
+		supported = parent != nil &&
+			((ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == node &&
+				parent.AsCallExpression().QuestionDotToken == nil) ||
+				(ast.IsTaggedTemplateExpression(parent) &&
+					parent.AsTaggedTemplateExpression().Tag == node))
+		return supported
+	})
+	return supported
 }
 
 // directServerRefsSupported accepts only ref operations whose complete server semantics can be
