@@ -32,8 +32,8 @@ func planComponentTargets(
 			directServerResumptionSupported(component.ID, resumptions)
 		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
 		hasLifecycle := serverSurface.ServerLifecycle
-		unsupportedSurface := serverSurface.Reactivity || serverSurface.Refs ||
-			serverSurface.ServerLifecycle
+		unsupportedSurface := serverSurface.Reactivity || serverSurface.ServerLifecycle ||
+			(serverSurface.Refs && !directServerRefsSupported(componentNode))
 		abi := componentRuntimeABI(
 			*component,
 			serverSurface,
@@ -65,6 +65,48 @@ func planComponentTargets(
 			GenericServerRuntime: component.Placement != "client" && !directServer,
 		}
 	}
+}
+
+// directServerRefsSupported accepts only ref operations whose complete server semantics can be
+// linked to the request-local direct-ref helpers. Extracted, dynamic, or forwarded ref surfaces
+// remain on the durable lane because their eventual operation cannot be proven here.
+func directServerRefsSupported(componentNode *ast.Node) bool {
+	supported := true
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if !supported {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member || (name != "ref" && name != "readRef" && name != "refs") {
+			return true
+		}
+		if dynamic {
+			supported = false
+			return false
+		}
+		parent := node.Parent
+		switch name {
+		case "ref", "readRef":
+			supported = parent != nil && ast.IsCallExpression(parent) &&
+				parent.AsCallExpression().Expression == node &&
+				parent.AsCallExpression().QuestionDotToken == nil
+		case "refs":
+			if parent == nil || !ast.IsPropertyAccessExpression(parent) {
+				supported = false
+				break
+			}
+			access := parent.AsPropertyAccessExpression()
+			operation := access.Name().Text()
+			call := parent.Parent
+			supported = access.QuestionDotToken == nil &&
+				(operation == "get" || operation == "root") &&
+				call != nil && ast.IsCallExpression(call) &&
+				call.AsCallExpression().Expression == parent &&
+				call.AsCallExpression().QuestionDotToken == nil
+		}
+		return supported
+	})
+	return supported
 }
 
 func componentTargetSurface(component Component, target Target) ComponentSurfacePlan {

@@ -229,6 +229,13 @@ semantics. The renderer carries component ancestry separately from durable insta
 a resumable descendant still publishes its client activation boundary when every server ancestor
 uses a request-local direct frame.
 
+Canonical ref calls do not by themselves select the generic server lane. Generated server output
+links `ref()`, `readRef()`, `refs.get()`, and `refs.root()` directly to a lazy request-local binding
+record. SSR never publishes a DOM value, but stable binding identity, authored fulfillment, root
+ownership validation, and the empty server root lifecycle remain observable. The focused lane does
+not import reactive ref objects or install the universal ref surface. Extracted or dynamic ref
+operations stay generic because their eventual semantics are not statically known.
+
 Compiler-closed scheduled server components use the same request-local frame plus only their
 generated transition slices and disposable port storage. They do not construct a durable
 component instance, effect scope, state proxy, lifecycle sidecars, or the generic component
