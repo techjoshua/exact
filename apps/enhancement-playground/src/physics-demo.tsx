@@ -149,14 +149,28 @@ export function PhysicsDemo(this: Component<PhysicsDemoState>) {
 	this.onMount(({ signal }) => {
 		const viewport = this.refs.get(stageViewport);
 		if (!viewport || typeof ResizeObserver === 'undefined') return;
-		const updateScale = () => {
+		let scheduledFrame: number | undefined;
+		const commitScale = () => {
 			stageScale = Math.min(1, viewport.clientWidth / stageSize.width);
 			this.state.stageScale = stageScale;
 		};
-		const observer = new ResizeObserver(updateScale);
+		const observer = new ResizeObserver(() => {
+			if (scheduledFrame !== undefined) return;
+			scheduledFrame = requestAnimationFrame(() => {
+				scheduledFrame = undefined;
+				commitScale();
+			});
+		});
+		commitScale();
 		observer.observe(viewport);
-		updateScale();
-		signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+		signal.addEventListener(
+			'abort',
+			() => {
+				observer.disconnect();
+				if (scheduledFrame !== undefined) cancelAnimationFrame(scheduledFrame);
+			},
+			{ once: true }
+		);
 	});
 
 	this.onUnmount(() => world[Symbol.dispose]());
