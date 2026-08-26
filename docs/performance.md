@@ -127,6 +127,12 @@ every application. Compiled-component packages declare import-time purity so an 
 re-export does not activate its capability; retaining the provider export still retains the emitted
 capability import.
 
+Target-local capability projection happens before constructor and import selection. Server
+artifacts omit capability expressions erased with client lifecycle callbacks, client tasks, event
+handlers, and ref attributes, while retaining server-observable use and requirements propagated
+through external receiver-forwarding helpers. This prevents client-only authoring surfaces from
+widening SSR without treating unresolved helper flow as safe.
+
 Closed client and hydrate artifacts give compiler-proven call-only
 `TaskContext.client().latest()` functions with the default normal, nonblocking policy a compact task
 lane. The lane retains durable owner cancellation, structural interaction settlement, task frames,

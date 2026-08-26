@@ -625,10 +625,11 @@ func rootComponentContractAttachment(
 	directResumption := hasResumption && directServerResumptionSupported(component.ID, resumptions)
 	hasInteractions := target == TargetClient && component.Interactions
 	hasLifecycle := component.Lifecycle
+	targetSurface := componentTargetSurface(component, target)
 	if target == TargetServer {
 		// Mount/activation registrations are absent from the projected server function.
 		// Only lifecycle phases that can run during SSR require the lifecycle ABI there.
-		hasLifecycle = component.Surface.ServerLifecycle
+		hasLifecycle = targetSurface.ServerLifecycle
 	}
 	var updates *ast.Node
 	if name, exists := componentUpdates[component.Name]; exists {
@@ -640,16 +641,17 @@ func rootComponentContractAttachment(
 	}
 	var serverFrame *ast.Node
 	if target == TargetServer && component.TargetPlan.DirectServer {
-		if component.Surface.Contexts || component.Surface.Localization {
+		if targetSurface.Contexts || targetSurface.Localization {
 			constructors.directContextFrameUsed = true
 			serverFrame = factory.NewIdentifier(constructors.directContextFrameName)
-		} else if component.Surface.Logging {
+		} else if targetSurface.Logging {
 			constructors.directLoggingFrameUsed = true
 			serverFrame = factory.NewIdentifier(constructors.directLoggingFrameName)
 		}
 	}
 	runtimeABI := componentRuntimeABI(
 		component,
+		targetSurface,
 		projectedExecution,
 		hasLifecycle,
 		hasInteractions,

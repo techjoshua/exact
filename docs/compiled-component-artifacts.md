@@ -222,6 +222,13 @@ component-wide render watcher or advertise unused lifecycle, list, or task owner
 keys select the direct synchronous frame and forward immediately to their fixed implementation.
 Only a lazy server key retains the dynamic generic lane while its loader can suspend.
 
+Capability planning is target-local as well as component-local. The compiler keeps authored
+surface facts separate from requirements propagated through receiver-forwarding helpers, then
+projects only expressions which survive each target's lowering. For example, a `ref` attribute and
+its binding expression are client behavior and do not select ref storage or durable component
+construction in the paired server artifact. A server-observable ref read, a dynamic component
+member, or an unresolved forwarded helper remains conservative and retains the generic capability.
+
 Client construction is linked by the artifact rather than inferred by the runtime. The compiler
 imports one target-local constructor and stores it in each component definition. An artifact with
 no lifecycle, runtime-managed list, or task ownership selects the compact render record: state,

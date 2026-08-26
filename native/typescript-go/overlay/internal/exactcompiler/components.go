@@ -41,20 +41,7 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		if len(signals) == 0 {
 			continue
 		}
-		surface := ComponentSurfacePlan{
-			Logging:      componentUsesProtocolMember(candidate.node, "log"),
-			Localization: componentUsesProtocolMember(candidate.node, "intl"),
-			Refs:         componentUsesProtocolMember(candidate.node, "ref", "readRef", "refs"),
-			Contexts: componentUsesProtocolMember(
-				candidate.node,
-				"hasContext", "getContext", "setContext",
-			),
-			Reactivity: componentUsesProtocolMember(candidate.node, "reactive"),
-			ServerLifecycle: componentUsesProtocolMember(
-				candidate.node,
-				"onUnmount", "onRender", "own",
-			),
-		}
+		surface := componentSurfacePlan(candidate.node)
 		components = append(components, Component{
 			ID:                nativeComponentIDForNode(sourceFile, candidate.node),
 			Name:              candidate.name,
@@ -81,14 +68,32 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 				candidate.node,
 				"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
 			),
-			Lists:   componentUsesProtocolMember(candidate.node, "map"),
-			Surface: surface,
+			Lists:         componentUsesProtocolMember(candidate.node, "map"),
+			DirectSurface: surface,
+			Surface:       surface,
 		})
 	}
 	sort.Slice(components, func(left int, right int) bool {
 		return components[left].Start < components[right].Start
 	})
 	return components
+}
+
+func componentSurfacePlan(node *ast.Node) ComponentSurfacePlan {
+	return ComponentSurfacePlan{
+		Logging:      componentUsesProtocolMember(node, "log"),
+		Localization: componentUsesProtocolMember(node, "intl"),
+		Refs:         componentUsesProtocolMember(node, "ref", "readRef", "refs"),
+		Contexts: componentUsesProtocolMember(
+			node,
+			"hasContext", "getContext", "setContext",
+		),
+		Reactivity: componentUsesProtocolMember(node, "reactive"),
+		ServerLifecycle: componentUsesProtocolMember(
+			node,
+			"onUnmount", "onRender", "own",
+		),
+	}
 }
 
 func componentHasCompiledRender(node *ast.Node) bool {
@@ -205,23 +210,25 @@ func edgeForwardsComponentReceiver(edge CallEdge) bool {
 }
 
 func mergeComponentSurfaceFromCallable(component *Component, node *ast.Node) {
-	component.Surface.Logging = component.Surface.Logging || componentUsesProtocolMember(node, "log")
-	component.Surface.Localization = component.Surface.Localization || componentUsesProtocolMember(node, "intl")
-	component.Surface.Refs = component.Surface.Refs || componentUsesProtocolMember(node, "ref", "readRef", "refs")
-	component.Surface.Contexts = component.Surface.Contexts || componentUsesProtocolMember(
-		node,
-		"hasContext", "getContext", "setContext",
-	)
-	component.Surface.Reactivity = component.Surface.Reactivity || componentUsesProtocolMember(node, "reactive")
-	component.Surface.ServerLifecycle = component.Surface.ServerLifecycle || componentUsesProtocolMember(
-		node,
-		"onUnmount", "onRender", "own",
-	)
+	surface := componentSurfacePlan(node)
+	mergeComponentSurface(&component.Surface, surface)
+	if node.Pos() < component.Start || node.End() > component.Start+component.Length {
+		mergeComponentSurface(&component.ForwardedSurface, surface)
+	}
 	component.Lifecycle = component.Lifecycle || componentUsesProtocolMember(
 		node,
 		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
 	)
 	component.Lists = component.Lists || componentUsesProtocolMember(node, "map")
+}
+
+func mergeComponentSurface(target *ComponentSurfacePlan, source ComponentSurfacePlan) {
+	target.Logging = target.Logging || source.Logging
+	target.Localization = target.Localization || source.Localization
+	target.Refs = target.Refs || source.Refs
+	target.Contexts = target.Contexts || source.Contexts
+	target.Reactivity = target.Reactivity || source.Reactivity
+	target.ServerLifecycle = target.ServerLifecycle || source.ServerLifecycle
 }
 
 // componentProtocolMember identifies direct and computed access to the authored component view.

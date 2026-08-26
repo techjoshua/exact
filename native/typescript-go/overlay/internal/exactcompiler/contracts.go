@@ -209,6 +209,8 @@ type Component struct {
 	ClientRangeOutput    bool                      `json:"-"`
 	Lifecycle            bool                      `json:"-"`
 	Lists                bool                      `json:"-"`
+	DirectSurface        ComponentSurfacePlan      `json:"-"`
+	ForwardedSurface     ComponentSurfacePlan      `json:"-"`
 	Surface              ComponentSurfacePlan      `json:"-"`
 	TargetPlan           ComponentTargetPlan       `json:"-"`
 }
@@ -229,6 +231,8 @@ type ComponentSurfacePlan struct {
 type ComponentTargetPlan struct {
 	ClientExecution      ComponentExecution
 	ServerExecution      ComponentExecution
+	ClientSurface        ComponentSurfacePlan
+	ServerSurface        ComponentSurfacePlan
 	DeferredTaskProps    []string
 	DirectServer         bool
 	DirectServerFrame    bool
