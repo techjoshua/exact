@@ -103,6 +103,9 @@ type jsxRuntimeNames struct {
 	directSsrReadRef          string
 	directSsrRoot             string
 	directSsrReactive         string
+	directSsrLifecycle        string
+	directSsrRender           string
+	directSsrOwn              string
 	registerLifecycle         string
 	registerRender            string
 	ownResource               string
@@ -139,6 +142,7 @@ const (
 	runtimeRefs                     runtimeImportGroupID = "refs"
 	runtimeDirectSSRRefs            runtimeImportGroupID = "direct-ssr-refs"
 	runtimeDirectSSRReactivity      runtimeImportGroupID = "direct-ssr-reactivity"
+	runtimeDirectSSRLifecycle       runtimeImportGroupID = "direct-ssr-lifecycle"
 	runtimeComponentExecution       runtimeImportGroupID = "component-execution"
 	runtimeCollections              runtimeImportGroupID = "collections"
 	runtimeRenderProgram            runtimeImportGroupID = "render-program"
@@ -203,6 +207,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{id: runtimeRefs, module: "@exactjs/core/runtime/refs"},
 		{id: runtimeDirectSSRRefs, module: "@exactjs/ssr/runtime/direct-refs"},
 		{id: runtimeDirectSSRReactivity, module: "@exactjs/ssr/runtime/direct-reactivity"},
+		{id: runtimeDirectSSRLifecycle, module: "@exactjs/ssr/runtime/direct-lifecycle"},
 		{id: runtimeComponentExecution, module: "@exactjs/core/runtime/component-execution"},
 		{id: runtimeCollections, module: "@exactjs/core/runtime/collections"},
 		{id: runtimeRenderProgram, module: "@exactjs/dom/runtime/render-program"},
@@ -291,6 +296,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"directSsrReadRef", lowering.names.directSsrReadRef, runtimeDirectSSRRefs},
 		{"directSsrRoot", lowering.names.directSsrRoot, runtimeDirectSSRRefs},
 		{"directSsrReactive", lowering.names.directSsrReactive, runtimeDirectSSRReactivity},
+		{"registerDirectSsrLifecycleHandler", lowering.names.directSsrLifecycle, runtimeDirectSSRLifecycle},
+		{"registerDirectSsrRenderHandler", lowering.names.directSsrRender, runtimeDirectSSRLifecycle},
+		{"ownDirectSsrResource", lowering.names.directSsrOwn, runtimeDirectSSRLifecycle},
 		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, runtimeFrameworkLifecycle},
 		{"registerComponentRenderHandler", lowering.names.registerRender, runtimeFrameworkLifecycle},
 		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
@@ -903,6 +911,9 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		directSsrReadRef:          allocate("__exactDirectSsrReadRef"),
 		directSsrRoot:             allocate("__exactDirectSsrRoot"),
 		directSsrReactive:         allocate("__exactDirectSsrReactive"),
+		directSsrLifecycle:        allocate("__exactRegisterDirectSsrLifecycle"),
+		directSsrRender:           allocate("__exactRegisterDirectSsrRender"),
+		directSsrOwn:              allocate("__exactOwnDirectSsrResource"),
 		registerLifecycle:         allocate("__exactRegisterLifecycle"),
 		registerRender:            allocate("__exactRegisterRender"),
 		ownResource:               allocate("__exactOwnResource"),

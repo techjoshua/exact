@@ -1,6 +1,16 @@
 import type { AnyComponentInstance, VNode } from '@exactjs/core';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
 import type { DirectSsrComponentContent } from './direct-component-content.js';
+import type {
+	DirectSsrComponentFrame,
+	DirectSsrLifecycleCapability
+} from './direct-component-support.js';
+
+/** Request-local direct frame paired with its compiler-linked lifecycle operations. */
+export type DirectSsrComponentLifetime = Readonly<{
+	frame: DirectSsrComponentFrame;
+	lifecycle: DirectSsrLifecycleCapability;
+}>;
 
 /** Cleanup boundary for eagerly issued compiler-proven descendant task frames. */
 export type DirectScheduledPreparation = AsyncDisposable;
@@ -8,6 +18,7 @@ export type DirectScheduledPreparation = AsyncDisposable;
 /** Completed setup and render result awaiting successful descendant serialization. */
 export type DirectSsrComponentResult = Readonly<{
 	content: DirectSsrComponentContent;
+	lifetime?: DirectSsrComponentLifetime;
 	owner: AnyComponentInstance | undefined;
 	preparation?: DirectScheduledPreparation;
 	props: Record<string, unknown>;

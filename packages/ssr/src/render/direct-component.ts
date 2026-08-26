@@ -27,11 +27,13 @@ import {
 	directSsrContextOwner,
 	directSsrProps,
 	inComponentDomain,
-	type DirectSsrComponentFrameConstructor
+	type DirectSsrComponentFrameConstructor,
+	type DirectSsrLifecycleCapability
 } from './direct-component-support.js';
 import type {
 	DirectIssuedRender,
 	DirectScheduledSsrComponent,
+	DirectSsrComponentLifetime,
 	DirectSsrComponentPublisher,
 	DirectSsrComponentResult,
 	PreparedDirectScheduledSsrComponent
@@ -125,6 +127,7 @@ export async function renderDirectSsrComponentOutput<Publication>(
 	const direct = await renderDirectSsrComponent(context, blueprint, rawProps, parent, options);
 	if (!direct) return undefined;
 	const checkpoint = context.onComponentAttemptCheckpoint?.();
+	let primary: unknown = noPrimaryFailure;
 	try {
 		context.onDirectComponentCreated?.(direct.snapshot);
 		let directPrimary: unknown = noPrimaryFailure;
@@ -159,8 +162,15 @@ export async function renderDirectSsrComponentOutput<Publication>(
 		context.onDirectComponentRendered?.(direct.snapshot);
 		return output;
 	} catch (error) {
+		primary = error;
 		context.onComponentAttemptRollback?.(checkpoint);
 		throw error;
+	} finally {
+		if (direct.lifetime)
+			await disposeAsyncPreservingPrimary(
+				() => Promise.resolve(disposeDirectSsrLifetime(direct.lifetime!, 'ssr render complete')),
+				primary
+			);
 	}
 }
 
@@ -204,19 +214,48 @@ export function renderDirectSsrComponent(
 	);
 	const owner = server.frame ? directSsrContextOwner(frame) : parent;
 	const props = directSsrProps(rawProps);
-	const render = inComponentDomain(context, () => server.render!.call(frame, props));
-	if (typeof render !== 'function')
-		throw new TypeError('Compiled synchronous server component did not return its render function');
-	const rendered = options
-		? renderIssuedServerComponentChildren(
-				context,
-				options,
-				() => inComponentDomain(context, () => render()),
-				owner
-			)
-		: { content: readDirectSsrContent(inComponentDomain(context, () => render())) };
+	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
+	let render: unknown;
+	try {
+		render = inComponentDomain(context, () => server.render!.call(frame, props));
+		if (typeof render !== 'function')
+			throw new TypeError(
+				'Compiled synchronous server component did not return its render function'
+			);
+	} catch (error) {
+		if (lifecycle) {
+			try {
+				disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr construction failed');
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+		}
+		throw error;
+	}
+	const invokeRender = () => {
+		const started = lifecycle ? performanceNow() : 0;
+		const output = inComponentDomain(context, () => (render as () => unknown)());
+		lifecycle?.rendered(frame, performanceNow() - started);
+		return output;
+	};
+	let rendered: DirectIssuedRender | Promise<DirectIssuedRender>;
+	try {
+		rendered = options
+			? renderIssuedServerComponentChildren(context, options, invokeRender, owner)
+			: { content: readDirectSsrContent(invokeRender()) };
+	} catch (error) {
+		if (lifecycle) {
+			try {
+				disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr render failed');
+			} catch (cleanup) {
+				attachSuppressedCleanupFailure(error, cleanup);
+			}
+		}
+		throw error;
+	}
 	return resolveMaybe(rendered, ({ content, preparation }) => ({
 		content,
+		...(lifecycle ? { lifetime: { frame, lifecycle } } : {}),
 		owner,
 		...(preparation ? { preparation } : {}),
 		props,
@@ -268,6 +307,7 @@ function constructDirectScheduledSsrComponent(
 		parent
 	);
 	const owner = server.frame ? directSsrContextOwner(frame) : parent;
+	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	const pending = new Set<Promise<unknown>>();
 	const execution: ServerComponentExecutionFrame = createServerComponentExecutionFrame(frame, {
 		observe(settlement) {
@@ -287,16 +327,17 @@ function constructDirectScheduledSsrComponent(
 			inComponentDomain(context, () => server.render!.call(frame, props))
 		);
 	} catch (error) {
-		return Promise.resolve(execution[Symbol.asyncDispose]()).then(() => Promise.reject(error));
+		return disposeFailedDirectScheduledConstruction(execution, frame, lifecycle, error);
 	}
 	if (typeof render !== 'function') {
 		const error = new TypeError(
 			'Compiled scheduled server component did not return its render function'
 		);
-		return Promise.resolve(execution[Symbol.asyncDispose]()).then(() => Promise.reject(error));
+		return disposeFailedDirectScheduledConstruction(execution, frame, lifecycle, error);
 	}
 	return Object.freeze({
 		owner,
+		...(lifecycle ? { lifetime: { frame, lifecycle } } : {}),
 		props,
 		snapshot: {
 			componentId: blueprint.componentId,
@@ -304,21 +345,78 @@ function constructDirectScheduledSsrComponent(
 			state: frame.state,
 			props
 		},
-		render: () =>
-			renderIssuedServerComponentChildren(
+		render: () => {
+			const started = lifecycle ? performanceNow() : 0;
+			const issued = renderIssuedServerComponentChildren(
 				context,
 				options,
 				() => inComponentDomain(context, () => (render as () => Child | Child[])()),
 				owner
-			),
+			);
+			lifecycle?.rendered(frame, performanceNow() - started);
+			return issued;
+		},
 		async drain() {
 			const rerender = pending.size !== 0;
 			if (!rerender) return false;
 			await drainTasks(pending, context.maxTaskPasses, options.signal, options.taskDeadline);
 			return true;
 		},
-		[Symbol.asyncDispose]: () => execution[Symbol.asyncDispose]()
+		async [Symbol.asyncDispose]() {
+			let primary: unknown = noPrimaryFailure;
+			try {
+				await execution[Symbol.asyncDispose]();
+			} catch (error) {
+				primary = error;
+				throw error;
+			} finally {
+				if (lifecycle)
+					await disposeAsyncPreservingPrimary(
+						() => Promise.resolve(disposeDirectSsrLifetime({ frame, lifecycle }, 'ssr render complete')),
+						primary
+					);
+			}
+		}
 	});
+}
+
+async function disposeFailedDirectScheduledConstruction(
+	execution: ServerComponentExecutionFrame,
+	frame: Parameters<DirectSsrLifecycleCapability['dispose']>[0],
+	lifecycle: DirectSsrLifecycleCapability | undefined,
+	primary: unknown
+): Promise<never> {
+	try {
+		await execution[Symbol.asyncDispose]();
+	} catch (cleanup) {
+		attachSuppressedCleanupFailure(primary, cleanup);
+	}
+	if (lifecycle) {
+		try {
+			await lifecycle.dispose(frame, 'ssr construction failed');
+		} catch (cleanup) {
+			attachSuppressedCleanupFailure(primary, cleanup);
+		}
+	}
+	throw primary;
+}
+
+/** Releases one compiler-linked direct lifetime after its complete component subtree. */
+export function disposeDirectSsrLifetime(
+	lifetime: DirectSsrComponentLifetime,
+	reason: string
+): void | Promise<void> {
+	return lifetime.lifecycle.dispose(lifetime.frame, reason);
+}
+
+/** Starts direct cleanup from a synchronous renderer and observes asynchronous disposal failures. */
+export function disposeDirectSsrLifetimeSync(
+	lifetime: DirectSsrComponentLifetime,
+	reason: string
+): void {
+	const disposal = disposeDirectSsrLifetime(lifetime, reason);
+	if (disposal && typeof (disposal as PromiseLike<void>).then === 'function')
+		void Promise.resolve(disposal).catch(() => undefined);
 }
 
 /**
@@ -416,4 +514,10 @@ function resolveMaybe<T, U>(
 	return value && typeof (value as Promise<T>).then === 'function'
 		? Promise.resolve(value).then(project)
 		: project(value as T);
+}
+
+function performanceNow(): number {
+	return typeof globalThis.performance?.now === 'function'
+		? globalThis.performance.now()
+		: Date.now();
 }

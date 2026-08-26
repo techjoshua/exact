@@ -41,6 +41,10 @@
 			"types": "./dist/runtime/direct-reactivity.d.ts",
 			"default": "./dist/runtime/direct-reactivity.js"
 		},
+		"./runtime/direct-lifecycle": {
+			"types": "./dist/runtime/direct-lifecycle.d.ts",
+			"default": "./dist/runtime/direct-lifecycle.js"
+		},
 		"./runtime/structural-boundaries": {
 			"types": "./dist/runtime/structural-boundaries.d.ts",
 			"default": "./dist/runtime/structural-boundaries.js"

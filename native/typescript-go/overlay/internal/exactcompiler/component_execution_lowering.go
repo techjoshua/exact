@@ -32,7 +32,8 @@ func planComponentTargets(
 			directServerResumptionSupported(component.ID, resumptions)
 		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
 		hasLifecycle := serverSurface.ServerLifecycle
-		unsupportedSurface := serverSurface.ServerLifecycle ||
+		unsupportedSurface := (serverSurface.ServerLifecycle &&
+			!directServerLifecycleSupported(componentNode)) ||
 			(serverSurface.Reactivity && !directServerReactivitySupported(componentNode)) ||
 			(serverSurface.Refs && !directServerRefsSupported(componentNode))
 		abi := componentRuntimeABI(
@@ -45,7 +46,7 @@ func planComponentTargets(
 			component.CompiledRender,
 		)
 		directABI := componentABICompiledRender | componentABITasks | componentABICollections |
-			componentABIContexts
+			componentABIContexts | componentABILifecycle
 		tasksSupported := true
 		for _, task := range tasks {
 			if task.Component == component.Name && !directServerTaskSupported(task) {
@@ -66,6 +67,32 @@ func planComponentTargets(
 			GenericServerRuntime: component.Placement != "client" && !directServer,
 		}
 	}
+}
+
+// directServerLifecycleSupported accepts only complete canonical operations that can be linked to
+// the request-local lifecycle sidecar. Extracted, optional, dynamic, or forwarded operations retain
+// durable component ownership because the compiler cannot prove their eventual registration.
+func directServerLifecycleSupported(componentNode *ast.Node) bool {
+	supported := true
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if !supported {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member || (name != "onUnmount" && name != "onRender" && name != "own") {
+			return true
+		}
+		if dynamic {
+			supported = false
+			return false
+		}
+		parent := node.Parent
+		supported = parent != nil && ast.IsCallExpression(parent) &&
+			parent.AsCallExpression().Expression == node &&
+			parent.AsCallExpression().QuestionDotToken == nil
+		return supported
+	})
+	return supported
 }
 
 // directServerReactivitySupported accepts the canonical component convenience operation. Its
@@ -301,6 +328,7 @@ func componentDefinitionMetadata(
 	hasResumption bool,
 	serverPublicationName string,
 	serverFrame *ast.Node,
+	serverLifecycle *ast.Node,
 	directResumption bool,
 	hasInteractions bool,
 	compatibility bool,
@@ -377,6 +405,7 @@ func componentDefinitionMetadata(
 				dynamicComponents,
 				serverPublicationName,
 				serverFrame,
+				serverLifecycle,
 			),
 		))
 	}
@@ -401,6 +430,7 @@ func serverComponentExecutionMetadata(
 	dynamic bool,
 	publicationName string,
 	frame *ast.Node,
+	lifecycle *ast.Node,
 ) *ast.Node {
 	classification := "synchronous"
 	if dynamic {
@@ -428,6 +458,9 @@ func serverComponentExecutionMetadata(
 		)
 		if frame != nil {
 			properties = append(properties, contractProperty(factory, "frame", frame))
+		}
+		if lifecycle != nil {
+			properties = append(properties, contractProperty(factory, "lifecycle", lifecycle))
 		}
 	}
 	if publicationName != "" {

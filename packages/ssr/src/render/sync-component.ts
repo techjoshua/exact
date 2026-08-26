@@ -12,7 +12,11 @@ import { componentName, getComponentProps } from './component-vnode.js';
 import { handleSsrConstructionError } from './construction-error-capability.js';
 import { resetDocumentProbe } from './host.js';
 import { isSsrRenderLimitError } from './limits.js';
-import { renderDirectSsrComponent } from './direct-component.js';
+import {
+	disposeDirectSsrLifetimeSync,
+	renderDirectSsrComponent
+} from './direct-component.js';
+import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderPreparedSsrProgramString } from './render-program.js';
 import { renderGenericSyncSsrComponent } from './generic-component-capability.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
@@ -87,6 +91,7 @@ export function renderSyncComponent(
 		const direct = renderDirectSsrComponent(context, blueprint, componentProps, parent);
 		if (direct) {
 			const checkpoint = context.onComponentAttemptCheckpoint?.();
+			let primary: unknown = noPrimaryFailure;
 			try {
 				context.onDirectComponentCreated?.(direct.snapshot);
 				if (documentProbe) resetDocumentProbe(context);
@@ -115,8 +120,15 @@ export function renderSyncComponent(
 				context.onDirectComponentRendered?.(direct.snapshot);
 				return directOutput;
 			} catch (error) {
+				primary = error;
 				context.onComponentAttemptRollback?.(checkpoint);
 				throw error;
+			} finally {
+				if (direct.lifetime)
+					disposePreservingPrimary(
+						() => disposeDirectSsrLifetimeSync(direct.lifetime!, 'ssr render complete'),
+						primary
+					);
 			}
 		}
 		if (documentProbe) resetDocumentProbe(context);

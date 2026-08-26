@@ -242,6 +242,14 @@ after compiler-scheduled task writes without allocating computed nodes, dependen
 registrations, or effect-scope ownership. It remains a framework-branded readonly reactive value
 for unwrapping and serialization. Extracted and dynamic factory access stays on the generic lane.
 
+Canonical `onRender()`, `onUnmount()`, and `own()` calls no longer require a durable SSR component
+instance. The server artifact links a lifecycle capability only for components that use those
+operations, and registration allocates one request-local sidecar on first use. The renderer calls
+the linked render hook once per render attempt and releases the sidecar after descendant output is
+finished; synchronous and asynchronous cleanup share the same primary-error preservation boundary.
+This lifecycle facet composes with context, logging, task, ref, and reactive facets without a
+per-request capability mask or combined-constructor dispatch.
+
 Compiler-closed scheduled server components use the same request-local frame plus only their
 generated transition slices and disposable port storage. They do not construct a durable
 component instance, effect scope, state proxy, lifecycle sidecars, or the generic component

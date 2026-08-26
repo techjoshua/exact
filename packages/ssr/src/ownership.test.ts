@@ -12,9 +12,69 @@ import {
 import { constructRenderComponentInstance } from '@exactjs/core/runtime/component-construction/render';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
+import type { DirectSsrComponentFrame } from './render/direct-component-support.js';
+import {
+	directSsrLifecycle,
+	registerDirectSsrLifecycleHandler,
+	registerDirectSsrRenderHandler
+} from './runtime/direct-lifecycle.js';
 import { createVNode } from './test-support/native-vnode.js';
 
 describe('@exactjs/ssr ownership', () => {
+	it('runs compiler-linked direct render and request cleanup lifecycle without a durable instance', () => {
+		const events: string[] = [];
+		function Direct(this: Component<{}>) {
+			const frame = this as unknown as DirectSsrComponentFrame;
+			registerDirectSsrRenderHandler(frame, ({ duration }) =>
+				events.push(`render:${duration >= 0}`)
+			);
+			registerDirectSsrLifecycleHandler(frame, 'unmount', ({ reason, signal }) =>
+				events.push(`unmount:${reason}:${signal.aborted}`)
+			);
+			return () => createVNode('p', null, 'direct lifecycle');
+		}
+		Object.assign(Direct, {
+			[exactComponentType]: 'component:direct-lifecycle-fixture',
+			[exactComponentContract]: {
+				version: 2,
+				placement: 'server',
+				role: 'executor',
+				implementations: [
+					{
+						id: 'implementation:direct-lifecycle-fixture',
+						name: 'Direct',
+						role: 'root',
+						implementation: Direct
+					}
+				],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				definition: {
+					version: 1,
+					instantiate: Direct,
+					construct: constructRenderComponentInstance,
+					abi: 1,
+					capabilities: [],
+					state: [],
+					props: [],
+					server: {
+						version: 1,
+						classification: 'synchronous',
+						lane: 'direct',
+						render: Direct,
+						lifecycle: directSsrLifecycle
+					}
+				}
+			}
+		});
+
+		expect(renderToString(createVNode(Direct, {}), { markers: false }).html).toBe(
+			'<p>direct lifecycle</p>'
+		);
+		expect(events).toEqual(['render:true', 'unmount:ssr render complete:true']);
+	});
+
 	it('executes compiler-closed synchronous server components without durable ownership', () => {
 		let created = 0;
 		const receivers: object[] = [];

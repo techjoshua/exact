@@ -22,6 +22,7 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+2)
 	arguments = append(arguments, lowering.factory.NewThisExpression())
 	helper := ""
+	directServer := lowering.target == TargetServer && lowering.directServerFrameComponent(node)
 	switch name {
 	case "onMount", "onActivate", "onDeactivate", "onUnmount":
 		// Mount and client activation phases never execute during SSR. Erase the complete
@@ -35,14 +36,23 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 			)
 		}
 		helper = lowering.names.registerLifecycle
+		if directServer {
+			helper = lowering.names.directSsrLifecycle
+		}
 		phase := map[string]string{
 			"onMount": "mount", "onActivate": "activate", "onDeactivate": "deactivate", "onUnmount": "unmount",
 		}[name]
 		arguments = append(arguments, lowering.factory.NewStringLiteral(phase, ast.TokenFlagsNone))
 	case "onRender":
 		helper = lowering.names.registerRender
+		if directServer {
+			helper = lowering.names.directSsrRender
+		}
 	case "own":
 		helper = lowering.names.ownResource
+		if directServer {
+			helper = lowering.names.directSsrOwn
+		}
 	default:
 		return nil
 	}

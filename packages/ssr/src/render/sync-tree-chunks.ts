@@ -52,7 +52,12 @@ import { dynamicMarkerId } from './marker-identity.js';
 import { renderNativeSuspenseSync } from './structural-boundary-capability.js';
 import { renderPreparedSsrProgramChunks } from './render-program.js';
 import { resolveSsrComponentExecution } from './root-execution-cache.js';
-import { renderDirectSsrComponent } from './direct-component.js';
+import {
+	disposeDirectSsrLifetimeSync,
+	renderDirectSsrComponent
+} from './direct-component.js';
+import type { DirectSsrComponentLifetime } from './direct-component-contracts.js';
+import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import type { DirectSsrComponentContent } from './direct-component.js';
 import { renderGenericSyncSsrComponentChunks } from './generic-component-capability.js';
 import { renderChildren } from './sync-children.js';
@@ -244,6 +249,7 @@ function* renderComponentChunks(
 	let children: Child[];
 	let directProgram: DirectSsrComponentContent['program'];
 	let directSnapshot: DirectSsrComponentSnapshot | undefined;
+	let directLifetime: DirectSsrComponentLifetime | undefined;
 	let componentProps: Record<string, unknown> = {};
 	const prepared = context.preparedEnhancementComponents?.get(vnode);
 	if (prepared) {
@@ -262,6 +268,7 @@ function* renderComponentChunks(
 				} else children = direct.content.children;
 				componentProps = direct.props;
 				directSnapshot = direct.snapshot;
+				directLifetime = direct.lifetime;
 			} else {
 				const generic = renderGenericSyncSsrComponentChunks({
 					context,
@@ -302,6 +309,7 @@ function* renderComponentChunks(
 			yield* renderChildChunks(context, child, childParent, depth + 1, true);
 	};
 	const checkpoint = directSnapshot ? context.onComponentAttemptCheckpoint?.() : undefined;
+	let primary: unknown = noPrimaryFailure;
 	try {
 		if (directSnapshot) context.onDirectComponentCreated?.(directSnapshot);
 		if (enhancement) yield* rendered();
@@ -319,8 +327,15 @@ function* renderComponentChunks(
 		else yield* marked(componentId, rendered);
 		if (directSnapshot) context.onDirectComponentRendered?.(directSnapshot);
 	} catch (error) {
+		primary = error;
 		if (directSnapshot) context.onComponentAttemptRollback?.(checkpoint);
 		throw error;
+	} finally {
+		if (directLifetime)
+			disposePreservingPrimary(
+				() => disposeDirectSsrLifetimeSync(directLifetime!, 'ssr render complete'),
+				primary
+			);
 	}
 }
 

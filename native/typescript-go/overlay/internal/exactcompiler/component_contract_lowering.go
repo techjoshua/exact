@@ -48,6 +48,7 @@ func lowerComponentContracts(
 		directServerName:       allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
 		directContextFrameName: allocateGeneratedName(used, "__exactDirectSsrContextFrame"),
 		directLoggingFrameName: allocateGeneratedName(used, "__exactDirectSsrLoggingFrame"),
+		directLifecycleName:    allocateGeneratedName(used, "__exactDirectSsrLifecycle"),
 	}
 	statements := make(
 		[]*ast.Node,
@@ -189,12 +190,14 @@ type componentConstructorImports struct {
 	directServerName       string
 	directContextFrameName string
 	directLoggingFrameName string
+	directLifecycleName    string
 	renderUsed             bool
 	taskUsed               bool
 	durableUsed            bool
 	directServerUsed       bool
 	directContextFrameUsed bool
 	directLoggingFrameUsed bool
+	directLifecycleUsed    bool
 }
 
 func (imports *componentConstructorImports) selectConstructor(
@@ -292,6 +295,14 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 			"createDirectSsrLoggingFrame",
 			imports.directLoggingFrameName,
 			"@exactjs/ssr/runtime/direct-logging-frame",
+		))
+	}
+	if imports.directLifecycleUsed {
+		declarations = append(declarations, componentConstructorImport(
+			factory,
+			"directSsrLifecycle",
+			imports.directLifecycleName,
+			"@exactjs/ssr/runtime/direct-lifecycle",
 		))
 	}
 	return declarations
@@ -640,6 +651,7 @@ func rootComponentContractAttachment(
 		serverPublicationName = component.Name
 	}
 	var serverFrame *ast.Node
+	var serverLifecycle *ast.Node
 	if target == TargetServer && component.TargetPlan.DirectServer {
 		if targetSurface.Contexts || targetSurface.Localization {
 			constructors.directContextFrameUsed = true
@@ -647,6 +659,10 @@ func rootComponentContractAttachment(
 		} else if targetSurface.Logging {
 			constructors.directLoggingFrameUsed = true
 			serverFrame = factory.NewIdentifier(constructors.directLoggingFrameName)
+		}
+		if targetSurface.ServerLifecycle {
+			constructors.directLifecycleUsed = true
+			serverLifecycle = factory.NewIdentifier(constructors.directLifecycleName)
 		}
 	}
 	runtimeABI := componentRuntimeABI(
@@ -702,6 +718,7 @@ func rootComponentContractAttachment(
 				hasResumption,
 				serverPublicationName,
 				serverFrame,
+				serverLifecycle,
 				directResumption,
 				hasInteractions,
 				usesCompatibility,
