@@ -210,6 +210,7 @@ registerComponentRuntimeSurfaceTarget(ComponentInstanceImpl.prototype);
 
 export {
 	createComponentInstance,
+	createLinkedComponentInstance,
 	createFrameworkFixtureComponentInstance,
 	createPreparedComponentInstance
 } from './runtime-construction.js';

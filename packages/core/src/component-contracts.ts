@@ -1,4 +1,4 @@
-import type { ContextToken } from './component/contracts.js';
+import type { ContextToken, VNode } from './component/contracts.js';
 import type {
 	ExactCompiledComponentCapability,
 	ExactCompiledComponentUpdateContract
@@ -278,6 +278,15 @@ export function readExactCompiledComponentContract(
 export const readPreparedExactComponentContract = (
 	component: AnyExactComponentCallable
 ): ExactComponentContract | undefined => (component as ContractComponent)[exactComponentContract];
+
+/** Reads the target artifact linked directly into one compiler-emitted component invocation. */
+export function readLinkedExactCompiledComponentContract(
+	vnode: VNode
+): ExactCompiledComponentContract | undefined {
+	return typeof vnode.type === 'function' && vnode.artifact
+		? (vnode.artifact as ExactCompiledComponentContract)
+		: undefined;
+}
 
 /** Reads a build-validated executable compiler artifact. */
 export function readPreparedExactCompiledComponentContract(

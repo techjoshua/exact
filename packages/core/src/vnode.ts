@@ -1,4 +1,5 @@
 import { unwrap } from '@exactjs/reactive/framework/values';
+import { readPreparedExactCompiledComponentContract } from './component-contracts.js';
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import { encodeExactMarkerPart } from './protocol.js';
@@ -19,6 +20,15 @@ export function createVNode(
 	props: Record<string, unknown> | null,
 	...children: unknown[]
 ): VNode {
+	return createVNodeRecord(type, props, children);
+}
+
+function createVNodeRecord(
+	type: VNodeType,
+	props: Record<string, unknown> | null,
+	children: unknown[],
+	artifact?: object
+): VNode {
 	// Exclude the JSX-only key while copying so V8 can construct the normalized props object
 	// directly instead of transitioning it through a property deletion.
 	const { key: authoredKey, __exactEnhancements: enhancements, ...normalizedProps } = props ?? {};
@@ -31,6 +41,7 @@ export function createVNode(
 		props: normalizedProps,
 		children: normalizeChildren(children),
 		key,
+		...(artifact ? { artifact } : {}),
 		...(enhancements ? { enhancement: enhancements as VNode['enhancement'] } : {}),
 		...(domain ? { domain } : {})
 	};
@@ -84,7 +95,9 @@ export function createCompiledComponentVNode(
 	props: Record<string, unknown> | null,
 	...children: unknown[]
 ): VNode {
-	return createVNode(type, props, ...children);
+	if (typeof type !== 'function')
+		throw new TypeError('Compiled component invocation requires a native component artifact');
+	return createVNodeRecord(type, props, children, readPreparedExactCompiledComponentContract(type));
 }
 
 /**

@@ -2,6 +2,7 @@ import { type AnyComponentFunction, type VNode } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentIdentity,
+	readLinkedExactCompiledComponentContract,
 	readPreparedExactCompiledComponentContract,
 	type ExactCompiledComponentContract
 } from '@exactjs/core/framework/component-contracts';
@@ -19,11 +20,27 @@ export type SsrRootExecutionBlueprint = {
 };
 
 const rootBlueprints = new WeakMap<AnyComponentFunction, SsrRootExecutionBlueprint>();
+const linkedBlueprints = new WeakMap<
+	ExactCompiledComponentContract,
+	SsrComponentExecutionBlueprint
+>();
 
 /** Attaches the reusable blueprint for a component root after output extensions select it. */
 export function attachSsrRootExecutionBlueprint(context: SsrContext, vnode: VNode): void {
 	if (typeof vnode.type !== 'function') return;
 	context.rootExecutionBlueprint = ssrRootExecutionBlueprint(vnode.type);
+}
+
+/** Resolves one component invocation, consuming its compiler-linked artifact when present. */
+export function resolveSsrVNodeExecution(
+	context: SsrContext,
+	vnode: VNode
+): SsrComponentExecutionBlueprint {
+	const component = vnode.type as AnyComponentFunction;
+	const linked = readLinkedExactCompiledComponentContract(vnode);
+	return linked
+		? linkedComponentBlueprint(component, linked)
+		: resolveSsrComponentExecution(context, component);
 }
 
 /** Resolves cached validated metadata for one component reached beneath the active root. */
@@ -63,14 +80,26 @@ type CachedBlueprint = Readonly<{
 }>;
 
 function prepareComponentBlueprint(
-	component: AnyComponentFunction
+	component: AnyComponentFunction,
+	contract: ExactCompiledComponentContract = readPreparedExactCompiledComponentContract(component)
 ): SsrComponentExecutionBlueprint {
-	const contract = readPreparedExactCompiledComponentContract(component);
 	const componentId = exactComponentIdentity(component);
 	return Object.freeze({
 		componentId,
 		contract
 	});
+}
+
+function linkedComponentBlueprint(
+	component: AnyComponentFunction,
+	contract: ExactCompiledComponentContract
+): SsrComponentExecutionBlueprint {
+	let blueprint = linkedBlueprints.get(contract);
+	if (!blueprint) {
+		blueprint = prepareComponentBlueprint(component, contract);
+		linkedBlueprints.set(contract, blueprint);
+	}
+	return blueprint;
 }
 
 function attachedValue(component: AnyComponentFunction, key: symbol): unknown {
