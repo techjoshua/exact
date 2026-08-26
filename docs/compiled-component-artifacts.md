@@ -39,6 +39,17 @@ Component discovery is independent of a module's JSX extension. `.ts`, `.tsx`, `
 source modules can all define native components. Published packages emit separate client and server
 module trees and select them with package export conditions; they do not publish a manually branded
 universal function as a substitute for compilation.
+Published component-library facts preserve both the resolver-selected package facade and the
+target-local compiler artifact that owns each component. Consumers authorize the facade but attach
+the compiler facts to the owning artifact, so relative component imports, target placement, and
+transitive authorization retain the same module base used during compilation. These facts are
+emitted from the successful client and server compiler results; package builds do not reconstruct
+component graphs by importing built JavaScript or scanning for legacy runtime brands.
+When a component delegates setup through a local helper, the compiler follows a direct call or a
+receiver-preserving `helper.call(this, ...)` edge to the lexical render arrow created by that helper.
+The helper's lifecycle, context, ref, reactive, list, localization, and task requirements widen the
+calling component's selected ABI. The generated component invokes the setup helper once and uses
+its returned render closure directly; it does not add another callable or a generic render lane.
 Direct compiler and CLI calls that omit a target emit the specialized client artifact. Executable
 compilation accepts only `client` or `server`; target-neutral structure remains private compiler
 analysis and cannot be published or passed to a renderer.

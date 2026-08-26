@@ -22,7 +22,7 @@
 		"./styles.css"
 	],
 	"exactComponentLibrary": {
-		"protocol": 1,
+		"protocol": 2,
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
@@ -31,7 +31,7 @@
 		"@exactjs/ssr": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
 		"test": "vitest run"
 	}
 }

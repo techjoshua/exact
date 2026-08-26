@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 import { createErrorContext, ErrorContext } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
 import '@exactjs/core/runtime/refs';
 import { render } from '@exactjs/dom';
 import { testComponent } from '@exactjs/testing';
@@ -15,34 +14,7 @@ import {
 	FailedForm,
 	RequiredForm
 } from './form-behavior.fixtures.js';
-import {
-	Checkbox,
-	Field,
-	FieldError,
-	FieldHelp,
-	Form,
-	Input,
-	Label,
-	Select,
-	Submit,
-	Textarea
-} from './index.js';
-
-// Source-level unit tests bypass the package compiler. Production exports are independently
-// verified as target-paired compiled artifacts by the package build.
-for (const [name, component] of Object.entries({
-	Checkbox,
-	Field,
-	FieldError,
-	FieldHelp,
-	Form,
-	Input,
-	Label,
-	Select,
-	Submit,
-	Textarea
-}))
-	createExactFrameworkFixtureArtifact(component, `@exactjs/forms:test:${name}`);
+import { Field, FieldError, Form, Input, Label, Submit } from './index.js';
 
 describe('forms', () => {
 	it('wires accessible fields and validates submission', async () => {

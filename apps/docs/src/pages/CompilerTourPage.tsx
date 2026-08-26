@@ -81,7 +81,11 @@ export function CompilerTourPage(this: Component<{}>) {
 					A component does not need a <code>.tsx</code> filename when it does not author JSX. The
 					compiler recognizes native components in ordinary TypeScript modules too. Installed eXact
 					libraries can provide precompiled browser and server artifacts, so applications consume
-					the correct target without executing the compiler at runtime.
+					the correct target without executing the compiler at runtime. A library&apos;s generated
+					build facts connect its public export to the target-specific artifact that owns the
+					component, so barrel exports do not discard compiled dependency information. Local setup
+					helpers can return the render closure too; the compiler carries their required component
+					capabilities into the generated artifact without adding a generic render layer.
 				</p>
 				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment

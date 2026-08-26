@@ -52,7 +52,7 @@ static compiler facts:
 		"@exactjs/component-library": "^0.1.0"
 	},
 	"exactComponentLibrary": {
-		"protocol": 1,
+		"protocol": 2,
 		"build": "./dist/exact-component-build.json"
 	}
 }
@@ -60,10 +60,12 @@ static compiler facts:
 
 `@exactjs/component-library` has no JavaScript entry, install script, registration, lifecycle, or
 trust grant. The build-facts JSON maps package exports to compiler-owned component identities and
-is validated without importing candidate code. Official component-library builds generate it
-after TypeScript output. The root workspace build discovers every publishable manifest with this
-declaration and regenerates its facts, so a clean release build cannot depend on an earlier
-package-local build. Custom package tooling can use
+is validated without importing candidate code. Official component-library builds publish it only
+after both compiler-generated client and server module trees succeed. Each export record
+distinguishes the resolver-selected facade from the target-local implementation module that owns
+the component's relative dependency edges. The root workspace build compiles every declared
+package, so a clean release cannot depend on reflective scanning or an earlier package-local build.
+Custom package tooling can use
 `@exactjs/compiler/component-library-build` to create and write the same deterministic protocol.
 
 ## Enforcement and artifacts
