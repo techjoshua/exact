@@ -130,6 +130,27 @@ func canonicalComponentLogLevel(node *ast.Node) (string, bool) {
 	return level, true
 }
 
+// lowerComponentIntlAccess links the authored localization facade directly to the
+// target-specific component frame. This avoids installing the universal component
+// runtime surface for compiler-owned access while retaining a stable facade per owner.
+func (lowering *jsxLowering) lowerComponentIntlAccess(node *ast.Node) *ast.Node {
+	if !ast.IsPropertyAccessExpression(node) || !lowering.insideComponent(node) {
+		return nil
+	}
+	access := node.AsPropertyAccessExpression()
+	if access.QuestionDotToken != nil || access.Name().Text() != "intl" ||
+		access.Expression.Kind != ast.KindThisKeyword {
+		return nil
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.componentIntl),
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewThisExpression()}),
+		ast.NodeFlagsNone,
+	)
+}
+
 // insideComponent prevents the logging ABI from rewriting unrelated objects which
 // happen to expose a this.log property in the same TypeScript project.
 func (lowering *jsxLowering) insideComponent(node *ast.Node) bool {

@@ -98,6 +98,7 @@ type jsxRuntimeNames struct {
 	enhancements              string
 	omitEnhancementProps      string
 	componentLog              string
+	componentIntl             string
 	registerLifecycle         string
 	registerRender            string
 	ownResource               string
@@ -277,6 +278,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createEnhancementNode", lowering.names.enhancements, runtimeEnhancements},
 		{"omitKnownProps", lowering.names.omitEnhancementProps, runtimeEnhancements},
 		{"componentLogMethod", lowering.names.componentLog, runtimeLogging},
+		{"componentIntl", lowering.names.componentIntl, runtimeLocalization},
 		{"registerComponentLifecycleHandler", lowering.names.registerLifecycle, runtimeFrameworkLifecycle},
 		{"registerComponentRenderHandler", lowering.names.registerRender, runtimeFrameworkLifecycle},
 		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
@@ -875,6 +877,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		enhancements:              allocate("__exactEnhancements"),
 		omitEnhancementProps:      allocate("__exactOmitEnhancementProps"),
 		componentLog:              allocate("__exactComponentLog"),
+		componentIntl:             allocate("__exactComponentIntl"),
 		registerLifecycle:         allocate("__exactRegisterLifecycle"),
 		registerRender:            allocate("__exactRegisterRender"),
 		ownResource:               allocate("__exactOwnResource"),

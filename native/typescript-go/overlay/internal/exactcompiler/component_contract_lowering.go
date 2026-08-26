@@ -640,7 +640,7 @@ func rootComponentContractAttachment(
 	}
 	var serverFrame *ast.Node
 	if target == TargetServer && component.TargetPlan.DirectServer {
-		if component.Surface.Contexts {
+		if component.Surface.Contexts || component.Surface.Localization {
 			constructors.directContextFrameUsed = true
 			serverFrame = factory.NewIdentifier(constructors.directContextFrameName)
 		} else if component.Surface.Logging {
