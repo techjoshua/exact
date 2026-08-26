@@ -2,8 +2,8 @@
 
 ## Status
 
-**Implemented.** This document is the normative design record for the shipped `@exactjs/theme`
-package and contract `exact-theme/1`. The current operational reference is
+**Implemented and archived.** This document is the normative design record for the shipped
+`@exactjs/theme` package and contract `exact-theme/1`. The current operational reference is
 [`docs/theme.md`](../theme.md); this record retains the complete formulas, token names, algorithms,
 acceptance matrix, and decisions against which the implementation is tested.
 
@@ -575,14 +575,14 @@ After contrast correction, candidates within the categorical distance threshold 
 accent are discarded. Selection and fallback ranking then maximize distance from both accent and
 already selected series colors.
 
+```ts
 export const syntaxTheme = createThemeDeriver<SyntaxRequest, SyntaxTheme>({
-id: '@acme/editor/syntax',
-version: 1,
-derive(theme, request) {
-// Pure bounded derivation from theme.key, theme.tones, and request.
-}
+	id: '@acme/editor/syntax',
+	version: 1,
+	derive(theme, request) {
+		// Pure bounded derivation from theme.key, theme.tones, and request.
+	}
 });
-
 ```
 
 Deriver IDs are diagnostic and cache identities, not authorization or global registry keys. A
@@ -756,7 +756,7 @@ The Theme Lab must have browser-level tests covering at least:
 | Root inherited-axis changes                             | Nested inherited output changes; explicit nested key, temperament, appearance, and contrast remain unchanged.         |
 | Standard and more contrast                              | Required text, component boundaries, chart strokes, and focus indicators meet the selected targets.                   |
 | System appearance, contrast, and motion changes         | Every scope using `system` reacts; explicit scopes do not.                                                            |
-| Surface nesting                                         | Automatic bundles advance and cap as specified; a nested `theme:scope` resets to bundle zero.                               |
+| Surface nesting                                         | Automatic bundles advance and cap as specified; a nested `theme:scope` resets to bundle zero.                         |
 | Chart derivation                                        | Output changes with theme revision and surface bundle while chart identity, data, and selection remain stable.        |
 | Packaged fixture                                        | Built package output resolves no fixture source or application CSS and behaves identically in both theme scopes.      |
 | Keyboard and native validation                          | Focus is visible, controls are operable, invalid state is explained, and chart values are available without hover.    |
@@ -769,8 +769,8 @@ visual similarity alone does not prove the no-remount contract. Screenshot compa
 representative balanced, expressive, stark, and monochrome combinations, but semantic assertions,
 contrast measurements, keyboard operation, and identity checks remain authoritative.
 
-The implementation is not accepted until the Theme Lab passes this matrix in the production docs
-build and a reviewer can change both theme scopes repeatedly without CSS overrides, selector
+Full browser certification is not complete until the Theme Lab passes this matrix in the production
+docs build and a reviewer can change both theme scopes repeatedly without CSS overrides, selector
 patches, hard-coded chart colors, console errors, hydration warnings, or visible stale-theme frames.
 
 ## Rejected alternatives
@@ -831,8 +831,8 @@ nested theme source instead.
 3. Materialize `exact-theme/1` metadata and generate the default root declarations from one golden
    resolved theme.
 4. Implement `theme:scope` as an ordinary component-library enhancement with system preference
-	ownership, SSR serialization, hydration adoption, and reactive inheritance; keep typed overrides
-	an ordinary wrapper helper.
+   ownership, SSR serialization, hydration adoption, and reactive inheritance; keep typed overrides
+   an ordinary wrapper helper.
 5. Implement surface context and the seven element roles through the existing enhancement contract.
 6. Publish static recipe CSS, forced-colors behavior, inspection data, and exact contract tests.
 7. Implement derivation contexts and built-in data colors, then dogfood them in a chart or board
@@ -853,8 +853,8 @@ No unresolved choice in this section blocks v1:
 - strict CSP configurations that forbid style attributes are a documented v1 limitation; a later
   nonce/hash/external-stylesheet adapter requires a separate ownership and cleanup proposal;
 - existing enhancement language assistance exposes the typed finite activators, but the theme
-	package adds no compiler behavior and does not attempt cross-package proof that every deriving
-	component has an ancestor `theme:scope`;
+  package adds no compiler behavior and does not attempt cross-package proof that every deriving
+  component has an ancestor `theme:scope`;
 - every declared typography preset ships with the exact stack above; and
 - default CSS, recipe CSS, token category unions, and contract metadata are generated from one
   package-owned source and protected by exact snapshots.
@@ -863,5 +863,5 @@ Possible later hashed publication, CSP adapters, additional temperament data fie
 activators, wider-gamut output contracts, or typography presets are additive proposals or a new
 contract version. Implementers must not introduce them opportunistically while delivering v1.
 Translation of semantic roles through application-selected external CSS systems is specified
-separately in [thematic presentation providers](thematic-presentation-providers.md).
-```
+separately in
+[thematic presentation providers](../proposals/thematic-presentation-providers.md).
