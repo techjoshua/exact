@@ -218,6 +218,16 @@ pre-task state. The value retains ordinary `get()`, unwrapping, JSON, and primit
 semantics without constructing a computed node, dependency sets, scheduler hooks, or effect-scope
 ownership. Extracted or dynamically dispatched reactive factories remain on the durable lane.
 
+Canonical server-visible lifecycle operations are linked through the same artifact rather than
+forcing durable component construction. `onRender()` observers and `onUnmount()`/`own()` cleanup
+use a lazy sidecar keyed by the request-local frame; the artifact exposes the renderer hooks that
+run them after each render attempt and after the complete component subtree. Cleanup removes the
+sidecar before invoking authored work, runs every registered callback, and preserves a primary
+render failure when cleanup also fails. Context and logging frame selection remains independent,
+so lifecycle does not create a matrix of combined frame constructors. Extracted, optional, or
+dynamically selected lifecycle operations retain the generic lane because their registration
+semantics are not compiler-closed.
+
 Static SSR capability installers use one bundle-local ESM registry. It contains only
 module-lifetime functions selected by reachable server artifacts; request state and component
 instances never enter it, and omitting an installer still lets bundlers remove the corresponding

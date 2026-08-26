@@ -992,6 +992,78 @@ func TestServerProjectionKeepsExtractedReactiveSurfaceGeneric(t *testing.T) {
 	}
 }
 
+func TestServerProjectionLinksCanonicalLifecycleOperations(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-component-lifecycle.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> {
+				state: State;
+				onUnmount(handler: () => void): void;
+				onRender(handler: (event: { duration: number }) => void): void;
+				own<T extends { dispose(): void }>(resource: T): T;
+			}
+			declare const resource: { dispose(): void };
+			export function Lifecycle(this: Component<{}>) {
+				this.onRender(() => undefined);
+				this.onUnmount(() => undefined);
+				this.own(resource);
+				return () => <output>ready</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`@exactjs/ssr/runtime/direct-lifecycle`,
+		`__exactRegisterDirectSsrRender(this, () => undefined)`,
+		`__exactRegisterDirectSsrLifecycle(this, "unmount", () => undefined)`,
+		`__exactOwnDirectSsrResource(this, resource)`,
+		`lifecycle: __exactDirectSsrLifecycle`,
+		`lane: "direct"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("server lifecycle operation omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, excluded := range []string{
+		`@exactjs/core/framework/component-lifecycle`,
+		`@exactjs/ssr/runtime/generic-components`,
+		`lane: "generic"`,
+	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("server lifecycle operation retained %q:\n%s", excluded, response.Code)
+		}
+	}
+}
+
+func TestServerProjectionKeepsExtractedLifecycleSurfaceGeneric(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-component-lifecycle-extracted.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State; onUnmount(handler: () => void): void }
+			export function Lifecycle(this: Component<{}>) {
+				const register = this.onUnmount;
+				return () => <output>{String(register)}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`@exactjs/core/runtime/lifecycle`, `constructDurableComponentInstance`,
+		`generic-components`, `lane: "generic"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("extracted lifecycle surface failed to retain %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `@exactjs/ssr/runtime/direct-lifecycle`) {
+		t.Fatalf("extracted lifecycle surface incorrectly selected direct lifecycle:\n%s", response.Code)
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";

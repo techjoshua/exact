@@ -36,6 +36,12 @@ export type DirectSsrContextFrame = DirectSsrComponentFrame &
 /** Logging-bearing direct frame without durable state, effects, contexts, or lifecycle storage. */
 export type DirectSsrLoggingFrame = DirectSsrComponentFrame & ComponentLogOwner;
 
+/** Optional lifecycle lane linked only from artifacts that register server-visible callbacks. */
+export type DirectSsrLifecycleCapability = Readonly<{
+	rendered(frame: DirectSsrComponentFrame, duration: number): void;
+	dispose(frame: DirectSsrComponentFrame, reason: string): void | Promise<void>;
+}>;
+
 /** Artifact-linked constructor for one target-specialized direct server frame. */
 export type DirectSsrComponentFrameConstructor = (
 	context: SsrContext,

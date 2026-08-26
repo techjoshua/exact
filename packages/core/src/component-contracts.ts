@@ -174,6 +174,11 @@ export type ExactServerComponentExecutionContract = Readonly<{
 	render?: AnyExactComponentCallable;
 	/** Target-linked request-local frame constructor for direct components with optional surfaces. */
 	frame?: AnyExactComponentCallable;
+	/** Target-linked request-local lifecycle operations, present only when SSR observes them. */
+	lifecycle?: Readonly<{
+		rendered: AnyExactComponentCallable;
+		dispose: AnyExactComponentCallable;
+	}>;
 	/** Compiler-selected component publication used after successful server rendering. */
 	publication?: Readonly<{
 		kind: 'resumption';

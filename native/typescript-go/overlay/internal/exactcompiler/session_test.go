@@ -7209,7 +7209,7 @@ func TestSessionRetainsServerCleanupWhenProjectingClientLifecycle(t *testing.T) 
 		strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount"`) {
 		t.Fatalf("server output retained client lifecycle work: %s", response.Code)
 	}
-	if !strings.Contains(response.Code, `__exactRegisterLifecycle(this, "unmount"`) ||
+	if !strings.Contains(response.Code, `__exactRegisterDirectSsrLifecycle(this, "unmount"`) ||
 		!strings.Contains(response.Code, `releaseRequestResource()`) {
 		t.Fatalf("server output discarded request cleanup: %s", response.Code)
 	}
