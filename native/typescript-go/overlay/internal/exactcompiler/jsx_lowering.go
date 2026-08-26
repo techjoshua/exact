@@ -29,6 +29,7 @@ type jsxLowering struct {
 	operations                   map[string]InvokedTaskOperation
 	stateReads                   []StateRead
 	bindings                     []ReactiveBinding
+	reactiveCaptureSpans         []SourceSpan
 	formBindings                 map[int]formBinding
 	componentBindings            map[int]componentBinding
 	checker                      *checker.Checker
@@ -40,6 +41,9 @@ type jsxLowering struct {
 	serverComponents             bool
 	instrumentInspection         bool
 	components                   map[string]Component
+	componentTagSymbols          map[ast.SymbolId]bool
+	resolvedComponentTagSymbols  map[ast.SymbolId]struct{}
+	componentDeclarationSpans    map[*ast.SourceFile][]SourceSpan
 	microComponents              map[ast.SymbolId]struct{}
 	renderEdges                  map[string]RenderEdge
 	clientIslands                map[*ast.Node]clientElementIsland

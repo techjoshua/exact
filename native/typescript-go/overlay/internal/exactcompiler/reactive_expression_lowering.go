@@ -69,28 +69,19 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 
 func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool {
 	compiledHelper := lowering.compilerOwnedRenderHelperCall(source)
-	for _, read := range lowering.stateReads {
-		if read.Start >= source.Pos() && read.Start+read.Length <= source.End() {
-			if compiledHelper && spanInsideNestedCallable(source, read.Start, read.Length) {
+	start := sort.Search(len(lowering.reactiveCaptureSpans), func(index int) bool {
+		return lowering.reactiveCaptureSpans[index].Start >= source.Pos()
+	})
+	for index := start; index < len(lowering.reactiveCaptureSpans); index++ {
+		span := lowering.reactiveCaptureSpans[index]
+		if span.Start >= source.End() {
+			break
+		}
+		if span.Start+span.Length <= source.End() {
+			if compiledHelper && spanInsideNestedCallable(source, span.Start, span.Length) {
 				continue
 			}
 			return true
-		}
-	}
-	for _, binding := range lowering.bindings {
-		if binding.Provenance != "props" && binding.Provenance != "context" &&
-			binding.Provenance != "derived" && binding.Provenance != "cell" {
-			continue
-		}
-		for _, reference := range binding.References {
-			if reference.Start >= source.Pos() &&
-				reference.Start+reference.Length <= source.End() {
-				if compiledHelper &&
-					spanInsideNestedCallable(source, reference.Start, reference.Length) {
-					continue
-				}
-				return true
-			}
 		}
 	}
 	// A statically resolved JSX helper is compiled into its own target artifact. Passing the
@@ -121,6 +112,33 @@ func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool 
 		return true
 	}
 	return false
+}
+
+// indexReactiveCaptureSpans prepares the source-order membership index shared by reactive JSX
+// decisions. A source file can contain hundreds of expressions; repeatedly scanning every state
+// read and binding reference for each one makes lowering quadratic in authored module size.
+func indexReactiveCaptureSpans(
+	stateReads []StateRead,
+	bindings []ReactiveBinding,
+) []SourceSpan {
+	spans := make([]SourceSpan, 0, len(stateReads)+len(bindings))
+	for _, read := range stateReads {
+		spans = append(spans, SourceSpan{Start: read.Start, Length: read.Length})
+	}
+	for _, binding := range bindings {
+		if binding.Provenance != "props" && binding.Provenance != "context" &&
+			binding.Provenance != "derived" && binding.Provenance != "cell" {
+			continue
+		}
+		spans = append(spans, binding.References...)
+	}
+	sort.Slice(spans, func(left int, right int) bool {
+		if spans[left].Start != spans[right].Start {
+			return spans[left].Start < spans[right].Start
+		}
+		return spans[left].Length < spans[right].Length
+	})
+	return spans
 }
 
 // spanInsideNestedCallable distinguishes deferred handler/task bodies passed to a compiled render

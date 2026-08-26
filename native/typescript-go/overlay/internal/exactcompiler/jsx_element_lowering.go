@@ -377,6 +377,9 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 	var resolvesToComponent func(*ast.Symbol) bool
 	resolvesToComponent = func(candidate *ast.Symbol) bool {
 		id := ast.GetSymbolId(candidate)
+		if _, resolved := lowering.resolvedComponentTagSymbols[id]; resolved {
+			return lowering.componentTagSymbols[id]
+		}
 		if _, seen := visited[id]; seen {
 			return false
 		}
@@ -384,13 +387,17 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 		if candidate.Flags&ast.SymbolFlagsAlias != 0 {
 			target := lowering.checker.GetAliasedSymbol(candidate)
 			if target != nil && resolvesToComponent(target) {
+				lowering.resolvedComponentTagSymbols[id] = struct{}{}
+				lowering.componentTagSymbols[id] = true
 				return true
 			}
 		}
 		for _, declaration := range candidate.Declarations {
 			if sourceFile := ast.GetSourceFileOfNode(declaration); sourceFile != nil {
-				for _, component := range collectComponents(sourceFile) {
+				for _, component := range lowering.componentSpans(sourceFile) {
 					if component.Start >= declaration.Pos() && component.Start < declaration.End() {
+						lowering.resolvedComponentTagSymbols[id] = struct{}{}
+						lowering.componentTagSymbols[id] = true
 						return true
 					}
 				}
@@ -403,16 +410,38 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 				continue
 			}
 			if _, exists := lowering.components[initializer.Text()]; exists {
+				lowering.resolvedComponentTagSymbols[id] = struct{}{}
+				lowering.componentTagSymbols[id] = true
 				return true
 			}
 			target := lowering.checker.GetSymbolAtLocation(initializer)
 			if target != nil && resolvesToComponent(target) {
+				lowering.resolvedComponentTagSymbols[id] = struct{}{}
+				lowering.componentTagSymbols[id] = true
 				return true
 			}
 		}
+		lowering.resolvedComponentTagSymbols[id] = struct{}{}
+		lowering.componentTagSymbols[id] = false
 		return false
 	}
 	return resolvesToComponent(symbol)
+}
+
+// componentSpans discovers a dependency source's durable component declarations once per
+// lowering. JSX can use the same imported component hundreds of times; component identity
+// resolution must not rescan the dependency's complete AST for every tag occurrence.
+func (lowering *jsxLowering) componentSpans(sourceFile *ast.SourceFile) []SourceSpan {
+	if spans, exists := lowering.componentDeclarationSpans[sourceFile]; exists {
+		return spans
+	}
+	components := collectComponents(sourceFile)
+	spans := make([]SourceSpan, len(components))
+	for index, component := range components {
+		spans[index] = SourceSpan{Start: component.Start, Length: component.Length}
+	}
+	lowering.componentDeclarationSpans[sourceFile] = spans
+	return spans
 }
 
 func (lowering *jsxLowering) exactCoreVNodeTag(tag *ast.Node) bool {
