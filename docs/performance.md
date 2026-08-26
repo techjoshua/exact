@@ -65,6 +65,11 @@ error contexts remain available through the same context resolution contract. Se
 with canonical logging use a focused request-local logging frame, or reuse their context-bearing
 direct frame, so logging alone does not select durable generic SSR ownership.
 
+Canonical `this.intl` access is likewise compiler-linked to the component owner. On the server,
+localized components reuse the request-local context frame and its nearest-provider lookup instead
+of selecting durable generic SSR construction. The stable localized facade remains cached per
+component owner, including direct request frames, without widening context-free artifacts.
+
 Compiler-owned DOM interactions enter through a compiler-marked native event lane. With trace
 logging disabled, an ordinary callback executes and publishes its synchronous reactive feedback
 without constructing an abort controller, task frame, settlement promise, interaction scope, or

@@ -1968,8 +1968,14 @@ func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
 		if localized.Error != "" {
 			t.Fatal(localized.Error)
 		}
-		if !strings.Contains(localized.Code, `import "@exactjs/core/runtime/localization"`) {
+		if !strings.Contains(localized.Code, `"@exactjs/core/runtime/localization"`) {
 			t.Fatalf("component Intl use did not import its runtime capability:\n%s", localized.Code)
+		}
+		if index == 0 && !strings.Contains(
+			localized.Code,
+			`componentIntl as __exactComponentIntl`,
+		) {
+			t.Fatalf("component-owned Intl access was not compiler-linked:\n%s", localized.Code)
 		}
 		if !containsString(localized.RuntimeDependencies, "@exactjs/core/runtime/localization") {
 			t.Fatalf("emitted localization dependency was not reported: %#v", localized.RuntimeDependencies)

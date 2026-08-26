@@ -194,6 +194,13 @@ and serves both capabilities. The shared logging operation checks the current re
 level before evaluating generated message or data readers, so disabled logging remains inert while
 logger changes inside a request remain observable.
 
+Canonical component localization uses that same context-bearing direct frame. The compiler lowers
+`this.intl` to a component-owned localization operation, and the operation caches one stable facade
+against the request frame while resolving the current localization policy through ordinary nearest-
+provider context semantics. A localized server component therefore does not allocate a durable
+component instance, effect scope, state proxy, or generic localization surface solely to format
+output.
+
 Static SSR capability installers use one bundle-local ESM registry. It contains only
 module-lifetime functions selected by reachable server artifacts; request state and component
 instances never enter it, and omitting an installer still lets bundlers remove the corresponding

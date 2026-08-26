@@ -755,6 +755,47 @@ func TestServerLoggingUsesFocusedDirectFrameBesideOrdinaryDirectComponents(t *te
 	}
 }
 
+func TestServerLocalizationUsesDirectContextFrame(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "localized-server-execution.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare class Component<State> {
+				state: State;
+				intl: Intl;
+			}
+			export function LocalizedPage(this: Component<{}>, props: { total: number }) {
+				return () => <output>{this.intl.NumberFormat().format(props.total)}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`componentIntl as __exactComponentIntl`,
+		`from "@exactjs/core/runtime/localization"`,
+		`createDirectSsrContextFrame as __exactDirectSsrContextFrame`,
+		`from "@exactjs/ssr/runtime/direct-context-frame"`,
+		`__exactComponentIntl(this).NumberFormat()`,
+		`frame: __exactDirectSsrContextFrame`,
+		`lane: "direct"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("direct localized server component module is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, excluded := range []string{
+		`import "@exactjs/ssr/runtime/generic-components"`,
+		`lane: "generic"`,
+		`constructDurableComponentInstance`,
+		`import "@exactjs/core/runtime/contexts"`,
+	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("direct localized server component retained %q:\n%s", excluded, response.Code)
+		}
+	}
+}
+
 func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T) {
 	source := `
 		import { TaskContext } from "@exactjs/core";
