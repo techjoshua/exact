@@ -224,6 +224,11 @@ func (lowering *jsxLowering) directComponentProgramReader(
 			dependencies = append(dependencies, dependency)
 			return false
 		}
+		// Callback bodies are deferred component work. Their reads belong to the callback's
+		// interaction/task execution, not to the eager prop description that publishes the function.
+		if ast.IsFunctionLike(current) && lowering.authoredSourceNode(current) {
+			return false
+		}
 		if ast.IsCallExpression(current) {
 			call := current.AsCallExpression()
 			if !ast.IsIdentifier(call.Expression) || !lowering.generatedComponentReaderCall(call.Expression.Text()) {
@@ -304,14 +309,7 @@ func (lowering *jsxLowering) directRenderProgramInertReader(slot renderProgramSl
 	if strings.HasPrefix(slot.name, "__exact") {
 		return true
 	}
-	bound := false
-	for current := slot.reader; current != nil; current = current.Parent {
-		if current == lowering.sourceFile.AsNode() {
-			bound = true
-			break
-		}
-	}
-	if !bound {
+	if !lowering.authoredSourceNode(slot.reader) {
 		return false
 	}
 	// Deferred inline callbacks are inert as values even when their bodies read component state.
@@ -321,6 +319,23 @@ func (lowering *jsxLowering) directRenderProgramInertReader(slot renderProgramSl
 		return true
 	}
 	return !lowering.hasReactiveComponentCapture(slot.reader)
+}
+
+// authoredSourceNode distinguishes authored deferred functions from compiler-generated reader
+// closures. Generated forwarding closures intentionally participate in eager prop dependencies.
+func (lowering *jsxLowering) authoredSourceNode(node *ast.Node) bool {
+	// Updated authored nodes can be detached from their original parent chain while retaining the
+	// parser-assigned source interval. Compiler-created reader closures have synthesized intervals.
+	if node != nil && node.Pos() >= 0 && node.End() > node.Pos() &&
+		node.End() <= lowering.sourceFile.AsNode().End() {
+		return true
+	}
+	for current := node; current != nil; current = current.Parent {
+		if current == lowering.sourceFile.AsNode() {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) directRenderProgramDependency(
