@@ -61,7 +61,9 @@ Compiled logging and framework diagnostics call one shared logging operation wit
 component instance, so ordinary logging does not require a facade per component. A facade is
 materialized only when dynamic code explicitly reads the public `instance.log` surface. Disabled
 default trace and debug checks also avoid constructing component scope records. Default logger and
-error contexts remain available through the same context resolution contract.
+error contexts remain available through the same context resolution contract. Server artifacts
+with canonical logging use a focused request-local logging frame, or reuse their context-bearing
+direct frame, so logging alone does not select durable generic SSR ownership.
 
 Compiler-owned DOM interactions enter through a compiler-marked native event lane. With trace
 logging disabled, an ordinary callback executes and publishes its synchronous reactive feedback

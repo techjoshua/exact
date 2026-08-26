@@ -47,6 +47,7 @@ func lowerComponentContracts(
 		durableName:            allocateGeneratedName(used, "__exactConstructDurableComponent"),
 		directServerName:       allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
 		directContextFrameName: allocateGeneratedName(used, "__exactDirectSsrContextFrame"),
+		directLoggingFrameName: allocateGeneratedName(used, "__exactDirectSsrLoggingFrame"),
 	}
 	statements := make(
 		[]*ast.Node,
@@ -187,11 +188,13 @@ type componentConstructorImports struct {
 	durableName            string
 	directServerName       string
 	directContextFrameName string
+	directLoggingFrameName string
 	renderUsed             bool
 	taskUsed               bool
 	durableUsed            bool
 	directServerUsed       bool
 	directContextFrameUsed bool
+	directLoggingFrameUsed bool
 }
 
 func (imports *componentConstructorImports) selectConstructor(
@@ -281,6 +284,14 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 			"createDirectSsrContextFrame",
 			imports.directContextFrameName,
 			"@exactjs/ssr/runtime/direct-context-frame",
+		))
+	}
+	if imports.directLoggingFrameUsed {
+		declarations = append(declarations, componentConstructorImport(
+			factory,
+			"createDirectSsrLoggingFrame",
+			imports.directLoggingFrameName,
+			"@exactjs/ssr/runtime/direct-logging-frame",
 		))
 	}
 	return declarations
@@ -628,9 +639,14 @@ func rootComponentContractAttachment(
 		serverPublicationName = component.Name
 	}
 	var serverFrame *ast.Node
-	if target == TargetServer && component.TargetPlan.DirectServer && component.Surface.Contexts {
-		constructors.directContextFrameUsed = true
-		serverFrame = factory.NewIdentifier(constructors.directContextFrameName)
+	if target == TargetServer && component.TargetPlan.DirectServer {
+		if component.Surface.Contexts {
+			constructors.directContextFrameUsed = true
+			serverFrame = factory.NewIdentifier(constructors.directContextFrameName)
+		} else if component.Surface.Logging {
+			constructors.directLoggingFrameUsed = true
+			serverFrame = factory.NewIdentifier(constructors.directLoggingFrameName)
+		}
 	}
 	runtimeABI := componentRuntimeABI(
 		component,

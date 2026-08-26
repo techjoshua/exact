@@ -710,7 +710,7 @@ func TestServerContextExecutionUsesDirectRequestLocalFrame(t *testing.T) {
 	}
 }
 
-func TestMixedServerExecutionImportsDirectAndGenericRenderCapabilities(t *testing.T) {
+func TestServerLoggingUsesFocusedDirectFrameBesideOrdinaryDirectComponents(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "mixed-server-execution.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
@@ -731,14 +731,26 @@ func TestMixedServerExecutionImportsDirectAndGenericRenderCapabilities(t *testin
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	for _, expected := range []string{
-		`from "@exactjs/core/framework/render-structure"`,
-		`import { createPreparedServerRenderProgram as __exactPreparedServerRenderProgram } from "@exactjs/core/framework/server-render-structure"`,
-		`import "@exactjs/ssr/runtime/generic-components"`,
-		`lane: "generic"`,
+		`createPreparedServerRenderProgram as __exactPreparedServerRenderProgram`,
+		`from "@exactjs/core/framework/server-render-structure"`,
+		`componentLogMethod as __exactComponentLog`,
+		`from "@exactjs/core/runtime/logging"`,
+		`createDirectSsrLoggingFrame as __exactDirectSsrLoggingFrame`,
+		`from "@exactjs/ssr/runtime/direct-logging-frame"`,
+		`frame: __exactDirectSsrLoggingFrame`,
 		`lane: "direct"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("mixed server component module is missing %q:\n%s", expected, response.Code)
+			t.Fatalf("direct logging server component module is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, excluded := range []string{
+		`import "@exactjs/ssr/runtime/generic-components"`,
+		`lane: "generic"`,
+		`constructDurableComponentInstance`,
+	} {
+		if strings.Contains(response.Code, excluded) {
+			t.Fatalf("direct logging server component retained %q:\n%s", excluded, response.Code)
 		}
 	}
 }

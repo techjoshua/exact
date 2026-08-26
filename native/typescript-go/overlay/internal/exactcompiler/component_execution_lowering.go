@@ -31,8 +31,8 @@ func planComponentTargets(
 			directServerResumptionSupported(component.ID, resumptions)
 		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
 		hasLifecycle := component.Surface.ServerLifecycle
-		unsupportedSurface := component.Surface.Logging || component.Surface.Localization ||
-			component.Surface.Reactivity || component.Surface.Refs ||
+		unsupportedSurface := component.Surface.Localization || component.Surface.Reactivity ||
+			component.Surface.Refs ||
 			component.Surface.ServerLifecycle
 		abi := componentRuntimeABI(
 			*component,
