@@ -16,7 +16,7 @@ import {
 	type VNode
 } from '@exactjs/core';
 import {
-	createLinkedComponentInstance,
+	createComponentInstance,
 	isCellVNode,
 	RenderProgram,
 	reparentComponentInstance,
@@ -299,13 +299,13 @@ export function mountInner(
 		};
 		try {
 			const instance = withEffectScope(mounted.scope, () =>
-				createLinkedComponentInstance(
+				createComponentInstance(
 					vnode.type as AnyEnhancementComponentFunction,
 					getComponentProps(vnode),
-					linkedContract,
 					parentInstance,
 					parentInstance?.ambientContexts ?? root.ambientContexts,
-					vnode.domain ?? parentInstance?.domain
+					vnode.domain ?? parentInstance?.domain,
+					linkedContract
 				)
 			);
 			ownMountedInstance(mounted, instance);

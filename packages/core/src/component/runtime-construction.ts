@@ -25,31 +25,8 @@ export function createComponentInstance<
 	rawProps: Props,
 	parent?: AnyComponentInstance,
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
-	domain = parent?.domain ?? pageComponentDomain
-): ComponentInstance<State> {
-	const contract = readPreparedExactCompiledComponentContract(type);
-	return (contract.definition.construct as CompiledComponentInstanceConstructor)(
-		type,
-		rawProps,
-		parent,
-		ambientContexts,
-		domain,
-		undefined,
-		contract
-	) as ComponentInstance<State>;
-}
-
-/** Creates an instance through the target artifact already linked by compiled JSX. */
-export function createLinkedComponentInstance<
-	State extends object,
-	Props extends Record<string, unknown>
->(
-	type: ComponentFunction<State, Props>,
-	rawProps: Props,
-	contract: ExactCompiledComponentContract,
-	parent?: AnyComponentInstance,
-	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
-	domain = parent?.domain ?? pageComponentDomain
+	domain = parent?.domain ?? pageComponentDomain,
+	contract: ExactCompiledComponentContract = readPreparedExactCompiledComponentContract(type)
 ): ComponentInstance<State> {
 	return (contract.definition.construct as CompiledComponentInstanceConstructor)(
 		type,
