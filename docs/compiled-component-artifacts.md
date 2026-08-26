@@ -219,11 +219,10 @@ entry invokes the linked constructor without importing either implementation or 
 bits. All three records implement the same observable component-instance contract and share
 process-local diagnostic identity, but each narrower lane cannot accidentally allocate capabilities
 owned only by a wider record.
-Compiled JSX also links that prepared target artifact into each statically resolved component
-invocation. DOM mount, hydration adoption, and SSR therefore consume the selected definition
-directly instead of classifying the function again or rereading its attached contract. Ordinary
-function-component VNodes are reserved for compiler-declared dynamic selection and explicit
-compatibility boundaries, where runtime resolution is intrinsic to the operation.
+The native function value is itself the carrier for that prepared target artifact. DOM mount and
+hydration adoption read its definition once and invoke the linked constructor directly, without a
+separate identity probe or an identity-only construction fallback. Dynamic selection must choose
+another compiled callable; foreign functions enter only through a compiled compatibility boundary.
 Compiler-closed server artifacts instead link a fail-closed construction entry: they execute their
 generated request-local frame and do not retain either durable client record merely to populate a
 contract field. Sending such an artifact through generic instance construction is an error.

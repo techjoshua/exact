@@ -38,7 +38,6 @@ describe('compiled vnode marker ownership', () => {
 		expect(isCellVNode(createCompiledComponentVNode(Child, null))).toBe(false);
 		const vnode = createCompiledComponentVNode(Child, { label: 'ready' });
 		expect(vnode.type).toBe(Child);
-		expect(vnode.artifact).toBeDefined();
 	});
 
 	it('assigns inferred list identity to the unpublished compiler allocation', () => {
@@ -51,9 +50,4 @@ describe('compiled vnode marker ownership', () => {
 		);
 	});
 
-	it('rejects an uncompiled function at the compiler-only invocation boundary', () => {
-		expect(() => createCompiledComponentVNode(() => () => null, null)).toThrow(
-			'compiled component artifact'
-		);
-	});
 });
