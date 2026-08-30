@@ -337,15 +337,20 @@ for (const scenario of scenarios) {
 	}
 	timings.sort((left, right) => left - right);
 	const median = percentile(timings, 0.5);
+	const p75 = percentile(timings, 0.75);
 	const p95 = percentile(timings, 0.95);
+	const p99 = percentile(timings, 0.99);
 	const bytes = byteSamples.length
 		? Math.round(byteSamples.reduce((sum, value) => sum + value, 0) / byteSamples.length)
 		: undefined;
 	results.push({
 		name: scenario.name,
 		medianMs: median,
+		p75Ms: p75,
 		p95Ms: p95,
-		...(bytes === undefined ? {} : { bytes })
+		p99Ms: p99,
+		rawTimingsMs: timings,
+		...(bytes === undefined ? {} : { bytes, rawByteSamples: byteSamples })
 	});
 	console.log(
 		`${scenario.name}: median ${median.toFixed(2)}ms; p95 ${p95.toFixed(2)}ms${bytes === undefined ? '' : `; ${bytes} bytes`}`

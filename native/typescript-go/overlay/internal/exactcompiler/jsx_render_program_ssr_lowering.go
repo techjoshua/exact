@@ -152,6 +152,35 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
 			assignCall("component", arguments...)
+		case "spread":
+			assignCall(
+				"attributes",
+				context,
+				output,
+				value,
+				stringLiteral(build.nodes[slot.node].tag),
+				characters,
+			)
+		case "root-attributes":
+			assignCall(
+				"rootAttributes",
+				context,
+				output,
+				value,
+				stringLiteral(slot.name),
+				characters,
+				lowering.factory.NewPropertyAccessExpression(
+					lowering.factory.NewPropertyAccessExpression(
+						invocation,
+						nil,
+						lowering.factory.NewIdentifier("program"),
+						ast.NodeFlagsNone,
+					),
+					nil,
+					lowering.factory.NewIdentifier("ssrRootStatic"),
+					ast.NodeFlagsNone,
+				),
+			)
 		default:
 			assignCall(
 				"attribute",

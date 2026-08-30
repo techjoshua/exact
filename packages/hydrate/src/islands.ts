@@ -1,12 +1,15 @@
 import {
 	type AnyComponentFunction,
 	createComponentDomain,
-	createVNode,
 	logFrameworkEvent,
 	withComponentDomain
 } from '@exactjs/core';
 import {
-	adoptMarkerlessComponentRoot,
+	createCompiledComponentReceipt,
+	readCompiledComponentReceipt
+} from '@exactjs/core/runtime/component-operations';
+import { adoptMarkerlessCompiledComponentReceiptRoot } from '@exactjs/dom/framework/component-root';
+import {
 	consumeDomWork,
 	createDomWorkBudget,
 	findNodeOwnerInstance,
@@ -264,7 +267,12 @@ function mountIslandBoundaryInSlice(
 	const props =
 		compactProps ??
 		parseIslandProps(boundary.getAttribute('data-exact-client-props'), options, boundary);
-	const vnode = withComponentDomain(domain, () => createVNode(component, props));
+	const operation = withComponentDomain(domain, () =>
+		createCompiledComponentReceipt(component, props)
+	);
+	const receipt = readCompiledComponentReceipt(operation);
+	if (!receipt)
+		throw new TypeError('A client island must resolve to a compiled component operation');
 	const remaining = work.limit - work.used;
 	if (remaining <= 0) consumeDomWork(work);
 	const rendererOptions = {
@@ -287,13 +295,15 @@ function mountIslandBoundaryInSlice(
 	const adopting = interaction || eagerAdoption || resumption;
 	const captured = adopting ? captureHydrationDom(boundary, work) : undefined;
 	const checkpoint = adopting ? checkpointComponentResumptions(domain) : 0;
-	const adopted = adopting ? adoptMarkerlessComponentRoot(vnode, boundary, rendererOptions) : false;
+	const adopted = adopting
+		? adoptMarkerlessCompiledComponentReceiptRoot(operation, receipt, boundary, rendererOptions)
+		: false;
 	if (!adopted) {
 		if (adopting) rollbackComponentResumptions(domain, checkpoint);
 		if (adopting) boundary.replaceChildren();
 		if (adopting)
-			withComponentResumptionFallback(domain, () => render(vnode, boundary, rendererOptions));
-		else render(vnode, boundary, rendererOptions);
+			withComponentResumptionFallback(domain, () => render(operation, boundary, rendererOptions));
+		else render(operation, boundary, rendererOptions);
 	}
 	if (captured)
 		for (const control of restoreFormState(boundary, captured.formState, work))

@@ -1,16 +1,11 @@
 import process from 'node:process';
 import { summarizeValues } from './measurement.mjs';
-import { measureAsyncSsr, measureRenderPlan } from './foundation-rendering.mjs';
-import { measureHydrationPublication } from './foundation-publication.mjs';
 import { disposeBuildHost, measureBuildHost, measureTransport } from './foundation-transport.mjs';
 
 const scenario = requiredEnvironment('EXACT_PERFORMANCE_FOUNDATION');
 const warmups = positiveInteger(process.env.EXACT_PERFORMANCE_WARMUPS ?? '2', 'warmups', 0);
 const samples = positiveInteger(process.env.EXACT_PERFORMANCE_INNER_SAMPLES ?? '7', 'samples', 1);
 const runners = {
-	'render-plan': measureRenderPlan,
-	'async-ssr': measureAsyncSsr,
-	'hydration-publication': measureHydrationPublication,
 	transport: measureTransport,
 	'build-host': measureBuildHost
 };

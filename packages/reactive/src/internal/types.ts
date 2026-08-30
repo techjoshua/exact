@@ -28,6 +28,8 @@ export type Dep = Set<Reaction>;
 export type Reaction = {
 	active: boolean;
 	scheduled: boolean;
+	/** Framework-internal ordering within one user-visible work priority. */
+	order?: number;
 	/** Highest-priority invalidation waiting to run this reaction. */
 	pendingPriority?: WorkPriority;
 	scope?: EffectScopeImpl;

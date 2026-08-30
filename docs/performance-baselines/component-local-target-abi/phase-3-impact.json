@@ -1,0 +1,60 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 3,
+	"recordedAt": "2026-08-26T20:08:00.0000000-07:00",
+	"mechanisms": [
+		"Inventory every remaining native JSX render-program decline by source shape and replace it with a compiler-selected focused operation.",
+		"Complete component-local lowering without narrowing valid authored TSX or moving unsupported work behind an unreported fallback.",
+		"Remove generic native property groups and declined native JSX regions while preserving explicit foreign, plugin, and test boundaries."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "exhaustive client component interiors",
+			"classification": "improve",
+			"metrics": [
+				"client mount, update, and structural reconciliation latency",
+				"decoded, profiled, and executed client JavaScript",
+				"profiled and invoked function count",
+				"client artifact raw, gzip, and Brotli bytes"
+			],
+			"structuralEvidence": [
+				"declined native JSX regions reach zero",
+				"generic native binding groups reach zero",
+				"every former decline reason has semantic and generated-output coverage",
+				"explicit compatibility boundaries remain separately classified"
+			],
+			"counterMetrics": [
+				"native component and target artifact counts",
+				"fallback-bearing artifact count",
+				"generic renderer import count",
+				"DOM, lifecycle, and response identity"
+			]
+		},
+		{
+			"name": "server, hydration, and recovery behavior",
+			"classification": "stable",
+			"metrics": [
+				"Node and Bun SSR latency, throughput, CPU, memory, and payload",
+				"hydration claim and recovery behavior",
+				"compiler workflow latency outside JSX interior lowering"
+			],
+			"structuralEvidence": [
+				"Phase 3 changes client interior selection rather than the server ABI",
+				"hydration projection remains on its Phase 4 contract",
+				"foreign boundaries retain explicit ownership"
+			],
+			"counterMetrics": [
+				"SSR response hashes",
+				"hydration correctness assertions",
+				"explicit boundary counts",
+				"server artifact identity"
+			]
+		}
+	]
+}

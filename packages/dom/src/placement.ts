@@ -1,5 +1,5 @@
-import { Cell, Dynamic, Fragment, Target, UnsafeHtml } from '@exactjs/core';
 import { describeNode, domDebug } from './debug.js';
+import { foreignChildCapability } from './renderer/foreign-child-capability.js';
 import type { Mounted, Root } from './types.js';
 
 /** Places the full DOM range for a mounted subtree before the requested cursor. */
@@ -21,14 +21,14 @@ export function placeMountedBefore(
 			node: describeNode(first),
 			before: describeNode(cursor)
 		}));
-		runAfterPlacement(mounted);
+		runAfterPlacement(root, mounted);
 		return;
 	}
 
 	for (const node of nodes) {
 		insertBeforeIfNeeded(root, parent, node, cursor);
 	}
-	runAfterPlacement(mounted);
+	runAfterPlacement(root, mounted);
 }
 
 /** Returns every DOM node owned by a mounted subtree in document order. */
@@ -39,6 +39,10 @@ export function mountedDomNodes(mounted: Mounted): Node[] {
 		const current = pending.pop()!;
 		if (current.end) {
 			if (current.mounted.end) nodes.push(current.mounted.end);
+			continue;
+		}
+		if (aliasesKeyedChildRange(current.mounted)) {
+			pending.push({ mounted: current.mounted.children[0]!, end: false });
 			continue;
 		}
 		nodes.push(current.mounted.dom);
@@ -71,24 +75,69 @@ export function lastMountedNode(mounted: Mounted): Node {
 function ownsChildDom(mounted: Mounted): boolean {
 	return (
 		!!mounted.end ||
-		mounted.vnode.type === Cell ||
-		mounted.vnode.type === Fragment ||
-		mounted.vnode.type === Target ||
-		mounted.vnode.type === Dynamic ||
-		mounted.vnode.type === UnsafeHtml ||
-		typeof mounted.vnode.type === 'function'
+		mounted.childRangeReceipt !== undefined ||
+		mounted.range === 'item' ||
+		mounted.range === 'root' ||
+		mounted.fragmentReceipt !== undefined ||
+		mounted.targetReceipt !== undefined ||
+		mounted.clientArtifact !== undefined ||
+		foreignChildCapability()?.ownsChildDom?.(mounted) === true
 	);
 }
 
-function runAfterPlacement(mounted: Mounted): void {
-	const pending = [mounted];
+/** A client-created keyed owner reuses its only child's physical range without extra markers. */
+function aliasesKeyedChildRange(mounted: Mounted): boolean {
+	const child =
+		mounted.range === 'item' && mounted.children.length === 1 ? mounted.children[0] : undefined;
+	return !!child && mounted.dom === child.dom && mounted.end === child.end;
+}
+
+function runAfterPlacement(root: Root, mounted: Mounted): void {
+	const pending: Array<Readonly<{ mounted: Mounted; mountCommit?: boolean }>> = [{ mounted }];
 	while (pending.length) {
-		const current = pending.pop()!;
+		const entry = pending.pop()!;
+		const current = entry.mounted;
+		if (entry.mountCommit) {
+			const callback = current.afterPlacement;
+			if (
+				callback &&
+				current.afterPlacementPhase === 'mount' &&
+				isInFinalPlacement(root, current.dom)
+			) {
+				current.afterPlacement = undefined;
+				current.afterPlacementPhase = undefined;
+				callback();
+			}
+			continue;
+		}
+		if (current.afterPlacementPhase === 'mount')
+			pending.push({ mounted: current, mountCommit: true });
 		for (let index = current.children.length - 1; index >= 0; index--)
-			pending.push(current.children[index]!);
+			pending.push({ mounted: current.children[index]! });
 		const callback = current.afterPlacement;
+		const phase = current.afterPlacementPhase;
+		if (!callback || phase === 'mount') continue;
 		current.afterPlacement = undefined;
-		callback?.();
+		current.afterPlacementPhase = undefined;
+		if (phase === 'retention') (root.placementRetentions ??= new Map()).set(current, callback);
+		else callback();
+	}
+}
+
+/** Reports whether a provisional subtree has reached its root or a connected portal target. */
+function isInFinalPlacement(root: Root, node: Node): boolean {
+	if (root.container.contains(node)) return true;
+	if (node.isConnected) return true;
+	for (const target of root.portalTargets) if (target.contains(node)) return true;
+	return false;
+}
+
+/** Commits range retention after every ordinary placement callback in the transaction. */
+export function flushPlacementRetentions(root: Root): void {
+	while (root.placementRetentions?.size) {
+		const callbacks = [...root.placementRetentions.values()];
+		root.placementRetentions.clear();
+		for (const callback of callbacks) callback();
 	}
 }
 

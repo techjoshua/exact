@@ -1,10 +1,11 @@
-import { isFiniteClientBoundary, type VNode } from '@exactjs/core';
+import type { Child } from '@exactjs/core';
+import type { ExactServerBoundaryReceiptData } from '@exactjs/core/runtime/component-abi';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';
 import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
-import { renderChildrenAsync } from './async-tree.js';
+import { renderChildrenAsync } from './async-children.js';
 import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
 import { publishClientBoundary } from './client-boundary-publication.js';
 import {
@@ -14,23 +15,25 @@ import {
 	serverSlotReference,
 	type ExactServerSlotReference
 } from './server-slots.js';
-import { renderChildren } from './sync-tree.js';
+import { renderChildren } from './sync-children.js';
 
 /** Transforms server boundary into its required representation. */
-export function renderServerBoundary(context: SsrContext, vnode: VNode): string {
-	const id = String(unwrap(vnode.props.id) ?? '');
-	const name = String(unwrap(vnode.props.name) ?? '');
-	const hydration = clientBoundaryHydration(vnode);
-	const props = clientBoundaryProps(context, vnode);
-	const finite = isFiniteClientBoundary(vnode);
+export function renderServerBoundary(
+	context: SsrContext,
+	boundary: ExactServerBoundaryReceiptData,
+	finite = false
+): string {
+	const { id, name } = boundary;
+	const hydration = clientBoundaryHydration(boundary);
+	const props = clientBoundaryProps(context, boundary);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	}
-	const fallback = clientBoundaryHydrationFallback(vnode);
+	const fallback = clientBoundaryHydrationFallback(boundary);
 	const children = fallback
 		? renderChildren(context, [fallback], undefined, true)
-		: renderServerBoundaryChildren(context, vnode, undefined);
+		: renderServerBoundaryChildren(context, boundary, undefined);
 	// Client boundary props are serialized into an attribute, while children are
 	// represented as server slots so the client bundle does not need server-only code.
 	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
@@ -40,36 +43,38 @@ export function renderServerBoundary(context: SsrContext, vnode: VNode): string 
 /** Transforms server boundary async into its required representation. */
 export async function renderServerBoundaryAsync(
 	context: SsrContext,
-	vnode: VNode,
+	boundary: ExactServerBoundaryReceiptData,
 	parent: AnyComponentInstance | undefined,
-	options: RenderToStringOptions
+	options: RenderToStringOptions,
+	finite = false
 ): Promise<string> {
-	const id = String(unwrap(vnode.props.id) ?? '');
-	const name = String(unwrap(vnode.props.name) ?? '');
-	const hydration = clientBoundaryHydration(vnode);
-	const props = clientBoundaryProps(context, vnode);
-	const finite = isFiniteClientBoundary(vnode);
+	const { id, name } = boundary;
+	const hydration = clientBoundaryHydration(boundary);
+	const props = clientBoundaryProps(context, boundary);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	}
-	const fallback = clientBoundaryHydrationFallback(vnode);
-	const slots = serverBoundarySlotReferences(vnode);
+	const fallback = clientBoundaryHydrationFallback(boundary);
+	const slots = serverBoundarySlotReferences(boundary);
 	const children = fallback
 		? await renderChildrenAsync(context, [fallback], parent, options, true)
 		: slots
-			? await boundedServerRangeChildrenAsync(context, vnode, slots, parent, options)
-			: vnode.children.length
-				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options, true)}</span>`
+			? await boundedServerRangeChildrenAsync(context, boundary, slots, parent, options)
+			: boundary.children.length
+				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildrenAsync(context, boundary.children, parent, options, true)}</span>`
 				: '';
 	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
 /** Performs the client boundary props domain operation. */
-export function clientBoundaryProps(context: SsrContext, vnode: VNode): Record<string, unknown> {
-	const id = String(unwrap(vnode.props.id) ?? '');
-	const rawProps = unwrap(vnode.props.props) ?? {};
+export function clientBoundaryProps(
+	context: SsrContext,
+	boundary: ExactServerBoundaryReceiptData
+): Record<string, unknown> {
+	const id = boundary.id;
+	const rawProps = unwrap(boundary.props) ?? {};
 	const props =
 		rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
 			? { ...(rawProps as Record<string, unknown>) }
@@ -79,13 +84,13 @@ export function clientBoundaryProps(context: SsrContext, vnode: VNode): Record<s
 		delete (props as Record<string, unknown>).__exactHydrationFallback;
 		delete (props as Record<string, unknown>).__exactServerSlots;
 	}
-	const slots = serverBoundarySlotReferences(vnode);
+	const slots = serverBoundarySlotReferences(boundary);
 	for (const slot of slots ?? []) {
 		if (slot.buildKey && context.buildKey && slot.buildKey !== context.buildKey)
 			throw new Error('Client boundary partition build does not match the SSR build');
 	}
 	if (
-		vnode.children.length &&
+		boundary.children.length &&
 		props &&
 		typeof props === 'object' &&
 		!Array.isArray(props) &&
@@ -102,59 +107,63 @@ export function clientBoundaryProps(context: SsrContext, vnode: VNode): Record<s
 }
 
 /** Reads compiler-owned interaction hydration metadata without exposing it as component props. */
-export function clientBoundaryHydration(vnode: VNode): 'interaction' | 'eager' | undefined {
-	const props = unwrap(vnode.props.props);
+export function clientBoundaryHydration(
+	boundary: ExactServerBoundaryReceiptData
+): 'interaction' | 'eager' | undefined {
+	const props = unwrap(boundary.props);
 	if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
 	const hydration = (props as Record<string, unknown>).__exactHydration;
 	return hydration === 'interaction' || hydration === 'eager' ? hydration : undefined;
 }
 
-/** Reads the inert server-rendered VNode used by an interaction-activated client island. */
-export function clientBoundaryHydrationFallback(vnode: VNode): VNode | undefined {
-	const props = unwrap(vnode.props.props);
+/** Reads the inert server-rendered operation used by an interaction-activated client island. */
+export function clientBoundaryHydrationFallback(
+	boundary: ExactServerBoundaryReceiptData
+): Child | undefined {
+	const props = unwrap(boundary.props);
 	if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
 	const fallback = (props as Record<string, unknown>).__exactHydrationFallback;
-	return fallback && typeof fallback === 'object' && 'type' in fallback
-		? (fallback as VNode)
-		: undefined;
+	return fallback as Child | undefined;
 }
 
 /** Transforms server boundary children into its required representation. */
 export function renderServerBoundaryChildren(
 	context: SsrContext,
-	vnode: VNode,
+	boundary: ExactServerBoundaryReceiptData,
 	parent: AnyComponentInstance | undefined
 ): string {
-	if (!vnode.children.length) return '';
-	const slots = serverBoundarySlotReferences(vnode);
+	if (!boundary.children.length) return '';
+	const slots = serverBoundarySlotReferences(boundary);
 	if (slots) {
-		return vnode.children
+		return boundary.children
 			.map(
 				(child, index) =>
 					`${serverSlotOpening(slots[index]!, context)}${renderChildren(context, [child], parent, true)}</span>`
 			)
 			.join('');
 	}
-	const slotId = serverSlotId(String(unwrap(vnode.props.id) ?? ''));
-	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, vnode.children, parent, true)}</span>`;
+	const slotId = serverSlotId(boundary.id);
+	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, boundary.children, parent, true)}</span>`;
 }
 
 /** Reads and validates compiler-owned independent range identities. */
-export function serverBoundarySlotIds(vnode: VNode): readonly string[] | undefined {
-	return serverBoundarySlotReferences(vnode)?.map((slot) => slot.id);
+export function serverBoundarySlotIds(
+	boundary: ExactServerBoundaryReceiptData
+): readonly string[] | undefined {
+	return serverBoundarySlotReferences(boundary)?.map((slot) => slot.id);
 }
 
 /** Reads and validates compiler-owned independent range authority. */
 export function serverBoundarySlotReferences(
-	vnode: VNode
+	boundary: ExactServerBoundaryReceiptData
 ): readonly ExactServerSlotReference[] | undefined {
-	const props = unwrap(vnode.props.props);
+	const props = unwrap(boundary.props);
 	if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
 	const value = (props as Record<string, unknown>).__exactServerSlots;
 	if (value === undefined) return undefined;
 	if (
 		!Array.isArray(value) ||
-		value.length !== vnode.children.length ||
+		value.length !== boundary.children.length ||
 		value.some((entry) => !serverSlotReference(entry))
 	) {
 		throw new Error('Client boundary partition slots must uniquely identify every server child');
@@ -179,13 +188,13 @@ export function serverBoundarySlotReferences(
 
 async function boundedServerRangeChildrenAsync(
 	context: SsrContext,
-	vnode: VNode,
+	boundary: ExactServerBoundaryReceiptData,
 	slots: readonly ExactServerSlotReference[],
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions
 ): Promise<string> {
 	const ranges = await Promise.all(
-		vnode.children.map(
+		boundary.children.map(
 			async (child, index) =>
 				`${serverSlotOpening(slots[index]!, context)}${await renderChildrenAsync(context, [child], parent, options, true)}</span>`
 		)

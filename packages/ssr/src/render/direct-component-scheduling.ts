@@ -1,39 +1,38 @@
 import {
 	attachSuppressedCleanupFailure,
-	isVNode,
 	type AnyComponentInstance,
-	type Child,
-	type VNode
+	type Child
 } from '@exactjs/core';
 import {
 	createServerComponentExecutionFrame,
-	withServerComponentVNodeIssuer,
+	withServerComponentIssuer,
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
 import type { SsrContext } from '../types.js';
-import { getComponentProps } from './component-vnode.js';
 import { prepareComponentProps } from './component-props.js';
 import { drainTasks } from './context.js';
 import { readDirectSsrContent } from './direct-component-content.js';
 import type {
 	DirectIssuedRender,
+	DirectScheduledPreparation,
 	DirectScheduledSsrComponent,
 	DirectSsrComponentLifetime,
 	PreparedDirectScheduledSsrComponent
 } from './direct-component-contracts.js';
 import {
-	createDirectSsrComponentFrame,
-	directSsrContextOwner,
 	inComponentDomain,
-	type DirectSsrComponentFrameConstructor,
 	type DirectSsrLifecycleCapability
 } from './direct-component-support.js';
+import { selectDirectSsrFrame } from './direct-frame-selection.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js';
+import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 import {
-	resolveSsrComponentExecution,
-	type SsrComponentExecutionBlueprint
-} from './root-execution-cache.js';
+	readServerComponentReference,
+	receiptExecutionBlueprint,
+	serverComponentProps,
+	type ServerComponentReference
+} from './server-component-reference.js';
 
 /**
  * Constructs compiler-closed scheduled setup on a request-local frame. Task activations begin
@@ -47,7 +46,7 @@ export function createDirectScheduledSsrComponent(
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): DirectScheduledSsrComponent | Promise<DirectScheduledSsrComponent | undefined> | undefined {
-	const server = blueprint.contract.definition.server;
+	const server = blueprint.contract.artifact.execution;
 	if (server?.lane !== 'direct' || server.classification !== 'scheduled' || !server.render)
 		return undefined;
 	const preparedProps = prepareComponentProps(rawProps, server.deferredTaskProps, options.signal);
@@ -65,6 +64,48 @@ export function createDirectScheduledSsrComponent(
 			);
 }
 
+/**
+ * Issues compiler-proven scheduled siblings before their serial HTML positions are written.
+ * The returned boundary releases only frames that later rendering did not consume.
+ */
+export function prepareDirectScheduledSsrComponentReferences(
+	context: SsrContext,
+	references: readonly ServerComponentReference[],
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions
+): DirectScheduledPreparation | undefined {
+	const prepared: PreparedDirectScheduledSsrComponent[] = [];
+	for (const reference of references) {
+		if (context.preparedDirectScheduledComponents?.has(reference)) continue;
+		let created:
+			| DirectScheduledSsrComponent
+			| Promise<DirectScheduledSsrComponent | undefined>
+			| undefined;
+		try {
+			created = createDirectScheduledSsrComponent(
+				context,
+				receiptExecutionBlueprint(reference),
+				serverComponentProps(reference),
+				parent,
+				options
+			);
+		} catch (error) {
+			created = Promise.reject(error);
+		}
+		if (!created) continue;
+		const record: PreparedDirectScheduledSsrComponent = {
+			component: Promise.resolve(created),
+			consumed: false,
+			reference
+		};
+		prepared.push(record);
+		(context.preparedDirectScheduledComponents ??= new WeakMap()).set(reference, record);
+	}
+	return prepared.length
+		? { [Symbol.asyncDispose]: () => disposePrepared(context, prepared) }
+		: undefined;
+}
+
 function constructDirectScheduledSsrComponent(
 	context: SsrContext,
 	blueprint: SsrComponentExecutionBlueprint,
@@ -72,22 +113,13 @@ function constructDirectScheduledSsrComponent(
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): DirectScheduledSsrComponent | Promise<never> {
-	const server = blueprint.contract.definition.server!;
-	const createFrame: DirectSsrComponentFrameConstructor =
-		(server.frame as DirectSsrComponentFrameConstructor | undefined) ??
-		createDirectSsrComponentFrame;
-	const frame = createFrame(
-		context,
-		blueprint.contract.definition.instantiate,
-		blueprint.componentId,
-		parent
-	);
-	const owner = server.frame ? directSsrContextOwner(frame) : parent;
+	const server = blueprint.contract.artifact.execution!;
+	const { frame, owner } = selectDirectSsrFrame(context, blueprint, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	const pending = new Set<Promise<unknown>>();
 	const execution: ServerComponentExecutionFrame = createServerComponentExecutionFrame(frame, {
 		observe(settlement) {
-			const observed = settlement.finally(() => pending.delete(observed));
+			const observed = Promise.resolve(settlement);
 			void observed.catch(() => undefined);
 			pending.add(observed);
 		},
@@ -118,6 +150,7 @@ function constructDirectScheduledSsrComponent(
 		snapshot: {
 			componentId: blueprint.componentId,
 			contract: blueprint.contract,
+			host: frame,
 			state: frame.state,
 			props
 		},
@@ -133,9 +166,13 @@ function constructDirectScheduledSsrComponent(
 			return issued;
 		},
 		async drain() {
-			const rerender = pending.size !== 0;
-			if (!rerender) return false;
-			await drainTasks(pending, context.maxTaskPasses, options.signal, options.taskDeadline);
+			if (pending.size === 0) return false;
+			await drainObservedBlockingTasks(
+				pending,
+				context.maxTaskPasses,
+				options.signal,
+				options.taskDeadline
+			);
 			return true;
 		},
 		async [Symbol.asyncDispose]() {
@@ -157,6 +194,27 @@ function constructDirectScheduledSsrComponent(
 			}
 		}
 	});
+}
+
+/**
+ * Drains and acknowledges every blocking generation observed before the current render completed.
+ * Settled promises remain queued until this point so a task that finishes while HTML is being
+ * serialized cannot publish state without forcing a fresh render pass.
+ */
+async function drainObservedBlockingTasks(
+	pending: Set<Promise<unknown>>,
+	maxPasses: number,
+	signal?: AbortSignal,
+	deadline?: number
+): Promise<void> {
+	const acknowledged = [...pending];
+	for (const settlement of acknowledged) pending.delete(settlement);
+	const draining = new Set<Promise<unknown>>();
+	for (const settlement of acknowledged) {
+		const tracked = settlement.finally(() => draining.delete(tracked));
+		draining.add(tracked);
+	}
+	await drainTasks(draining, maxPasses, signal, deadline);
 }
 
 async function disposeFailedDirectScheduledConstruction(
@@ -198,15 +256,15 @@ export function disposeDirectSsrLifetimeSync(
 		void Promise.resolve(disposal).catch(() => undefined);
 }
 
-/** Claims one frame issued when compiler-generated parent render code created this exact VNode. */
+/** Claims one frame issued when compiler-generated parent render code created this component. */
 export function takePreparedDirectScheduledSsrComponent(
 	context: SsrContext,
-	vnode: VNode
+	component: object
 ): Promise<DirectScheduledSsrComponent | undefined> | undefined {
-	const prepared = context.preparedDirectScheduledComponents?.get(vnode);
+	const prepared = context.preparedDirectScheduledComponents?.get(component);
 	if (!prepared || prepared.consumed) return undefined;
 	(prepared as { consumed: boolean }).consumed = true;
-	context.preparedDirectScheduledComponents?.delete(vnode);
+	context.preparedDirectScheduledComponents?.delete(component);
 	return prepared.component;
 }
 
@@ -219,31 +277,18 @@ export function renderIssuedServerComponentChildren(
 ): DirectIssuedRender | Promise<DirectIssuedRender> {
 	const prepared: PreparedDirectScheduledSsrComponent[] = [];
 	try {
-		const output = withServerComponentVNodeIssuer((candidate) => {
-			if (!isVNode(candidate) || typeof candidate.type !== 'function') return;
-			let created:
-				| DirectScheduledSsrComponent
-				| Promise<DirectScheduledSsrComponent | undefined>
-				| undefined;
-			try {
-				created = createDirectScheduledSsrComponent(
-					context,
-					resolveSsrComponentExecution(context, candidate.type),
-					getComponentProps(candidate),
-					owner,
-					options
-				);
-			} catch (error) {
-				created = Promise.reject(error);
-			}
-			if (!created) return;
-			const record: PreparedDirectScheduledSsrComponent = {
-				component: Promise.resolve(created),
-				consumed: false,
-				vnode: candidate
-			};
-			prepared.push(record);
-			(context.preparedDirectScheduledComponents ??= new WeakMap()).set(candidate, record);
+		const output = withServerComponentIssuer((candidate) => {
+			const component = readServerComponentReference(candidate);
+			if (!component) return;
+			const preparation = prepareDirectScheduledSsrComponentReferences(
+				context,
+				[component],
+				owner,
+				options
+			);
+			if (!preparation) return;
+			const record = context.preparedDirectScheduledComponents?.get(component);
+			if (record) prepared.push(record);
 		}, render);
 		return {
 			content: readDirectSsrContent(output),
@@ -272,7 +317,7 @@ async function disposePrepared(
 ): Promise<void> {
 	const failures: unknown[] = [];
 	for (const record of prepared) {
-		context.preparedDirectScheduledComponents?.delete(record.vnode);
+		context.preparedDirectScheduledComponents?.delete(record.reference);
 		if (record.consumed) continue;
 		try {
 			const component = await record.component;

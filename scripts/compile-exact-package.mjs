@@ -3,6 +3,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
+import {
+	isProductionSourceDirectory,
+	isProductionSourceFile
+} from './package-source-selection.mjs';
 
 const packageRoot = path.resolve(process.argv[2] ?? process.cwd());
 const sourceRoot = path.join(packageRoot, 'src');
@@ -152,6 +156,7 @@ async function rebaseSourceMaps(directory) {
 async function verifyCompiledExports(target, targetDirectory) {
 	const expected = normalizedCompiledComponents();
 	for (const [subpath, names] of Object.entries(expected)) {
+		if (!names.length) continue;
 		const candidates = compiledExportTargets(subpath, targetDirectory);
 		if (!candidates.length)
 			throw new Error(`${manifest.name} has no ${target} artifact export for ${subpath}`);
@@ -165,7 +170,9 @@ async function verifyCompiledExports(target, targetDirectory) {
 				const identity = component?.[Symbol.for('@exactjs/component')];
 				if (
 					typeof component !== 'function' ||
-					!contract?.definition ||
+					!contract?.artifact ||
+					contract.artifact.target !== target ||
+					contract.artifact.id !== identity ||
 					typeof identity !== 'string'
 				) {
 					throw new Error(
@@ -287,13 +294,9 @@ async function productionSources(directory) {
 	for (const entry of await readdir(directory, { withFileTypes: true })) {
 		const filename = path.join(directory, entry.name);
 		if (entry.isDirectory()) {
+			if (!isProductionSourceDirectory(entry.name)) continue;
 			sources.push(...(await productionSources(filename)));
-		} else if (
-			/\.[cm]?[jt]sx?$/i.test(entry.name) &&
-			!/\.d\.[cm]?ts$/i.test(entry.name) &&
-			!/(?:^|\.)test\.[cm]?[jt]sx?$/i.test(entry.name) &&
-			(!excludesFixtureArtifacts || !/(?:^|\.)fixtures?\.[cm]?[jt]sx?$/i.test(entry.name))
-		) {
+		} else if (isProductionSourceFile(entry.name, excludesFixtureArtifacts)) {
 			sources.push(filename);
 		}
 	}

@@ -2,30 +2,34 @@ import {
 	type AnyComponentInstance,
 	ReadinessContext,
 	SuspensionContext,
-	type Component,
 	type ReadinessCoordinator
 } from '@exactjs/core';
-import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
+import { createFrameworkLogicalOwner } from '@exactjs/core/runtime/render';
+import type { SsrContext } from '../types.js';
 
-/** Bridges one asynchronous SSR Suspense pass to the component readiness contexts. */
-export const SsrReadinessOwner = createExactInternalOwnerArtifact(
-	function SsrReadinessOwner(
-		this: Component<Record<string, never>>,
-		props: { context: ReadinessCoordinator['context'] }
-	) {
-		const owner = this as AnyComponentInstance;
-		owner.contexts.set(ReadinessContext.id, props.context);
-		owner.contexts.set(SuspensionContext.id, {
-			suspend: (settlement: PromiseLike<unknown>) =>
-				props.context.register({
-					owner,
-					taskGeneration: 0,
-					settlement,
-					retry: true
-				})
-		});
-		return () => null;
-	},
-	'@exactjs/ssr:ReadinessOwner',
-	'server'
-);
+/** Creates the request-local logical owner for one asynchronous SSR Suspense pass. */
+export function createSsrReadinessOwner(
+	context: SsrContext,
+	parent: AnyComponentInstance | undefined,
+	readiness: ReadinessCoordinator['context']
+): AnyComponentInstance {
+	if (!context.componentDomain)
+		throw new TypeError('SSR readiness ownership requires a component domain');
+	return createFrameworkLogicalOwner(
+		parent,
+		context.componentContexts,
+		context.componentDomain,
+		(owner) => {
+			owner.contexts.set(ReadinessContext.id, readiness);
+			owner.contexts.set(SuspensionContext.id, {
+				suspend: (settlement: PromiseLike<unknown>) =>
+					readiness.register({
+						owner,
+						taskGeneration: 0,
+						settlement,
+						retry: true
+					})
+			});
+		}
+	);
+}

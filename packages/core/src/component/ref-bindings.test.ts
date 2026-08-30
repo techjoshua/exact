@@ -1,9 +1,9 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { createRef } from '../keys.js';
 import '../runtime/refs.js';
 import type { Component, RefBinding } from './contracts.js';
-import { createFrameworkFixtureComponentInstance } from './runtime.js';
 
 describe('component ref bindings', () => {
 	it('returns one stable binding for each component and ref key', () => {

@@ -1,12 +1,14 @@
-import { createEnhancementNode, createVNode } from '@exactjs/core';
+import { createEnhancementNode } from '@exactjs/core';
 import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
-import { adoptStatic, render, unmount, type RenderOptions } from '@exactjs/dom';
+import { render, unmount, type RenderOptions } from '@exactjs/dom';
 import { registerDomEnhancementIntegration } from '@exactjs/dom/framework/enhancements';
+import { hydrate as hydrateRoot } from '@exactjs/hydrate/root';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import {
 	ActivityBoundary,
 	Branch,
 	DynamicTree,
+	HydrationTree,
 	InteractiveCounter,
 	KeyedList,
 	MixedTree,
@@ -18,11 +20,8 @@ import {
 	activityInstance,
 	branchInstance,
 	enhancementIdentity,
-	hydrationTree,
-	listInstance,
 	releaseActivityInstance,
 	releaseBranchInstance,
-	releaseListInstance,
 	releaseScalarInstance,
 	releaseSuspenseInstance,
 	scalarInstance,
@@ -137,14 +136,16 @@ function dynamicMount(count: number): ClientScenarioResult {
 
 function hydration(): ClientScenarioResult {
 	const container = createContainer();
-	container.innerHTML = '<!--exact:root--><i>first</i><b>second</b><!--/exact:root-->';
+	container.innerHTML = '<section><i>first</i><b>second</b></section>';
 	const retained = container.firstElementChild;
 	const started = performance.now();
-	const adopted = adoptStatic(hydrationTree(), container);
+	const root = hydrateRoot(<HydrationTree />, container, {
+		allowMarkerless: true,
+		onMismatch: 'throw'
+	});
 	const elapsed = performance.now() - started;
-	assert(adopted, 'compiled hydration fixture did not adopt matching DOM');
 	assert(container.firstElementChild === retained, 'hydration replaced matching DOM');
-	unmount(container);
+	root.dispose();
 	return elapsedResult('hydrationMs', elapsed, 2);
 }
 
@@ -199,13 +200,12 @@ function keyedListUpdate(count: number): ClientScenarioResult {
 		label: `Row ${index}`
 	}));
 	const container = createContainer();
-	releaseListInstance();
 	render(<KeyedList items={items} />, container);
-	assert(listInstance, 'compiled keyed-list component did not expose its instance');
 	const last = items.at(-1);
 	assert(last, 'keyed-list fixture requires at least one item');
+	const reordered = [last, ...items.slice(0, -1)];
 	const started = performance.now();
-	listInstance.state.items.splice(0, items.length, last, ...items.slice(0, -1));
+	render(<KeyedList items={reordered} />, container);
 	flushSync();
 	const elapsed = performance.now() - started;
 	assert(container.querySelectorAll('li').length === count, 'keyed update lost rows');
@@ -224,15 +224,21 @@ function enhancementReroute(): ClientScenarioResult {
 	const right = computed(() => !rootState.left);
 	const marker = (root: ReturnType<typeof computed<boolean>>) =>
 		createEnhancementNode([{ identity: enhancementIdentity, props: {}, root }]);
-	const tree = createVNode(
-		'section',
-		{
-			__exactEnhancements: createEnhancementNode([
-				{ identity: enhancementIdentity, props: { preset: 'fade' } }
-			])
-		},
-		createVNode('button', { id: 'left', __exactEnhancements: marker(left) }, 'Left'),
-		createVNode('button', { id: 'right', __exactEnhancements: marker(right) }, 'Right')
+	const tree = (
+		<section
+			{...{
+				__exactEnhancements: createEnhancementNode([
+					{ identity: enhancementIdentity, props: { preset: 'fade' } }
+				])
+			}}
+		>
+			<button id="left" {...{ __exactEnhancements: marker(left) }}>
+				Left
+			</button>
+			<button id="right" {...{ __exactEnhancements: marker(right) }}>
+				Right
+			</button>
+		</section>
 	);
 	const container = createContainer();
 	let renderFailure: unknown;

@@ -1,7 +1,6 @@
 import type {
 	EffectScope,
 	Reactive,
-	ReactiveRef,
 	ReactiveValue,
 	StopHandle
 } from '@exactjs/reactive/framework/runtime';
@@ -10,38 +9,6 @@ import type { ComponentLog } from '../logging.js';
 import type { ComponentReactiveValue, IterableItem } from './value-contracts.js';
 export type { TaskObserver } from './task-observer.js';
 export type * from './value-contracts.js';
-import type {
-	Activity,
-	Cell,
-	Dynamic,
-	Fragment,
-	Portal,
-	RenderProgram,
-	ServerBoundary,
-	ServerSlot,
-	Suspense,
-	Target,
-	Text,
-	UnsafeHtml
-} from '../symbols.js';
-
-/** Defines the vnode type type contract. */
-export type VNodeType =
-	| string
-	| typeof Activity
-	| typeof Fragment
-	| typeof Text
-	| typeof Cell
-	| typeof Dynamic
-	| typeof Portal
-	| typeof RenderProgram
-	| typeof ServerBoundary
-	| typeof ServerSlot
-	| typeof Suspense
-	| typeof Target
-	| typeof UnsafeHtml
-	| AnyComponentFunction;
-
 /** Controls whether a native Activity subtree is connected, parked, or prepared in background. */
 export type ActivityMode = 'active' | 'parked' | 'background';
 
@@ -82,18 +49,6 @@ export type ComponentContinuationDispatcher = (
 	request: ComponentContinuationDispatch
 ) => Promise<unknown>;
 
-/** Defines the vnode type contract. */
-export type VNode<Props = Record<string, unknown>> = {
-	type: VNodeType;
-	props: Props;
-	children: Child[];
-	key?: string;
-	/** Canonical compiler-owned enhancement render node for this authored JSX boundary. */
-	readonly enhancement?: CompiledEnhancementNode;
-	/** Captured when authored; explicit ownership survives cross-root composition. */
-	readonly domain?: ComponentDomain;
-};
-
 /** One canonical enhancement component attached to an authored JSX boundary. */
 export type EnhancementEntry = Readonly<{
 	identity: string;
@@ -111,23 +66,8 @@ export type EnhancementMarker = Readonly<{
 /** Canonical enhancement node interpreted by every render target. */
 export type CompiledEnhancementNode = EnhancementMarker;
 
-/** Defines the vnode cell type contract. */
-export type VNodeCell = {
-	readonly id: symbol;
-	readonly vnode: VNode;
-};
-
-/** Defines the list binding type contract. */
-export type ListBinding<T = unknown> = {
-	collection: Iterable<T>;
-	source?: ReactiveRef<Iterable<T>>;
-	key: (item: T) => string;
-	render: (item: T) => VNode;
-	cache?: Map<string, { item: T; vnode: VNode }>;
-};
-
 /** Defines the child type contract. */
-export type Child = VNode | string | number | boolean | null | undefined | object;
+export type Child = string | number | boolean | null | undefined | object;
 
 /** Describes the result produced by render. */
 export type RenderResult = Child | Child[];
@@ -238,7 +178,7 @@ export type ErrorContextValue = {
 
 /** Defines the suspension context value type contract. */
 export type SuspensionContextValue = {
-	suspend(promise: PromiseLike<unknown>): void;
+	suspend(promise: PromiseLike<unknown>): ReadinessRegistration | void;
 };
 
 /** Describes one task generation that participates in a readiness boundary. */
@@ -375,19 +315,19 @@ export interface Component<State extends object> {
 	map<Collection extends Iterable<unknown>>(
 		collection: ReactiveValue<Collection>,
 		key: (item: IterableItem<Collection>) => string,
-		render: (item: IterableItem<Collection>) => VNode,
+		render: (item: IterableItem<Collection>) => Child,
 		id?: string,
 		provenance?: Iterable<IterableItem<Collection>>,
 		keyIdentity?: string
-	): VNode;
+	): Child;
 	map<T>(
 		collection: Iterable<T>,
 		key: (item: T) => string,
-		render: (item: T) => VNode,
+		render: (item: T) => Child,
 		id?: string,
 		provenance?: Iterable<T>,
 		keyIdentity?: string
-	): VNode;
+	): Child;
 	onMount(handler: LifecycleHandler): void;
 	onActivate(handler: LifecycleHandler): void;
 	onDeactivate(handler: LifecycleHandler): void;
@@ -432,7 +372,12 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	endRender(): void;
 	markMounted(): void;
 	setActivity(token: symbol, active: boolean, reason?: string): void;
-	updateProps(props: Record<string, unknown>): void;
+	/** Applies one receiver-owned final-value receipt without allocating a replacement prop bag. */
+	receiveProps(
+		slots: readonly string[],
+		source: Readonly<Record<string, unknown>>,
+		children: readonly unknown[]
+	): void;
 	unmount(reason?: string): void;
 };
 

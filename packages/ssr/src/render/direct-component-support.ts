@@ -1,15 +1,17 @@
 import {
-	Fragment,
-	createVNode,
 	withComponentDomain,
 	type AnyComponentFunction,
 	type AnyComponentInstance,
 	type ContextToken,
 	type Reactive,
 	type ReactiveValue,
-	type VNode
+	type Child
 } from '@exactjs/core';
-import type { ComponentContextOwner } from '@exactjs/core/framework/server-component-contexts';
+import {
+	createCompiledFragmentReceipt,
+	createCompiledKeyedChildReceipt
+} from '@exactjs/core/runtime/component-operations';
+import type { DirectServerContextOwner } from '@exactjs/core/framework/server-component-contexts';
 import type { ComponentLogOwner } from '@exactjs/core/runtime/logging';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrContext } from '../types.js';
@@ -22,7 +24,7 @@ export type DirectSsrComponentFrame = Readonly<{
 
 /** Context-bearing direct frame linked only into artifacts that use the component context API. */
 export type DirectSsrContextFrame = DirectSsrComponentFrame &
-	ComponentContextOwner &
+	DirectServerContextOwner &
 	Readonly<{
 		type: AnyComponentFunction;
 		id: string;
@@ -60,19 +62,6 @@ export function directSsrContextOwner(frame: DirectSsrComponentFrame): AnyCompon
 	return frame as unknown as AnyComponentInstance;
 }
 
-/** Resolves compiler-emitted expression props without allocating the general readonly proxy. */
-export function directSsrProps(rawProps: Record<string, unknown>): Record<string, unknown> {
-	let resolved = rawProps;
-	for (const key of Object.keys(rawProps)) {
-		if (key === 'children') continue;
-		const value = unwrap(rawProps[key]);
-		if (Object.is(value, rawProps[key])) continue;
-		if (resolved === rawProps) resolved = { ...rawProps };
-		resolved[key] = value;
-	}
-	return resolved;
-}
-
 /** Executes component work in the request's error and inspection domain when present. */
 export function inComponentDomain<T>(context: SsrContext, work: () => T): T {
 	return context.componentDomain ? withComponentDomain(context.componentDomain, work) : work();
@@ -82,11 +71,13 @@ export function inComponentDomain<T>(context: SsrContext, work: () => T): T {
 function directSsrMap<T>(
 	collection: Iterable<T> | ReactiveValue<Iterable<T>>,
 	key: (item: T) => string,
-	render: (item: T) => VNode,
+	render: (item: T) => Child,
 	id?: string
-): VNode {
-	return createVNode(Fragment, {
-		key: id,
-		list: { collection: unwrap(collection) as Iterable<T>, key, render }
-	});
+): object {
+	return createCompiledFragmentReceipt(
+		{ key: id },
+		...[...(unwrap(collection) as Iterable<T>)].map((item) =>
+			createCompiledKeyedChildReceipt(render(item), key(item))
+		)
+	);
 }

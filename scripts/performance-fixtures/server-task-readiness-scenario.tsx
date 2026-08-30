@@ -97,7 +97,10 @@ export async function taskReadinessSsr(count: number): Promise<ServerScenarioRes
 		);
 	}
 	const expectedTasks = componentsPerRequest * requestCount;
-	assert(counters.started === expectedTasks, 'scheduled SSR lost task activations');
+	assert(
+		counters.started === expectedTasks,
+		`scheduled SSR task activations ${counters.started} !== ${expectedTasks}`
+	);
 	assert(counters.active === 0, 'scheduled SSR retained active task work');
 	const payload = Buffer.from(results.map((result) => result.html).join('\n'));
 	return {

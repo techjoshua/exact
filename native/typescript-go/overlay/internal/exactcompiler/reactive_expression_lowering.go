@@ -21,11 +21,23 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 	expression *ast.Node,
 	forwardLiveSlot bool,
 ) *ast.Node {
+	// Parameters of an ordinary operation factory are finalized invocation values, not a durable
+	// component props facade. Wrapping them as forwarded live slots leaks reactive operands into a
+	// root component receipt whose updates are driven by the renderer's next operation instead.
+	if forwardLiveSlot && lowering.unownedParameterForwarding(source) {
+		return expression
+	}
 	// A module-owned collection is stable, so values derived only from its callback
 	// parameters do not need subscriptions. Captures from the component are different:
 	// suppressing their wrappers freezes child props at the collection's first render.
 	if lowering.declarativeRenderDepth > 0 && !lowering.hasReactiveComponentCapture(source) {
 		return expression
+	}
+	if value := lowering.indexedReactiveExpression(source, expression); value != nil {
+		if paths, _ := lowering.componentExecutionOutputPaths(source); len(paths) == 0 ||
+			lowering.contractProjection == ComponentContractProjectionHydrate {
+			return value
+		}
 	}
 	closure := lowering.reactiveClosure(source)
 	if closure == nil {
@@ -55,6 +67,7 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		helper := lowering.names.componentOutput
 		if lowering.directServerArtifactComponent(source) {
 			helper = lowering.names.serverComponentOutput
+			value = closure
 		} else if lowering.directServerFrameComponent(source) {
 			return value
 		}
@@ -65,6 +78,75 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		})
 	}
 	return value
+}
+
+// indexedReactiveExpression replaces a one-use read closure and general computed node with the
+// stable reactive source already owned by a compiler-indexed state slot.
+func (lowering *jsxLowering) indexedReactiveExpression(source *ast.Node, expression *ast.Node) *ast.Node {
+	read, exists := lowering.stateReadSlots[nodeSpanKey(source)]
+	if !exists || (expression != source && !lowering.isIndexedReadExpression(expression)) {
+		return nil
+	}
+	receiver := directStateReadReceiver(source)
+	if receiver == nil {
+		return nil
+	}
+	result := lowering.call(lowering.names.indexedExpression, []*ast.Node{
+		lowering.visitor.VisitNode(receiver),
+		lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
+	})
+	lowering.indexedStateReads[result] = read
+	return result
+}
+
+// isIndexedReadExpression prevents a form-binding or other specialized projection from losing
+// conversion logic merely because its authored source is one direct state read.
+func (lowering *jsxLowering) isIndexedReadExpression(expression *ast.Node) bool {
+	for expression != nil {
+		switch {
+		case ast.IsParenthesizedExpression(expression):
+			expression = expression.AsParenthesizedExpression().Expression
+		case ast.IsAsExpression(expression):
+			expression = expression.AsAsExpression().Expression
+		case ast.IsSatisfiesExpression(expression):
+			expression = expression.AsSatisfiesExpression().Expression
+		case ast.IsNonNullExpression(expression):
+			expression = expression.AsNonNullExpression().Expression
+		default:
+			if !ast.IsCallExpression(expression) {
+				return false
+			}
+			callee := expression.AsCallExpression().Expression
+			return ast.IsIdentifier(callee) && callee.Text() == lowering.names.readState
+		}
+	}
+	return false
+}
+
+func (lowering *jsxLowering) unownedParameterForwarding(source *ast.Node) bool {
+	if _, owned := lowering.componentContaining(source); owned || lowering.checker == nil {
+		return false
+	}
+	root := source
+	for ast.IsPropertyAccessExpression(root) {
+		root = root.AsPropertyAccessExpression().Expression
+	}
+	for ast.IsElementAccessExpression(root) {
+		root = root.AsElementAccessExpression().Expression
+	}
+	if !ast.IsIdentifier(root) || ast.GetSourceFileOfNode(root) == nil {
+		return false
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if ast.IsParameterDeclaration(declaration) {
+			return true
+		}
+	}
+	return false
 }
 
 func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool {
@@ -308,6 +390,9 @@ func (lowering *jsxLowering) reactiveClosure(
 			}
 			variable := declaration.AsVariableDeclaration()
 			name := variable.Name()
+			if !renderLocalOwnedByExpression(id, expression, scope, lowering.checker) {
+				continue
+			}
 			if variable.Initializer == nil || name == nil ||
 				!ast.IsIdentifier(name) ||
 				!safeReactiveInitializer(
@@ -363,6 +448,35 @@ func (lowering *jsxLowering) reactiveClosure(
 		}
 	}
 	return lowering.materializedClosure(expression, bySymbol)
+}
+
+// renderLocalOwnedByExpression proves that moving a local initializer into one reactive
+// consumer cannot sever identity or discard work performed through another authored use.
+func renderLocalOwnedByExpression(
+	symbol ast.SymbolId,
+	expression *ast.Node,
+	scope *ast.Node,
+	typeChecker *checker.Checker,
+) bool {
+	owned := true
+	walkNode(scope, func(node *ast.Node) bool {
+		if !owned {
+			return false
+		}
+		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
+			return true
+		}
+		resolved := typeChecker.GetSymbolAtLocation(node)
+		if resolved == nil || ast.GetSymbolId(resolved) != symbol {
+			return true
+		}
+		if node.Pos() < expression.Pos() || node.End() > expression.End() {
+			owned = false
+			return false
+		}
+		return true
+	})
+	return owned
 }
 
 // cachedDerivedLocals identifies retained derived values whose repeated reads

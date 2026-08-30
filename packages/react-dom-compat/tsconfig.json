@@ -10,8 +10,6 @@
 		{ "path": "../core" },
 		{ "path": "../reactive" },
 		{ "path": "../dom" },
-		{ "path": "../hydrate" },
-		{ "path": "../ssr" },
 		{ "path": "../react-compat" }
 	],
 	"include": ["src"],

@@ -4,7 +4,10 @@ import type { AccessibilityProps, AriaRefList, OptionalAriaRef } from './contrac
 
 type RelationshipContributions = Readonly<Record<string, ReactiveValue<string | undefined>>>;
 
-/** Creates reactive target contributions for every supported ARIA ID-reference property. */
+/**
+ * Creates reactive target contributions for every supported ARIA ID-reference property.
+ * @exact pure
+ */
 export function createRelationshipContributions(
 	props: AccessibilityProps
 ): RelationshipContributions {

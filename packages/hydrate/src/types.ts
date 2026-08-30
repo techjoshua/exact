@@ -28,6 +28,8 @@ export type HydrateOptions = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
+	/** @internal Server proof that only the redundant compiled-root delimiter was omitted. */
+	markerlessRoot?: true;
 	logger?: Logger;
 	onMismatch?: 'replace' | 'throw';
 	fetch?: FetchLike;
@@ -83,7 +85,7 @@ export type HydrateOptions = {
 	allowMarkerless?: boolean;
 	/** Maximum DOM render values processed by one hydration/adoption update. */
 	maxTreeNodes?: number;
-	/** Maximum DOM vnode depth processed by hydration/adoption. */
+	/** Maximum native operation depth processed by hydration or adoption. */
 	maxTreeDepth?: number;
 	/** Allows unsafeHtml() ranges and accepts responsibility for their contents. */
 	allowUnsafeHtml?: boolean;
@@ -113,7 +115,7 @@ export type ExactPartitionInstance = Readonly<{
 /** Reports total or phase-level timings for one hydration attempt. */
 export type HydrateProfileEvent = ExactProfileEvent<
 	'hydrate',
-	'hydrate' | 'capture-dom' | 'adopt-dom' | 'restore-controls'
+	'hydrate' | 'create-client' | 'capture-dom' | 'adopt-dom' | 'restore-controls'
 >;
 
 /** Reports the structural outcome of one root or client-island hydration attempt. */
@@ -152,6 +154,8 @@ export type ExactHydrationConfig = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
+	/** Internal server proof that the compiled root has no serialized component delimiter. */
+	markerlessRoot?: true;
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;

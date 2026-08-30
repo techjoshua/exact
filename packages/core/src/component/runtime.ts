@@ -6,27 +6,16 @@ import type {
 	ComponentFunction,
 	ComponentInstance
 } from './contracts.js';
-import { cleanupFailedComponentConstruction } from './construction.js';
 import { createErrorReport, handleComponentError } from './errors.js';
 import {
 	clearComponentLifecycleHandlers,
 	componentLifecycleHandlers
 } from './lifecycle-handlers.js';
 import { optionalComponentListCapability } from './list-capability.js';
-import {
-	componentTaskCapability,
-	type ComponentTaskCapability,
-	type ComponentTaskCapabilityState
-} from './task-capability.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
-import type { ExactCompiledComponentContract } from '../component-contracts.js';
-import {
-	compiledComponentLifecycleABI,
-	compiledComponentListsABI,
-	compiledComponentTasksABI
-} from './compiled-abi.js';
-import { CompactComponentInstance } from './compact-instance.js';
-import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
+import type { ExactExecutableComponentContract } from '../component-contracts.js';
+import { compiledComponentLifecycleABI, compiledComponentListsABI } from './compiled-abi.js';
+import { TaskComponentInstance } from './task-instance.js';
 export { reparentComponentInstance } from './ownership.js';
 
 /**
@@ -38,12 +27,10 @@ export { reparentComponentInstance } from './ownership.js';
 export class ComponentInstanceImpl<
 	State extends object,
 	Props extends Record<string, unknown>
-> extends CompactComponentInstance<State, Props> {
+> extends TaskComponentInstance<State, Props> {
 	mountController?: AbortController;
 	activationController?: AbortController;
 
-	private readonly taskCapability: ComponentTaskCapability | undefined;
-	private taskState?: ComponentTaskCapabilityState;
 	private durableReleased = false;
 
 	constructor(
@@ -54,45 +41,9 @@ export class ComponentInstanceImpl<
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
 		execution: PreparedComponentExecution | undefined,
-		contract: ExactCompiledComponentContract
+		contract: ExactExecutableComponentContract
 	) {
-		super(type, rawProps, parent, ambientContexts, domain, contract);
-		this.taskCapability =
-			this.runtimeABI & compiledComponentTasksABI ? componentTaskCapability() : undefined;
-		if (this.runtimeABI & compiledComponentTasksABI && !this.taskCapability) {
-			const error = new Error(
-				'Durable task component construction requires the compiler-selected task capability'
-			);
-			cleanupFailedComponentConstruction(this, error);
-			throw error;
-		}
-
-		try {
-			this.taskState = this.taskCapability?.create(
-				this,
-				type,
-				contract,
-				execution,
-				rawProps,
-				Boolean(this.componentResumption)
-			);
-			this.initializeComponent(() =>
-				this.taskCapability
-					? this.taskCapability.run(this.taskState, () =>
-							instantiate.call(this, this.props as Props)
-						)
-					: instantiate.call(this, this.props as Props)
-			);
-			if (this.componentResumption)
-				this.taskCapability?.resume(
-					this.taskState,
-					new Set(this.componentResumption.settledContinuations)
-				);
-			this.taskCapability?.retain(this.taskState, this);
-		} catch (error) {
-			cleanupFailedComponentConstruction(this, error);
-			throw error;
-		}
+		super(type, rawProps, parent, ambientContexts, domain, execution, contract, instantiate);
 	}
 
 	/** Opens compiler-selected list bookkeeping for one render pass when lists are present. */
@@ -105,7 +56,7 @@ export class ComponentInstanceImpl<
 		if (this.runtimeABI & compiledComponentListsABI) optionalComponentListCapability()?.end(this);
 	}
 
-	/** Releases list, lifecycle, and task ownership after common reactive disposal. */
+	/** Releases list and lifecycle ownership after common reactive and task disposal. */
 	override unmount(reason = 'unmount'): void {
 		let primary: unknown;
 		try {
@@ -125,7 +76,6 @@ export class ComponentInstanceImpl<
 			if (this.runtimeABI & compiledComponentListsABI)
 				teardown(() => optionalComponentListCapability()?.dispose(this));
 			if (this.mountController) teardown(() => this.mountController!.abort(reason));
-			if (this.taskState) teardown(() => this.taskCapability?.release(this.taskState, this));
 			const unmountHandlers =
 				this.runtimeABI & compiledComponentLifecycleABI
 					? componentLifecycleHandlers(this, 'unmount')
@@ -206,10 +156,7 @@ export class ComponentInstanceImpl<
 	}
 }
 
-registerComponentRuntimeSurfaceTarget(ComponentInstanceImpl.prototype);
-
 export {
 	createComponentInstance,
-	createFrameworkFixtureComponentInstance,
 	createPreparedComponentInstance
 } from './runtime-construction.js';

@@ -19,8 +19,11 @@ Status: implemented foundation with the explicit limits listed below.
   its own eXact runtime instead of transferring DOM ownership to its parent window. Scheduling uses
   that current document's readiness and queues. Activation has one terminal settlement:
   scheduling and hydration failures remove pending hooks and cannot trigger a later retry.
-  An opt-in hydration profile reports DOM capture, adoption, control restoration, and total
-  hydration separately so applications can distinguish scheduling delay from adoption work.
+  The ordinary opt-in sink reports aggregate hydration. The framework-comparison diagnostic build
+  adds client creation, DOM capture, adoption, and control-restoration phases without shipping those
+  timers in a production application. Its nested DOM profile divides adoption into component
+  construction and attachment plus render-program claim, structural-child adoption, and binding,
+  so maintainers can distinguish scheduling delay from the exact adoption work performed.
 - `@exactjs/server` owns allowlisted invocation/refresh dispatch, request
   validation, authorization hooks, limits, and runtime-neutral adapters.
 - `@exactjs/compiler` owns placement, artifact generation, operation
@@ -54,8 +57,14 @@ generic render tape or retain client templates and topology tables. Markerless S
 values directly. A synchronous compiler-closed component executes on a request-local state frame
 without allocating the browser's durable component instance. The frame snapshots compiler
 expression props, publishes only compiler-selected resumable state after successful output, and
-uses a shared non-retaining keyed-list fallback if the generated writer rejects an unexpected slot
-shape. Hydratable SSR also omits scalar delimiters when static markup bounds
+uses a shared non-retaining keyed-child renderer if a generated list callback produces a dynamic
+slot shape. Compiler-closed child ranges, keyed children, and nested component calls are prepared as
+request-local server ABI carriers and consumed directly; they are not VNodes or public opaque
+operations and are never retained or serialized. A prepared server render program retains a small
+nominal wrapper so ordinary child normalization cannot flatten its compiler-created values array.
+All server invocations share one immutable empty client-reader table; request values remain owned by
+the wrapper and are released with it. Hydratable SSR also omits scalar delimiters when
+static markup bounds
 the value on both sides; the client claims that text, or creates an owned empty text node, at the
 compiled position. Adjacent text retains delimiters where browser parsing could merge independently
 updated values. Client mounting clones a cached inert template, and hydration adopts elements and
@@ -64,8 +73,14 @@ by their intrinsic JSX ancestors, and standalone SVG or MathML programs mount th
 namespace-correct template. A finite intrinsic client program may contain compiler-owned structural
 child slots: the server renders those children recursively through the ordinary dynamic-marker
 protocol, while hydration adopts and subsequently patches only the marked child range. Enhancement-
-routed, opaque-spread, raw-content, and otherwise unproven hosts use the lazy region-local VNode
-fallback.
+routed, opaque-spread, raw-content, and otherwise dynamic hosts select explicit focused operations;
+native TSX does not retain a region-local VNode fallback.
+
+Compiler-closed render programs encode retained scalar, structural-child, and component ranges as
+paired `x:` comments with dense artifact-local base-36 ordinals. Client and server projections
+derive those ordinals from the same marker-only sequence even when their complete slot tables
+differ. The program root scopes the identities; they are not durable application or transport
+identifiers.
 
 A client program places a statically resolved native component in an explicit component lifecycle
 slot. Server and complete artifacts retain the component's recursive execution and add the same
@@ -107,17 +122,24 @@ The component consumes generated input/output slices directly. It allocates neit
 instance nor a reactive component scope. Its generated setup and task bodies mutate that plain state
 directly; request cancellation wraps only the awaits and owned timers that need it. Compiler-proven scheduled child slots emit direct issue
 calls in the server artifact, so their setup tasks can enter the bounded scheduler while the parent
-creates their VNodes and before the first sibling settles. Each request owns and disposes its frames, task generations, cancellation, and buffered
-resumption snapshots; immutable component contracts and prepared indexes are the only cross-request
-state. Direct artifacts also omit the generic reactive error context. A direct construction
+prepares their child invocations and before the first sibling settles. Each request owns and disposes its frames, task generations, cancellation, and buffered
+resumption snapshots; immutable component contracts, cached resumption schemas, and prepared
+indexes are the only cross-request state. Cached schemas contain no request values: they retain
+only compiler-selected path segments, context order, and allowed continuation identities. Direct artifacts also omit the generic reactive error context. A direct construction
 failure propagates through the request unless the reachable artifact graph explicitly installs the
 generic component/error-boundary capability.
 
 Context providers and consumers do not require that generic component capability. Their direct
 frames form a request-local logical parent chain and store only contexts actually published by the
 component. This preserves nearest-provider and ambient-request lookup while allowing forwarded
-children or manually constructed VNodes to retain the universal serializer when their output
-topology is not compiler-closed.
+children or explicit foreign compatibility values to retain their owning serializer when their
+output topology is not compiler-closed.
+
+Hydration publication validates the original payload graph before compaction or encoding, including
+depth, node-count, prototype, descriptor, cycle, and accessor restrictions. Serialization then
+encodes validated reactive collections through the JSON replacer instead of first constructing a
+second encoded object graph. The byte limit is computed over the exact escaped UTF-8 payload without
+allocating an intermediate byte array.
 
 After output extensions choose the rendered root, SSR reuses a root-keyed immutable contract
 blueprint for components reached beneath that root, including dynamic components on first use. It
@@ -138,7 +160,7 @@ repair or clear the root container. Compiler-proven native component calls use t
 identity marker without an additional cell marker pair. Intrinsic cells and structural expression
 ranges retain their markers because those ranges still own independent reactive updates.
 Closed client render programs adopt their intrinsic nodes, scalar slots, and structural child
-ranges through compiler-generated claim calls. Those calls walk the known static topology in DOM
+ranges through component-local claim tuples. Shared focused operations walk the known static topology in DOM
 order. A structural call advances directly to its matching close marker, so a variable number of
 SSR nodes cannot perturb later static siblings. The successful path therefore creates neither a
 region-local identity map nor a second interpreted node/slot plan. The same generated executor
@@ -158,6 +180,12 @@ later sibling requires a concrete boundary. A compiler-proven final structural o
 uses its parent and the end of the child list as its complete retained boundary, so its server markup
 does not emit an otherwise redundant comment pair.
 
+Compiler-closed hydratable component roots likewise omit the outer component boundary. Their
+hydration payload carries `m: 1`, which is a compiler proof for markerless root attachment rather
+than a request to ignore marker validation. Nested range comments keep their ordinary ownership.
+When the hydration JSON script is emitted beside the root markup, attachment keeps the script in the
+DOM but excludes it from the component's adopted output range.
+
 Schema-defined empty hydration metadata is omitted from compiler registrations and document
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
 shared immutable empty values. This compaction never applies recursively to authored state, props,
@@ -175,6 +203,10 @@ contract must keep the default complete server mode or build a separate executor
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.
+Artifact generation may also emit a named client bootstrap from that registration. The build graph
+selects the server-operation and lazy-island client surface before bundling, while the emitted
+module contains only executable registrations and request-independent tables—not the graph's
+descriptive component or partition inventory.
 When a lazy island later exposes the same compiler contract, hydration canonicalizes omitted empty
 client fields before comparison. Equivalent repeat registration is idempotent; a materially
 different contract with the same continuation identity remains an error.

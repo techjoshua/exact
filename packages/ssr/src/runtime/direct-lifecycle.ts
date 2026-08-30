@@ -11,9 +11,10 @@ type DirectSsrLifecycleRecord = {
 	disposed?: boolean;
 };
 
-const records = new WeakMap<DirectSsrComponentFrame, DirectSsrLifecycleRecord>();
+const records = new WeakMap<object, DirectSsrLifecycleRecord>();
+const extractedMethods = new WeakMap<object, Map<string, (...args: unknown[]) => unknown>>();
 
-function record(frame: DirectSsrComponentFrame): DirectSsrLifecycleRecord {
+function record(frame: object): DirectSsrLifecycleRecord {
 	let value = records.get(frame);
 	if (!value) {
 		value = {};
@@ -31,7 +32,7 @@ function observe(record: DirectSsrLifecycleRecord, value: unknown): void {
 
 /** Registers a compiler-proven server unmount callback on its request-local direct frame. */
 export function registerDirectSsrLifecycleHandler(
-	frame: DirectSsrComponentFrame,
+	frame: object,
 	_phase: 'unmount',
 	handler: LifecycleHandler
 ): void {
@@ -39,23 +40,45 @@ export function registerDirectSsrLifecycleHandler(
 }
 
 /** Registers a compiler-proven server render observer on its request-local direct frame. */
-export function registerDirectSsrRenderHandler(
-	frame: DirectSsrComponentFrame,
-	handler: RenderEventHandler
-): void {
+export function registerDirectSsrRenderHandler(frame: object, handler: RenderEventHandler): void {
 	(record(frame).render ??= []).push(handler);
 }
 
 /** Transfers one compiler-proven disposable to the request-local direct frame. */
 export function ownDirectSsrResource<
 	T extends Disposable | AsyncDisposable | { dispose(): unknown }
->(frame: DirectSsrComponentFrame, resource: T): T {
+>(frame: object, resource: T): T {
 	registerDirectSsrLifecycleHandler(frame, 'unmount', () => {
 		if ('dispose' in resource) return resource.dispose();
 		if (Symbol.dispose in resource) return resource[Symbol.dispose]();
 		return resource[Symbol.asyncDispose]();
 	});
 	return resource;
+}
+
+/** Returns a stable extracted lifecycle operation selected by generated server code. */
+export function directSsrLifecycleMethod(
+	frame: object,
+	operation: 'onMount' | 'onActivate' | 'onDeactivate' | 'onUnmount' | 'onRender' | 'own'
+): (...args: unknown[]) => unknown {
+	let methods = extractedMethods.get(frame);
+	if (!methods) {
+		methods = new Map();
+		extractedMethods.set(frame, methods);
+	}
+	const existing = methods.get(operation);
+	if (existing) return existing;
+	const method: (...args: unknown[]) => unknown =
+		operation === 'onUnmount'
+			? (handler) =>
+					registerDirectSsrLifecycleHandler(frame, 'unmount', handler as LifecycleHandler)
+			: operation === 'onRender'
+				? (handler) => registerDirectSsrRenderHandler(frame, handler as RenderEventHandler)
+				: operation === 'own'
+					? (resource) => ownDirectSsrResource(frame, resource as Disposable)
+					: () => undefined;
+	methods.set(operation, method);
+	return method;
 }
 
 function rendered(frame: DirectSsrComponentFrame, duration: number): void {

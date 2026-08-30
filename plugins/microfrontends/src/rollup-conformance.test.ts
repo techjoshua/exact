@@ -23,10 +23,10 @@ describe('Vite/Rollup remote producer conformance', () => {
 		await writeFile(
 			path.join(root, 'src', 'Area.js'),
 			[
-				`import { createVNode } from '@exactjs/core';`,
+				`import { createOperation } from '@exactjs/core';`,
 				`import './area.css';`,
 				`function Area() {`,
-				`  return () => createVNode('p', null, 'remote');`,
+				`  return () => createOperation('p', null, 'remote');`,
 				`}`,
 				`Area.loadLazy = () => import('./lazy.js');`,
 				`export default Area;`,
@@ -123,7 +123,7 @@ describe('Vite/Rollup remote producer conformance', () => {
 		(globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exactjs/provided-packages')] = {
 			require(key: string) {
 				if (key !== '@exactjs/core') throw new Error(`unexpected provider ${key}`);
-				return { createVNode: () => undefined };
+				return { createOperation: () => undefined };
 			}
 		};
 		try {

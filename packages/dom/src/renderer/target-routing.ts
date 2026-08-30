@@ -1,4 +1,4 @@
-import { type AnyComponentInstance, Target } from '@exactjs/core';
+import { type AnyComponentInstance } from '@exactjs/core';
 import type { Mounted } from '../types.js';
 
 /** One mounted semantic target and the logical owner frame that selected it. */
@@ -34,8 +34,8 @@ function findTargetBoundaryChild(
 	dependencies?: Set<Mounted>
 ): MountedTarget | undefined {
 	dependencies?.add(mounted);
-	if (typeof mounted.vnode.type === 'string') return { mounted, owner, parentInstance, depth };
-	if (mounted.vnode.type === Target && mounted.targetBoundary?.selected)
+	if (isMountedSemanticIntrinsic(mounted)) return { mounted, owner, parentInstance, depth };
+	if (mounted.targetReceipt && mounted.targetBoundary?.selected)
 		return locateMountedTarget(
 			mounted,
 			mounted.targetBoundary.selected,
@@ -44,7 +44,7 @@ function findTargetBoundaryChild(
 			depth,
 			dependencies
 		);
-	if (typeof mounted.vnode.type === 'function') {
+	if (mounted.clientArtifact) {
 		const exported = findFirstTargetExport(
 			mounted,
 			owner,
@@ -73,7 +73,7 @@ export function findFirstTargetExport(
 	dependencies?: Set<Mounted>
 ): MountedTarget | undefined {
 	dependencies?.add(boundary);
-	if (!skipBoundary && boundary.vnode.type === Target && boundary.targetBoundary?.selected)
+	if (!skipBoundary && boundary.targetReceipt && boundary.targetBoundary?.selected)
 		return locateMountedTarget(
 			boundary,
 			boundary.targetBoundary.selected,
@@ -106,7 +106,7 @@ export function findRootBearingFrame(
 	dependencies?: Set<Mounted>
 ): RoutedTarget | undefined {
 	dependencies?.add(boundary);
-	const frame = typeof boundary.vnode.type === 'function' ? boundary : undefined;
+	const frame = boundary.clientArtifact ? boundary : undefined;
 	const children = frame ? boundary.children : [boundary];
 	const instance = frame?.instance ?? parentInstance;
 	for (const child of children) {
@@ -166,10 +166,10 @@ function findFirstRoot(
 			frame,
 			dependencies
 		);
-	if (typeof mounted.vnode.type === 'string') {
+	if (isMountedSemanticIntrinsic(mounted)) {
 		return { mounted, owner, parentInstance, depth, frame: frame ?? owner ?? mounted };
 	}
-	if (typeof mounted.vnode.type === 'function')
+	if (mounted.clientArtifact)
 		return findRootBearingFrame(mounted, owner, parentInstance, depth, dependencies);
 	const childInstance = mounted.instance ?? parentInstance;
 	for (const child of mounted.children) {
@@ -177,4 +177,11 @@ function findFirstRoot(
 		if (result) return result;
 	}
 	return undefined;
+}
+
+/** A compiled render program is the mounted semantic intrinsic represented by its physical root. */
+export function isMountedSemanticIntrinsic(mounted: Mounted): boolean {
+	return (
+		mounted.intrinsicReceipt !== undefined || mounted.renderProgram?.programRoot instanceof Element
+	);
 }

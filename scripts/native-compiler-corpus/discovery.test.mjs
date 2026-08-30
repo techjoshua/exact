@@ -9,3 +9,8 @@ test('excludes standard and target-specific generated distribution directories',
 	assert.equal(isExcludedNativeCompilerCorpusDirectory('dist-client'), true);
 	assert.equal(isExcludedNativeCompilerCorpusDirectory('src'), false);
 });
+
+test('keeps explicit test infrastructure outside the production native corpus', () => {
+	assert.equal(isExcludedNativeCompilerCorpusDirectory('test-support'), true);
+	assert.equal(isExcludedNativeCompilerCorpusDirectory('testing'), false);
+});

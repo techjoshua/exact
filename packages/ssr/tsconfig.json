@@ -16,5 +16,11 @@
 		{ "path": "../server" }
 	],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-support"]
+	"exclude": [
+		"src/**/*.fixtures.ts",
+		"src/**/*.fixtures.tsx",
+		"src/**/*.test.ts",
+		"src/**/*.test.tsx",
+		"src/test-support"
+	]
 }

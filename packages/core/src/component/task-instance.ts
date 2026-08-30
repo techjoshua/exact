@@ -1,4 +1,4 @@
-import type { ExactCompiledComponentContract } from '../component-contracts.js';
+import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import { cleanupFailedComponentConstruction } from './construction.js';
 import type {
@@ -8,12 +8,12 @@ import type {
 	ComponentInstance
 } from './contracts.js';
 import { CompactComponentInstance } from './compact-instance.js';
-import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
 import {
 	componentTaskCapability,
 	type ComponentTaskCapability,
 	type ComponentTaskCapabilityState
 } from './task-capability.js';
+import { compiledComponentTasksABI } from './compiled-abi.js';
 
 /** Compact durable record for task-owning artifacts without lifecycle or list machinery. */
 export class TaskComponentInstance<
@@ -31,11 +31,14 @@ export class TaskComponentInstance<
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
 		execution: PreparedComponentExecution | undefined,
-		contract: ExactCompiledComponentContract
+		contract: ExactExecutableComponentContract,
+		instantiate: ComponentFunction<State, Props> = contract.artifact
+			.instantiate as ComponentFunction<State, Props>
 	) {
 		super(type, rawProps, parent, ambientContexts, domain, contract);
-		const capability = componentTaskCapability();
-		if (!capability) {
+		const capability =
+			this.runtimeABI & compiledComponentTasksABI ? componentTaskCapability() : undefined;
+		if (this.runtimeABI & compiledComponentTasksABI && !capability) {
 			const error = new Error(
 				'Task component construction requires the compiler-selected task capability'
 			);
@@ -44,7 +47,7 @@ export class TaskComponentInstance<
 		}
 		this.taskCapability = capability;
 		try {
-			this.taskState = capability.create(
+			this.taskState = capability?.create(
 				this,
 				type,
 				contract,
@@ -52,17 +55,14 @@ export class TaskComponentInstance<
 				rawProps,
 				Boolean(this.componentResumption)
 			);
-			this.initializeComponent(() =>
-				capability.run(this.taskState, () =>
-					(contract.definition.instantiate as ComponentFunction<State, Props>).call(
-						this,
-						this.props as Props
-					)
-				)
-			);
-			if (this.componentResumption)
+			this.initializeComponent(() => {
+				return capability
+					? capability.run(this.taskState, () => instantiate.call(this, this.props as Props))
+					: instantiate.call(this, this.props as Props);
+			});
+			if (capability && this.componentResumption)
 				capability.resume(this.taskState, new Set(this.componentResumption.settledContinuations));
-			capability.retain(this.taskState, this);
+			capability?.retain(this.taskState, this);
 		} catch (error) {
 			cleanupFailedComponentConstruction(this, error);
 			throw error;
@@ -88,5 +88,3 @@ export class TaskComponentInstance<
 		if (primary !== undefined) throw primary;
 	}
 }
-
-registerComponentRuntimeSurfaceTarget(TaskComponentInstance.prototype);

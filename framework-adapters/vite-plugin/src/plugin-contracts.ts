@@ -26,6 +26,8 @@ export type ExactPluginOptions = {
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
 	applicationRoot?: string;
 	configPath?: string;
+	/** TypeScript project used for semantic eXact compilation; defaults to the nearest tsconfig. */
+	typescriptConfig?: string;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
 	configureJsxRuntime?: boolean;
@@ -99,7 +101,8 @@ export type ExactPlugin = {
 			): Promise<{ id: string; external?: boolean | 'absolute' | 'relative' } | null>;
 		},
 		source: string,
-		importer?: string
+		importer?: string,
+		options?: { ssr?: boolean }
 	):
 		| string
 		| { id: string; external?: boolean | 'absolute' | 'relative'; moduleSideEffects?: boolean }
@@ -123,7 +126,8 @@ export type ExactPlugin = {
 	transform(
 		this: { warn?(message: string): void },
 		code: string,
-		id: string
+		id: string,
+		options?: { ssr?: boolean }
 	):
 		| { code: string; map: unknown; moduleType?: 'js' }
 		| null

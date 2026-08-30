@@ -1,8 +1,8 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it } from 'vitest';
 
 import type { Component } from '../component/contracts.js';
 import { LoggerContext } from '../component/contexts.js';
-import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import type { LogEvent, Logger } from '../logging.js';
 import { TaskCancellation } from '../tasks/cancellation.js';
 import { joinTask } from '../tasks/frame-runtime.js';

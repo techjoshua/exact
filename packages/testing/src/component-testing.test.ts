@@ -16,15 +16,15 @@ import '@exactjs/dom/runtime/target';
 import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';
-import { createTestVNode as createVNode, markTestComponent } from './internal/fixtures.js';
+import { createTestOperation as createOperation, markTestComponent } from './internal/fixtures.js';
 
 describe('component testing', () => {
 	it('mounts ordinary target boundaries with composed semantic properties', async () => {
 		const view = await mountTest(
-			createVNode(
+			createOperation(
 				Target,
 				{ className: 'forwarded', 'aria-describedby': 'help' },
-				createVNode('button', { className: 'authored' }, 'Save')
+				createOperation('button', { className: 'authored' }, 'Save')
 			)
 		);
 
@@ -44,7 +44,7 @@ describe('component testing', () => {
 			setups++;
 			return () => props.children;
 		});
-		const target = createVNode(
+		const target = createOperation(
 			'button',
 			{
 				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'quiet' } }])
@@ -65,16 +65,20 @@ describe('component testing', () => {
 		const Name = createContext<string>('test.name');
 		function Child(this: Component<{}>) {
 			const name = this.getContext(Name);
-			return () => createVNode('span', null, name);
+			return () => createOperation('span', null, name);
 		}
 		function Counter(this: Component<{ count: number }>, props: { initial: number }) {
 			this.state.count = props.initial;
 			return () =>
-				createVNode(
+				createOperation(
 					'section',
 					null,
-					createVNode('button', { onClick: () => this.state.count++ }, `Count ${this.state.count}`),
-					createVNode(Child, {})
+					createOperation(
+						'button',
+						{ onClick: () => this.state.count++ },
+						`Count ${this.state.count}`
+					),
+					createOperation(Child, {})
 				);
 		}
 		const view = await testComponent(markTestComponent(Counter))
@@ -100,7 +104,7 @@ describe('component testing', () => {
 					this.state.ready = true;
 				})
 			);
-			return () => createVNode('p', null, this.state.ready ? 'Ready' : 'Waiting');
+			return () => createOperation('p', null, this.state.ready ? 'Ready' : 'Waiting');
 		}
 		const view = await testComponent(markTestComponent(AsyncPanel)).mount();
 		expect(view.root.getByText('Ready')).toBeDefined();
@@ -110,11 +114,11 @@ describe('component testing', () => {
 	it('rejects ambiguous singular queries and installs runner-neutral matchers', async () => {
 		function Buttons() {
 			return () =>
-				createVNode(
+				createOperation(
 					'div',
 					null,
-					createVNode('button', null, 'One'),
-					createVNode('button', null, 'Two')
+					createOperation('button', null, 'One'),
+					createOperation('button', null, 'Two')
 				);
 		}
 		const view = await testComponent(markTestComponent(Buttons)).mount();
@@ -130,15 +134,15 @@ describe('component testing', () => {
 	});
 
 	it('mounts intrinsic trees and supports recursive root component types', async () => {
-		const intrinsic = await mountTest(createVNode('button', null, 'Hello'));
+		const intrinsic = await mountTest(createOperation('button', null, 'Hello'));
 		expect(intrinsic.getByRole('button').text()).toBe('Hello');
 		intrinsic.unmount();
 
 		function Recursive(this: Component<{}>, props: { depth: number }) {
 			return () =>
 				props.depth
-					? createVNode(Recursive, { depth: props.depth - 1 })
-					: createVNode('p', null, 'Done');
+					? createOperation(Recursive, { depth: props.depth - 1 })
+					: createOperation('p', null, 'Done');
 		}
 		const recursive = await testComponent(markTestComponent(Recursive)).props({ depth: 2 }).mount();
 		expect(recursive.root.getByText('Done')).toBeDefined();
@@ -155,7 +159,7 @@ describe('component testing', () => {
 		expect(document.body.children.length).toBe(before);
 
 		function Stable() {
-			return () => createVNode('p', null, 'Stable');
+			return () => createOperation('p', null, 'Stable');
 		}
 		const view = await testComponent(markTestComponent(Stable)).mount();
 		const component = view.root;
@@ -169,8 +173,8 @@ describe('component testing', () => {
 			this.state.alternate = false;
 			return () =>
 				this.state.alternate
-					? createVNode('span', null, 'New')
-					: createVNode('button', null, 'Old');
+					? createOperation('span', null, 'New')
+					: createOperation('button', null, 'Old');
 		}
 		markTestComponent(Existing);
 		const first = await testComponent(Existing).container(container).mount();
@@ -190,7 +194,7 @@ describe('component testing', () => {
 			this.onUnmount(() => {
 				throw new Error('teardown failed');
 			});
-			return () => createVNode('p', null, 'Mounted');
+			return () => createOperation('p', null, 'Mounted');
 		}
 		const teardownErrors = createErrorContext();
 		teardownErrors.report = () => {
@@ -209,13 +213,13 @@ describe('component testing', () => {
 	it('excludes inaccessible roles and handles reusable regular expressions', async () => {
 		function Content() {
 			return () =>
-				createVNode(
+				createOperation(
 					'div',
 					null,
-					createVNode('button', { hidden: true }, 'Hidden'),
-					createVNode('button', null, 'Visible'),
-					createVNode('p', null, 'Repeat'),
-					createVNode('p', null, 'Repeat')
+					createOperation('button', { hidden: true }, 'Hidden'),
+					createOperation('button', null, 'Visible'),
+					createOperation('p', null, 'Repeat'),
+					createOperation('p', null, 'Repeat')
 				);
 		}
 		const view = await testComponent(markTestComponent(Content)).mount();
@@ -237,7 +241,7 @@ describe('component testing', () => {
 		function AsyncButton(this: Component<{ done: boolean }>) {
 			this.state.done = false;
 			return () =>
-				createVNode(
+				createOperation(
 					'button',
 					{
 						onClick: async () => {
@@ -266,7 +270,7 @@ describe('component testing', () => {
 		const errors = createErrorContext();
 		function RejectingButton() {
 			return () =>
-				createVNode(
+				createOperation(
 					'button',
 					{
 						onClick: async () => {

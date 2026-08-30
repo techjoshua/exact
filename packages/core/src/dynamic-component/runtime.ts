@@ -1,19 +1,21 @@
-import { peek, unwrap } from '@exactjs/reactive/framework/runtime';
+import { computed, peek, unwrap } from '@exactjs/reactive/framework/runtime';
 import { reactiveObjects } from '@exactjs/reactive/framework/objects';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import {
 	exactComponentIdentity,
 	isExactComponent,
-	readPreparedExactCompiledComponentContract
+	readPreparedExactExecutableComponentContract
 } from '../component-contracts.js';
 import type {
 	AuthoredComponentFunction,
 	Child,
-	ComponentFunction,
-	VNode
+	ComponentFunction
 } from '../component/contracts.js';
-import { createDynamicChild } from '../component/reactive-vnodes.js';
-import { createVNode } from '../vnode.js';
+import {
+	createChildRangeReceipt,
+	type ExactChildRangeReceipt
+} from '../component-abi/child-range-receipt.js';
+import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
 import { dynamicComponentResolverFor } from './creation.js';
 import type {
 	AnyDynamicComponentCandidate,
@@ -40,6 +42,8 @@ export type CompiledDynamicComponentOptions<Props extends Record<string, unknown
 		| DynamicComponentResolver<Props>
 		| AuthoredComponentFunction<Record<string, unknown>, Props>;
 	props: Props;
+	/** Compiler-proven finite registry candidates already carry target-local artifacts. */
+	finiteRegistry?: true;
 }>;
 
 /**
@@ -50,7 +54,7 @@ export type CompiledDynamicComponentOptions<Props extends Record<string, unknown
  */
 export function createCompiledDynamicComponent<Props extends Record<string, unknown>>(
 	options: CompiledDynamicComponentOptions<Props>
-): VNode {
+): ExactChildRangeReceipt {
 	if (!options.id) throw new TypeError('Compiled dynamic components require a stable identity');
 	const resolver =
 		dynamicComponentResolverFor<Props>(options.source) ??
@@ -88,7 +92,7 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 				const pending = Promise.resolve(result).then(
 					(candidate) => {
 						try {
-							settleCandidate(state, control, generation, candidate);
+							settleCandidate(state, control, generation, candidate, options.finiteRegistry);
 						} catch (error) {
 							settleFailure(state, control, generation, error);
 						}
@@ -100,7 +104,7 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 				return;
 			}
 			try {
-				settleCandidate(state, control, generation, result);
+				settleCandidate(state, control, generation, result, options.finiteRegistry);
 			} catch (error) {
 				settleFailure(state, control, generation, error);
 			}
@@ -112,45 +116,38 @@ export function createCompiledDynamicComponent<Props extends Record<string, unkn
 		}
 	);
 
-	const inspection = dynamicInspection(options.id, state);
-	const vnode = createDynamicChild(() => {
+	const inspection = dynamicInspection(options.id, state, options.finiteRegistry);
+	const value = computed(() => {
 		void state.revision;
 		switch (state.status) {
 			case 'available':
-				return createVNode(state.candidate! as ComponentFunction<Record<string, unknown>, Props>, {
-					...options.props,
-					key: `exact-dynamic:${options.id}:${state.generation}`
-				});
+				return createCompiledComponentReceipt(
+					state.candidate! as ComponentFunction<Record<string, unknown>, Props>,
+					{
+						...options.props,
+						key: `exact-dynamic:${options.id}:${state.generation}`
+					}
+				);
 			default:
 				return [] as Child[];
 		}
-	}, options.id);
-	return {
-		...vnode,
-		props: {
-			...vnode.props,
-			__exactDynamicComponent: inspection,
-			__exactDynamicComponentProps: options.props,
-			__exactDynamicComponentReadiness: () => state.pending
-		}
-	};
+	});
+	return createChildRangeReceipt(value, options.id, true, {
+		inspection,
+		props: options.props,
+		readiness: () => state.pending
+	});
 }
 
 /** Creates the inert server projection of an open client-only dynamic boundary. */
-export function createServerDynamicComponent(id: string): VNode {
+export function createServerDynamicComponent(id: string): ExactChildRangeReceipt {
 	if (!id) throw new TypeError('Server dynamic components require a stable identity');
 	const inspection: DynamicComponentInspection = Object.freeze({
 		id,
 		status: 'unassigned',
 		generation: 0
 	});
-	const vnode = createDynamicChild(() => {
-		throw new Error('Server rendering cannot resolve an open dynamic component');
-	}, id);
-	return {
-		...vnode,
-		props: { ...vnode.props, __exactDynamicComponent: inspection }
-	};
+	return createChildRangeReceipt(undefined, id, true, { inspection });
 }
 
 /** Creates a resolver for an annotated component-position expression. */
@@ -164,7 +161,8 @@ function settleCandidate<Props extends Record<string, unknown>>(
 	state: DynamicState<Props>,
 	control: { generation: number },
 	generation: number,
-	candidate: DynamicComponentResolution<Props>
+	candidate: DynamicComponentResolution<Props>,
+	finiteRegistry?: true
 ): void {
 	if (control.generation !== generation) return;
 	state.pending = undefined;
@@ -175,7 +173,7 @@ function settleCandidate<Props extends Record<string, unknown>>(
 		bumpRevision(state);
 		return;
 	}
-	validateCandidate(candidate);
+	if (!finiteRegistry) validateCandidate(candidate);
 	state.candidate = candidate;
 	state.status = 'available';
 	bumpRevision(state);
@@ -205,13 +203,13 @@ function validateCandidate(candidate: AnyDynamicComponentCandidate): void {
 		throw new TypeError(
 			'Dynamic component resolution requires a native or explicitly adapted component'
 		);
-	const contract = readPreparedExactCompiledComponentContract(candidate);
+	const contract = readPreparedExactExecutableComponentContract(candidate);
 	if (
 		contract.role === 'render' ||
 		contract.role === 'executor' ||
 		contract.placement === 'server' ||
-		contract.executors.length !== 0 ||
-		contract.continuations.length !== 0 ||
+		(contract.executors?.length ?? 0) !== 0 ||
+		(contract.continuations?.length ?? 0) !== 0 ||
 		contract.execution?.transitions.some((transition) => transition[3] === 'server')
 	) {
 		throw new Error(
@@ -222,7 +220,8 @@ function validateCandidate(candidate: AnyDynamicComponentCandidate): void {
 
 function dynamicInspection<Props extends Record<string, unknown>>(
 	id: string,
-	state: DynamicState<Props>
+	state: DynamicState<Props>,
+	finiteRegistry?: true
 ): DynamicComponentInspection {
 	return Object.freeze({
 		id,
@@ -233,9 +232,12 @@ function dynamicInspection<Props extends Record<string, unknown>>(
 			return state.generation;
 		},
 		get componentId() {
-			return state.candidate && isExactComponent(state.candidate)
+			if (!state.candidate) return undefined;
+			return finiteRegistry
 				? exactComponentIdentity(state.candidate)
-				: undefined;
+				: isExactComponent(state.candidate)
+					? exactComponentIdentity(state.candidate)
+					: undefined;
 		},
 		get error() {
 			return state.error;

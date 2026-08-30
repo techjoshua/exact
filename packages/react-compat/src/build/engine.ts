@@ -412,6 +412,7 @@ function classifyReactComponent(
 	graph: ReactCompatPackageGraph
 ): 'exact' | 'component' | 'unknown' | 'ambiguous' {
 	if (sourceModule === 'react' || sourceModule.startsWith('react/')) return 'component';
+	if (isExactTargetArtifactSpecifier(sourceModule)) return 'exact';
 	const signatureOwnership = ownershipFromSignatures(declarationSignatures);
 	if (signatureOwnership) return signatureOwnership;
 	const packageName = barePackageName(sourceModule);
@@ -466,6 +467,11 @@ function classifyReactComponent(
 		if (packageUsesExact) return 'exact';
 	}
 	return 'unknown';
+}
+
+/** Identifies compiler-owned physical component artifacts before foreign JSX adaptation. */
+function isExactTargetArtifactSpecifier(sourceModule: string): boolean {
+	return /(?:^|[/\\])[^/\\]+\.exact\.(?:client|server)\.[cm]?[jt]sx?$/i.test(sourceModule);
 }
 
 function ownershipFromSignatures(

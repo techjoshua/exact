@@ -3,20 +3,22 @@ import type {
 	ExactNarrowComponentUpdateContract,
 	ExactWideComponentUpdateContract
 } from '@exactjs/core/framework/component-contracts';
-import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
+import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
 import { subscribeKeys } from '@exactjs/reactive/framework/runtime';
 import {
 	bindComponentUpdateTarget,
 	compiledComponentUpdateState,
 	componentUpdateOwner,
 	createComponentDependencyGroup,
+	publishComponentUpdateTargets,
 	visitChangedComponentDependencyGroup,
+	type CompiledComponentUpdateTargets,
 	type CompiledComponentDependencyGroup
 } from './component-update-storage.js';
 
 type CompiledStateUpdateState = {
 	readonly d: CompiledComponentDependencyGroup;
-	readonly t: Array<ExactRenderProgramBindingTarget | undefined>;
+	readonly t: CompiledComponentUpdateTargets;
 };
 
 type CompiledWideStateUpdateState = CompiledStateUpdateState & {
@@ -88,7 +90,10 @@ function publishStateUpdate(
 		dirtyLow |= updates.bindings[index]![1];
 		dirtyHigh |= updates.bindings[index]![2];
 	});
-	if (dirtyLow || dirtyHigh) updates.apply(state.t, dirtyLow, dirtyHigh);
+	if (dirtyLow || dirtyHigh)
+		publishComponentUpdateTargets(state.t, (targets) =>
+			updates.apply(targets, dirtyLow, dirtyHigh)
+		);
 }
 
 function publishWideStateUpdate(
@@ -108,7 +113,9 @@ function publishWideStateUpdate(
 	});
 	if (!changed) return;
 	try {
-		updates.apply(state.t, dirtyLow, dirtyHigh, state.w);
+		publishComponentUpdateTargets(state.t, (targets) =>
+			updates.apply(targets, dirtyLow, dirtyHigh, state.w)
+		);
 	} finally {
 		state.w.fill(0);
 	}

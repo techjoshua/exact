@@ -1,10 +1,8 @@
 package exactcompiler
 
 import (
-	"slices"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 )
@@ -64,13 +62,57 @@ func (lowering *jsxLowering) recordClientIslandDefinitions(
 		}
 		lowering.recordedClientIslands[island.id] = struct{}{}
 		island.propsSlots = lowering.clientIslandPropsLayout(island)
+		definition := lowering.clientIslandDefinition(island)
+		initializer := lowering.factory.NewCallExpression(
+			lowering.factory.NewParenthesizedExpression(
+				lowering.factory.NewArrowFunction(
+					nil,
+					nil,
+					lowering.factory.NewNodeList(nil),
+					nil,
+					nil,
+					lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+					lowering.factory.NewBlock(
+						lowering.factory.NewNodeList([]*ast.Node{
+							definition,
+							lowering.factory.NewReturnStatement(
+								lowering.clientIslandArtifactAttachment(
+									lowering.factory.NewIdentifier(island.name),
+									island,
+								),
+							),
+						}),
+						true,
+					),
+				),
+			),
+			nil,
+			nil,
+			lowering.factory.NewNodeList(nil),
+			ast.NodeFlagsNone,
+		)
+		initializer = lowering.emitContext.AddSyntheticLeadingComment(
+			initializer,
+			ast.KindMultiLineCommentTrivia,
+			" @__PURE__ ",
+			false,
+		)
 		lowering.clientDefinitions = append(
 			lowering.clientDefinitions,
-			lowering.clientIslandDefinition(island),
-			lowering.factory.NewExpressionStatement(
-				lowering.clientIslandArtifactAttachment(
-					lowering.factory.NewIdentifier(island.name),
-					island,
+			lowering.factory.NewVariableStatement(
+				lowering.factory.NewModifierList([]*ast.Node{
+					lowering.factory.NewModifier(ast.KindExportKeyword),
+				}),
+				lowering.factory.NewVariableDeclarationList(
+					lowering.factory.NewNodeList([]*ast.Node{
+						lowering.factory.NewVariableDeclaration(
+							lowering.factory.NewIdentifier(island.name),
+							nil,
+							nil,
+							initializer,
+						),
+					}),
+					ast.NodeFlagsConst,
 				),
 			),
 		)
@@ -95,13 +137,9 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 	}
 	abi := componentABICompiledRender
 	constructor := lowering.names.constructRenderComponent
-	if island.interaction {
-		abi |= componentABITasks
-		constructor = lowering.names.constructTaskComponent
-	}
 	role := "client-island"
 	contract := contractObject(factory, true,
-		contractProperty(factory, "version", contractNumber(factory, 2)),
+		contractProperty(factory, "version", contractNumber(factory, 3)),
 		contractProperty(factory, "placement", contractString(factory, "client")),
 		contractProperty(factory, "role", contractString(factory, "client")),
 		contractProperty(factory, "implementations", contractArray(factory,
@@ -115,10 +153,15 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 		contractProperty(factory, "continuations", contractArray(factory)),
 		contractProperty(factory, "executors", contractArray(factory)),
 		contractProperty(factory, "boundaries", contractArray(factory)),
-		contractProperty(factory, "definition", contractObject(factory, true,
+		contractProperty(factory, "artifact", contractObject(factory, true,
 			contractProperty(factory, "version", contractNumber(factory, 1)),
+			contractProperty(factory, "target", contractString(factory, "client")),
+			contractProperty(factory, "id", contractString(factory, island.id)),
 			contractProperty(factory, "instantiate", implementation),
 			contractProperty(factory, "construct", factory.NewIdentifier(constructor)),
+			contractProperty(factory, "attach", factory.NewIdentifier(lowering.names.clientAttachComponent)),
+			contractProperty(factory, "receive", factory.NewIdentifier(lowering.names.clientReceiveProps)),
+			contractProperty(factory, "dispose", factory.NewIdentifier(lowering.names.clientDisposeComponent)),
 			contractProperty(factory, "abi", contractNumber(factory, abi)),
 			contractProperty(factory, "state", stringMetadata(factory, state)),
 			contractProperty(factory, "props", stringMetadata(factory, island.propsSlots)),
@@ -246,7 +289,7 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		opening = island.node
 	}
 	arguments := []*ast.Node{}
-	renderHelper := lowering.names.element
+	renderHelper := lowering.names.componentReceipt
 	if opening == nil {
 		renderHelper = lowering.names.fragment
 		arguments = append(arguments, lowering.props(nil, "", false, ""))
@@ -254,28 +297,39 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		tag := openingTag(opening)
 		tagText := sourceText(lowering.sourceFile, tag)
 		var emittedTag *ast.Node
+		var interopType *ast.Node
 		if jsxIntrinsic(tagText) {
 			emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
+			renderHelper = lowering.names.intrinsicElement
 		} else {
 			emittedTag = lowering.visitor.VisitNode(tag)
 			if lowering.interop != nil &&
-				!lowering.localExactComponentTag(tag) &&
-				!lowering.exactCoreVNodeTag(tag) {
-				emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
+				!lowering.compiledNativeComponentTag(tag) &&
+				!lowering.exactCoreStructuralTag(tag) {
+				interopType = emittedTag
+				emittedTag = lowering.factory.NewIdentifier(lowering.names.interop)
+				renderHelper = lowering.names.componentReceipt
+			} else {
+				renderHelper = lowering.names.componentReceipt
 			}
+		}
+		properties := lowering.clientIslandAttributeProperties(
+			island,
+			opening.Attributes(),
+			props,
+			tagText,
+		)
+		if interopType != nil {
+			properties = append(
+				[]*ast.Node{lowering.property(lowering.factory.NewIdentifier("component"), interopType)},
+				properties...,
+			)
 		}
 		arguments = append(
 			arguments,
 			emittedTag,
 			lowering.factory.NewObjectLiteralExpression(
-				lowering.factory.NewNodeList(
-					lowering.clientIslandAttributeProperties(
-						island,
-						opening.Attributes(),
-						props,
-						tagText,
-					),
-				),
+				lowering.factory.NewNodeList(properties),
 				false,
 			),
 		)
@@ -314,9 +368,7 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		true,
 	)
 	return lowering.factory.NewFunctionDeclaration(
-		lowering.factory.NewModifierList([]*ast.Node{
-			lowering.factory.NewModifier(ast.KindExportKeyword),
-		}),
+		nil,
 		nil,
 		lowering.factory.NewIdentifier(island.name),
 		nil,
@@ -408,6 +460,28 @@ func (lowering *jsxLowering) clientIslandFunctionCapture(
 	capture islandFunctionCapture,
 ) *ast.Node {
 	if ast.IsFunctionDeclaration(capture.declaration) {
+		if task, exists := lowering.invokedTasks[capture.declaration.Pos()]; exists {
+			operation, hasOperation := lowering.operations[nodeSpanKey(capture.declaration)]
+			if hasOperation {
+				return lowering.lowerInvokedTaskDeclaration(
+					capture.declaration.AsFunctionDeclaration(),
+					task,
+					&operation,
+				)
+			}
+			return lowering.lowerInvokedTaskDeclaration(
+				capture.declaration.AsFunctionDeclaration(),
+				task,
+				nil,
+			)
+		}
+		if task, exists := lowering.functionTasks[capture.declaration.Pos()]; exists {
+			return lowering.lowerInvokedTaskDeclaration(
+				capture.declaration.AsFunctionDeclaration(),
+				task,
+				nil,
+			)
+		}
 		return lowering.visitor.VisitNode(capture.declaration)
 	}
 	declaration := capture.declaration.AsVariableDeclaration()
@@ -676,134 +750,6 @@ func fullJSXElementNode(node *ast.Node) *ast.Node {
 	return node
 }
 
-func islandStatePaths(
-	sourceFile *ast.SourceFile,
-	component string,
-	node *ast.Node,
-	stateAliases []StateAlias,
-	stateReads []StateRead,
-	stateWrites []StateWrite,
-	captures []islandValueCapture,
-	reactiveBindings []ReactiveBinding,
-	additionalInputs []*ast.Node,
-) [][]string {
-	result := [][]string{}
-	seen := make(map[string]struct{})
-	add := func(path []string) {
-		if len(path) == 0 {
-			return
-		}
-		key := strings.Join(path, ".")
-		if _, exists := seen[key]; exists {
-			return
-		}
-		seen[key] = struct{}{}
-		result = append(result, append([]string(nil), path...))
-	}
-	for _, read := range stateReads {
-		if read.Component != component || len(read.Path) == 0 ||
-			!positionInIslandInputs(read.Start, node, additionalInputs) {
-			continue
-		}
-		add(read.Path)
-	}
-	for _, write := range stateWrites {
-		if write.Component == component &&
-			positionInIslandInputs(write.Start, node, additionalInputs) {
-			add(write.Path)
-		}
-	}
-	bindings := make(map[string]ReactiveBinding)
-	bindingRanges := make(map[string][2]int)
-	aliases := make(map[string]StateAlias)
-	for _, alias := range stateAliases {
-		if alias.Component == component {
-			aliases[alias.Name] = alias
-		}
-	}
-	for _, binding := range reactiveBindings {
-		if binding.Component == component {
-			bindings[binding.Name] = binding
-		}
-	}
-	walkNode(sourceFile.AsNode(), func(candidate *ast.Node) bool {
-		if !ast.IsVariableDeclaration(candidate) ||
-			candidate.Name() == nil ||
-			!ast.IsIdentifier(candidate.Name()) {
-			return true
-		}
-		name := candidate.Name().Text()
-		binding, exists := bindings[name]
-		if exists && binding.Start == candidate.Name().Pos() {
-			bindingRanges[name] = [2]int{candidate.Pos(), candidate.End()}
-		}
-		return true
-	})
-	visited := make(map[string]struct{})
-	var addBindingReads func(string)
-	addBindingReads = func(name string) {
-		if _, duplicate := visited[name]; duplicate {
-			return
-		}
-		visited[name] = struct{}{}
-		binding, exists := bindings[name]
-		if !exists {
-			return
-		}
-		start := binding.Start
-		end := binding.Start + binding.Length
-		if value, exists := bindingRanges[name]; exists {
-			start, end = value[0], value[1]
-		}
-		for _, read := range stateReads {
-			if read.Component == component &&
-				read.Start >= start &&
-				read.Start < end {
-				// A direct state alias is reconstructed from its snapshot. If
-				// island expressions already identify narrower reads through
-				// that alias, retaining the alias declaration's root read would
-				// unnecessarily serialize the entire object. Whole-alias uses
-				// inside the island are direct reads and therefore remain.
-				if alias, isAlias := aliases[name]; isAlias &&
-					slices.Equal(read.Path, alias.Path) &&
-					hasDescendantStatePath(result, alias.Path) {
-					continue
-				}
-				add(read.Path)
-			}
-		}
-		for _, dependency := range binding.Dependencies {
-			addBindingReads(dependency)
-		}
-	}
-	for _, capture := range captures {
-		addBindingReads(capture.name)
-	}
-	sort.Slice(result, func(left int, right int) bool {
-		return strings.Join(result[left], ".") < strings.Join(result[right], ".")
-	})
-	return result
-}
-
-func hasDescendantStatePath(paths [][]string, prefix []string) bool {
-	for _, path := range paths {
-		if len(path) <= len(prefix) {
-			continue
-		}
-		matches := true
-		for index := range prefix {
-			if path[index] != prefix[index] {
-				matches = false
-				break
-			}
-		}
-		if matches {
-			return true
-		}
-	}
-	return false
-}
-
 func (lowering *jsxLowering) lowerServerClientIsland(
 	identityNode *ast.Node,
 	opening *ast.Node,
@@ -968,16 +914,38 @@ func (lowering *jsxLowering) serverIslandFallback(
 		lowering.elementID(identityNode),
 		finiteSpreads,
 	)
+	if intrinsic {
+		rootAttributes := lowering.factory.NewObjectLiteralExpression(
+			lowering.factory.NewNodeList(properties),
+			false,
+		)
+		if planned, _ := lowering.lowerRenderProgramWithRootAttributes(
+			identityNode,
+			opening,
+			children,
+			rootAttributes,
+		); planned != nil {
+			return planned
+		}
+	}
 	var emittedTag *ast.Node
+	var interopType *ast.Node
 	if intrinsic {
 		emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
 	} else {
 		emittedTag = lowering.visitor.VisitNode(tag)
 		if lowering.interop != nil &&
-			!lowering.localExactComponentTag(tag) &&
-			!lowering.exactCoreVNodeTag(tag) {
-			emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
+			!lowering.compiledNativeComponentTag(tag) &&
+			!lowering.exactCoreStructuralTag(tag) {
+			interopType = emittedTag
+			emittedTag = lowering.factory.NewIdentifier(lowering.names.interop)
 		}
+	}
+	if interopType != nil {
+		properties = append(
+			[]*ast.Node{lowering.property(lowering.factory.NewIdentifier("component"), interopType)},
+			properties...,
+		)
 	}
 	arguments := []*ast.Node{
 		emittedTag,
@@ -987,9 +955,11 @@ func (lowering *jsxLowering) serverIslandFallback(
 		),
 	}
 	arguments = append(arguments, lowering.children(children)...)
-	helper := lowering.names.element
-	if !intrinsic && lowering.localExactComponentTag(tag) {
-		helper = lowering.names.componentElement
+	helper := lowering.names.componentReceipt
+	if intrinsic {
+		helper = lowering.names.intrinsicElement
+	} else {
+		helper = lowering.names.componentReceipt
 	}
 	return lowering.call(helper, arguments)
 }
@@ -1064,7 +1034,20 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 			properties = append(properties, bindingProperty)
 			continue
 		}
-		if name == "ref" || interactiveJSXAttribute(name) {
+		if name == "ref" {
+			if lowering.serverObservableRefAttribute(attribute) &&
+				ast.IsJsxExpression(attribute.Initializer) {
+				expression := attribute.Initializer.AsJsxExpression().Expression
+				if expression != nil {
+					properties = append(properties, lowering.property(
+						jsxPropertyName(lowering.factory, name),
+						lowering.visitor.VisitNode(expression),
+					))
+				}
+			}
+			continue
+		}
+		if interactiveJSXAttribute(name) {
 			continue
 		}
 		var value *ast.Node
@@ -1091,6 +1074,43 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 		)
 	}
 	return properties
+}
+
+// serverObservableRefAttribute retains a request-local binding only when its authored local is
+// consumed outside its declaration and ref attribute. That preserves SSR relationship identity
+// without allocating server bindings for refs used exclusively by the client renderer.
+func (lowering *jsxLowering) serverObservableRefAttribute(attribute *ast.JsxAttribute) bool {
+	if lowering.checker == nil || attribute.Initializer == nil ||
+		!ast.IsJsxExpression(attribute.Initializer) {
+		return false
+	}
+	expression := attribute.Initializer.AsJsxExpression().Expression
+	if expression == nil || !ast.IsIdentifier(expression) {
+		return false
+	}
+	symbol := resolvedCallableSymbol(
+		lowering.checker.GetSymbolAtLocation(expression),
+		lowering.checker,
+	)
+	if symbol == nil {
+		return false
+	}
+	id := ast.GetSymbolId(symbol)
+	references := 0
+	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsIdentifier(node) {
+			return true
+		}
+		candidate := resolvedCallableSymbol(
+			lowering.checker.GetSymbolAtLocation(node),
+			lowering.checker,
+		)
+		if candidate != nil && ast.GetSymbolId(candidate) == id {
+			references++
+		}
+		return references < 3
+	})
+	return references >= 3
 }
 
 type islandStateNode struct {

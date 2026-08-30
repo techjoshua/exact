@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"fmt"
 	"html"
 	"strconv"
 	"strings"
@@ -9,175 +8,33 @@ import (
 	"github.com/microsoft/typescript-go/internal/ast"
 )
 
-type renderProgramContext struct {
-	namespace string
-	certain   bool
-}
-
-type renderProgramSlot struct {
-	id             string
-	kind           string
-	path           []int
-	node           int
-	name           string
-	list           bool
-	directList     bool
-	markerlessTail bool
-	reader         *ast.Node
-}
-
-type renderProgramNode struct {
-	id        int
-	path      []int
-	tag       string
-	namespace string
-}
-
-type renderProgramBuild struct {
-	template       strings.Builder
-	serverSegment  strings.Builder
-	serverSegments []string
-	serverSlots    []int
-	slots          []renderProgramSlot
-	nodes          []renderProgramNode
-	namespace      string
-}
-
-type renderProgramPropertyBinding struct {
-	node         int
-	slots        []int
-	selectTarget bool
-}
-
-func (build *renderProgramBuild) propertyBindings() []renderProgramPropertyBinding {
-	bindings := make([]renderProgramPropertyBinding, 0, len(build.slots))
-	indexes := make(map[int]int)
-	for index, slot := range build.slots {
-		if slot.kind == "text" || slot.kind == "child" || slot.kind == "component" {
-			continue
-		}
-		bindingIndex, exists := indexes[slot.node]
-		if !exists {
-			bindingIndex = len(bindings)
-			indexes[slot.node] = bindingIndex
-			bindings = append(bindings, renderProgramPropertyBinding{
-				node:         slot.node,
-				selectTarget: build.nodes[slot.node].tag == "select",
-			})
-		}
-		bindings[bindingIndex].slots = append(bindings[bindingIndex].slots, index)
-	}
-	ordered := make([]renderProgramPropertyBinding, 0, len(bindings))
-	for _, selectTarget := range []bool{false, true} {
-		for _, binding := range bindings {
-			if binding.selectTarget == selectTarget {
-				ordered = append(ordered, binding)
-			}
-		}
-	}
-	return ordered
-}
-
-func (build *renderProgramBuild) write(value string) {
-	build.template.WriteString(value)
-	build.serverSegment.WriteString(value)
-}
-
-func (build *renderProgramBuild) serverSlot(index int) {
-	build.serverSegments = append(build.serverSegments, build.serverSegment.String())
-	build.serverSegment.Reset()
-	build.serverSlots = append(build.serverSlots, index)
-}
-
-// markerlessTextSlot reports whether the serialized value is bounded by markup on both sides.
-// In that shape the HTML parser cannot merge it with authored or adjacent dynamic text, so the
-// client can claim the text directly at its compiled position without server comment delimiters.
-func (build *renderProgramBuild) markerlessTextSlot(index int) bool {
-	for position, slot := range build.serverSlots {
-		if slot != index {
-			continue
-		}
-		before := build.serverSegments[position]
-		after := build.serverSegments[position+1]
-		return strings.HasSuffix(before, ">") && strings.HasPrefix(after, "<")
-	}
-	return false
-}
-
-func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
-	index := len(build.slots)
-	build.template.WriteString(fmt.Sprintf("<!---->\ue000exact:%d\ue001<!---->", index))
-	build.serverSlot(index)
-	mountPath := append([]int(nil), path...)
-	mountPath[len(mountPath)-1]++
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: mountPath, reader: reader})
-}
-
-func (build *renderProgramBuild) childSlot(
-	id string,
-	path []int,
-	reader *ast.Node,
-	list bool,
-	directList bool,
-	markerlessTail bool,
-) {
-	index := len(build.slots)
-	if !markerlessTail {
-		build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
-	}
-	build.serverSlot(index)
-	build.slots = append(build.slots, renderProgramSlot{
-		id: id, kind: "child", path: append([]int(nil), path...),
-		list: list, directList: directList, markerlessTail: markerlessTail, reader: reader,
-	})
-}
-
-func (build *renderProgramBuild) componentSlot(
-	id string,
-	path []int,
-	reader *ast.Node,
-	markerlessTail bool,
-) {
-	index := len(build.slots)
-	if !markerlessTail {
-		build.template.WriteString(fmt.Sprintf("<!--exact:dynamic:%s--><!--/exact:dynamic:%s-->", html.EscapeString(id), html.EscapeString(id)))
-	}
-	build.serverSlot(index)
-	build.slots = append(build.slots, renderProgramSlot{
-		id: id, kind: "component", path: append([]int(nil), path...),
-		markerlessTail: markerlessTail, reader: reader,
-	})
-}
-
-func (build *renderProgramBuild) propertySlot(id string, path []int, node int, name string, reader *ast.Node) {
-	index := len(build.slots)
-	build.serverSlot(index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: renderProgramSlotKind(name), path: append([]int(nil), path...), node: node, name: name, reader: reader})
-}
-
 func (lowering *jsxLowering) lowerRenderProgram(
 	identityNode *ast.Node,
 	opening *ast.Node,
 	children *ast.NodeList,
-) *ast.Node {
+) (*ast.Node, string) {
+	return lowering.lowerRenderProgramWithRootAttributes(identityNode, opening, children, nil)
+}
+
+func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
+	identityNode *ast.Node,
+	opening *ast.Node,
+	children *ast.NodeList,
+	rootAttributes *ast.Node,
+) (*ast.Node, string) {
 	if _, explicit := lowering.explicitServerIsland(identityNode); explicit {
-		return nil
-	}
-	// Generic component frames retain reactive stabilization semantics. Until their task surface is
-	// compiler-closed, preserve the VNode representation that carries sibling independence through
-	// the generic renderer. Direct frames capture every slot while child issuance is active below.
-	if lowering.target == TargetServer &&
-		!lowering.directServerArtifactComponent(identityNode) &&
-		lowering.containsIndependentAsyncSiblings(children) {
-		return nil
+		return nil, "explicit-server-island"
 	}
 	parentNamespace, certain := lowering.renderProgramParentNamespace(identityNode)
 	if !certain {
-		return nil
+		parentNamespace = "contextual"
 	}
-	build := &renderProgramBuild{}
+	build := &renderProgramBuild{rootAttributes: rootAttributes}
+	if lowering.target == TargetServer || lowering.contractProjection == ComponentContractProjectionComplete {
+		build.captureRootStaticAttributes(opening.Attributes())
+	}
 	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil, parentNamespace) {
-		return nil
+		return nil, build.declineReason
 	}
 	if lowering.target == TargetServer && compilerClosedRenderProgram(build) {
 		if owner, exists := lowering.directServerComponentOwner(identityNode); exists {
@@ -198,6 +55,12 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		prepared := lowering.call(lowering.names.prepareRenderProgram, []*ast.Node{
 			program,
 		})
+		prepared = lowering.emitContext.AddSyntheticLeadingComment(
+			prepared,
+			ast.KindMultiLineCommentTrivia,
+			" @__PURE__ ",
+			false,
+		)
 		lowering.renderProgramDefinitionNodes = append(
 			lowering.renderProgramDefinitionNodes,
 			namedRenderProgramDefinition{
@@ -273,28 +136,29 @@ func (lowering *jsxLowering) lowerRenderProgram(
 		}
 		arguments = append(arguments, owner)
 	}
-	if lowering.target == TargetDefault {
-		// Untargeted compiler inspection retains a materializable description. Executable browser
-		// and server artifacts use only their target-specific compiled program and recover malformed
-		// hydration at the root boundary without shipping a second component topology.
-		lowering.renderProgramFallback = true
-		fallback := lowering.lowerOpeningLike(identityNode, opening, children)
-		lowering.renderProgramFallback = false
-		arguments = append(arguments, lowering.arrow(fallback))
-	}
 	if propertyWriter != nil {
-		if (lowering.target == TargetServer && len(arguments) == 2) ||
-			(lowering.target != TargetServer && len(arguments) == 3) {
-			arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
-		}
 		arguments = append(arguments, propertyWriter)
+	}
+	var enhancement *ast.Node
+	if lowering.target != TargetDefault {
+		enhancement = lowering.renderProgramEnhancement(opening.Attributes(), sourceText(lowering.sourceFile, openingTag(opening)))
 	}
 	prepared := lowering.names.preparedRenderProgram
 	if lowering.target == TargetServer {
 		prepared = lowering.names.preparedServerProgram
 		arguments[1] = lowering.renderProgramServerValues(runtimeReaders)
 	}
-	return lowering.call(prepared, arguments)
+	if enhancement != nil {
+		required := 4
+		if lowering.target == TargetServer {
+			required = 3
+		}
+		for len(arguments) < required {
+			arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
+		}
+		arguments = append(arguments, enhancement)
+	}
+	return lowering.call(prepared, arguments), ""
 }
 
 // Reports whether `this` reaches the JSX through arrows from a component receiver.
@@ -356,15 +220,9 @@ func (lowering *jsxLowering) renderProgramServerValues(readers []*ast.Node) *ast
 	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
 }
 
-// compilerClosedRenderProgram accepts only slots whose value kind is statically represented by
-// the narrow renderer. General child expressions can produce structural/runtime VNodes that need
-// the universal dispatcher, even though their surrounding intrinsic tree has a render program.
+// compilerClosedRenderProgram accepts every compiler-issued child operation. Dynamic child slots
+// retain their focused operation identity and therefore need no universal runtime tree.
 func compilerClosedRenderProgram(build *renderProgramBuild) bool {
-	for _, slot := range build.slots {
-		if slot.kind == "child" {
-			return false
-		}
-	}
 	return true
 }
 
@@ -423,14 +281,29 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 	for groupIndex, binding := range bindings {
 		assignments := make([]*ast.Node, 0, len(binding.slots))
 		for _, slotIndex := range binding.slots {
+			if build.slots[slotIndex].kind == "spread" {
+				assignments = append(assignments, lowering.factory.NewExpressionStatement(
+					lowering.factory.NewCallExpression(apply, nil, nil, lowering.factory.NewNodeList([]*ast.Node{
+						lowering.factory.NewStringLiteral("", ast.TokenFlagsNone),
+						lowering.factory.NewKeywordExpression(ast.KindNullKeyword),
+					}), ast.NodeFlagsNone),
+				))
+				break
+			}
+		}
+		for _, slotIndex := range binding.slots {
 			slot := build.slots[slotIndex]
+			name := slot.name
+			if slot.kind == "spread" {
+				name = ""
+			}
 			assignments = append(assignments, lowering.factory.NewExpressionStatement(
 				lowering.factory.NewCallExpression(
 					apply,
 					nil,
 					nil,
 					lowering.factory.NewNodeList([]*ast.Node{
-						lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone),
+						lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
 						readers[slotIndex].AsArrowFunction().Body,
 					}),
 					ast.NodeFlagsNone,
@@ -644,7 +517,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 ) bool {
 	tag := sourceText(lowering.sourceFile, openingTag(opening))
 	if !jsxIntrinsic(tag) || unsupportedPlannedHost(tag) {
-		return false
+		return build.decline("unsupported-host-" + tag)
 	}
 	namespace := renderProgramNamespace(tag, parentNamespace)
 	if len(path) == 0 {
@@ -655,8 +528,21 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		id: nodeIndex, path: append([]int(nil), path...), tag: tag, namespace: namespace,
 	})
 	build.write("<" + tag)
-	if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
-		return false
+	if lowering.target == TargetServer && len(path) == 0 {
+		attributes := build.rootAttributes
+		if attributes == nil {
+			attributes = lowering.serverRenderProgramProps(opening.Attributes(), tag)
+		}
+		build.rootAttributesSlot(
+			path,
+			nodeIndex,
+			tag,
+			attributes,
+		)
+	} else {
+		if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
+			return false
+		}
 	}
 	build.write(">")
 	domIndex := 0
@@ -683,7 +569,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				// The generated SSR executor delegates the owned value back to ordinary recursive
 				// child rendering, so both targets can retain the same compiler-proven boundary.
 				if lowering.target != TargetClient && lowering.target != TargetServer {
-					return false
+					return build.decline("untargeted-structural-expression")
 				}
 				list := lowering.renderProgramListExpression(expression)
 				directList := list && lowering.directRenderProgramKeyedMap(expression)
@@ -725,17 +611,25 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		case ast.IsJsxElement(child):
 			element := child.AsJsxElement()
 			childTag := openingTag(element.OpeningElement)
-			if !jsxIntrinsic(sourceText(lowering.sourceFile, childTag)) {
-				if !lowering.plannedComponentChild(childTag) {
-					return false
-				}
+			childTagText := sourceText(lowering.sourceFile, childTag)
+			if !jsxIntrinsic(childTagText) {
 				if lowering.target != TargetClient && lowering.target != TargetServer {
-					return false
+					return build.decline("untargeted-component-child")
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
-				build.componentSlot(
-					lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), markerlessTail,
-				)
+				if lowering.plannedComponentChild(childTag) &&
+					!lowering.renderProgramIntrinsicHasEnhancements(element.OpeningElement.Attributes()) {
+					build.componentSlot(
+						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), markerlessTail,
+					)
+				} else {
+					// The focused range owns the value as an opaque child. Its ordinary lowering
+					// selects a native target artifact, an explicit compatibility boundary, or a
+					// compiler-owned structural value without exposing that choice to this program.
+					build.childSlot(
+						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), false, false, markerlessTail,
+					)
+				}
 				if !markerlessTail {
 					domIndex += 2
 				}
@@ -761,23 +655,40 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
+			if lowering.renderProgramIntrinsicHasEnhancements(element.OpeningElement.Attributes()) {
+				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
+				build.childSlot(
+					lowering.dynamicID(child), childPath,
+					lowering.lowerFocusedEnhancementBoundary(child, element.OpeningElement, element.Children),
+					false, false, markerlessTail,
+				)
+				if !markerlessTail {
+					domIndex += 2
+				}
+				continue
+			}
 			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace)) {
 				return false
 			}
 			domIndex++
 		case ast.IsJsxSelfClosingElement(child):
 			childTag := openingTag(child)
-			if !jsxIntrinsic(sourceText(lowering.sourceFile, childTag)) {
-				if !lowering.plannedComponentChild(childTag) {
-					return false
-				}
+			childTagText := sourceText(lowering.sourceFile, childTag)
+			if !jsxIntrinsic(childTagText) {
 				if lowering.target != TargetClient && lowering.target != TargetServer {
-					return false
+					return build.decline("untargeted-component-child")
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
-				build.componentSlot(
-					lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(child), markerlessTail,
-				)
+				if lowering.plannedComponentChild(childTag) &&
+					!lowering.renderProgramIntrinsicHasEnhancements(child.Attributes()) {
+					build.componentSlot(
+						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), markerlessTail,
+					)
+				} else {
+					build.childSlot(
+						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), false, false, markerlessTail,
+					)
+				}
 				if !markerlessTail {
 					domIndex += 2
 				}
@@ -798,12 +709,24 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
+			if lowering.renderProgramIntrinsicHasEnhancements(child.Attributes()) {
+				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
+				build.childSlot(
+					lowering.dynamicID(child), childPath,
+					lowering.lowerFocusedEnhancementBoundary(child, child, nil),
+					false, false, markerlessTail,
+				)
+				if !markerlessTail {
+					domIndex += 2
+				}
+				continue
+			}
 			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace)) {
 				return false
 			}
 			domIndex++
 		default:
-			return false
+			return build.decline("unsupported-jsx-child-kind")
 		}
 	}
 	if !voidElement(tag) {
@@ -812,16 +735,29 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	return true
 }
 
+func (lowering *jsxLowering) visitRenderProgramComponent(node *ast.Node) *ast.Node {
+	lowering.renderProgramComponentDepth++
+	result := lowering.visitor.VisitNode(node)
+	lowering.renderProgramComponentDepth--
+	return result
+}
+
 // plannedComponentChild keeps statically resolved native components in an explicit compiler-owned
 // lifecycle slot. The component still owns its durable state machine; only the surrounding intrinsic
-// host no longer falls back to generic VNode construction.
+// host no longer falls back to generic runtime construction.
 func (lowering *jsxLowering) plannedComponentChild(tag *ast.Node) bool {
 	if lowering.declarativeRenderDepth > 0 ||
 		(lowering.renderProgramListDepth == 0 && componentChildInsideMap(tag)) ||
 		!ast.IsIdentifier(tag) {
 		return false
 	}
-	return lowering.localExactComponentTag(tag)
+	// A registry selection held in a derived binding is native, but the emitted value is a focused
+	// child-range operation whose selected artifact can change. It must remain a child slot so SSR
+	// executes that opaque range instead of validating it as one static component reference.
+	if _, derived := lowering.derivedBindingAtReference(tag); derived {
+		return false
+	}
+	return lowering.compiledNativeComponentTag(tag)
 }
 
 func componentChildInsideMap(node *ast.Node) bool {
@@ -864,6 +800,9 @@ func renderProgramNamespace(tag string, parent string) string {
 	if parent == "mathml" {
 		return "mathml"
 	}
+	if parent == "contextual" {
+		return "contextual"
+	}
 	return "html"
 }
 
@@ -885,8 +824,10 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		return true
 	}
 	application := lowering.enhancementImports.applications[attributes.Pos()]
-	if len(application.components) != 0 {
-		return false
+	if lowering.target == TargetDefault && len(application.components) != 0 {
+		// Untargeted inspection records enhancement facts; executable attachment is selected only
+		// after a concrete client or server target is known.
+		return build.decline("untargeted-enhancement-inspection")
 	}
 	conditionalClasses := jsxHasConditionalClassName(attributes)
 	classNameEmitted := false
@@ -904,16 +845,43 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 			}
 			continue
 		}
-		if ast.IsJsxSpreadAttribute(property) || !ast.IsJsxAttribute(property) {
-			return false
+		if ast.IsJsxSpreadAttribute(property) {
+			expression := property.AsJsxSpreadAttribute().Expression
+			reader := lowering.visitor.VisitNode(expression)
+			if plan, exists := lowering.enhancementImports.spreads[property.Pos()]; exists {
+				keys := make([]*ast.Node, 0, len(plan.keys))
+				for _, key := range plan.keys {
+					keys = append(keys, lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone))
+				}
+				reader = lowering.call(lowering.names.omitEnhancementProps, []*ast.Node{
+					reader,
+					lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(keys), false),
+				})
+			}
+			build.spreadSlot(lowering.dynamicID(property), path, node, reader)
+			continue
+		}
+		if !ast.IsJsxAttribute(property) {
+			return build.decline("unknown-attribute")
 		}
 		attribute := property.AsJsxAttribute()
 		name := jsxAttributeText(attribute.Name())
-		if name == "key" || name == "data-exact-id" {
-			return false
+		if ast.IsJsxNamespacedName(attribute.Name()) {
+			prefix := attribute.Name().AsJsxNamespacedName().Namespace.Text()
+			if _, enhancement := lowering.enhancementImports.bindings[prefix]; enhancement {
+				continue
+			}
+		}
+		if name == "key" {
+			// Collection lowering publishes key identity on the prepared program value. A key does not
+			// describe a host property and must never enter the template or property writer.
+			continue
+		}
+		if name == "data-exact-id" {
+			return build.decline("reserved-attribute-" + name)
 		}
 		if _, exists := lowering.componentBindings[property.Pos()]; exists {
-			return false
+			return build.decline("component-binding-attribute")
 		}
 		bindingProperties := lowering.formBindingProperties(name, attribute.Initializer, attributes)
 		if lowering.target == TargetServer {
@@ -942,7 +910,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 			continue
 		}
 		if ast.IsJsxNamespacedName(attribute.Name()) {
-			return false
+			return build.decline("namespaced-attribute")
 		}
 		if attributeName, value, static := staticRenderProgramAttribute(name, attribute.Initializer); static {
 			build.write(` ` + attributeName + `="` + html.EscapeString(value) + `"`)
@@ -1024,7 +992,7 @@ func voidElement(tag string) bool {
 
 func unsupportedPlannedHost(tag string) bool {
 	switch tag {
-	case "html", "head", "body", "script", "style", "title", "template", "annotation-xml":
+	case "html", "head", "body", "script", "style", "template", "annotation-xml":
 		return true
 	}
 	return false
@@ -1058,6 +1026,8 @@ func (lowering *jsxLowering) renderProgramLiteral(
 			}
 		} else if slot.kind == "child" || slot.kind == "component" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone))
+		} else if slot.kind == "spread" {
+			members = append(members, lowering.factory.NewNumericLiteral(strconv.Itoa(slot.node), ast.TokenFlagsNone))
 		} else {
 			members = append(members, lowering.factory.NewNumericLiteral(strconv.Itoa(slot.node), ast.TokenFlagsNone), lowering.factory.NewStringLiteral(slot.name, ast.TokenFlagsNone))
 		}
@@ -1120,13 +1090,27 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}
+	if build.namespace == "contextual" {
+		members = append(members, property("attachmentTag", lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone)))
+	}
+	if build.rootStaticHtml != "" {
+		keys := make([]*ast.Node, len(build.rootStaticKeys))
+		for index, key := range build.rootStaticKeys {
+			keys[index] = lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone)
+		}
+		members = append(members, property("ssrRootStatic", array([]*ast.Node{
+			lowering.factory.NewStringLiteral(build.rootStaticHtml, ast.TokenFlagsNone),
+			array(keys),
+		})))
+	}
 	directUpdates := []renderProgramDirectUpdate{}
-	closedComponents := map[int]struct{}{}
+	componentReceipts := map[int][]componentUpdateDependency{}
+	reactivePropertyGroups := map[int]struct{}{}
 	var componentTarget *int
 	componentUpdates := ""
 	var componentUpdate *componentUpdateBuild
 	if lowering.target == TargetClient {
-		directUpdates, closedComponents = lowering.directRenderProgramUpdates(build)
+		directUpdates, componentReceipts, reactivePropertyGroups = lowering.directRenderProgramUpdates(build)
 		if target, updates, update, registered := lowering.registerComponentUpdates(identityNode, directUpdates); registered {
 			componentTarget = &target
 			componentUpdates = updates
@@ -1142,7 +1126,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 	}
 	if lowering.target == TargetClient {
 		if len(bindings) != 0 || len(directListSlots) != 0 || len(build.nodes) > 1 {
-			members = append(members, property("bind", lowering.directRenderProgramBinder(build, directUpdates, closedComponents, componentTarget, componentUpdates, componentUpdate)))
+			members = append(members, property("wire", lowering.directRenderProgramWiring(build, directUpdates, componentReceipts, reactivePropertyGroups, componentTarget, componentUpdates, componentUpdate)))
 		} else {
 			members = append(
 				members,

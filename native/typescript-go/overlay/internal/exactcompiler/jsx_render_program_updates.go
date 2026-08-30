@@ -21,36 +21,21 @@ type componentUpdateDependency struct {
 	slot   int
 }
 
-// directRenderProgramBinder emits the exact client binding calls in browser-safe application order.
-// Shared DOM operations retain the mechanics; the compiled component owns all topology and wiring.
-func (lowering *jsxLowering) directRenderProgramBinder(
+// directRenderProgramWiring emits immutable component-local claim and binding operations.
+// Shared DOM executors retain mechanics without allocating one binder closure per component module.
+func (lowering *jsxLowering) directRenderProgramWiring(
 	build *renderProgramBuild,
 	directUpdates []renderProgramDirectUpdate,
-	closedComponents map[int]struct{},
+	componentReceipts map[int][]componentUpdateDependency,
+	reactivePropertyGroups map[int]struct{},
 	componentTarget *int,
 	componentUpdates string,
 	componentUpdate *componentUpdateBuild,
 ) *ast.Node {
-	target := lowering.factory.NewIdentifier(lowering.names.bindingTarget)
-	statements := make([]*ast.Node, 0, len(build.slots)+2)
-	call := func(helper string, arguments ...*ast.Node) {
-		statements = append(statements, lowering.factory.NewExpressionStatement(
-			lowering.call(helper, append([]*ast.Node{target}, arguments...)),
-		))
+	bindings := make([]*ast.Node, 0, len(build.slots)+2)
+	emit := func(kind int, arguments ...*ast.Node) {
+		bindings = append(bindings, lowering.renderProgramOperation(kind, arguments...))
 	}
-	claimStatements := lowering.directRenderProgramClaims(build, target)
-	claimStatements = append(claimStatements, lowering.factory.NewReturnStatement(nil))
-	statements = append(statements, lowering.factory.NewIfStatement(
-		lowering.call(lowering.names.beginProgramClaims, []*ast.Node{
-			target,
-			lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone),
-			lowering.factory.NewStringLiteral(build.nodes[0].namespace, ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.nodes)), ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.slots)), ast.TokenFlagsNone),
-		}),
-		lowering.factory.NewBlock(lowering.factory.NewNodeList(claimStatements), true),
-		nil,
-	))
 	listSlots := make([]*ast.Node, 0, len(build.slots))
 	directText := make(map[int]struct{}, len(directUpdates))
 	directChildren := make(map[int]struct{}, len(directUpdates))
@@ -68,7 +53,7 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 		slotIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone)
 		if slot.kind == "child" && slot.list {
 			if slot.directList {
-				call(lowering.names.bindProgramKeyedChild, slotIndex)
+				emit(3, slotIndex)
 			} else {
 				listSlots = append(listSlots, slotIndex)
 			}
@@ -80,23 +65,45 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 			if _, direct := directText[index]; direct {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
-			call(lowering.names.bindProgramText, arguments...)
-		case "child", "component":
+			emit(0, arguments...)
+		case "child":
 			arguments := []*ast.Node{slotIndex}
 			_, directChild := directChildren[index]
-			// Static components without reactive captures construct once. Components with completely
-			// indexed live props use the generated direct-child operation above; unresolved authored
-			// dependency surfaces retain the structural reaction needed to refresh child props.
-			_, closedComponent := closedComponents[index]
-			if directChild || (slot.kind == "component" && closedComponent) {
+			if directChild {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
-			call(lowering.names.bindProgramChild, arguments...)
+			emit(1, arguments...)
+		case "component":
+			if dependencies, closedComponent := componentReceipts[index]; closedComponent {
+				// Compiler-proven component slots publish parent inputs straight into the retained
+				// target artifact. They are not operations in the parent's dirty-mask program.
+				bindings := make([]*ast.Node, 0, len(dependencies))
+				propCount := 0
+				for _, dependency := range dependencies {
+					bindings = append(bindings, lowering.factory.NewArrayLiteralExpression(
+						lowering.factory.NewNodeList([]*ast.Node{
+							lowering.factory.NewNumericLiteral(strconv.Itoa(dependency.slot), ast.TokenFlagsNone),
+						}),
+						false,
+					))
+					if dependency.source == "props" {
+						propCount++
+					}
+				}
+				emit(
+					2,
+					slotIndex,
+					lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(bindings), false),
+					lowering.factory.NewNumericLiteral(strconv.Itoa(propCount), ast.TokenFlagsNone),
+				)
+			} else {
+				emit(1, slotIndex)
+			}
 		}
 	}
 	if len(listSlots) != 0 {
-		call(
-			lowering.names.bindProgramLists,
+		emit(
+			4,
 			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(listSlots), false),
 		)
 	}
@@ -105,45 +112,61 @@ func (lowering *jsxLowering) directRenderProgramBinder(
 			lowering.factory.NewNumericLiteral(strconv.Itoa(group), ast.TokenFlagsNone),
 			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.slots[0]), ast.TokenFlagsNone),
 		}
+		if _, reactive := reactivePropertyGroups[group]; reactive {
+			emit(6, arguments...)
+			continue
+		}
 		if _, direct := directProperties[group]; direct {
 			arguments = append(arguments, lowering.factory.NewTrueExpression())
 		}
-		call(lowering.names.bindProgramProperties, arguments...)
+		emit(5, arguments...)
 	}
 	if componentTarget != nil {
-		binder := lowering.factory.NewIdentifier(lowering.names.bindComponentUpdate)
-		componentUpdate.binders = append(componentUpdate.binders, binder)
-		statements = append(statements, lowering.factory.NewExpressionStatement(
-			lowering.factory.NewCallExpression(
-				binder,
-				nil,
-				nil,
-				lowering.factory.NewNodeList([]*ast.Node{
-					target,
-					lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
-					lowering.factory.NewIdentifier(componentUpdates),
-				}),
-				ast.NodeFlagsNone,
-			),
-		))
+		kind := 7
+		stateOnly := true
+		for _, dependency := range componentUpdate.dependencies {
+			if dependency.source != "state" {
+				stateOnly = false
+				break
+			}
+		}
+		if stateOnly {
+			kind = 9
+		}
+		if len(componentUpdate.operations) > 64 {
+			kind = 8
+			if stateOnly {
+				kind = 10
+			}
+		}
+		emit(
+			kind,
+			lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
+			lowering.factory.NewIdentifier(componentUpdates),
+		)
 	}
-	parameter := lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil)
-	return lowering.factory.NewArrowFunction(
-		nil,
-		nil,
-		lowering.factory.NewNodeList([]*ast.Node{parameter}),
-		nil,
-		nil,
-		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
-		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
+	root := lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+		lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone),
+		lowering.factory.NewStringLiteral(build.nodes[0].namespace, ast.TokenFlagsNone),
+		lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.nodes)), ast.TokenFlagsNone),
+		lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.slots)), ast.TokenFlagsNone),
+	}), false)
+	claims := lowering.factory.NewArrayLiteralExpression(
+		lowering.factory.NewNodeList(lowering.directRenderProgramClaims(build)), false,
 	)
+	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+		root,
+		claims,
+		lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(bindings), false),
+	}), false)
 }
 
 func (lowering *jsxLowering) directRenderProgramUpdates(
 	build *renderProgramBuild,
-) ([]renderProgramDirectUpdate, map[int]struct{}) {
+) ([]renderProgramDirectUpdate, map[int][]componentUpdateDependency, map[int]struct{}) {
 	updates := make([]renderProgramDirectUpdate, 0, len(build.slots))
-	closedComponents := make(map[int]struct{})
+	componentReceipts := make(map[int][]componentUpdateDependency)
+	reactivePropertyGroups := make(map[int]struct{})
 	for index, slot := range build.slots {
 		if slot.kind == "text" {
 			if dependencies, direct := lowering.directScalarProgramDependencies(slot.reader); direct {
@@ -156,12 +179,7 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 		if slot.kind == "component" {
 			dependencies, closed := lowering.directComponentProgramReader(slot.reader)
 			if closed {
-				closedComponents[index] = struct{}{}
-			}
-			if len(dependencies) != 0 && closed {
-				updates = append(updates, renderProgramDirectUpdate{
-					kind: "child", index: index, dependencies: dependencies,
-				})
+				componentReceipts[index] = dependencies
 			}
 			continue
 		}
@@ -179,7 +197,8 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 		direct := true
 		for _, index := range binding.slots {
 			slot := build.slots[index]
-			if slotDependencies, direct := lowering.directScalarProgramDependencies(slot.reader); direct {
+			slotDependencies, slotDirect := lowering.directScalarProgramDependencies(slot.reader)
+			if slotDirect {
 				dependencies = append(dependencies, slotDependencies...)
 				continue
 			}
@@ -195,8 +214,13 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 				dependencies: uniqueSortedComponentUpdateDependencies(dependencies),
 			})
 		}
+		if !direct {
+			// Arbitrary authored JavaScript retains one compiler-selected focused reactive
+			// property operation. It does not enter the generic property-binding topology.
+			reactivePropertyGroups[group] = struct{}{}
+		}
 	}
-	return updates, closedComponents
+	return updates, componentReceipts, reactivePropertyGroups
 }
 
 func (lowering *jsxLowering) directComponentProgramReader(
@@ -211,59 +235,62 @@ func (lowering *jsxLowering) directComponentProgramReader(
 	}
 	component := value.AsCallExpression()
 	if !ast.IsIdentifier(component.Expression) ||
-		component.Expression.Text() != lowering.names.componentElement ||
+		component.Expression.Text() != lowering.names.componentReceipt ||
 		component.Arguments == nil || len(component.Arguments.Nodes) < 2 {
 		return nil, false
 	}
 	dependencies := []componentUpdateDependency{}
 	supported := true
-	// Children own their compiled readers and structural ranges. Only the props description must be
-	// rerun to publish parent inputs into the durable component instance.
-	walkNode(component.Arguments.Nodes[1], func(current *ast.Node) bool {
-		if dependency, direct := lowering.directRenderProgramDependency(current); direct {
-			dependencies = append(dependencies, dependency)
-			return false
-		}
-		// Callback bodies are deferred component work. Their reads belong to the callback's
-		// interaction/task execution, not to the eager prop description that publishes the function.
-		if ast.IsFunctionLike(current) && lowering.authoredSourceNode(current) {
-			return false
-		}
-		if ast.IsCallExpression(current) {
-			call := current.AsCallExpression()
-			if !ast.IsIdentifier(call.Expression) || !lowering.generatedComponentReaderCall(call.Expression.Text()) {
+	// Every supplied component input, including children, belongs to the atomic prop receipt.
+	// Walk all receipt operands so a retained child receives one finalized batch while a replaced
+	// generation keeps its previously delivered values.
+	for _, operand := range component.Arguments.Nodes[1:] {
+		walkNode(operand, func(current *ast.Node) bool {
+			if dependency, direct := lowering.directRenderProgramDependency(current); direct {
+				dependencies = append(dependencies, dependency)
+				return false
+			}
+			// Callback bodies are deferred component work. Their reads belong to the callback's
+			// interaction/task execution, not to the eager prop description that publishes the function.
+			if ast.IsFunctionLike(current) && lowering.authoredSourceNode(current) {
+				return false
+			}
+			if ast.IsCallExpression(current) {
+				call := current.AsCallExpression()
+				if !ast.IsIdentifier(call.Expression) || !lowering.generatedComponentReaderCall(call.Expression.Text()) {
+					supported = false
+					return false
+				}
+			}
+			if ast.IsTaggedTemplateExpression(current) || ast.IsAwaitExpression(current) {
 				supported = false
 				return false
 			}
-		}
-		if ast.IsTaggedTemplateExpression(current) || ast.IsAwaitExpression(current) {
-			supported = false
-			return false
-		}
-		return true
-	})
+			return true
+		})
+	}
 	dependencies = uniqueSortedComponentUpdateDependencies(dependencies)
 	return dependencies, supported
 }
 
-// generatedComponentReaderCall identifies compiler-owned VNode/reader construction. These calls
+// generatedComponentReaderCall identifies compiler-owned operation/reader construction. These calls
 // allocate inert descriptions or lazy expressions; they do not execute authored component work.
 func (lowering *jsxLowering) generatedComponentReaderCall(name string) bool {
-	return name == lowering.names.componentElement ||
-		name == lowering.names.element ||
+	return name == lowering.names.componentReceipt ||
 		name == lowering.names.intrinsicElement ||
-		name == lowering.names.keyedElement ||
+		name == lowering.names.keyedChild ||
 		name == lowering.names.preparedRenderProgram ||
 		name == lowering.names.expression ||
 		name == lowering.names.forwardedExpression ||
+		name == lowering.names.indexedExpression ||
 		name == lowering.names.enhancements
 }
 
 // directScalarProgramDependencies closes over scalar expressions composed from compiler-indexed
 // top-level state and prop reads. The generated component update reruns the authored reader when
 // any input slot changes, so expressions such as `state.first + state.last` need no retained
-// runtime watcher. Calls, nested property reads, and deferred functions remain on the reactive
-// lane because their complete dependency set is not represented by those top-level slots.
+// runtime watcher. Expressions without a complete indexed input set remain on the focused reactive
+// lane.
 func (lowering *jsxLowering) directScalarProgramDependencies(
 	node *ast.Node,
 ) ([]componentUpdateDependency, bool) {
@@ -277,14 +304,33 @@ func (lowering *jsxLowering) directScalarProgramDependencies(
 			dependencies = append(dependencies, dependency)
 			return false
 		}
-		if ast.IsCallExpression(current) || ast.IsTaggedTemplateExpression(current) ||
-			ast.IsAwaitExpression(current) || ast.IsFunctionLike(current) {
+		// An arbitrary call can observe a reactive source which is not represented by the indexed
+		// component inputs also present in the expression (for example an enhancement activation).
+		// Keep that expression on the focused reactive lane so the call's complete dependency graph
+		// is retained.
+		if ast.IsCallExpression(current) {
+			supported = false
+			return false
+		}
+		if ast.IsTaggedTemplateExpression(current) {
+			supported = false
+			return false
+		}
+		if ast.IsAwaitExpression(current) {
+			supported = false
+			return false
+		}
+		if ast.IsFunctionLike(current) {
 			supported = false
 			return false
 		}
 		if ast.IsPropertyAccessExpression(current) {
 			expression := current.AsPropertyAccessExpression().Expression
 			if _, direct := lowering.directRenderProgramDependency(expression); direct {
+				// A top-level indexed prop or state slot does not publish mutation versions for
+				// properties of the reactive object stored in that slot. Keep nested reads on the
+				// focused reaction so an in-place mutation cannot be mistaken for an unchanged
+				// parent receipt.
 				supported = false
 				return false
 			}
@@ -454,6 +500,9 @@ func (lowering *jsxLowering) directUpdateStatement(
 		}
 	} else if update.kind == "child" {
 		helper = lowering.names.applyProgramChild
+	} else if update.kind == "component-receipt" {
+		helper = lowering.names.applyComponentReceipt
+		arguments = []*ast.Node{target}
 	}
 	return lowering.factory.NewIfStatement(
 		condition,

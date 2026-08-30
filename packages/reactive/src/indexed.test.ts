@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { computed } from './computation.js';
 import { batch, captureReactiveMutations } from './internal/deps.js';
 import { flushSync } from './internal/scheduler.js';
-import { collectionRef } from './observation.js';
+import { collectionRef, ref } from './observation.js';
 import { indexedReactive, readReactiveOwnProperty } from './indexed.js';
 import {
 	reactiveIndexedDependencies,
 	reactiveOwnDependencies,
+	createIndexedReactiveValue,
 	readIndexedReactiveSource,
 	readIndexedReactiveSlot
 } from './indexed-base.js';
@@ -17,6 +18,21 @@ import { indexedReactiveObjects } from './framework/indexed-objects.js';
 import { updateReactive } from './reconciliation.js';
 
 describe('indexed reactive state', () => {
+	it('shares a readonly direct value for each compiler-proven slot', () => {
+		const state = indexedReactive<{ count: number }>(['count']);
+		state.count = 1;
+		const value = createIndexedReactiveValue<number>(state, 0);
+		const observed: number[] = [];
+		const stop = watch(() => observed.push(value.get()));
+
+		expect(createIndexedReactiveValue(state, 0)).toBe(value);
+		state.count = 2;
+		flushSync();
+		expect(observed).toEqual([1, 2]);
+		expect(() => ref(value)!.set(3)).toThrow('Cannot write to readonly reactive value');
+		stop();
+	});
+
 	it('tracks stable slots while preserving an ordinary inspectable facade', () => {
 		const mutations = vi.fn();
 		const state = indexedReactive<{ count?: number; label?: string }>(['label', 'count'], {

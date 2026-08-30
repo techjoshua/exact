@@ -19,19 +19,20 @@ import {
 	type ReactRootRuntime
 } from './runtime/shared.js';
 export {
-	adaptReactType,
+	ReactClassIslandImplementation,
 	exactComponentForReactInstance,
 	isUnmountedReactClassInstance
 } from './runtime/adapters.js';
+export { ReactFunctionIslandImplementation } from './runtime/function-adapter.js';
 export {
 	childrenArray,
 	contextForSpecial,
 	isReactClassType,
+	reactErrorOwnerName,
 	reactTypeName,
 	routeClassLifecycleError,
 	unsupportedType
 } from './runtime/class-support.js';
-export { toExactNode } from './runtime/nodes.js';
 export { assignReactRef } from './runtime/refs.js';
 export * from './runtime/shared.js';
 
@@ -39,6 +40,21 @@ import { createExactDispatcher } from './runtime/dispatcher.js';
 
 const ownerFrames = new WeakMap<AnyComponentInstance, ReactOwnerFrame>();
 let currentOwnerFrame: ReactOwnerFrame | null = null;
+
+/** Reads the React-owned display name associated with one precompiled island instance. */
+export function reactOwnerComponentName(component: unknown): string | undefined {
+	if (!component || typeof component !== 'object') return undefined;
+	const frame = ownerFrames.get(component as AnyComponentInstance);
+	if (!frame) return undefined;
+	const type = frame.type;
+	if (typeof type === 'function')
+		return (type as { displayName?: string; name?: string }).displayName ?? type.name;
+	if (type && typeof type === 'object') {
+		const candidate = type as { displayName?: string; render?: { name?: string } };
+		return candidate.displayName ?? candidate.render?.name;
+	}
+	return undefined;
+}
 
 /** Performs the current react owner frame domain operation. */
 export function currentReactOwnerFrame(): ReactOwnerFrame | unknown | null {

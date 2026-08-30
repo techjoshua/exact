@@ -147,12 +147,12 @@ export function releaseEffectScopeReaction(scope: EffectScopeImpl, reaction: Rea
 }
 
 /** Registers one cleanup against a live scope using first-use ownership storage. */
-export function registerEffectScopeCleanup(scope: EffectScopeImpl, cleanup: () => void): void {
+export function registerEffectScopeCleanup(scope: EffectScope, cleanup: () => void): void {
 	(scope as EffectScopeRecord).cleanups.add(cleanup);
 }
 
 /** Releases one cleanup and its empty scope storage after external disposal. */
-export function releaseEffectScopeCleanup(scope: EffectScopeImpl, cleanup: () => void): void {
+export function releaseEffectScopeCleanup(scope: EffectScope, cleanup: () => void): void {
 	(scope as EffectScopeRecord).removeCleanup(cleanup);
 }
 

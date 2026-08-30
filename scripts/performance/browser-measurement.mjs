@@ -47,6 +47,7 @@ export async function measureChromium(outputDirectory, samples, warmups) {
 		return {
 			browser: `Chromium ${version}`,
 			samples,
+			rawSamples: processSamples,
 			moduleEvaluationMs: summarizeValues(processSamples.map((sample) => sample.evaluationMs)),
 			results: scenarioNames.map((scenario) =>
 				summarizeScenario(

@@ -2,7 +2,7 @@ import { type AnyComponentInstance } from '@exactjs/core';
 import {
 	type ExactRenderProgramInvocation,
 	type ExactTableRenderProgram
-} from '@exactjs/core/runtime/render';
+} from '@exactjs/core/runtime/render-operations';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
 import type { RenderProgramChildAnchor } from '../types.js';
 import {
@@ -61,9 +61,9 @@ export function releaseDirectProgramNodeOwners(
 /** Assigns direct compiler-claimed elements to their durable component instance. */
 export function ownDirectProgramNodes(
 	elements: readonly (Element | undefined)[] | undefined,
-	owner: AnyComponentInstance
+	owner: AnyComponentInstance | undefined
 ): void {
-	if (!elements) return;
+	if (!elements || !owner) return;
 	for (const element of elements) {
 		if (!element) continue;
 		setNodeOwner(element, owner);

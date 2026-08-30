@@ -1,21 +1,18 @@
-import { createVNode } from '@exactjs/core';
-import { renderToString } from '@exactjs/ssr';
+import { renderToStringAsync } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
-import { RemoteComponent } from './client.js';
+import { remotePlaceholderRoot } from './ssr.fixtures.js?exact-target=server';
 
 describe('RemoteComponent server rendering', () => {
-	it('emits only the page-owned client placeholder', () => {
-		const result = renderToString(
-			createVNode(RemoteComponent, {
-				binding: 'billing',
-				fallback: createVNode('p', null, 'Remote unavailable')
-			}),
-			{ markers: false }
-		);
+	it('emits the compiler-owned client boundary without executing the browser wrapper', async () => {
+		const result = await renderToStringAsync(remotePlaceholderRoot(), { markers: false });
 
 		expect(result.html).toMatch(
-			/^<div id="exact-[^"]+" data-exact-remote="billing" data-exact-remote-state="placeholder"><\/div>$/u
+			/^<div data-exact-client-boundary="[^"]+" data-exact-client-name="RemoteComponent" /u
 		);
-		expect(result.html).not.toContain('Remote unavailable');
+		expect(result.html).toContain(
+			'data-exact-client-props="{&quot;props&quot;:{&quot;binding&quot;:&quot;billing&quot;}}"'
+		);
+		expect(result.html).toMatch(/><\/div>$/u);
+		expect(result.html).not.toContain('data-exact-remote=');
 	});
 });

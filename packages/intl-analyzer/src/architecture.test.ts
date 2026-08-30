@@ -1,54 +1,55 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementNode, createVNode, type Child } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { hydrate } from '@exactjs/hydrate/enhanced';
 import {
 	createIntlEnvironment,
-	IntlAttributes,
-	IntlLocale,
-	IntlMessage,
-	IntlProvider,
 	type IntlCatalogV1,
 	type IntlRuntimeDescriptorV1
 } from '@exactjs/intl';
-import { prepareIntlActivation } from '@exactjs/intl/internal';
+import { prepareIntlActivation } from '../../intl/src/internal.js';
 import { flushSync, reactive } from '@exactjs/reactive';
-import { renderToString } from '@exactjs/ssr';
-// This fixture constructs cross-package component VNodes from source instead of consuming the
-// package compiler output that normally selects the generic server capability.
-import '@exactjs/ssr/runtime/generic-components';
+import { renderToStringAsync } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
+import {
+	attributesRoot,
+	CompiledIntlAttributes,
+	CompiledIntlLocale,
+	CompiledIntlMessage,
+	inboxStructure,
+	localeRoot,
+	messageRoot,
+	paragraphTarget
+} from './architecture.fixtures.js';
+import {
+	serverAttributesRoot,
+	ServerIntlAttributes,
+	ServerIntlLocale,
+	ServerIntlMessage,
+	serverInboxStructure,
+	serverLocaleRoot,
+	serverMessageRoot,
+	serverParagraphTarget
+} from './architecture.server.fixtures.js?exact-target=server';
 import { analyzeIntlSource } from './index.js';
 
 describe('intl architecture fixture', () => {
-	it('projects reactive lang and dir metadata through the locale enhancement', () => {
+	it('projects reactive lang and dir metadata through the locale enhancement', async () => {
 		const environment = createIntlEnvironment({ locale: 'ar-EG', descriptors: [], catalogs: [] });
 		const enhancementIdentity = '@exactjs/intl/enhancements#locale';
-		const enhancementCatalog = new Map([[enhancementIdentity, IntlLocale]]);
-		const app = () =>
-			createVNode(
-				IntlProvider,
-				{ environment },
-				createVNode(
-					'section',
-					{
-						id: 'localized',
-						__exactEnhancements: createEnhancementNode([
-							{ identity: enhancementIdentity, props: { locale: true } }
-						])
-					},
-					'Localized content'
-				)
-			);
-
-		const server = renderToString(app(), { enhancementCatalog }).html;
+		const enhancementCatalog = new Map([[enhancementIdentity, CompiledIntlLocale]]);
+		const serverEnhancementCatalog = new Map([[enhancementIdentity, ServerIntlLocale]]);
+		const server = (
+			await renderToStringAsync(serverLocaleRoot(environment), {
+				enhancementCatalog: serverEnhancementCatalog
+			})
+		).html;
 		expect(server).toContain('lang="ar-EG"');
 		expect(server).toContain('dir="rtl"');
 		const root = document.createElement('div');
 		root.innerHTML = server;
-		hydrate(app(), root, { onMismatch: 'throw', enhancementCatalog });
+		hydrate(localeRoot(environment), root, { onMismatch: 'throw', enhancementCatalog });
 		const localized = root.querySelector('#localized')!;
 
 		environment.setLocale('en-US');
@@ -57,7 +58,7 @@ describe('intl architecture fixture', () => {
 		expect(localized.getAttribute('dir')).toBe('ltr');
 	});
 
-	it('shares plural, structure, fallback, SSR, hydration, updates, and locale semantics', () => {
+	it('shares plural, structure, fallback, SSR, hydration, updates, and locale semantics', async () => {
 		const analysis = analyzeIntlSource(
 			`const View = ({ count }) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}. Read <a href="/messages">your inbox</a>.</p>;`,
 			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
@@ -102,34 +103,33 @@ describe('intl architecture fixture', () => {
 			descriptors: [descriptor],
 			catalogs: [french]
 		});
-		const structure = (children: readonly Child[]) =>
-			createVNode('a', { href: '/messages', key: 'inbox' }, ...children);
-		const target = (children: readonly Child[]) => createVNode('p', null, ...children);
 		const state = reactive({ count: 1 });
 		const message = createExpression(() =>
-			prepareIntlActivation(descriptor, [state.count], [structure], target)
+			prepareIntlActivation(descriptor, [state.count], [inboxStructure], paragraphTarget)
 		);
 		const enhancementIdentity = '@exactjs/intl/enhancements#default';
-		const enhancementCatalog = new Map([[enhancementIdentity, IntlMessage]]);
+		const enhancementCatalog = new Map([[enhancementIdentity, CompiledIntlMessage]]);
+		const serverEnhancementCatalog = new Map([[enhancementIdentity, ServerIntlMessage]]);
+		const serverMessage = createExpression(() =>
+			prepareIntlActivation(
+				descriptor,
+				[state.count],
+				[serverInboxStructure],
+				serverParagraphTarget
+			)
+		);
 
-		const app = () =>
-			createVNode(
-				IntlProvider,
-				{ environment },
-				createVNode('p', {
-					__exactEnhancements: createEnhancementNode([
-						{ identity: enhancementIdentity, props: { message } }
-					])
-				})
-			);
-
-		const server = renderToString(app(), { enhancementCatalog }).html;
+		const server = (
+			await renderToStringAsync(serverMessageRoot(environment, serverMessage), {
+				enhancementCatalog: serverEnhancementCatalog
+			})
+		).html;
 		expect(server).toContain('Vous avez 1 nouveau message. Consultez');
 		expect(server).toContain('<a href="/messages">votre boîte</a>');
 
 		const root = document.createElement('div');
 		root.innerHTML = server;
-		hydrate(app(), root, { onMismatch: 'throw', enhancementCatalog });
+		hydrate(messageRoot(environment, message), root, { onMismatch: 'throw', enhancementCatalog });
 		const anchor = root.querySelector('a');
 		expect(anchor).not.toBeNull();
 
@@ -144,7 +144,7 @@ describe('intl architecture fixture', () => {
 		expect(root.querySelector('a')).toBe(anchor);
 	});
 
-	it('projects translated intrinsic properties across SSR, hydration, and reactive updates', () => {
+	it('projects translated intrinsic properties across SSR, hydration, and reactive updates', async () => {
 		const analysis = analyzeIntlSource(
 			'export function Search({ query }) { return () => <input placeholder={`Search ${query}`} intl:placeholder />; }',
 			{ filename: '/src/Search.tsx', owner: 'example', sourceLocale: 'en-US' }
@@ -181,29 +181,22 @@ describe('intl architecture fixture', () => {
 		});
 		const state = reactive({ query: 'messages' });
 		const placeholder = createExpression(() => prepareIntlActivation(descriptor, [state.query]));
-		const fallback = createExpression(() => `Search ${state.query}`);
-		const enhancementIdentity = '@exactjs/intl/enhancements#attributes';
-		const enhancementCatalog = new Map([[enhancementIdentity, IntlAttributes]]);
-		const app = () =>
-			createVNode(
-				IntlProvider,
-				{ environment },
-				createVNode('input', {
-					placeholder: fallback,
-					id: 'search',
-					__exactEnhancements: createEnhancementNode([
-						{ identity: enhancementIdentity, props: { placeholder } }
-					])
-				})
-			);
-
-		const server = renderToString(app(), { enhancementCatalog }).html;
+		const enhancementIdentity = '@exactjs/intl/enhancements#alt';
+		const enhancementCatalog = new Map([[enhancementIdentity, CompiledIntlAttributes]]);
+		const serverEnhancementCatalog = new Map([[enhancementIdentity, ServerIntlAttributes]]);
+		const server = (
+			await renderToStringAsync(serverAttributesRoot(environment, placeholder), {
+				enhancementCatalog: serverEnhancementCatalog
+			})
+		).html;
 		expect(server).toContain('placeholder="Rechercher messages"');
 		const root = document.createElement('div');
 		root.innerHTML = server;
-		hydrate(app(), root, { onMismatch: 'throw', enhancementCatalog });
+		hydrate(attributesRoot(environment, placeholder), root, {
+			onMismatch: 'throw',
+			enhancementCatalog
+		});
 		const input = root.querySelector('input')!;
-
 		state.query = 'contacts';
 		flushSync();
 		expect(input.placeholder).toBe('Rechercher contacts');

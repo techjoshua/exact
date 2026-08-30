@@ -1,8 +1,7 @@
-import type { ExactCompiledComponentContract } from '../component-contracts.js';
+import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import type {
 	AnyComponentInstance,
-	AnyComponentFunction,
 	ComponentContextValues,
 	ComponentDomain,
 	ComponentFunction
@@ -11,18 +10,17 @@ import { ComponentInstanceImpl } from './runtime.js';
 import type { CompiledComponentInstanceConstructor } from './instance-construction.js';
 
 /** Constructs the durable record selected by a lifecycle, list, or task component artifact. */
-export const constructDurableComponentInstance: CompiledComponentInstanceConstructor = (
-	type: AnyComponentFunction,
-	rawProps: Record<string, unknown>,
+export const constructDurableComponentInstance: CompiledComponentInstanceConstructor = function (
 	parent: AnyComponentInstance | undefined,
+	rawProps: Record<string, unknown>,
 	ambientContexts: ComponentContextValues | undefined,
 	domain: ComponentDomain,
 	execution: PreparedComponentExecution | undefined,
-	contract: ExactCompiledComponentContract
-) =>
-	new ComponentInstanceImpl(
-		type,
-		contract.definition.instantiate as ComponentFunction,
+	contract: ExactExecutableComponentContract
+) {
+	return new ComponentInstanceImpl(
+		this.instantiate,
+		contract.artifact.instantiate as ComponentFunction,
 		rawProps,
 		parent,
 		ambientContexts,
@@ -30,3 +28,4 @@ export const constructDurableComponentInstance: CompiledComponentInstanceConstru
 		execution,
 		contract
 	);
+};

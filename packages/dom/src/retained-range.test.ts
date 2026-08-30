@@ -3,9 +3,10 @@
  */
 import '@exactjs/core/runtime/refs';
 import { createPortal, createRef, type Component } from '@exactjs/core';
-import { jsx } from './test-support/native-vnode.js';
+import { jsx } from './test-support/native-operations.js';
 import { describe, expect, it, vi } from 'vitest';
-import { render, unmount } from './index.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
 import { roots } from './state.js';
 import { detachMountedRanges, restoreMountedRanges } from './renderer/retained-range.js';
 

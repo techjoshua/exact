@@ -10,6 +10,9 @@ functions are not a second component authoring model.
 Every value accepted as a native component by DOM rendering, hydration, SSR, or a component
 registry must carry a target-local artifact produced by the eXact compiler. A package may publish
 precompiled artifacts, so consuming an eXact library does not require recompiling its source.
+When an authored function declaration is referenced earlier in its module, the compiler attaches
+its artifact before that first executable reference so the generated contract preserves ordinary
+JavaScript function-declaration hoisting.
 The artifact definition always carries its compiler-selected capability ABI; an absent ABI is an
 invalid artifact, not a request for a universal compatibility runtime.
 The ABI bit assignments have one repository-owned JSON contract. Generated Go compiler constants
@@ -20,7 +23,54 @@ Compatibility adapters may own foreign functions and explicitly bridge them into
 boundary. Genuinely runtime-dependent children remain supported inside compiler-declared dynamic
 ranges. Neither case makes an arbitrary function a native component.
 
+React compatibility uses one fixed client island and one fixed server island. React component
+values remain opaque props of those artifacts; the runtime does not manufacture a native artifact
+for each value. Native children that pass through React ownership cross as opaque supplier
+operations with no type, topology, or VNode-materialization surface. The supplier retains range,
+update, Activity, and disposal ownership regardless of whether its output is text, an intrinsic,
+another component, a collection, or empty.
+
+The runtime currently calls the opaque compiler-issued component operation a `ComponentReceipt`
+in several private identifiers. That value is a claim ticket for an already selected artifact's
+construct, attach/adopt, receive, and dispose operations; it is not a rendered-node description.
+This is distinct from a **prop receipt**, which is one atomic delivery of finalized parent-owned prop
+values to the retained child instance.
+
+Opaque operations carry a realm-stable identity brand so two distinct handles are never collapsed
+by structural reactive equality merely because their public objects are empty. The brand is not a
+discriminator and exposes no operation kind, output shape, topology, or target payload; those inputs
+remain in issuer-private storage.
+
+That private storage uses a protocol-versioned realm registry. Equivalent duplicated runtime
+modules share redemption authority within the realm, so package duplication does not require a
+public `kind`, `type`, topology field, or materializer. Reactive props and collections retain the
+handle itself as opaque identity; they do not proxy its empty public object.
+
+An explicitly selected React compatibility operation installs the complete private interpreter its
+foreign tree may require. The compiler cannot know whether an imported React package will produce a
+host node, Suspense, Activity, a portal, or another React component. Owning those cases inside the
+precompiled island does not make their interpreter reachable from native-only artifact graphs.
+
 ## Artifact responsibilities
+
+Application roots are assembled by the build adapter, not discovered as a singleton by the
+component compiler. The compiler returns component-local IDs, import edges, target reachability,
+registrations, operations, and boundaries out of band. The adapter combines those facts with the
+bundler's configured entry points and resolved module graph, so an application can mount or hydrate
+several independent roots without giving any component special global status. Descriptive build
+inventories are consumed and erased; runtime chunks retain only the selected executable artifact
+data and transport registrations they actually execute.
+
+Every authored mount call is still compiler-owned. After JSX lowering, the compiler redirects the
+call to the focused root entry for the emitted operation: component artifacts use the component
+root ABI, compiler-closed static trees use the render-program root ABI, and dynamic intrinsic trees
+use the intrinsic root ABI. A local alias or parenthesized JSX expression does not reopen the public
+renderer. Calls whose value was not issued by the compiler remain untouched and cannot accidentally
+enter one of these private root entries.
+
+The compiler's internal `root` implementation role means the public implementation at the root of
+one component partition. An artifact graph's `exposureRoot` means a module export. Neither is an
+application or page root.
 
 A target-local artifact owns the component-specific decisions for:
 
@@ -39,12 +89,28 @@ Component discovery is independent of a module's JSX extension. `.ts`, `.tsx`, `
 source modules can all define native components. Published packages emit separate client and server
 module trees and select them with package export conditions; they do not publish a manually branded
 universal function as a substitute for compilation.
+Vite development may serve browser modules and load SSR modules through one plugin instance. The
+adapter selects the target for each Vite request: browser transforms use the configured client
+projection, while `ssrLoadModule()` transforms use the paired server projection. Imports of
+compiler-owned `.exact.client` and `.exact.server` modules are positive native ownership evidence;
+React compatibility must not wrap those physical artifacts as foreign components.
+The package root and every public or framework subpath select the same conditional tree. A server
+entry cannot resolve the root through `dist/server` while a narrow helper silently resolves through
+an untargeted `dist` graph, because that would duplicate capability registrations and retain both
+target implementations in one bundle. Compiler-selected registration modules are declared as
+package side effects; ordinary unselected modules remain tree-shakeable.
 Published component-library facts preserve both the resolver-selected package facade and the
 target-local compiler artifact that owns each component. Consumers authorize the facade but attach
 the compiler facts to the owning artifact, so relative component imports, target placement, and
 transitive authorization retain the same module base used during compilation. These facts are
 emitted from the successful client and server compiler results; package builds do not reconstruct
 component graphs by importing built JavaScript or scanning for legacy runtime brands.
+The protocol-2 facts are inert JSON: they contain component identities, target-local module paths,
+imports, and enhancement edges, but no executable functions or source text. A nested installed
+dependency publishes the same conditional client/server exports and facts as a direct dependency.
+Consumers resolve and validate those files without recompiling or recursively reading dependency
+source, then compose the selected executable through the same ABI used by a local component. A
+component library does not publish an executable target-neutral fallback.
 When a component delegates setup through a local helper, the compiler follows a direct call or a
 receiver-preserving `helper.call(this, ...)` edge to the lexical render arrow created by that helper.
 The helper's lifecycle, context, ref, reactive, list, localization, and task requirements widen the
@@ -57,9 +123,26 @@ analysis and cannot be published or passed to a renderer.
 Shared runtimes provide narrow operations such as setting text, installing an event, claiming an
 element, managing a range, or running one selected task policy. They do not rediscover the
 component's topology or interpret a universal component plan when the artifact already knows it.
+
+Optional authored component methods install descriptors once on the shared compact component base
+when a genuinely dynamic or extracted access keeps that surface reachable. Concrete component
+classes do not register their prototypes during ordinary module evaluation. Canonical compiled
+`this.map()` sites call the focused list operation directly. The compiler-selected list module also
+retains the authored method descriptor for valid unstructured or reactive expressions that cannot
+yet use that direct lowering; this compatibility within the native authoring surface does not add a
+per-class registry.
 Browser-target artifacts carry only their specialized template, claims, readers, bindings, and
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
+Fresh mount and same-build hydration invoke the same artifact-owned `attach` operation with an
+explicit mode. The DOM supplies either a placement target or a bounded hydration cursor, while the
+artifact supplies its already-normalized output and generated claims. Successful hydration does
+not decide component ownership from the JavaScript type of the authored value, and a failed claim
+re-enters that artifact through `mount` mode after the stale root range is retired.
+Client-island registries resolve compiled components, but activation still issues the same opaque
+component operation as compiled parent composition. Both empty-boundary mount and markerless
+adoption consume that operation directly. Hydration does not manufacture a function-typed VNode as
+an intermediate component representation.
 All compiler-proven direct updates belong to the component artifact. Each dependency identifies
 its compiler-indexed component storage slot, and each dirty bit selects a generated
 text, property, or structural-child call. Forwarded reactive props join that exact field binding
@@ -68,17 +151,28 @@ rather than forcing the child program through a general render watcher. The comp
 runtime lane registry, per-region subscriptions, or a render-program updater. JSX outside a native
 component can use ordinary expression bindings, but it cannot manufacture a second implicit
 component update owner.
+An exported operation factory therefore finalizes its ordinary function parameters when it creates
+the operation. It does not wrap those parameters in forwarded-reactive readers because no durable
+component instance owns such a reader. When a compiled component passes one of its props to a
+child, the parent artifact instead emits the normal receiver-owned prop receipt and update route.
 Scalar expressions composed from several top-level state or prop slots share one generated update
 operation whose mask is attached to every input slot. Arithmetic, comparison, logical, and
 conditional composition therefore reruns through the component artifact without allocating a
 retained watcher per DOM binding. Nested object reads, arbitrary calls, and deferred functions stay
 on the reactive lane unless their complete dependency semantics are separately proven; a top-level
 slot change cannot safely stand in for an observable nested mutation.
-Static native-component slots are also installed directly when they are inert or their live props
-resolve completely to compiler-indexed dependencies. In the latter case, the component update
-artifact regenerates the VNode description only to publish changed props to the durable child; it
-does not replace that child. Dynamic component identity and unresolved authored dependency surfaces
-continue to own an explicit structural reaction.
+Static native-component slots are installed through the referenced client artifact. The parent
+publishes one final value per compiler-indexed prop slot; the receiving artifact compares those
+values, owns prop dirtiness, and applies at most one atomic update without allocating a partial
+props object. Construction, attachment, receipt, and disposal therefore do not classify the
+child's interior or route child operations through a generic function-component lane. The same ABI
+applies whether the child eventually owns text, intrinsics, other components, or a focused dynamic
+range. Dynamic component identity and unresolved authored dependency surfaces continue to own an
+explicit structural reaction selected by the compiler.
+Compiler-created enhancement providers remain ordinary semantic parents for contexts, refs,
+lifecycle, and inspection, while their descendants retain the authored component as the owner of
+compiler-indexed update targets. This prevents a transparent provider's unrelated state layout
+from receiving a descendant operation's dirty mask.
 An authored render helper that returns opaque output owns the component's observation range. The
 compiler only treats a helper call as a one-time finite program when its same-project implementation
 is proven to return JSX that is compiled for the same target.
@@ -89,6 +183,11 @@ repeat source or property-name strings, rebuild binding-index tables, or resolve
 property layout per instance. Only artifacts that read props import the forwarded-reactive prop
 subscription lane; state-only applications do not retain that machinery merely because the
 framework supports reactive props elsewhere.
+The component list capability follows the same rule: `this.map()` returns one focused child-range
+operation whose entries are opaque keyed child operations. Every cached key owns a reactive effect
+scope, DOM reconciliation transfers that scope with the keyed range, removal stops it, and
+hydration claims the corresponding server item range. Native list execution never creates a
+Fragment VNode or exposes its cached child topology to the component.
 When a render arrow returns an otherwise unstructured value such as `props.children`, the client
 artifact marks that authored render function as its component-range output operation. The existing
 component boundary owns its dependency subscription and child reconciliation; the artifact does
@@ -97,6 +196,10 @@ Dependency changes still publish even when the resulting VNode is structurally e
 ownership refreshes such as a remote-domain replacement are semantic operations rather than value
 memoization. This is a compiler-selected boundary lane, not the universal watched-render fallback
 used by explicit compatibility and test artifacts.
+When the client artifact selects this focused component-output range, the paired server artifact
+emits the matching range topology even though the server does not install the client's update
+subscription. Hydration can therefore claim the same structural boundary without asking what the
+opaque output contains or reconstructing a client-only classification.
 Framework-owned renderer roots likewise use an explicit compiled render operation. The renderer
 invokes that operation when the public root value changes, so no compilerless component watcher or
 additional dynamic marker is required around the application.
@@ -123,9 +226,10 @@ facade retains the same numeric identity inside nested callbacks. Nested-state a
 references retain path-based operations because their final target is runtime data.
 Compiler-synthesized computation and task wrappers consume the same analyzed write identity; they
 do not reconstruct a string path merely because the authored assignment moved into managed work.
-Client render programs use only dense, zero-based compiler indexes in their generated claim calls.
-Hydration executes those claims directly; it does not interpret a node table or build a
-string-identity map.
+Client render programs use only dense, zero-based compiler indexes in immutable component-local
+claim and binding tuples. Shared focused DOM operations execute those tuples; the compiler no
+longer emits one structural binder closure per program, and hydration does not build a node table
+or string-identity map.
 `data-exact-id` remains a separate identity only for operations that must address a live DOM target,
 such as authorized server patches and interaction replay. It is not a second render-program ABI.
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
@@ -181,10 +285,16 @@ construction. The server artifact carries the authored publication name and resu
 the direct publisher calls the narrow serializer without rereading the component contract or
 searching its continuation catalog. Server-only task components do not select that client
 publication capability, even when their server artifact is exported. The server keeps readable
-path-keyed records in its result API while serializing
-values as compiler-indexed pairs; hydration expands them only through the matching prepared
-component contract. SSR enhancement activation and `_target` composition are likewise installed only by
-server artifacts that emit enhancement operations. Client-only artifacts never select SSR,
+path-keyed records in its result API while serializing values as compiler-indexed pairs. Immutable
+resumption schemas cache path segments, context order, and allowed continuation identities by
+prepared component contract, so requests retain only their values and component identities.
+Hydration expands indexed pairs only through the matching prepared component contract. SSR enhancement activation and `_target` composition are likewise installed only by
+server artifacts that emit enhancement operations. An enhancement artifact whose compiled output
+contains `_target` carries the internal `targets` capability. SSR uses that compiler fact to defer
+serializing the enhanced child until the target layer exists; ordinary structural enhancements keep
+their established eager child execution so component-published context and nested root routing remain
+available. This capability is bundler/runtime metadata, not an authored API or retained source
+descriptor. Client-only artifacts never select SSR,
 resumption, or continuation capabilities;
 SSR-only, hydratable, continuation, and mixed artifacts each import their own analyzed lane.
 An SSR-render contract facet retains request-local task readiness and resumption publication but
@@ -209,7 +319,12 @@ Context-bearing direct frames carry only their logical parent, request ambient c
 local context map. Generated `getContext()`, `hasContext()`, and `setContext()` calls therefore keep
 normal nearest-provider semantics across direct and durable descendants without allocating an
 effect scope, state proxy, lifecycle registry, or generic context capability. The frame is passed
-as the descendant owner during serialization and is discarded with its request.
+as the descendant owner during serialization and is discarded with its request. Direct SSR stores
+provided values as request-local snapshots rather than client reactive proxies: the server has no
+later observation pass, while descendants still receive the same authored object identity and the
+latest nearest-provider value. Built-in error state is allocated lazily per request domain and held
+through a weak key, so one request neither observes another request's reports nor leaves a durable
+request-owned heap root.
 
 Canonical server logging is also a direct-frame capability. A logging-only component receives its
 component identity, logical parent, request domain, and ambient contexts without allocating the
@@ -267,11 +382,13 @@ An interaction-only client boundary is valid only with a compiler-emitted lazy l
 bounded activation target metadata. An already-loaded component is an eager registry entry; the
 runtime does not infer a blanket event policy from an interaction marker or reinterpret that entry
 as a deferred artifact. This keeps listener selection and replay authority in generated output.
-Each compiled registry key is itself a target-local render artifact. Client keys render once and
-delegate changing props or lazy readiness to one explicit dynamic range; they do not retain a
-component-wide render watcher or advertise unused lifecycle, list, or task ownership. Eager server
-keys select the direct synchronous frame and forward immediately to their fixed implementation.
-Only a lazy server key retains the dynamic generic lane while its loader can suspend.
+Each compiled registry key is itself a target-local render artifact. An eager key reuses the
+selected component's compiled constructor and target operations while retaining the registry key
+as selection identity. A lazy client key owns one generation-fenced readiness range; its finite
+candidate is already compiler-proven and is not reclassified as an open component value. A lazy
+server key resolves once, then invokes the selected server artifact through the same ABI as an
+eager key. Registry selection therefore does not inspect component kind or choose an execution
+lane at render time.
 
 Capability planning is target-local as well as component-local. The compiler keeps authored
 surface facts separate from requirements propagated through receiver-forwarding helpers, then
@@ -299,6 +416,14 @@ another compiled callable; foreign functions enter only through a compiled compa
 Compiler-closed server artifacts instead link a fail-closed construction entry: they execute their
 generated request-local frame and do not retain either durable client record merely to populate a
 contract field. Sending such an artifact through generic instance construction is an error.
+The SSR owner resolves the current server artifact at each native component boundary and invokes
+its `issue`, `write`, and `dispose` methods. `issue` establishes the request-local frame and starts
+eligible task work, `write` publishes that frame in authored output order, and `dispose` releases
+task, preparation, context, and lifecycle ownership exactly once. A child imported from another
+module or package is therefore composed through its own ABI just like a local child; the parent and
+renderer do not inspect or require the child's source graph. Synchronous, scheduled, resumable, and
+continuation-bearing artifacts use this same sequence on Node and Bun, and none constructs a
+client-style durable component instance.
 
 ## Runtime inventory
 

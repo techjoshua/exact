@@ -2,12 +2,22 @@
  * @vitest-environment jsdom
  */
 import '@exactjs/core/runtime/refs';
-import { createRef, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { createCompiledVNode, createVNode, jsx } from './test-support/native-vnode.js';
+import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { adoptStatic, render, unmount } from './index.js';
+import { adoptMarkerlessComponentRoot } from './test-support/adoption.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	ConditionalRefSubtree,
+	ConditionalTextBinding,
+	AdoptedButton,
+	compiledButtonRef,
+	conditionalRefSubtreeInstance,
+	conditionalTextBindingInstance
+} from './bindings.fixtures.js';
 
 describe('@exactjs/dom bindings', () => {
 	it('updates reactive text compositions without rerendering the component', () => {
@@ -47,20 +57,20 @@ describe('@exactjs/dom bindings', () => {
 
 			return () => {
 				rendered();
-				return createCompiledVNode(
+				return createCompiledOperation(
 					'section',
 					{},
 					createDynamicChild(() =>
 						this.state.mode == 'span'
-							? createCompiledVNode('span', {}, 'Span')
-							: createCompiledVNode('strong', {}, 'Strong')
+							? createCompiledOperation('span', {}, 'Span')
+							: createCompiledOperation('strong', {}, 'Strong')
 					)
 				);
 			};
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Panel, {}), container);
+		render(createCompiledOperation(Panel, {}), container);
 		const section = container.querySelector('section')!;
 
 		expect(section.textContent).toBe('Span');
@@ -84,7 +94,7 @@ describe('@exactjs/dom bindings', () => {
 			instance = this;
 			this.state.count = 1;
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'p',
 					{},
 					createDynamicChild(() => (this.state.count > 0 ? 'positive' : 'nonpositive'))
@@ -92,7 +102,7 @@ describe('@exactjs/dom bindings', () => {
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Counter, {}), container, {
+		render(createCompiledOperation(Counter, {}), container, {
 			logger: {
 				isEnabled: (level) => level === 'trace',
 				log: (event) => events.push(event)
@@ -148,23 +158,10 @@ describe('@exactjs/dom bindings', () => {
 		expect(rendered).toHaveBeenCalledTimes(1);
 	});
 
-	it('replaces text bindings when a text vnode changes sources', () => {
-		let parent!: Component<{ useA: boolean; a: string; b: string }>;
-
-		function Parent(this: Component<{ useA: boolean; a: string; b: string }>) {
-			parent = this;
-			this.state.useA = true;
-			this.state.a = 'A';
-			this.state.b = 'B';
-
-			return () =>
-				jsx('span', {
-					children: this.state.useA == true ? this.state.a : this.state.b
-				});
-		}
-
+	it('replaces compiled text bindings when a conditional changes sources', () => {
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(createCompiledOperation(ConditionalTextBinding, {}), container);
+		const parent = conditionalTextBindingInstance();
 		expect(container.textContent).toBe('A');
 
 		parent.state.useA = false;
@@ -181,45 +178,28 @@ describe('@exactjs/dom bindings', () => {
 	});
 
 	it('clears refs when compiled cell subtrees are replaced', () => {
-		const buttonRef = createRef<HTMLButtonElement>('compiled-button');
-		let parent!: Component<{ mode: 'button' | 'input' }>;
-
-		function Parent(this: Component<{ mode: 'button' | 'input' }>) {
-			parent = this;
-			this.state.mode = 'button';
-
-			return () =>
-				createCompiledVNode(
-					'section',
-					{},
-					this.state.mode == 'button'
-						? createCompiledVNode('button', { ref: this.ref(buttonRef) }, 'Save')
-						: createCompiledVNode('input', { value: 'Saved' })
-				);
-		}
-
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container);
-		expect(parent.refs.get(buttonRef)).toBe(container.querySelector('button'));
+		render(createCompiledOperation(ConditionalRefSubtree, {}), container);
+		const parent = conditionalRefSubtreeInstance();
+		expect(parent.refs.get(compiledButtonRef)).toBe(container.querySelector('button'));
 
 		parent.state.mode = 'input';
 		flushSync();
 
 		expect(container.querySelector('button')).toBeNull();
 		expect(container.querySelector('input')).toBeTruthy();
-		expect(parent.refs.get(buttonRef)).toBeUndefined();
+		expect(parent.refs.get(compiledButtonRef)).toBeUndefined();
 	});
 
 	it('disposes an adopted SSR root and its attached bindings', () => {
 		const container = document.createElement('div');
-		container.innerHTML =
-			'<!--exact:component:0--><button>server</button><!--/exact:component:0-->';
+		container.innerHTML = '<button>server</button>';
 		const serverButton = container.querySelector('button')!;
 		const clicked = vi.fn();
 
-		expect(adoptStatic(createVNode('button', { onClick: clicked }, 'server'), container)).toBe(
-			true
-		);
+		expect(
+			adoptMarkerlessComponentRoot(createCompiledOperation(AdoptedButton, { clicked }), container)
+		).toBe(true);
 		serverButton.click();
 		expect(clicked).toHaveBeenCalledTimes(1);
 

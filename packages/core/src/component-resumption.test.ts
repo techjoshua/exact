@@ -1,3 +1,4 @@
+import { createFrameworkFixtureComponentInstance } from './testing.js';
 import { describe, expect, it } from 'vitest';
 import { flushSync } from '@exactjs/reactive';
 import {
@@ -9,7 +10,6 @@ import {
 	type Component,
 	type TaskContext
 } from './index.js';
-import { createFrameworkFixtureComponentInstance } from './runtime/render.js';
 import { createFrameworkComponentDomain } from './component/domain.js';
 
 describe('@exactjs/core component resumption', () => {

@@ -37,6 +37,34 @@ describe('motion driver installation', () => {
 		).resolves.toBeUndefined();
 	});
 
+	it('defers browser animation creation until the current placement transaction completes', async () => {
+		let placed = false;
+		let placedAtPlayback = false;
+		let commitFrame!: FrameRequestCallback;
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+			commitFrame = callback;
+			return 1;
+		});
+		const animation = { finished: Promise.resolve(), cancel: vi.fn() };
+		const animate = vi.fn(() => {
+			placedAtPlayback = placed;
+			return animation;
+		});
+		const element = { animate } as unknown as Element;
+
+		const playback = createWebAnimationDriver().play(
+			element,
+			{ keyframes: [{ opacity: 0 }, { opacity: 1 }] },
+			new AbortController().signal
+		);
+		expect(animate).not.toHaveBeenCalled();
+		placed = true;
+		commitFrame(0);
+		await playback;
+
+		expect(placedAtPlayback).toBe(true);
+	});
+
 	it('restores active leases correctly after out-of-order application disposal', () => {
 		const first = driver('first');
 		const second = driver('second');
@@ -89,6 +117,7 @@ describe('motion driver installation', () => {
 			{ keyframes: [{ opacity: 1 }, { opacity: 0 }] },
 			abort.signal
 		);
+		await Promise.resolve();
 		abort.abort('reverse');
 		await expect(interrupted).rejects.toBe('reverse');
 

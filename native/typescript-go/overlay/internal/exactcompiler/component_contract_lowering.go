@@ -46,15 +46,21 @@ func lowerComponentContracts(
 		taskName:               allocateGeneratedName(used, "__exactConstructTaskComponent"),
 		durableName:            allocateGeneratedName(used, "__exactConstructDurableComponent"),
 		directServerName:       allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
-		directContextFrameName: allocateGeneratedName(used, "__exactDirectSsrContextFrame"),
 		directLoggingFrameName: allocateGeneratedName(used, "__exactDirectSsrLoggingFrame"),
 		directLifecycleName:    allocateGeneratedName(used, "__exactDirectSsrLifecycle"),
+		clientAttachName:       allocateGeneratedName(used, "__exactAttachClientComponent"),
+		clientReceiveName:      allocateGeneratedName(used, "__exactReceiveClientProps"),
+		clientDisposeName:      allocateGeneratedName(used, "__exactDisposeClientComponent"),
+		serverIssueName:        allocateGeneratedName(used, "__exactIssueServerComponent"),
+		serverWriteName:        allocateGeneratedName(used, "__exactWriteServerComponent"),
+		serverDisposeName:      allocateGeneratedName(used, "__exactDisposeServerComponent"),
 	}
 	statements := make(
 		[]*ast.Node,
 		0,
 		len(sourceFile.Statements.Nodes)+len(rootContracts)+1,
 	)
+	hoistedAttachments := make([]*ast.Node, 0)
 	for _, statement := range sourceFile.Statements.Nodes {
 		if ast.IsFunctionDeclaration(statement) {
 			name := statement.Name()
@@ -62,26 +68,33 @@ func lowerComponentContracts(
 				if component, wrap := rootContracts[name.Text()]; wrap {
 					preserveHoisting := preserveComponentHoisting ||
 						componentFunctionReferencedEarlier(sourceFile, statement, name.Text())
-					statements = append(
-						statements,
-						wrapRootComponentFunction(
-							emitContext,
-							statement.AsFunctionDeclaration(),
-							component,
-							descriptorName,
-							identityFilename,
-							continuations,
-							resumptions,
-							boundaries,
-							target,
-							used,
-							preserveHoisting,
-							compatibility,
-							projection,
-							componentUpdates,
-							&constructors,
-						)...,
+					wrapped := wrapRootComponentFunction(
+						emitContext,
+						statement.AsFunctionDeclaration(),
+						component,
+						descriptorName,
+						identityFilename,
+						continuations,
+						resumptions,
+						boundaries,
+						target,
+						used,
+						preserveHoisting,
+						compatibility,
+						projection,
+						componentUpdates,
+						&constructors,
 					)
+					if preserveHoisting {
+						// A function declaration is callable before its textual declaration. Its
+						// compiler-owned executable contract must have the same module-order
+						// availability, or earlier registries and aliases observe only the bare
+						// authored function.
+						statements = append(statements, wrapped[0])
+						hoistedAttachments = append(hoistedAttachments, wrapped[1:]...)
+					} else {
+						statements = append(statements, wrapped...)
+					}
 					continue
 				}
 			}
@@ -164,13 +177,14 @@ func lowerComponentContracts(
 			descriptorName,
 		)
 		constructorImports := constructors.declarations(factory)
-		capacity := len(statements) + len(updateDefinitions) + 1
+		capacity := len(statements) + len(updateDefinitions) + len(hoistedAttachments) + 1
 		capacity += len(constructorImports)
 		ordered := make([]*ast.Node, 0, capacity)
 		ordered = append(ordered, statements[:insertionIndex]...)
 		ordered = append(ordered, constructorImports...)
 		ordered = append(ordered, descriptor)
 		ordered = append(ordered, updateDefinitions...)
+		ordered = append(ordered, hoistedAttachments...)
 		ordered = append(ordered, statements[insertionIndex:]...)
 		statements = ordered
 	}
@@ -188,37 +202,107 @@ type componentConstructorImports struct {
 	taskName               string
 	durableName            string
 	directServerName       string
-	directContextFrameName string
 	directLoggingFrameName string
 	directLifecycleName    string
+	clientAttachName       string
+	clientReceiveName      string
+	clientDisposeName      string
+	serverIssueName        string
+	serverWriteName        string
+	serverDisposeName      string
 	renderUsed             bool
 	taskUsed               bool
 	durableUsed            bool
 	directServerUsed       bool
-	directContextFrameUsed bool
 	directLoggingFrameUsed bool
 	directLifecycleUsed    bool
+	clientOperationsUsed   bool
+	serverOperationsUsed   bool
+}
+
+type componentTargetOperations struct {
+	attach  *ast.Node
+	receive *ast.Node
+	issue   *ast.Node
+	write   *ast.Node
+	dispose *ast.Node
+}
+
+func (imports *componentConstructorImports) targetOperations(
+	factory *printer.NodeFactory,
+	target Target,
+) componentTargetOperations {
+	if target == TargetClient {
+		imports.clientOperationsUsed = true
+		return componentTargetOperations{
+			attach:  factory.NewIdentifier(imports.clientAttachName),
+			receive: factory.NewIdentifier(imports.clientReceiveName),
+			dispose: factory.NewIdentifier(imports.clientDisposeName),
+		}
+	}
+	imports.serverOperationsUsed = true
+	return componentTargetOperations{
+		issue:   factory.NewIdentifier(imports.serverIssueName),
+		write:   factory.NewIdentifier(imports.serverWriteName),
+		dispose: factory.NewIdentifier(imports.serverDisposeName),
+	}
 }
 
 func (imports *componentConstructorImports) selectConstructor(
 	factory *printer.NodeFactory,
 	abi int,
 	directServer bool,
+	implementation *ast.Node,
 ) *ast.Node {
 	if directServer {
 		imports.directServerUsed = true
 		return factory.NewIdentifier(imports.directServerName)
 	}
+	className := imports.renderName
+	arguments := []string{"__exactRawProps", "__exactParent", "__exactAmbientContexts", "__exactDomain"}
 	if abi&(componentABILifecycle|componentABILists|componentABITasks) == 0 {
 		imports.renderUsed = true
-		return factory.NewIdentifier(imports.renderName)
-	}
-	if abi&(componentABILifecycle|componentABILists) == 0 && abi&componentABITasks != 0 {
+	} else if abi&(componentABILifecycle|componentABILists) == 0 && abi&componentABITasks != 0 {
 		imports.taskUsed = true
-		return factory.NewIdentifier(imports.taskName)
+		className = imports.taskName
+		arguments = append(arguments, "__exactExecution")
+	} else {
+		imports.durableUsed = true
+		className = imports.durableName
+		arguments = append([]string{"__exactImplementation"}, arguments...)
+		arguments = append(arguments, "__exactExecution")
 	}
-	imports.durableUsed = true
-	return factory.NewIdentifier(imports.durableName)
+	arguments = append(arguments, "__exactContract")
+	constructorArguments := []*ast.Node{implementation}
+	for _, argument := range arguments {
+		if argument == "__exactImplementation" {
+			constructorArguments = append(constructorArguments, implementation)
+			continue
+		}
+		constructorArguments = append(constructorArguments, factory.NewIdentifier(argument))
+	}
+	parameterNames := []string{
+		"__exactParent", "__exactRawProps", "__exactAmbientContexts", "__exactDomain",
+		"__exactExecution", "__exactContract",
+	}
+	parameters := make([]*ast.Node, len(parameterNames))
+	for index, name := range parameterNames {
+		parameters[index] = factory.NewParameterDeclaration(
+			nil,
+			nil,
+			factory.NewIdentifier(name),
+			nil,
+			factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+			nil,
+		)
+	}
+	return factory.NewArrowFunction(
+		nil, nil, factory.NewNodeList(parameters), nil, nil,
+		factory.NewToken(ast.KindEqualsGreaterThanToken),
+		factory.NewNewExpression(
+			factory.NewIdentifier(className), nil, factory.NewNodeList(constructorArguments),
+		),
+	)
 }
 
 func componentConstructorImport(
@@ -249,10 +333,24 @@ func componentConstructorImport(
 
 func (imports *componentConstructorImports) declarations(factory *printer.NodeFactory) []*ast.Node {
 	declarations := []*ast.Node{}
+	if imports.clientOperationsUsed {
+		declarations = append(declarations, componentOperationImports(factory, []componentOperationImport{
+			{imported: "attachExactCompiledClientComponent", local: imports.clientAttachName},
+			{imported: "receiveExactClientComponentProps", local: imports.clientReceiveName},
+			{imported: "disposeExactClientComponent", local: imports.clientDisposeName},
+		}))
+	}
+	if imports.serverOperationsUsed {
+		declarations = append(declarations, componentOperationImports(factory, []componentOperationImport{
+			{imported: "issueExactServerComponent", local: imports.serverIssueName},
+			{imported: "writeExactServerComponent", local: imports.serverWriteName},
+			{imported: "disposeExactServerComponent", local: imports.serverDisposeName},
+		}))
+	}
 	if imports.renderUsed {
 		declarations = append(declarations, componentConstructorImport(
 			factory,
-			"constructRenderComponentInstance",
+			"RenderComponentInstance",
 			imports.renderName,
 			"@exactjs/core/runtime/component-construction/render",
 		))
@@ -260,7 +358,7 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 	if imports.taskUsed {
 		declarations = append(declarations, componentConstructorImport(
 			factory,
-			"constructTaskComponentInstance",
+			"TaskComponentInstance",
 			imports.taskName,
 			"@exactjs/core/runtime/component-construction/task",
 		))
@@ -268,7 +366,7 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 	if imports.durableUsed {
 		declarations = append(declarations, componentConstructorImport(
 			factory,
-			"constructDurableComponentInstance",
+			"ComponentInstanceImpl",
 			imports.durableName,
 			"@exactjs/core/runtime/component-construction/durable",
 		))
@@ -279,14 +377,6 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 			"rejectDirectServerComponentConstruction",
 			imports.directServerName,
 			"@exactjs/core/runtime/component-construction/direct-server",
-		))
-	}
-	if imports.directContextFrameUsed {
-		declarations = append(declarations, componentConstructorImport(
-			factory,
-			"createDirectSsrContextFrame",
-			imports.directContextFrameName,
-			"@exactjs/ssr/runtime/direct-context-frame",
 		))
 	}
 	if imports.directLoggingFrameUsed {
@@ -306,6 +396,37 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 		))
 	}
 	return declarations
+}
+
+type componentOperationImport struct {
+	imported string
+	local    string
+}
+
+func componentOperationImports(
+	factory *printer.NodeFactory,
+	operations []componentOperationImport,
+) *ast.Node {
+	specifiers := make([]*ast.Node, 0, len(operations))
+	for _, operation := range operations {
+		specifiers = append(specifiers, factory.NewImportSpecifier(
+			false,
+			factory.NewIdentifier(operation.imported),
+			factory.NewIdentifier(operation.local),
+		))
+	}
+	declaration := factory.NewImportDeclaration(
+		nil,
+		factory.NewImportClause(
+			ast.KindUnknown,
+			nil,
+			factory.NewNamedImports(factory.NewNodeList(specifiers)),
+		),
+		factory.NewStringLiteral("@exactjs/core/runtime/component-operations", ast.TokenFlagsNone),
+		nil,
+	)
+	ast.SetParentInChildren(declaration)
+	return declaration
 }
 
 func extractComponentUpdateDefinitions(
@@ -361,11 +482,11 @@ func componentFunctionReferencedEarlier(
 	return false
 }
 
-func componentHasTargetArtifact(_ Component, target Target) bool {
+func componentHasTargetArtifact(component Component, target Target) bool {
 	// Partition lowering has already replaced opposite-target implementations
 	// with target-local boundary callables. Those stubs are compiled artifacts
 	// too; placement does not authorize an identity-only native value.
-	return target != TargetDefault
+	return target != TargetDefault && component.TargetArtifact
 }
 
 func wrapRootComponentFunction(
@@ -630,7 +751,7 @@ func rootComponentContractAttachment(
 		projectedContinuations = contractArray(factory)
 		projectedBoundaries = contractArray(factory)
 	}
-	usesCompatibility := compatibility && componentUsesJSXInterop(component, componentFunction)
+	usesCompatibility := component.TargetPlan.UsesCompatibility
 	hasResumption := component.Placement == "isomorphic" &&
 		componentHasResumption(component.ID, resumptions)
 	directResumption := hasResumption && directServerResumptionSupported(component.ID, resumptions)
@@ -653,10 +774,7 @@ func rootComponentContractAttachment(
 	var serverFrame *ast.Node
 	var serverLifecycle *ast.Node
 	if target == TargetServer && component.TargetPlan.DirectServer {
-		if targetSurface.Contexts || targetSurface.Localization {
-			constructors.directContextFrameUsed = true
-			serverFrame = factory.NewIdentifier(constructors.directContextFrameName)
-		} else if targetSurface.Logging {
+		if targetSurface.Logging {
 			constructors.directLoggingFrameUsed = true
 			serverFrame = factory.NewIdentifier(constructors.directLoggingFrameName)
 		}
@@ -673,13 +791,48 @@ func rootComponentContractAttachment(
 		hasInteractions,
 		usesCompatibility,
 		compiledRender,
+		target == TargetClient && len(componentContinuations) != 0,
 	)
 	propsSlots := component.PropsSlots
+	targetOperations := constructors.targetOperations(factory, target)
+	artifact := componentArtifactMetadata(
+		factory,
+		component.ID,
+		target,
+		targetOperations,
+		implementation,
+		constructors.selectConstructor(
+			factory,
+			runtimeABI,
+			target == TargetServer && component.TargetPlan.DirectServer,
+			implementation,
+		),
+		projectedExecution,
+		component.TargetPlan.DeferredTaskProps,
+		component.StateSlots,
+		propsSlots,
+		runtimeContinuations,
+		hasResumption,
+		serverPublicationName,
+		serverFrame,
+		serverLifecycle,
+		directResumption,
+		hasInteractions,
+		usesCompatibility,
+		component.DynamicComponents,
+		component.Collections,
+		component.Targets,
+		runtimeABI,
+		component.TargetPlan.DirectServer,
+		target == TargetServer,
+		projection != ComponentContractProjectionComplete,
+		updates,
+	)
 	contractProperties := []*ast.Node{
 		contractProperty(
 			factory,
 			"version",
-			factory.NewNumericLiteral("2", ast.TokenFlagsNone),
+			factory.NewNumericLiteral("3", ast.TokenFlagsNone),
 		),
 		contractProperty(
 			factory,
@@ -701,36 +854,16 @@ func rootComponentContractAttachment(
 		contractProperty(factory, "boundaries", projectedBoundaries),
 		contractProperty(
 			factory,
-			"definition",
-			componentDefinitionMetadata(
-				factory,
-				implementation,
-				constructors.selectConstructor(
-					factory,
-					runtimeABI,
-					target == TargetServer && component.TargetPlan.DirectServer,
-				),
-				projectedExecution,
-				component.TargetPlan.DeferredTaskProps,
-				component.StateSlots,
-				propsSlots,
-				runtimeContinuations,
-				hasResumption,
-				serverPublicationName,
-				serverFrame,
-				serverLifecycle,
-				directResumption,
-				hasInteractions,
-				usesCompatibility,
-				component.DynamicComponents,
-				component.Collections,
-				runtimeABI,
-				component.TargetPlan.DirectServer,
-				target == TargetServer,
-				projection != ComponentContractProjectionComplete,
-				updates,
-			),
+			"artifact",
+			artifact,
 		),
+	}
+	if projection == ComponentContractProjectionClient ||
+		projection == ComponentContractProjectionHydrate {
+		// The build adapter consumes placement, implementation, continuation, executor, and
+		// boundary inventories from the compiler's out-of-band build products. A physical client
+		// module retains only its executable artifact and optional hydration resumption contract.
+		contractProperties = []*ast.Node{contractProperty(factory, "artifact", artifact)}
 	}
 	if projection != ComponentContractProjectionHydrate &&
 		!(target == TargetServer && component.TargetPlan.DirectServer) {
@@ -838,10 +971,30 @@ func rootComponentContractAttachment(
 	)
 }
 
-func componentUsesJSXInterop(component Component, componentFunction *ast.Node) bool {
+func componentUsesJSXInterop(
+	component Component,
+	componentFunction *ast.Node,
+	interop *JSXInterop,
+) bool {
+	if interop == nil {
+		return false
+	}
 	for _, edge := range component.RenderEdges {
 		if edge.ModuleSpecifier != "" && edge.ComponentID == "" {
-			return true
+			if exactCoreStructuralReference(edge.ModuleSpecifier, edge.ExportName) {
+				continue
+			}
+			exact := false
+			for _, configured := range interop.ExactComponents {
+				if configured.ModuleSpecifier == edge.ModuleSpecifier &&
+					configured.ExportName == edge.ExportName {
+					exact = true
+					break
+				}
+			}
+			if !exact {
+				return true
+			}
 		}
 	}
 	used := false
@@ -869,17 +1022,17 @@ func componentHasResumption(componentID string, resumptions []ComponentResumptio
 	return false
 }
 
-// directServerResumptionSupported identifies records a request-local state frame can publish
-// without constructing context capability or durable continuation ownership. State paths, finite
-// value captures, and boundary identities are compiler data; resumable contexts still require the
-// generic component lane until they have a dedicated direct-frame ABI.
+// directServerResumptionSupported identifies records a request-local state/context frame can
+// publish without durable client-style component ownership. Context-bearing components select the
+// focused direct context frame during artifact emission; their resumption records therefore do not
+// require the generic server component lane.
 func directServerResumptionSupported(
 	componentID string,
 	resumptions []ComponentResumption,
 ) bool {
 	for _, resumption := range resumptions {
 		if resumption.ComponentID == componentID {
-			return len(resumption.Client.Contexts) == 0
+			return true
 		}
 	}
 	return false

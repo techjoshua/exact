@@ -1,9 +1,11 @@
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
-import { encodeReactiveProtocolValue } from '@exactjs/reactive/framework/protocol';
+import { encodeValidatedReactiveCollection } from '@exactjs/reactive/framework/protocol';
 import { escapeAttr } from './html.js';
 import { encodeHydrationProtocolValue } from './hydration-encoding-capability.js';
+import { validateJsonSafeHydrationValue } from './hydration-json.js';
+import { utf8ByteLength } from './render/utf8.js';
 import type { HydrationScriptOptions } from './types.js';
 import type { SsrResumptionLayout } from './resumption.js';
 
@@ -24,6 +26,7 @@ export function renderHydrationScript(
 			endpoint: options.endpoint,
 			endpoints: options.endpoints,
 			state: options.state,
+			m: options.markerlessRoot ? 1 : undefined,
 			continuations: options.continuations,
 			resumptions: options.resumptions,
 			publicContexts: options.publicContexts,
@@ -37,18 +40,14 @@ export function renderHydrationScript(
 		{ kind: 'hydration' },
 		(options.outputExtensions ?? []) as readonly ExactOutputExtension<Record<string, unknown>>[]
 	);
-	const unsafePath = findJsonUnsafePath(payloadValue, '$', new Set(), true, {
+	const compacted = compactHydrationMetadata(payloadValue, resumptionLayouts);
+	const unsafePath = validateJsonSafeHydrationValue(compacted, {
 		maxDepth: options.maxHydrationDepth,
 		maxNodes: options.maxHydrationNodes
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
-	const payload = serializeEncodedHydrationPayload(
-		encodeReactiveProtocolValue(compactHydrationMetadata(payloadValue, resumptionLayouts))
-	);
-	if (
-		new TextEncoder().encode(payload).byteLength >
-		positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)
-	) {
+	const payload = serializeValidatedHydrationPayload(compacted);
+	if (utf8ByteLength(payload) > positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)) {
 		throw new Error('Hydration payload exceeded maxHydrationBytes');
 	}
 	const id = options.scriptId ?? '__exact_hydration';
@@ -195,7 +194,26 @@ export function serializeHydrationPayload(payload: Record<string, unknown>): str
 }
 
 function serializeEncodedHydrationPayload(payload: unknown): string {
-	return JSON.stringify(payload)
+	return serializeJson(payload);
+}
+
+/** Encodes registered arrays as JSON visits them without cloning the validated payload graph. */
+function serializeValidatedHydrationPayload(payload: unknown): string {
+	const encodedCollections = new WeakSet<unknown[]>();
+	return serializeJson(payload, function (_key, value) {
+		if (!Array.isArray(value)) return value;
+		if (encodedCollections.has(value)) return value;
+		const encoded = encodeValidatedReactiveCollection(value, value);
+		if (encoded !== value) encodedCollections.add(value);
+		return encoded;
+	});
+}
+
+function serializeJson(
+	payload: unknown,
+	replacer?: (this: unknown, key: string, value: unknown) => unknown
+): string {
+	return JSON.stringify(payload, replacer)
 		.replace(/</g, '\\u003C')
 		.replace(/\u2028/g, '\\u2028')
 		.replace(/\u2029/g, '\\u2029');

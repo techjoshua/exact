@@ -1,22 +1,24 @@
+import { createFrameworkFixtureComponentInstance } from './testing.js';
 import { describe, expect, it } from 'vitest';
 import type { Component } from './index.js';
+import { createComponentDomain, pageComponentDomain, withComponentDomain } from './index.js';
+import { executeCompiledComponentOutput } from './component/compiled-output.js';
 import {
-	createComponentDomain,
-	createVNode,
-	isVNode,
-	pageComponentDomain,
-	withComponentDomain
-} from './index.js';
-import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
+	createCompiledIntrinsicReceipt,
+	readCompiledIntrinsicReceipt
+} from './component-abi/intrinsic-receipt.js';
 import { componentDomainInspection, createFrameworkComponentDomain } from './component/domain.js';
 
 describe('component domains', () => {
-	it('captures the active immutable domain on authored VNodes', () => {
+	it('captures the active immutable domain on compiler-issued operations', () => {
 		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
-		const vnode = withComponentDomain(remote, () => createVNode('section', null));
-		expect(vnode.domain).toBe(remote);
+		const operation = withComponentDomain(remote, () =>
+			createCompiledIntrinsicReceipt('section', null)
+		);
+		const data = readCompiledIntrinsicReceipt(operation)!;
+		expect(data.domain).toBe(remote);
 		expect(() => {
-			(vnode.domain as { executionRoot: string }).executionRoot = 'other';
+			(data.domain as { executionRoot: string }).executionRoot = 'other';
 		}).toThrow();
 	});
 
@@ -24,8 +26,8 @@ describe('component domains', () => {
 		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
 		function Area(this: Component<{ count: number }>) {
 			this.state.count = 1;
-			const setup = createVNode('span', { phase: 'setup' });
-			return () => [setup, createVNode('span', { count: this.state.count })];
+			const setup = createCompiledIntrinsicReceipt('span', { phase: 'setup' });
+			return () => [setup, createCompiledIntrinsicReceipt('span', { count: this.state.count })];
 		}
 		const instance = createFrameworkFixtureComponentInstance(
 			Area,
@@ -34,9 +36,9 @@ describe('component domains', () => {
 			undefined,
 			remote
 		);
-		const output = renderInstance(instance, () => undefined);
+		const output = executeCompiledComponentOutput(instance);
 		expect(instance.domain).toBe(remote);
-		expect(output.map((child) => (isVNode(child) ? child.domain : undefined))).toEqual([
+		expect(output.map((child) => readCompiledIntrinsicReceipt(child)?.domain)).toEqual([
 			remote,
 			remote
 		]);

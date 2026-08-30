@@ -1,14 +1,18 @@
 import type {
 	ExactRenderProgram,
-	ExactRenderProgramBindingTarget
-} from '@exactjs/core/runtime/render';
+	ExactRenderProgramBindingTarget,
+	ExactRenderProgramWiring
+} from '@exactjs/core/runtime/render-operations';
 import type { RenderProgramChildAnchor } from '../types.js';
+import { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from '../namespace.js';
+
+type ConcreteNamespace = 'html' | 'svg' | 'mathml';
 
 type ProgramClaimTarget = {
 	readonly claiming: true;
 	readonly root: Element;
 	readonly source: 'template' | 'ssr';
-	namespace: ExactRenderProgram['namespace'];
+	namespace: ConcreteNamespace;
 	readonly elements: Array<Element | undefined>;
 	readonly slotNodes: Array<Node | RenderProgramChildAnchor | undefined>;
 	componentSlots: number | Set<number>;
@@ -35,7 +39,8 @@ export function claimCompiledRenderProgram(
 	source: 'template' | 'ssr'
 ): ClaimedRenderProgram | undefined {
 	if (!program.directClaims) return undefined;
-	if (!program.bind) {
+	const fixtureBinder = (program as unknown as { bind?: (target: object) => void }).bind;
+	if (!program.wire && !fixtureBinder) {
 		if (!matchesElement(root, program.root[0], program.root[1] ?? program.namespace))
 			return undefined;
 		return { elements: [root], slotNodes: [], componentSlots: 0, work: program.work };
@@ -44,7 +49,7 @@ export function claimCompiledRenderProgram(
 		claiming: true,
 		root,
 		source,
-		namespace: program.namespace,
+		namespace: concreteElementNamespace(root),
 		elements: [],
 		slotNodes: [],
 		componentSlots: 0,
@@ -55,7 +60,8 @@ export function claimCompiledRenderProgram(
 		valid: true,
 		began: false
 	};
-	program.bind(target);
+	if (program.wire) claimCompiledProgramWiring(program.wire, target);
+	else fixtureBinder!(target);
 	if (target.valid && target.began && target.parents.length === 0)
 		return {
 			elements: target.elements,
@@ -64,6 +70,74 @@ export function claimCompiledRenderProgram(
 			work: target.work
 		};
 	return undefined;
+}
+
+/** Executes one immutable component-local claim sequence against the bounded claim cursor. */
+function claimCompiledProgramWiring(
+	wiring: ExactRenderProgramWiring,
+	target: ExactRenderProgramBindingTarget
+): void {
+	const [root, claims] = wiring;
+	if (!beginCompiledProgramClaims(target, root[0], root[1], root[2], root[3])) return;
+	for (const operation of claims) {
+		switch (operation[0]) {
+			case 0:
+				claimCompiledProgramElement(
+					target,
+					operation[1] as number,
+					operation[2] as number,
+					operation[3] as string,
+					operation[4] as ExactRenderProgram['namespace'] | undefined
+				);
+				break;
+			case 1:
+				enterCompiledProgramElement(target, operation[1] as number);
+				break;
+			case 2:
+				leaveCompiledProgramElement(target);
+				break;
+			case 3:
+				claimCompiledProgramText(
+					target,
+					operation[1] as number,
+					operation[2] as number,
+					operation[3] as string | true
+				);
+				break;
+			case 4:
+				claimCompiledProgramKeyedChild(
+					target,
+					operation[1] as number,
+					operation[2] as number,
+					operation[3] === true
+				);
+				break;
+			case 5:
+				claimCompiledProgramChild(
+					target,
+					operation[1] as number,
+					operation[2] as number,
+					operation[3] as string,
+					operation[4] === true
+				);
+				break;
+			case 6:
+				claimCompiledProgramElementPath(
+					target,
+					operation[1] as number,
+					operation[2] as number,
+					operation[3] as string,
+					operation[4] as ExactRenderProgram['namespace'] | undefined
+				);
+				break;
+			case 7:
+				claimCompiledProgramProperty(target, operation[1] as number, operation[2] as number);
+				break;
+			default:
+				(target as { valid: boolean }).valid = false;
+				return;
+		}
+	}
 }
 
 /** Copies one claimed element into the slot lane consumed by a compiled property group. */
@@ -91,7 +165,7 @@ export function beginCompiledProgramClaims(
 ): boolean {
 	if (!isClaimTarget(target)) return false;
 	target.began = true;
-	target.namespace = namespace;
+	target.namespace = concreteElementNamespace(target.root);
 	target.work = [nodes, slots];
 	if (!matchesElement(target.root, tag, namespace)) {
 		target.valid = false;
@@ -214,8 +288,7 @@ export function claimCompiledProgramText(
 	}
 	const marker = advance(target.current, skip);
 	const identity = id === true ? '' : markerIdentity(id);
-	const expectedOpen = target.source === 'template' ? '' : `exact:dynamic:${identity}`;
-	const expectedClose = target.source === 'template' ? '' : `/exact:dynamic:${identity}`;
+	const expectedOpen = target.source === 'template' ? '' : `x:${identity}`;
 	if (!(marker instanceof Comment) || marker.data !== expectedOpen) {
 		target.valid = false;
 		return;
@@ -230,7 +303,11 @@ export function claimCompiledProgramText(
 		text = marker.ownerDocument.createTextNode('');
 		closing = candidate;
 	}
-	if (!(closing instanceof Comment) || closing.data !== expectedClose) {
+	if (!(closing instanceof Comment)) {
+		target.valid = false;
+		return;
+	}
+	if (target.source === 'ssr' ? closing.data !== `/x:${identity}` : closing.data !== '') {
 		target.valid = false;
 		return;
 	}
@@ -253,14 +330,17 @@ export function claimCompiledProgramChild(
 	if (!isClaimTarget(target) || !target.valid) return;
 	const marker = advance(target.current, skip);
 	const identity = markerIdentity(id);
-	if (!(marker instanceof Comment) || marker.data !== `exact:dynamic:${identity}`) {
+	if (!(marker instanceof Comment) || marker.data !== `x:${identity}`) {
 		target.valid = false;
 		return;
 	}
-	const closingIdentity = `/exact:dynamic:${identity}`;
-	let closing = marker.nextSibling;
-	while (closing && (!(closing instanceof Comment) || closing.data !== closingIdentity))
-		closing = closing.nextSibling;
+	let closing: Comment | undefined;
+	for (let candidate = marker.nextSibling; candidate; candidate = candidate.nextSibling) {
+		if (candidate instanceof Comment && candidate.data === `/x:${identity}`) {
+			closing = candidate;
+			break;
+		}
+	}
 	if (!closing) {
 		target.valid = false;
 		return;
@@ -306,12 +386,24 @@ function matchesElement(
 	namespace: ExactRenderProgram['namespace']
 ): boolean {
 	const uri =
-		namespace === 'svg'
-			? 'http://www.w3.org/2000/svg'
-			: namespace === 'mathml'
-				? 'http://www.w3.org/1998/Math/MathML'
-				: 'http://www.w3.org/1999/xhtml';
+		namespace === 'contextual'
+			? element.parentElement
+				? (namespaceForTag(tag, element.parentElement) ?? HTML_NAMESPACE)
+				: element.namespaceURI
+			: namespace === 'svg'
+				? SVG_NAMESPACE
+				: namespace === 'mathml'
+					? MATHML_NAMESPACE
+					: HTML_NAMESPACE;
 	return element.localName.toLowerCase() === tag.toLowerCase() && element.namespaceURI === uri;
+}
+
+function concreteElementNamespace(element: Element): ConcreteNamespace {
+	return element.namespaceURI === SVG_NAMESPACE
+		? 'svg'
+		: element.namespaceURI === MATHML_NAMESPACE
+			? 'mathml'
+			: 'html';
 }
 
 function markerIdentity(id: string): string {

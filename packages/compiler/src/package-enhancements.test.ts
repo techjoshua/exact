@@ -67,6 +67,38 @@ describe('package-scoped enhancements', () => {
 		expect(unused.rendererEnhancements).toBeUndefined();
 	});
 
+	it('lowers reactive package-scoped enhancement values in transitive component modules', () => {
+		const transformed = transformSource(
+			`export function Action() {
+				this.state = { active: false };
+				return () => <button intl:message={this.state.active ? 'active' : 'idle'}>Toggle</button>;
+			}`,
+			{
+				filename: path.resolve('src/Action.tsx'),
+				packageEnhancements: [intlRegistration]
+			}
+		);
+
+		expect(transformed.rendererEnhancements).toEqual([
+			expect.objectContaining({ exportName: 'default' })
+		]);
+		expect(transformed.code).not.toContain('intl:message');
+		expect(transformed.code).toContain('enhancement');
+	});
+
+	it('keeps an enhanced component child in an opaque render-program range', () => {
+		const transformed = transformSource(
+			`import { motion } from '../dom/src/test-support/enhancements/enhancement-routing.fixtures.js' with { type: 'exact-enhancement' };
+			function Card() { return () => <button>Save</button>; }
+			export function Page() { return () => <main><Card motion:tone="active" /></main>; }`,
+			{ filename: path.resolve('Page.tsx') }
+		);
+
+		expect(transformed.code).toContain('__exactSsr.prepareChild(__exactInvocation, 0)');
+		expect(transformed.code).toContain('() => __exactComponentReceipt(Card,');
+		expect(transformed.code).not.toContain('__exactSsr.prepareComponent(__exactInvocation, 0)');
+	});
+
 	it('rejects an authored enhancement import with the package binding name', () => {
 		expect(() =>
 			transformSource(

@@ -470,7 +470,9 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain(
 			'const __exact_filtered_1 = (__exactReadState(props, 0) as string[]).filter('
 		);
-		expect(output).toContain('__exact_filtered_1.map(');
+		expect(output).toContain('__exactMapKeyedChildren(this, __exact_filtered_1, item => item,');
+		expect(output).toContain('ComponentInstanceImpl as __exactConstructDurableComponent');
+		expect(output).toContain('abi: 21');
 	});
 
 	it('preserves narrowing for nullable derived locals', () => {

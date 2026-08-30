@@ -17,11 +17,10 @@ const taskCapability: ComponentTaskCapability = Object.freeze({
 	create(instance, _type, contract, execution, props, resuming) {
 		const required =
 			contract === undefined ||
-			contract.continuations.length !== 0 ||
+			(contract.continuations?.length ?? 0) !== 0 ||
 			(contract.execution?.transitions.length ?? 0) !== 0 ||
-			contract.definition?.capabilities.includes('tasks') === true ||
-			contract.definition?.capabilities.includes('interactions') === true ||
-			contract.definition?.capabilities.includes('compatibility') === true;
+			contract.artifact?.capabilities.includes('tasks') === true ||
+			contract.artifact?.capabilities.includes('compatibility') === true;
 		if (!required) return undefined;
 		const owner = createTaskOwnerRecord(instance.id);
 		if (resuming) deferTaskOwnerActivations(owner);

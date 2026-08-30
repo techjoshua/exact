@@ -1,5 +1,5 @@
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { ExactTableRenderProgram } from '@exactjs/core/runtime/render';
+import type { ExactTableRenderProgram } from '@exactjs/core/runtime/render-operations';
 import { clearElementOwner, clearNodeOwner, setElementOwner, setNodeOwner } from '../ownership.js';
 import { programElement, type ProgramHydrationIndex } from './render-program-hydration.js';
 

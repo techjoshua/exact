@@ -114,7 +114,7 @@ describe('build adapter support', () => {
 		expect(
 			shouldCompileExactBuildModule(
 				'/src/planned.ts',
-				'function Planned(this: Component<{}>) { return () => createVNode("p"); }',
+				'function Planned(this: Component<{}>) { return () => createOperation("p"); }',
 				{}
 			)
 		).toBe(true);

@@ -9,13 +9,20 @@ export function MotionList(this: Component<{}>, props: MotionListProps<unknown>)
 	if (this.hasContext(LayoutContext)) {
 		const layout = this.getContext(LayoutContext);
 		let initialized = false;
-		watch(() => {
-			for (const item of props.items) props.getKey(item);
-			if (initialized) {
-				layout.snapshot();
-				queueMicrotask(() => layout.animate());
-			} else initialized = true;
-		});
+		watch(
+			() => {
+				for (const item of props.items) props.getKey(item);
+				initialized = true;
+			},
+			undefined,
+			{
+				onSchedule() {
+					if (!initialized) return;
+					layout.snapshot();
+					queueMicrotask(() => layout.animate());
+				}
+			}
+		);
 	}
 	return () =>
 		this.map(

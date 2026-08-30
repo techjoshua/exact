@@ -201,6 +201,12 @@ export function RuntimesPage(this: Component<{}>) {
 					handles continuation requests.
 				</p>
 				<p>
+					A Vite development server can use one <code>exact()</code> plugin for hydrated browser
+					modules and middleware SSR. Vite SSR module requests automatically receive the paired
+					server compilation target, including native components imported from generated{' '}
+					<code>.exact.server</code> modules.
+				</p>
+				<p>
 					Bun component tests use <code>@exactjs/bun-test</code> with{' '}
 					<code>bun --conditions=browser test</code>. The browser condition selects DOM-facing
 					compiled artifacts before Bun executes the test preload.

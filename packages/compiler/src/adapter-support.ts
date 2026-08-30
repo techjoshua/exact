@@ -129,7 +129,6 @@ export function containsExactComponentSyntax(source: string): boolean {
 		/\bthis\s*(?:\.\s*(?:state|onMount|onActivate|onDeactivate|onUnmount|onRender|own|map|reactive|getContext|hasContext|setContext)|\[)/.test(
 			source
 		) ||
-		/\bcreateVNode\s*\(/.test(source) ||
 		(/\bfunction\s+[A-Z][$\w]*\s*\(/.test(source) &&
 			/\breturn\s*(?:\(\s*)?\(\s*[^)]*\)\s*=>/.test(source))
 	);
@@ -163,8 +162,8 @@ export function shouldCompileExactBuildModule(
 	if (!isExactBuildSourceModule(id)) return false;
 	if (!options.include && /(?:^|[\\/])(?:node_modules|dist)(?:[\\/]|$)/.test(id)) return false;
 	if (!shouldTransformExactBuildModulePath(id, options)) return false;
-	// An explicit include is an ownership declaration, not merely a path prefilter. Compile matching
-	// TypeScript modules even when their component definitions use createVNode instead of JSX.
+	// An explicit include is an ownership declaration, not merely a path prefilter. It also covers
+	// hand-authored nonvisual TypeScript components that implement the target ABI without JSX.
 	if (options.include) return true;
 	return (
 		containsExactBuildJsx(id, source) ||

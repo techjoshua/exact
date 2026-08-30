@@ -7,9 +7,18 @@ This is the execution plan for the
 architecture and acceptance invariants. This document owns implementation order, phase gates, and
 the performance-evidence protocol used while reaching that architecture.
 
+Implementation is complete. The accepted Phase 0 through Phase 9 checkpoints,
+tracked impact declarations, and checkpoint ledger live under
+[`docs/performance-baselines`](../performance-baselines/component-local-target-abi.md).
+
 The plan deliberately separates correctness work from performance collection. A benchmark is not
 evidence merely because it completed. Results join the phase-to-phase comparison only after the
 implementation and measurement are both known to be valid.
+
+The framework-comparison project's specialist-review gate controls whether that project may publish
+its results as framework-comparison evidence. It is not an implementation-phase gate for this
+proposal. A correctness-gated, complete comparison run may enter an ABI checkpoint while its
+independent publication status remains recorded as `non-publishable`.
 
 ## Operating rules
 
@@ -84,6 +93,8 @@ Each accepted checkpoint records:
 - structural-report counters;
 - all raw samples and computed p50/p75/p95/p99 values; and
 - per-metric control-framework ratios, normalization factors, dispersion, and confidence labels;
+- V8 functions parsed and compiled, both through semantic readiness and before FCP, alongside
+  coverage-derived profiled and invoked function counts;
 - any declared limitation or contract variance.
 
 The intended workflow uses one committed phase revision per checkpoint. A dirty worktree is not
@@ -136,6 +147,12 @@ Normalization follows these rules:
   counts, function inventory, emitted file counts, or stable response identity; and
 - do not manufacture a factor for eXact-only metrics. Use a same-run paired eXact baseline when
   justified, or report the raw historical comparison as unnormalized.
+
+The comparison implementation owns a built-in deterministic inventory for artifact and transferred
+bytes, DOM shape, response size, code coverage, and V8 parsed/compiled/profiled/invoked function
+counts. Report configuration may extend that inventory for suite-specific deterministic values, but
+cannot accidentally opt those built-in metrics into control normalization. Timing, throughput, and
+environment-sensitive memory measurements remain eligible for per-row control normalization.
 
 The formula applies without reversing higher-is-better metrics. If current control throughput is
 2% lower, its ratio and the estimated prior eXact throughput are also approximately 2% lower. The
@@ -193,6 +210,28 @@ into concrete affected scenarios and metrics before implementation. If implement
 change an expectation, update the record immediately with the discovered evidence and before the
 full measurement begins.
 
+Phase 8 admission exposed two target-selection requirements that apply before measurement. First,
+the package root and every narrow framework/runtime subpath must resolve into the same conditional
+client or server module tree. Mixing a target-local root with untargeted subpaths creates duplicate
+core graphs and invalidates both reachability and size measurements. Second, a request-local direct
+SSR context frame must use server snapshot semantics directly; importing the durable/client context
+implementation retains reactive objects, generic error state, and their process-level defaults in
+otherwise compiler-closed server bundles. Direct frames preserve nearest-provider lookup and raw
+value identity, while built-in error state is lazy and request-domain-owned.
+
+Post-acceptance allocation profiling exposed a third server-target distinction. Opaque operations
+remain the architecture at client, protocol, public-dynamic, and compatibility boundaries, but a
+compiler-closed server call chain must not allocate an opaque handle merely to redeem it in the next
+stack frame. Generated server code prepares target-private component, child-range, and keyed-child
+carriers containing the already selected server ABI inputs. The server renderer consumes those
+carriers directly without inspecting rendered shape, and they never enter reactive state,
+serialization, or cross-target transport. Interactive intrinsic island fallbacks likewise lower to
+prepared server render programs so event metadata does not reintroduce native intrinsic receipts.
+
+The same profile showed that hydration publication should validate the authored payload graph once
+and encode reactive collections during final JSON serialization. It must not build an encoded clone
+solely to validate or measure it. Exact escaped UTF-8 byte limits remain part of the protocol gate.
+
 ## Full-checkpoint admission gate
 
 Run a full checkpoint only when all applicable items below pass:
@@ -217,11 +256,11 @@ Run a full checkpoint only when all applicable items below pass:
   earlier run.
 
 `npm run release:full` is intentionally not the admission command because that profile proceeds
-directly from correctness into performance. The correctness-only sequence above permits review of
-all gates and process cleanup before measurement begins. `npm run performance:check` then builds
-and exercises the repository performance suites, but it does not substitute for the correctness
-admission gate. Correctness and performance run separately so their processes do not contend for
-resources.
+directly from correctness into performance. `npm run performance:check` is the checkpoint command:
+its npm prerequisite runs the correctness-only release sequence, Router v6.3, Theme Lab, and the
+native compiler corpus before measurement. Any failure stops before the performance profile begins.
+The performance profile then reuses that admitted build and runs only benchmarks, so correctness and
+measurement remain sequential without repeating the build or TypeScript 7 compatibility work.
 
 If any item fails, fix or explicitly resolve it first. Do not run the full suite just to see what
 the numbers would have been.
@@ -234,31 +273,38 @@ For each completed phase:
    implementation being measured.
 2. Freeze the candidate source state and record its identity.
 3. Build and run the phase-specific focused checks.
-4. Run the full correctness admission gate.
-5. Review the structural report and confirm that the benchmark fixtures reach the intended path.
-6. Close or account for task-owned processes, then allow the machine to return to the standard
-   measurement state.
-7. Run `npm run performance:check` in isolation and capture the complete outputs from its framework,
-   reactive, compiler, theme, DevTools, and React-compatibility suites.
-8. Run the controlled framework comparison browser, 1x/4x/6x startup CPU, Node SSR, and Bun SSR
+4. Run `npm run performance:check` in isolation. Its npm prerequisite runs the full correctness
+   admission gate and stops before measurement on failure.
+5. Confirm from the prerequisite output that the structural report reaches the intended path and
+   that no task-owned process survived into measurement.
+6. Capture the complete outputs from the framework, reactive, compiler, theme, DevTools, and
+   React-compatibility suites run by the benchmark-only performance profile.
+7. Run the controlled framework comparison browser, 1x/4x/6x startup CPU, Node SSR, and Bun SSR
    tracks with their correctness gates and standard sample populations:
-   - `npm run measure -w @exactjs/framework-comparison-suite`
-   - `npm run measure:startup-cpu -w @exactjs/framework-comparison-suite`
-   - `npm run measure:ssr -w @exactjs/framework-comparison-suite`
-9. Validate sample counts, environment identity, deterministic artifacts, stable response hashes,
+   - `npm run measure:development -w @exactjs/framework-comparison-suite`
+   - `npm run measure:startup-cpu:development -w @exactjs/framework-comparison-suite`
+   - `npm run measure:ssr:development -w @exactjs/framework-comparison-suite`
+     These commands differ from the comparison project's publication commands only by allowing a
+     correctness-gated run while participant review is pending. They retain `publishable: false` in
+     the raw evidence; the ABI checkpoint generator records that status without treating it as a
+     phase gate.
+8. Validate sample counts, environment identity, deterministic artifacts, stable response hashes,
    counter-metrics, and absence of setup failures.
-10. Calculate eligible control-framework normalization factors and reject any factor whose inputs
-    fail the unchanged-control or dispersion rules.
-11. Generate the complete current-run and eXact phase-delta tables, comparing the phase with
+   Copy mutable runner output to a phase-specific immutable capture before report generation; the
+   accepted report configuration must never point at a runner's reusable `latest` or release-output
+   filename.
+9. Calculate eligible control-framework normalization factors and reject any factor whose inputs
+   fail the unchanged-control or dispersion rules.
+10. Generate the complete current-run and eXact phase-delta tables, comparing the phase with
     normalized estimates for Phase 0 and the preceding accepted checkpoint where eligible.
-12. Compare every declared affected and stable area with the phase-impact record.
-13. Write the succinct improvement/regression summary and tie temporary expected costs to their
+11. Compare every declared affected and stable area with the phase-impact record.
+12. Write the succinct improvement/regression summary and tie temporary expected costs to their
     concrete mechanism and removal phase.
-14. Investigate every missing, displaced, or contrary movement, material regression, or suspicious
+13. Investigate every missing, displaced, or contrary movement, material regression, or suspicious
     gain. Repeat a lane only when there is an
     identified environmental or harness reason, and retain both the rejected attempt and the
     reason.
-15. Accept the checkpoint only when the evidence is valid and observed changes agree with the
+14. Accept the checkpoint only when the evidence is valid and observed changes agree with the
     implementation model or have a verified explanation. If implementation changes are required,
     return to correctness validation before measuring again.
 
@@ -419,8 +465,11 @@ They must include unchanged props, sparse changes, multi-prop batches, repeated 
 creation, steady-state updates, and allocation counter-metrics.
 
 **Checkpoint trigger:** native mounts cannot reach generic construction, `renderInstance`,
-component-wide rerendering, or generic child normalization; parent output contains no child dirty
-mask or operation routing; lifecycle and batched-prop tests pass.
+component-wide rerendering, or generic child normalization for native component dispatch; parent
+output contains no child dirty mask or operation routing; lifecycle and batched-prop tests pass.
+Focused structural operations used by component interiors scheduled for Phase 3 may still reconcile
+authored dynamic child values. They must already invoke any native component value through its
+target ABI and must not classify or execute it through the removed function-component lane.
 
 ### Phase 3: Exhaustive component interiors
 
@@ -442,9 +491,18 @@ Unify client-only mount and hydration through generated attachment. Give artifac
 claims, controls, events, child ranges, and mismatch recovery. Remove redundant markers only after
 identity, focus, selection, form control, corruption isolation, and replacement behavior are
 protected.
+Any client-selected focused component-output range must have matching server topology. The server
+emits the boundary for hydration identity; it does not install the client subscription or inspect
+the opaque output to decide what crosses it.
 
 Targeted hydration runs may evaluate marker and path representations after matching, mismatch, and
 recovery assertions pass.
+
+Compact marker identities must be derived from the target-independent marker topology, not from a
+client- or server-specific general slot index. A compiler-proven markerless root must carry an
+explicit hydration-payload proof, continue to recognize nested markers as nested ownership, and
+exclude its hydration metadata script from the component output range without removing that script
+from the document.
 
 **Checkpoint trigger:** matching hydration has no generic native traversal, recovery enters the
 specialized mount method, and client-only roots use the same ABI.
@@ -482,6 +540,22 @@ island artifacts, and use artifact handles when native children cross React owne
 package manifests, published contents, bundlers, React conformance, and unused-boundary
 reachability.
 
+The React-crossing handle is an opaque capability for a supplying component's compiled child-range
+operation. It is not a VNode wrapper or a second child interpreter: it exposes no kind or topology,
+cannot materialize a VNode, and covers text, intrinsics, components, collections, and empty output
+without classification by the island. The supplying operation retains attachment, update,
+identity, activity, and disposal ownership and calls a nested component's target ABI when one is
+present. React compatibility may retain React-private elements and renderer state, but its island
+and root artifacts must not import eXact VNode factories or return eXact VNodes to a native
+renderer; their attachment methods enter the separate React renderer directly.
+
+Run React conformance against built package entry points as well as source tests. Fixed islands can
+load beside target-local core copies while renderer bridges use narrow core subpaths, so built-in
+error, logging, suspension, and readiness contexts must use realm-stable identities across those
+copies. The React renderer must also distinguish a committed Suspense fallback from retained
+primary content when deciding whether a transition remains pending, and its SSR serializer owns
+the certified React-version-specific host markup differences.
+
 **Checkpoint trigger:** imported components use the same ABI as local components; React support is
 absent when unused and requires no generic native execution when present.
 
@@ -492,8 +566,31 @@ lanes, executable fallback data, and production artifact factories. Move legitim
 test-only machinery to explicit entry points. Consolidate modules around ABI ownership rather than
 preserving transition structure, then run source-architecture and reachability audits.
 
+During consolidation, use **component operation** for the opaque compiler-issued invocation that
+crosses the target ABI and **prop receipt** only for an atomic delivery of finalized parent-owned
+prop values. Migration-era implementation names containing `ComponentReceipt` denote the former;
+they do not expose or describe the component's rendered node shape.
+
 Do not measure while a known transition path remains. Size improvements collected before the
 structural zero report would be incomplete and potentially misleading.
+
+Application-root assembly is a build-adapter responsibility in this phase. The compiler publishes
+component-local facts beside emitted code; the adapter joins them to each bundler entry's resolved
+module graph, supports any number of mount or hydration roots, emits the executable registrations
+needed by those roots, and erases the descriptive inventories. Compiler `root` implementation roles
+and artifact-graph `exposureRoots` are component/module exposure terms, not application-root
+discovery.
+
+The build graph identifies application entries, while the compiler retains ownership of each
+authored mount expression inside those entries. It selects a component, render-program, or
+intrinsic root ABI from the operation it emitted, including through immutable local aliases and
+parentheses. Compiled TSX must never fall back to an undifferentiated public render call merely
+because the application root is not itself a component.
+
+Root and nested component-domain replacement use the same scoped parking transaction. Operations
+owned by a foreign domain are removed from the retiring ownership tree before teardown and are
+reclaimed only by a matching opaque operation in the replacement tree, preserving the foreign
+instance and its lifecycle without exposing its rendered shape.
 
 **Checkpoint trigger:** every native fallback category is zero, forbidden modules and imports are
 unreachable, and the complete repository acceptance surface passes.
@@ -505,9 +602,24 @@ hydration, SSR, continuation, React, browser, Node, and Bun verification plus a 
 source audit. Run the full comparison matrix with 50 independent samples, retaining the same
 scenario definitions and environment lineage as P0-P8.
 
+For SSR comparison checkpoints, rotate the participant execution order, warm and record the shared fixture
+service before each participant, and use sustained fixed-duration saturation windows. Retain complete
+per-framework request populations even when their counts differ. Publish the ordinary end-to-end tables
+together with worker-phase, equal-payload, payload-size sweep, preloaded render-only, and Node allocation-site
+diagnostics. Treat these lanes as attribution evidence: they may explain a throughput difference, but they do
+not replace the production-route result. Any unexpected change requires an explanation tied to the relevant
+counter-metrics before the checkpoint is accepted.
+
 **Checkpoint trigger:** all proposal acceptance invariants pass, all intended removals are proven,
 all full tables are published, and every material regression is understood and either resolved or
 explicitly accepted against the architectural benefit.
+
+Post-acceptance profiling may replace a general reactive wrapper only when the compiler proves the
+operand is exactly one indexed state or props slot after all form, control, and transport
+projections. The emitted descriptor reuses that slot's dependency source and must carry the same
+slot identity into component update planning. Derived expressions and structural ranges retain
+their computation owner. Profile such a change against normalized controls; deterministic code and
+function inventories remain raw, unnormalized evidence.
 
 ## Phase progression and regressions
 

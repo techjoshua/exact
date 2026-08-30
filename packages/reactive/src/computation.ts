@@ -33,7 +33,7 @@ import type {
 	ReactiveValue,
 	WorkPriority
 } from './internal/types.js';
-import { isReactiveValue, unwrap } from './internal/values.js';
+import { isReactiveValue, rejectReadonlyReactiveValueWrite, unwrap } from './internal/values.js';
 import { proxyRefs } from './proxy/state.js';
 
 type ComputationState = 'clean' | 'checked' | 'dirty' | 'computing' | 'stopped';
@@ -112,9 +112,7 @@ class ComputedNode<T> implements Reaction {
 			target: this.target,
 			key: this.key,
 			get: () => this.get(),
-			set() {
-				throw new TypeError('Cannot write to readonly reactive value');
-			}
+			set: rejectReadonlyReactiveValueWrite
 		};
 		computedTargets.set(this.target, this as ComputedNode<unknown>);
 		this.releaseObservationHooks = registerDependencyObservationHooks(this.target, this.key, {

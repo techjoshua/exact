@@ -40,7 +40,7 @@ function BookingForm(this: Component<{ date: Date | null }>) {
 const explicitInteropSource = `import { ReactHost, adaptReactComponent } from '@exactjs/react-compat/exact';
 
 // Native compiled JSX normally inserts this adapter automatically.
-// Call it yourself when constructing a VNode outside that path.
+// Call it yourself when supplying a runtime-selected React component outside compiled JSX.
 const CompatibleWidget = adaptReactComponent(runtimeSelectedWidget);
 
 return () => (
@@ -96,6 +96,12 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					integration routes React, React DOM, and JSX through the selected compatibility runtime.
 				</p>
 				<p>
+					That selected boundary is self-contained: an imported package may produce host elements,
+					Suspense, Activity, portals, or other React components without the native parent needing
+					to classify its output. React&apos;s private interpreter is included only when a
+					compatibility boundary is reachable.
+				</p>
+				<p>
 					Use the <code>source</code> option only for React-owned source that your application
 					authors or compiles itself. An explicit <code>@jsxImportSource react</code> directive can
 					mark an individual source module; <code>@jsxImportSource @exactjs/jsx</code> keeps native
@@ -128,9 +134,10 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				</p>
 				<p>
 					Imported native components remain eXact-owned even when emitted JavaScript specifiers
-					point back to TypeScript source files. When no React-owned boundary is reachable, the
-					compiler emits no compatibility adapter import, so React compatibility and its dependency
-					graph are absent from the final client bundle.
+					point back to TypeScript source files. Generated <code>.exact.client</code> and{' '}
+					<code>.exact.server</code> imports are also always native artifacts. When no React-owned
+					boundary is reachable, the compiler emits no compatibility adapter import, so React
+					compatibility and its dependency graph are absent from the final client bundle.
 				</p>
 			</section>
 

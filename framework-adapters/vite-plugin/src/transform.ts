@@ -24,7 +24,11 @@ import {
 	prependViteDevtoolsRuntimeImport
 } from './debug-output.js';
 import { prependViteEnhancementRegistrations } from './enhancement-catalog.js';
-import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
+import {
+	exactModuleFilename,
+	exactTestModuleTarget,
+	exactTransformTargetForModule
+} from './module-selection.js';
 import type { ExactPluginOptions, ExactViteDebugOptions } from './plugin-contracts.js';
 import type { ExactLanguageProjectionV1 } from '@exactjs/language-extension-api';
 import { rewriteWithCompatibility } from './react-compatibility-emission.js';
@@ -42,6 +46,8 @@ export type TransformExactViteModuleOptions = Readonly<{
 	code: string;
 	id: string;
 	options: ExactPluginOptions;
+	requestTarget?: 'client' | 'server';
+	applicationRoot: string;
 	compilerSession: ExactCompilerSession;
 	packageEnhancements?: readonly ExactPackageEnhancementImport[];
 	reactCompatibility?: ResolvedReactCompatibility;
@@ -64,6 +70,9 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	languageProjection?: ExactLanguageProjectionV1;
 } | null {
 	const { code, id, options } = input;
+	const target = exactTransformTargetForModule(id, options, input.requestTarget);
+	const renderMode =
+		target === 'server' && options.renderMode === 'hydrate' ? 'server-render' : options.renderMode;
 	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
 	const filename = exactModuleFilename(id);
@@ -112,7 +121,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 							input.compatibilityEngine!,
 							lowered.code,
 							filename,
-							options.target,
+							target,
 							options.sourceMap,
 							analyzedCode
 						);
@@ -122,12 +131,13 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 		compiler: {
 			options: {
 				session: input.compilerSession,
+				root: input.applicationRoot,
+				configFile: options.typescriptConfig
+					? path.resolve(input.applicationRoot, options.typescriptConfig)
+					: undefined,
 				packageEnhancements: input.packageEnhancements,
-				target: exactTransformTarget(options),
-				componentContractProjection: exactComponentContractProjection(
-					exactTransformTarget(options),
-					options.renderMode
-				),
+				target,
+				componentContractProjection: exactComponentContractProjection(target, renderMode),
 				serverComponents: options.serverComponents,
 				sourceMap: false,
 				assetRules: options.assetRules,
@@ -135,7 +145,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				jsxInterop: input.compatibilityEngine?.jsxInterop,
 				emitInspection:
 					input.languageValidation ||
-					(options.target === 'server' &&
+					(target === 'server' &&
 						inspectionCatalogEnabled(input.configuredDebug, input.viteCommand)),
 				instrumentInspection: inspectionRuntimeEnabled(input.configuredDebug, input.viteCommand)
 			},
@@ -149,7 +159,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 							id: filename,
 							source: result.code,
 							format: 'module',
-							target: options.target === 'server' ? 'server' : 'client',
+							target,
 							sourceMap: false
 						})
 					: { code: result.code };
@@ -159,12 +169,17 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				);
 				const clientCode = prependViteDevtoolsRuntimeImport(
 					enhanced,
-					options.target !== 'server' &&
-						inspectionRuntimeEnabled(input.configuredDebug, input.viteCommand)
+					target !== 'server' && inspectionRuntimeEnabled(input.configuredDebug, input.viteCommand)
+				);
+				const projectedCode = projectTestTargetComponentImports(
+					clientCode,
+					result.componentBuild.componentImports,
+					exactTestModuleTarget(id, options)
 				);
 				return {
-					code: clientCode,
-					map: options.sourceMap === false ? null : createTokenSourceMap(filename, code, clientCode)
+					code: projectedCode,
+					map:
+						options.sourceMap === false ? null : createTokenSourceMap(filename, code, projectedCode)
 				};
 			},
 			inspection: (result) =>
@@ -183,7 +198,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 							id: filename,
 							source: analyzedCode,
 							format: /\.c[jt]s$/i.test(filename) ? 'commonjs' : 'module',
-							target: options.target === 'server' ? 'server' : 'client',
+							target,
 							sourceMap: options.sourceMap ?? true
 						})
 				}
@@ -196,7 +211,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	if (!output) return null;
 	if (
 		output.inspection &&
-		options.target === 'server' &&
+		target === 'server' &&
 		inspectionCatalogEnabled(input.configuredDebug, input.viteCommand)
 	)
 		input.inspectionModules.set(path.resolve(filename), output.inspection);
@@ -209,4 +224,29 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 			? { languageProjection: output.inspection.inspection.languageProjection }
 			: {})
 	};
+}
+
+/** Uses compiler-emitted component edges to keep one queried test graph target-local. */
+export function projectTestTargetComponentImports(
+	code: string,
+	imports: readonly Readonly<{ moduleSpecifier: string }>[],
+	target: 'client' | 'server' | undefined
+): string {
+	if (!target) return code;
+	let projected = code;
+	for (const { moduleSpecifier } of imports) {
+		if (
+			!moduleSpecifier.startsWith('.') ||
+			moduleSpecifier.includes('?') ||
+			!/(?:^|\/)[^/]+\.[cm]?[jt]sx?$/iu.test(moduleSpecifier.replaceAll('\\', '/'))
+		)
+			continue;
+		const escaped = moduleSpecifier.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+		const query = `${moduleSpecifier}?exact-target=${target}`;
+		projected = projected
+			.replace(new RegExp(`(from\\s+)(['"])${escaped}\\2`, 'gu'), `$1'${query}'`)
+			.replace(new RegExp(`(import\\s*\\(\\s*)(['"])${escaped}\\2`, 'gu'), `$1'${query}'`)
+			.replace(new RegExp(`(import\\s*)(['"])${escaped}\\2`, 'gu'), `$1'${query}'`);
+	}
+	return projected;
 }

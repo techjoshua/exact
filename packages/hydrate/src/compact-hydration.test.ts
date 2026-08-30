@@ -2,15 +2,17 @@
 import { markFiniteClientBoundary } from '@exactjs/core';
 import { createServerBoundary } from '@exactjs/core/runtime/render';
 import { renderToHydratableString } from '@exactjs/ssr';
+import '@exactjs/ssr/runtime/structural-boundaries';
 import { expect, it } from 'vitest';
 import { hydrateClientIslands, lazyClientIsland, readExactHydrationConfig } from './index.js';
 import type { HydrateOptions } from './types.js';
-import { createVNode, markTestComponent, markTestComponents } from './test-support/native-vnode.js';
+import {
+	CompactCounter,
+	CompactDialog,
+	CompactLabel
+} from './test-support/compact-hydration.fixtures.js';
 
 it('resolves compiler-finite island props from a grouped response table', () => {
-	function Counter(props: { label: string }) {
-		return () => createVNode('button', null, props.label);
-	}
 	const rendered = renderToHydratableString(
 		markFiniteClientBoundary(
 			createServerBoundary('counter-1', 'Counter', {
@@ -28,9 +30,13 @@ it('resolves compiler-finite island props from a grouped response table', () => 
 	expect(config.wallClockSnapshot).toBe(rendered.wallClockSnapshot);
 	expect(config.hydrationTable).toEqual([1, [['Counter', ['label'], [['counter-1', 'Compact']]]]]);
 	expect(
-		hydrateClientIslands(container, markTestComponents({ Counter }), {
-			hydrationTable: config.hydrationTable
-		})
+		hydrateClientIslands(
+			container,
+			{ Counter: CompactCounter },
+			{
+				hydrationTable: config.hydrationTable
+			}
+		)
 	).toBe(1);
 	expect(container.querySelector('button')?.textContent).toBe('Compact');
 });
@@ -39,10 +45,6 @@ it('activates compact interaction islands and releases their shared table afterw
 	const container = document.createElement('main');
 	container.innerHTML =
 		'<div data-xh="0.0" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="dialog-button">Open</button></div>';
-	function Dialog(props: { label: string }) {
-		return () => createVNode('button', { 'data-exact-id': 'dialog-button' }, props.label);
-	}
-	markTestComponent(Dialog);
 	const options: HydrateOptions = {
 		hydrationTable: [1, [['Dialog', ['label'], [['dialog-1', 'Opened']]]]] as const
 	};
@@ -50,7 +52,7 @@ it('activates compact interaction islands and releases their shared table afterw
 		hydrateClientIslands(
 			container,
 			{
-				Dialog: lazyClientIsland(async () => Dialog, {
+				Dialog: lazyClientIsland(async () => CompactDialog, {
 					mode: 'interaction',
 					reasons: [],
 					targets: [
@@ -76,13 +78,10 @@ it('confines malformed compact rows without invalidating valid sibling coordinat
 	container.innerHTML = `<div data-xh="0.0"></div><div data-xh="0.1"></div><script type="application/json" id="__exact_hydration">${JSON.stringify(
 		{ h: [1, [['Counter', ['label'], [['broken'], ['counter-2', 'Valid']]]]] }
 	)}</script>`;
-	function Counter(props: { label: string }) {
-		return () => createVNode('span', null, props.label);
-	}
 	const options: HydrateOptions = {
 		hydrationTable: readExactHydrationConfig(container).hydrationTable
 	};
-	expect(hydrateClientIslands(container, markTestComponents({ Counter }), options)).toBe(1);
+	expect(hydrateClientIslands(container, { Counter: CompactLabel }, options)).toBe(1);
 	expect(
 		container.querySelector('[data-xh="0.0"]')?.hasAttribute('data-exact-client-hydrated')
 	).toBe(false);

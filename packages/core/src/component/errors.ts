@@ -4,6 +4,7 @@ import type {
 	ErrorReport,
 	ErrorReportOptions,
 	ErrorSource,
+	ReadinessRegistration,
 	RenderFunction,
 	SuspensionContextValue
 } from './contracts.js';
@@ -94,10 +95,27 @@ export function handleComponentError(
 				continue;
 			}
 			context.report(event);
-			cursor.invalidate?.();
+			(context.boundary ?? cursor).invalidate?.();
 			return undefined;
 		}
 		cursor = cursor.parent;
+	}
+	const ambient = instance?.ambientContexts?.get(ErrorContext.id);
+	if (ambient) {
+		const context = unwrap(ambient) as ErrorContextValue;
+		if (context.boundary !== errorOwner) {
+			context.report(event);
+			if (instance)
+				componentLogMethod(
+					instance,
+					'error'
+				)?.(() => [
+					'root error context handled failure',
+					event.error,
+					{ source: event.source, phase: event.phase, component: event.component }
+				]);
+			return undefined;
+		}
 	}
 
 	const context = defaultErrorContext;
@@ -132,12 +150,19 @@ export function handleComponentSuspension(
 	instance: AnyComponentInstance | undefined,
 	promise: PromiseLike<unknown>
 ): boolean {
+	return registerComponentSuspension(instance, promise) !== false;
+}
+
+/** Registers a thrown promise and exposes renderer-owned cancellation when the boundary supports it. */
+export function registerComponentSuspension(
+	instance: AnyComponentInstance | undefined,
+	promise: PromiseLike<unknown>
+): ReadinessRegistration | true | false {
 	let cursor = instance;
 	while (cursor) {
 		if (cursor.contexts.has(SuspensionContext.id)) {
 			const context = unwrap(cursor.contexts.get(SuspensionContext.id)) as SuspensionContextValue;
-			context.suspend(promise);
-			return true;
+			return context.suspend(promise) ?? true;
 		}
 		cursor = cursor.parent;
 	}

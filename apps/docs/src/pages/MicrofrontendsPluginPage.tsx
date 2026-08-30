@@ -80,7 +80,10 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<p>
 					The build compiles the exposure and its reachable artifacts, generates a canonical remote
 					entry, and records a build key. <code>providedPackages</code> describes packages whose
-					identity must be bridged between page and remote rather than duplicated casually.
+					identity must be bridged between page and remote rather than duplicated casually. The
+					bundler also bridges the compiler-selected eXact runtime capability subpaths used by the
+					generated artifact, so a focused client bootstrap does not pull a second framework runtime
+					into the remote.
 				</p>
 			</section>
 			<section>
@@ -109,6 +112,13 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					The component domain exposes only its immutable <code>executionRoot</code> identity.
 					Framework transport, resumption, inspection, and activation capabilities stay behind the
 					rendering and hydration boundary.
+				</p>
+				<p>
+					Server rendering emits this browser-owned wrapper as a compiler-owned client boundary; it
+					does not run the remote loader on the server. If a remote build or cross-root patch
+					replaces the remote ancestor, page-authored children keep their existing instances, state,
+					contexts, and lifecycle ownership while the renderer reattaches them beneath the
+					replacement.
 				</p>
 			</section>
 			<section>

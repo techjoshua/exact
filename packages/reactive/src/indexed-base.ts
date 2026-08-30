@@ -1,5 +1,10 @@
-import { proxyMarker, rawTarget } from './internal/symbols.js';
-import type { Reactive, ReactiveOptions, ReactiveRef } from './internal/types.js';
+import {
+	proxyMarker,
+	rawTarget,
+	reactiveValueMarker,
+	reactiveValueRef
+} from './internal/symbols.js';
+import type { Reactive, ReactiveOptions, ReactiveRef, ReactiveValue } from './internal/types.js';
 import {
 	batch,
 	hasActiveTransaction,
@@ -8,7 +13,7 @@ import {
 	trigger
 } from './internal/deps.js';
 import { hasChanged, isReactiveContainer } from './change-detection.js';
-import { isReactiveValue, unwrap } from './internal/values.js';
+import { isReactiveValue, rejectReadonlyReactiveValueWrite, unwrap } from './internal/values.js';
 
 type IndexedRecord = {
 	readonly layout: IndexedLayout;
@@ -20,6 +25,7 @@ type IndexedRecord = {
 	readonly wrap: (value: object, options: ReactiveOptions, parentSource?: ReactiveRef) => object;
 	readonly preserveReactiveValues: boolean;
 	sources?: ReactiveRef[];
+	values?: ReactiveValue[];
 };
 
 type IndexedLayout = Readonly<{
@@ -144,6 +150,29 @@ export function readReactiveOwnProperty(
 export function readIndexedReactiveSlot(value: object, index: number): unknown {
 	const indexed = indexedRecord(value, index, 'read');
 	return readIndexedValue(indexed, indexedRecordKey(indexed, index), index, 'direct');
+}
+
+/**
+ * Creates a readonly compiler descriptor backed directly by one indexed slot.
+ * Repeated expressions for the same instance slot share the descriptor.
+ */
+export function createIndexedReactiveValue<T>(target: object, index: number): ReactiveValue<T> {
+	const indexed = indexedRecord(target, index, 'read source');
+	const values = (indexed.values ??= []);
+	const existing = values[index];
+	if (existing) return existing as ReactiveValue<T>;
+	const source = indexedParentSource(indexed, index) as ReactiveRef<T>;
+	const value = {
+		[reactiveValueMarker]: true,
+		target: source.target,
+		key: source.key,
+		get: source.get,
+		set: rejectReadonlyReactiveValueWrite
+	} as ReactiveRef<T> & { [reactiveValueMarker]: true; [reactiveValueRef]?: ReactiveRef<T> };
+	value[reactiveValueRef] = value;
+	const reactiveValue = value as unknown as ReactiveValue<T>;
+	values[index] = reactiveValue;
+	return reactiveValue;
 }
 
 /** Reads one compiler-proven slot without collecting a dependency. */

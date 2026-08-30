@@ -5,10 +5,11 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { chromium } from 'playwright';
-import { measureRetainedHeap } from './browser-memory.mjs';
+import { measureRetainedMemory } from './browser-memory.mjs';
 import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
 import { summarizePercentiles, summarizeSampleMetric } from './percentile-summary.mjs';
+import { hashArtifactDirectory, hashSemanticResponse } from './artifact-integrity.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -80,6 +81,7 @@ try {
 	)) {
 		browserResults[participant.id] = await measureParticipant(browser, participant);
 	}
+	assertEquivalentBrowserResponses(browserResults);
 	const result = {
 		schemaVersion: 1,
 		kind: 'framework-comparison-raw-run',
@@ -122,13 +124,23 @@ async function measureParticipant(browserInstance, participant) {
 	for (let index = 0; index < sampleCount; index += 1) {
 		samples.push(await measureBrowserSample(browserInstance, participant));
 	}
+	const responseHashes = new Set(samples.map((sample) => sample.responseHash));
+	if (responseHashes.size !== 1)
+		throw new Error(`${participant.id} produced unstable semantic browser responses`);
 	return {
 		temperature: 'warm',
 		warmupCount: browserWarmupCount,
 		heapMeasurement: 'post-interaction-post-gc-retained',
 		samples,
+		response: { hash: samples[0].responseHash, stable: true },
 		summary: summarizeBrowser(samples)
 	};
+}
+
+function assertEquivalentBrowserResponses(results) {
+	const hashes = new Set(Object.values(results).map((result) => result.response.hash));
+	if (hashes.size !== 1)
+		throw new Error('Controlled browser participants produced different semantic responses');
 }
 
 /** Measures browser-owned event-to-mutation latency without including automation actionability waits. */
@@ -158,7 +170,9 @@ async function measureBrowserSample(browserInstance, participant) {
 			const entry = performance.getEntriesByType('navigation')[0];
 			const scripts = performance
 				.getEntriesByType('resource')
-				.filter((resource) => resource.initiatorType === 'script')
+				.filter(
+					(resource) => resource.initiatorType === 'script' || /\.m?js(?:$|\?)/.test(resource.name)
+				)
 				.reduce((sum, resource) => sum + (resource.transferSize || 0), 0);
 			return {
 				durationMs: entry?.duration ?? null,
@@ -186,15 +200,22 @@ async function measureBrowserSample(browserInstance, participant) {
 			throw new Error(`Missing browser interaction timing for ${participant.id}`);
 		// Collect retained memory after interaction timing. A forced collection immediately before the
 		// click would turn optimistic feedback into a cold-allocation recovery measurement.
-		const heapBytes = await measureRetainedHeap(session);
+		const memory = await measureRetainedMemory(session);
 		const vitals = await page.evaluate(readBrowserVitals);
+		const semanticResponse = await page.evaluate(() => ({
+			heading: document.querySelector('h1, h2')?.textContent?.trim() ?? null,
+			owner: document.querySelector('.facts > div:first-child strong')?.textContent?.trim() ?? null,
+			version: document.querySelector('.version')?.textContent?.trim() ?? null
+		}));
 		return {
 			navigation,
 			vitals,
-			heapBytes,
+			heapBytes: memory.jsHeapUsedBytes,
+			memory,
 			optimisticFeedbackMs: timing.optimisticFeedbackMs,
 			settlementMs: timing.settlementMs,
-			phasesMs: timing.phasesMs
+			phasesMs: timing.phasesMs,
+			responseHash: hashSemanticResponse(semanticResponse)
 		};
 	} finally {
 		await context.close();
@@ -345,7 +366,13 @@ async function artifactSizes(directory) {
 		gzipBytes += gzipSync(bytes).length;
 		brotliBytes += brotliCompressSync(bytes).length;
 	}
-	return { rawBytes, gzipBytes, brotliBytes, files: files.length };
+	return {
+		rawBytes,
+		gzipBytes,
+		brotliBytes,
+		files: files.length,
+		hash: await hashArtifactDirectory(directory)
+	};
 }
 
 async function sourceFiles(directory) {
@@ -367,6 +394,15 @@ async function allFiles(directory) {
 function summarizeBrowser(samples) {
 	return {
 		navigationMs: summarizeSampleMetric(samples, (sample) => sample.navigation.durationMs),
+		domContentLoadedMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.navigation.domContentLoadedMs
+		),
+		loadEventMs: summarizeSampleMetric(samples, (sample) => sample.navigation.loadEventMs),
+		transferredScriptBytes: summarizeSampleMetric(
+			samples,
+			(sample) => sample.navigation.transferredScriptBytes
+		),
 		firstContentfulPaintMs: summarizeSampleMetric(
 			samples,
 			(sample) => sample.navigation.firstContentfulPaintMs
@@ -389,8 +425,36 @@ function summarizeBrowser(samples) {
 		domCommentCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domCommentCount),
 		domTextCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domTextCount),
 		heapBytes: summarizeSampleMetric(samples, (sample) => sample.heapBytes),
+		jsHeapTotalBytes: summarizeSampleMetric(samples, (sample) => sample.memory.jsHeapTotalBytes),
+		embedderHeapUsedBytes: summarizeSampleMetric(
+			samples,
+			(sample) => sample.memory.embedderHeapUsedBytes
+		),
+		backingStorageBytes: summarizeSampleMetric(
+			samples,
+			(sample) => sample.memory.backingStorageBytes
+		),
+		documentCount: summarizeSampleMetric(samples, (sample) => sample.memory.documents),
+		retainedNodeCount: summarizeSampleMetric(samples, (sample) => sample.memory.nodes),
+		eventListenerCount: summarizeSampleMetric(samples, (sample) => sample.memory.eventListeners),
 		optimisticFeedbackMs: summarizeSampleMetric(samples, (sample) => sample.optimisticFeedbackMs),
-		settlementMs: summarizeSampleMetric(samples, (sample) => sample.settlementMs)
+		settlementMs: summarizeSampleMetric(samples, (sample) => sample.settlementMs),
+		requestDispatchedMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.phasesMs['request-dispatched']
+		),
+		sseIncidentReceivedMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.phasesMs['sse-incident-received']
+		),
+		httpHeadersReceivedMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.phasesMs['http-headers-received']
+		),
+		httpJsonDecodedMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.phasesMs['http-json-decoded']
+		)
 	};
 }
 

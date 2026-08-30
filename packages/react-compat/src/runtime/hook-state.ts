@@ -402,6 +402,11 @@ export abstract class HookState {
 		this.renderTransition = undefined;
 	}
 
+	/** Returns the transition whose state update produced the current renderer output. */
+	renderTransitionOwnership(): ReactTransitionOwnership | undefined {
+		return this.renderTransition;
+	}
+
 	/** Releases a superseded transition and retains the transition owning the current update. */
 	private captureTransition(): void {
 		const transition = currentReactTransitionOwnership();

@@ -66,7 +66,9 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					A separate cold-start CPU profile disables the browser cache and records JavaScript parse,
 					compile, evaluation, and total script duration through semantic readiness. Unthrottled,
 					4x, and 6x CPU profiles distinguish desktop startup from CPU-constrained behavior without
-					conflating either with network transfer time.
+					conflating either with network transfer time. Diagnostic eXact builds can also attribute
+					shipped and executed bytes to source modules; parsed and compiled function totals remain
+					bundle-level when Chromium does not publish source locations.
 				</p>
 			</section>
 
@@ -78,6 +80,17 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					implemented. Specialist reviews remain pending, so no results or rankings are published.
 				</p>
 			</Callout>
+
+			<section>
+				<h2>Server attribution</h2>
+				<p>
+					The SSR report keeps end-to-end results separate from diagnostic evidence. Its preloaded
+					render lane removes controlled-service loading, while a separate instrumented lane divides
+					that loading into fetch and JSON-decode time. Response accounting separates semantic
+					markup, framework markers, hydration data, comparison data, and the document envelope.
+					These lanes explain a result; they do not replace the production-route comparison.
+				</p>
+			</section>
 		</Article>
 	);
 }

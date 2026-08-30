@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { exact as createExact } from './index.js';
+import { projectTestTargetComponentImports } from './transform.js';
 
 const exact = (...args: Parameters<typeof createExact>) =>
 	createExact(...args) as Omit<ReturnType<typeof createExact>, 'transform'> & {
@@ -13,6 +14,19 @@ const exact = (...args: Parameters<typeof createExact>) =>
 	};
 
 describe('@exactjs/vite-plugin: transform', () => {
+	it('projects only compiler-reported relative component edges into a test target graph', () => {
+		const code = `import { Local } from './local.js';\nimport { External } from '@acme/ui';\nconst label = './local.js';`;
+		expect(
+			projectTestTargetComponentImports(
+				code,
+				[{ moduleSpecifier: './local.js' }, { moduleSpecifier: '@acme/ui' }],
+				'server'
+			)
+		).toBe(
+			`import { Local } from './local.js?exact-target=server';\nimport { External } from '@acme/ui';\nconst label = './local.js';`
+		);
+	});
+
 	it('rejects server artifact reachability in final client chunks', () => {
 		const plugin = exact();
 
@@ -404,6 +418,55 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(result?.code).not.toContain('readFile');
 	});
 
+	it('uses the paired server target for hydrated Vite SSR requests', () => {
+		const plugin = exact({ renderMode: 'hydrate', reactCompatibility: true });
+		const result = plugin.transform(
+			`
+			import { Page } from '../.exact/Page.exact.server.js';
+			export const render = () => <Page url="/" />;
+		`,
+			'/src/server-entry.tsx',
+			{ ssr: true }
+		);
+
+		expect(result?.code).toContain('createPreparedServerComponentReference');
+		expect(result?.code).not.toContain('adaptReactComponent');
+	});
+
+	it('compiles an authored test fixture for both target-local runtimes', () => {
+		const plugin = exact({
+			target: 'client',
+			compileTestModules: true,
+			include: /\.fixtures\.tsx$/,
+			reactCompatibility: false
+		});
+		const source = `
+			export function Page(this: Component<{ label: string }>) {
+				return () => <p>{this.state.label}</p>;
+			}
+		`;
+		const client = plugin.transform(source, '/src/page.fixtures.tsx?exact-target=client');
+		const server = plugin.transform(source, '/src/page.fixtures.tsx?exact-target=server');
+
+		expect(client?.code).toContain('target: "client"');
+		expect(server?.code).toContain('target: "server"');
+	});
+
+	it('retains a test target while Vite remaps a JavaScript specifier to TSX', async () => {
+		const plugin = exact({ compileTestModules: true, reactCompatibility: false });
+		const resolution = await plugin.resolveId?.call(
+			{
+				resolve: async () => ({ id: '/src/page.fixtures.tsx' })
+			},
+			'./page.fixtures.js?exact-target=server',
+			'/src/page.test.ts'
+		);
+
+		expect(resolution).toMatchObject({
+			id: '/src/page.fixtures.tsx?exact-target=server'
+		});
+	});
+
 	it('passes server component mode through to client transforms', () => {
 		const plugin = exact({ target: 'client', serverComponents: true, reactCompatibility: false });
 		const result = plugin.transform(
@@ -438,6 +501,13 @@ describe('@exactjs/vite-plugin: transform', () => {
 			exact({ target: 'server', reactCompatibility: false }).resolveId?.(
 				'./Panel.exact',
 				'/app/src/main.ts'
+			)
+		).resolves.toMatch(/Panel\.exact\.server\.ts$/);
+		expect(
+			exact({ renderMode: 'hydrate', reactCompatibility: false }).resolveId?.(
+				'./Panel.exact',
+				'/app/src/main.ts',
+				{ ssr: true }
 			)
 		).resolves.toMatch(/Panel\.exact\.server\.ts$/);
 		expect(

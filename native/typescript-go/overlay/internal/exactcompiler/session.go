@@ -459,7 +459,7 @@ func (s *Session) Execute(request Request) Response {
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
 	attachFormBindingStateSlots(formBindings, stateReads, components)
-	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop != nil)
+	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop)
 	if request.ServerComponents {
 		// Partition planning needs setup-task flow, but same-build SSR executes that setup
 		// directly and hydrates its published state. Only authored invocation paths retain
@@ -610,9 +610,9 @@ func (s *Session) Execute(request Request) Response {
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
 	intlPlan := planIntlOperations(sourceFile, generation.checker)
-	transformed, componentUpdates, componentRangeOutputs := lowerExactJSX(
+	transformed, componentUpdates, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
-		emitContext.Factory,
+		emitContext,
 		jsxLoweringPlan{
 			stateWrites:           stateWrites,
 			stateReads:            stateReads,
@@ -638,6 +638,9 @@ func (s *Session) Execute(request Request) Response {
 	)
 	for index := range components {
 		_, components[index].ClientRangeOutput = componentRangeOutputs[components[index].Name]
+		if request.Target == TargetClient {
+			_, components[index].Lists = componentListOwners[components[index].Name]
+		}
 	}
 	transformed = lowerIntlOperations(
 		transformed,
@@ -705,6 +708,13 @@ func (s *Session) Execute(request Request) Response {
 		}
 	}
 	response.RuntimeDependencies = emittedRuntimeDependencies(transformed)
+	response.Structure = artifactStructure
+	for _, dependency := range response.RuntimeDependencies {
+		switch dependency {
+		case "@exactjs/ssr/runtime/generic-components":
+			response.Structure.GenericNativeSSRImports++
+		}
+	}
 
 	printStarted := time.Now()
 	emitter := printer.NewPrinter(
@@ -740,6 +750,11 @@ func (s *Session) Execute(request Request) Response {
 	} else {
 		response.Code = emitter.EmitSourceFile(transformed)
 	}
+	response.Structure.RuntimeCreatedNativeArtifacts = strings.Count(
+		response.Code,
+		"createExactCompatibilityArtifact(",
+	) + strings.Count(response.Code, "createExactFrameworkFixtureArtifact(")
+	response.Structure.RecordEmittedGenericNativeExecution(response.Code)
 	response.Timings.PrintMicroseconds = time.Since(printStarted).Microseconds()
 	validationStarted := time.Now()
 	generatedDiagnostics, validationErr := validateGeneratedCode(

@@ -2,7 +2,7 @@ import type {
 	ExactRenderProgramBinder,
 	ExactRenderProgramBinding,
 	ExactRenderProgramSlot
-} from '@exactjs/core/runtime/render';
+} from '@exactjs/core/runtime/render-operations';
 import {
 	bindCompiledProgramChild,
 	bindCompiledProgramLists,

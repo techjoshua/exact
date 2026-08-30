@@ -18,7 +18,7 @@ import {
 	deleteIndexedReactiveValue,
 	updateIndexedReactiveValue,
 	updateIndexedReactiveValueWithResult,
-	writeIndexedReactiveLazy
+	writeIndexedReactiveValue
 } from './writes.js';
 
 describe('@exactjs/reactive writes', () => {
@@ -149,7 +149,7 @@ describe('@exactjs/reactive writes', () => {
 		const seen: Array<number | undefined> = [];
 		watch(() => seen.push(state.count));
 
-		expect(writeIndexedReactiveLazy(state, 0, () => 3)).toBe(3);
+		expect(writeIndexedReactiveValue(state, 0, 3)).toBe(3);
 		expect(updateIndexedReactiveValue(state, 0, (value) => Number(value) * 2)).toBe(6);
 		expect(
 			updateIndexedReactiveValueWithResult(state, 0, (value) => [Number(value) + 1, `was:${value}`])
@@ -158,12 +158,26 @@ describe('@exactjs/reactive writes', () => {
 		expect(seen).toEqual([2, 7]);
 
 		const record = state.record;
-		writeIndexedReactiveLazy(state, 1, () => ({ value: 2 }));
+		writeIndexedReactiveValue(state, 1, { value: 2 });
 		expect(state.record).toBe(record);
 		expect(state.record?.value).toBe(2);
 		expect(deleteIndexedReactiveValue(state, 0)).toBe(true);
 		expect('count' in state).toBe(false);
-		expect(() => writeIndexedReactiveLazy(state, 2, () => 1)).toThrow('invalid indexed slot');
+		expect(() => writeIndexedReactiveValue(state, 2, 1)).toThrow('invalid indexed slot');
+	});
+
+	it('writes direct compiler values without invoking function-valued state', () => {
+		const state = indexedReactive<{ callback?: () => number; count?: number }>([
+			'callback',
+			'count'
+		]);
+		const callback = () => 42;
+
+		expect(writeIndexedReactiveValue(state, 0, callback)).toBe(callback);
+		expect(state.callback).toBe(callback);
+		expect(writeIndexedReactiveValue(state, 1, 3)).toBe(3);
+		expect(state.count).toBe(3);
+		expect(() => writeIndexedReactiveValue(state, 2, 1)).toThrow('invalid indexed slot');
 	});
 
 	it('delegates array mutations while rejecting non-array compiler targets', () => {

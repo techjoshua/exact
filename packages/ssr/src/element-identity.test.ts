@@ -1,12 +1,12 @@
 import { reserveElementId, reservedElementId, type RefBinding, type RefKey } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr element identity', () => {
 	it('reserves identity for every emitted ref so later relationship consumers are order independent', () => {
 		const binding = testRefBinding<Element>();
-		const html = renderToString(createVNode('span', { ref: binding }, 'Label')).html;
+		const html = renderToString(createOperation('span', { ref: binding }, 'Label')).html;
 		expect(html).toMatch(/ id="exact-[^"]+"/u);
 		expect(reservedElementId(binding)).toBeTruthy();
 	});
@@ -14,7 +14,7 @@ describe('@exactjs/ssr element identity', () => {
 	it('emits a ref identity reserved before intrinsic serialization', () => {
 		const binding = testRefBinding<Element>();
 		const id = reserveElementId(binding);
-		const html = renderToString(createVNode('span', { ref: binding }, 'Label')).html;
+		const html = renderToString(createOperation('span', { ref: binding }, 'Label')).html;
 		expect(html).toContain(` id="${id}"`);
 		expect(html).not.toContain(' ref=');
 	});
@@ -23,7 +23,7 @@ describe('@exactjs/ssr element identity', () => {
 		const binding = testRefBinding<Element>();
 		reserveElementId(binding);
 		const html = renderToString(
-			createVNode('span', { ref: binding, id: 'authored-label' }, 'Label')
+			createOperation('span', { ref: binding, id: 'authored-label' }, 'Label')
 		).html;
 		expect(html).toContain(' id="authored-label"');
 		expect(html.match(/\sid=/gu)).toHaveLength(1);

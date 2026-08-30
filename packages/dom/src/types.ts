@@ -3,8 +3,8 @@ import type {
 	AnyComponentInstance,
 	EnhancementEntry,
 	Child,
+	ComponentDomain,
 	ComponentContextValues,
-	ComponentFunction,
 	ExactRuntimeInspectionOwner,
 	ActivityMode,
 	ErrorContextValue,
@@ -13,10 +13,25 @@ import type {
 	ReadinessContextValue,
 	ReadinessRegistration,
 	StopHandle,
-	UnsafeHtmlAuditEvent,
-	VNode
+	UnsafeHtmlAuditEvent
 } from '@exactjs/core';
-import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render';
+import type {
+	ExactRenderProgramInvocation,
+	ExactRenderProgramReceiptData
+} from '@exactjs/core/runtime/render-operations';
+import type {
+	ExactClientComponentArtifact,
+	ExactChildRangeReceiptData,
+	ExactActivityReceiptData,
+	ExactComponentReceiptData,
+	ExactFragmentReceiptData,
+	ExactIntrinsicReceiptData,
+	ExactPortalReceiptData,
+	ExactServerSlotReceiptData,
+	ExactSuspenseReceiptData,
+	ExactTargetReceiptData,
+	ExactUnsafeHtmlReceiptData
+} from '@exactjs/core/runtime/component-operations';
 
 /** Parent and first node of a marker-free final-child range proven by a generated program. */
 export type RenderProgramChildAnchor = readonly [parent: Node, start: Node | null];
@@ -29,13 +44,42 @@ import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
 import type { ComponentDomainLogging } from '@exactjs/core/framework/component-domains';
 
 /** Defines the mounted type contract. */
+
 export type Mounted = {
-	vnode: VNode;
+	/** Opaque authored native operation retained separately from renderer-private receipt data. */
+	operation?: Child;
+	/** Authored sibling identity joined by a focused compiler-owned keyed operation. */
+	operationKey?: string;
+	/** Opaque native component receipt redeemed directly through its selected target artifact. */
+	componentReceipt?: ExactComponentReceiptData;
+	/** Focused compiler-owned dynamic range operation. */
+	childRangeReceipt?: ExactChildRangeReceiptData;
+	/** Direct compiler-owned intrinsic operation. */
+	intrinsicReceipt?: ExactIntrinsicReceiptData;
+	/** Focused compiler-owned retained Activity boundary. */
+	activityReceipt?: ExactActivityReceiptData;
+	/** Focused compiler-owned readiness boundary. */
+	suspenseReceipt?: ExactSuspenseReceiptData;
+	/** Opaque compiler-owned browser render-program operation. */
+	renderProgramReceipt?: ExactRenderProgramReceiptData;
+	/** Compiler-owned transparent range. */
+	fragmentReceipt?: ExactFragmentReceiptData;
+	/** Compiler-owned semantic target range. */
+	targetReceipt?: ExactTargetReceiptData;
+	/** Compiler-authorized raw HTML range. */
+	unsafeHtmlReceipt?: ExactUnsafeHtmlReceiptData;
+	/** Focused logical-child placement into a renderer-owned target. */
+	portalReceipt?: ExactPortalReceiptData;
+	/** Compiler-owned retained server range adopted as an opaque DOM element. */
+	serverSlotReceipt?: ExactServerSlotReceiptData;
+	/** Direct scalar DOM text owned without an intermediate node record. */
+	scalar?: true;
+	scalarValue?: string;
 	dom: Node;
 	/** Optional closing boundary marker when this subtree was adopted from SSR. */
 	end?: Node;
-	/** Marker range that wraps an ordinary keyed list item vnode. */
-	range?: 'item';
+	/** Renderer-owned marker range that is not a native component operation. */
+	range?: 'item' | 'root';
 	scope: EffectScope;
 	children: Mounted[];
 	/** Last normalized output of a compiler-owned dynamic range. */
@@ -70,11 +114,13 @@ export type Mounted = {
 			readonly before: Node | null;
 			children: Mounted[];
 			value?: readonly Child[];
-			/** Last scalar VNode for a compiler-proven fixed-cardinality component slot. */
-			componentValue?: VNode;
+			/** Last opaque receipt for a compiler-proven fixed-cardinality component slot. */
+			componentValue?: ExactComponentReceiptData;
 		}>;
 		/** Compiler-selected structural slot operations invoked by the component dirty program. */
 		directChildUpdates?: Array<(() => void) | undefined>;
+		/** Receiver-owned prop receipts for compiler-proven component slots. */
+		componentReceipts?: Array<(() => void) | undefined>;
 		/** Applies replacement readers without recreating the retained slot watcher. */
 		refresh?: () => void;
 	};
@@ -82,9 +128,13 @@ export type Mounted = {
 	portalTarget?: Node;
 	/** Runs once the subtree's source range has a physical parent. */
 	afterPlacement?: () => void;
+	/** Retention callbacks run after ordinary descendant and owner placement work settles. */
+	afterPlacementPhase?: 'mount' | 'retention';
 	rendering?: boolean;
 	rerenderPending?: boolean;
 	instance?: AnyComponentInstance;
+	/** Target-local executable selected once when this native component range is constructed. */
+	clientArtifact?: ExactClientComponentArtifact;
 	/** Cached component-root candidates published after this component's structure is complete. */
 	componentRootCache?: {
 		target?: Element;
@@ -92,6 +142,8 @@ export type Mounted = {
 	};
 	delegatedEvents?: Map<string, EventListener>;
 	stop?: StopHandle;
+	/** Readiness registration owned by a pending compiled child range. */
+	suspensionRegistration?: ReadinessRegistration;
 	/** Semantic target exported by an ordinary `_target` boundary and its route dependencies. */
 	targetBoundary?: {
 		selected?: Mounted;
@@ -108,6 +160,8 @@ export type Mounted = {
 	>;
 	/** Last effective intrinsic props after composing authored and `_target` layers. */
 	targetEffectiveProps?: Record<string, unknown>;
+	/** Last complete authored root props supplied by a compiler-owned render program. */
+	targetAuthoredProps?: Readonly<Record<string, unknown>>;
 	/** Native event subscriptions installed for independently owned target layers. */
 	targetEventReleases?: Array<() => void>;
 	/** Unmanaged nodes between an opaque raw-HTML range's boundary markers. */
@@ -116,6 +170,8 @@ export type Mounted = {
 	childEnd?: Node;
 	/** Active enhancement-component chain whose public identity remains the authored target. */
 	enhancement?: {
+		/** Opaque authored operation retained as the public enhancement identity. */
+		operation?: Child;
 		readonly entries: readonly EnhancementEntry[];
 		readonly inheritedIdentities: ReadonlySet<string>;
 		readonly target: Mounted;
@@ -155,9 +211,10 @@ export type Root = {
 	portalTargets: Set<Node>;
 	eventContainer?: Node;
 	errors: ErrorContextValue;
-	current: VNode;
+	current: Child;
+	/** Domain selected for the root independently from the opaque child representation. */
+	domain?: import('@exactjs/core').ComponentDomain;
 	version: number;
-	boundary: ComponentFunction<{}, { version: number }>;
 	logger?: Logger;
 	/** Shared component-logger lane for this framework-owned root. */
 	componentLogging?: ComponentDomainLogging;
@@ -171,6 +228,8 @@ export type Root = {
 	workDepth: number;
 	/** Nested depth for the one focus-preservation transaction owned by this root. */
 	focusTransactionDepth: number;
+	/** Retention work committed after the outer DOM transaction finishes placing ordinary ranges. */
+	placementRetentions?: Map<Mounted, () => void>;
 	/** Focus state captured by the outermost active DOM transaction. */
 	focusSnapshot?: DomFocusSnapshot;
 	/** Interaction-local reconciliation work collected only while an event is active. */
@@ -199,7 +258,7 @@ export type Root = {
 	markerlessHydration?: boolean;
 	/** Renderer-internal mounts parked during one cross-domain replacement transaction. */
 	replacementParking?: {
-		mounts: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>;
+		mounts: Map<Child, Array<{ mounted: Mounted; parent: Node }>>;
 		commits: Array<() => void>;
 	};
 	/** Structurally absent ranges retained while component-root release work settles. */
@@ -235,9 +294,9 @@ export type RenderOptions = {
 	debugMarkers?: boolean;
 	/** Observes errors that reach the renderer root without a component boundary. */
 	onErrorReport?: (report: ErrorReport) => void;
-	/** Maximum nested vnode depth accepted by mounting, patching, or hydration. */
+	/** Maximum nested operation depth accepted by mounting, patching, or hydration. */
 	maxTreeDepth?: number;
-	/** Maximum vnode and placeholder child values processed by one DOM update. */
+	/** Maximum operation and placeholder child values processed by one DOM update. */
 	maxTreeNodes?: number;
 	/** Allows unsafeHtml() ranges. The application accepts responsibility for their contents. */
 	allowUnsafeHtml?: boolean;
@@ -251,9 +310,19 @@ export type RenderOptions = {
 	workBudget?: DomWorkBudget;
 	/** Internal logical parent used by a late island mounted in a nested DOM root. */
 	logicalParent?: AnyComponentInstance;
+	/** Internal hydration-selected domain for an opaque operation authored before client creation. */
+	componentDomain?: ComponentDomain;
 	/** Explicit instrumented owner installed only when runtime inspection is built in. */
 	inspection?: ExactRuntimeInspectionOwner;
 };
 
 /** Reports an observable dom profile event. */
-export type DomProfileEvent = ExactProfileEvent<'dom', 'render'>;
+export type DomProfileEvent = ExactProfileEvent<
+	'dom',
+	| 'render'
+	| 'component-construct'
+	| 'component-attach'
+	| 'program-claim'
+	| 'program-children'
+	| 'program-bind'
+>;

@@ -28,12 +28,19 @@ enqueue events and perform I/O outside the measured operation.
 
 - Compiler: native requests, project invalidation, and session clearing.
 - Reactive: scheduler flushes owned by `createProfiledEffectScope`.
-- DOM: root rendering and traversal counts.
-- Hydrate: hydration, including nested DOM events when the same sink is passed.
+- DOM: root rendering plus exclusive component construction, attachment, render-program claim,
+  structural-child adoption, and binding phases.
+- Hydrate: client creation, DOM capture, adoption, form-control restoration, and total hydration,
+  including nested DOM events when the same sink is passed.
 - Server: complete request protocol handling.
 - SSR: synchronous string rendering and stream construction.
 - React compatibility: render and commit work created inside `withReactProfile`.
 - Vite, webpack, and Bun plugins: compiler events through `onProfile`.
+
+Aggregate runtime observations remain available through the public sink. The framework-comparison
+participant selects the finer hydration and DOM phase timers only in its explicit diagnostic build;
+their policy constants are false in installed production modules, allowing bundlers to erase the
+timers and call sites. Percentile measurements always use the ordinary production bundle.
 
 ## Component performance traces
 

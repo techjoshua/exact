@@ -2,6 +2,36 @@ import { describe, expect, it } from 'vitest';
 import { isExactComponentContract } from './contract-validation.js';
 
 describe('component contract validation', () => {
+	it('accepts an explicit foreign compatibility server lane without direct executable fields', () => {
+		const componentId = 'component:CompatibilityIsland';
+		const instantiate = () => undefined;
+		const contract = {
+			version: 3,
+			placement: 'server',
+			role: 'executor',
+			implementations: [],
+			continuations: [],
+			executors: [],
+			boundaries: [],
+			execution: { version: 1, ports: [], transitions: [], reactive: [] },
+			artifact: {
+				version: 1,
+				target: 'server',
+				id: componentId,
+				issue() {},
+				write() {},
+				dispose() {},
+				instantiate,
+				construct: instantiate,
+				abi: 0,
+				state: [],
+				props: [],
+				capabilities: ['compatibility'],
+				execution: { version: 1, classification: 'dynamic', lane: 'compatibility' }
+			}
+		};
+		expect(isExactComponentContract(contract, componentId)).toBe(true);
+	});
 	it('requires server publication to match an isomorphic resumption continuation', () => {
 		const componentId = 'component:Panel';
 		const instantiate = () => undefined;
@@ -26,15 +56,20 @@ describe('component contract validation', () => {
 			contexts: [],
 			boundaries: []
 		};
-		const definition = {
+		const artifact = {
 			version: 1,
+			target: 'server',
+			id: componentId,
+			issue() {},
+			write() {},
+			dispose() {},
 			instantiate,
 			construct: instantiate,
 			abi: 0,
 			state: [],
 			props: [],
 			capabilities: [],
-			server: {
+			execution: {
 				version: 1,
 				classification: 'dynamic',
 				lane: 'generic',
@@ -42,7 +77,7 @@ describe('component contract validation', () => {
 			}
 		};
 		const contract = {
-			version: 2,
+			version: 3,
 			placement: 'isomorphic',
 			role: 'render',
 			implementations: [],
@@ -50,19 +85,19 @@ describe('component contract validation', () => {
 			executors: [],
 			boundaries: [],
 			resumption,
-			definition
+			artifact
 		};
 
 		expect(isExactComponentContract(contract, componentId)).toBe(true);
 		expect(
 			isExactComponentContract(
-				{ ...contract, definition: { ...definition, state: undefined } },
+				{ ...contract, artifact: { ...artifact, state: undefined } },
 				componentId
 			)
 		).toBe(false);
 		expect(
 			isExactComponentContract(
-				{ ...contract, definition: { ...definition, props: undefined } },
+				{ ...contract, artifact: { ...artifact, props: undefined } },
 				componentId
 			)
 		).toBe(false);
@@ -70,7 +105,10 @@ describe('component contract validation', () => {
 			isExactComponentContract(
 				{
 					...contract,
-					definition: { ...definition, server: { ...definition.server, publication: undefined } }
+					artifact: {
+						...artifact,
+						execution: { ...artifact.execution, publication: undefined }
+					}
 				},
 				componentId
 			)

@@ -11,13 +11,19 @@ import (
 // fit the compact generated path operand. Ordinary compiled DOM stays on the targeted lane.
 func (lowering *jsxLowering) directRenderProgramClaimsAll(
 	build *renderProgramBuild,
-	target *ast.Node,
 ) []*ast.Node {
-	statements := make([]*ast.Node, 0, len(build.nodes)+len(build.slots))
+	operations := make([]*ast.Node, 0, len(build.nodes)+len(build.slots))
 	emitCall := func(helper string, arguments ...*ast.Node) {
-		statements = append(statements, lowering.factory.NewExpressionStatement(
-			lowering.call(helper, append([]*ast.Node{target}, arguments...)),
-		))
+		opcode := map[string]int{
+			lowering.names.claimProgramElement:    0,
+			lowering.names.enterProgramElement:    1,
+			lowering.names.leaveProgramElement:    2,
+			lowering.names.claimProgramText:       3,
+			lowering.names.claimProgramKeyedChild: 4,
+			lowering.names.claimProgramChild:      5,
+			lowering.names.claimProgramProperty:   7,
+		}[helper]
+		operations = append(operations, lowering.renderProgramOperation(opcode, arguments...))
 	}
 	var emitChildren func([]int)
 	emitChildren = func(parentPath []int) {
@@ -71,7 +77,7 @@ func (lowering *jsxLowering) directRenderProgramClaimsAll(
 			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.node), ast.TokenFlagsNone),
 		)
 	}
-	return statements
+	return operations
 }
 
 func (lowering *jsxLowering) directProgramChildClaims(

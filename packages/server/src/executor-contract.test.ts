@@ -2,6 +2,7 @@ import {
 	exactComponentContract,
 	exactComponentType
 } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/testing';
 import { describe, expect, it } from 'vitest';
 import {
 	composeExactExecutorContract,
@@ -16,7 +17,7 @@ describe('@exactjs/server executor contracts', () => {
 		const component = Object.assign(() => () => undefined, {
 			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -44,6 +45,7 @@ describe('@exactjs/server executor contracts', () => {
 				]
 			}
 		});
+		createExactFrameworkFixtureArtifact(component, 'Page', 'server');
 
 		const contract = composeExactExecutorContract([component], {
 			endpoint: '/__exact',
@@ -94,7 +96,7 @@ describe('@exactjs/server executor contracts', () => {
 		const component = Object.assign(() => () => undefined, {
 			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -103,6 +105,7 @@ describe('@exactjs/server executor contracts', () => {
 				boundaries: []
 			}
 		});
+		createExactFrameworkFixtureArtifact(component, 'Page', 'server');
 
 		expect(() =>
 			composeExactExecutorContract([component], { invocations: { save: second } })

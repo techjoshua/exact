@@ -42,7 +42,7 @@ import { createSsrContext } from './context.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { normalizeExactServerRuntimeOptions } from './runtime-configuration.js';
 import { renderSignal } from './signals.js';
-import { renderVNode } from './sync-tree.js';
+import { renderChildren } from './sync-children.js';
 
 /** Creates a boundary refresh handler. */
 export function createBoundaryRefreshHandler(
@@ -50,8 +50,8 @@ export function createBoundaryRefreshHandler(
 	options: BoundaryRefreshOptions
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
 	return markExactFrameworkInvocationHandler(async (input, context) => {
-		const vnode = await render(input, context);
-		const result = await renderToStringAsync(vnode, {
+		const operation = await render(input, context);
+		const result = await renderToStringAsync(operation, {
 			...options,
 			contexts: context.contexts?.componentValues ?? options.contexts,
 			signal: renderSignal(context.signal, options.signal)
@@ -81,8 +81,8 @@ export function createInvocationRefreshHandler(
 		let state = invocationResult.state;
 
 		for (const boundary of options.boundaries) {
-			const vnode = await boundary.render(input, context);
-			const result = await renderToStringAsync(vnode, {
+			const operation = await boundary.render(input, context);
+			const result = await renderToStringAsync(operation, {
 				...boundary,
 				contexts: context.contexts?.componentValues ?? boundary.contexts,
 				signal: renderSignal(context.signal, boundary.signal)
@@ -235,7 +235,7 @@ export function renderKeyedListSnapshotOwned<T>(
 		keys.add(key);
 		const child = options.render(item);
 		const itemHtml = markerPair(context, keyedItemMarkerId(key), () =>
-			renderVNode(context, { ...child, key }, undefined)
+			renderChildren(context, [child], undefined)
 		);
 		items.push({ key, html: itemHtml });
 		html.push(itemHtml);

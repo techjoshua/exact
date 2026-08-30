@@ -4,10 +4,23 @@ import { createCompiledDynamicComponent } from '../dynamic-component/runtime.js'
 import {
 	exactComponentContract,
 	exactComponentType,
+	readPreparedExactClientExecutableComponentContract,
+	readPreparedExactServerExecutableComponentContract,
+	type ExactComponentExecutableArtifact,
 	type ExactComponentContract
 } from '../component-contracts.js';
 import { constructRenderComponentInstance } from '../component/render-instance-construction.js';
-import { createVNode } from '../vnode.js';
+import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
+import {
+	attachExactCompiledClientComponent,
+	disposeExactClientComponent,
+	receiveExactDynamicClientComponentProps
+} from '../component-abi/compiled-runtime.js';
+import {
+	disposeExactServerComponent,
+	issueExactServerComponent,
+	writeExactServerComponent
+} from '../component-abi/server-runtime.js';
 import type {
 	ComponentRegistry,
 	ComponentRegistryBuilder,
@@ -104,7 +117,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 				if (!component) throw loadRegistryEntry(entry);
 				// Registry keys are selection identity even when two entries
 				// intentionally resolve to the same underlying component.
-				return createVNode(component, {
+				return createCompiledComponentReceipt(component, {
 					...props,
 					key: `exact-registry:${entry.key}`
 				});
@@ -113,7 +126,8 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			const selection = createCompiledDynamicComponent({
 				id: `${id}:${key}`,
 				source: () => entry.resolved ?? entry.eager ?? loadRegistryEntry(entry),
-				props
+				props,
+				finiteRegistry: true
 			});
 			return () => selection;
 		} as AnyComponentFunction;
@@ -121,7 +135,6 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			configurable: true,
 			value: `${name}.${key}#${id}`
 		});
-		attachRegistryFacadeArtifact(facade, id, key, target, lazy !== undefined);
 		const entry: ComponentRegistryEntryRuntime = {
 			registry: runtime,
 			key,
@@ -131,6 +144,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			loadGeneration: 0
 		};
 		if (entry.eager) entry.resolved = entry.eager;
+		attachRegistryFacadeArtifact(facade, entry, target);
 		entries.set(key, entry);
 		registerRegistryFacade(entry);
 		Object.defineProperty(value, key, {
@@ -146,15 +160,66 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 /** Attaches the target-local render and loader lane selected for one finite registry key. */
 function attachRegistryFacadeArtifact(
 	facade: AnyComponentFunction,
-	registryId: string,
-	key: string,
-	target: 'client' | 'server',
-	lazy: boolean
+	entry: ComponentRegistryEntryRuntime,
+	target: 'client' | 'server'
 ): void {
-	const identity = `${registryId}:${key}`;
+	const identity = `${entry.registry.id}:${entry.key}`;
 	const implementationId = `${identity}:implementation`;
+	let artifact: ExactComponentExecutableArtifact;
+	if (entry.eager) {
+		const selected =
+			target === 'client'
+				? readPreparedExactClientExecutableComponentContract(entry.eager).artifact
+				: readPreparedExactServerExecutableComponentContract(entry.eager).artifact;
+		artifact = Object.freeze({
+			...selected,
+			id: identity,
+			capabilities: Object.freeze([...selected.capabilities, 'registry'] as const)
+		}) as ExactComponentExecutableArtifact;
+	} else if (target === 'client') {
+		artifact = Object.freeze({
+			version: 1,
+			target,
+			id: identity,
+			instantiate: facade,
+			construct: constructRenderComponentInstance,
+			abi: compiledComponentRenderABI,
+			state: Object.freeze([]),
+			props: Object.freeze([]),
+			tasks: Object.freeze([]),
+			reactive: Object.freeze([]),
+			render: 'returned-function',
+			capabilities: Object.freeze(['registry', 'dynamic-components'] as const),
+			attach: attachExactCompiledClientComponent,
+			receive: receiveExactDynamicClientComponentProps,
+			dispose: disposeExactClientComponent
+		});
+	} else {
+		artifact = Object.freeze({
+			version: 1,
+			target,
+			id: identity,
+			instantiate: facade,
+			construct: constructRenderComponentInstance,
+			abi: compiledComponentRenderABI,
+			state: Object.freeze([]),
+			props: Object.freeze([]),
+			tasks: Object.freeze([]),
+			reactive: Object.freeze([]),
+			render: 'returned-function',
+			capabilities: Object.freeze(['registry', 'dynamic-components'] as const),
+			issue: issueExactServerComponent,
+			write: writeExactServerComponent,
+			dispose: disposeExactServerComponent,
+			execution: Object.freeze({ version: 1, classification: 'synchronous', lane: 'direct' }),
+			selection: Object.freeze({
+				key: entry.key,
+				resolve: () => entry.resolved ?? entry.eager ?? loadRegistryEntry(entry)
+			})
+		});
+	}
 	const contract: ExactComponentContract = Object.freeze({
-		version: 2,
+		version: 3,
 		placement: target,
 		role: target === 'client' ? 'client' : 'executor',
 		implementations: Object.freeze([
@@ -169,32 +234,7 @@ function attachRegistryFacadeArtifact(
 		executors: Object.freeze([]),
 		boundaries: Object.freeze([]),
 		execution: Object.freeze({ version: 1, ports: [], transitions: [], reactive: [] }),
-		definition: Object.freeze({
-			version: 1,
-			instantiate: facade,
-			construct: constructRenderComponentInstance,
-			abi: compiledComponentRenderABI,
-			state: Object.freeze([]),
-			props: Object.freeze([]),
-			tasks: Object.freeze([]),
-			reactive: Object.freeze([]),
-			render: 'returned-function',
-			capabilities: Object.freeze(
-				target === 'client' || lazy
-					? (['registry', 'dynamic-components'] as const)
-					: (['registry'] as const)
-			),
-			...(target === 'server'
-				? {
-						server: Object.freeze({
-							version: 1 as const,
-							classification: lazy ? ('dynamic' as const) : ('synchronous' as const),
-							lane: lazy ? ('generic' as const) : ('direct' as const),
-							...(!lazy ? { render: facade } : {})
-						})
-					}
-				: {})
-		})
+		artifact
 	});
 	Object.defineProperties(facade, {
 		[exactComponentType]: { configurable: false, enumerable: false, value: identity },

@@ -2,9 +2,10 @@
  * @vitest-environment jsdom
  */
 import { createContext, createPortal, type Child, type Component } from '@exactjs/core';
-import { createVNode, jsx } from './test-support/native-vnode.js';
+import { createOperation, jsx } from './test-support/native-operations.js';
 import { describe, expect, it } from 'vitest';
-import { render, unmount } from './index.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
 
 describe('@exactjs/dom namespaces-portals', () => {
 	it('renders portals in another container while preserving logical context and cleanup', () => {
@@ -62,22 +63,22 @@ describe('@exactjs/dom namespaces-portals', () => {
 	it('switches namespaces at SVG and MathML HTML integration points', () => {
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				'div',
 				null,
-				createVNode(
+				createOperation(
 					'svg',
 					null,
-					createVNode('foreignObject', null, createVNode('div', { id: 'svg-html' }))
+					createOperation('foreignObject', null, createOperation('div', { id: 'svg-html' }))
 				),
-				createVNode(
+				createOperation(
 					'math',
 					null,
-					createVNode('mtext', null, createVNode('span', { id: 'math-html' })),
-					createVNode(
+					createOperation('mtext', null, createOperation('span', { id: 'math-html' })),
+					createOperation(
 						'annotation-xml',
 						{ encoding: 'text/html' },
-						createVNode('section', { id: 'annotation-html' })
+						createOperation('section', { id: 'annotation-html' })
 					)
 				)
 			),

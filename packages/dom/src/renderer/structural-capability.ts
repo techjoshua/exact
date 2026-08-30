@@ -1,5 +1,9 @@
-import type { AnyComponentInstance, Child, VNode } from '@exactjs/core';
+import type { AnyComponentInstance, Child } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
+import type {
+	ExactActivityReceiptData,
+	ExactSuspenseReceiptData
+} from '@exactjs/core/runtime/component-operations';
 import type { Mounted, Root } from '../types.js';
 
 /** Adopts one compiler-owned structural child range without rebuilding matched DOM. */
@@ -7,7 +11,7 @@ export type AdoptStructuralChildren = (
 	root: Root,
 	children: Child[],
 	nodes: readonly Node[],
-	parentInstance: AnyComponentInstance,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	start?: number,
 	end?: number
@@ -15,44 +19,49 @@ export type AdoptStructuralChildren = (
 
 /** Optional native Activity and Suspense renderer selected as one coordinated structural unit. */
 export type StructuralBoundaryCapability = Readonly<{
-	mountActivity(
+	mountActivityReceipt(
 		root: Root,
-		vnode: VNode,
+		receipt: ExactActivityReceiptData,
 		scope: EffectScope,
 		parentInstance: AnyComponentInstance | undefined,
 		parentNode: Node | undefined
 	): Mounted;
-	mountSuspense(
+	mountSuspenseReceipt(
 		root: Root,
-		vnode: VNode,
+		receipt: ExactSuspenseReceiptData,
 		scope: EffectScope,
 		parentInstance: AnyComponentInstance | undefined,
 		parentNode: Node | undefined
 	): Mounted;
-	patchActivity(root: Root, parent: Node, mounted: Mounted, next: VNode): Mounted;
-	patchSuspense(
+	patchActivityReceipt(
 		root: Root,
 		parent: Node,
 		mounted: Mounted,
-		next: VNode,
+		next: ExactActivityReceiptData
+	): Mounted;
+	patchSuspenseReceipt(
+		root: Root,
+		parent: Node,
+		mounted: Mounted,
+		next: ExactSuspenseReceiptData,
 		parentInstance: AnyComponentInstance | undefined
 	): Mounted;
-	adoptActivity(
+	adoptActivityReceipt(
 		root: Root,
-		vnode: VNode,
+		receipt: ExactActivityReceiptData,
 		nodes: readonly Node[],
 		cursor: number,
-		parentInstance: AnyComponentInstance,
+		parentInstance: AnyComponentInstance | undefined,
 		parentScope: EffectScope,
 		end: number,
 		adoptChildren: AdoptStructuralChildren
 	): { mounted: Mounted; next: number } | undefined;
-	adoptSuspense(
+	adoptSuspenseReceipt(
 		root: Root,
-		vnode: VNode,
+		receipt: ExactSuspenseReceiptData,
 		nodes: readonly Node[],
 		cursor: number,
-		parentInstance: AnyComponentInstance,
+		parentInstance: AnyComponentInstance | undefined,
 		parentScope: EffectScope,
 		end: number,
 		adoptChildren: AdoptStructuralChildren

@@ -1,2 +1,4 @@
 /** Compiler-selected unsafe-HTML DOM capability entry. */
-import '../unsafe-html-integration.js';
+import { installUnsafeHtmlIntegration } from '../unsafe-html-integration.js';
+
+installUnsafeHtmlIntegration();

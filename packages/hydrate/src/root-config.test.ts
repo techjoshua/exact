@@ -29,6 +29,16 @@ describe('hydration-only config projection', () => {
 		);
 	});
 
+	it('accepts only the compiler-published markerless-root proof', () => {
+		expect(resolveRootHydrateOptions(configContainer({ m: 1 }), {})).toMatchObject({
+			markerlessRoot: true,
+			allowMarkerless: true
+		});
+		expect(
+			resolveRootHydrateOptions(configContainer({ m: true }), {}).markerlessRoot
+		).toBeUndefined();
+	});
+
 	it('reuses the bounded root decode when root props are read before hydration', () => {
 		const container = configContainer({ state: { ready: true } });
 		const parse = vi.spyOn(JSON, 'parse');

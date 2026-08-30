@@ -88,10 +88,12 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 		)?.code;
 
 		expect(transformed).toContain('adaptReactComponent as __exactInteropComponent');
-		expect(transformed).toContain('__exactInteropComponent(QueryClientProvider)');
 		expect(transformed).toContain(
-			'client: __exactExpression(() => __exactReadState(this.state, 0) as object)'
+			'__exactComponentReceipt(__exactInteropComponent, { component: QueryClientProvider'
 		);
+		expect(transformed).not.toContain('__exactInteropComponent(QueryClientProvider)');
+		expect(transformed).not.toContain('createCompiledVNode');
+		expect(transformed).toContain('client: __exactIndexedExpression(this.state, 0)');
 		expect(transformed).not.toContain('jsx-runtime18');
 	});
 

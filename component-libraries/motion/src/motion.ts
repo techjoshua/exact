@@ -1,4 +1,8 @@
-import { createVNode, peek, type AnyComponentFunction, type Component } from '@exactjs/core';
+import { peek, type Component } from '@exactjs/core';
+import {
+	createCompiledComponentReceipt,
+	createCompiledIntrinsicReceipt
+} from '@exactjs/core/runtime/component-abi';
 import type { MotionElementProps, MotionProps } from './contracts.js';
 import { MotionElement } from './motion-element.js';
 
@@ -24,10 +28,10 @@ function renderMotion(props: MotionProps, intrinsicType: MotionProps['as']) {
 		appear: props.appear,
 		layout: props.layout,
 		layoutId: props.layoutId,
-		children: createVNode(intrinsicType, intrinsic, props.children)
+		children: createCompiledIntrinsicReceipt(intrinsicType, intrinsic, props.children)
 	};
-	return createVNode(
-		MotionElement as unknown as AnyComponentFunction,
+	return createCompiledComponentReceipt(
+		MotionElement,
 		motion as unknown as Record<string, unknown>,
 		motion.children
 	);

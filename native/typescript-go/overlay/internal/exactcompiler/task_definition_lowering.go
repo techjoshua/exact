@@ -192,7 +192,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			directTransition,
 			runtimeArgumentCount,
 		)
-		return lowering.call(
+		taskCall := lowering.call(
 			lowering.names.activateServerTask,
 			append(
 				[]*ast.Node{
@@ -202,6 +202,25 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 					rewrittenWork,
 				},
 				nextArguments...,
+			),
+		)
+		if len(contextBindings) == 0 {
+			return taskCall
+		}
+		registration := lowering.call(
+			lowering.names.registerServerContexts,
+			[]*ast.Node{
+				lowering.factory.NewThisExpression(),
+				lowering.contextBindingArray(contextBindings),
+			},
+		)
+		return lowering.factory.NewParenthesizedExpression(
+			lowering.factory.NewBinaryExpression(
+				nil,
+				registration,
+				nil,
+				lowering.factory.NewToken(ast.KindCommaToken),
+				taskCall,
 			),
 		)
 	}
@@ -231,6 +250,19 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			)
 			rebuiltTaskCallee = true
 		}
+	} else if lowering.target == TargetClient && task.Placement == "isomorphic" {
+		// Hydration uses the compiler-owned continuation identity to suppress the
+		// initial client activation when the same setup work settled during SSR.
+		// Keep the authored isomorphic implementation, but brand the callable just
+		// like the server projection so both targets agree on its opaque identity.
+		rewrittenWork = lowering.taskHelperCall(
+			"markComponentContinuationTask",
+			lowering.names.taskContinuation,
+			[]*ast.Node{
+				lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
+				rewrittenWork,
+			},
+		)
 	} else if lowering.target == TargetServer &&
 		(task.Placement == "server" || task.Placement == "isomorphic") {
 		if len(task.ResultWritePath) != 0 {
@@ -683,16 +715,26 @@ func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
 			),
 		)
 	}
-	dependencyCount := len(declaration.Parameters.Nodes)
-	if dependencyCount != 0 &&
-		strings.Contains(
-			sourceText(
-				lowering.sourceFile,
-				declaration.Parameters.Nodes[dependencyCount-1],
+	// Semantic task analysis already excludes the policy parameter. Re-reading its
+	// authored text is incorrect for declarations projected into generated islands,
+	// whose transformed node can no longer be indexed through the source file.
+	dependencyCount := task.ArgumentCount
+	if lowering.target == TargetServer && lowering.directServerArtifactOwnsTask(task) {
+		initializer := lowering.inertClientTaskCallable()
+		if operation != nil {
+			initializer = lowering.directServerInvokedTaskWork(work, task, *operation, dependencyCount)
+		}
+		return lowering.factory.NewVariableStatement(
+			nil,
+			lowering.factory.NewVariableDeclarationList(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.factory.NewVariableDeclaration(
+						declaration.Name(), nil, nil, initializer,
+					),
+				}),
+				ast.NodeFlagsConst,
 			),
-			"TaskContext",
-		) {
-		dependencyCount--
+		)
 	}
 	bound := lowering.boundTaskDefinition(
 		declaration.Name().Text(),
@@ -736,16 +778,19 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 			lowering.inertClientTaskCallable(),
 		)
 	}
-	dependencyCount := len(work.Parameters())
-	if dependencyCount != 0 &&
-		strings.Contains(
-			sourceText(
-				lowering.sourceFile,
-				work.Parameters()[dependencyCount-1],
-			),
-			"TaskContext",
-		) {
-		dependencyCount--
+	dependencyCount := task.ArgumentCount
+	if lowering.target == TargetServer && lowering.directServerArtifactOwnsTask(task) {
+		initializer := lowering.inertClientTaskCallable()
+		if operation != nil {
+			initializer = lowering.directServerInvokedTaskWork(work, task, *operation, dependencyCount)
+		}
+		return lowering.factory.UpdateVariableDeclaration(
+			declaration,
+			name,
+			declaration.ExclamationToken,
+			declaration.Type,
+			initializer,
+		)
 	}
 	return lowering.factory.UpdateVariableDeclaration(
 		declaration,
@@ -754,6 +799,26 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 		declaration.Type,
 		lowering.boundTaskDefinition(name.Text(), work, task, operation, dependencyCount),
 	)
+}
+
+// A direct server artifact carries invoked operation contracts and executors, but its request
+// render never owns their durable callable bindings. Invocation dispatch enters the generated
+// executor separately, so the server render facet retains only an inert lexical placeholder.
+func (lowering *jsxLowering) directServerArtifactOwnsTask(task Task) bool {
+	component, exists := lowering.components[task.Component]
+	return task.Invoked && exists && component.TargetPlan.DirectServer
+}
+
+func (lowering *jsxLowering) directServerInvokedTaskWork(
+	work *ast.Node,
+	task Task,
+	operation InvokedTaskOperation,
+	dependencyCount int,
+) *ast.Node {
+	if lowering.taskCaptureArgumentResolver(work, 0, dependencyCount) != nil {
+		work = lowering.eraseTaskCapturedParameterDefaults(work, dependencyCount)
+	}
+	return lowering.lowerInvokedTaskOperationWork(work, operation)
 }
 
 // inertClientTaskCallable preserves a referenced callback's identity in server-rendered props

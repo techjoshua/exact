@@ -19,9 +19,24 @@ readiness, and request-cleanup regressions.
 The cross-framework `npm run measure:ssr` lane additionally records a concurrency saturation curve
 at 1, 4, 8, 16, 32, and 64 simultaneous requests. Worker timing separates time through first-byte
 publication from response composition and delivery, while event-loop-delay and garbage-collection
-telemetry expose stalls that aggregate CPU counters cannot attribute. These finite local-loopback
-waves compare identical framework routes; they are not a substitute for externally generated
-capacity testing on deployment hardware.
+telemetry expose stalls that aggregate CPU counters cannot attribute. Saturation uses fixed-duration,
+closed-loop windows, so throughput has an equal window population while faster participants retain their
+larger observation counts for latency analysis; high-volume per-request arrays are released after exact
+percentile summarization instead of remaining live for the multi-runtime run. The harness warms and times the controlled fixture service
+before every participant, rotates participant order between runtimes, and records that order.
+Its bounded, participant-owned `node:http` keep-alive agent is closed between participants, preventing
+client ephemeral-port churn from contaminating the capacity curve.
+A discarded two-second c32 capacity prime runs before concurrent measurement, followed by a telemetry reset,
+so engine tier-up does not appear as a framework throughput discontinuity in the recorded curve.
+
+Attribution counter-metrics include total participant work for every framework and, where the integration
+owns the complete renderer call, controlled-data loading, rendering, response-envelope construction, and
+rendered/response byte counts. Equal-payload runs hold complete body size at 8 KiB by default, transport-only
+payload sweeps isolate response-size sensitivity, and preloaded render-only runs separate renderer cost from
+service and socket work. Node render-only diagnostics also retain separate statistical CPU and allocation
+profiles with their top source locations. These local-loopback diagnostics explain the comparison; they are not substitutes for
+externally generated capacity testing on deployment hardware, and unsupported internal phase boundaries are
+reported as unavailable rather than zero.
 
 Server render-program selection must preserve readiness at every nested host, not only at a
 component's returned root. If a planned intrinsic subtree contains compiler-proven independent
@@ -345,7 +360,7 @@ Literal host attributes with identical template, DOM, and SSR semantics are writ
 the compiler-owned template. They do not become reader branches, binding records, reactions, or
 initial `updateProps` work. Values that require URL policy, form binding, event installation,
 object normalization, or custom-element property assignment remain explicit runtime operations.
-Programs whose binding table is empty bypass reactive binding setup entirely: they allocate no
+Programs whose component-local binding tuple is empty bypass reactive binding setup entirely: they allocate no
 props map, retained watcher, refresh closure, or binding teardown state.
 
 Compiler-emitted descriptors are trusted module-local executable artifacts. The client does not
@@ -359,6 +374,10 @@ readers and framework-fixture entry points retain full validation for manually s
 Hydration entry points likewise pass their owned configuration resolver explicitly. The shared DOM
 adoption engine has no complete-runtime default import, so a hydration-only client does not retain
 endpoint, continuation, island, or patch configuration merely because the full client supports it.
+Build adapters can emit a focused client bootstrap from the aggregate artifact graph. It imports
+the server-operation/island client surface only when those capabilities are reachable, composes
+the complete continuation table without a separate generated-module normalization pass, and does not ship the
+descriptive graph inventory used to make that decision.
 
 Native component functions carry their prepared target artifact. Client mounting and hydration
 read that definition once and invoke its linked constructor directly, avoiding a separate native
@@ -439,11 +458,17 @@ npm run benchmark:framework
 ```
 
 The release performance profile builds the repository first and then runs the framework, reactive,
-compiler, DevTools, and React-compatibility benchmarks without competing correctness work:
+compiler, DevTools, and React-compatibility benchmarks after the complete correctness admission
+sequence:
 
 ```sh
 npm run performance:check
 ```
+
+The npm prerequisite runs `release:check`, the isolated Router v6.3 check, Theme Lab browser
+acceptance, and the native compiler corpus first. A failure stops before measurement. Once those
+checks exit, the performance profile runs benchmarks against their existing build; it does not
+repeat the repository build or TypeScript 7 compatibility pass.
 
 Update the tracked framework baseline only from a complete Node and Chromium run:
 
@@ -491,14 +516,19 @@ npm run test:allocation -w @exactjs/sample-shipping-calculator
 Dependent-foundation candidates are measured one at a time in isolated Node processes:
 
 ```sh
-npm run benchmark:performance-foundations -- --scenario=render-plan
+npm run benchmark:performance-foundations -- --scenario=transport
 ```
 
-The supported scenario names are `render-plan`, `async-ssr`, `hydration-publication`, `transport`,
-and `build-host`. `EXACT_PERFORMANCE_FOUNDATION_SAMPLES` controls outer process samples;
+The supported scenario names are `transport` and `build-host`.
+`EXACT_PERFORMANCE_FOUNDATION_SAMPLES` controls outer process samples;
 `EXACT_PERFORMANCE_INNER_SAMPLES` controls observations inside each process. These exploratory
 measurements become tracked release evidence only when their proposal records an accepted result
 and the production implementation retains the same workload as a before/after guard.
+
+The completed render-program, bounded-async-SSR, and hydration-publication experiments remain in
+the historical evidence, but their handwritten generic-tree comparators were removed with the
+native VNode architecture. Current SSR and hydration coverage uses compiler-produced TSX in the
+framework benchmark instead.
 
 The completed dependent-foundation evidence is tracked in
 [`dependent-foundations.json`](performance-baselines/dependent-foundations.json) and can be
@@ -508,11 +538,11 @@ reproduced after a repository build with:
 node scripts/benchmark-performance-foundations.mjs --output=docs/performance-baselines/dependent-foundations.json
 ```
 
-Remaining stage-16 candidates use the focused production and representation fixtures in
-`scripts/performance/remaining-optimizations.mjs`. Their five-process measurements, counter-metrics,
-environment, and accept/reject decisions are tracked in
-[`remaining-optimizations.json`](performance-baselines/remaining-optimizations.json). A measured
-rejection is final for the recorded profile; it leaves no production implementation behind.
+The completed stage-16 candidate measurements, counter-metrics, environment, and accept/reject
+decisions remain recorded in
+[`remaining-optimizations.json`](performance-baselines/remaining-optimizations.json). Their obsolete
+handwritten VNode fixture was removed with that architecture; current production workloads are
+compiler-produced TSX.
 
 ## Measurement contract
 
@@ -554,11 +584,22 @@ measuring two unrelated CLI startups would obscure compiler and emission work.
 | Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.                                                         |
 
 The framework comparison additionally records FCP, LCP, long-task count and duration, total
-blocking time, element/total/comment/text DOM size at semantic readiness, per-script decoded and
-executed bytes, function inventory and invocation counts, and parse/compile/evaluation trace
-attribution. Executed bytes use the most-specific V8 coverage range for each source interval, so an
-uncalled function body is not hidden by its executed top-level script range and nested ranges are
-not counted twice.
+blocking time, element/total/comment/text DOM size at semantic readiness, post-GC JavaScript and
+embedder heap, backing storage, retained DOM and listener counts, per-script decoded and executed
+bytes, function inventory and invocation counts, and parse/compile/evaluation trace attribution.
+Executed bytes use the most-specific V8 coverage range for each source interval, so an uncalled
+function body is not hidden by its executed top-level script range and nested ranges are not counted
+twice. Coverage is best-effort so V8 optimization remains enabled during percentile timing.
+
+One separate diagnostic pass per framework records sampling CPU profiles for cold startup and the
+first optimistic interaction plus sampled allocation sites before and after post-interaction
+collection. Those profiles preserve raw V8 nodes and ranked URL/function locations for attribution;
+the pass uses a 100-microsecond CPU interval, a 4 KiB heap interval, and 6x CPU emulation for the
+interaction capture. Attribution-enabled eXact diagnostics join precise executed coverage to source maps and
+retain the bundler's actual per-module rendered lengths. Parsed and compiled function counts remain bundle-level
+when Chromium omits source locations. An optional post-GC strong-edge dominator snapshot supports retained-heap
+investigation without embedding its large raw snapshot. Profiler overhead is intentionally excluded from latency populations, and
+sampled heap bytes are not treated as exact retained-heap accounting.
 
 The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
 size and generation cost have their own scenarios, which keeps the two costs attributable.
@@ -648,10 +689,24 @@ Canonical top-level client writes also address the proven numeric slot directly 
 replacement reconciliation, mutation journals, batching, and dependency notification. A
 checker-proven alias of the complete state facade keeps this indexed identity; nested-state aliases
 and dynamic writes keep the generic path lane rather than accepting an unsafe slot proof.
+The generated indexed-write call carries its right-hand value directly. It does not allocate a
+one-use value-returning thunk, and a function-valued state assignment therefore remains ordinary
+data rather than an overloaded callback convention. Primitive and first-value writes commit
+without an inner transaction callback; an enclosing interaction or optimistic journal still owns
+their notification and rollback semantics. Object-to-object replacements retain the reconciled
+transaction lane because one authored assignment may update several observed nested keys.
 Generated form and component-binding callbacks carry the authored slot identity through island and
 callback synthesis instead of recovering component ownership from the generated syntax tree.
 Managed client computations and task callbacks use the same analyzed slot identity, including when
 their work closes over a checker-proven alias of the complete state facade.
+
+A compiler-proven direct state operand passed through a component operation uses the indexed slot
+itself as its reactive source. The instance's indexed record retains at most one small readonly
+descriptor per used slot, shared by every operand for that slot. These descriptors allocate no read
+closure, computed reaction, dependency set, or scheduler entry. Derived expressions and structural
+ranges keep the general computed path because they own evaluation, caching, and invalidation rather
+than merely forwarding one slot. Generated descriptor calls retain their slot identity in component
+update tables; finalizing a prop or `children` value therefore cannot detach its parent update.
 
 Every compiled component definition carries immutable state and props layouts, including explicit
 empty layouts. Client construction therefore has one compiler-indexed storage contract rather than

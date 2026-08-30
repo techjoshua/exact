@@ -76,11 +76,25 @@ func (lowering *jsxLowering) lowerIndexedStateRead(node *ast.Node) *ast.Node {
 	if receiver == nil {
 		return nil
 	}
+	if lowering.clientIslandPropsSlots != nil {
+		// Extracted island expressions are authored nodes emitted beneath a synthesized function.
+		// Their original component state-slot proof remains valid, but their `this` declaration is
+		// intentionally replaced; asking the TypeScript checker to rediscover its type can enter an
+		// invalid synthesized parent chain. The island's reactive expression owns the update when no
+		// authored scalar type was recorded before extraction.
+		return lowering.call(lowering.names.readState, []*ast.Node{
+			lowering.visitor.VisitNode(receiver),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
+		})
+	}
+	// Read semantic type information before recursively lowering the receiver. The visitor may
+	// synthesize a replacement parent chain for an extracted client-island expression; asking the
+	// checker about the authored node after that mutation can leave `this` without its declaration.
+	valueType := lowering.checker.GetTypeAtLocation(node)
 	call := lowering.call(lowering.names.readState, []*ast.Node{
 		lowering.visitor.VisitNode(receiver),
 		lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
 	})
-	valueType := lowering.checker.GetTypeAtLocation(node)
 	result := call
 	if typeNode := lowering.checker.TypeToTypeNode(
 		valueType,

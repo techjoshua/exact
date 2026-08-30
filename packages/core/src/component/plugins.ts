@@ -2,7 +2,7 @@ import { ErrorContext, LoggerContext } from './contexts.js';
 
 import { defaultErrorContext } from './errors.js';
 
-import { defaultConsoleLogger } from './log.js';
+import { defaultConsoleLogger } from './default-logger.js';
 
 /** Provides the canonical default contexts value. */
 export const defaultContexts = new Map<symbol, unknown>([

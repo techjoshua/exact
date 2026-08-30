@@ -1,5 +1,6 @@
-import type { AnyComponentInstance, VNode } from '@exactjs/core';
+import type { AnyComponentInstance } from '@exactjs/core';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
+import type { ServerComponentReference } from './server-component-reference.js';
 import type { DirectSsrComponentContent } from './direct-component-content.js';
 import type {
 	DirectSsrComponentFrame,
@@ -25,7 +26,7 @@ export type DirectSsrComponentResult = Readonly<{
 	snapshot: DirectSsrComponentSnapshot;
 }>;
 
-/** Render output paired with ownership for child work issued during VNode materialization. */
+/** Render output paired with ownership for child work issued during operation materialization. */
 export type DirectIssuedRender = Readonly<{
 	content: DirectSsrComponentContent;
 	preparation?: DirectScheduledPreparation;
@@ -46,13 +47,13 @@ export type DirectScheduledSsrComponent = AsyncDisposable &
 export type PreparedDirectScheduledSsrComponent = Readonly<{
 	component: Promise<DirectScheduledSsrComponent | undefined>;
 	consumed: boolean;
-	vnode: VNode;
+	reference: ServerComponentReference;
 }>;
 
 /** Publishes stabilized direct-component HTML through the formatting selected by its renderer. */
 export type DirectSsrComponentPublisher<Publication = undefined> = (
 	context: SsrContext,
-	vnode: VNode,
+	reference: ServerComponentReference,
 	parent: AnyComponentInstance | undefined,
 	html: string,
 	props: Record<string, unknown>,

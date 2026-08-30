@@ -1,12 +1,19 @@
 /** Compiler-selected direct render-program binding operations. */
 export {
+	applyCompiledComponentReceipt,
+	mountComponentReceipt
+} from '../renderer/mounting/native-component-artifact.js';
+
+export {
 	applyCompiledProgramChild,
 	applyCompiledProgramProperties,
 	applyCompiledProgramText,
 	bindCompiledProgramChild,
+	bindCompiledProgramComponent,
 	bindCompiledProgramKeyedChild,
 	bindCompiledProgramLists,
 	bindCompiledProgramProperties,
+	bindCompiledReactiveProgramProperties,
 	bindCompiledProgramText
 } from '../renderer/render-program-bindings.js';
 

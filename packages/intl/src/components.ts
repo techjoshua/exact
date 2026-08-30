@@ -7,7 +7,7 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
-import { createCompiledTarget } from '@exactjs/core/runtime/render';
+import { createCompiledTargetReceipt } from '@exactjs/core/runtime/component-abi';
 import type { IntlPropertyActivation, IntlPropertyName } from './contracts.js';
 import type { IntlLocaleString } from './cldr-locale-types.js';
 import {
@@ -155,7 +155,7 @@ export function IntlAttributes(this: Component<{}>, props: IntlPreparedAttribute
 
 function renderIntlLocale(environment: IntlEnvironment, props: IntlLocaleProps): Child {
 	const metadata = intlLocaleMetadata(environment.state.locale);
-	return createCompiledTarget(
+	return createCompiledTargetReceipt(
 		{ lang: metadata.lang, dir: metadata.dir, [TargetOverrides]: ['lang', 'dir'] },
 		props.children
 	);
@@ -190,7 +190,7 @@ function renderIntlAttributes(
 			.map((value) => String(value ?? ''))
 			.join('');
 	}
-	return createCompiledTarget(
+	return createCompiledTargetReceipt(
 		{ ...contributions, [TargetOverrides]: Object.keys(contributions) },
 		props.children
 	);

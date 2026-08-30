@@ -1,4 +1,4 @@
-import type { ExactCompiledComponentContract } from '../component-contracts.js';
+import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import type {
 	AnyComponentInstance,
 	ComponentContextValues,
@@ -6,7 +6,6 @@ import type {
 	ComponentInstance
 } from './contracts.js';
 import { CompactComponentInstance } from './compact-instance.js';
-import { registerComponentRuntimeSurfaceTarget } from './runtime-surface-registration.js';
 
 /** Compact durable record selected for compiler artifacts without task, lifecycle, or list work. */
 export class RenderComponentInstance<
@@ -19,16 +18,14 @@ export class RenderComponentInstance<
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
-		contract: ExactCompiledComponentContract
+		contract: ExactExecutableComponentContract
 	) {
 		super(type, rawProps, parent, ambientContexts, domain, contract);
 		this.initializeComponent(() =>
-			(contract.definition.instantiate as ComponentFunction<State, Props>).call(
+			(contract.artifact.instantiate as ComponentFunction<State, Props>).call(
 				this,
 				this.props as Props
 			)
 		);
 	}
 }
-
-registerComponentRuntimeSurfaceTarget(RenderComponentInstance.prototype);

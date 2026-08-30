@@ -1,0 +1,57 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 8,
+	"recordedAt": "2026-08-27T16:10:00.0000000-07:00",
+	"mechanisms": [
+		"Remove native generic component, VNode, whole-component rerender, property-binding, SSR, fallback-artifact, and runtime artifact-factory reachability after every supported JSX site has a compiler-selected target operation.",
+		"Keep raw VNode execution, generic component rendering, and foreign ownership only behind explicit compatibility or testing entry points that native bundles do not import.",
+		"Consolidate target runtime modules around opaque component operations and direct construct, attach or adopt, receive, issue, write, and dispose ownership."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "native generic-runtime removal",
+			"classification": "improve",
+			"metrics": [
+				"client and server raw, gzip, Brotli, decoded, profiled, and executed bytes",
+				"profiled and invoked function counts",
+				"startup script time, allocation, and retained heap",
+				"Node and Bun SSR latency, throughput, CPU, allocation, and retention"
+			],
+			"structuralEvidence": [
+				"all seven native fallback counters remain zero across the compiler corpus",
+				"native DOM and SSR reachability exclude compatibility and generic execution modules",
+				"compiled component JSX emits an opaque component operation and never generic VNode construction"
+			],
+			"counterMetrics": [
+				"complete compiler, DOM, hydration, SSR, lifecycle, package, React, router, and browser correctness suites",
+				"response hashes, DOM and marker counts, semantic settlement, and cancellation behavior",
+				"explicit compatibility and raw-fixture conformance"
+			]
+		},
+		{
+			"name": "public behavior and protocol identity",
+			"classification": "stable",
+			"metrics": [
+				"browser navigation, feedback, settlement, paint, and hydration behavior",
+				"SSR response bytes, response identity, first chunk, and completion",
+				"React island mount, update, hydration, and disposal behavior"
+			],
+			"structuralEvidence": [
+				"target artifacts preserve the same public component and transport contracts",
+				"opaque React contribution handles retain supplier-owned range lifecycle",
+				"focused dynamic operations remain compiler-selected rather than runtime component classification"
+			],
+			"counterMetrics": [
+				"framework-comparison correctness assertions and deterministic artifact hashes",
+				"hydration identity and mismatch-recovery assertions",
+				"React 18 and React 19 compatibility coverage"
+			]
+		}
+	]
+}

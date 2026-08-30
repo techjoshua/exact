@@ -46,6 +46,8 @@ export function unmountMounted(mounted: Mounted): void {
 	while (pending.length) {
 		const current = pending.pop()!;
 		if (!current.complete) {
+			current.mounted.suspensionRegistration?.cancel();
+			current.mounted.suspensionRegistration = undefined;
 			attemptTeardown(failure, () => current.mounted.scope.stop());
 			pending.push({ mounted: current.mounted, complete: true });
 			for (
@@ -65,7 +67,11 @@ export function unmountMounted(mounted: Mounted): void {
 		}
 		if (current.mounted.instance) {
 			componentMounts.delete(current.mounted.instance);
-			attemptTeardown(failure, () => current.mounted.instance!.unmount());
+			attemptTeardown(failure, () => {
+				const artifact = current.mounted.clientArtifact;
+				if (artifact) artifact.dispose(current.mounted.instance!, 'dom-unmount');
+				else current.mounted.instance!.unmount();
+			});
 			attemptTeardown(failure, () => disposeMountedComponentRoot(current.mounted.instance!));
 		}
 		if (current.mounted.targetBoundary?.release)
@@ -78,7 +84,7 @@ export function unmountMounted(mounted: Mounted): void {
 		}
 		attemptTeardown(failure, () => clearNodeOwner(current.mounted.dom));
 		if (current.mounted.end) attemptTeardown(failure, () => clearNodeOwner(current.mounted.end!));
-		const ref = current.mounted.vnode.props.ref as RefBinding<unknown> | undefined;
+		const ref = current.mounted.intrinsicReceipt?.props.ref as RefBinding<unknown> | undefined;
 		if (ref && typeof ref.fulfill === 'function')
 			attemptTeardown(failure, () => ref.fulfill(undefined));
 	}

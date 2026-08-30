@@ -482,12 +482,16 @@ func (lowering *jsxLowering) directTaskAssignment(
 			lowering.names.write,
 			lowering.names.writeState,
 		)
+		argument := lowering.arrow(writeValue)
+		if name == lowering.names.writeState {
+			argument = writeValue
+		}
 		write = lowering.call(
 			name,
 			[]*ast.Node{
 				lowering.stateWriteRoot(writeEffect),
 				reference,
-				lowering.arrow(writeValue),
+				argument,
 			},
 		)
 	}
@@ -540,12 +544,16 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 		lowering.names.write,
 		lowering.names.writeState,
 	)
+	argument := lowering.arrow(writeValue)
+	if name == lowering.names.writeState {
+		argument = writeValue
+	}
 	write := lowering.call(
 		name,
 		[]*ast.Node{
 			lowering.stateWriteRoot(writeEffect),
 			reference,
-			lowering.arrow(writeValue),
+			argument,
 		},
 	)
 	stage := lowering.taskHelperCall(

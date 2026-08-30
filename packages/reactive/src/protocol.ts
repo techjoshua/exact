@@ -1,6 +1,7 @@
 import {
 	decodeReactiveProtocolValueInternal,
-	encodeReactiveProtocolValueInternal
+	encodeReactiveProtocolValueInternal,
+	encodeValidatedReactiveCollectionInternal
 } from './internal/keyed-collections.js';
 
 import { unwrap } from './internal/values.js';
@@ -12,6 +13,15 @@ export function encodeReactiveProtocolValue(value: unknown): unknown {
 	return encodeReactiveProtocolValueInternal(
 		unwrap(value),
 		(collection) => listKeyExtractors.get(collection)?.key
+	);
+}
+
+/** Wraps encoded array items when their validated source owns compiler-registered list keys. */
+export function encodeValidatedReactiveCollection(source: unknown[], items: unknown[]): unknown {
+	return encodeValidatedReactiveCollectionInternal(
+		source,
+		items,
+		listKeyExtractors.get(source)?.key
 	);
 }
 

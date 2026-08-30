@@ -1,2 +1,4 @@
 /** Compiler-selected Target contribution capability entry. */
-import '../target-integration.js';
+import { installTargetIntegration } from '../target-integration.js';
+
+installTargetIntegration();

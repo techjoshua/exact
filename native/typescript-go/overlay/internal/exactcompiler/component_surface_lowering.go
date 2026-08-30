@@ -22,7 +22,7 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+2)
 	arguments = append(arguments, lowering.factory.NewThisExpression())
 	helper := ""
-	directServer := lowering.target == TargetServer && lowering.directServerFrameComponent(node)
+	directServer := lowering.target == TargetServer && lowering.directServerArtifactComponent(node)
 	switch name {
 	case "onMount", "onActivate", "onDeactivate", "onUnmount":
 		// Mount and client activation phases never execute during SSR. Erase the complete
@@ -206,6 +206,56 @@ func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node 
 		lowering.factory.NewIdentifier(helper), nil, call.TypeArguments,
 		lowering.factory.NewNodeList(arguments), call.Flags,
 	)
+}
+
+// lowerDirectServerSurfaceAccess preserves stable named method extraction without installing the
+// durable component runtime. The compiler selects the focused capability; the frame owns identity.
+func (lowering *jsxLowering) lowerDirectServerSurfaceAccess(node *ast.Node) *ast.Node {
+	if lowering.target != TargetServer || !ast.IsPropertyAccessExpression(node) ||
+		!lowering.directServerFrameComponent(node) {
+		return nil
+	}
+	access := node.AsPropertyAccessExpression()
+	if access.QuestionDotToken != nil {
+		return nil
+	}
+	owner := lowering.factory.NewThisExpression()
+	call := func(helper string, arguments ...*ast.Node) *ast.Node {
+		return lowering.factory.NewCallExpression(
+			lowering.factory.NewIdentifier(helper), nil, nil,
+			lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone,
+		)
+	}
+	if access.Expression.Kind == ast.KindThisKeyword {
+		switch access.Name().Text() {
+		case "ref":
+			return call(lowering.names.directSsrRefMethod, owner)
+		case "readRef":
+			return call(lowering.names.directSsrReadRefMethod, owner)
+		case "refs":
+			return call(lowering.names.directSsrRefs, owner)
+		case "reactive":
+			return call(lowering.names.directSsrReactiveMethod, owner)
+		case "onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own":
+			return call(
+				lowering.names.directSsrLifecycleMethod,
+				owner,
+				lowering.factory.NewStringLiteral(access.Name().Text(), ast.TokenFlagsNone),
+			)
+		}
+	}
+	if ast.IsPropertyAccessExpression(access.Expression) {
+		refs := access.Expression.AsPropertyAccessExpression()
+		if refs.QuestionDotToken == nil && refs.Expression.Kind == ast.KindThisKeyword &&
+			refs.Name().Text() == "refs" &&
+			(access.Name().Text() == "get" || access.Name().Text() == "root") {
+			return lowering.factory.NewPropertyAccessExpression(
+				call(lowering.names.directSsrRefs, owner), nil,
+				lowering.factory.NewIdentifier(access.Name().Text()), ast.NodeFlagsNone,
+			)
+		}
+	}
+	return nil
 }
 
 // lowerDirectServerReactive links the component convenience API to a request-local value whose

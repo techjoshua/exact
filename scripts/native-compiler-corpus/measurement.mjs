@@ -159,12 +159,14 @@ export async function writeNativeCompilerCorpusBaseline(root, record) {
 				outputBytes: record.outputBytes,
 				phaseMicroseconds: record.phaseMicroseconds,
 				counters: record.counters,
+				structure: record.structure,
 				projects: record.projects.map((project) => ({
 					config: project.config,
 					fileCount: project.fileCount,
 					elapsedMs: project.elapsedMs,
 					phaseMicroseconds: project.phaseMicroseconds,
 					counters: project.counters,
+					structure: project.structure,
 					incrementalElapsedMs: project.incrementalElapsedMs,
 					incrementalPhaseMicroseconds: project.incrementalPhaseMicroseconds,
 					incrementalCounters: project.incrementalCounters

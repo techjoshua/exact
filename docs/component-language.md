@@ -220,6 +220,9 @@ function Dashboard(this: Component<{ widget: WidgetKey }>) {
 Component registries are immutable module-level declarations. Static members such as
 `<Widget.grid />` retain entry-specific props and tree shaking. Dynamic selection must be finite
 through `KeyOf<typeof Widget>` or a successful `hasComponent(Widget, untrustedKey)` check.
+Ordinary function-declaration hoisting applies to eager entries, so a registry may reference a
+module-level component declared later in the same module; its compiled artifact is available when
+the registry definition executes.
 Registry keys are component identity: changing keys replaces only the registry-owned component
 range, while same-key prop updates retain the instance. Lazy entries deduplicate loading and
 participate in `Suspense`; `preloadComponent()` starts loading without constructing an instance.
@@ -1580,7 +1583,8 @@ this.onRender(({ duration, dependencies }) => {
 });
 ```
 
-- `onMount` runs after the instance is mounted;
+- `onMount` runs after the instance's DOM range reaches its final root or portal placement, so
+  mounted refs and layout reads observe the placed subtree;
 - `onActivate` runs when a retained instance becomes connected;
 - `onDeactivate` runs when it is parked or otherwise disconnected;
 - `onUnmount` is final disposal; and

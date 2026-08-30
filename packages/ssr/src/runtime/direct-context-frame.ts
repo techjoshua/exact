@@ -1,8 +1,8 @@
 import type { ContextToken } from '@exactjs/core';
 import {
-	getComponentContext,
-	hasComponentContext,
-	setComponentContext
+	getDirectServerContext,
+	hasDirectServerContext,
+	setDirectServerContext
 } from '@exactjs/core/framework/server-component-contexts';
 import {
 	createDirectSsrComponentFrame,
@@ -31,15 +31,15 @@ export const createDirectSsrContextFrame: DirectSsrComponentFrameConstructor = (
 		contextTokens,
 		hasContext(token: ContextToken<unknown>) {
 			contextTokens.set(token.id, token);
-			return hasComponentContext(owner, owner.ambientContexts, token);
+			return hasDirectServerContext(owner, owner.ambientContexts, token);
 		},
 		getContext<T>(token: ContextToken<T>) {
 			contextTokens.set(token.id, token);
-			return getComponentContext(owner, owner.ambientContexts, token);
+			return getDirectServerContext(owner, owner.ambientContexts, token);
 		},
 		setContext<T>(token: ContextToken<T>, value: T) {
 			contextTokens.set(token.id, token);
-			setComponentContext(owner, token, value);
+			setDirectServerContext(owner, token, value);
 		}
 	}) satisfies DirectSsrContextFrame;
 	return owner;

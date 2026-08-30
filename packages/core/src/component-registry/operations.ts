@@ -1,5 +1,5 @@
 import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
-import { createVNode } from '../vnode.js';
+import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
 import type {
 	AnyComponentRegistry,
 	ComponentRegistryInspection,
@@ -58,7 +58,7 @@ export async function preloadComponent(component: AnyAuthoredComponentFunction):
 	await loadRegistryEntry(entry);
 }
 
-/** Renders one correlated heterogeneous registry selection as an ordinary component vnode. */
+/** Issues one correlated heterogeneous registry selection through its target-local artifact. */
 export function renderComponent<Registry extends AnyComponentRegistry>(
 	registry: Registry,
 	selection: ComponentSelection<Registry>
@@ -68,5 +68,8 @@ export function renderComponent<Registry extends AnyComponentRegistry>(
 	const selected = selection as { component: string; props: Record<string, unknown> };
 	if (!hasComponent(registry, selected.component))
 		throw invalidRegistryEntry(selected.component, 'key is not present in this registry');
-	return createVNode(registry[selected.component] as AnyComponentFunction, selected.props);
+	return createCompiledComponentReceipt(
+		registry[selected.component] as AnyComponentFunction,
+		selected.props
+	);
 }

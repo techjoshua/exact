@@ -16,6 +16,15 @@ type DirectRefRecord = {
 };
 
 const records = new WeakMap<DirectRefOwner, DirectRefRecord>();
+const refMethods = new WeakMap<DirectRefOwner, (key: RefKey<unknown>) => RefBinding<unknown>>();
+const readMethods = new WeakMap<DirectRefOwner, (key: RefKey<unknown>) => unknown>();
+const refsFacades = new WeakMap<
+	DirectRefOwner,
+	Readonly<{
+		get(key: RefKey<unknown>): unknown;
+		root(binding?: RefBinding<object>): RootLifecycle<object> | RootBinding<object>;
+	}>
+>();
 
 class DirectRefBinding<T> implements RefBinding<T> {
 	current: T | undefined;
@@ -45,7 +54,49 @@ export function directSsrReadRef<T>(owner: DirectRefOwner, key: RefKey<T>): T | 
 	return records.get(owner)?.bindings.get(key.id)?.current as T | undefined;
 }
 
+/** Returns the stable extracted `this.ref` method for a request-local frame. */
+export function directSsrRefMethod(
+	owner: DirectRefOwner
+): (key: RefKey<unknown>) => RefBinding<unknown> {
+	let method = refMethods.get(owner);
+	if (!method) {
+		method = (key) => directSsrRef(owner, key);
+		refMethods.set(owner, method);
+	}
+	return method;
+}
+
+/** Returns the stable extracted `this.readRef` method for a request-local frame. */
+export function directSsrReadRefMethod(owner: DirectRefOwner): (key: RefKey<unknown>) => unknown {
+	let method = readMethods.get(owner);
+	if (!method) {
+		method = (key) => directSsrReadRef(owner, key);
+		readMethods.set(owner, method);
+	}
+	return method;
+}
+
+/** Returns the stable focused `this.refs` facade for an extracted server reference surface. */
+export function directSsrRefs(owner: DirectRefOwner) {
+	let facade = refsFacades.get(owner);
+	if (!facade) {
+		facade = Object.freeze({
+			get: directSsrReadRefMethod(owner),
+			root: (binding?: RefBinding<object>) =>
+				binding ? directSsrRoot(owner, binding) : directSsrRoot<object>(owner)
+		});
+		refsFacades.set(owner, facade);
+	}
+	return facade;
+}
+
 /** Returns the stable empty server root lifecycle, optionally attached to an owned binding. */
+export function directSsrRoot<T extends object>(owner: DirectRefOwner): RootLifecycle<T>;
+/** Attaches a compiler-owned binding to the stable request-local server root lifecycle. */
+export function directSsrRoot<T extends object>(
+	owner: DirectRefOwner,
+	binding: RefBinding<T>
+): RootBinding<T>;
 export function directSsrRoot<T extends object>(
 	owner: DirectRefOwner,
 	binding?: RefBinding<T>

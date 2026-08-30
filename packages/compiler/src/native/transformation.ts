@@ -19,6 +19,7 @@ import {
 	preparePackageEnhancementSource,
 	sanitizePackageEnhancementResponse
 } from '../compilation/package-enhancements.js';
+import { classifyExactJsxInteropImports } from './jsx-interop-classification.js';
 
 /**
  * Executes a normalized module entirely through the persistent Go host.
@@ -72,7 +73,14 @@ export function transformSourceWithNativeCompiler(
 				? {
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
-							adapterExport: options.jsxInterop.adapterExport
+							adapterExport: options.jsxInterop.adapterExport,
+							exactComponents: classifyExactJsxInteropImports(
+								session,
+								prepared.source,
+								filename,
+								options,
+								target
+							)
 						}
 					}
 				: {}),
@@ -186,7 +194,14 @@ export function checkSourceWithNativeCompiler(
 				? {
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
-							adapterExport: options.jsxInterop.adapterExport
+							adapterExport: options.jsxInterop.adapterExport,
+							exactComponents: classifyExactJsxInteropImports(
+								session,
+								prepared.source,
+								filename,
+								options,
+								'default'
+							)
 						}
 					}
 				: {})
@@ -250,7 +265,14 @@ export function analyzeSourceWithNativeCompiler(
 				? {
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
-							adapterExport: options.jsxInterop.adapterExport
+							adapterExport: options.jsxInterop.adapterExport,
+							exactComponents: classifyExactJsxInteropImports(
+								session,
+								prepared.source,
+								filename,
+								options,
+								options.target ?? 'default'
+							)
 						}
 					}
 				: {}),
