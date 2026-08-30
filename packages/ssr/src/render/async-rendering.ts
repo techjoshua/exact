@@ -1,4 +1,4 @@
-import { withTaskObserver, type VNode } from '@exactjs/core';
+import { withTaskObserver, type Child } from '@exactjs/core';
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import { processExactOutput } from '@exactjs/plugin-host/runtime';
 import { renderHydrationScript } from '../hydration.js';
@@ -12,38 +12,34 @@ import type {
 	RenderToStringOptions,
 	RenderToStringResult
 } from '../types.js';
-import { renderVNodeAsync } from './async-tree.js';
+import { renderChildrenAsync } from './async-children.js';
 import { shouldEmitDocumentHydration } from './document-hydration.js';
 import { createSsrContext, drainTasks } from './context.js';
 import { hydrationScriptOptions } from './hydration-options.js';
 import { rootComponentIdentity, rootPropsOptions } from './root-props.js';
-import { renderToStringOwned } from './entrypoints.js';
+import type { SsrRenderOptions } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
 import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
-import { canRenderSsrSubtreeSynchronously } from './sync-fast-path.js';
-import { renderVNodeChunks } from './sync-tree.js';
 import { SsrOutputBuffer } from './output-buffer.js';
 import { createChunkedHydratableResult, createChunkedStringResult } from './output-result.js';
+import type { DirectScheduledSsrComponent } from './direct-component-contracts.js';
 
 /** Transforms to string async into its required representation. */
 export async function renderToStringAsync(
-	vnode: VNode,
+	operation: Child,
 	options: RenderToStringOptions = {}
 ): Promise<RenderToStringResult> {
 	const renderOptions = withTaskDeadline(options);
-	const validatedVNode = (await processExactOutput(
-		vnode,
-		{ kind: 'vnode', signal: options.signal },
+	const validatedOperation = (await processExactOutput(
+		operation,
+		{ kind: 'operation', signal: options.signal },
 		options.outputExtensions ?? []
-	)) as VNode;
+	)) as Child;
 	const context = createSsrContext(renderOptions);
-	attachSsrRootExecutionBlueprint(context, validatedVNode);
+	attachSsrRootExecutionBlueprint(context, validatedOperation);
 	const output = new SsrOutputBuffer(context.maxOutputBytes);
-	if (canRenderSsrSubtreeSynchronously(context, validatedVNode)) {
-		for (const chunk of renderVNodeChunks(context, validatedVNode, undefined, 1))
-			output.append(chunk);
-	} else output.append(await renderVNodeAsync(context, validatedVNode, undefined, renderOptions));
+	output.append(await renderChildrenAsync(context, [validatedOperation], undefined, renderOptions));
 	output.prepend(context.reactResourceHints ?? []);
 	let chunks = output.finish();
 	if (options.outputExtensions?.length) {
@@ -69,16 +65,16 @@ export async function renderToStringAsync(
 
 /** Transforms to hydratable string async into its required representation. */
 export async function renderToHydratableStringAsync(
-	vnode: VNode,
+	operation: Child,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
 ): Promise<HydratableStringResult> {
-	const prepared = rootPropsOptions(vnode, options);
+	const prepared = rootPropsOptions(operation, options);
 	const capture = createSsrResumptionCapture(
 		prepared,
 		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
-		rootComponentIdentity(vnode)
+		rootComponentIdentity(operation)
 	);
-	const result = await renderToStringAsync(vnode, capture.options);
+	const result = await renderToStringAsync(operation, capture.options);
 	const resumptions = capture.records();
 	const emittedResumptions = resumptions.length ? resumptions : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
@@ -90,23 +86,29 @@ export async function renderToHydratableStringAsync(
 
 /** Performs the stream document render domain operation. */
 export async function streamDocumentRender(
-	vnode: VNode,
+	operation: Child,
 	options: RenderToDocumentStreamOptions & { taskDeadline?: number },
 	emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ): Promise<void> {
 	options = withTaskDeadline(options);
 	const owner = createSsrOwner();
+	const scheduledShellComponents: DirectScheduledSsrComponent[] = [];
+	const disposedShellComponents = new Set<DirectScheduledSsrComponent>();
 	let primary: unknown = noPrimaryFailure;
 	try {
 		await emit({ event: 'start', version: 1 });
 		let capture = createSsrResumptionCapture(options);
-		const shell = withTaskObserver(owner.observer, () =>
-			renderToStringOwned(vnode, capture.options)
+		const shellOptions: SsrRenderOptions = {
+			...capture.options,
+			streamingScheduledComponents: scheduledShellComponents
+		};
+		const shell = await withTaskObserver(owner.observer, () =>
+			renderToStringAsync(operation, shellOptions)
 		);
 		await emit({ event: 'shell', version: 1, html: shell.html });
 
 		let final = shell;
-		if (owner.pending.size) {
+		if (owner.pending.size || scheduledShellComponents.length) {
 			// Initial streaming sends an early shell, drains observed tasks, then emits a
 			// root replacement only if the settled tree differs from the shell.
 			await drainTasks(
@@ -115,8 +117,13 @@ export async function streamDocumentRender(
 				options.signal,
 				options.taskDeadline
 			);
+			for (const component of scheduledShellComponents) await component.drain();
+			for (const component of scheduledShellComponents) {
+				await component[Symbol.asyncDispose]();
+				disposedShellComponents.add(component);
+			}
 			capture = createSsrResumptionCapture(options);
-			final = await renderToStringAsync(vnode, capture.options);
+			final = await renderToStringAsync(operation, capture.options);
 			if (final.html !== shell.html) {
 				const replacements = planSuspenseStreamReplacements(shell.html, final.html);
 				if (replacements) {
@@ -154,6 +161,14 @@ export async function streamDocumentRender(
 		primary = error;
 		throw error;
 	} finally {
+		for (const component of scheduledShellComponents) {
+			if (disposedShellComponents.has(component)) continue;
+			try {
+				await component[Symbol.asyncDispose]();
+			} catch (cleanup) {
+				if (primary === noPrimaryFailure) throw cleanup;
+			}
+		}
 		disposePreservingPrimary(
 			() => owner.dispose(options.signal?.reason ?? 'ssr stream complete'),
 			primary

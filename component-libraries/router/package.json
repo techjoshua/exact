@@ -36,8 +36,6 @@
 		"Link",
 		"Navigate",
 		"NavLink",
-		"Outlet",
-		"Route",
 		"Router"
 	],
 	"sideEffects": false,
@@ -1034,7 +1032,7 @@
 	},
 	"scripts": {
 		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
-		"test": "vitest run --config vitest.config.ts",
+		"test": "vitest run --config vitest.config.ts && vitest run --config vitest.server.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

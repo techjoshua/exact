@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEffectScope, flushSync, reactive, unwrap, withEffectScope } from '@exactjs/reactive';
-import { exactComponentContract, exactComponentType } from '../component-contracts.js';
-import { createExactFrameworkFixtureArtifact } from '../component-contract/runtime-artifacts.js';
+import { createExactFrameworkFixtureArtifact } from '../testing/runtime-artifacts.js';
 import { pageComponentDomain, withComponentDomain } from '../component/domain.js';
 import type { Component } from '../component/contracts.js';
 import { createDynamicComponent, dynamicComponentResolverFor } from './creation.js';
@@ -10,6 +9,8 @@ import {
 	createServerDynamicComponent,
 	dynamicComponentValue
 } from './runtime.js';
+import { readChildRangeReceipt } from '../component-abi/child-range-receipt.js';
+import { readCompiledComponentReceipt } from '../component-abi/receipt.js';
 
 function Panel(this: Component<{}>) {
 	return () => 'panel';
@@ -27,17 +28,18 @@ describe('dynamic component boundaries', () => {
 
 	it('publishes synchronous candidates through the canonical dynamic value', () => {
 		const scope = createEffectScope();
-		const vnode = withEffectScope(scope, () =>
+		const receipt = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({
 				id: 'fixture:dynamic',
 				source: () => Panel,
 				props: { label: 'ready' }
 			})
 		);
-		const rendered = unwrap(vnode.props.value) as { type: unknown; props: Record<string, unknown> };
-		expect(rendered.type).toBe(Panel);
-		expect(rendered.props.label).toBe('ready');
-		expect((vnode.props.__exactDynamicComponent as { status: string }).status).toBe('available');
+		const data = readChildRangeReceipt(receipt)!;
+		const rendered = readCompiledComponentReceipt(unwrap(data.value));
+		expect(rendered?.contract.artifact.id).toBe('fixture:panel');
+		expect(rendered?.props.label).toBe('ready');
+		expect(data.dynamicComponent?.inspection.status).toBe('available');
 		scope.stop();
 	});
 
@@ -46,7 +48,7 @@ describe('dynamic component boundaries', () => {
 		const settlements = new Map<string, (value: typeof Panel) => void>();
 		const signals: AbortSignal[] = [];
 		const scope = createEffectScope();
-		const vnode = withEffectScope(scope, () =>
+		const receipt = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({
 				id: 'fixture:async',
 				source: (signal: AbortSignal) => {
@@ -57,16 +59,19 @@ describe('dynamic component boundaries', () => {
 				props: {}
 			})
 		);
-		expect(unwrap(vnode.props.value)).toEqual([]);
+		const data = readChildRangeReceipt(receipt)!;
+		expect(unwrap(data.value)).toEqual([]);
 		selection.value = 'second';
 		flushSync();
 		expect(signals[0]?.aborted).toBe(true);
 		settlements.get('first')?.(Panel);
 		await Promise.resolve();
-		expect((vnode.props.__exactDynamicComponent as { status: string }).status).toBe('pending');
+		expect(data.dynamicComponent?.inspection.status).toBe('pending');
 		settlements.get('second')?.(Panel);
 		await Promise.resolve();
-		expect((unwrap(vnode.props.value) as { type: unknown }).type).toBe(Panel);
+		expect(readCompiledComponentReceipt(unwrap(data.value))?.contract.artifact.id).toBe(
+			'fixture:panel'
+		);
 		scope.stop();
 		expect(signals[1]?.aborted).toBe(true);
 	});
@@ -98,42 +103,32 @@ describe('dynamic component boundaries', () => {
 	});
 
 	it('keeps server projections inert', () => {
-		const vnode = createServerDynamicComponent('fixture:server');
-		expect(vnode.props.__exactDynamicComponent).toMatchObject({
+		const receipt = createServerDynamicComponent('fixture:server');
+		const data = readChildRangeReceipt(receipt)!;
+		expect(data.dynamicComponent?.inspection).toMatchObject({
 			id: 'fixture:server',
 			status: 'unassigned'
 		});
-		expect(() => unwrap(vnode.props.value)).toThrow('cannot resolve');
+		expect(data.value).toBeUndefined();
 	});
 
 	it('rejects candidates that carry any server execution authority', () => {
-		const ServerPanel = Object.assign(
+		const ServerPanel = createExactFrameworkFixtureArtifact(
 			function ServerPanel() {
 				return () => 'server';
 			},
-			{
-				[exactComponentType]: 'fixture:server-panel',
-				[exactComponentContract]: {
-					version: 2 as const,
-					placement: 'server' as const,
-					role: 'executor' as const,
-					implementations: [],
-					continuations: [],
-					executors: [],
-					boundaries: []
-				}
-			}
+			'fixture:server-panel',
+			'server'
 		);
-		createExactFrameworkFixtureArtifact(ServerPanel, 'fixture:server-panel');
 		const scope = createEffectScope();
-		const vnode = withEffectScope(scope, () =>
+		const receipt = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({
 				id: 'fixture:server-rejected',
 				source: () => ServerPanel,
 				props: {}
 			})
 		);
-		expect(vnode.props.__exactDynamicComponent).toMatchObject({
+		expect(readChildRangeReceipt(receipt)?.dynamicComponent?.inspection).toMatchObject({
 			status: 'failed',
 			error: expect.objectContaining({ message: expect.stringContaining('server execution') })
 		});
@@ -141,33 +136,22 @@ describe('dynamic component boundaries', () => {
 	});
 
 	it('rejects isomorphic server-render artifacts from client dynamic selection', () => {
-		const ServerRenderPanel = Object.assign(
+		const ServerRenderPanel = createExactFrameworkFixtureArtifact(
 			function ServerRenderPanel() {
 				return () => 'server';
 			},
-			{
-				[exactComponentType]: 'fixture:server-render-panel',
-				[exactComponentContract]: {
-					version: 2 as const,
-					placement: 'isomorphic' as const,
-					role: 'render' as const,
-					implementations: [],
-					continuations: [],
-					executors: [],
-					boundaries: []
-				}
-			}
+			'fixture:server-render-panel',
+			'server'
 		);
-		createExactFrameworkFixtureArtifact(ServerRenderPanel, 'fixture:server-render-panel');
 		const scope = createEffectScope();
-		const vnode = withEffectScope(scope, () =>
+		const receipt = withEffectScope(scope, () =>
 			createCompiledDynamicComponent({
 				id: 'fixture:server-render-rejected',
 				source: () => ServerRenderPanel,
 				props: {}
 			})
 		);
-		expect(vnode.props.__exactDynamicComponent).toMatchObject({
+		expect(readChildRangeReceipt(receipt)?.dynamicComponent?.inspection).toMatchObject({
 			status: 'failed',
 			error: expect.objectContaining({ message: expect.stringContaining('server execution') })
 		});

@@ -8,55 +8,58 @@ import (
 // reference has been moved into a precise reactive closure. The first lowering pass must finish
 // before this decision because declarations precede the JSX consumers that materialize them.
 func (lowering *jsxLowering) omitFullyMaterializedRenderLocals(root *ast.Node) *ast.Node {
-	if lowering.checker == nil || len(lowering.materializedNames) == 0 {
+	if len(lowering.materializedNames) == 0 {
 		return root
 	}
-	candidates := make(map[ast.SymbolId]int)
-	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
-		if !ast.IsVariableDeclaration(node) {
-			return true
-		}
-		name := node.AsVariableDeclaration().Name()
-		if name == nil || !ast.IsIdentifier(name) ||
-			lowering.materializedNames[name.Pos()] == "" {
-			return true
-		}
+	candidates := make(map[int]struct{})
+	referenceCandidates := make(map[int]int)
+	for start := range lowering.materializedNames {
 		// Cached retained cells use a separate cached name and therefore never enter this set.
 		// A materialized name proves the initializer itself moved into a reactive consumer; when no
 		// authored reference survives the completed lowering pass, retaining the setup cell would
 		// duplicate both the calculation and its reactive graph ownership.
-		if binding, retained := lowering.derived[name.Pos()]; retained && len(binding.References) > 1 {
+		binding, retained := lowering.derived[start]
+		if !retained {
+			var elided bool
+			binding, elided = lowering.elidedDerived[start]
+			if !elided {
+				// Component props may materialize an ordinary caller local into a receipt reader. That
+				// does not transfer ownership of the caller's declaration to component reactivity.
+				continue
+			}
+		}
+		if len(binding.References) > 1 {
 			// Separate consumers must continue to share one identity-bearing result. Their emitted
 			// closures can each contain a materialized local, but that does not prove the two values
 			// are interchangeable.
-			return true
+			continue
 		}
-		if symbol := lowering.checker.GetSymbolAtLocation(name); symbol != nil {
-			candidates[ast.GetSymbolId(symbol)] = name.Pos()
+		candidates[start] = struct{}{}
+		for _, reference := range binding.References {
+			referenceCandidates[reference.Start] = start
 		}
-		return true
-	})
+	}
 	if len(candidates) == 0 {
 		return root
 	}
-	remaining := make(map[ast.SymbolId]struct{})
+	remaining := make(map[int]struct{})
 	walkNode(root, func(node *ast.Node) bool {
 		if !ast.IsIdentifier(node) || node.Parent == nil ||
 			ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
 		}
-		if symbol := lowering.checker.GetSymbolAtLocation(node); symbol != nil {
-			id := ast.GetSymbolId(symbol)
-			if _, candidate := candidates[id]; candidate {
-				remaining[id] = struct{}{}
-			}
+		// Authored identifiers retain their source position through projection. The completed tree
+		// also contains synthesized nodes which are not checker-owned, so use the symbol-resolved
+		// reference spans recorded during planning instead of resolving the transformed tree again.
+		if start, candidate := referenceCandidates[node.Pos()]; candidate {
+			remaining[start] = struct{}{}
 		}
 		return true
 	})
 	removable := make(map[int]struct{})
-	for symbol, start := range candidates {
-		if _, retained := remaining[symbol]; !retained {
+	for start := range candidates {
+		if _, retained := remaining[start]; !retained {
 			removable[start] = struct{}{}
 		}
 	}

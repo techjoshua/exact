@@ -1,6 +1,8 @@
-import type { RenderResult, VNode } from '../component/contracts.js';
-import { Dynamic } from '../symbols.js';
-import { createVNode } from '../vnode.js';
+import type { RenderResult } from '../component/contracts.js';
+import {
+	createPreparedServerChildRange,
+	type ExactPreparedServerChildRange
+} from '../component-abi/server-child-range.js';
 
 export { isFiniteClientBoundary, markFiniteClientBoundary } from '../hydration-boundary.js';
 export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from '../ssr-independence.js';
@@ -11,8 +13,8 @@ export {
 	prepareCompiledRenderProgram,
 	readPreparedServerRenderProgram,
 	readRenderProgram,
+	readRenderProgramReceipt,
 	readRenderProgramSlot,
-	renderProgramFallback,
 	type ExactRenderProgram,
 	type ExactDirectRenderProgram,
 	type ExactDomRenderProgram,
@@ -20,6 +22,8 @@ export {
 	type ExactRenderProgramBinder,
 	type ExactRenderProgramBindingTarget,
 	type ExactRenderProgramInvocation,
+	type ExactRenderProgramReceipt,
+	type ExactRenderProgramReceiptData,
 	type ExactPreparedServerRenderProgram,
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
@@ -30,18 +34,24 @@ export {
 	type ExactTableRenderProgram
 } from '../render-program.js';
 export {
-	createCellVNode,
-	createCompiledComponentVNode,
-	createCompiledFragment,
-	createCompiledTarget,
-	createCompiledVNode,
+	createPreparedServerComponentReference,
+	readPreparedServerComponentReference,
+	type ExactPreparedServerComponentReference
+} from '../component-abi/receipt.js';
+export {
+	readPreparedServerChildRange,
+	type ExactPreparedServerChildRange
+} from '../component-abi/server-child-range.js';
+export {
+	createPreparedServerKeyedChild,
+	readPreparedServerKeyedChild,
+	type ExactPreparedServerKeyedChild
+} from '../component-abi/server-keyed-child.js';
+export {
 	createKeyedServerSlot,
 	createServerBoundary,
-	createServerSlot,
-	getCellVNode,
-	isCellVNode,
-	keyCompiledVNode
-} from '../vnode.js';
+	createServerSlot
+} from '../component-abi/server-structure-receipts.js';
 
 /** Evaluates a compiler-known expression directly in a compiler-closed server component. */
 export function createExpression<T>(compute: () => T): T {
@@ -53,15 +63,20 @@ export function createForwardedExpression<T>(compute: () => T): T {
 	return compute();
 }
 
-/** Creates an eager dynamic boundary for a direct server render or its local fallback. */
+/** Creates an eager focused child range for a direct server render or its local fallback. */
 export function createDynamicChild(
 	compute: () => RenderResult,
 	markerId?: string,
 	mayReplaceSubtree = true
-): VNode {
-	return createVNode(Dynamic, {
-		value: compute(),
-		...(mayReplaceSubtree ? {} : { __exactScalarDynamic: true }),
-		...(markerId ? { __exactMarkerId: markerId } : {})
-	});
+): ExactPreparedServerChildRange {
+	return createPreparedServerChildRange(compute(), markerId, mayReplaceSubtree);
+}
+
+/** Creates the eager server operation for one compiler-owned dynamic child range. */
+export function createCompiledChildRangeReceipt(
+	compute: () => RenderResult,
+	markerId?: string,
+	mayReplaceSubtree = true
+): ExactPreparedServerChildRange {
+	return createPreparedServerChildRange(compute(), markerId, mayReplaceSubtree);
 }

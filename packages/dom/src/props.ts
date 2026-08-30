@@ -2,15 +2,14 @@ import {
 	batch,
 	createErrorReport,
 	handleComponentError,
-	isVNode,
 	normalizeClassValue,
 	observeComponentAsync,
 	sanitizeUrlAttribute,
-	UnsafeHtml,
 	attachElementIdentity,
 	type RefBinding,
 	unwrap
 } from '@exactjs/core';
+import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-operations';
 import { isReactiveValue, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
@@ -29,6 +28,7 @@ import { directEventHandlers, eventHandlers, propBindings } from './state.js';
 import { clearPropBinding, releasePropBinding, setPropBinding } from './prop-binding-ownership.js';
 import { bindStyle } from './style.js';
 import type { Root } from './types.js';
+import { foreignChildCapability } from './renderer/foreign-child-capability.js';
 
 /** Applies prop changes to a DOM element, including reactive bindings and delegated events. */
 export function updateProps(
@@ -244,12 +244,7 @@ function applyPropValue(root: Root, element: Element, key: string, value: unknow
 function propMayObserveReactiveValue(key: string, value: unknown): boolean {
 	if (isReactiveValue(value)) return true;
 	if (key === 'class' || key === 'className') return typeof value === 'object' && value !== null;
-	return (
-		(key === 'srcdoc' || key === 'srcDoc') &&
-		isVNode(value) &&
-		value.type === UnsafeHtml &&
-		isReactiveValue(value.props.value)
-	);
+	return (key === 'srcdoc' || key === 'srcDoc') && isReactiveValue(unsafeHtmlValue(value)?.value);
 }
 
 function setDirectEventHandler(
@@ -319,7 +314,9 @@ export function applyDomProp(element: Element, key: string, value: unknown): voi
 }
 
 function unsafeHtmlAttribute(root: Root, value: unknown): string {
-	if (!isVNode(value) || value.type !== UnsafeHtml) {
+	const receipt = readUnsafeHtmlReceipt(value);
+	const foreign = receipt ? undefined : unsafeHtmlValue(value);
+	if (!receipt && !foreign) {
 		throw new Error(
 			'Native eXact iframe srcdoc requires unsafeHtml() and explicit allowUnsafeHtml root opt-in.'
 		);
@@ -329,9 +326,14 @@ function unsafeHtmlAttribute(root: Root, value: unknown): string {
 			'unsafeHtml() used for iframe srcdoc requires allowUnsafeHtml: true on the native eXact render or hydration root.'
 		);
 	}
-	const html = String(unwrap(value.props.value) ?? '');
+	const html = String(unwrap(receipt?.value ?? foreign?.value) ?? '');
 	root.onUnsafeHtml?.({ characters: html.length });
 	return html;
+}
+
+/** Reads unsafe HTML only through the explicitly installed compatibility interpreter. */
+function unsafeHtmlValue(value: unknown): Readonly<{ value: unknown }> | undefined {
+	return foreignChildCapability()?.unsafeHtmlValue?.(value as import('@exactjs/core').Child);
 }
 
 function setDomProp(root: Root | undefined, element: Element, key: string, value: unknown): void {

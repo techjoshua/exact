@@ -2,24 +2,26 @@
 /**
  * @vitest-environment jsdom
  */
-import { type Component } from '@exactjs/core';
 import { flushSync, registerReactiveListKey } from '@exactjs/reactive';
 import { renderHydrationScript, renderToHydratableString } from '@exactjs/ssr';
 import { expect, it } from 'vitest';
 import { defineExactHydrationRegistration, hydrate, readExactHydrationConfig } from './index.js';
 import { resolveHydrateOptions } from './config.js';
-import { createVNode } from './test-support/native-vnode.js';
+import {
+	documentRoot as serverDocumentRoot,
+	profiledRoot as serverProfiledRoot
+} from './test-support/bootstrap.fixtures.js?exact-target=server';
+import {
+	documentRoot as clientDocumentRoot,
+	profiledRoot as clientProfiledRoot
+} from './test-support/bootstrap.fixtures.js';
 
-it('reports opt-in hydration timings', () => {
-	function Profiled() {
-		return () => createVNode('p', null, 'profiled');
-	}
-	const vnode = createVNode(Profiled, null);
+it('reports aggregate hydration timing without retaining diagnostic phase timers', () => {
 	const container = document.createElement('div');
-	container.innerHTML = renderToHydratableString(vnode).htmlWithHydration;
+	container.innerHTML = renderToHydratableString(serverProfiledRoot).htmlWithHydration;
 	const events: Array<{ subsystem: string; phase: string }> = [];
 
-	hydrate(vnode, container, { onProfile: (event) => events.push(event) });
+	hydrate(clientProfiledRoot, container, { onProfile: (event) => events.push(event) });
 
 	expect(events).toContainEqual(
 		expect.objectContaining({
@@ -27,36 +29,11 @@ it('reports opt-in hydration timings', () => {
 			phase: 'hydrate'
 		})
 	);
-	expect(events.map((event) => event.phase)).toEqual(
-		expect.arrayContaining(['capture-dom', 'adopt-dom', 'restore-controls'])
-	);
+	expect(events.map((event) => event.phase)).toEqual(['hydrate']);
 });
 
 it('adopts a complete authored document while retaining framework-owned body augmentation', () => {
-	function DocumentApp(this: Component<{ count: number }>) {
-		this.state.count = 1;
-		return () =>
-			createVNode(
-				'html',
-				{ lang: 'en' },
-				createVNode('head', null, createVNode('title', null, `Count ${this.state.count}`)),
-				createVNode(
-					'body',
-					null,
-					createVNode(
-						'button',
-						{
-							onClick: () => {
-								this.state.count++;
-							}
-						},
-						`Count ${this.state.count}`
-					)
-				)
-			);
-	}
-
-	const rendered = renderToHydratableString(createVNode(DocumentApp, null), {
+	const rendered = renderToHydratableString(serverDocumentRoot, {
 		endpoint: '/__exact'
 	});
 	document.open();
@@ -64,8 +41,7 @@ it('adopts a complete authored document while retaining framework-owned body aug
 	document.close();
 	const originalHtml = document.documentElement;
 	const frameworkScript = document.getElementById('__exact_hydration');
-
-	const client = hydrate(createVNode(DocumentApp, null), document, { onMismatch: 'throw' });
+	const client = hydrate(clientDocumentRoot, document, { onMismatch: 'throw' });
 
 	expect(document.documentElement).toBe(originalHtml);
 	expect(document.getElementById('__exact_hydration')).toBe(frameworkScript);

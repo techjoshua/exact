@@ -28,7 +28,8 @@ describe('@exactjs/compiler: component values', () => {
 		);
 
 		expect(output).toContain('const Card = ImportedCard;');
-		expect(output).toContain('__exactVNode(Card, {})');
+		expect(output).toContain('__exactComponentReceipt(Card, {})');
+		expect(output).not.toContain('createCompiledVNode');
 	});
 
 	it('lowers finite conditional components through a reactive slot', () => {
@@ -48,7 +49,7 @@ describe('@exactjs/compiler: component values', () => {
 		expect(output).toContain(
 			'const View = __exactDerived(() => __exactReadState(this.state, 0) as any ? Grid : List);'
 		);
-		expect(output).toContain('__exactDynamic(() => __exactVNode(View.get(), {}))');
+		expect(output).toContain('__exactDynamic(() => __exactComponentReceipt(View.get(), {}))');
 		expect(app?.renderEdges.map((edge) => edge.tag)).toEqual(['Grid', 'List']);
 	});
 
@@ -85,7 +86,7 @@ describe('@exactjs/compiler: component values', () => {
 		expect(output).toContain('@exactjs/component');
 		expect(output).toMatch(/\[Symbol\.for\("@exactjs\/component"\)\]: "[^"]+"/);
 		expect(output).not.toContain('[Symbol.for("@exactjs/component")]: true');
-		expect(output).toMatch(/\[__exactComponentContract_\d+\]: \{\s*version: 2,\s*placement:/);
+		expect(output).toMatch(/\[__exactComponentContract_\d+\]: \{\s*version: 3,\s*placement:/);
 		expect(output).toContain('__exactComponentImplementation');
 		expect(output).toContain('Object.assign');
 	});
@@ -101,7 +102,7 @@ describe('@exactjs/compiler: component values', () => {
 
 		expect(output).toContain('@exactjs/component');
 		expect(output).toContain('Object.assign');
-		expect(output).toContain('definition:');
+		expect(output).toContain('artifact:');
 		expect(output).toContain('tasks: []');
 		expect(output).not.toContain('@exactjs/core/runtime/tasks');
 	});
@@ -114,10 +115,10 @@ describe('@exactjs/compiler: component values', () => {
 			{ filename: 'Transparent.tsx' }
 		);
 
-		expect(output).not.toContain('createDynamicChild');
+		expect(output).toContain('createCompiledChildRangeReceipt');
 		expect(output).not.toContain('createCompiledComponentOutput');
-		expect(output).toContain('return () => __exactReadState(props, 0) as string | undefined');
-		expect(output).toContain('abi: 32');
+		expect(output).toContain('return () => __exactDynamic(() => __exactReadState(props, 0)');
+		expect(output).toContain('abi: 1');
 
 		const constant = transform('export function Empty() { return () => null; }', {
 			filename: 'Empty.tsx'

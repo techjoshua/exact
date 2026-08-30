@@ -9,7 +9,9 @@ export type ExactCompiledComponentCapability =
 	| 'interactions'
 	| 'compatibility'
 	| 'dynamic-components'
-	| 'collections';
+	| 'collections'
+	| 'contexts'
+	| 'targets';
 
 /** Ordinary component update program whose operations fit in two inline mask words. */
 export type ExactNarrowComponentUpdateContract = Readonly<{

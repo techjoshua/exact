@@ -239,13 +239,13 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('lane: "direct"');
 		expect(server).not.toContain('deferredTaskProps: [');
 		expect(server).not.toContain('slices: [');
-		expect(server).not.toContain('execution: {');
+		expect(server).not.toContain('transitions: [');
 		expect(client).not.toContain('classification: "scheduled"');
 		expect(server).toMatch(
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
 		);
 		expect(server).toMatch(/__exactComponent_\d+\.state\.count = 1/);
-		expect(server).not.toContain('__exactWrite');
+		expect(server).not.toContain('__exactWriteState');
 	});
 
 	it('preserves awaited server task value flow in both client and executor artifacts', async () => {
@@ -292,7 +292,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('__exactExecution_');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).not.toContain('__exactUpdateResult');
 	});
 
 	it('infers a server continuation from an ordinary async component assignment', async () => {
@@ -339,7 +340,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).not.toContain('__exactStageTaskMutation');
 		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
 		expect(server).toMatch(/__exactComponent_\d+\.state\.settled = true/);
-		expect(server).not.toContain('__exactWrite');
+		expect(server).not.toContain('__exactWriteState');
 	});
 
 	it('keeps direct server-context dependencies out of client activation records', async () => {
@@ -540,7 +541,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(workspaceClient).not.toMatch(/abi: (?:32|48),/);
 		expect(workspaceViewClient).toContain('const __exact_visible_1 = state.items.filter(');
 		expect(workspaceViewClient).not.toContain('const visible = state.items.filter(');
-		expect(workspaceViewClient).toContain('__exactClaimProgramKeyedChild');
+		expect(workspaceViewClient).toContain('[7, 0, 0]');
+		expect(workspaceViewClient).not.toContain('__exactClaimProgramKeyedChild');
 		expect(workspaceViewClient).toContain('directClaims: true');
 		expect(workspaceViewClient).not.toContain(
 			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'

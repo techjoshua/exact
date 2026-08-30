@@ -122,6 +122,7 @@ export type ExactArtifactBuildProducts = Readonly<{
 	componentBuild: import('./transform.js').ExactComponentBuildFacts;
 	dependencies: readonly string[];
 	componentIds: readonly string[];
+	/** Module exports that expose component artifacts; these are not application mount roots. */
 	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];
 	componentEdges: readonly ExactArtifactComponentEdge[];
 	clientRegistrations: readonly ExactArtifactRegistryPlan[];
@@ -154,6 +155,7 @@ export type ExactArtifactGraphEntry = {
 	sharedFile?: string;
 	dependencies: readonly string[];
 	componentIds: readonly string[];
+	/** Module exports that expose component artifacts; these are not application mount roots. */
 	exposureRoots: readonly Readonly<{ componentId: string; exportName: string }>[];
 };
 
@@ -189,6 +191,8 @@ export type ExactHydrationRegistrationModuleOptions = {
 	endpoints?: ExactHydrationEndpointRoutes;
 	islandsExportName?: string;
 	registrationExportName?: string;
+	/** Emits a graph-specialized client constructor for entries that own operations or islands. */
+	clientBootstrapExportName?: string;
 	/** Keeps source extensions when a bundler, rather than Node, resolves authored modules. */
 	preserveAuthoredModuleExtensions?: boolean;
 };

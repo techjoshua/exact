@@ -1,10 +1,13 @@
 export {
 	activateServerComponentTaskForHost,
 	createServerComponentExecutionFrame,
-	issueServerComponentVNode,
+	issueServerComponentReceipt,
+	registerServerComponentContinuationContextsForHost,
 	serverComponentDependencyForValue,
+	serverComponentContinuationContextValuesForHost,
 	serverComponentExecutionValueForHost,
-	withServerComponentVNodeIssuer,
+	settledServerComponentContinuationIdsForHost,
+	withServerComponentIssuer,
 	type ServerComponentExecutionFrame,
 	type ServerComponentTaskSlice
 } from '../tasks/server-component-execution.js';

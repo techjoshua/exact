@@ -1,10 +1,12 @@
 import {
+	batch,
 	createEffectScope,
-	updateReactive,
+	deleteIndexedReactiveSlot,
+	setIndexedReactiveSlot,
 	withEffectScope,
 	type Reactive
 } from '@exactjs/reactive/framework/runtime';
-import type { ExactCompiledComponentContract } from '../component-contracts.js';
+import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import { cleanupFailedComponentConstruction } from './construction.js';
 import type {
 	AnyComponentInstance,
@@ -69,14 +71,14 @@ export abstract class CompactComponentInstance<
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
-		contract: ExactCompiledComponentContract
+		contract: ExactExecutableComponentContract
 	) {
 		super();
 		this.type = type;
 		this.parent = parent;
 		this.domain = domain;
 		this.ambientContexts = ambientContexts;
-		this.runtimeABI = contract.definition.abi;
+		this.runtimeABI = contract.artifact.abi;
 		this.inspection = componentDomainInspection(domain);
 		this.scope = createEffectScope(undefined, (error) => {
 			handleComponentError(this, createErrorReport(error, 'reactive', this, 'watch'));
@@ -84,13 +86,14 @@ export abstract class CompactComponentInstance<
 		this.state = createComponentState<State>(
 			domain,
 			() => this,
-			contract.definition.state,
+			contract.artifact.state,
 			Boolean(this.runtimeABI & compiledComponentCollectionsABI)
 		);
 		this.props = createComponentProps(
 			rawProps,
-			contract.definition.props,
-			Boolean(this.runtimeABI & compiledComponentCollectionsABI)
+			contract.artifact.props,
+			Boolean(this.runtimeABI & compiledComponentCollectionsABI),
+			contract.artifact.opaqueProps
 		);
 		this.componentResumption = resolveComponentResumption(this.domain, this.type);
 		if (this.componentResumption)
@@ -142,8 +145,21 @@ export abstract class CompactComponentInstance<
 	}
 
 	/** Reconciles parent-owned inputs against the stable props facade. */
-	updateProps(nextProps: Record<string, unknown>): void {
-		updateReactive(this.props, nextProps);
+	receiveProps(
+		slots: readonly string[],
+		source: Readonly<Record<string, unknown>>,
+		children: readonly unknown[]
+	): void {
+		batch(() => {
+			for (let slot = 0; slot < slots.length; slot++) {
+				const name = slots[slot]!;
+				if (name === 'children' && children.length !== 0) {
+					setIndexedReactiveSlot(this.props, slot, children.length === 1 ? children[0] : children);
+				} else if (Object.prototype.hasOwnProperty.call(source, name)) {
+					setIndexedReactiveSlot(this.props, slot, source[name]);
+				} else deleteIndexedReactiveSlot(this.props, slot);
+			}
+		});
 		this.inspection?.publish({ kind: 'props.change', component: this, path: 'props' });
 	}
 
@@ -175,7 +191,8 @@ export abstract class CompactComponentInstance<
 			this.inspection?.publish({ kind: 'component.construct', component: this });
 			if (!this.parent && isHydrationComponentDomain(this.domain))
 				this.inspection?.publish({ kind: 'hydration.activate', component: this });
-			if (!this.parent) this.contexts.set(ErrorContext.id, createErrorContext());
+			if (!this.parent && !this.ambientContexts?.has(ErrorContext.id))
+				this.contexts.set(ErrorContext.id, createErrorContext());
 			if (resumption && Object.keys(resumption.contexts).length !== 0) {
 				const contextCapability = optionalComponentContextCapability();
 				if (!contextCapability)

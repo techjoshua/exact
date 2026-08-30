@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -58,7 +59,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	tag := openingTag(opening)
 	tagText := sourceText(lowering.sourceFile, tag)
 	if tagText == "_" {
-		return lowering.call(
+		element := lowering.call(
 			lowering.names.fragment,
 			append(
 				[]*ast.Node{
@@ -67,15 +68,17 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 				lowering.children(children)...,
 			),
 		)
+		return lowering.reactiveStructuralReceipt(identityNode, opening.Attributes(), element)
 	}
 	if tagText == "_target" {
-		return lowering.call(
+		element := lowering.call(
 			lowering.names.target,
 			append(
 				[]*ast.Node{lowering.props(opening.Attributes(), "", false, "")},
 				lowering.children(children)...,
 			),
 		)
+		return lowering.reactiveStructuralReceipt(identityNode, opening.Attributes(), element)
 	}
 	if kind, exists := lowering.dynamicComponents[tag.Pos()]; exists {
 		return lowering.lowerDynamicComponent(identityNode, tag, opening, children, kind)
@@ -121,20 +124,28 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 			)
 		}
 	}
-	if intrinsic && !lowering.renderProgramFallback {
-		if planned := lowering.lowerRenderProgram(identityNode, opening, children); planned != nil {
+	if intrinsic && !lowering.renderProgramFallback &&
+		!lowering.renderProgramIntrinsicHasEnhancements(opening.Attributes()) {
+		if planned, _ := lowering.lowerRenderProgram(identityNode, opening, children); planned != nil {
 			return planned
 		}
 	}
 	var emittedTag *ast.Node
+	var interopType *ast.Node
+	derivedComponent := false
+	if !intrinsic && ast.IsIdentifier(tag) {
+		_, derivedComponent = lowering.derivedBindingAtReference(tag)
+	}
 	if intrinsic {
 		emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
 	} else {
 		emittedTag = lowering.visitor.VisitNode(tag)
 		if lowering.interop != nil &&
-			!lowering.localExactComponentTag(tag) &&
-			!lowering.exactCoreVNodeTag(tag) {
-			emittedTag = lowering.call(lowering.names.interop, []*ast.Node{emittedTag})
+			!lowering.compiledNativeComponentTag(tag) &&
+			!derivedComponent &&
+			!lowering.exactCoreStructuralTag(tag) {
+			interopType = emittedTag
+			emittedTag = lowering.factory.NewIdentifier(lowering.names.interop)
 		}
 	}
 	props := lowering.props(
@@ -143,18 +154,86 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		intrinsic,
 		tagText,
 	)
+	if interopType != nil {
+		props = lowering.factory.NewObjectLiteralExpression(
+			lowering.factory.NewNodeList([]*ast.Node{
+				lowering.property(lowering.factory.NewIdentifier("component"), interopType),
+				lowering.factory.NewSpreadAssignment(props),
+			}),
+			false,
+		)
+	}
 	arguments := []*ast.Node{
 		emittedTag,
 		props,
 	}
-	arguments = append(arguments, lowering.children(children)...)
-	elementHelper := lowering.names.element
-	if !intrinsic && lowering.localExactComponentTag(tag) {
-		elementHelper = lowering.names.componentElement
-	} else if intrinsic && lowering.renderProgramChildDepth > 0 {
+	if interopType != nil {
+		arguments = append(arguments, lowering.compatibilityContributionChildren(children)...)
+	} else if !intrinsic {
+		if exactCoreTag, exactCore := lowering.exactCoreStructuralExport(tag); exactCore &&
+			exactCoreTag != "" {
+			arguments = append(arguments, lowering.children(children)...)
+		} else {
+			arguments = append(arguments, lowering.componentChildren(children)...)
+		}
+	} else {
+		arguments = append(arguments, lowering.children(children)...)
+	}
+	elementHelper := lowering.names.componentReceipt
+	exactCoreTag, exactCore := lowering.exactCoreStructuralExport(tag)
+	if intrinsic {
 		elementHelper = lowering.names.intrinsicElement
+	} else if exactCore && exactCoreTag == "Suspense" {
+		elementHelper = lowering.names.suspenseReceipt
+		arguments = arguments[1:]
+	} else if exactCore && exactCoreTag == "Activity" {
+		elementHelper = lowering.names.activityReceipt
+		arguments = arguments[1:]
+	} else if exactCore && exactCoreTag == "Portal" {
+		elementHelper = lowering.names.portalReceipt
+		arguments = arguments[1:]
+	} else if exactCore && exactCoreTag == "ServerBoundary" {
+		elementHelper = lowering.names.boundaryReceipt
+		arguments = arguments[1:]
+	} else if exactCore && exactCoreTag == "ServerSlot" {
+		elementHelper = lowering.names.serverSlotReceipt
+		arguments = arguments[1:]
+	} else if exactCore && exactCoreTag == "UnsafeHtml" {
+		elementHelper = lowering.names.unsafeHTMLReceipt
+		arguments = arguments[1:2]
+	} else if exactCore && exactCoreTag == "Fragment" {
+		elementHelper = lowering.names.fragment
+		arguments = arguments[1:]
+	} else if exactCore && exactCoreTag == "Target" {
+		elementHelper = lowering.names.target
+		arguments = arguments[1:]
+	} else {
+		// Every non-intrinsic JSX tag has already been classified by the
+		// compiler. Native values and explicit compatibility adapters cross
+		// the target ABI through the same opaque component-receipt operation;
+		// there is no generic JSX or runtime-tree fallback.
+		elementHelper = lowering.names.componentReceipt
 	}
 	element := lowering.call(elementHelper, arguments)
+	if lowering.target == TargetClient &&
+		elementHelper == lowering.names.componentReceipt &&
+		!derivedComponent &&
+		lowering.renderProgramChildDepth == 0 &&
+		lowering.renderProgramComponentDepth == 0 {
+		if dependencies, closed := lowering.directComponentProgramReader(element); closed && len(dependencies) != 0 {
+			target, updates, _, registered := lowering.registerComponentUpdates(
+				identityNode,
+				[]renderProgramDirectUpdate{{kind: "component-receipt", dependencies: dependencies}},
+			)
+			if registered {
+				element = lowering.call(lowering.names.componentReceiptUpdate, []*ast.Node{
+					element,
+					lowering.factory.NewNumericLiteral(strconv.Itoa(target), ast.TokenFlagsNone),
+					lowering.factory.NewIdentifier(updates),
+				})
+			}
+		}
+	}
 	if lowering.directScheduledServerComponent(tag) {
 		element = lowering.call(lowering.names.issueServerComponent, []*ast.Node{element})
 	}
@@ -164,19 +243,35 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	if !intrinsic && partitionedServerComponent && lowering.target == TargetServer {
 		element = lowering.serverPartitionSlot(opening, partitionEdge, element)
 	}
-	if !intrinsic && ast.IsIdentifier(tag) {
-		if _, derived := lowering.derivedBindingAtReference(tag); derived {
-			return lowering.call(
-				lowering.names.dynamic,
-				[]*ast.Node{lowering.arrow(element)},
-			)
-		}
+	if derivedComponent {
+		return lowering.call(
+			lowering.names.dynamic,
+			[]*ast.Node{lowering.arrow(element)},
+		)
 	}
 	return element
 }
 
+// Reactive attributes on transparent structural ranges must republish the opaque receipt just as
+// focused intrinsic ranges do. The renderer can then retain the range and update its target-local
+// behavior without a component rerender or a generic runtime tree representation.
+func (lowering *jsxLowering) reactiveStructuralReceipt(
+	identityNode *ast.Node,
+	attributes *ast.Node,
+	element *ast.Node,
+) *ast.Node {
+	if lowering.target != TargetClient || attributes == nil ||
+		!lowering.hasReactiveComponentCapture(attributes) {
+		return element
+	}
+	return lowering.call(lowering.names.dynamic, []*ast.Node{
+		lowering.arrow(element),
+		lowering.factory.NewStringLiteral(lowering.dynamicID(identityNode), ast.TokenFlagsNone),
+	})
+}
+
 // directScheduledServerComponent selects only compiler-closed children whose setup contains
-// scheduled transitions. Their VNode creation is the earliest semantically valid point at which
+// scheduled transitions. Their component-receipt creation is the earliest semantically valid point at which
 // the request renderer can issue task readiness without rediscovering the authored tree.
 func (lowering *jsxLowering) directScheduledServerComponent(tag *ast.Node) bool {
 	if lowering.target != TargetServer || !ast.IsIdentifier(tag) {
@@ -213,7 +308,7 @@ func (lowering *jsxLowering) explicitServerIsland(
 			return clientElementIsland{}, false
 		}
 		tag := openingTag(opening)
-		if jsxIntrinsic(sourceText(lowering.sourceFile, tag)) || lowering.localExactComponentTag(tag) {
+		if jsxIntrinsic(sourceText(lowering.sourceFile, tag)) || lowering.compiledNativeComponentTag(tag) {
 			return clientElementIsland{}, false
 		}
 	}
@@ -311,10 +406,6 @@ func (lowering *jsxLowering) independentAsyncSiblings(children *ast.NodeList) bo
 	return true
 }
 
-// lowerRenderProgram emits the first deliberately conservative planned subset:
-// intrinsic HTML trees with no authored attributes and with scalar expression
-// children occupying their own text node. Unsupported regions remain generic.
-
 func (lowering *jsxLowering) microComponentTag(tag *ast.Node) bool {
 	if lowering.checker == nil || !ast.IsIdentifier(tag) {
 		return false
@@ -360,10 +451,17 @@ func (lowering *jsxLowering) lowerMicroComponent(
 }
 
 func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
-	if !ast.IsIdentifier(tag) {
-		return false
+	if ast.IsIdentifier(tag) {
+		if _, exists := lowering.components[tag.Text()]; exists {
+			return true
+		}
 	}
-	if _, exists := lowering.components[tag.Text()]; exists {
+	importReference, imported := externalImportForExpression(
+		tag,
+		lowering.externalImports,
+		lowering.checker,
+	)
+	if imported && lowering.configuredExactComponent(importReference) {
 		return true
 	}
 	if lowering.checker == nil {
@@ -384,6 +482,11 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 			return false
 		}
 		visited[id] = struct{}{}
+		if imported && lowering.publishedExactComponent(candidate, importReference) {
+			lowering.resolvedComponentTagSymbols[id] = struct{}{}
+			lowering.componentTagSymbols[id] = true
+			return true
+		}
 		if candidate.Flags&ast.SymbolFlagsAlias != 0 {
 			target := lowering.checker.GetAliasedSymbol(candidate)
 			if target != nil && resolvesToComponent(target) {
@@ -406,10 +509,24 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 				continue
 			}
 			initializer := declaration.AsVariableDeclaration().Initializer
-			if initializer == nil || !ast.IsIdentifier(initializer) {
+			if initializer == nil {
 				continue
 			}
-			if _, exists := lowering.components[initializer.Text()]; exists {
+			if ast.IsIdentifier(initializer) {
+				if _, exists := lowering.components[initializer.Text()]; exists {
+					lowering.resolvedComponentTagSymbols[id] = struct{}{}
+					lowering.componentTagSymbols[id] = true
+					return true
+				}
+			}
+			initializerImport, initializerImported := externalImportForExpression(
+				initializer,
+				lowering.externalImports,
+				lowering.checker,
+			)
+			if initializerImported &&
+				(lowering.configuredExactComponent(initializerImport) ||
+					lowering.publishedExactComponent(candidate, initializerImport)) {
 				lowering.resolvedComponentTagSymbols[id] = struct{}{}
 				lowering.componentTagSymbols[id] = true
 				return true
@@ -428,6 +545,56 @@ func (lowering *jsxLowering) localExactComponentTag(tag *ast.Node) bool {
 	return resolvesToComponent(symbol)
 }
 
+// compiledNativeComponentTag proves that a compiled component expression stays
+// on the native target ABI. Registry selections are compiler-owned component
+// values even though their runtime facade is a property access, and immutable
+// aliases retain that provenance. A false result is used only to select an
+// explicit configured compatibility adapter; it never selects a generic JSX
+// representation.
+func (lowering *jsxLowering) compiledNativeComponentTag(tag *ast.Node) bool {
+	if lowering.localExactComponentTag(tag) {
+		return true
+	}
+	if lowering.checker == nil {
+		return false
+	}
+	return lowering.registryComponentTag(tag, make(map[ast.SymbolId]struct{}))
+}
+
+func (lowering *jsxLowering) registryComponentTag(
+	expression *ast.Node,
+	visited map[ast.SymbolId]struct{},
+) bool {
+	if dynamicComponentRegistrySelection(expression, lowering.sourceFile, lowering.checker) {
+		return true
+	}
+	if !ast.IsIdentifier(expression) {
+		return false
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(expression)
+	if symbol == nil {
+		return false
+	}
+	id := ast.GetSymbolId(symbol)
+	if _, seen := visited[id]; seen {
+		return false
+	}
+	visited[id] = struct{}{}
+	for _, declaration := range symbol.Declarations {
+		if !ast.IsVariableDeclaration(declaration) ||
+			declaration.Parent == nil ||
+			!ast.IsVariableDeclarationList(declaration.Parent) ||
+			declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+			continue
+		}
+		initializer := declaration.AsVariableDeclaration().Initializer
+		if initializer != nil && lowering.registryComponentTag(initializer, visited) {
+			return true
+		}
+	}
+	return false
+}
+
 // componentSpans discovers a dependency source's durable component declarations once per
 // lowering. JSX can use the same imported component hundreds of times; component identity
 // resolution must not rescan the dependency's complete AST for every tag occurrence.
@@ -444,21 +611,21 @@ func (lowering *jsxLowering) componentSpans(sourceFile *ast.SourceFile) []Source
 	return spans
 }
 
-func (lowering *jsxLowering) exactCoreVNodeTag(tag *ast.Node) bool {
+func (lowering *jsxLowering) exactCoreStructuralTag(tag *ast.Node) bool {
+	_, exists := lowering.exactCoreStructuralExport(tag)
+	return exists
+}
+
+func (lowering *jsxLowering) exactCoreStructuralExport(tag *ast.Node) (string, bool) {
 	if !ast.IsIdentifier(tag) || lowering.checker == nil {
-		return false
+		return "", false
 	}
 	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
 	reference, exists := bindings.byName[tag.Text()]
-	if !exists || reference.moduleSpecifier != "@exactjs/core" {
-		return false
+	if !exists || !exactCoreStructuralReference(reference.moduleSpecifier, reference.exportName) {
+		return "", false
 	}
-	switch reference.exportName {
-	case "Activity", "Cell", "Dynamic", "Fragment", "Portal", "RenderProgram", "ServerBoundary", "ServerSlot", "Suspense", "Target", "Text", "UnsafeHtml":
-		return true
-	default:
-		return false
-	}
+	return reference.exportName, true
 }
 
 func (lowering *jsxLowering) lowerFragment(fragment *ast.JsxFragment) *ast.Node {
@@ -531,7 +698,8 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 					ast.TokenFlagsNone,
 				),
 			}
-			if lowering.checker != nil &&
+			if lowering.clientIslandPropsSlots == nil &&
+				lowering.checker != nil &&
 				!ast.NodeIsSynthesized(expression) &&
 				ast.GetSourceFileOfNode(expression) != nil &&
 				scalarDerivedType(lowering.checker.GetTypeAtLocation(expression)) {
@@ -560,6 +728,83 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 			}
 			result = append(result, emitted)
 		}
+	}
+	return result
+}
+
+// componentChildren lowers authored children as finalized component-ABI inputs. Unlike an
+// intrinsic child range, a component child is delivered through the receiving artifact's prop
+// receipt. Keeping a parent-owned live range here would hide keyed identity from transparent
+// components and allow a retained outgoing generation to observe values from its replacement.
+func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.Node {
+	if children == nil {
+		return nil
+	}
+	result := []*ast.Node{}
+	semantic := ast.GetSemanticJsxChildren(children.Nodes)
+	for childIndex, child := range semantic {
+		switch {
+		case ast.IsJsxText(child):
+			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
+			if text != "" {
+				result = append(
+					result,
+					lowering.factory.NewStringLiteral(text, ast.TokenFlagsNone),
+				)
+			}
+		case ast.IsJsxExpression(child):
+			expression := child.AsJsxExpression().Expression
+			if expression == nil {
+				continue
+			}
+			emitted := lowering.visitor.VisitNode(expression)
+			if lowering.declarativeRenderDepth > 0 {
+				result = append(result, emitted)
+				continue
+			}
+			result = append(result, lowering.reactiveExpression(expression, emitted))
+		default:
+			result = append(result, lowering.visitor.VisitNode(child))
+		}
+	}
+	return result
+}
+
+// compatibilityContributionChildren closes each authored native child over its supplier-selected
+// placement operation. The React island receives only the opaque handle and cannot inspect whether
+// the operation contributes text, intrinsic topology, a component, a collection, or no output.
+func (lowering *jsxLowering) compatibilityContributionChildren(children *ast.NodeList) []*ast.Node {
+	values := lowering.children(children)
+	result := make([]*ast.Node, 0, len(values))
+	for _, value := range values {
+		target := lowering.factory.NewIdentifier("__exactContributionTarget")
+		place := lowering.factory.NewCallExpression(
+			lowering.factory.NewPropertyAccessExpression(
+				target,
+				nil,
+				lowering.factory.NewIdentifier("place"),
+				ast.NodeFlagsNone,
+			),
+			nil,
+			nil,
+			lowering.factory.NewNodeList([]*ast.Node{value}),
+			ast.NodeFlagsNone,
+		)
+		operation := lowering.factory.NewArrowFunction(
+			nil,
+			nil,
+			lowering.factory.NewNodeList([]*ast.Node{
+				lowering.factory.NewParameterDeclaration(nil, nil, target, nil, nil, nil),
+			}),
+			nil,
+			nil,
+			lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+			place,
+		)
+		result = append(
+			result,
+			lowering.call(lowering.names.compatibilityContribution, []*ast.Node{operation}),
+		)
 	}
 	return result
 }

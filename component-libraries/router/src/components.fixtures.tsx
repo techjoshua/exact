@@ -1,21 +1,9 @@
-import { ErrorContext, type Component, type ErrorContextValue } from '@exactjs/core';
-import {
-	createMemoryLocationSource,
-	Link,
-	NavLink,
-	Outlet,
-	Route,
-	RouteContext,
-	Router
-} from './components.js';
+import { type Child, ErrorContext, type Component, type ErrorContextValue } from '@exactjs/core';
+import { createMemoryLocationSource, Link, NavLink, RouteContext, Router } from './components.js';
 
 /** Provides the nested outlet layout used by native router tests. */
-export function NestedLayout() {
-	return () => (
-		<main>
-			<Outlet />
-		</main>
-	);
+export function NestedLayout(this: Component<{}>, props: { children?: Child | Child[] }) {
+	return () => <main>{props.children}</main>;
 }
 
 /** Displays the active route parameter through native route context. */
@@ -46,14 +34,14 @@ export function HashPage(this: Component<{}>) {
 }
 
 /** Provides navigation and an outlet for generated route fixtures. */
-export function GeneratedLayout() {
+export function GeneratedLayout(this: Component<{}>, props: { children?: Child | Child[] }) {
 	return () => (
 		<>
 			<nav>
 				<NavLink to="/guides/routing">Routing</NavLink>
 				<NavLink to="/learn/state">State</NavLink>
 			</nav>
-			<Outlet />
+			{props.children}
 		</>
 	);
 }
@@ -106,8 +94,9 @@ export function RejectedLinkPage() {
 export function ErrorLinkApp(this: Component<{}>, props: { errors: ErrorContextValue }) {
 	this.setContext(ErrorContext, props.errors);
 	return () => (
-		<Router source={createMemoryLocationSource('https://example.test/')}>
-			<Route index component={RejectedLinkPage} />
-		</Router>
+		<Router
+			source={createMemoryLocationSource('https://example.test/')}
+			routes={[{ index: true, render: () => <RejectedLinkPage /> }]}
+		/>
 	);
 }

@@ -1,5 +1,7 @@
 import { isPlainObject } from './objects.js';
 
+const exactOpaqueOperationIdentity = Symbol.for('@exactjs/opaque-target-operation');
+
 /** Defines the unwrap value type contract. */
 export type UnwrapValue = (value: unknown) => unknown;
 
@@ -27,6 +29,10 @@ export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapV
 			typeof currentLeft !== 'object' ||
 			typeof currentRight !== 'object'
 		)
+			return false;
+		// Compiler-issued target operations keep their contents in private WeakMaps. Two distinct
+		// handles are therefore never structurally interchangeable even though both appear empty.
+		if (exactOpaqueOperationIdentity in currentLeft || exactOpaqueOperationIdentity in currentRight)
 			return false;
 		const priorRight = leftToRight.get(currentLeft);
 		const priorLeft = rightToLeft.get(currentRight);

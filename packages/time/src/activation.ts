@@ -1,4 +1,4 @@
-import { reactive, unwrap } from '@exactjs/reactive';
+import { reactive, unwrap, watch } from '@exactjs/reactive';
 import { afterReactiveSettlement } from '@exactjs/reactive/framework/settlement';
 import { intl } from '@exactjs/core';
 import {
@@ -74,14 +74,17 @@ export function createTimeActivation(
 	let mounted = false;
 	let disposed = false;
 	let pendingInitialPublish = false;
+	let stopPolicyObservation: () => void = () => undefined;
 	let generation = 0;
 	let deadline: number | undefined;
 	const publishCurrentAfterSettlement = () => {
 		pendingInitialPublish = currentPolicy !== 'disabled';
 		if (!pendingInitialPublish) return;
-		const capturedGeneration = generation;
 		afterReactiveSettlement(() => {
-			if (!mounted || disposed || generation !== capturedGeneration) return;
+			// Input and environment changes may legitimately join the same restart settlement. The
+			// pending flag, mounted state, and current policy fence stale work without rejecting that
+			// coalesced latest configuration merely because its generation advanced.
+			if (!mounted || disposed || !pendingInitialPublish || currentPolicy === 'disabled') return;
 			pendingInitialPublish = false;
 			state.sample = currentClock.now().epochMilliseconds;
 			state.revision++;
@@ -243,8 +246,18 @@ export function createTimeActivation(
 		dispose() {
 			if (disposed) return;
 			activation.suspend();
+			stopPolicyObservation();
 			disposed = true;
 		}
+	});
+	let observedInitialPolicy = false;
+	stopPolicyObservation = watch(() => {
+		const nextPolicy = normalizeTimePolicy(unwrap(policy));
+		if (!observedInitialPolicy) {
+			observedInitialPolicy = true;
+			return;
+		}
+		activation.configure(nextPolicy);
 	});
 	return activation;
 }

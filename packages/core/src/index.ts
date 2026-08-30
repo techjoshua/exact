@@ -161,7 +161,6 @@ export type {
 	ErrorSource,
 	IterableItem,
 	LifecycleHandler,
-	ListBinding,
 	RefBinding,
 	RefKey,
 	RefRegistry,
@@ -181,10 +180,7 @@ export type {
 	TaskIdleOptions,
 	TaskObserver,
 	TaskResourceDisposal,
-	UnsafeHtmlAuditEvent,
-	VNode,
-	VNodeCell,
-	VNodeType
+	UnsafeHtmlAuditEvent
 } from './component/contracts.js';
 export { createDynamicComponent } from './dynamic-component/creation.js';
 export type {
@@ -246,7 +242,8 @@ export {
 	createErrorContext,
 	createErrorReport,
 	handleComponentError,
-	handleComponentSuspension
+	handleComponentSuspension,
+	registerComponentSuspension
 } from './component/errors.js';
 export { logFrameworkEvent } from './component/log.js';
 export { sameJsonData, type JsonComparisonOptions } from './json.js';
@@ -269,6 +266,7 @@ export {
 export {
 	Activity,
 	Cell,
+	CompatibilityContribution,
 	Dynamic,
 	Fragment,
 	Portal,
@@ -307,13 +305,6 @@ export {
 	type ManagedEventListenerOptions
 } from './tasks/signals.js';
 export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './url.js';
-export {
-	createPortal,
-	createTextVNode,
-	createVNode,
-	isVNode,
-	normalizeChildren,
-	normalizeDocumentVNode,
-	normalizeRenderResult,
-	unsafeHtml
-} from './vnode.js';
+export { createPortal, type ExactPortalReceipt } from './component-abi/portal-receipt.js';
+export { unsafeHtml } from './component-abi/unsafe-html-receipt.js';
+export { normalizeChildren, normalizeRenderResult } from './render-children.js';

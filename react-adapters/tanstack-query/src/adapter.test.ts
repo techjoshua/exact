@@ -1,10 +1,8 @@
 import { type Component } from '@exactjs/core';
-import {
-	createComponentInstance,
-	createFrameworkFixtureComponentInstance
-} from '@exactjs/core/runtime/render';
+import { createComponentInstance } from '@exactjs/core/runtime/render';
+import { createFrameworkFixtureComponentInstance } from '@exactjs/core/testing';
 import { createElement } from '@exactjs/react-compat';
-import { toExactNode } from '@exactjs/react-compat/exact';
+import { exactComponentType } from '@exactjs/react-compat/exact';
 import { flushSync } from '@exactjs/reactive';
 import { QueryClient } from '@tanstack/query-core';
 import { build } from 'esbuild';
@@ -36,8 +34,8 @@ describe('@exactjs/tanstack-query', () => {
 
 	it('exports a React replacement that mounts the native provider boundary', () => {
 		const client = new QueryClient();
-		const vnode = toExactNode(createElement(QueryClientProvider, { client }));
-		expect((vnode as { type: unknown }).type).toBe(ExactQueryClientProvider);
+		const element = createElement(QueryClientProvider, { client });
+		expect(exactComponentType(element.type)?.component).toBe(ExactQueryClientProvider);
 	});
 
 	it('bridges QueryObserver updates and owns disposal with the component', async () => {

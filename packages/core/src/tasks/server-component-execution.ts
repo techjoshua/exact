@@ -1,3 +1,5 @@
+import type { ContextToken } from '../component/contracts.js';
+import { unwrap } from '@exactjs/reactive/framework/runtime';
 import type { TaskContext } from './contracts.js';
 
 /** Static task wiring emitted once per compiler-closed server component transition. */
@@ -30,16 +32,21 @@ type OutputSlot = {
 };
 
 type MutableServerExecutionFrame = {
-	host: { readonly state?: object };
+	host: { readonly contexts?: Map<symbol, unknown>; readonly state?: object };
 	options: ServerExecutionOptions;
 	controller: AbortController;
 	ports: OutputSlot[];
 	paths: Array<readonly [path: string, port: number]>;
 	active: Promise<unknown>[];
+	continuationContexts: Map<string, ContextToken<unknown>>;
+	settledContinuations: Set<string>;
 	disposed: boolean;
 };
 
-type ServerExecutionHost = { readonly state?: object } & {
+type ServerExecutionHost = {
+	readonly contexts?: Map<symbol, unknown>;
+	readonly state?: object;
+} & {
 	[serverExecutionFrame]?: MutableServerExecutionFrame;
 };
 
@@ -55,35 +62,32 @@ type ServerComponentDependency = Readonly<{
 	[serverDependencyBrand]: OutputSlot;
 }>;
 
-type ServerComponentVNodeIssuer = (vnode: unknown) => void;
+type ServerComponentIssuer = (component: unknown) => void;
 
-let activeVNodeIssuer: ServerComponentVNodeIssuer | undefined;
+let activeComponentIssuer: ServerComponentIssuer | undefined;
 
 /**
  * Installs the request renderer's synchronous child-issuance callback while compiled render code
- * materializes its VNodes. JavaScript cannot interleave another request during this synchronous
+ * materializes its compiler-issued child operations. JavaScript cannot interleave another request during this synchronous
  * extent, and nested renderers restore the preceding issuer in stack order.
  */
-export function withServerComponentVNodeIssuer<T>(
-	issuer: ServerComponentVNodeIssuer,
-	render: () => T
-): T {
-	const previous = activeVNodeIssuer;
-	activeVNodeIssuer = issuer;
+export function withServerComponentIssuer<T>(issuer: ServerComponentIssuer, render: () => T): T {
+	const previous = activeComponentIssuer;
+	activeComponentIssuer = issuer;
 	try {
 		return render();
 	} finally {
-		activeVNodeIssuer = previous;
+		activeComponentIssuer = previous;
 	}
 }
 
 /**
- * Returns a compiler-created component VNode after issuing its request-local server work. Outside
+ * Returns a compiler-created component receipt after issuing its request-local server work. Outside
  * SSR this is deliberately a zero-allocation pass-through.
  */
-export function issueServerComponentVNode<T>(vnode: T): T {
-	activeVNodeIssuer?.(vnode);
-	return vnode;
+export function issueServerComponentReceipt<T>(component: T): T {
+	activeComponentIssuer?.(component);
+	return component;
 }
 
 /** Returns the request-local output source carried by a compiler-forwarded server value. */
@@ -119,18 +123,73 @@ function serverDependencySlot(value: unknown): OutputSlot | undefined {
 export function serverComponentExecutionValueForHost<T>(
 	host: object,
 	path: string | readonly string[],
+	compute: () => T
+): T | ServerComponentDependency;
+export function serverComponentExecutionValueForHost<T>(
+	host: object,
+	path: string | readonly string[],
 	value: T
+): T | ServerComponentDependency;
+export function serverComponentExecutionValueForHost<T>(
+	host: object,
+	path: string | readonly string[],
+	value: T | (() => T)
 ): T | ServerComponentDependency {
 	const frame = executionFrameForHost(host);
-	if (!frame) return value;
+	if (!frame) return resolveServerExecutionValue(value);
 	const paths = typeof path === 'string' ? [path] : path;
+	const sources: OutputSlot[] = [];
 	for (const candidate of paths) {
 		const normalized = candidate.replace(/^this\.state\./, '');
 		for (const [registered, port] of frame.paths)
-			if (registered === normalized)
-				return Object.freeze({ [serverDependencyBrand]: outputSlot(frame, port) });
+			if (registered === normalized) {
+				const source = outputSlot(frame, port);
+				if (!sources.includes(source)) sources.push(source);
+			}
 	}
-	return value;
+	if (!sources.length) return resolveServerExecutionValue(value);
+	return Object.freeze({
+		[serverDependencyBrand]:
+			typeof path === 'string' && typeof value !== 'function'
+				? sources[0]!
+				: projectServerExecutionValue(sources, value)
+	});
+}
+
+/** Projects an aggregate expression only after every compiler-selected output path settles. */
+function projectServerExecutionValue<T>(sources: readonly OutputSlot[], value: T): OutputSlot {
+	const projected: OutputSlot = { status: 'pending' };
+	const refresh = (): void => {
+		let unavailable: OutputSlot | undefined;
+		for (const source of sources) {
+			if (source.status === 'failed') {
+				unavailable = source;
+				break;
+			}
+			if (source.status === 'pending') unavailable ??= source;
+		}
+		if (unavailable?.status === 'failed') {
+			projected.status = 'failed';
+			projected.error = unavailable.error;
+			delete projected.value;
+		} else if (unavailable) {
+			projected.status = 'pending';
+			delete projected.value;
+			delete projected.error;
+		} else {
+			projected.status = 'available';
+			projected.value = resolveServerExecutionValue(value);
+			delete projected.error;
+		}
+		for (const subscriber of projected.subscribers ?? []) subscriber();
+	};
+	for (const source of sources) (source.subscribers ??= new Set()).add(refresh);
+	refresh();
+	return projected;
+}
+
+function resolveServerExecutionValue<T>(value: T | (() => T)): T {
+	return (typeof value === 'function' ? (value as () => T)() : unwrap(value)) as T;
 }
 
 /**
@@ -149,6 +208,8 @@ export function createServerComponentExecutionFrame(
 		ports: [],
 		paths: [],
 		active: [],
+		continuationContexts: new Map(),
+		settledContinuations: new Set(),
 		disposed: false
 	};
 	Object.defineProperty(host, serverExecutionFrame, {
@@ -173,6 +234,8 @@ export function createServerComponentExecutionFrame(
 			frame.ports.length = 0;
 			frame.paths.length = 0;
 			frame.active.length = 0;
+			frame.continuationContexts.clear();
+			frame.settledContinuations.clear();
 		}
 	});
 }
@@ -181,7 +244,7 @@ export function createServerComponentExecutionFrame(
 export function activateServerComponentTaskForHost<Args extends unknown[], Result>(
 	host: object,
 	slice: ServerComponentTaskSlice,
-	_transitionId: string,
+	transitionId: string,
 	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
 	...authored: Args
 ): void {
@@ -192,10 +255,61 @@ export function activateServerComponentTaskForHost<Args extends unknown[], Resul
 		outputSlot(frame, port);
 		registerOutputPath(frame, path.join('.'), port);
 	}
-	const settlement = executeSlice(frame, slice, work, authored);
+	const settlement = executeSlice(frame, slice, work, authored).then((result) => {
+		frame.settledContinuations.add(transitionId);
+		return result;
+	});
 	frame.active.push(settlement);
 	void settlement.catch(() => undefined);
 	if (slice[2] === 'blocking') frame.options.observe(settlement);
+}
+
+/** Registers compiler-approved public context names against one request-local server frame. */
+export function registerServerComponentContinuationContextsForHost(
+	host: object,
+	bindings: readonly Readonly<{ name: string; token: ContextToken<unknown> }>[]
+): void {
+	const frame = executionFrameForHost(host);
+	if (!frame || frame.disposed)
+		throw new Error('Compiled server context registration requires an active execution frame');
+	for (const binding of bindings) {
+		if (!safeContextName(binding.name) || typeof binding.token?.id !== 'symbol')
+			throw new Error('Malformed eXact server continuation context binding');
+		const previous = frame.continuationContexts.get(binding.name);
+		if (previous && previous.id !== binding.token.id)
+			throw new Error(`Conflicting eXact server continuation context binding ${binding.name}`);
+		frame.continuationContexts.set(binding.name, binding.token);
+	}
+}
+
+/** Projects compiler-selected shared context values from one direct request-local frame. */
+export function serverComponentContinuationContextValuesForHost(
+	host: object,
+	names: readonly string[]
+): Record<string, unknown> {
+	if (names.length === 0) return {};
+	const frame = executionFrameForHost(host);
+	if (!frame || frame.disposed)
+		throw new Error('Compiled server context publication requires an active execution frame');
+	const values: Record<string, unknown> = {};
+	for (const name of names) {
+		const token = frame.continuationContexts.get(name);
+		if (!token) throw new Error(`Missing eXact server continuation context binding ${name}`);
+		if (!frame.host.contexts?.has(token.id)) continue;
+		const value = frame.host.contexts.get(token.id);
+		if (value !== undefined) values[name] = value;
+	}
+	return values;
+}
+
+/** Lists direct server continuation generations that settled successfully in this request. */
+export function settledServerComponentContinuationIdsForHost(host: object): readonly string[] {
+	const frame = executionFrameForHost(host);
+	return frame && !frame.disposed ? [...frame.settledContinuations] : [];
+}
+
+function safeContextName(name: string): boolean {
+	return name.length > 0 && name !== '__proto__' && name !== 'prototype' && name !== 'constructor';
 }
 
 /** Reads the request-owned frame without retaining the host outside its request lifetime. */

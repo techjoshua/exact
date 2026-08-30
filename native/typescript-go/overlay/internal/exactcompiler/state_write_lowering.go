@@ -89,12 +89,16 @@ func (lowering *jsxLowering) lowerStateWrite(
 		value := lowering.visitor.VisitNode(expression.Right)
 		if expression.OperatorToken.Kind == ast.KindEqualsToken {
 			name, reference := lowering.stateWriteReference(node, write, lowering.names.write, lowering.names.writeState)
+			argument := lowering.arrow(value)
+			if name == lowering.names.writeState {
+				argument = value
+			}
 			return lowering.call(
 				name,
 				[]*ast.Node{
 					lowering.stateWriteRoot(write),
 					reference,
-					lowering.arrow(value),
+					argument,
 				},
 			)
 		}

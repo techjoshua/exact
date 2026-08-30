@@ -1,0 +1,23 @@
+{
+	"name": "@exactjs/component-composition-corpus",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:fast": "vitest run src/inventory.test.ts src/compiler-structure.test.ts",
+		"typecheck": "tsc -b"
+	},
+	"dependencies": {
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
+	},
+	"devDependencies": {
+		"@exactjs/compiler": "^0.1.0",
+		"@exactjs/vitest": "^0.1.0"
+	}
+}

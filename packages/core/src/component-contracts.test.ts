@@ -1,20 +1,61 @@
 import { describe, expect, it } from 'vitest';
 import {
 	composeExactComponentContracts,
+	composePreparedExactComponentContracts,
 	exactComponentContract,
 	exactComponentIdentity,
 	exactComponentType,
-	readExactCompiledComponentContract,
-	readExactComponentContract
+	readExactClientExecutableComponentContract,
+	readExactExecutableComponentContract,
+	readExactComponentContract,
+	readExactServerExecutableComponentContract
 } from './component-contracts.js';
 import {
 	createExactCompatibilityArtifact,
 	createExactCompiledDynamicBoundaryArtifact
-} from './component-contract/runtime-artifacts.js';
+} from './testing/runtime-artifacts.js';
 import { allCompiledComponentABI } from './component/compiled-abi.js';
 
 describe('@exactjs/core component contracts', () => {
 	const construct = () => undefined;
+	const clientArtifact = (
+		id: string,
+		instantiate: () => unknown = construct,
+		overrides: Record<string, unknown> = {}
+	) => ({
+		version: 1 as const,
+		target: 'client' as const,
+		id,
+		instantiate,
+		construct,
+		attach() {},
+		receive() {},
+		dispose() {},
+		abi: 0,
+		state: [],
+		props: [],
+		capabilities: [],
+		...overrides
+	});
+	const serverArtifact = (
+		id: string,
+		instantiate: () => unknown,
+		execution: Record<string, unknown>
+	) => ({
+		version: 1 as const,
+		target: 'server' as const,
+		id,
+		instantiate,
+		construct,
+		issue() {},
+		write() {},
+		dispose() {},
+		abi: 0,
+		state: [],
+		props: [],
+		capabilities: [],
+		execution
+	});
 	it('limits an opaque framework boundary to dynamic rendering and interactions', () => {
 		const Boundary = createExactCompiledDynamicBoundaryArtifact(
 			function Boundary() {},
@@ -22,11 +63,11 @@ describe('@exactjs/core component contracts', () => {
 			'client'
 		);
 
-		expect(readExactCompiledComponentContract(Boundary).definition.capabilities).toEqual([
+		expect(readExactExecutableComponentContract(Boundary).artifact.capabilities).toEqual([
 			'dynamic-components',
 			'interactions'
 		]);
-		expect(readExactCompiledComponentContract(Boundary).definition.abi).toBe(1);
+		expect(readExactExecutableComponentContract(Boundary).artifact.abi).toBe(1);
 	});
 
 	it('constructs a complete artifact only for an explicit foreign compatibility boundary', () => {
@@ -36,10 +77,10 @@ describe('@exactjs/core component contracts', () => {
 			'client'
 		);
 
-		expect(readExactCompiledComponentContract(Component)).toMatchObject({
+		expect(readExactExecutableComponentContract(Component)).toMatchObject({
 			placement: 'client',
 			role: 'client',
-			definition: {
+			artifact: {
 				instantiate: Component,
 				capabilities: ['compatibility', 'collections', 'dynamic-components']
 			}
@@ -53,12 +94,29 @@ describe('@exactjs/core component contracts', () => {
 		).toThrow('target-local artifact target');
 	});
 
+	it('composes a build-prepared client artifact after descriptive inventories are erased', () => {
+		const component = Object.assign(function Prepared() {}, {
+			[exactComponentType]: 'component:Prepared',
+			[exactComponentContract]: {
+				artifact: clientArtifact('component:Prepared')
+			}
+		});
+
+		const contracts = composePreparedExactComponentContracts([component], 'client');
+
+		expect(contracts.artifacts['component:Prepared']).toBe(
+			component[exactComponentContract].artifact
+		);
+		expect(contracts.implementationsById['component:Prepared']).toBe(component);
+		expect(contracts.continuations).toEqual({});
+	});
+
 	it('reads and composes target-local executable contracts', () => {
 		const island = () => undefined;
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'server' as const,
 				role: 'client' as const,
 				implementations: [
@@ -121,7 +179,8 @@ describe('@exactjs/core component contracts', () => {
 							dependencies: []
 						}
 					]
-				}
+				},
+				artifact: clientArtifact('component:Page')
 			}
 		});
 
@@ -150,7 +209,7 @@ describe('@exactjs/core component contracts', () => {
 			Object.assign(() => undefined, {
 				[exactComponentType]: 'component:Page',
 				[exactComponentContract]: {
-					version: 2 as const,
+					version: 3 as const,
 					placement: 'client' as const,
 					role: 'client' as const,
 					implementations: [
@@ -163,7 +222,8 @@ describe('@exactjs/core component contracts', () => {
 					],
 					continuations: [],
 					executors: [],
-					boundaries: []
+					boundaries: [],
+					artifact: clientArtifact('component:Page')
 				}
 			});
 
@@ -179,7 +239,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 2,
+				version: 3,
 				placement: 'client',
 				role: 'client',
 				implementations: [],
@@ -196,7 +256,8 @@ describe('@exactjs/core component contracts', () => {
 					}
 				],
 				executors: [],
-				boundaries: []
+				boundaries: [],
+				artifact: clientArtifact('component:Page')
 			}
 		});
 
@@ -228,7 +289,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(implementation, {
 			[exactComponentType]: 'component:ServerPage',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [
@@ -242,27 +303,23 @@ describe('@exactjs/core component contracts', () => {
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: {
-					version: 1 as const,
-					instantiate: implementation,
-					construct,
-					abi: lane === 'direct' ? 9 : 8,
-					state: [],
-					props: [],
-					capabilities: [],
-					server
+				artifact: {
+					...serverArtifact('component:ServerPage', implementation, server),
+					abi: lane === 'direct' ? 9 : 8
 				}
 			}
 		});
 
-		expect(readExactCompiledComponentContract(component).definition.server).toEqual(server);
+		expect(readExactServerExecutableComponentContract(component).artifact.execution).toEqual(
+			server
+		);
 	});
 
-	it('rejects pre-partition component contract versions before adoption', () => {
+	it.each([1, 2])('rejects obsolete component contract version %s before adoption', (version) => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Legacy',
 			[exactComponentContract]: {
-				version: 1,
+				version,
 				placement: 'client',
 				role: 'client',
 				implementations: [],
@@ -277,11 +334,38 @@ describe('@exactjs/core component contracts', () => {
 		);
 	});
 
+	it.each([
+		['artifact identity', { id: 'component:Other' }],
+		['artifact target', { target: 'server' }],
+		['required attach operation', { attach: undefined }]
+	])('rejects a client artifact with malformed %s', (_case, override) => {
+		const component = Object.assign(() => undefined, {
+			[exactComponentType]: 'component:MalformedClient',
+			[exactComponentContract]: {
+				version: 3 as const,
+				placement: 'client' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				artifact: {
+					...clientArtifact('component:MalformedClient'),
+					...override
+				}
+			}
+		});
+
+		expect(() => readExactExecutableComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
+	});
+
 	it('validates the complete partition boundary discriminator contract', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Reports',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -303,7 +387,13 @@ describe('@exactjs/core component contracts', () => {
 						discriminatorValues: ['local-branch', 'remote-branch'],
 						generation: 1
 					}
-				]
+				],
+				artifact: serverArtifact('component:Reports', construct, {
+					version: 1,
+					classification: 'synchronous',
+					lane: 'direct',
+					render: construct
+				})
 			}
 		});
 
@@ -318,29 +408,22 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Updates',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: {
-					version: 1 as const,
-					instantiate,
-					construct,
-					abi: 0,
-					state: [],
-					props: [],
-					capabilities: [],
+				artifact: clientArtifact('component:Updates', instantiate, {
 					updates: { bindings: [[0, 1, 0]], apply() {} }
-				}
+				})
 			}
 		});
 
-		expect(readExactCompiledComponentContract(component).definition.updates?.bindings).toEqual([
-			[0, 1, 0]
-		]);
+		expect(
+			readExactClientExecutableComponentContract(component).artifact.updates?.bindings
+		).toEqual([[0, 1, 0]]);
 	});
 
 	it('validates compiler-generated component update programs wider than 64 operations', () => {
@@ -356,27 +439,18 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:WideUpdates',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: {
-					version: 1 as const,
-					instantiate,
-					construct,
-					abi: 0,
-					state: [],
-					props: [],
-					capabilities: [],
-					updates
-				}
+				artifact: clientArtifact('component:WideUpdates', instantiate, { updates })
 			}
 		});
 
-		expect(readExactCompiledComponentContract(component).definition.updates).toBe(updates);
+		expect(readExactClientExecutableComponentContract(component).artifact.updates).toBe(updates);
 	});
 
 	it('rejects an invalid component update mask before adopting its artifact', () => {
@@ -384,25 +458,20 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:InvalidUpdates',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: {
-					version: 1 as const,
-					instantiate,
-					construct,
-					abi: 0,
-					capabilities: [],
+				artifact: clientArtifact('component:InvalidUpdates', instantiate, {
 					updates: { bindings: [[0, -1, 0]], apply() {} }
-				}
+				})
 			}
 		});
 
-		expect(() => readExactCompiledComponentContract(component)).toThrow(
+		expect(() => readExactExecutableComponentContract(component)).toThrow(
 			'Unsupported eXact component contract'
 		);
 	});
@@ -412,25 +481,20 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:InvalidWideUpdates',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: {
-					version: 1 as const,
-					instantiate,
-					construct,
-					abi: 0,
-					capabilities: [],
+				artifact: clientArtifact('component:InvalidWideUpdates', instantiate, {
 					updates: { bindings: [[0, 0, 0]], words: 3, apply() {} }
-				}
+				})
 			}
 		});
 
-		expect(() => readExactCompiledComponentContract(component)).toThrow(
+		expect(() => readExactExecutableComponentContract(component)).toThrow(
 			'Unsupported eXact component contract'
 		);
 	});
@@ -440,24 +504,20 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:InvalidRuntimeABI',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: {
-					version: 1 as const,
-					instantiate,
-					construct,
-					abi: allCompiledComponentABI + 1,
-					capabilities: []
-				}
+				artifact: clientArtifact('component:InvalidRuntimeABI', instantiate, {
+					abi: allCompiledComponentABI + 1
+				})
 			}
 		});
 
-		expect(() => readExactCompiledComponentContract(component)).toThrow(
+		expect(() => readExactExecutableComponentContract(component)).toThrow(
 			'Unsupported eXact component contract'
 		);
 	});
@@ -467,18 +527,21 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:MissingRuntimeABI',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: { version: 1 as const, instantiate, construct, capabilities: [] }
+				artifact: {
+					...clientArtifact('component:MissingRuntimeABI', instantiate),
+					abi: undefined
+				}
 			}
 		});
 
-		expect(() => readExactCompiledComponentContract(component)).toThrow(
+		expect(() => readExactExecutableComponentContract(component)).toThrow(
 			'Unsupported eXact component contract'
 		);
 	});
@@ -488,18 +551,21 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:MissingConstruction',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
-				definition: { version: 1 as const, instantiate, abi: 0, capabilities: [] }
+				artifact: {
+					...clientArtifact('component:MissingConstruction', instantiate),
+					construct: undefined
+				}
 			}
 		});
 
-		expect(() => readExactCompiledComponentContract(component)).toThrow(
+		expect(() => readExactExecutableComponentContract(component)).toThrow(
 			'Unsupported eXact component contract'
 		);
 	});
@@ -508,13 +574,14 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
 				continuations: [],
 				executors: [],
 				boundaries: [],
+				artifact: clientArtifact('component:Page'),
 				resumption: {
 					componentId: 'component:Other',
 					statePaths: [],
@@ -533,13 +600,14 @@ describe('@exactjs/core component contracts', () => {
 
 	it('revalidates a replaced contract attachment while reusing an unchanged frozen contract', () => {
 		const contract = (placement: 'client' | 'server') => ({
-			version: 2 as const,
+			version: 3 as const,
 			placement,
 			role: 'client' as const,
 			implementations: [],
 			continuations: [],
 			executors: [],
-			boundaries: []
+			boundaries: [],
+			artifact: clientArtifact('component:Replaceable')
 		});
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Replaceable',

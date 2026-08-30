@@ -12,6 +12,7 @@
 		{ "path": "./packages/language-extension-host" },
 		{ "path": "./packages/config" },
 		{ "path": "./packages/component-library-policy" },
+		{ "path": "./packages/component-composition-corpus" },
 		{ "path": "./packages/plugin-host" },
 		{ "path": "./plugins/secrets" },
 		{ "path": "./component-libraries/motion" },

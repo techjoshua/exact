@@ -12,6 +12,7 @@ export function hydrationScriptOptions(
 		endpoints: options.endpoints,
 		state: result.state,
 		publishRootProps: undefined,
+		markerlessRoot: options.markerlessRoot,
 		continuations: options.continuations,
 		resumptions,
 		publicContexts: options.publicContexts,

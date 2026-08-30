@@ -35,21 +35,54 @@ func attachComponentPropsSlots(
 			continue
 		}
 		keys := make(map[string]struct{})
+		propsName := componentPropsParameterIdentifier(componentNode)
+		propsEscapes := false
 		walkNode(componentNode, func(node *ast.Node) bool {
 			key, receiver, ok := directPropsRead(node)
-			if !ok || identifierIsWriteTarget(node) ||
-				typeChecker.GetSymbolAtLocation(receiver) != propsSymbol {
+			if ok && !identifierIsWriteTarget(node) &&
+				typeChecker.GetSymbolAtLocation(receiver) == propsSymbol {
+				keys[key] = struct{}{}
 				return true
 			}
-			keys[key] = struct{}{}
+			if propsName != nil && node != propsName && ast.IsIdentifier(node) &&
+				typeChecker.GetSymbolAtLocation(node) == propsSymbol &&
+				!directPropsReceiver(node) {
+				propsEscapes = true
+			}
 			return true
 		})
+		// Passing the complete props facade to a helper hides its member reads from this component's
+		// syntax tree. Keep the finite declared surface in the receiver layout so later final-value
+		// receipts can still update every property that the helper may observe.
+		if propsEscapes && propsName != nil {
+			for _, property := range typeChecker.GetPropertiesOfType(typeChecker.GetTypeAtLocation(propsName)) {
+				keys[ast.SymbolName(property)] = struct{}{}
+			}
+		}
 		components[index].PropsSlots = make([]string, 0, len(keys))
 		for key := range keys {
 			components[index].PropsSlots = append(components[index].PropsSlots, key)
 		}
 		sort.Strings(components[index].PropsSlots)
 	}
+}
+
+func componentPropsParameterIdentifier(component *ast.Node) *ast.Node {
+	for _, parameter := range component.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() != "this" {
+			return name
+		}
+	}
+	return nil
+}
+
+func directPropsReceiver(node *ast.Node) bool {
+	if node == nil || node.Parent == nil {
+		return false
+	}
+	_, receiver, ok := directPropsRead(node.Parent)
+	return ok && receiver == node
 }
 
 // indexPropsReadSlots joins each proven direct read to its component-local numeric layout.

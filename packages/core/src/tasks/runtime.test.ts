@@ -1,10 +1,10 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it, vi } from 'vitest';
 import { computed, currentWorkPriority, flushSync, reactive, watch } from '@exactjs/reactive';
 
 import type { TaskContext } from './contracts.js';
 import type { Component } from '../component/contracts.js';
 import { LoggerContext } from '../component/contexts.js';
-import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import { runTaskFrame } from '../framework/task-frames.js';
 import type { LogEvent, Logger } from '../logging.js';
 import { activateTask } from './activation.js';

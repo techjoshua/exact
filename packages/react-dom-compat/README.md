@@ -13,6 +13,8 @@ ReactDOM-compatible API.
 
 The package provides roots, hydration, portals, server rendering and streaming, resource hints,
 error callbacks, batching, Suspense behavior, and Activity retention. React components remain
-React-owned; the compatibility runtime hosts them through an explicit eXact boundary.
+React-owned; the compatibility runtime hosts them through fixed precompiled client and server root
+artifacts. Native-only bundles do not import these roots or the optional native-contribution
+integration.
 
 See [React compatibility](../../docs/react-compatibility.md).

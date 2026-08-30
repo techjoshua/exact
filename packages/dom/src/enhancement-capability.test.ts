@@ -1,16 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementNode, type Child, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
+import { createEnhancementNode } from '@exactjs/core';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { describe, expect, it } from 'vitest';
 import {
 	domEnhancementCapability,
 	registerDomEnhancementCapability
 } from './renderer/enhancement-capability.js';
-import { render } from './renderer/root-lifecycle.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createOperation } from './test-support/native-operations.js';
+import { renderTestTree as render } from './testing.js';
+import { LateAsideEnhancement } from './enhanced.fixtures.js';
 
 describe('DOM enhancement capability activation', () => {
 	it('activates from a later-loaded module after the renderer root already exists', async () => {
@@ -18,23 +18,17 @@ describe('DOM enhancement capability activation', () => {
 			Symbol.for('@exactjs/dom.enhancement-capability.v1')
 		];
 		const container = document.createElement('div');
-		render(createVNode('p', null, 'Before'), container);
+		render(createOperation('p', null, 'Before'), container);
 		expect(container.innerHTML).toBe('<p>Before</p>');
 		expect(domEnhancementCapability()).toBeUndefined();
 
 		const { registerDomEnhancementIntegration } = await import('./framework/enhancements.js');
 		registerDomEnhancementIntegration();
 		const identity = '@exactjs/dom:late-enhancement-capability';
-		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			return () => createVNode('aside', { 'data-late': true }, props.children);
-		}, identity);
-		registerExactEnhancement(identity, Enhancement);
+		registerExactEnhancement(identity, LateAsideEnhancement);
 
 		render(
-			createVNode(
+			createOperation(
 				'button',
 				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'After'
@@ -47,6 +41,7 @@ describe('DOM enhancement capability activation', () => {
 		const installed = domEnhancementCapability();
 		registerDomEnhancementCapability({
 			abi: 1,
+			has: () => false,
 			install: () => undefined,
 			activate: (_root, mounted) => mounted,
 			patch: (_root, mounted) => mounted

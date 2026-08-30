@@ -42,6 +42,11 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			continue
 		}
 		surface := componentSurfacePlan(candidate.node)
+		targetArtifact := componentCandidateAcceptsProps(candidate.node)
+		artifactTargets := []string{}
+		if targetArtifact {
+			artifactTargets = []string{"client", "server"}
+		}
 		components = append(components, Component{
 			ID:                nativeComponentIDForNode(sourceFile, candidate.node),
 			Name:              candidate.name,
@@ -52,7 +57,7 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			Placement:         "isomorphic",
 			SubgraphPlacement: "isomorphic",
 			EnvironmentEffect: "neutral",
-			ArtifactTargets:   []string{"client", "server"},
+			ArtifactTargets:   artifactTargets,
 			RenderEdges:       []RenderEdge{},
 			Contexts:          []ContextEffect{},
 			EnhancementContexts: EnhancementContextEffects{
@@ -64,11 +69,13 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			Diagnostics:          []string{},
 			CompiledRender:       componentHasCompiledRender(candidate.node),
 			ClientCompiledRender: componentReturnsRenderFunction(candidate.node),
+			TargetArtifact:       targetArtifact,
 			Lifecycle: componentUsesProtocolMember(
 				candidate.node,
 				"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
 			),
 			Lists:         componentUsesProtocolMember(candidate.node, "map"),
+			Targets:       componentContainsTarget(candidate.node),
 			DirectSurface: surface,
 			Surface:       surface,
 		})
@@ -77,6 +84,37 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		return components[left].Start < components[right].Start
 	})
 	return components
+}
+
+// componentContainsTarget records that server enhancement execution must preserve a live child
+// operation until the component's target receipt can contribute to it.
+func componentContainsTarget(node *ast.Node) bool {
+	found := false
+	walkNode(node, func(candidate *ast.Node) bool {
+		tag := jsxTagNode(candidate)
+		if tag != nil && ast.IsIdentifier(tag) && tag.Text() == "_target" {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+// componentCandidateAcceptsProps separates durable component entry points from module-level setup
+// helpers that forward a Component receiver. JSX supplies at most one ordinary props argument;
+// helpers with additional runtime parameters participate in their caller's lowering and surface
+// analysis but must not receive an independently callable target artifact.
+func componentCandidateAcceptsProps(node *ast.Node) bool {
+	ordinary := 0
+	for _, parameter := range node.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() == "this" {
+			continue
+		}
+		ordinary++
+	}
+	return ordinary <= 1
 }
 
 func componentSurfacePlan(node *ast.Node) ComponentSurfacePlan {
@@ -219,7 +257,32 @@ func mergeComponentSurfaceFromCallable(component *Component, node *ast.Node) {
 		node,
 		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
 	)
-	component.Lists = component.Lists || componentUsesProtocolMember(node, "map")
+	component.Lists = component.Lists || componentUsesProtocolMember(node, "map") ||
+		componentUsesAuthoredJSXKey(node)
+}
+
+// componentUsesAuthoredJSXKey selects durable keyed-list ownership during component analysis.
+// Lowering later removes JSX key attributes, so constructor ABI planning cannot defer this fact to
+// the transformed tree or rely only on an authored this.map() call.
+func componentUsesAuthoredJSXKey(node *ast.Node) bool {
+	usesKey := false
+	walkNode(node, func(candidate *ast.Node) bool {
+		if usesKey || (candidate != node && ast.IsFunctionDeclaration(candidate)) {
+			return false
+		}
+		if !ast.IsCallExpression(candidate) || !insideJSXChildExpression(candidate) {
+			return true
+		}
+		call := candidate.AsCallExpression()
+		if !ast.IsPropertyAccessExpression(call.Expression) ||
+			call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
+			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+			return true
+		}
+		usesKey = collectionMapExplicitJSXKey(call.Arguments.Nodes[0]) != nil
+		return !usesKey
+	})
+	return usesKey
 }
 
 func mergeComponentSurface(target *ComponentSurfacePlan, source ComponentSurfacePlan) {

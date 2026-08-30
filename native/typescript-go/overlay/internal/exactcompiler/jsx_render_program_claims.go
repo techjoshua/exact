@@ -18,20 +18,27 @@ type renderProgramClaim struct {
 	width     int
 }
 
-// directRenderProgramClaims turns the compiler's intrinsic tree into executable cursor movement.
+// directRenderProgramClaims turns the compiler's intrinsic tree into compact cursor operations.
 // Dynamic ranges advance themselves to their matching close marker, so later static siblings never
 // depend on the number of server-rendered nodes inside those ranges.
 func (lowering *jsxLowering) directRenderProgramClaims(
 	build *renderProgramBuild,
-	target *ast.Node,
 ) []*ast.Node {
-	statements := make([]*ast.Node, 0, len(build.nodes)+len(build.slots))
+	operations := make([]*ast.Node, 0, len(build.nodes)+len(build.slots))
 	claimedElements := map[int]bool{0: true}
 	var emitChildren func([]int)
 	emitCall := func(helper string, arguments ...*ast.Node) {
-		statements = append(statements, lowering.factory.NewExpressionStatement(
-			lowering.call(helper, append([]*ast.Node{target}, arguments...)),
-		))
+		opcode := map[string]int{
+			lowering.names.claimProgramElement:    0,
+			lowering.names.enterProgramElement:    1,
+			lowering.names.leaveProgramElement:    2,
+			lowering.names.claimProgramText:       3,
+			lowering.names.claimProgramKeyedChild: 4,
+			lowering.names.claimProgramChild:      5,
+			lowering.names.claimElementPath:       6,
+			lowering.names.claimProgramProperty:   7,
+		}[helper]
+		operations = append(operations, lowering.renderProgramOperation(opcode, arguments...))
 	}
 	emitChildren = func(parentPath []int) {
 		claims := make([]renderProgramClaim, 0)
@@ -83,7 +90,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 					skip,
 					lowering.factory.NewStringLiteral(claim.tag, ast.TokenFlagsNone),
 				}
-				if claim.namespace != build.namespace {
+				if claim.namespace != build.namespace || build.namespace == "contextual" {
 					arguments = append(
 						arguments,
 						lowering.factory.NewStringLiteral(claim.namespace, ast.TokenFlagsNone),
@@ -131,7 +138,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 		if !claimedElements[binding.node] {
 			encoded, encodable := directProgramElementPath(build, build.nodes[binding.node].path)
 			if !encodable {
-				return lowering.directRenderProgramClaimsAll(build, target)
+				return lowering.directRenderProgramClaimsAll(build)
 			}
 			node := build.nodes[binding.node]
 			arguments := []*ast.Node{
@@ -139,7 +146,7 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 				lowering.factory.NewNumericLiteral(strconv.FormatUint(encoded, 10), ast.TokenFlagsNone),
 				lowering.factory.NewStringLiteral(node.tag, ast.TokenFlagsNone),
 			}
-			if node.namespace != build.namespace {
+			if node.namespace != build.namespace || build.namespace == "contextual" {
 				arguments = append(
 					arguments,
 					lowering.factory.NewStringLiteral(node.namespace, ast.TokenFlagsNone),
@@ -154,5 +161,12 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 			lowering.factory.NewNumericLiteral(strconv.Itoa(binding.node), ast.TokenFlagsNone),
 		)
 	}
-	return statements
+	return operations
+}
+
+func (lowering *jsxLowering) renderProgramOperation(kind int, operands ...*ast.Node) *ast.Node {
+	values := make([]*ast.Node, 0, len(operands)+1)
+	values = append(values, lowering.factory.NewNumericLiteral(strconv.Itoa(kind), ast.TokenFlagsNone))
+	values = append(values, operands...)
+	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
 }

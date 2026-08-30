@@ -9,9 +9,11 @@ import {
 	installEnhancementReconciliation,
 	patchEnhancementBoundary
 } from './enhancements.js';
+import { childEnhancementEntries } from './enhancement-chain.js';
 
 const enhancementCapability: DomEnhancementCapability = Object.freeze({
 	abi: 1 as const,
+	has: (value) => childEnhancementEntries(value).length !== 0,
 	install(root, mount) {
 		root.enhancementCatalog ??= exactEnhancementCatalog;
 		installEnhancementReconciliation(root, mount);
@@ -25,5 +27,3 @@ const enhancementCapability: DomEnhancementCapability = Object.freeze({
 export function registerDomEnhancementIntegration(): void {
 	registerDomEnhancementCapability(enhancementCapability);
 }
-
-registerDomEnhancementIntegration();

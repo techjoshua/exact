@@ -1,23 +1,23 @@
 /**
  * @vitest-environment jsdom
  */
-import { Activity, type Component } from '@exactjs/core';
 import '@exactjs/core/runtime/refs';
 import { render, unmount } from '@exactjs/dom';
 import '@exactjs/dom/structural-boundaries';
 import { computed, flushSync } from '@exactjs/reactive';
-import {
-	createTestVNode as createVNode,
-	markTestComponent
-} from '@exactjs/testing/internal/fixtures';
+import { createTestOperation as createOperation } from '@exactjs/testing/internal/fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PhysicsElement, PhysicsWorldComponent } from './components.js';
-import { PhysicsBodyContext } from './context.js';
 import type { PhysicsBody, PhysicsWorld } from './contracts.js';
+import {
+	PhysicsBodySwapScene,
+	PhysicsActivityScene,
+	PhysicsContextScene,
+	observedPhysicsBody,
+	physicsActivitySceneInstance,
+	physicsBodySwapSceneInstance
+} from './components.fixtures.js';
 import { createPhysicsWorld } from './world.js';
-
-// Source-level unit tests bypass the package compiler. The package build separately verifies the
-// public client and server exports as compiled artifacts.
 
 const containers: Element[] = [];
 
@@ -41,10 +41,10 @@ describe('physics components', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				PhysicsWorldComponent,
 				{ world, running: false },
-				createVNode(PhysicsElement, { body }, createVNode('div', null))
+				createOperation(PhysicsElement, { body }, createOperation('div', null))
 			),
 			container
 		);
@@ -67,20 +67,10 @@ describe('physics components', () => {
 			position: { x: 10, y: 12 },
 			shape: { kind: 'circle', radius: 1 }
 		});
-		let owner!: Component<{ body: PhysicsBody }>;
-		const Scene = markTestComponent(function Scene(this: Component<{ body: PhysicsBody }>) {
-			owner = this;
-			this.state.body = first;
-			return () =>
-				createVNode(
-					PhysicsWorldComponent,
-					{ world, running: false },
-					createVNode(PhysicsElement, { body: this.state.body }, createVNode('div', null))
-				);
-		});
 		const container = document.createElement('div');
 		containers.push(container);
-		render(createVNode(Scene, null), container);
+		render(createOperation(PhysicsBodySwapScene, { world, first }), container);
+		const owner = physicsBodySwapSceneInstance();
 		const target = container.querySelector('div')!;
 
 		owner.state.body = second;
@@ -108,24 +98,20 @@ describe('physics components', () => {
 		const world = createPhysicsWorld({ fixedStep: 0.1 });
 		const container = document.createElement('div');
 		containers.push(container);
-		const tree = (mode: 'active' | 'parked') =>
-			createVNode(
-				Activity,
-				{ mode },
-				createVNode(PhysicsWorldComponent, { world }, createVNode('div', null))
-			);
-
-		render(tree('active'), container);
+		render(createOperation(PhysicsActivityScene, { world }), container);
+		const owner = physicsActivitySceneInstance();
 		frames.shift()?.(0);
 		expect(world.running).toBe(true);
 		const activeFrame = frames.shift()!;
 
-		render(tree('parked'), container);
+		owner.state.mode = 'parked';
+		flushSync();
 		expect(world.running).toBe(false);
 		activeFrame(16);
 		expect(world.running).toBe(false);
 
-		render(tree('active'), container);
+		owner.state.mode = 'active';
+		flushSync();
 		const resumedFrame = frames.shift();
 		expect(resumedFrame).toBeDefined();
 		resumedFrame?.(32);
@@ -140,28 +126,18 @@ describe('physics components', () => {
 		});
 		const world = createPhysicsWorld({ fixedStep: 0.1 });
 		const body = world.createBody({ shape: { kind: 'circle', radius: 1 } });
-		let contextualBody: PhysicsBody | undefined;
-		const Consumer = markTestComponent(function Consumer(this: Component<{}>) {
-			contextualBody = this.getContext(PhysicsBodyContext).body;
-			return () => createVNode('div', null);
-		});
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
-				PhysicsWorldComponent,
-				{ world: computed(() => world) as unknown as PhysicsWorld },
-				createVNode(
-					PhysicsElement,
-					{ body: computed(() => body) as unknown as PhysicsBody },
-					createVNode(Consumer, null)
-				)
-			),
+			createOperation(PhysicsContextScene, {
+				world: computed(() => world) as unknown as PhysicsWorld,
+				body: computed(() => body) as unknown as PhysicsBody
+			}),
 			container
 		);
 
 		frames.shift()?.(0);
 		expect(world.running).toBe(true);
-		expect(contextualBody).toBe(body);
+		expect(observedPhysicsBody()).toBe(body);
 	});
 });

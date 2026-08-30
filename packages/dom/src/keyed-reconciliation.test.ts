@@ -4,12 +4,29 @@
  */
 import '@exactjs/core/runtime/lists';
 import { Fragment, type Child, type Component } from '@exactjs/core';
-import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
-import { createCompiledVNode, createVNode, jsx, jsxs } from './test-support/native-vnode.js';
+import { createExpression } from '@exactjs/core/runtime/render';
+import {
+	createCompiledOperation,
+	createOperation,
+	jsx,
+	jsxs
+} from './test-support/native-operations.js';
 import { createEffectScope, flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { adoptStatic, render, unmount } from './index.js';
+import { adoptStatic } from './test-support/adoption.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
 import { mountedDomNodes, placeMountedBefore } from './placement.js';
+import {
+	KeyedSiblingPanel,
+	MarkerBoard,
+	RotationList,
+	StableCellsPanel,
+	keyedSiblingPanelInstance,
+	markerBoardInstance,
+	rotationListInstance,
+	stableCellsPanelInstance
+} from './keyed-reconciliation.fixtures.js';
 
 describe('@exactjs/dom keyed-reconciliation', () => {
 	it('moves an adopted boundary as one start-to-end DOM range', () => {
@@ -23,12 +40,12 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 			return () => null;
 		}
 		const mounted = {
-			vnode: createVNode(Boundary, null),
+			vnode: createOperation(Boundary, null),
 			dom: start,
 			end,
 			scope: createEffectScope(),
 			children: [
-				{ vnode: createVNode('p', null), dom: child, scope: createEffectScope(), children: [] }
+				{ vnode: createOperation('p', null), dom: child, scope: createEffectScope(), children: [] }
 			]
 		};
 		placeMountedBefore({ debugMarkers: false } as any, container, mounted, anchor);
@@ -38,20 +55,8 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 
 	it('moves only the out-of-order keyed range for a simple rotation', () => {
 		const container = document.createElement('div');
-		let list!: Component<{ items: string[] }>;
-		function List(this: Component<{ items: string[] }>) {
-			list = this;
-			this.state.items = ['a', 'b', 'c'];
-			return () =>
-				jsx('ul', {
-					children: this.map(
-						this.state.items,
-						(item) => item,
-						(item) => jsx('li', { children: item })
-					)
-				});
-		}
-		render(jsx(List, {}), container);
+		render(createCompiledOperation(RotationList, {}), container);
+		const list = rotationListInstance();
 		const original = Node.prototype.insertBefore;
 		let placements = 0;
 		Node.prototype.insertBefore = function <T extends Node>(
@@ -73,8 +78,8 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 			'a',
 			'b'
 		]);
-		// One keyed range moves; compiled cells own an anchor and an element.
-		expect(placements).toBe(2);
+		// The compiler-closed keyed cell is a single element, so one range move is one insertion.
+		expect(placements).toBe(1);
 	});
 
 	it('reuses keyed list render results across unrelated parent rerenders', () => {
@@ -155,18 +160,8 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 
 	it('does not move keyed cards when an unkeyed marker is inserted beside one', () => {
 		const container = document.createElement('div');
-		let board!: Component<{ marker?: string }>;
-		function Board(this: Component<{ marker?: string }>) {
-			board = this;
-			this.state.marker = undefined;
-			const cards = this.reactive(() => [
-				this.state.marker === 'a' ? jsx('i', { children: 'marker' }) : null,
-				jsx('button', { 'data-card': 'a', children: 'a' }),
-				jsx('button', { 'data-card': 'b', children: 'b' })
-			]);
-			return () => jsx('section', { children: createDynamicChild(() => cards.get()) });
-		}
-		render(jsx(Board, {}), container);
+		render(createCompiledOperation(MarkerBoard, {}), container);
+		const board = markerBoardInstance();
 		const firstCard = container.querySelector('[data-card="a"]');
 		board.state.marker = 'a';
 		flushSync();
@@ -177,23 +172,9 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 	});
 
 	it('does not reinsert stable cell ranges during a component rerender', () => {
-		let instance!: Component<{ label: string }>;
-
-		function Panel(this: Component<{ label: string }>) {
-			instance = this;
-			this.state.label = 'Alpha';
-
-			return () =>
-				jsx('section', {
-					children: [
-						jsx('span', { children: this.state.label }),
-						jsx('strong', { children: 'stable' })
-					]
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Panel, {}), container);
+		render(createCompiledOperation(StableCellsPanel, {}), container);
+		const instance = stableCellsPanelInstance();
 		const span = container.querySelector('span')!;
 		const strong = container.querySelector('strong')!;
 		const insertBefore = vi.spyOn(Node.prototype, 'insertBefore');
@@ -302,7 +283,7 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 		function Row(this: Component<{}>, props: { item: { id: string; label: string } }) {
 			return () => {
 				rendered();
-				return createCompiledVNode(
+				return createCompiledOperation(
 					'li',
 					{
 						title: createExpression(() => props.item.label)
@@ -320,19 +301,19 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 			];
 
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'ul',
 					{},
 					this.map(
 						this.state.items,
 						(item) => item.id,
-						(item) => createCompiledVNode(Row, { item })
+						(item) => createCompiledOperation(Row, { item })
 					)
 				);
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(List, {}), container);
+		render(createCompiledOperation(List, {}), container);
 		const rows = Array.from(container.querySelectorAll('li'));
 		const moved = rows[1]!;
 
@@ -357,15 +338,15 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 		) {
 			return () => {
 				rendered();
-				return createCompiledVNode(
+				return createCompiledOperation(
 					'li',
 					{},
-					createCompiledVNode(
+					createCompiledOperation(
 						'strong',
 						{},
 						createExpression(() => props.item.label)
 					),
-					createCompiledVNode(
+					createCompiledOperation(
 						'span',
 						{},
 						createExpression(() => props.item.priority)
@@ -382,19 +363,19 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 			];
 
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'ul',
 					{},
 					this.map(
 						this.state.items,
 						(item) => item.id,
-						(item) => createCompiledVNode(Row, { item })
+						(item) => createCompiledOperation(Row, { item })
 					)
 				);
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(List, {}), container);
+		render(createCompiledOperation(List, {}), container);
 		const rows = Array.from(container.querySelectorAll('li'));
 
 		instance.state.items[0]!.label = 'A+';
@@ -407,23 +388,9 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 	});
 
 	it('does not reuse keyed children as unkeyed siblings during patching', () => {
-		let instance!: Component<{ label: string }>;
-
-		function Panel(this: Component<{ label: string }>) {
-			instance = this;
-			this.state.label = 'first';
-
-			return () =>
-				jsx('section', {
-					children: [
-						jsx('h1', { children: 'Heading' }),
-						jsx('article', { key: 'report', children: this.state.label })
-					]
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Panel, {}), container);
+		render(createCompiledOperation(KeyedSiblingPanel, {}), container);
+		const instance = keyedSiblingPanelInstance();
 		const heading = container.querySelector('h1')!;
 		const article = container.querySelector('article')!;
 
@@ -482,7 +449,7 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 		const rendered = vi.fn();
 
 		function Row(this: Component<{}>, props: { id: string; label: string }) {
-			constructed.push(String(props.id));
+			constructed.push(props.id);
 			return () => {
 				rendered();
 				return jsx('li', { children: props.label });
@@ -549,15 +516,15 @@ describe('@exactjs/dom keyed-reconciliation', () => {
 	it('rolls back listeners and ownership when SSR adoption fails partway', () => {
 		const container = document.createElement('div');
 		container.innerHTML =
-			'<!--exact:component:0--><button>server</button><span>mismatch</span><!--/exact:component:0-->';
+			'<!--exact:dynamic:test-root--><!--exact:fragment:0--><button>server</button><span>mismatch</span><!--/exact:fragment:0--><!--/exact:dynamic:test-root-->';
 		const serverButton = container.querySelector('button')!;
 		const remove = vi.spyOn(container, 'removeEventListener');
 		const clicked = vi.fn();
-		const vnode = createVNode(
+		const vnode = createOperation(
 			Fragment,
 			null,
-			createVNode('button', { onClick: clicked }, 'server'),
-			createVNode('p', null, 'expected')
+			createOperation('button', { onClick: clicked }, 'server'),
+			createOperation('p', null, 'expected')
 		);
 
 		expect(adoptStatic(vnode, container)).toBe(false);

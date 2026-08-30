@@ -1,4 +1,4 @@
-import { computed } from '@exactjs/reactive';
+import { computed, flushSync, reactive } from '@exactjs/reactive';
 import {
 	createFrameworkComponentDomain,
 	withComponentDomain
@@ -106,6 +106,23 @@ describe('shared time scheduler', () => {
 		await Promise.resolve();
 		expect(activation.readEpochMilliseconds()).toBe(5_000);
 		expect(clock.pendingTimerCount).toBe(1);
+	});
+
+	it('tracks a reactive policy without recreating the activation', async () => {
+		const clock = createManualTimeClock(0);
+		const state = reactive({ running: false });
+		const policy = computed(() => (state.running ? 'second' : 'disabled'));
+		const activation = createTimeActivation(policy, { protocol: 1, kind: 'continuous' }, clock);
+		activation.mount(clock);
+		await Promise.resolve();
+		expect(clock.pendingTimerCount).toBe(0);
+
+		state.running = true;
+		flushSync();
+		await Promise.resolve();
+		expect(clock.pendingTimerCount).toBe(1);
+
+		activation.dispose();
 	});
 
 	it('adapts the scheduled cadence when a relative-time phase changes', async () => {

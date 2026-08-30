@@ -16,31 +16,35 @@ import {
 type CompiledDependencyBinding = readonly [slot: number, ...masks: number[]];
 
 /** Source-qualified subscriptions, including forwarded reactive prop values. */
-export type CompiledComponentDependencies = {
-	readonly g: readonly CompiledComponentDependencyGroup[];
-	readonly f: Array<{ readonly value: object; readonly stop: StopHandle } | undefined>;
-	readonly owner: AnyComponentInstance;
-	readonly bindings: readonly CompiledDependencyBinding[];
-	readonly props: number;
-	readonly publish: (forwardedBinding?: number) => void;
-};
+export class CompiledComponentDependencies {
+	readonly g: CompiledComponentDependencyGroup[] = [];
+	readonly f: Array<{ readonly value: object; readonly stop: StopHandle } | undefined> = [];
+	readonly s: StopHandle[] = [];
+
+	constructor(
+		readonly owner: AnyComponentInstance,
+		readonly bindings: readonly CompiledDependencyBinding[],
+		readonly props: number,
+		readonly scope: AnyComponentInstance['scope'],
+		readonly publish: (forwardedBinding?: number) => void
+	) {}
+
+	/** Releases binder-local source and forwarded-value subscriptions idempotently. */
+	stop(): void {
+		for (const release of this.s.splice(0)) release();
+		for (const forwarded of this.f.splice(0)) forwarded?.stop();
+	}
+}
 
 /** Resolves generated state/props dependencies and installs one subscription per backing object. */
 export function createCompiledComponentDependencies(
 	owner: AnyComponentInstance,
 	bindings: readonly CompiledDependencyBinding[],
 	props: number,
-	publish: (forwardedBinding?: number) => void
+	publish: (forwardedBinding?: number) => void,
+	scope = owner.scope
 ): CompiledComponentDependencies | undefined {
-	const groups: CompiledComponentDependencyGroup[] = [];
-	const result: CompiledComponentDependencies = {
-		g: groups,
-		f: [],
-		owner,
-		bindings,
-		props,
-		publish
-	};
+	const result = new CompiledComponentDependencies(owner, bindings, props, scope, publish);
 	for (const [source, start, end] of [
 		['props', 0, props],
 		['state', props, bindings.length]
@@ -48,8 +52,8 @@ export function createCompiledComponentDependencies(
 		const group = createComponentDependencyGroup(owner, bindings, source, start, end);
 		if (group === undefined) return undefined;
 		if (!group) continue;
-		groups.push(group);
-		subscribeKeys(group.d, group.k, publish, { scope: owner.scope });
+		result.g.push(group);
+		result.s.push(subscribeKeys(group.d, group.k, publish, { scope }));
 	}
 	for (let index = 0; index < bindings.length; index++) refreshForwardedProp(result, index);
 	return result;
@@ -91,7 +95,7 @@ function refreshForwardedProp(dependencies: CompiledComponentDependencies, index
 			value.get();
 			dependencies.publish(index);
 		},
-		{ scope: dependencies.owner.scope }
+		{ scope: dependencies.scope }
 	);
 	dependencies.f[index] = { value, stop };
 }

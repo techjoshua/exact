@@ -31,6 +31,7 @@ const priorityStack: WorkPriority[] = [];
 let foregroundFlushScheduled = false;
 let deferredFlushScheduled = false;
 let consecutiveForegroundFlushes = 0;
+
 const maxFlushPasses = 1_000;
 const maxForegroundFlushesBeforeDeferred = 8;
 const priorityOrder: Record<WorkPriority, number> = {
@@ -422,7 +423,9 @@ function takeEligibleReactions(through: WorkPriority): Array<[Reaction, QueuedRe
 		selected.push([reaction, queued]);
 	}
 	selected.sort(
-		(left, right) => priorityOrder[left[1].priority] - priorityOrder[right[1].priority]
+		(left, right) =>
+			priorityOrder[left[1].priority] - priorityOrder[right[1].priority] ||
+			(left[0].order ?? 1) - (right[0].order ?? 1)
 	);
 	return selected;
 }

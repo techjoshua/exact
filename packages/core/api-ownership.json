@@ -8,6 +8,8 @@
 		"./component/derived.js",
 		"./component/error-boundary.js",
 		"./component/interaction-contracts.js",
+		"./component-abi/portal-receipt.js",
+		"./component-abi/unsafe-html-receipt.js",
 		"./component-registry/contracts.js",
 		"./component-registry/operations.js",
 		"./component-registry/syntax.js",
@@ -23,8 +25,7 @@
 		"./tasks/cancellation.js",
 		"./tasks/contracts.js",
 		"./tasks/public.js",
-		"./url.js",
-		"./vnode.js"
+		"./url.js"
 	],
 	"runtime-adapter": [
 		"./cleanup.js",
@@ -35,6 +36,7 @@
 		"./component/readiness.js",
 		"./enhancements.js",
 		"./interaction/execution.js",
+		"./render-children.js",
 		"./tasks/activation.js",
 		"./tasks/frame-runtime.js",
 		"./tasks/observers.js",

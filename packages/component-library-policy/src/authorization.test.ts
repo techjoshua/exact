@@ -367,6 +367,40 @@ describe('@exactjs/component-library-policy', () => {
 		});
 	});
 
+	it('accepts a compiler-recorded enhancement edge through the server-test lane', async () => {
+		const fixture = createFixture();
+		const session = createSession(fixture);
+		session.recordImporterFacts(
+			'/app/Page.tsx',
+			{
+				...importerFacts([]),
+				rendererEnhancements: [
+					{
+						identity: 'cards:lift',
+						moduleSpecifier: '@acme/cards',
+						exportName: 'Card'
+					}
+				]
+			},
+			'v1'
+		);
+		recordPackage(session, fixture.library, fixture.marker);
+		session.recordDependencyEdge({
+			owner: 'application',
+			candidate: fixture.library.key,
+			specifier: '@acme/cards',
+			kind: 'dependency'
+		});
+
+		await expect(
+			session.authorizeResolvedComponent({
+				...fixture.candidate,
+				reason: 'server-test',
+				optionalEnhancementIdentity: 'cards:lift'
+			})
+		).resolves.toMatchObject({ outcome: 'authorized' });
+	});
+
 	it('fences changed importer versions and releases rejected generations', () => {
 		const fixture = createFixture();
 		const session = createSession(fixture);

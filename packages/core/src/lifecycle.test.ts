@@ -1,41 +1,11 @@
+import { createFrameworkFixtureComponentInstance } from './testing.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import './runtime/lifecycle.js';
 import './runtime/logging.js';
-import {
-	ErrorContext,
-	createErrorContext,
-	createVNode,
-	type Component,
-	type ErrorReport
-} from './index.js';
-import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
+import { ErrorContext, createErrorContext, type Component, type ErrorReport } from './index.js';
 
 describe('@exactjs/core lifecycle', () => {
-	it('constructs once and renders repeatedly from tracked state', () => {
-		const constructed = vi.fn();
-		const rendered = vi.fn();
-
-		function Counter(this: Component<{ count: number }>) {
-			constructed();
-			this.state.count = 0;
-			return () => {
-				rendered();
-				return Number(this.state.count) > 0
-					? createVNode('span', null, 'positive')
-					: createVNode('span', null, 'zero');
-			};
-		}
-
-		const instance = createFrameworkFixtureComponentInstance(Counter, {});
-		renderInstance(instance, () => renderInstance(instance, () => undefined));
-		instance.state.count = 1;
-		flushSync();
-
-		expect(constructed).toHaveBeenCalledTimes(1);
-		expect(rendered).toHaveBeenCalledTimes(2);
-	});
-
 	it('routes scheduled setup watcher failures through the component error context', () => {
 		let instance!: Component<{ count: number; errors: ErrorReport[] }>;
 		createFrameworkFixtureComponentInstance(function Worker(

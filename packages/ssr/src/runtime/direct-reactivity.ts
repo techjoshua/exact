@@ -2,6 +2,7 @@ import type { ReactiveValue } from '@exactjs/reactive/framework/runtime';
 
 const reactiveValueMarker = Symbol.for('exact.reactive.value');
 const reactiveValueRef = Symbol.for('exact.reactive.valueRef');
+const methods = new WeakMap<object, typeof directSsrReactive>();
 
 /**
  * Creates a request-local derived value for compiler-scheduled SSR.
@@ -28,4 +29,14 @@ export function directSsrReactive<T>(compute: () => T): ReactiveValue<T> {
 		valueOf: get,
 		[Symbol.toPrimitive]: get
 	} as ReactiveValue<T>;
+}
+
+/** Returns the stable extracted `this.reactive` operation for one request-local frame. */
+export function directSsrReactiveMethod(owner: object): typeof directSsrReactive {
+	let method = methods.get(owner);
+	if (!method) {
+		method = directSsrReactive;
+		methods.set(owner, method);
+	}
+	return method;
 }

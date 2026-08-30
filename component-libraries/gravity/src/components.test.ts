@@ -3,22 +3,14 @@
  */
 import { render, unmount } from '@exactjs/dom/enhanced';
 import '@exactjs/dom/structural-boundaries';
-import {
-	type AnyComponentFunction,
-	Activity,
-	createEnhancementNode,
-	type Component
-} from '@exactjs/core';
+import { type AnyComponentFunction, Activity, createEnhancementNode } from '@exactjs/core';
 import '@exactjs/core/runtime/component-execution';
 import { PhysicsElement, PhysicsWorld, createPhysicsWorld } from '@exactjs/physics';
 import { flushSync } from '@exactjs/reactive';
-import {
-	createTestVNode as createVNode,
-	markTestComponent
-} from '@exactjs/testing/internal/fixtures';
+import { createTestOperation as createOperation } from '@exactjs/testing/internal/fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GravityElement, GravityFieldComponent } from './components.js';
-import type { GravityField } from './contracts.js';
+import { GravityActivityScene, gravityActivitySceneInstance } from './components.fixtures.js';
 import { uniformGravity } from './fields.js';
 
 const containers: Element[] = [];
@@ -40,16 +32,16 @@ describe('GravityElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				PhysicsWorld,
 				{ world, running: false },
-				createVNode(
+				createOperation(
 					PhysicsElement,
 					{ body },
-					createVNode(
+					createOperation(
 						GravityElement,
 						{ apply: uniformGravity({ x: 0, y: 4 }) },
-						createVNode('div', null)
+						createOperation('div', null)
 					)
 				)
 			),
@@ -67,10 +59,10 @@ describe('GravityElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				GravityElement,
 				{ apply: uniformGravity({ x: 0, y: 1 }) },
-				createVNode('span', null, 'safe')
+				createOperation('span', null, 'safe')
 			),
 			container
 		);
@@ -85,10 +77,10 @@ describe('GravityElement', () => {
 		const physicsIdentity = '@exactjs/physics#default';
 		const gravityIdentity = '@exactjs/gravity#default';
 		render(
-			createVNode(
+			createOperation(
 				PhysicsWorld,
 				{ world, running: false },
-				createVNode('div', {
+				createOperation('div', {
 					__exactEnhancements: createEnhancementNode([
 						{ identity: gravityIdentity, props: { apply: uniformGravity({ x: 0, y: 6 }) } },
 						{ identity: physicsIdentity, props: { body } }
@@ -111,31 +103,10 @@ describe('GravityElement', () => {
 		const world = createPhysicsWorld({ fixedStep: 1, sleep: false });
 		const body = world.createBody({ shape: { kind: 'circle', radius: 1 } });
 		const weak = uniformGravity({ x: 0, y: 2 });
-		let owner!: Component<{ field: GravityField; mode: 'active' | 'parked' }>;
-		const Scene = markTestComponent(function Scene(
-			this: Component<{ field: GravityField; mode: 'active' | 'parked' }>
-		) {
-			owner = this;
-			this.state.field = weak;
-			this.state.mode = 'active';
-			return () =>
-				createVNode(
-					Activity,
-					{ mode: this.state.mode },
-					createVNode(
-						PhysicsWorld,
-						{ world, running: false },
-						createVNode(
-							PhysicsElement,
-							{ body },
-							createVNode(GravityElement, { apply: this.state.field }, createVNode('div', null))
-						)
-					)
-				);
-		});
 		const container = document.createElement('div');
 		containers.push(container);
-		render(createVNode(Scene, null), container);
+		render(createOperation(GravityActivityScene, { world, body, field: weak }), container);
+		const owner = gravityActivitySceneInstance();
 		world.step(1);
 		expect(body.velocity.y).toBe(2);
 
@@ -157,13 +128,13 @@ describe('GravityElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		const tree = (mode: 'active' | 'parked') =>
-			createVNode(
+			createOperation(
 				PhysicsWorld,
 				{ world, running: false },
-				createVNode(
+				createOperation(
 					Activity,
 					{ mode },
-					createVNode(GravityFieldComponent, { field }, createVNode('div', null))
+					createOperation(GravityFieldComponent, { field }, createOperation('div', null))
 				)
 			);
 

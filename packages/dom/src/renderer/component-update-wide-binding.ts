@@ -1,17 +1,22 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactWideComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
-import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
+import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
 import type { Mounted } from '../types.js';
 import {
 	createCompiledComponentDependencies,
 	type CompiledComponentDependencies,
 	visitChangedCompiledComponentDependencies
 } from './component-update-dependencies.js';
+import {
+	bindComponentUpdateTarget,
+	publishComponentUpdateTargets,
+	type CompiledComponentUpdateTargets
+} from './component-update-storage.js';
 
 /** Lazily allocated mask storage for one compiler-generated wide component update program. */
 type CompiledWideComponentUpdateState = {
 	readonly d: CompiledComponentDependencies;
-	readonly t: Array<ExactRenderProgramBindingTarget | undefined>;
+	readonly t: CompiledComponentUpdateTargets;
 	readonly w: Uint32Array;
 };
 
@@ -61,13 +66,7 @@ export function bindCompiledWideComponentUpdate(
 		};
 		component[wideComponentUpdateState] = state;
 	}
-	state.t[index] = target;
-
-	context.stopBindings.push({
-		stop: () => {
-			if (state!.t[index] === target) state!.t[index] = undefined;
-		}
-	});
+	bindComponentUpdateTarget(target, state.t, index);
 }
 
 /** Publishes every changed compiler-sized mask word through the generated wide updater. */
@@ -94,7 +93,9 @@ function publishCompiledWideComponentUpdate(
 	);
 	if (!changed) return;
 	try {
-		updates.apply(state.t, dirtyLow, dirtyHigh, state.w);
+		publishComponentUpdateTargets(state.t, (targets) =>
+			updates.apply(targets, dirtyLow, dirtyHigh, state.w)
+		);
 	} finally {
 		state.w.fill(0);
 	}

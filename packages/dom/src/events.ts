@@ -229,7 +229,8 @@ export function installOwnedEventSubscription(
 	element: Element,
 	key: string,
 	source: unknown,
-	owner: AnyComponentInstance | undefined
+	owner: AnyComponentInstance | undefined,
+	directInteraction = false
 ): () => void {
 	const { type, capture } = eventTypeForProp(key);
 	const listener: EventListener = (event) =>
@@ -238,8 +239,11 @@ export function installOwnedEventSubscription(
 			try {
 				const handler = unwrap(source);
 				if (typeof handler !== 'function') return;
-				const result = runInteractiveEvent(root, activeOwner, () =>
-					callDelegatedHandler(handler as EventListener, element, event)
+				const result = runInteractiveEvent(
+					root,
+					activeOwner,
+					() => callDelegatedHandler(handler as EventListener, element, event),
+					directInteraction
 				);
 				observeComponentAsync(activeOwner, result, 'event', type);
 			} catch (error) {

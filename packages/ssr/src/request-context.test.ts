@@ -1,5 +1,3 @@
-import { activateTaskForHost, createContext, defineTask, type Component } from '@exactjs/core';
-import { RequestContext } from '@exactjs/request';
 import {
 	defineExactOperationContract,
 	defineExactBoundaryContract,
@@ -13,19 +11,19 @@ import {
 	renderExactRequestToProgressiveHtmlResponse
 } from './index.js';
 import { readStreamText } from './test-support/streams.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createOperation } from './test-support/native-operations.js';
+import {
+	ApplicationName,
+	readActiveRequest,
+	RedirectRequestPage,
+	RefreshProfile,
+	RequestContextPage,
+	RequestName,
+	resetActiveRequest,
+	SettledRequestPage
+} from './request-context.fixtures.test.js';
 
 describe('@exactjs/ssr request-context', () => {
-	const ApplicationName = createContext<string>('ssr.application', {
-		reactive: false,
-		scope: 'application'
-	});
-
-	const RequestName = createContext<string>('ssr.request', {
-		reactive: false,
-		scope: 'request'
-	});
-
 	it('constructs the root only after contexts initialize and stabilizes task-written output', async () => {
 		const runtime = createExactServerRuntime({
 			contract: { version: 1, invocations: {}, boundaries: {} },
@@ -43,29 +41,13 @@ describe('@exactjs/ssr request-context', () => {
 			]
 		});
 
-		function Page(this: Component<{ ready: string }>) {
-			const request = this.getContext(RequestContext);
-			const name = this.getContext(RequestName);
-			this.state.ready = 'loading';
-			activateTaskForHost(
-				this,
-				defineTask({ placement: 'server' }, async () => {
-					await Promise.resolve();
-					this.state.ready = `${name}:${request.method}`;
-					request.setStatus(201);
-					request.setHeader('x-rendered', 'yes');
-				})
-			);
-			return () => createVNode('p', null, this.state.ready);
-		}
-
 		const response = await renderExactRequestToHtmlResponse(
 			{
 				method: 'GET',
 				url: 'https://example.test/account'
 			},
 			runtime,
-			() => createVNode(Page, {}),
+			() => createOperation(RequestContextPage, {}),
 			{
 				hydration: false,
 				markers: false
@@ -100,7 +82,7 @@ describe('@exactjs/ssr request-context', () => {
 			(context) => {
 				requestUrl = context.requestContext?.url;
 				publicOrigin = context.requestContext?.publicOrigin;
-				return createVNode('p', null, 'Account');
+				return createOperation('p', null, 'Account');
 			},
 			{ hydration: false }
 		);
@@ -233,21 +215,7 @@ describe('@exactjs/ssr request-context', () => {
 			(context) => {
 				rendered = true;
 				expect(context.contexts?.getSync(RequestName)).toBe('ready');
-				function Settled(this: Component<{ value: string }>) {
-					const request = this.getContext(RequestContext);
-					this.state.value = 'pending';
-					activateTaskForHost(
-						this,
-						defineTask({ placement: 'server' }, async () => {
-							await Promise.resolve();
-							this.state.value = 'settled';
-							request.setStatus(206);
-							request.setHeader('x-precommit', 'settled');
-						})
-					);
-					return () => createVNode('p', null, this.state.value);
-				}
-				return createVNode(Settled, {});
+				return createOperation(SettledRequestPage, {});
 			},
 			{ markers: false, hydration: false }
 		);
@@ -273,12 +241,7 @@ describe('@exactjs/ssr request-context', () => {
 		const runtime = createExactServerRuntime({
 			contract: { version: 1, invocations: {}, boundaries: {} }
 		});
-		let activeRequest: import('@exactjs/request').RequestContextValue | undefined;
-		function RedirectPage(this: Component<{}>) {
-			activeRequest = this.getContext(RequestContext);
-			activeRequest.redirect('/sign-in', 307);
-			return () => createVNode('p', null, 'Redirecting');
-		}
+		resetActiveRequest();
 
 		const response = await renderExactRequestToHtmlResponse(
 			{
@@ -286,7 +249,7 @@ describe('@exactjs/ssr request-context', () => {
 				url: 'https://example.test/private'
 			},
 			runtime,
-			() => createVNode(RedirectPage, {}),
+			() => createOperation(RedirectRequestPage, {}),
 			{
 				hydration: false,
 				markers: false
@@ -295,7 +258,7 @@ describe('@exactjs/ssr request-context', () => {
 
 		expect(response.status).toBe(307);
 		expect(response.headers.location).toBe('/sign-in');
-		expect(() => activeRequest!.setHeader('x-too-late', 'yes')).toThrow(
+		expect(() => readActiveRequest()!.setHeader('x-too-late', 'yes')).toThrow(
 			'after its status and headers are committed'
 		);
 		await runtime.dispose?.();
@@ -317,14 +280,7 @@ describe('@exactjs/ssr request-context', () => {
 				]
 			],
 			boundaries: {
-				profile: () => {
-					function Profile(this: Component<{}>) {
-						const requestName = this.getContext(RequestName);
-						const request = this.getContext(RequestContext);
-						return () => createVNode('p', null, `${requestName}:${request.method}`);
-					}
-					return createVNode(Profile, {});
-				}
+				profile: () => createOperation(RefreshProfile, {})
 			},
 			markers: false
 		});
@@ -367,7 +323,7 @@ describe('@exactjs/ssr request-context', () => {
 				'save-profile': () => ({ state: { saved: true } })
 			},
 			boundaries: {
-				profile: () => createVNode('p', { className: 'saved' }, 'Saved')
+				profile: () => createOperation('p', { className: 'saved' }, 'Saved')
 			}
 		});
 

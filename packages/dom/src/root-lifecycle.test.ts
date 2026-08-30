@@ -3,6 +3,7 @@
  */
 import '@exactjs/core/runtime/lists';
 import '@exactjs/core/runtime/refs';
+import './runtime/root-release.js';
 import {
 	activateTaskForHost,
 	createRef,
@@ -12,11 +13,45 @@ import {
 	type RootLifecycle,
 	type TaskContext
 } from '@exactjs/core';
-import { createCompiledVNode, createVNode, jsx } from './test-support/native-vnode.js';
+import { createCompiledOperation, createOperation, jsx } from './test-support/native-operations.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	ChangingRefButton,
+	ConnectedMountParent,
+	DebugParent,
+	LifecycleCounter,
+	RootControl,
+	changingRefButtonInstance,
+	connectedMountOrder,
+	connectedMountSawPlacedRef,
+	counterSetups,
+	firstButtonRef,
+	lifecycleCounterInstance,
+	resetRootLifecycleFixtures,
+	rootControlInstance,
+	rootControlLifecycle,
+	secondButtonRef
+} from './test-support/roots/root-lifecycle.fixtures.js';
+import {
+	RemovalRetentionOwner,
+	ReplacementRetentionOwner,
+	ReversibleRetentionOwner,
+	finishRemovalRetention,
+	finishReplacementRetention,
+	removalRetentionOwnerInstance,
+	removalRetentionRoot,
+	replacementRetentionOwnerInstance,
+	resetRemovalRetentionFixture,
+	resetReplacementRetentionFixture,
+	resetReversibleRetentionFixture,
+	reversibleActivations,
+	reversibleDeactivations,
+	reversibleRetentionOwnerInstance,
+	reversibleRetentionRoot
+} from './test-support/roots/root-retention.fixtures.js';
 
 function commentData(root: Node): string[] {
 	const comments: string[] = [];
@@ -34,7 +69,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 		const container = document.createElement('div');
 		const onProfile = vi.fn();
 
-		render(createVNode('p', null, 'profiled'), container, { onProfile });
+		render(createOperation('p', null, 'profiled'), container, { onProfile });
 
 		expect(container.textContent).toBe('profiled');
 		expect(onProfile).toHaveBeenCalledWith(
@@ -49,7 +84,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 	it('does not let a profiling callback replace a successful render', () => {
 		const container = document.createElement('div');
 		expect(() =>
-			render(createVNode('p', null, 'committed'), container, {
+			render(createOperation('p', null, 'committed'), container, {
 				onProfile() {
 					throw new Error('profiler failed');
 				}
@@ -59,26 +94,26 @@ describe('@exactjs/dom root-lifecycle', () => {
 	});
 
 	it('mounts and updates a component', () => {
-		let instance!: Component<{ count: number }>;
-		const rendered = vi.fn();
-
-		function Counter(this: Component<{ count: number }>) {
-			instance = this;
-			this.state.count = 0;
-			return () => {
-				rendered();
-				return jsx('button', { children: this.state.count });
-			};
-		}
-
+		resetRootLifecycleFixtures();
 		const container = document.createElement('div');
-		render(jsx(Counter, {}), container);
+		render(jsx(LifecycleCounter, {}), container);
+		const instance = lifecycleCounterInstance();
 
 		expect(container.textContent).toBe('0');
 		instance.state.count = 2;
 		flushSync();
 		expect(container.textContent).toBe('2');
-		expect(rendered).toHaveBeenCalledTimes(2);
+		expect(counterSetups).toBe(1);
+	});
+
+	it('runs nested mount handlers after final placement in child-before-parent order', () => {
+		resetRootLifecycleFixtures();
+		const container = document.createElement('div');
+
+		render(jsx(ConnectedMountParent, {}), container);
+
+		expect(connectedMountSawPlacedRef).toBe(true);
+		expect(connectedMountOrder).toEqual(['child', 'parent']);
 	});
 
 	it('settles synchronous setup activations before mounting required child props', () => {
@@ -115,26 +150,18 @@ describe('@exactjs/dom root-lifecycle', () => {
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container);
+		render(createCompiledOperation(Parent, {}), container);
 
 		expect(commentData(container)).toEqual([]);
 		expect(container.textContent).toBe('child');
 	});
 
 	it('can expose named boundary comments for renderer debugging', () => {
-		function Child() {
-			return () => jsx('span', { children: 'child' });
-		}
-
-		function Parent() {
-			return () => jsx('main', { children: jsx(Child, {}) });
-		}
-
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container, { debugMarkers: true });
+		render(createCompiledOperation(DebugParent, {}), container, { debugMarkers: true });
 
 		expect(commentData(container)).toEqual(
-			expect.arrayContaining(['exact-component', 'exact-cell'])
+			expect.arrayContaining(['exact-component', 'exact-dynamic'])
 		);
 		expect(container.textContent).toBe('child');
 	});
@@ -155,21 +182,10 @@ describe('@exactjs/dom root-lifecycle', () => {
 	});
 
 	it('publishes the first intrinsic component root and advances its generation on replacement', () => {
-		let instance!: Component<{ link: boolean }>;
-		let root!: RootLifecycle<Element>;
-
-		function Control(this: Component<{ link: boolean }>) {
-			instance = this;
-			this.state.link = false;
-			root = this.refs.root();
-			return () =>
-				this.state.link
-					? jsx('a', { href: '#next', children: 'Next' })
-					: jsx('button', { children: 'Next' });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Control, {}), container);
+		render(jsx(RootControl, {}), container);
+		const instance = rootControlInstance();
+		const root = rootControlLifecycle();
 
 		expect(root.current).toBe(container.querySelector('button'));
 		expect(root.generation).toBe(1);
@@ -204,34 +220,11 @@ describe('@exactjs/dom root-lifecycle', () => {
 	});
 
 	it('retains a released root until structurally attached work settles', async () => {
-		let owner!: Component<{ show: boolean }>;
-		let childRoot!: RootLifecycle<Element>;
-		let finish!: () => void;
-		const settlement = new Promise<void>((resolve) => {
-			finish = resolve;
-		});
-
-		function Child(this: Component<{}>) {
-			childRoot = this.refs.root();
-			watch(() => {
-				const release = childRoot.release;
-				if (!release) return;
-				void runTaskFrame(
-					{ kind: 'test-release', readiness: 'nonblocking' },
-					{ work: () => settlement }
-				).catch(() => undefined);
-			});
-			return () => jsx('button', { children: 'Retained' });
-		}
-
-		function Owner(this: Component<{ show: boolean }>) {
-			owner = this;
-			this.state.show = true;
-			return () => (this.state.show ? jsx(Child, {}) : null);
-		}
-
+		resetRemovalRetentionFixture();
 		const container = document.createElement('div');
-		render(jsx(Owner, {}), container);
+		render(jsx(RemovalRetentionOwner, {}), container);
+		const owner = removalRetentionOwnerInstance();
+		const childRoot = removalRetentionRoot();
 		const button = container.querySelector('button');
 
 		owner.state.show = false;
@@ -246,38 +239,15 @@ describe('@exactjs/dom root-lifecycle', () => {
 			presented: true
 		});
 
-		finish();
+		finishRemovalRetention();
 		await vi.waitFor(() => expect(container.querySelector('button')).toBeNull());
 	});
 
 	it('retains a type-replaced range across child-plan cleanup', async () => {
-		let owner!: Component<{ replace: boolean }>;
-		let childRoot!: RootLifecycle<Element>;
-		let finish!: () => void;
-		const settlement = new Promise<void>((resolve) => {
-			finish = resolve;
-		});
-
-		function Child(this: Component<{}>) {
-			childRoot = this.refs.root();
-			watch(() => {
-				if (!childRoot.release) return;
-				void runTaskFrame(
-					{ kind: 'test-replacement-release', readiness: 'nonblocking' },
-					{ work: () => settlement }
-				).catch(() => undefined);
-			});
-			return () => jsx('button', { children: 'Retained' });
-		}
-
-		function Owner(this: Component<{ replace: boolean }>) {
-			owner = this;
-			this.state.replace = false;
-			return () => (this.state.replace ? jsx('span', { children: 'Replacement' }) : jsx(Child, {}));
-		}
-
+		resetReplacementRetentionFixture();
 		const container = document.createElement('div');
-		render(jsx(Owner, {}), container);
+		render(jsx(ReplacementRetentionOwner, {}), container);
+		const owner = replacementRetentionOwnerInstance();
 		const button = container.querySelector('button');
 
 		owner.state.replace = true;
@@ -285,45 +255,23 @@ describe('@exactjs/dom root-lifecycle', () => {
 
 		expect(container.querySelector('button')).toBe(button);
 		expect(container.querySelector('span')?.textContent).toBe('Replacement');
-		finish();
+		finishReplacementRetention();
 		await vi.waitFor(() => expect(container.querySelector('button')).toBeNull());
 	});
 
 	it('reverses an exact retained root generation without replacing its DOM', () => {
-		let owner!: Component<{ show: boolean }>;
-		let childRoot!: RootLifecycle<Element>;
-		let activations = 0;
-		let deactivations = 0;
-
-		function Child(this: Component<{}>) {
-			childRoot = this.refs.root();
-			this.onActivate(() => activations++);
-			this.onDeactivate(() => deactivations++);
-			watch(() => {
-				if (!childRoot.release) return;
-				void runTaskFrame(
-					{ kind: 'test-release', readiness: 'nonblocking' },
-					{ work: () => new Promise<void>(() => undefined) }
-				).catch(() => undefined);
-			});
-			return () => jsx('button', { children: 'Reversible' });
-		}
-
-		function Owner(this: Component<{ show: boolean }>) {
-			owner = this;
-			this.state.show = true;
-			return () => (this.state.show ? jsx(Child, {}) : null);
-		}
-
+		resetReversibleRetentionFixture();
 		const container = document.createElement('div');
-		render(jsx(Owner, {}), container);
+		render(jsx(ReversibleRetentionOwner, {}), container);
+		const owner = reversibleRetentionOwnerInstance();
+		const childRoot = reversibleRetentionRoot();
 		const button = container.querySelector('button');
-		expect(activations).toBe(1);
+		expect(reversibleActivations).toBe(1);
 
 		owner.state.show = false;
 		flushSync();
 		expect(childRoot.release).toBeDefined();
-		expect(deactivations).toBe(1);
+		expect(reversibleDeactivations).toBe(1);
 
 		owner.state.show = true;
 		flushSync();
@@ -333,7 +281,7 @@ describe('@exactjs/dom root-lifecycle', () => {
 		expect(childRoot.generation).toBe(1);
 		expect(childRoot.introduction).toBe('initial');
 		expect(childRoot.release).toBeUndefined();
-		expect(activations).toBe(2);
+		expect(reversibleActivations).toBe(2);
 	});
 
 	it('publishes release before stopping a removed keyed-list child', async () => {
@@ -383,30 +331,16 @@ describe('@exactjs/dom root-lifecycle', () => {
 	});
 
 	it('clears the previous ref when a DOM node receives a new ref', () => {
-		const firstRef = createRef<HTMLButtonElement>('first');
-		const secondRef = createRef<HTMLButtonElement>('second');
-		let instance!: Component<{ useFirst: boolean }>;
-
-		function Button(this: Component<{ useFirst: boolean }>) {
-			instance = this;
-			this.state.useFirst = true;
-
-			return () =>
-				jsx('button', {
-					ref: this.state.useFirst == true ? this.ref(firstRef) : this.ref(secondRef),
-					children: 'Save'
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Button, {}), container);
+		render(jsx(ChangingRefButton, {}), container);
+		const instance = changingRefButtonInstance();
 		const button = container.querySelector('button');
-		expect(instance.refs.get(firstRef)).toBe(button);
+		expect(instance.refs.get(firstButtonRef)).toBe(button);
 
 		instance.state.useFirst = false;
 		flushSync();
 
-		expect(instance.refs.get(firstRef)).toBeUndefined();
-		expect(instance.refs.get(secondRef)).toBe(button);
+		expect(instance.refs.get(firstButtonRef)).toBeUndefined();
+		expect(instance.refs.get(secondButtonRef)).toBe(button);
 	});
 });

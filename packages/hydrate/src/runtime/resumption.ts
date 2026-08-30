@@ -6,7 +6,7 @@ import {
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readPreparedExactCompiledComponentContract
+	readPreparedExactClientExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
 
@@ -25,7 +25,7 @@ export function createComponentResumptionResolver(
 	const consumed = new Set<number>();
 	const history: number[] = [];
 	const resolve = ((type: AnyComponentFunction) => {
-		const contract = readPreparedExactCompiledComponentContract(type);
+		const contract = readPreparedExactClientExecutableComponentContract(type);
 		if (!contract.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
 		const available = records();
@@ -55,7 +55,7 @@ export function createComponentResumptionResolver(
 				throw new Error(`eXact SSR resumption contains undeclared context ${componentId}:${name}`);
 		}
 		const allowedContinuations = new Set(
-			contract.continuations.map((continuation) => continuation.id)
+			(contract.continuations ?? []).map((continuation) => continuation.id)
 		);
 		for (const id of record.settledContinuations) {
 			if (!allowedContinuations.has(id))

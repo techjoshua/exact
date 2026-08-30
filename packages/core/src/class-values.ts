@@ -9,20 +9,28 @@ import { unwrap } from '@exactjs/reactive/framework/values';
  * dynamic authored behavior.
  */
 export function normalizeClassValue(value: unknown): string {
-	const actual = unwrap(value);
-	if (actual === false || actual === null || actual === undefined) return '';
-	if (typeof actual === 'string') return actual;
+	return appendClassValue('', value);
+}
+
+function appendClassValue(output: string, candidate: unknown): string {
+	const actual = unwrap(candidate);
+	if (actual === false || actual === null || actual === undefined) return output;
 	if (Array.isArray(actual)) {
-		return actual
-			.map((item) => normalizeClassValue(item))
-			.filter(Boolean)
-			.join(' ');
+		for (const item of actual) output = appendClassValue(output, item);
+		return output;
 	}
 	if (typeof actual === 'object') {
-		return Object.entries(actual)
-			.filter(([, enabled]) => Boolean(unwrap(enabled)))
-			.map(([name]) => name)
-			.join(' ');
+		for (const name in actual) {
+			if (!Object.hasOwn(actual, name)) continue;
+			if (Boolean(unwrap((actual as Record<string, unknown>)[name])))
+				output = appendClassToken(output, name);
+		}
+		return output;
 	}
-	return String(actual);
+	return appendClassToken(output, String(actual));
+}
+
+function appendClassToken(output: string, token: string): string {
+	if (!token) return output;
+	return output ? `${output} ${token}` : token;
 }

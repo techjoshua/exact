@@ -1,4 +1,5 @@
-import { type AnyComponentInstance, createVNode } from '@exactjs/core';
+import { type AnyComponentInstance } from '@exactjs/core';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
 import { writeNodeResponseBody } from '@exactjs/node-adapter';
 import {
 	createExactServerRuntime,
@@ -30,7 +31,7 @@ export function createShippingSsrFixture() {
 			const response = await renderExactRequestToProgressiveHtmlResponse(
 				{ method: 'GET', url },
 				runtime,
-				() => createVNode(ShippingCalculatorPage, { url }),
+				() => createCompiledComponentReceipt(ShippingCalculatorPage, { url }),
 				{
 					rootId: 'app',
 					maxTaskDurationMs: 1_200,

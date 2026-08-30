@@ -1,0 +1,211 @@
+import type { CompilerPath, CorpusMode } from './contracts.js';
+
+const universalRenderModes = [
+	'client-mount',
+	'ssr-sync',
+	'ssr-async',
+	'ssr-stream',
+	'hydrate-match'
+] as const satisfies readonly CorpusMode[];
+
+/** Complete compiler-path inventory that every corpus revision must cover intentionally. */
+export const compilerPathInventory = [
+	path(
+		'compiled-target-artifact',
+		'specialized',
+		'Client and server artifacts are compiler-issued.',
+		universalRenderModes
+	),
+	path(
+		'static-render-program',
+		'specialized',
+		'Static intrinsic structure is emitted as a render program.',
+		universalRenderModes
+	),
+	path(
+		'direct-text-binding',
+		'specialized',
+		'Reactive scalar text updates without component re-execution.',
+		['client-update', 'hydrate-match']
+	),
+	path(
+		'direct-property-binding',
+		'specialized',
+		'Reactive DOM properties update at their owning intrinsic.',
+		['client-update', 'hydrate-match']
+	),
+	path(
+		'state-only-update-mask',
+		'specialized',
+		'State dependencies select only affected update operations.',
+		['client-update']
+	),
+	path(
+		'props-only-forwarding',
+		'specialized',
+		'Parent props flow directly into child and intrinsic operations.',
+		['client-mount', 'ssr-sync', 'hydrate-match']
+	),
+	path(
+		'mixed-prop-state-update',
+		'specialized',
+		'Prop and state dependencies remain distinct in one component.',
+		['client-update', 'hydrate-match']
+	),
+	path(
+		'conditional-structural-range',
+		'supported-general',
+		'Conditional children retain a bounded structural range.',
+		['client-update', 'ssr-sync', 'hydrate-match', 'hydrate-recover']
+	),
+	path(
+		'keyed-list-reconciliation',
+		'specialized',
+		'Keyed collections preserve identity while moving entries.',
+		['client-update', 'ssr-sync', 'hydrate-match']
+	),
+	path(
+		'context-capability',
+		'specialized',
+		'Context providers and consumers use durable component ownership.',
+		['client-mount', 'ssr-sync', 'hydrate-match']
+	),
+	path('ref-capability', 'specialized', 'Refs resolve against mounted or adopted nodes.', [
+		'client-mount',
+		'hydrate-match'
+	]),
+	path(
+		'lifecycle-capability',
+		'specialized',
+		'Unmount callbacks run exactly once with owner disposal.',
+		['client-unmount']
+	),
+	path('task-capability', 'specialized', 'Compiler-defined tasks update their durable owner.', [
+		'client-update',
+		'ssr-async',
+		'ssr-progressive'
+	]),
+	path(
+		'compact-render-abi',
+		'specialized',
+		'Components without durable capabilities use the compact ABI.',
+		['client-mount', 'ssr-sync']
+	),
+	path(
+		'durable-component-abi',
+		'specialized',
+		'Stateful and capability-owning components use durable instances.',
+		['client-update', 'client-unmount', 'hydrate-match']
+	),
+	path(
+		'direct-child-artifact',
+		'specialized',
+		'Native child components cross a target-local artifact edge.',
+		universalRenderModes
+	),
+	path(
+		'eager-registry-artifact',
+		'specialized',
+		'Finite eager registries retain compiler-owned identities.',
+		['client-mount', 'ssr-sync', 'hydrate-match']
+	),
+	path(
+		'lazy-registry-facade',
+		'supported-general',
+		'Finite lazy registry entries preserve registry identity.',
+		['client-mount', 'ssr-async', 'hydrate-match']
+	),
+	path(
+		'hoisted-artifact-attachment',
+		'specialized',
+		'Declarations receive artifacts before earlier executable references.',
+		['client-mount', 'ssr-sync']
+	),
+	path(
+		'lexical-micro-component',
+		'diagnostic',
+		'Lexical component declarations are rejected because they cannot own stable target artifacts.',
+		[]
+	),
+	path(
+		'intrinsic-enhancement-target',
+		'specialized',
+		'Enhancements compose directly with an intrinsic target.',
+		['client-mount', 'ssr-sync', 'hydrate-match']
+	),
+	path(
+		'component-enhancement-target',
+		'specialized',
+		'Enhancements compose across a native child component artifact.',
+		['client-mount', 'ssr-sync', 'hydrate-match']
+	),
+	path(
+		'sync-direct-ssr',
+		'specialized',
+		'Synchronous server artifacts render without a generic component renderer.',
+		['ssr-sync']
+	),
+	path(
+		'async-task-ssr',
+		'supported-general',
+		'Async task settlement is represented by async/progressive SSR.',
+		['ssr-async', 'ssr-progressive']
+	),
+	path(
+		'hydration-static-claims',
+		'specialized',
+		'Hydration adopts compiler-declared static DOM claims.',
+		['hydrate-match']
+	),
+	path(
+		'hydration-recovery',
+		'supported-general',
+		'A structural mismatch recovers at its compiler-owned component root.',
+		['hydrate-recover']
+	),
+	path(
+		'react-owned-component',
+		'explicit-compatibility',
+		'React-owned values cross only the explicit compatibility boundary.',
+		[]
+	),
+	path(
+		'open-dynamic-component',
+		'supported-general',
+		'An explicitly supplied native component activates from an inert server range.',
+		['client-mount', 'ssr-async', 'hydrate-match']
+	),
+	path(
+		'native-vnode',
+		'forbidden-legacy',
+		'Native component artifacts never construct virtual nodes.',
+		[]
+	),
+	path(
+		'runtime-created-native-artifact',
+		'forbidden-legacy',
+		'Native artifacts are compiler products, never runtime fallbacks.',
+		[]
+	),
+	path(
+		'generic-native-ssr',
+		'forbidden-legacy',
+		'Native SSR does not fall back to generic component execution.',
+		[]
+	),
+	path(
+		'generic-native-binding-group',
+		'forbidden-legacy',
+		'Native reactive bindings remain compiler-indexed.',
+		[]
+	)
+] as const satisfies readonly CompilerPath[];
+
+function path(
+	id: string,
+	classification: CompilerPath['classification'],
+	description: string,
+	requiredModes: readonly CorpusMode[]
+): CompilerPath {
+	return { id, classification, description, requiredModes };
+}

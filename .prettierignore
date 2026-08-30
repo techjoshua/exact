@@ -17,3 +17,4 @@ apps/*/.exact/
 apps/react-reconciler-reference-*/
 apps/react-reference-*/
 apps/*/test-results/
+framework-comparison/results/raw/

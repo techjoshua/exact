@@ -2,11 +2,12 @@
 
 ## Status
 
-**Proposed corrective architecture. Not yet implemented.** This proposal replaces the direction in
-which native execution is a universal component or VNode runtime with compiler-selected fast paths.
-It does not describe current framework behavior. Current behavior remains documented in
-[`compiled-component-artifacts.md`](../compiled-component-artifacts.md), including the generic lanes
-that this proposal removes.
+**Implemented and accepted.** Phases 0 through 9 are accepted in the
+[performance ledger](../performance-baselines/component-local-target-abi.md). This proposal replaced
+the direction in which native execution was a universal component or VNode runtime with
+compiler-selected target operations. The implemented framework behavior is documented in
+[`compiled-component-artifacts.md`](../compiled-component-artifacts.md). Phase 9 verified the full
+acceptance surface and completed the proposal with its 50-sample matrix.
 
 The proposal is decision-complete about the central architecture:
 
@@ -24,6 +25,13 @@ The proposal is decision-complete about the central architecture:
 
 Names and compact encodings shown below are illustrative internal contracts. They are not proposed
 application APIs.
+
+The conceptual ABI relocates existing framework behavior behind target artifacts; it does not
+redefine component lifecycle, Activity retention, hydration recovery, task readiness, error
+cleanup, or request ownership. Unless this proposal explicitly replaces a behavior, the referenced
+framework contracts below remain authoritative. In particular, an illustrative method signature is
+not required to restate every existing ownership and failure rule that its implementation must
+preserve.
 
 ## Framework context required to interpret this proposal
 
@@ -68,7 +76,11 @@ preferences:
 8. `props.children` and other compiler-produced child values do not require a second universal
    child-component, slot-object, tape, or interpreter architecture. The supplying generated code,
    receiving component-local operation, and focused range ownership preserve their existing
-   semantics.
+   semantics. The receiving component does not inspect or need to know whether an opaque child
+   value contributes text, intrinsic output, another compiled component, a collection, or no
+   output. A focused range operation may distinguish those authored value shapes as required to
+   place or reconcile them; when the value is a native component, it invokes the component's target
+   ABI rather than selecting a component execution model.
 9. Module, package, registry, and lazy boundaries do not weaken the ABI. Published libraries carry
    target artifacts and inert analysis facts; consumers do not require dependency source or
    recursive descendant closure.
@@ -83,6 +95,31 @@ preferences:
 13. Inspectability is preserved through durable instances, named state and prop facades, explicit
     inspection owners, and lazy capability sidecars. Specialization must not hide state or add
     unconditional DevTools machinery to production artifacts.
+14. Client attachment is initial ownership establishment, either by fresh mount or same-build
+    adoption. Activity parking and reactivation move or reconnect the already mounted range and
+    publish activation changes; they do not attach the component again. Construction and attachment
+    failures release partial ownership, and final component disposal remains idempotent.
+15. Calling the server `issue` operation begins request-owned issuance but does not imply that all
+    supplied props are already available. An immediately ready component may return its frame
+    synchronously. A dependency-blocked component may return a promise while the request owns the
+    pending issuance and its eventual frame, failure cleanup, cancellation, and disposal.
+16. Removing generic native component execution is distinct from removing focused structural
+    reconciliation. A runtime operation may reconcile an authored dynamic child range without
+    inspecting a native component's interior or choosing how that component executes.
+17. A module-level function that returns compiled JSX is an operation factory, not an implicit
+    component instance. Its ordinary parameters are finalized when the factory is called because
+    no durable owner exists to receive later reactive updates. A compiled component forwarding one
+    of its props remains different: its artifact emits the standard prop receipt and receiver-owned
+    update route.
+18. Client and server artifacts must publish matching hydration topology. If a client artifact
+    needs a focused range around opaque component output, the paired server artifact emits that
+    boundary even though it installs no client update subscription and never classifies the
+    output's eventual text, intrinsic, component, collection, or empty shape.
+19. Replacing a component domain does not transfer foreign descendants into that domain. The
+    renderer parks opaque operations owned by other domains, invokes the replacement artifact, and
+    reattaches matching operations with their existing instances, state, contexts, scopes, update
+    routes, and lifecycle. This applies to root replacement and to a nested replacement caused by a
+    server protocol patch.
 
 ### Current source anchors
 
@@ -209,8 +246,40 @@ stored on the shared artifact.
 **Focused operation** is a runtime function selected explicitly by generated code, such as
 `setText`, `reconcileKeyed`, or `escapeText`.
 
+**Component operation** is the opaque compiler-issued value that names an already selected
+target-artifact invocation. It carries the component contract and its inputs privately so the
+selected target can construct, attach or adopt, receive later props, and dispose the component.
+It is a claim ticket for those operations, not a description of rendered output: it exposes no
+node kind, component type, child topology, or materialize-to-VNode operation. What the component
+ultimately owns may be text, an intrinsic, several nodes, another component, a focused dynamic
+range, or no output, and the caller does not need to know which.
+
+Every such operation has opaque identity so reactive change detection cannot structurally coalesce
+two publicly empty handles. That identity is only a realm-stable protocol brand: it carries no
+operation kind, component type, child topology, target payload, or materialization capability. The
+issuing runtime keeps the actual inputs in private storage and the selected target alone redeems
+them.
+
+**Prepared server invocation** is the target-private, request-local carrier used when generated
+server code and the selected server renderer already share one closed ABI. It may hold the selected
+server artifact, finalized props, a prepared child range, or a prepared keyed child directly. It is
+not a public component operation, never crosses a client/server or compatibility boundary, never
+enters reactive state, and is not serialized. Consequently it needs neither realm-wide redemption
+storage nor a separately allocated opaque identity. The renderer consumes it immediately without
+classifying its eventual output. Opaque component operations remain required wherever a value can
+escape that closed server call chain, including client ownership, protocol publication, dynamic
+public values, and foreign compatibility boundaries.
+
+Private redemption storage is realm-wide and protocol-versioned. If packaging loads equivalent
+copies of a runtime module into one JavaScript realm, either copy can redeem an operation issued by
+the other without putting a discriminator or topology on the public handle. Reactive containers
+preserve that opaque identity instead of proxying, cloning, or structurally comparing it.
+
 **Prop receipt** is one component-local application of parent-owned prop key/value updates. The
 receiving instance owns prop storage, dirtiness, dependency routing, and the resulting work.
+“Receipt” is reserved for this atomic delivery meaning in the architecture. Some implementation
+identifiers created during the migration still say `ComponentReceipt`; those identifiers represent
+the opaque component operation above and must not be interpreted as a rendered-node receipt.
 
 **Compiler-selected dynamic operation** is target-specific generated behavior required because the
 authored semantics are dynamic, such as reconciling a variable collection, placing
@@ -230,6 +299,22 @@ because the authored behavior it implements is dynamic.
 Build-time analysis metadata, client executable code, server executable code, and transport
 metadata are distinct products. Runtime bundles must not retain build inventories merely because a
 component was compiled.
+
+An application root is not a property of a component definition. It is a mount, hydration, worker,
+document, or server entry selected by the build adapter from the bundler's entry and module graph.
+One application may have any number of independent roots, and the same component may be reachable
+from several of them. The component compiler therefore emits only local component identities,
+imports, target reachability, registry entries, continuation operations, and boundary facts as
+out-of-band build products. The bundler joins those facts with its configured entries and resolved
+module graph, emits the required target executables and transport registrations, and then discards
+the inventories. Only executable target data required after startup may survive in a runtime
+chunk.
+
+Compiler analysis currently uses `role: "root"` for a public implementation owned by a component
+contract. In that vocabulary, _root_ means the implementation at the root of that component's
+generated partition, not a singleton application or page root. Likewise, an `exposureRoot` is a
+module export through which an artifact graph exposes a component. Neither term grants application
+entry ownership or implies that only one root exists.
 
 ### Client ABI
 
@@ -254,6 +339,14 @@ interface ExactClientComponent<Props, Instance> {
 `attach` covers fresh mount and hydration because both claim the component's known topology and
 install the same generated ownership. Components that genuinely need distinct work may delegate to
 separate generated functions behind that entry point.
+
+`attach` is the instance's initial fresh-mount or same-build-adoption transition. It is not called
+again when Activity parks, backgrounds, or reconnects the mounted range. Existing lifecycle timing
+remains unchanged: mount publishes after attachment succeeds, activation follows connectivity,
+deactivation describes retained disconnection, and unmount is final disposal. A failed `construct`
+or `attach` releases any ownership established by that attempt while preserving the primary
+failure. `dispose` is idempotent and releases the instance, its mounted range, generated work, and
+lazy capability sidecars exactly once.
 
 The stable interface does not require a unique wrapper function for every method. An inert method
 references a shared implementation such as `noReceive` or `noDispose`. Generated functions are
@@ -293,6 +386,14 @@ interface ExactServerComponent<Props, Frame> {
 order. `execute` is present only on artifacts with server continuations; an artifact without it
 uses a shared unreachable/default implementation or a target encoding that does not retain the
 operation.
+
+Calling `issue` establishes request ownership immediately. If required props are already available,
+the operation may allocate and return the frame synchronously. If one or more supplied props depend
+on unfinished compiler-owned work, the call returns a request-owned promise and allocates the frame
+when those inputs become available. The request retains cancellation and cleanup authority over the
+pending issuance and disposes a rejected, superseded, unconsumed, or successfully written frame
+without transferring request state to the immutable artifact. This is why the conceptual return
+type permits `Promise<Frame>`; it does not make the component itself an async runtime function.
 
 ### Artifact identity and trust
 
@@ -433,10 +534,30 @@ unsafe HTML, and other currently valid authored forms retain their existing sema
 complete component-local lowering and explicitly selected focused operations. The compiler does not
 turn a valid opaque expression into an error merely because a specialized lowering is incomplete.
 
+`this.map()` therefore issues a dynamic child-range operation containing keyed child operations,
+not a Fragment VNode. Each materialized key owns its reactive resources until the target releases
+that keyed range; reorder preserves the range, removal stops it, and same-build hydration adopts
+the compiler-owned server item markers.
+
+On the server, a compiler-closed `this.map()` callback prepares the equivalent request-local child
+range and keyed-child carriers directly. These carriers are an execution ABI, not a rendered tree:
+neither the parent nor the renderer asks whether a child becomes text, an intrinsic, another
+component, several nodes, or nothing.
+
+Enhancement providers are semantic component parents for context and inspection, but they are
+transparent to compiler-indexed update ownership. A provider inserted around authored output must
+not become the owner of that output's state or prop update program; the generated operation remains
+bound to the durable authored component while the provider retains its ordinary lifecycle.
+
 ## Mount and hydration
 
 The client artifact owns both fresh mount and same-build adoption. It knows its root shape, node
 paths, child positions, control bindings, and dynamic ranges.
+
+Client-island activation is not an exception. The hydration registry resolves the compiled native
+component and issues the same opaque component operation used by compiled parent composition.
+Markerless adoption consumes that operation and its selected client artifact directly; it must not
+wrap the component in a function-typed VNode or re-enter generic component dispatch.
 
 Successful hydration must not:
 
@@ -460,6 +581,18 @@ Markers remain only when they carry required ownership:
 Static single-root components and compiler-addressable child roots do not emit redundant component
 comments. Marker removal is a consequence of stronger component-local ownership, not a separate
 goal that may weaken correctness.
+
+Within a compiler-closed render program, retained scalar, structural-child, and component ranges
+use dense artifact-local base-36 ordinals in paired `x:` comments. Those ordinals are assigned from
+the target-independent marker topology rather than from the complete client or server slot table;
+target projection may omit unrelated slots without changing hydration identity. The enclosing
+program root scopes repeated ordinals, so they do not become application-global protocol IDs.
+
+A compiler-closed hydratable application root omits its outer component comment pair and publishes
+the compact hydration proof `m: 1`. That proof selects markerless root attachment even when nested
+structural markers remain. The hydration JSON script is root-owned transport metadata, not component
+output, and stays outside the adopted component range. Unproven public or universal SSR calls retain
+their marked-root behavior.
 
 ## Server execution and scheduling
 
@@ -520,18 +653,45 @@ ReactIsland.attach(island, slot, mode);
 ```
 
 The island's client methods own React mounting, hydration, updates, and disposal. Its server methods
-own React-compatible serialization. React may use its own private nodes, hooks, classes,
-reconciliation, and scheduling internally; none of those semantics justify a generic native
-component renderer.
+own React-compatible serialization. React may use its own private element/node representation,
+hooks, classes, reconciliation, and scheduling internally; none of those semantics justify a
+generic native component renderer.
+
+Because the compiler cannot inspect what an imported React component may produce internally, the
+explicit compatibility operation owns its complete React renderer, including React's structural
+and host capabilities. That renderer is a separate ownership system: it must not import eXact
+`VNode` types or factories, return eXact VNodes from the island component, or route React output
+through eXact's native VNode renderer. The island's target-ABI attachment delegates directly to the
+React renderer and receives only an opaque mounted range in return. This is compile-time selection
+of one self-contained foreign boundary, not runtime inference from a returned value. None of those
+capabilities become reachable from a native-only artifact graph.
 
 Statically known React JSX lowers to a call to the compiled island artifact. Runtime-selected React
 values remain opaque inside that already compiled island. `ReactDOM.createRoot()` and server APIs
 use precompiled root-host artifacts shipped by the compatibility package rather than constructing
 component artifacts at runtime.
 
+Those fixed artifacts may be loaded beside a target-local copy of core while their renderer bridge
+uses narrow core subpath exports. Built-in coordination contexts used across that boundary (error,
+logging, suspension, and readiness) therefore require realm-stable identities; equal descriptions
+on distinct local Symbols are not equivalent. React conformance must exercise built package output,
+not only source aliases, so this duplicate-module boundary is covered. Suspense distinguishes an
+already committed fallback from retained primary content: only the latter keeps a transition
+pending. React-version-specific server serialization remains owned by the React renderer.
+
 Native children passed through a React-owned wrapper are represented by opaque compiled-artifact
 handles. When React places such a child, the boundary invokes that child's target ABI. A native
 child is not converted into an arbitrary VNode escape hatch.
+
+“Child” at this boundary names an opaque compiled contribution, not a component-shaped value. The
+contribution may ultimately produce text, an intrinsic range, another component, a collection, or
+no output. Its handle exposes no `type`, `kind`, child topology, or materialize-to-VNode operation,
+and the React island never branches on what it contains. The supplying component's generated
+operation retains attachment, update, range identity, activity, and disposal ownership. When that
+operation reaches a native component it invokes the component's target ABI; otherwise it performs
+the explicitly selected focused structural work. The handle is a compatibility crossing for that
+existing component-local operation, not a second universal child ABI, slot object, render tape, or
+interpreter.
 
 Production React compatibility must no longer depend on `createExactCompatibilityArtifact()`.
 Importing no React compatibility boundary must make the complete React runtime unreachable from a
@@ -557,6 +717,12 @@ continuations, finite and lazy registries, nested libraries, and mixed client/se
 
 ## Source-language preservation and diagnostics
 
+All JSX in an eXact compilation is compiler-classified and lowered. There is no separate
+"ordinary JSX" execution path. When this proposal distinguishes native and compatibility work, it
+means the compiler selected a native target operation or an explicit compatibility operation; it
+does not mean that one branch bypassed compilation. A compiler branch that emits generic VNode
+construction for a valid native source form is incomplete native lowering, not a JSX fallback.
+
 Every currently valid native component must produce a complete target artifact. A lowering function
 does not return to generic execution when it encounters a difficult region, and it does not convert
 missing compiler coverage into a new application diagnostic. Until every supported form has a
@@ -577,26 +743,26 @@ incomplete.
 
 ## Runtime and compiler inventory
 
-| Current responsibility                                | Decision                                                                          |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Target-paired artifact emission                       | Retain and simplify around the target ABI                                         |
-| Indexed state/props and direct update masks           | Retain inside the owning artifact; props cross boundaries as key/value receipts   |
-| Direct template claims and generated binding calls    | Retain as component-private implementation                                        |
-| Direct request-local SSR frames                       | Retain behind `issue` and `write`                                                 |
-| Compiler task dependency plans                        | Retain and connect to request-local issuance                                      |
-| Component contract composition                        | Split build metadata from executable ABI                                          |
-| `typeof vnode.type === "function"` native mount       | Remove                                                                            |
-| General native `createComponentInstance()` path       | Remove                                                                            |
-| Native `renderInstance()` and rerender invalidation   | Remove                                                                            |
-| Specialized-lowering return to generic JSX            | Replace with complete lowering for every currently valid source form              |
-| Generic render-program property bindings              | Remove from native artifacts                                                      |
-| Whole-tree compiler-closed SSR proof                  | Remove as an execution prerequisite                                               |
-| Generic native SSR component lane                     | Remove                                                                            |
-| Executable target-neutral JSX fallback                | Remove                                                                            |
-| Runtime-created compatibility artifacts               | Replace with precompiled compatibility artifacts                                  |
-| React element conversion into native component VNodes | Keep private only if required inside the island; never use as the native boundary |
-| Focused DOM, reactive, task, and SSR operations       | Retain when explicitly imported by generated code                                 |
-| Test-only raw fixtures                                | Compile fixtures or isolate explicit test-only infrastructure                     |
+| Current responsibility                                | Decision                                                                                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Target-paired artifact emission                       | Retain and simplify around the target ABI                                                                                             |
+| Indexed state/props and direct update masks           | Retain inside the owning artifact; props cross boundaries as key/value receipts                                                       |
+| Direct template claims and bindings                   | Retain as immutable component-local tuples consumed by focused target operations                                                      |
+| Direct request-local SSR frames                       | Retain behind `issue` and `write`                                                                                                     |
+| Compiler task dependency plans                        | Retain and connect to request-local issuance                                                                                          |
+| Component contract composition                        | Split build metadata from executable ABI                                                                                              |
+| `typeof vnode.type === "function"` native mount       | Remove                                                                                                                                |
+| General native `createComponentInstance()` path       | Remove                                                                                                                                |
+| Native `renderInstance()` and rerender invalidation   | Remove                                                                                                                                |
+| Native lowering that emits generic VNode construction | Replace with complete target-operation lowering for every currently valid native source form                                          |
+| Generic render-program property bindings              | Remove from native artifacts                                                                                                          |
+| Whole-tree compiler-closed SSR proof                  | Remove as an execution prerequisite                                                                                                   |
+| Generic native SSR component lane                     | Remove                                                                                                                                |
+| Executable target-neutral JSX fallback                | Remove                                                                                                                                |
+| Runtime-created compatibility artifacts               | Replace with precompiled compatibility artifacts                                                                                      |
+| React-private node representation                     | Keep private only if required inside the island; never carry a native child, invoke a native component, or become the native boundary |
+| Focused DOM, reactive, task, and SSR operations       | Retain when explicitly imported by generated code                                                                                     |
+| Test-only raw fixtures                                | Compile fixtures or isolate explicit test-only infrastructure                                                                         |
 
 ## Performance design
 
@@ -685,8 +851,11 @@ disposal behind the artifact. Migrate native roots and remove the generic functi
 from native DOM mounting.
 
 **Exit gate:** native mounts cannot reach general component construction, `renderInstance`,
-component-wide rerendering, or generic child normalization; parent artifacts contain no child
-dirtiness or operation-mask routing.
+component-wide rerendering, or generic child normalization for native component dispatch; parent
+artifacts contain no child dirtiness or operation-mask routing. Focused range operations needed by
+not-yet-migrated component interiors may remain until Phase 3, but a native component encountered in
+one of those ranges already enters through its target ABI rather than a general function-component
+branch.
 
 ### Phase 3: Exhaustive component interiors
 
@@ -774,6 +943,13 @@ Each phase is one complete architectural slice:
 10. compare the result with both Phase 0 and the preceding accepted phase;
 11. explain every regression before proceeding; and
 12. verify that no task-owned Node, Bun, Chrome, PowerShell, or compiler process remains.
+
+“Valid results” in this proposal means correctness-gated, structurally applicable, complete,
+deterministic evidence collected in the recorded environment. The framework-comparison suite's
+separate specialist-review decision controls whether that project may publish a result as an
+independent framework comparison; it does not determine whether the same complete raw run may enter
+a component-local target ABI checkpoint. Checkpoints retain that publication status so the two
+claims cannot be confused.
 
 Targeted mid-phase measurements may guide a named implementation choice after the affected behavior
 is correct. They remain diagnostic, report all metrics they collect, and never replace or update an

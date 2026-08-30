@@ -5,10 +5,11 @@ import { type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { createEffectScope, flushSync } from '@exactjs/reactive';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, unmount } from './index.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
 import './runtime/modal.js';
 import { bindModalOpen } from './modal/binding.js';
-import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
+import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 
 const modalDialogs = new WeakSet<HTMLDialogElement>();
 const restorations: Array<() => void> = [];
@@ -25,7 +26,7 @@ describe('@exactjs/dom modal binding', () => {
 			instance = this;
 			this.state.open = true;
 			return () =>
-				createCompiledVNode('dialog', {
+				createCompiledOperation('dialog', {
 					__exactModalOpen: createExpression(() => this.state.open),
 					__exactBindModalToggle: publishModalState(this),
 					__exactBindModalClose: publishModalState(this)

@@ -1,6 +1,7 @@
 export {
 	deleteIndexedReactiveValue,
 	deleteReactiveValue,
+	createIndexedReactiveValue,
 	mutateReactiveArray,
 	mutateReactiveCollection,
 	peek,
@@ -9,7 +10,7 @@ export {
 	updateIndexedReactiveValueWithResult,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
-	writeIndexedReactiveLazy,
+	writeIndexedReactiveValue,
 	writeReactiveLazy
 } from '@exactjs/reactive/framework/runtime';
 export { createDerived } from '../component/derived.js';

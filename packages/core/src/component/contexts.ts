@@ -16,6 +16,6 @@ export const ErrorContext = createContext<ErrorContextValue>('exact.error', {
 	reactive: false
 });
 /** Provides the canonical suspension context value. */
-export const SuspensionContext = createContext<SuspensionContextValue>('exact.suspension');
+export const SuspensionContext = createContext<SuspensionContextValue>('exact.suspension', true);
 /** Provides generation-bound readiness to blocking descendant work. */
-export const ReadinessContext = createContext<ReadinessContextValue>('exact.readiness');
+export const ReadinessContext = createContext<ReadinessContextValue>('exact.readiness', true);

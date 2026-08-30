@@ -23,10 +23,19 @@
 		"./root": {
 			"types": "./dist/root.d.ts",
 			"default": "./dist/root.js"
+		},
+		"./framework/component-root": {
+			"types": "./dist/framework/component-root.d.ts",
+			"default": "./dist/framework/component-root.js"
+		},
+		"./framework/client-bootstrap": {
+			"types": "./dist/framework/client-bootstrap.d.ts",
+			"default": "./dist/framework/client-bootstrap.js"
 		}
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",

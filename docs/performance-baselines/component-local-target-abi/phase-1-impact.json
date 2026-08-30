@@ -1,0 +1,75 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 1,
+	"recordedAt": "2026-08-26T14:13:00.0000000-07:00",
+	"mechanisms": [
+		"Replace the composed version-2 definition record with one versioned executable artifact selected by physical target.",
+		"Separate inert build facts from client and server executable ABI contracts.",
+		"Validate malformed, mixed-target, and obsolete artifacts once at the build or prepared-artifact boundary."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "target ABI artifact records",
+			"classification": "temporary-regression",
+			"removalPhase": 2,
+			"metrics": [
+				"client artifact raw, gzip, and Brotli bytes",
+				"decoded and executed client JavaScript",
+				"profiled and invoked function count"
+			],
+			"structuralEvidence": [
+				"every client export carries exactly one current client artifact",
+				"every server export carries exactly one current server artifact",
+				"no version-2 definition reader remains"
+			],
+			"counterMetrics": [
+				"native target artifact count",
+				"generic renderer import count",
+				"runtime-created artifact count"
+			]
+		},
+		{
+			"name": "runtime and build artifact validation",
+			"classification": "stable",
+			"metrics": [
+				"clean and incremental build time",
+				"compiler transform latency",
+				"browser and SSR correctness"
+			],
+			"structuralEvidence": [
+				"obsolete and mixed-target records fail at the owning boundary",
+				"runtime bundles omit inert build inspection metadata"
+			],
+			"counterMetrics": [
+				"compiled file count",
+				"production artifact identity",
+				"semantic response identity"
+			]
+		},
+		{
+			"name": "component behavior",
+			"classification": "stable",
+			"metrics": [
+				"mount, hydration, and lifecycle behavior",
+				"state and prop update behavior",
+				"Node and Bun SSR behavior",
+				"continuation authorization"
+			],
+			"structuralEvidence": [
+				"Phase 1 changes artifact ownership and validation without changing supported source semantics",
+				"existing execution lanes remain behaviorally reachable until their named removal phases"
+			],
+			"counterMetrics": [
+				"lifecycle ownership counts",
+				"SSR response hashes",
+				"continuation allowlist tests"
+			]
+		}
+	]
+}

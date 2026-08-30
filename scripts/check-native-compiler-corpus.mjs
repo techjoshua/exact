@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -8,6 +9,7 @@ import { loadExactPackageEnhancements } from '../packages/config/dist/node.js';
 import { preparePackageEnhancementSource } from '../packages/compiler/dist/compilation/package-enhancements.js';
 
 import { discoverNativeCompilerCorpus } from './native-compiler-corpus/discovery.mjs';
+import { createComponentLocalTargetAbiStructuralReport } from './component-local-target-abi/structural-report.mjs';
 import {
 	nativeBaselineComparison,
 	medianNativeCorpusResult,
@@ -66,6 +68,7 @@ const corpusInput = {
 		return {
 			config,
 			filenames,
+			...reactCorpusInterop(config, filenames),
 			packageEnhancementSuffixes: Object.fromEntries(
 				filenames.flatMap((filename) => {
 					const prepared = preparePackageEnhancementSource('', filename, packageEnhancements);
@@ -75,6 +78,81 @@ const corpusInput = {
 		};
 	})
 };
+
+/** Mirrors the default build-owned React adapter for projects that explicitly depend on it. */
+function reactCorpusInterop(config, filenames) {
+	let directory = path.dirname(config);
+	while (true) {
+		try {
+			const manifest = JSON.parse(readFileSync(path.join(directory, 'package.json'), 'utf8'));
+			const dependencies = { ...manifest.dependencies, ...manifest.devDependencies };
+			if (dependencies['@exactjs/react-compat'])
+				return {
+					jsxInterop: {
+						adapterModule: '@exactjs/react-compat/exact',
+						adapterExport: 'adaptReactComponent',
+						exactComponents: corpusRelativeExactComponents(filenames)
+					}
+				};
+			return {};
+		} catch (error) {
+			if (error?.code !== 'ENOENT') throw error;
+		}
+		const parent = path.dirname(directory);
+		if (parent === directory) return {};
+		directory = parent;
+	}
+}
+
+/**
+ * Supplies the project-relative native facts that the production facade normally classifies per
+ * transform. React-authored source remains foreign; published packages retain their protocol facts.
+ */
+function corpusRelativeExactComponents(filenames) {
+	const sourceByFile = new Map(
+		filenames.map((filename) => [path.resolve(filename), readFileSync(filename, 'utf8')])
+	);
+	const facts = new Map();
+	for (const [filename, source] of sourceByFile) {
+		const imports = source.matchAll(
+			/import\s+(?:type\s+)?(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*['"]([^'"]+)['"]/g
+		);
+		for (const match of imports) {
+			const moduleSpecifier = match[3];
+			const frameworkPackage =
+				moduleSpecifier?.startsWith('@exactjs/') && !moduleSpecifier.startsWith('@exactjs/react-');
+			if (!moduleSpecifier?.startsWith('.') && !frameworkPackage) continue;
+			const target = moduleSpecifier.startsWith('.')
+				? resolveCorpusSource(filename, moduleSpecifier, sourceByFile)
+				: undefined;
+			if (target && /@jsxImportSource\s+react\b/.test(sourceByFile.get(target) ?? '')) continue;
+			if (match[1])
+				facts.set(`${moduleSpecifier}\0default`, { moduleSpecifier, exportName: 'default' });
+			for (const binding of (match[2] ?? '').split(',')) {
+				const exported = binding
+					.trim()
+					.replace(/^type\s+/, '')
+					.split(/\s+as\s+/)[0];
+				if (exported)
+					facts.set(`${moduleSpecifier}\0${exported}`, { moduleSpecifier, exportName: exported });
+			}
+		}
+	}
+	return [...facts.values()];
+}
+
+function resolveCorpusSource(importer, moduleSpecifier, sourceByFile) {
+	const resolved = path.resolve(path.dirname(importer), moduleSpecifier);
+	const stem = resolved.replace(/\.(?:m?js|jsx)$/, '');
+	for (const candidate of [
+		resolved,
+		`${stem}.ts`,
+		`${stem}.tsx`,
+		path.join(stem, 'index.ts'),
+		path.join(stem, 'index.tsx')
+	])
+		if (sourceByFile.has(candidate)) return candidate;
+}
 const samples = [];
 for (let sample = 0; sample < sampleCount; sample += 1) {
 	const started = performance.now();
@@ -88,9 +166,39 @@ for (let sample = 0; sample < sampleCount; sample += 1) {
 	incrementalSamples.push(await runNativeCorpus({ ...corpusInput, mode: 'incremental' }));
 }
 const incrementalResult = medianNativeCorpusResult(incrementalSamples);
+// Structural coverage is deliberately outside the timed samples. Compile the same synchronized
+// production source set for both target projections so timing and evidence cannot contaminate one
+// another or silently substitute the target-neutral projection for a target artifact.
+const structuralResult = await runNativeCorpus({ ...corpusInput, mode: 'structure' });
+const structuralReport = createComponentLocalTargetAbiStructuralReport(
+	structuralResult.projects.flatMap((project) =>
+		Object.entries(project.structureByTarget ?? {}).map(([target, counts]) => ({
+			id: path.relative(root, project.config).replaceAll('\\', '/'),
+			target,
+			boundary: corpusProjectBoundary(project.config),
+			counts
+		}))
+	)
+);
+
+/** Classifies project ownership without removing foreign source from the synchronized corpus. */
+function corpusProjectBoundary(config) {
+	const relative = path.relative(root, config).replaceAll('\\', '/');
+	if (
+		relative.startsWith('packages/react-') ||
+		relative.startsWith('react-adapters/') ||
+		relative.startsWith('apps/react-')
+	)
+		return 'react';
+	if (relative.startsWith('plugins/')) return 'plugin';
+	return 'native';
+}
 const incrementalElapsedByConfig = medianNativeProjectElapsedMs(incrementalSamples);
 const incrementalByConfig = new Map(
 	incrementalResult.projects.map((project) => [project.config, project])
+);
+const structuralByConfig = new Map(
+	structuralResult.projects.map((project) => [project.config, project])
 );
 const elapsedMs = result.elapsedMs;
 const fileCount = result.fileCount;
@@ -98,6 +206,7 @@ const projectCount = groups.size;
 const outputBytes = result.outputBytes;
 const phaseMicroseconds = result.phaseMicroseconds;
 const counters = result.counters;
+const structure = result.structure;
 const projects = result.projects
 	.map((project) => ({
 		...project,
@@ -109,7 +218,10 @@ const projects = result.projects
 			incrementalElapsedByConfig.get(project.config) ??
 			incrementalByConfig.get(project.config)?.elapsedMs,
 		incrementalPhaseMicroseconds: incrementalByConfig.get(project.config)?.phaseMicroseconds,
-		incrementalCounters: incrementalByConfig.get(project.config)?.counters
+		incrementalCounters: incrementalByConfig.get(project.config)?.counters,
+		structureByTarget: structuralByConfig.get(project.config)?.structureByTarget,
+		genericSsrFiles: structuralByConfig.get(project.config)?.genericSsrFiles,
+		structure: project.structure
 	}))
 	.sort((left, right) => right.elapsedMs - left.elapsedMs);
 const baseline = await readNativeCompilerCorpusBaseline(root);
@@ -133,6 +245,8 @@ const record = {
 	outputBytes,
 	phaseMicroseconds,
 	counters,
+	structure,
+	structuralReport,
 	incrementalPhaseMicroseconds: incrementalResult.phaseMicroseconds,
 	incrementalCounters: incrementalResult.counters,
 	projects,
@@ -176,6 +290,11 @@ for (const [phase, microseconds] of Object.entries(phaseMicroseconds).sort(
 	console.log(`  ${phase.padEnd(28)} ${(microseconds / 1_000_000).toFixed(2)}s worker time`);
 for (const [counter, value] of Object.entries(counters).sort(([, left], [, right]) => right - left))
 	console.log(`  ${counter.padEnd(28)} ${value}`);
+console.log('  target artifact structure');
+for (const [field, value] of Object.entries(structuralReport.native.totals).sort(
+	([left], [right]) => left.localeCompare(right)
+))
+	console.log(`    ${field.padEnd(34)} ${value}`);
 console.log('  incremental edit totals');
 for (const [phase, microseconds] of Object.entries(incrementalResult.phaseMicroseconds).sort(
 	([, left], [, right]) => right - left

@@ -88,6 +88,7 @@ export default tseslint.config(
 		ignores: [
 			'**/*.test.{ts,tsx}',
 			'**/*.spec.{ts,tsx}',
+			'**/*.fixtures.tsx',
 			'**/test-fixtures/**',
 			'**/test-support/**',
 			'**/*.config.ts',

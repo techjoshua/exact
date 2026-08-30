@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { type AnyComponentFunction, createVNode, type Component } from '@exactjs/core';
+import { type AnyComponentFunction } from '@exactjs/core';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import '@exactjs/core/runtime/refs';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
@@ -18,7 +19,7 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
-import { createTestVNode, markTestComponent } from '@exactjs/testing/internal/fixtures';
+import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -55,11 +56,14 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 			contract: serverContract,
 			invocations: {}
 		};
-		const rendered = await renderToHydratableStringAsync(createVNode(ServerSearch, {}), {
-			endpoint: '/__exact',
-			continuations: clientContracts.continuations,
-			buildKey: 'loopback-build'
-		});
+		const rendered = await renderToHydratableStringAsync(
+			createCompiledComponentReceipt(ServerSearch, {}),
+			{
+				endpoint: '/__exact',
+				continuations: clientContracts.continuations,
+				buildKey: 'loopback-build'
+			}
+		);
 		expect(rendered.html).toContain('FIRST');
 		expect(rendered.resumptions).toEqual([
 			expect.objectContaining({
@@ -71,15 +75,24 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		container.innerHTML = rendered.htmlWithHydration;
 		const serverOutput = container.querySelector('output');
 		const serverStatus = container.querySelector('[data-status]');
-		const client = hydrate(createVNode(ClientSearch, {}), container, {
+		const client = hydrate(createCompiledComponentReceipt(ClientSearch, {}), container, {
 			endpoint: '/__exact',
 			buildKey: 'loopback-build',
 			batch: false,
 			continuations: clientContracts.continuations,
-			fetch: loopbackFetch(server, requests)
+			fetch: loopbackFetch(server, requests),
+			logger: {
+				log(event) {
+					if (event.error !== undefined) throw event.error;
+				}
+			},
+			onErrorReport(report) {
+				throw report.error;
+			}
 		});
 		await client.whenSettled();
 
+		expect(container.innerHTML).toContain('FIRST');
 		expect(container.querySelector('output')?.textContent).toBe('FIRST');
 		expect(container.querySelector('output')).toBe(serverOutput);
 		expect(container.querySelector('[data-status]')).toBe(serverStatus);
@@ -170,9 +183,32 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		const originalFetch = globalThis.fetch;
 		globalThis.fetch = fetch as typeof globalThis.fetch;
 		const container = document.createElement('main');
+		const billingContainer = document.createElement('div');
+		const brandingContainer = document.createElement('div');
+		container.append(billingContainer, brandingContainer);
 		document.body.append(container);
+		const mountHiddenRoots = () => {
+			render(
+				createTestOperation(RemoteComponent, {
+					binding: 'billing',
+					props: { name: 'billing' }
+				}),
+				billingContainer
+			);
+			render(
+				createTestOperation(RemoteComponent, {
+					binding: 'branding',
+					props: { name: 'branding' }
+				}),
+				brandingContainer
+			);
+		};
+		const unmountHiddenRoots = () => {
+			unmount(billingContainer);
+			unmount(brandingContainer);
+		};
 		try {
-			render(createTestVNode(HiddenRootTasks, null), container);
+			mountHiddenRoots();
 			await vi.waitFor(() => {
 				expect(
 					container.querySelector('[data-result="billing"]')?.textContent,
@@ -208,17 +244,17 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 			);
 			// Exercise disposal while the requests are still owned. Settled task frames deliberately
 			// release their controllers so completed requests do not remain retained until unmount.
-			unmount(container);
+			unmountHiddenRoots();
 			holdResponsesUntilAbort = true;
 			exchanges.length = 0;
-			render(createTestVNode(HiddenRootTasks, null), container);
+			mountHiddenRoots();
 			await vi.waitFor(() => expect(exchanges).toHaveLength(2));
 			const signals = exchanges.map((exchange) => exchange.signal);
-			unmount(container);
+			unmountHiddenRoots();
 			expect(signals.every((signal) => signal?.aborted)).toBe(true);
 		} finally {
 			globalThis.fetch = originalFetch;
-			if (container.childNodes.length) unmount(container);
+			unmountHiddenRoots();
 			container.remove();
 			delete moduleHost.__exactHiddenRootbilling;
 			delete moduleHost.__exactHiddenRootbranding;
@@ -227,16 +263,6 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 });
 
 const RemoteComponent = markTestComponent(RemoteComponentDefinition);
-
-function HiddenRootTasks(this: Component<Record<string, never>>) {
-	return () =>
-		createVNode(
-			'section',
-			null,
-			createVNode(RemoteComponent, { binding: 'billing', props: { name: 'billing' } }),
-			createVNode(RemoteComponent, { binding: 'branding', props: { name: 'branding' } })
-		);
-}
 
 async function compileRemoteTask(root: string, name: string) {
 	const sourceRoot = path.join(root, name, 'src');

@@ -28,3 +28,8 @@ export function unwrap<T>(value: T): T {
 	if (isReactive(value)) return (value as { [rawTarget]: T })[rawTarget];
 	return value;
 }
+
+/** Rejects mutation through a readonly reactive-value reference. */
+export function rejectReadonlyReactiveValueWrite(): never {
+	throw new TypeError('Cannot write to readonly reactive value');
+}

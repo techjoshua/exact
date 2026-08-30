@@ -2,19 +2,37 @@
  * @vitest-environment jsdom
  */
 import '@exactjs/core/runtime/lists';
-import {
-	createErrorContext,
-	currentInteraction,
-	ErrorBoundary,
-	ErrorContext,
-	type Component,
-	type ErrorReport
-} from '@exactjs/core';
+import { currentInteraction, type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
-import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
+import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { render, unmount } from './index.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	ConstructionFailureBoundary,
+	CustomFallbackBoundary,
+	DefaultRetryBoundary,
+	DelegatedReplacement,
+	DirectEventFailureBoundary,
+	EventFailureBoundary,
+	NestedFailingFallbackBoundary,
+	NestedParentBoundary,
+	RemovingEventHandler,
+	ReplacingEventHandler,
+	allowRetrySuccess,
+	constructionFailureBoundaryInstance,
+	delegatedReplacementInstance,
+	directEventFailureBoundaryInstance,
+	eventCounts,
+	eventFailureBoundaryInstance,
+	nestedBoundaryInstances,
+	removingEventHandlerInstance,
+	replacingEventHandlerInstance,
+	resetCustomFallback,
+	resetEventErrorFixtures,
+	retryConstructionCount
+} from './events-errors.fixtures.js';
 import { directInteractionKey } from './events.js';
 import { eventHandlers } from './state.js';
 
@@ -276,21 +294,10 @@ describe('@exactjs/dom events-errors', () => {
 	});
 
 	it('does not retain delegated event handlers after DOM replacement', () => {
-		let instance!: Component<{ asButton: boolean }>;
-		const clicked = vi.fn();
-
-		function Switcher(this: Component<{ asButton: boolean }>) {
-			instance = this;
-			this.state.asButton = true;
-
-			return () =>
-				this.state.asButton == true
-					? jsx('button', { onClick: clicked, children: 'Old' })
-					: jsx('span', { children: 'New' });
-		}
-
+		resetEventErrorFixtures();
 		const container = document.createElement('div');
-		render(jsx(Switcher, {}), container);
+		render(jsx(DelegatedReplacement, {}), container);
+		const instance = delegatedReplacementInstance();
 		const oldButton = container.querySelector('button')!;
 
 		instance.state.asButton = false;
@@ -298,7 +305,7 @@ describe('@exactjs/dom events-errors', () => {
 		container.appendChild(oldButton);
 		oldButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-		expect(clicked).not.toHaveBeenCalled();
+		expect(eventCounts.replaced).toBe(0);
 	});
 
 	it('delegates events and preserves instance access', () => {
@@ -368,26 +375,9 @@ describe('@exactjs/dom events-errors', () => {
 	});
 
 	it('routes event handler failures to the nearest error context', () => {
-		let panel!: Component<{ errors: ErrorReport[] }>;
-
-		function Panel(this: Component<{ errors: ErrorReport[] }>) {
-			panel = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-
-			return () =>
-				this.state.errors.length
-					? jsx('p', { children: 'Recovered' })
-					: jsx('button', {
-							onClick: () => {
-								throw new Error('click failed');
-							},
-							children: 'Break'
-						});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Panel, {}), container);
+		render(jsx(EventFailureBoundary, {}), container);
+		const panel = eventFailureBoundaryInstance();
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
 
@@ -398,22 +388,9 @@ describe('@exactjs/dom events-errors', () => {
 	});
 
 	it('routes direct event handler failures to the nearest error context', () => {
-		let panel!: Component<{ errors: ErrorReport[] }>;
-		function Panel(this: Component<{ errors: ErrorReport[] }>) {
-			panel = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-			return () =>
-				this.state.errors.length
-					? jsx('p', { children: 'Recovered' })
-					: jsx('input', {
-							onFocus: () => {
-								throw new Error('focus failed');
-							}
-						});
-		}
 		const container = document.createElement('div');
-		render(jsx(Panel, {}), container);
+		render(jsx(DirectEventFailureBoundary, {}), container);
+		const panel = directEventFailureBoundaryInstance();
 		container.querySelector('input')!.dispatchEvent(new FocusEvent('focus'));
 		flushSync();
 		expect(panel.state.errors[0]!.source).toBe('event');
@@ -421,38 +398,9 @@ describe('@exactjs/dom events-errors', () => {
 	});
 
 	it('routes failures to the nearest nested error context only', () => {
-		let parent!: Component<{ errors: ErrorReport[] }>;
-		let child!: Component<{ errors: ErrorReport[] }>;
-
-		function ChildBoundary(this: Component<{ errors: ErrorReport[] }>) {
-			child = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-
-			return () =>
-				this.state.errors.length
-					? jsx('p', { children: 'Child recovered' })
-					: jsx('button', {
-							onClick: () => {
-								throw new Error('child failed');
-							},
-							children: 'Break child'
-						});
-		}
-
-		function ParentBoundary(this: Component<{ errors: ErrorReport[] }>) {
-			parent = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-
-			return () =>
-				this.state.errors.length
-					? jsx('p', { children: 'Parent recovered' })
-					: jsx('section', { children: jsx(ChildBoundary, {}) });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(ParentBoundary, {}), container);
+		render(jsx(NestedParentBoundary, {}), container);
+		const [parent, child] = nestedBoundaryInstances();
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
 
@@ -462,27 +410,9 @@ describe('@exactjs/dom events-errors', () => {
 	});
 
 	it('routes child construction failures to the nearest parent error context', () => {
-		let parent!: Component<{ errors: ErrorReport[] }>;
-
-		function Broken(): never {
-			throw new Error('construct failed');
-		}
-
-		function Parent(this: Component<{ errors: ErrorReport[] }>) {
-			parent = this;
-			this.state.errors = [];
-			this.setContext(ErrorContext, createErrorContext(this.state.errors));
-
-			return () =>
-				this.state.errors.length
-					? jsx('p', { children: 'Child failed' })
-					: jsx('section', {
-							children: jsx(Broken, {})
-						});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(jsx(ConstructionFailureBoundary, {}), container);
+		const parent = constructionFailureBoundaryInstance();
 		flushSync();
 
 		expect(parent.state.errors).toHaveLength(1);
@@ -491,87 +421,38 @@ describe('@exactjs/dom events-errors', () => {
 	});
 
 	it('provides a default error boundary that can retry a failed subtree', () => {
-		let shouldFail = true;
-		let constructions = 0;
-
-		function Child() {
-			constructions++;
-			if (shouldFail) throw new Error('construct failed');
-			return () => jsx('p', { children: 'Recovered' });
-		}
-
+		resetEventErrorFixtures();
 		const container = document.createElement('div');
-		render(jsx(ErrorBoundary, { children: jsx(Child, {}) }), container);
+		render(jsx(DefaultRetryBoundary, {}), container);
 		flushSync();
 
 		expect(container.textContent).toContain('Application error');
 		expect(container.textContent).toContain('construct failed');
 
-		shouldFail = false;
+		allowRetrySuccess();
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
 
 		expect(container.textContent).toBe('Recovered');
-		expect(constructions).toBe(2);
+		expect(retryConstructionCount()).toBe(2);
 	});
 
 	it('supplies captured reports and reset to a custom error boundary fallback', () => {
-		let reset!: () => void;
-
-		function Broken() {
-			return () =>
-				jsx('button', {
-					onClick: () => {
-						throw new Error('event failed');
-					},
-					children: 'Break'
-				});
-		}
-
+		resetEventErrorFixtures();
 		const container = document.createElement('div');
-		render(
-			jsx(ErrorBoundary, {
-				fallback: ({ error, reset: retry }) => {
-					reset = retry;
-					return jsx('p', { children: `${error.source}:${String(error.error)}` });
-				},
-				children: jsx(Broken, {})
-			}),
-			container
-		);
+		render(jsx(CustomFallbackBoundary, {}), container);
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
 
 		expect(container.textContent).toContain('event:Error: event failed');
-		reset();
+		resetCustomFallback();
 		flushSync();
 		expect(container.textContent).toBe('Break');
 	});
 
 	it('routes a failing fallback to the next enclosing error boundary', () => {
-		function Broken() {
-			return () =>
-				jsx('button', {
-					onClick: () => {
-						throw new Error('child failed');
-					},
-					children: 'Break'
-				});
-		}
-
 		const container = document.createElement('div');
-		render(
-			jsx(ErrorBoundary, {
-				fallback: ({ error }) => jsx('p', { children: `Outer: ${String(error.error)}` }),
-				children: jsx(ErrorBoundary, {
-					fallback: () => {
-						throw new Error('fallback failed');
-					},
-					children: jsx(Broken, {})
-				})
-			}),
-			container
-		);
+		render(jsx(NestedFailingFallbackBoundary, {}), container);
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
 
@@ -579,23 +460,10 @@ describe('@exactjs/dom events-errors', () => {
 	});
 
 	it('replaces delegated event handlers', () => {
-		let button!: Component<{ mode: 'a' | 'b' }>;
-		const first = vi.fn();
-		const second = vi.fn();
-
-		function Button(this: Component<{ mode: 'a' | 'b' }>) {
-			button = this;
-			this.state.mode = 'a';
-
-			return () =>
-				jsx('button', {
-					onClick: this.state.mode == 'a' ? first : second,
-					children: 'Click'
-				});
-		}
-
+		resetEventErrorFixtures();
 		const container = document.createElement('div');
-		render(jsx(Button, {}), container);
+		render(jsx(ReplacingEventHandler, {}), container);
+		const button = replacingEventHandlerInstance();
 		const element = container.querySelector('button')!;
 
 		element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -603,26 +471,15 @@ describe('@exactjs/dom events-errors', () => {
 		flushSync();
 		element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-		expect(first).toHaveBeenCalledTimes(1);
-		expect(second).toHaveBeenCalledTimes(1);
+		expect(eventCounts.first).toBe(1);
+		expect(eventCounts.second).toBe(1);
 	});
 
 	it('removes delegated event handlers', () => {
-		let button!: Component<{ enabled: boolean }>;
-		const clicked = vi.fn();
-
-		function Button(this: Component<{ enabled: boolean }>) {
-			button = this;
-			this.state.enabled = true;
-
-			return () =>
-				this.state.enabled == true
-					? jsx('button', { onClick: clicked, children: 'Click' })
-					: jsx('button', { children: 'Click' });
-		}
-
+		resetEventErrorFixtures();
 		const container = document.createElement('div');
-		render(jsx(Button, {}), container);
+		render(jsx(RemovingEventHandler, {}), container);
+		const button = removingEventHandlerInstance();
 		const element = container.querySelector('button')!;
 
 		element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -630,7 +487,7 @@ describe('@exactjs/dom events-errors', () => {
 		flushSync();
 		element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-		expect(clicked).toHaveBeenCalledTimes(1);
+		expect(eventCounts.removable).toBe(1);
 	});
 
 	it('keeps compiled controlled select values stable through change events', () => {
@@ -644,15 +501,15 @@ describe('@exactjs/dom events-errors', () => {
 			this.state.label = 'Ready';
 
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'label',
 					{},
-					createCompiledVNode(
+					createCompiledOperation(
 						'span',
 						{},
 						createExpression(() => this.state.label)
 					),
-					createCompiledVNode(
+					createCompiledOperation(
 						'select',
 						{
 							value: createExpression(() => this.state.priority),
@@ -663,15 +520,15 @@ describe('@exactjs/dom events-errors', () => {
 									| 'high';
 							}
 						},
-						createCompiledVNode('option', { value: 'low' }, 'low'),
-						createCompiledVNode('option', { value: 'medium' }, 'medium'),
-						createCompiledVNode('option', { value: 'high' }, 'high')
+						createCompiledOperation('option', { value: 'low' }, 'low'),
+						createCompiledOperation('option', { value: 'medium' }, 'medium'),
+						createCompiledOperation('option', { value: 'high' }, 'high')
 					)
 				);
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(PrioritySelect, {}), container);
+		render(createCompiledOperation(PrioritySelect, {}), container);
 		const select = container.querySelector('select')!;
 
 		expect(select.value).toBe('medium');

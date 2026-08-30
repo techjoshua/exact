@@ -17,7 +17,7 @@ function startBunHost(options) {
 		async fetch(request) {
 			const pathname = new URL(request.url).pathname;
 			return pathname.startsWith('/__exact-benchmark/')
-				? options.handleFetchControl(pathname)
+				? options.handleFetchControl(request)
 				: options.handleFetchRequest(request);
 		}
 	});
@@ -35,7 +35,7 @@ async function startNodeHost(options) {
 	const server = createServer((request, response) => {
 		const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
 		if (pathname.startsWith('/__exact-benchmark/'))
-			void options.handleNodeControl(pathname, response);
+			void options.handleNodeControl(request, response);
 		else options.handleNodeRequest(request, response);
 	});
 	server.on('connection', (socket) => {

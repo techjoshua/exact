@@ -1,3 +1,4 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it } from 'vitest';
 import {
 	createContext,
@@ -7,7 +8,6 @@ import {
 	markExactInspectionSource,
 	type Component
 } from '../index.js';
-import { createFrameworkFixtureComponentInstance } from '../runtime/render.js';
 import { createFrameworkComponentDomain } from './domain.js';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
 
@@ -33,7 +33,7 @@ describe('component runtime inspection', () => {
 
 		instance.markMounted();
 		instance.state.count = 2;
-		instance.updateProps({});
+		instance.receiveProps([], {}, []);
 		instance.unmount();
 
 		expect(events.map((event) => event.kind)).toEqual([

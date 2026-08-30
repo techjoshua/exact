@@ -12,7 +12,6 @@ import { LoggerContext } from './contexts.js';
 import { componentDomainLogging } from './domain.js';
 
 import {
-	createConsoleLogger,
 	type ComponentLog,
 	type LazyLogValue,
 	type LogEvent,
@@ -20,9 +19,9 @@ import {
 	type LogLevel,
 	type LogScope
 } from '../logging.js';
+import { defaultConsoleLogger } from './default-logger.js';
 
-/** Provides the canonical default console logger value. */
-export const defaultConsoleLogger = createConsoleLogger();
+export { defaultConsoleLogger } from './default-logger.js';
 
 /** Emits a framework-scoped log event through the supplied or default logger. */
 export function logFrameworkEvent(

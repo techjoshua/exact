@@ -1,48 +1,70 @@
-import { type AnyComponentInstance, isVNode } from '@exactjs/core';
-import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
+import { type AnyComponentInstance } from '@exactjs/core';
+import { executeOpaqueOperation } from '@exactjs/core/runtime/component-operations';
+import {
+	readPreparedServerComponentReference,
+	readPreparedServerChildRange,
+	readPreparedServerKeyedChild,
+	readPreparedServerRenderProgram
+} from '@exactjs/core/framework/server-render-structure';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { escapeText } from '../html.js';
 import type { Child, SsrContext } from '../types.js';
-import { boundedJoin, countSsrNode } from './limits.js';
 import { claimRootText } from './host.js';
-import { renderVNode } from './sync-tree.js';
-import { renderPreparedSsrProgramString } from './render-program.js';
+import { appendBoundedHtml, countSsrNode, enterSsrTreeDepth, leaveSsrTreeDepth } from './limits.js';
+import { SyncSsrOperationTarget } from './sync-operation-target.js';
+import { captureNestedEnhancementStringPrefix } from './operation-enhancements.js';
 
-/** Serializes primitive and vnode children while preserving adjacent text hydration boundaries. */
+/** Serializes opaque native operations and scalar children without component classification. */
 export function renderChildren(
 	context: SsrContext,
 	children: readonly Child[],
 	parent?: AnyComponentInstance,
 	hasComponentAncestor = false
 ): string {
-	const html: string[] = [];
+	let html = '';
 	let previousWasText = false;
+	const target = new SyncSsrOperationTarget(context, parent, hasComponentAncestor, renderChildren);
 	for (const child of children) {
+		countSsrNode(context);
 		let rendered: string;
+		let isText = false;
 		const program = readPreparedServerRenderProgram(child);
-		if (program)
-			rendered = renderPreparedSsrProgramString(
-				context,
-				program,
-				parent,
-				(fallback) => renderVNode(context, fallback, parent, hasComponentAncestor),
-				(programChildren) => renderChildren(context, programChildren, parent, hasComponentAncestor),
-				(component) => renderVNode(context, component, parent, hasComponentAncestor, true)
-			);
-		else if (isVNode(child)) rendered = renderVNode(context, child, parent, hasComponentAncestor);
+		const component = program ? undefined : readPreparedServerComponentReference(child);
+		const range = program || component ? undefined : readPreparedServerChildRange(child);
+		const keyed = program || component || range ? undefined : readPreparedServerKeyedChild(child);
+		if (program) rendered = target.renderPreparedServerProgram(program);
+		else if (component) rendered = target.renderDirectServerComponent(component);
+		else if (range) rendered = target.renderDirectServerChildRange(range);
+		else if (keyed) rendered = target.renderDirectServerKeyedChild(keyed);
 		else {
-			countSsrNode(context);
-			if (child === null || child === undefined || child === false || child === true) rendered = '';
+			enterSsrTreeDepth(context);
+			let executed: ReturnType<typeof executeOpaqueOperation<string>>;
+			try {
+				executed = executeOpaqueOperation<string>(child, target);
+			} finally {
+				leaveSsrTreeDepth(context);
+			}
+			if (executed) rendered = executed.value;
 			else {
-				claimRootText(context);
-				rendered = escapeText(String(unwrap(child)));
+				const value = unwrap(child);
+				if (value === null || value === undefined || value === false || value === true)
+					rendered = '';
+				else {
+					if (typeof value === 'object' || typeof value === 'function')
+						throw new TypeError(
+							'Native SSR children require compiler-issued operations or scalar values'
+						);
+					claimRootText(context);
+					rendered = escapeText(String(value));
+					isText = rendered !== '';
+				}
 			}
 		}
-		const isText = !program && !isVNode(child) && rendered !== '';
-		if (context.textSeparators && isText && previousWasText) html.push('<!-- -->');
-		if (rendered !== '') html.push(rendered);
-		if (program || isVNode(child)) previousWasText = false;
-		else if (isText) previousWasText = true;
+		html = captureNestedEnhancementStringPrefix(context, html);
+		if (context.textSeparators && isText && previousWasText)
+			html = appendBoundedHtml(context, html, '<!-- -->');
+		if (rendered !== '') html = appendBoundedHtml(context, html, rendered);
+		previousWasText = isText;
 	}
-	return boundedJoin(context, html);
+	return html;
 }

@@ -12,6 +12,7 @@ type jsxLowering struct {
 	phase                        jsxLoweringPhase
 	sourceFile                   *ast.SourceFile
 	factory                      *printer.NodeFactory
+	emitContext                  *printer.EmitContext
 	visitor                      *ast.NodeVisitor
 	names                        jsxRuntimeNames
 	nodeIDs                      map[*ast.Node]string
@@ -44,6 +45,7 @@ type jsxLowering struct {
 	componentTagSymbols          map[ast.SymbolId]bool
 	resolvedComponentTagSymbols  map[ast.SymbolId]struct{}
 	componentDeclarationSpans    map[*ast.SourceFile][]SourceSpan
+	publishedComponentImports    map[string]bool
 	microComponents              map[ast.SymbolId]struct{}
 	renderEdges                  map[string]RenderEdge
 	clientIslands                map[*ast.Node]clientElementIsland
@@ -64,8 +66,10 @@ type jsxLowering struct {
 	componentLocalization        bool
 	externalImports              externalImportBindings
 	closedServerWriters          map[string]struct{}
+	redirectedRootImports        map[string]struct{}
 	listCapabilityUsed           bool
 	renderProgramChildDepth      int
+	renderProgramComponentDepth  int
 	renderProgramListDepth       int
 	renderProgramFallback        bool
 	serverClientFallbackDepth    int
@@ -75,6 +79,7 @@ type jsxLowering struct {
 	componentUpdates             map[string]*componentUpdateBuild
 	declarativeRenderDepth       int
 	componentRangeOutputs        map[string]struct{}
+	componentRangeReaders        map[string]struct{}
 	timeActivation               string
 	timeActivationAdopted        bool
 	timePlanNode                 *ast.Node
@@ -82,6 +87,11 @@ type jsxLowering struct {
 	timePlanInputIndexes         map[*ast.Node]int
 	timeAdoptedRanges            []timeAdoptedRange
 	timeAdoptedSelection         *timeAdoptedRange
+	structure                    ArtifactStructure
+	genericPropertyGroups        map[string]struct{}
+	parentChildRouting           map[string]struct{}
+	declinedNativeJSXReasons     map[string]int
+	genericNativeBindingReasons  map[string]int
 }
 
 type jsxLoweringPhase uint8
@@ -123,17 +133,50 @@ type timeAdoptedRange struct {
 // subsequent native passes and the TypeScript-Go printer.
 func lowerExactJSX(
 	sourceFile *ast.SourceFile,
-	factory *printer.NodeFactory,
+	emitContext *printer.EmitContext,
 	plan jsxLoweringPlan,
-) (*ast.SourceFile, map[string]string, map[string]struct{}) {
-	lowering, required := plan.prepare(sourceFile, factory)
+) (*ast.SourceFile, map[string]string, map[string]struct{}, ArtifactStructure, map[string]struct{}) {
+	lowering, required := plan.prepare(sourceFile, emitContext)
 	if !required {
-		return sourceFile, nil, nil
+		return sourceFile, nil, nil, ArtifactStructure{}, nil
 	}
 	transformed := lowering.lowerAuthoredTree(sourceFile)
 	transformed = lowering.projectTargetTree(transformed)
 	transformed, componentUpdateNames, sourceStatementCount := lowering.prepareDefinitions(transformed)
-	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames, lowering.componentRangeOutputs
+	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames, lowering.componentRangeOutputs, lowering.artifactStructure(), lowering.componentListOwners()
+}
+
+// componentListOwners returns target-local constructor facts discovered only after typed JSX
+// collection planning. Contract emission consumes these names instead of rescanning transformed
+// helper calls or losing primitive and annotated key inference.
+func (lowering *jsxLowering) componentListOwners() map[string]struct{} {
+	owners := make(map[string]struct{})
+	for name, component := range lowering.components {
+		if component.Lists {
+			owners[name] = struct{}{}
+		}
+	}
+	return owners
+}
+
+func (lowering *jsxLowering) artifactStructure() ArtifactStructure {
+	result := lowering.structure
+	result.FallbackBearingArtifacts = 0
+	result.GenericNativeBindingGroups = len(lowering.genericPropertyGroups)
+	result.ParentOwnedChildDirtyRouting = len(lowering.parentChildRouting)
+	if len(lowering.declinedNativeJSXReasons) != 0 {
+		result.DeclinedNativeJSXReasons = make(map[string]int, len(lowering.declinedNativeJSXReasons))
+		for reason, count := range lowering.declinedNativeJSXReasons {
+			result.DeclinedNativeJSXReasons[reason] = count
+		}
+	}
+	if len(lowering.genericNativeBindingReasons) != 0 {
+		result.GenericNativeBindingReasons = make(map[string]int, len(lowering.genericNativeBindingReasons))
+		for reason, count := range lowering.genericNativeBindingReasons {
+			result.GenericNativeBindingReasons[reason] = count
+		}
+	}
+	return result
 }
 
 func (lowering *jsxLowering) lowerAuthoredTree(sourceFile *ast.SourceFile) *ast.SourceFile {
@@ -143,9 +186,10 @@ func (lowering *jsxLowering) lowerAuthoredTree(sourceFile *ast.SourceFile) *ast.
 		&lowering.factory.NodeFactory,
 		ast.NodeVisitorHooks{},
 	)
-	return lowering.lowerCompilerClosedSsrCalls(
-		lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile(),
-	)
+	transformed := lowering.visitor.VisitEachChild(sourceFile.AsNode()).AsSourceFile()
+	transformed = lowering.lowerCompilerClosedSsrCalls(transformed)
+	transformed = lowering.lowerCompiledClientRootCalls(transformed)
+	return lowering.pruneRedirectedRootImports(transformed)
 }
 
 func (lowering *jsxLowering) projectTargetTree(transformed *ast.SourceFile) *ast.SourceFile {
@@ -253,6 +297,12 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return lowering.factory.NewEmptyStatement()
 		}
 	}
+	if _, focusedRange := lowering.componentRangeReaders[nodeSpanKey(node)]; focusedRange {
+		delete(lowering.componentRangeReaders, nodeSpanKey(node))
+		return lowering.call(lowering.names.dynamic, []*ast.Node{
+			lowering.arrow(lowering.visit(node)),
+		})
+	}
 	if lowering.target == TargetClient {
 		if read := lowering.lowerIndexedStateRead(node); read != nil {
 			return read
@@ -280,6 +330,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		return compiled
 	}
 	if compiled := lowering.lowerComponentLifecycleCall(node); compiled != nil {
+		return compiled
+	}
+	if compiled := lowering.lowerDirectServerSurfaceAccess(node); compiled != nil {
 		return compiled
 	}
 	if ast.IsCallExpression(node) && isComponentMapCall(node) {

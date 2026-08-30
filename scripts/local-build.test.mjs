@@ -6,6 +6,19 @@ import {
 	exactCompileWorkspaces,
 	orderExactCompileWorkspaces
 } from './exact-package-build-plan.mjs';
+import {
+	isProductionSourceDirectory,
+	isProductionSourceFile
+} from './package-source-selection.mjs';
+
+test('target-local package compilation excludes test-only support trees', () => {
+	assert.equal(isProductionSourceDirectory('runtime'), true);
+	assert.equal(isProductionSourceDirectory('test-support'), false);
+	assert.equal(isProductionSourceDirectory('__tests__'), false);
+	assert.equal(isProductionSourceFile('component.tsx', true), true);
+	assert.equal(isProductionSourceFile('component.test.tsx', true), false);
+	assert.equal(isProductionSourceFile('component.fixtures.tsx', true), false);
+});
 
 test('the root build prepares package-export prerequisites before building dependent workspaces', async () => {
 	const manifest = JSON.parse(await readFile(path.resolve('package.json'), 'utf8'));
@@ -34,6 +47,14 @@ test('the root build prepares package-export prerequisites before building depen
 	);
 	assert.equal(manifest.scripts['generate:component-library-build-facts'], undefined);
 	assert.equal(manifest.devDependencies['@typescript/native'], 'npm:typescript@^7.0.2');
+	assert.equal(
+		manifest.scripts['check:performance-admission'],
+		'npm run release:check && npm run test:router-v63 && npm run test:e2e:theme && npm run check:native-compiler-corpus'
+	);
+	assert.equal(manifest.scripts['preperformance:check'], 'npm run check:performance-admission');
+	const releaseCheck = await readFile(path.resolve('scripts/release-check.mjs'), 'utf8');
+	assert.match(releaseCheck, /if \(profile !== 'performance'\) \{\s*await run\(build\)/);
+	assert.match(releaseCheck, /profile === 'check'[\s\S]*entry\.name !== 'style'/);
 });
 
 test('target-local package compilation includes private application component libraries', async () => {
@@ -62,6 +83,31 @@ test('target-local package compilation preserves intentionally exported fixture 
 	assert.doesNotMatch(manifest.files.join('\n'), /^!.*\.fixtures\./m);
 	assert.match(compiler, /excludesFixtureArtifacts/);
 	assert.match(compiler, /isUnpublishedSupportArtifact/);
+});
+
+test('core public and narrow exports select one target-local module graph', async () => {
+	const manifest = JSON.parse(await readFile(path.resolve('packages/core/package.json'), 'utf8'));
+
+	for (const [subpath, contract] of Object.entries(manifest.exports)) {
+		assert.match(contract.browser, /^\.\/dist\/client\//, `${subpath} lacks a client export`);
+		assert.match(contract.default, /^\.\/dist\/server\//, `${subpath} lacks a server export`);
+	}
+	assert.deepEqual(manifest.sideEffects, [
+		'./dist/**/component/*-capability-integration.js',
+		'./dist/**/component/runtime-surface-*.js',
+		'./dist/**/framework/server-task-helpers.js',
+		'./dist/**/runtime/collections.js',
+		'./dist/**/runtime/component-execution.js',
+		'./dist/**/runtime/component-reactivity.js',
+		'./dist/**/runtime/component-tasks.js',
+		'./dist/**/runtime/contexts.js',
+		'./dist/**/runtime/lifecycle.js',
+		'./dist/**/runtime/lists.js',
+		'./dist/**/runtime/localization.js',
+		'./dist/**/runtime/logging.js',
+		'./dist/**/runtime/refs.js',
+		'./dist/**/runtime/tasks.js'
+	]);
 });
 
 test('target-local package compilation rejects dependency cycles', () => {

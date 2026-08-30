@@ -1,4 +1,4 @@
-import type { ExactServerComponentExecutionContract } from '@exactjs/core/framework/component-contracts';
+import type { ExactServerComponentExecution } from '@exactjs/core/framework/component-contracts';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
 import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
@@ -9,18 +9,20 @@ export function directComponentHtml(
 	componentId: string,
 	html: string,
 	props: Record<string, unknown>,
-	publication: ExactServerComponentExecutionContract['publication'],
+	publication: ExactServerComponentExecution['publication'],
 	flags: {
 		enhancement: boolean;
 		documentProbe: boolean;
 		hasComponentAncestor: boolean;
 		omitCompilerOwnedBoundary?: boolean;
+		omitRootBoundary?: boolean;
 	}
 ): string {
 	const resumable = publication?.kind === 'resumption';
 	if (
 		flags.enhancement ||
 		(flags.documentProbe && context.documentRootSeen) ||
+		flags.omitRootBoundary ||
 		(flags.omitCompilerOwnedBoundary && !resumable)
 	)
 		return html;

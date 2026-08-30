@@ -68,9 +68,16 @@ describe('compiled render programs', () => {
 				['text', 1]
 			] as const
 		});
-		const prepared = createPreparedServerRenderProgram(descriptor, ['first', 'second']);
+		const values = ['first', 'second'];
+		const prepared = createPreparedServerRenderProgram(descriptor, values);
 		const invocation = readPreparedServerRenderProgram(prepared)!;
+		expect(prepared).not.toBe(values);
 		expect(prepared).not.toHaveProperty('type');
+		expect(invocation.eagerValues).toBe(values);
+		expect(invocation.readers).toBe(
+			readPreparedServerRenderProgram(createPreparedServerRenderProgram(descriptor, ['third']))
+				?.readers
+		);
 		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
 		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
 	});
@@ -104,7 +111,6 @@ describe('compiled render programs', () => {
 				}
 			],
 			{},
-			undefined,
 			writer
 		);
 		const invocation = readRenderProgram(vnode)!;

@@ -23,7 +23,14 @@ export interface SetEnvelope {
 	readonly values: unknown[];
 }
 
-type Metadata = Readonly<{
+/**
+ * Immutable hashes and ordered keys for one validated reactive collection.
+ *
+ * Callers may reuse this metadata while encoding the same collection's current items. The key and
+ * item arrays remain positional protocol facts and must not be mutated or applied to another
+ * collection.
+ */
+export type KeyedCollectionProtocolMetadata = Readonly<{
 	keys: readonly string[];
 	keyHash: string;
 	itemHashes: readonly string[];
@@ -36,7 +43,10 @@ const hashPattern = /^[0-9a-f]{32}$/;
 export function encodeKeyedProtocolValue(
 	value: unknown,
 	extractorFor: (collection: unknown[]) => ((item: unknown) => string) | undefined,
-	metadataFor: (collection: unknown[], key?: (item: unknown) => string) => Metadata | undefined
+	metadataFor: (
+		collection: unknown[],
+		key?: (item: unknown) => string
+	) => KeyedCollectionProtocolMetadata | undefined
 ): unknown {
 	return encodeValue(value, extractorFor, metadataFor, new WeakSet(), 0);
 }
@@ -52,7 +62,10 @@ export function decodeKeyedProtocolValue(
 function encodeValue(
 	value: unknown,
 	extractorFor: (collection: unknown[]) => ((item: unknown) => string) | undefined,
-	metadataFor: (collection: unknown[], key?: (item: unknown) => string) => Metadata | undefined,
+	metadataFor: (
+		collection: unknown[],
+		key?: (item: unknown) => string
+	) => KeyedCollectionProtocolMetadata | undefined,
 	active: WeakSet<object>,
 	depth: number
 ): unknown {
@@ -83,34 +96,50 @@ function encodeValue(
 				encodeValue(item, extractorFor, metadataFor, active, depth + 1)
 			);
 			if (!metadata) return items;
-			return {
-				$exact: 'keyed-collection',
-				version: 1,
-				keys: [...metadata.keys],
-				keyHash: metadata.keyHash,
-				itemHashes: [...metadata.itemHashes],
-				itemsHash: metadata.itemsHash,
-				items
-			} satisfies KeyedCollectionEnvelope;
+			return createKeyedCollectionEnvelope(metadata, items);
 		}
 		const output: Record<string, unknown> = {};
 		for (const key of Object.keys(value))
-			Object.defineProperty(output, key, {
-				configurable: true,
-				enumerable: true,
-				writable: true,
-				value: encodeValue(
+			defineEncodedProperty(
+				output,
+				key,
+				encodeValue(
 					(value as Record<string, unknown>)[key],
 					extractorFor,
 					metadataFor,
 					active,
 					depth + 1
 				)
-			});
+			);
 		return output;
 	} finally {
 		active.delete(value);
 	}
+}
+
+/** Wraps already encoded items with one collection's stable reactive protocol metadata. */
+export function createKeyedCollectionEnvelope(
+	metadata: KeyedCollectionProtocolMetadata,
+	items: unknown[]
+): KeyedCollectionEnvelope {
+	return {
+		$exact: 'keyed-collection',
+		version: 1,
+		keys: [...metadata.keys],
+		keyHash: metadata.keyHash,
+		itemHashes: [...metadata.itemHashes],
+		itemsHash: metadata.itemsHash,
+		items
+	};
+}
+
+function defineEncodedProperty(output: Record<string, unknown>, key: string, value: unknown): void {
+	Object.defineProperty(output, key, {
+		configurable: true,
+		enumerable: true,
+		writable: true,
+		value
+	});
 }
 
 function decodeValue(

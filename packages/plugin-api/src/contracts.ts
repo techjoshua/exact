@@ -52,7 +52,7 @@ export type ExactPluginConfigTransform<T> = (
 /** Carries the context required by exact output. */
 export interface ExactOutputContext {
 	readonly kind:
-		| 'vnode'
+		| 'operation'
 		| 'html'
 		| 'hydration'
 		| 'client-boundary'

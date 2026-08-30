@@ -17,8 +17,9 @@ describe('@exactjs/compiler: component registries', () => {
 			{ filename: 'Dashboard.tsx' }
 		);
 
-		expect(output).toContain('__exactVNode(Widget.grid, {})');
-		expect(output).toContain('__exactVNode(GridAlias, {})');
+		expect(output).toContain('__exactComponentReceipt(Widget.grid, {})');
+		expect(output).toContain('__exactComponentReceipt(GridAlias, {})');
+		expect(output).not.toContain('createCompiledVNode');
 		expect(output).toContain('createCompiledComponentRegistry as __exactComponentRegistry');
 		expect(output).toMatch(/__exactComponentRegistry\("x[^"]+", "Widget", "client", \(\) => \(\{/);
 	});
@@ -54,7 +55,27 @@ describe('@exactjs/compiler: component registries', () => {
 		expect(output).toContain(
 			'const CurrentWidget = __exactDerived(() => Widget[__exactReadState(this.state, 0) as any])'
 		);
-		expect(output).toContain('__exactDynamic(() => __exactVNode(CurrentWidget.get(), {}))');
+		expect(output).toContain(
+			'__exactDynamic(() => __exactComponentReceipt(CurrentWidget.get(), {}))'
+		);
+	});
+
+	it('keeps a derived registry selection in an SSR child slot', () => {
+		const output = transform(
+			`
+				function Grid() { return () => <p>grid</p>; }
+				function Table() { return () => <p>table</p>; }
+				const Widget = createComponentRegistry(() => ({ grid: Grid, table: Table }));
+				function Dashboard(props: { selected: 'grid' | 'table' }) {
+					const CurrentWidget = Widget[props.selected];
+					return () => <main><CurrentWidget /></main>;
+				}
+			`,
+			{ filename: 'Dashboard.tsx', target: 'server' }
+		);
+
+		expect(output).toContain('__exactSsr.prepareChild(__exactInvocation, 1)');
+		expect(output).not.toContain('__exactSsr.prepareComponent(__exactInvocation, 1)');
 	});
 
 	it('retains scoped lazy registry members as opaque runtime component edges', () => {
@@ -69,7 +90,8 @@ describe('@exactjs/compiler: component registries', () => {
 		const output = transform(source, { filename: 'Dashboard.tsx' });
 		const analysis = analyzeSource(source, { filename: 'Dashboard.tsx' });
 
-		expect(output).toContain('__exactVNode(Widget.table, {})');
+		expect(output).toContain('__exactComponentReceipt(Widget.table, {})');
+		expect(output).not.toContain('createCompiledVNode');
 		expect(output).toContain('import("./Table.js")');
 		expect(analysis.registries).toEqual([
 			expect.objectContaining({

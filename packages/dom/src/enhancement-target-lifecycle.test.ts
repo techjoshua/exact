@@ -8,19 +8,19 @@ import { Fragment, Target } from '@exactjs/core';
 import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { render } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { renderTestTree as render } from './testing.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('enhancement target lifecycle', () => {
 	it('keeps dormant target contributions and attaches them after structural output appears', () => {
 		const state = reactive({ visible: false, tone: 'quiet' });
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				Target,
 				{ className: computed(() => state.tone) },
 				createDynamicChild(() =>
-					state.visible ? createVNode('button', { id: 'target' }, 'Ready') : 'Waiting'
+					state.visible ? createOperation('button', { id: 'target' }, 'Ready') : 'Waiting'
 				)
 			),
 			container
@@ -45,14 +45,14 @@ describe('enhancement target lifecycle', () => {
 		};
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				Target,
 				{ ref: target, title: 'owned' },
 				createDynamicChild(() =>
 					state.mode === 'button'
-						? createVNode('button', null, 'Button')
+						? createOperation('button', null, 'Button')
 						: state.mode === 'link'
-							? createVNode('a', { href: '#' }, 'Link')
+							? createOperation('a', { href: '#' }, 'Link')
 							: 'No target'
 				)
 			),
@@ -75,19 +75,19 @@ describe('enhancement target lifecycle', () => {
 		const outerRefs: unknown[] = [];
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				Target,
 				{
 					className: 'outer',
 					ref: { fulfill: (value: unknown) => outerRefs.push(value) }
 				},
-				createVNode(
+				createOperation(
 					Target,
 					{ className: 'inner' },
 					createDynamicChild(() =>
 						state.link
-							? createVNode('a', { href: '#' }, 'Link')
-							: createVNode('button', null, 'Button')
+							? createOperation('a', { href: '#' }, 'Link')
+							: createOperation('button', null, 'Button')
 					)
 				)
 			),
@@ -105,15 +105,15 @@ describe('enhancement target lifecycle', () => {
 		const state = reactive({ direct: true });
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				Target,
 				{ className: 'outer' },
 				createDynamicChild(() =>
-					createVNode(
+					createOperation(
 						Fragment,
 						null,
-						state.direct ? createVNode('section', { id: 'host' }, 'Host') : 'No host',
-						createVNode(Target, { className: 'inner' }, createVNode('h2', null, 'Heading'))
+						state.direct ? createOperation('section', { id: 'host' }, 'Host') : 'No host',
+						createOperation(Target, { className: 'inner' }, createOperation('h2', null, 'Heading'))
 					)
 				)
 			),

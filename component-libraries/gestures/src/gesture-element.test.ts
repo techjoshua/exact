@@ -3,7 +3,7 @@
  */
 import { render, unmount } from '@exactjs/dom';
 import '@exactjs/core/runtime/refs';
-import { createTestVNode as createVNode } from '@exactjs/testing/internal/fixtures';
+import { createTestOperation as createOperation } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineGesture } from './definitions.js';
 import { GestureElement } from './gesture-element.js';
@@ -25,7 +25,7 @@ describe('GestureElement', () => {
 		containers.push(container);
 		try {
 			render(
-				createVNode(
+				createOperation(
 					GestureElement,
 					{
 						apply: defineGesture({
@@ -42,7 +42,7 @@ describe('GestureElement', () => {
 							touchAction: 'none'
 						})
 					},
-					createVNode('button', null, 'Drag')
+					createOperation('button', null, 'Drag')
 				),
 				container
 			);
@@ -72,7 +72,7 @@ describe('GestureElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				GestureElement,
 				{
 					apply: defineGesture({
@@ -81,7 +81,7 @@ describe('GestureElement', () => {
 						keyboard: { step: 6, onMove: (sample) => moves.push(sample.delta) }
 					})
 				},
-				createVNode('button', null, 'Move')
+				createOperation('button', null, 'Move')
 			),
 			container
 		);
@@ -106,7 +106,7 @@ describe('GestureElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				GestureElement,
 				{
 					apply: defineGesture({
@@ -127,7 +127,7 @@ describe('GestureElement', () => {
 						}
 					})
 				},
-				createVNode('div', null, 'Surface')
+				createOperation('div', null, 'Surface')
 			),
 			container
 		);
@@ -153,7 +153,7 @@ describe('GestureElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				GestureElement,
 				{
 					apply: defineGesture({
@@ -170,7 +170,7 @@ describe('GestureElement', () => {
 						}
 					})
 				},
-				createVNode('div', { tabIndex: 0 }, 'Surface')
+				createOperation('div', { tabIndex: 0 }, 'Surface')
 			),
 			container
 		);
@@ -203,16 +203,16 @@ describe('GestureElement', () => {
 				}
 			});
 		const tree = (outerPriority: number) =>
-			createVNode(
+			createOperation(
 				GestureElement,
 				{ apply: definition('outer', outerPriority) },
-				createVNode(
+				createOperation(
 					'div',
 					null,
-					createVNode(
+					createOperation(
 						GestureElement,
 						{ apply: definition('inner', 1) },
-						createVNode('button', null, 'Nested')
+						createOperation('button', null, 'Nested')
 					)
 				)
 			);
@@ -243,7 +243,7 @@ describe('GestureElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				GestureElement,
 				{
 					apply: defineGesture({
@@ -266,7 +266,7 @@ describe('GestureElement', () => {
 						keyboard: { step: 5 }
 					})
 				},
-				createVNode('button', null, 'Control')
+				createOperation('button', null, 'Control')
 			),
 			container
 		);
@@ -293,7 +293,7 @@ describe('GestureElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		render(
-			createVNode(
+			createOperation(
 				GestureElement,
 				{
 					apply: defineGesture({
@@ -314,7 +314,7 @@ describe('GestureElement', () => {
 						}
 					})
 				},
-				createVNode('div', null)
+				createOperation('div', null)
 			),
 			container
 		);

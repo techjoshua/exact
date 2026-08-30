@@ -1,15 +1,12 @@
-import {
-	normalizeRenderResult,
-	type AnyComponentInstance,
-	type Child,
-	type VNode
-} from '@exactjs/core';
+import { normalizeRenderResult, type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
 	readPreparedServerRenderProgram,
 	type ExactPreparedServerRenderProgram
 } from '@exactjs/core/framework/server-render-structure';
 import type { SsrContext } from '../types.js';
 import { renderPreparedSsrProgram } from './render-program.js';
+import type { ServerComponentReference } from './server-component-reference.js';
+import { captureNestedEnhancementPrefix } from './operation-enhancements.js';
 
 /** Compiler-closed result before its deferred child/component segments are serialized. */
 export type DirectSsrComponentContent =
@@ -32,22 +29,22 @@ export async function renderDirectSsrContent(
 		parent: AnyComponentInstance | undefined
 	) => Promise<string>,
 	renderOwnedComponent: (
-		component: VNode,
+		component: ServerComponentReference,
 		parent: AnyComponentInstance | undefined
 	) => Promise<string>
 ): Promise<string> {
 	if (content.children) return renderChildren(content.children, parent);
 	const planned = renderPreparedSsrProgram(context, content.program, parent);
-	if (planned.fallback) return renderChildren([planned.fallback], parent);
 	const output: string[] = [];
-	for (const segment of planned.segments!) {
-		output.push(
+	for (const segment of planned.segments) {
+		const rendered =
 			typeof segment === 'string'
 				? segment
 				: Array.isArray(segment)
 					? await renderChildren(segment, parent)
-					: await renderOwnedComponent(segment as VNode, parent)
-		);
+					: await renderOwnedComponent(segment as ServerComponentReference, parent);
+		captureNestedEnhancementPrefix(context, output);
+		if (rendered !== '') output.push(rendered);
 	}
 	return output.join('');
 }

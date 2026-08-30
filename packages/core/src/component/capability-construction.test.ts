@@ -1,18 +1,20 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it } from 'vitest';
 import '../runtime/lifecycle.js';
 import '../runtime/collections.js';
 
 import { exactComponentContract, exactComponentType } from '../component-contracts.js';
-import { createExactCompatibilityArtifact } from '../component-contract/runtime-artifacts.js';
+import { createExactCompatibilityArtifact } from '../testing/runtime-artifacts.js';
+import {
+	attachExactCompiledClientComponent,
+	disposeExactClientComponent,
+	receiveExactClientComponentProps
+} from '../component-abi/compiled-runtime.js';
 import { createFrameworkComponentDomain } from './domain.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
-import {
-	ComponentInstanceImpl,
-	createComponentInstance,
-	createFrameworkFixtureComponentInstance
-} from './runtime.js';
+import { ComponentInstanceImpl, createComponentInstance } from './runtime.js';
 import { RenderComponentInstance } from './render-instance.js';
 import { constructRenderComponentInstance } from './render-instance-construction.js';
 import { TaskComponentInstance } from './task-instance.js';
@@ -43,7 +45,7 @@ describe('compiled component capability construction', () => {
 		const StaticPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:StaticPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -58,8 +60,13 @@ describe('compiled component capability construction', () => {
 				executors: [],
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
-				definition: {
+				artifact: {
 					version: 1 as const,
+					target: 'client' as const,
+					id: 'component:StaticPanel',
+					attach: attachExactCompiledClientComponent,
+					receive: receiveExactClientComponentProps,
+					dispose: disposeExactClientComponent,
 					instantiate: implementation,
 					construct: constructRenderComponentInstance,
 					abi: 0,
@@ -118,14 +125,14 @@ describe('compiled component capability construction', () => {
 		).toThrow('compiled component artifact');
 	});
 
-	it('allocates ownership when the canonical definition declares task capability', () => {
+	it('allocates ownership when the target artifact declares task capability', () => {
 		const implementation = function TaskPanel(this: Component<{}>) {
 			return () => null;
 		};
 		const TaskPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:TaskPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -133,8 +140,13 @@ describe('compiled component capability construction', () => {
 				executors: [],
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
-				definition: {
+				artifact: {
 					version: 1 as const,
+					target: 'client' as const,
+					id: 'component:TaskPanel',
+					attach: attachExactCompiledClientComponent,
+					receive: receiveExactClientComponentProps,
+					dispose: disposeExactClientComponent,
 					instantiate: implementation,
 					construct: constructTaskComponentInstance,
 					abi: 8,
@@ -164,7 +176,7 @@ describe('compiled component capability construction', () => {
 		const FailingTaskPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:FailingTaskPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -172,8 +184,13 @@ describe('compiled component capability construction', () => {
 				executors: [],
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
-				definition: {
+				artifact: {
 					version: 1 as const,
+					target: 'client' as const,
+					id: 'component:FailingTaskPanel',
+					attach: attachExactCompiledClientComponent,
+					receive: receiveExactClientComponentProps,
+					dispose: disposeExactClientComponent,
 					instantiate: implementation,
 					construct: constructTaskComponentInstance,
 					abi: 8,

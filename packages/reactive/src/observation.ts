@@ -41,6 +41,8 @@ export type RetainedWatchOptions = WatchOptions & {
 	onRelease?(): void;
 	/** Returns the shared reaction object for framework owners instead of allocating a handle. */
 	owned?: boolean;
+	/** Runs framework structural ownership before ordinary bindings at the same priority. */
+	structural?: true;
 };
 
 /** Framework-owned retained reaction whose shared stop method avoids a per-binding handle closure. */
@@ -57,6 +59,14 @@ export function watch(
 	options: WatchOptions = {}
 ): StopHandle {
 	return watchRetained(fn, scheduler, options) ?? inactiveWatch;
+}
+
+/** Installs a framework-owned structural watcher ahead of ordinary bindings at equal priority. */
+export function watchStructural(fn: () => void, options: WatchOptions = {}): StopHandle {
+	return (
+		(watchRetained(fn, undefined, { ...options, structural: true }) as StopHandle | undefined) ??
+		inactiveWatch
+	);
 }
 
 /**
@@ -102,6 +112,7 @@ class RetainedReaction implements Reaction {
 	scheduled = false;
 	pendingPriority: Reaction['pendingPriority'];
 	readonly deps = new Set<Dep>();
+	readonly order: number;
 
 	constructor(
 		private readonly fn: () => void,
@@ -109,6 +120,7 @@ class RetainedReaction implements Reaction {
 		options: RetainedWatchOptions,
 		readonly scope: EffectScopeImpl | undefined
 	) {
+		this.order = options.structural ? 0 : 1;
 		this.onSchedule = options.onSchedule;
 		this.onError = options.onError;
 		this.onRelease = options.onRelease;

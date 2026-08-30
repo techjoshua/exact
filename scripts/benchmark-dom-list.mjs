@@ -24,7 +24,9 @@ try {
 	process.stdout.write(
 		`compiled keyed 1k rotation: median ${update.median.toFixed(2)}ms; p95 ${update.p95.toFixed(2)}ms across ${samples} isolated processes\n`
 	);
-	process.stdout.write(`DOM_LIST_BENCHMARK_JSON=${JSON.stringify(summary)}\n`);
+	process.stdout.write(
+		`DOM_LIST_BENCHMARK_JSON=${JSON.stringify({ summary, rawSamples: measurements })}\n`
+	);
 } finally {
 	await rm(temporary, { recursive: true, force: true });
 }

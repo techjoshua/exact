@@ -38,11 +38,9 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		);
 
 		expect(result.code).not.toContain('open:onOpenChanged');
-		expect(result.code).toContain(
-			'open: __exactExpression(() => __exactReadState(this.state, 0) as boolean)'
-		);
+		expect(result.code).toContain('open: __exactIndexedExpression(this.state, 0)');
 		expect(result.code).toContain('onOpenChanged: (__exactBindingValue: boolean) =>');
-		expect(result.code).toContain('__exactWriteState(this.state, 0, () => __exactBindingValue)');
+		expect(result.code).toContain('__exactWriteState(this.state, 0, __exactBindingValue)');
 	});
 
 	it('rejects an explicit generated prop instead of composing callbacks', () => {

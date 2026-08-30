@@ -24,6 +24,9 @@ export async function buildMicrofrontendPortal() {
 		await build({
 			root: sampleRoot,
 			logLevel: 'warn',
+			plugins: [
+				exact({ applicationRoot: sampleRoot, target: 'server', renderMode: 'server-render' })
+			],
 			build: {
 				ssr: path.join(sampleRoot, 'server', 'start.ts'),
 				outDir: path.join(outputRoot, 'server'),

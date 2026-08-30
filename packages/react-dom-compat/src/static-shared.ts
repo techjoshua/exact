@@ -4,7 +4,7 @@ import {
 	renderReactToStringAsync,
 	withBootstrapScripts,
 	type ServerRenderOptions
-} from './server-shared.js';
+} from './server/shared.js';
 
 /** Tracks the state owned by postponed. */
 export type PostponedState = null;

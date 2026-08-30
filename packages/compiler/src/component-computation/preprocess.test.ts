@@ -10,7 +10,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Greeting.tsx' }
 		);
-		expect(staticOutput).toContain('from "@exactjs/core/runtime/render"');
+		expect(staticOutput).toContain('from "@exactjs/core/runtime/render-operations"');
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/tasks');
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/inspection');
 		expect(staticOutput).not.toContain('@exactjs/core/runtime/registry');
@@ -143,7 +143,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Counter.tsx' }
 		);
-		expect(output).toContain('__exactWriteState(this.state, 0, () => 0)');
+		expect(output).toContain('__exactWriteState(this.state, 0, 0)');
 	});
 
 	it('owns environment-specific state production even without reactive inputs', () => {

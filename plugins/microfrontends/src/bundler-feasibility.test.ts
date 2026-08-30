@@ -27,8 +27,8 @@ describe('Webpack and Bun remote artifact adapters', () => {
 			'export default __exactRemoteModule'
 		);
 		expect(
-			mapping.providedBridge('@exactjs/core', [{ kind: 'named', imported: 'createVNode' }])
-		).toContain('as createVNode');
+			mapping.providedBridge('@exactjs/core', [{ kind: 'named', imported: 'createOperation' }])
+		).toContain('as createOperation');
 	});
 
 	it('maps the same plan to Bun entrypoints and onResolve/onLoad modules', () => {
@@ -50,8 +50,8 @@ describe('Webpack and Bun remote artifact adapters', () => {
 			contents: expect.stringContaining('export default __exactRemoteModule')
 		});
 		expect(
-			mapping.providedBridge('@exactjs/core', [{ kind: 'named', imported: 'createVNode' }])
-		).toMatchObject({ loader: 'js', contents: expect.stringContaining('as createVNode') });
+			mapping.providedBridge('@exactjs/core', [{ kind: 'named', imported: 'createOperation' }])
+		).toMatchObject({ loader: 'js', contents: expect.stringContaining('as createOperation') });
 	});
 
 	it('publishes only complete current generations and retains the last accepted build on failure', () => {

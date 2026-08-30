@@ -1,16 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { Activity, createEnhancementNode, type Component } from '@exactjs/core';
-import { createExpression } from '@exactjs/core/runtime/render';
+import { createEnhancementNode } from '@exactjs/core';
 import { runTaskFrame } from '@exactjs/core/framework/task-frames';
-import { render, unmount } from '@exactjs/dom/enhanced';
+import { render as renderCompiled, unmount } from '@exactjs/dom/enhanced';
+import { renderTestTree as renderOperation } from '@exactjs/dom/testing';
+import '@exactjs/dom/framework/enhancements';
 import '@exactjs/dom/structural-boundaries';
 import { flushSync } from '@exactjs/reactive';
-import {
-	createTestVNode as createVNode,
-	markTestComponent
-} from '@exactjs/testing/internal/fixtures';
+import { createTestOperation as createOperation } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installMotionDriver } from './driver.js';
 import { defineMotion } from './definitions.js';
@@ -18,6 +16,16 @@ import { MotionElement } from './motion-element.js';
 import { Motion } from './motion.js';
 import { fade } from './presets.js';
 import { createMotionTestDriver } from './testing.js';
+import {
+	ActivityMotionScene,
+	ChangeMotionScene,
+	DynamicReleaseScene,
+	LateMotionScene,
+	activityMotionSceneInstance,
+	changeMotionSceneInstance,
+	dynamicReleaseSceneInstance,
+	lateMotionSceneInstance
+} from './motion.fixtures.js';
 
 const identity = '@exactjs/motion#default';
 const containers: Element[] = [];
@@ -34,12 +42,16 @@ describe('MotionElement', () => {
 		containers.push(container);
 		const marker = createEnhancementNode([{ identity, props: { apply: fade, appear: false } }]);
 		try {
-			render(createVNode('button', { __exactEnhancements: marker }, 'Save'), container, {
-				enhancementCatalog: new Map([[identity, MotionElement]])
-			});
+			renderOperation(
+				createOperation('button', { __exactEnhancements: marker }, 'Save'),
+				container,
+				{
+					enhancementCatalog: new Map([[identity, MotionElement]])
+				}
+			);
 			expect(driver.playbacks).toHaveLength(0);
 
-			render(createVNode('span', null, 'Next'), container, {
+			renderOperation(createOperation('span', null, 'Next'), container, {
 				enhancementCatalog: new Map([[identity, MotionElement]])
 			});
 			await settle();
@@ -54,14 +66,38 @@ describe('MotionElement', () => {
 		}
 	});
 
+	it('retains a release observer removed from a focused dynamic range', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		const container = document.createElement('div');
+		containers.push(container);
+		try {
+			renderCompiled(createOperation(DynamicReleaseScene, null), container, {
+				enhancementCatalog: new Map([[identity, MotionElement]])
+			});
+			const owner = dynamicReleaseSceneInstance();
+			owner.state.shown = false;
+			flushSync();
+			await settle();
+
+			expect(driver.playbacks).toHaveLength(1);
+			expect(container.querySelector('button')).not.toBeNull();
+
+			driver.finishAll();
+			await vi.waitFor(() => expect(container.querySelector('button')).toBeNull());
+		} finally {
+			restore();
+		}
+	});
+
 	it('plays enter only when appear policy permits it', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
 		const container = document.createElement('div');
 		containers.push(container);
 		try {
-			render(
-				createVNode('button', {
+			renderOperation(
+				createOperation('button', {
 					__exactEnhancements: createEnhancementNode([
 						{ identity, props: { apply: fade, appear: true } }
 					])
@@ -82,19 +118,11 @@ describe('MotionElement', () => {
 	it('plays enter for a root introduced by a later reactive update', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		let owner!: Component<{ shown: boolean }>;
-		const Scene = markTestComponent(function Scene(this: Component<{ shown: boolean }>) {
-			owner = this;
-			this.state.shown = false;
-			return () =>
-				this.state.shown
-					? createVNode(Motion, { as: 'button', motion: fade, children: 'Later' })
-					: null;
-		});
 		const container = document.createElement('div');
 		containers.push(container);
 		try {
-			render(createVNode(Scene, null), container);
+			renderCompiled(createOperation(LateMotionScene, null), container);
+			const owner = lateMotionSceneInstance();
 			expect(driver.playbacks).toHaveLength(0);
 
 			owner.state.shown = true;
@@ -115,31 +143,13 @@ describe('MotionElement', () => {
 	it('observes a change-only phase after the initial enter path is skipped', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		let owner!: Component<{ offset: number }>;
-		const Scene = markTestComponent(function Scene(this: Component<{ offset: number }>) {
-			owner = this;
-			this.state.offset = 0;
-			const marker = createEnhancementNode([
-				{
-					identity,
-					props: {
-						change: createExpression(() => ({
-							keyframes: [
-								{ transform: 'translateX(0)' },
-								{ transform: `translateX(${this.state.offset}px)` }
-							]
-						}))
-					}
-				}
-			]);
-			return () => createVNode('span', { __exactEnhancements: marker }, 'Indicator');
-		});
 		const container = document.createElement('div');
 		containers.push(container);
 		try {
-			render(createVNode(Scene, null), container, {
+			renderCompiled(createOperation(ChangeMotionScene, null), container, {
 				enhancementCatalog: new Map([[identity, MotionElement]])
 			});
+			const owner = changeMotionSceneInstance();
 			expect(driver.playbacks).toHaveLength(0);
 
 			owner.state.offset = 48;
@@ -162,15 +172,15 @@ describe('MotionElement', () => {
 		const container = document.createElement('div');
 		containers.push(container);
 		try {
-			render(
-				createVNode(Motion, { as: 'button', motion: fade, appear: true, children: 'Leaving' }),
+			renderOperation(
+				createOperation(Motion, { as: 'button', motion: fade, appear: true, children: 'Leaving' }),
 				container
 			);
 			await settle();
 			expect(driver.playbacks).toHaveLength(1);
 			expect(driver.playbacks[0]?.signal.aborted).toBe(false);
 
-			render(createVNode('span', null, 'Next'), container);
+			renderOperation(createOperation('span', null, 'Next'), container);
 			await settle();
 			expect(driver.playbacks).toHaveLength(2);
 			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
@@ -185,18 +195,14 @@ describe('MotionElement', () => {
 		const restore = installMotionDriver(driver);
 		const container = document.createElement('div');
 		containers.push(container);
-		const tree = (mode: 'active' | 'parked') =>
-			createVNode(
-				Activity,
-				{ mode },
-				createVNode(Motion, { as: 'button', motion: fade, appear: true, children: 'Parked' })
-			);
 		try {
-			render(tree('active'), container);
+			renderCompiled(createOperation(ActivityMotionScene, null), container);
+			const owner = activityMotionSceneInstance();
 			await settle();
 			expect(driver.playbacks).toHaveLength(1);
 
-			render(tree('parked'), container);
+			owner.state.mode = 'parked';
+			flushSync();
 			await settle();
 			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
 			expect(driver.playbacks).toHaveLength(1);
@@ -222,8 +228,8 @@ describe('MotionElement', () => {
 				{ kind: 'test-motion-cause' },
 				{
 					work() {
-						render(
-							createVNode(Motion, { as: 'div', motion: loop, appear: true, children: 'Loop' }),
+						renderOperation(
+							createOperation(Motion, { as: 'div', motion: loop, appear: true, children: 'Loop' }),
 							container
 						);
 					}
@@ -236,7 +242,7 @@ describe('MotionElement', () => {
 			expect(driver.playbacks).toHaveLength(1);
 			expect(driver.playbacks[0]?.signal.aborted).toBe(false);
 
-			render(createVNode('span', null, 'Done'), container);
+			renderOperation(createOperation('span', null, 'Done'), container);
 			await vi.waitFor(() => expect(container.textContent).toBe('Done'));
 			expect(driver.playbacks[0]?.signal.aborted).toBe(true);
 		} finally {

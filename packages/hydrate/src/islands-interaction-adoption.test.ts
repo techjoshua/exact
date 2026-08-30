@@ -1,8 +1,20 @@
 /** @vitest-environment jsdom */
-import { type AnyComponentFunction, type Component } from '@exactjs/core';
+import { type AnyComponentFunction } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrateClientIslands, lazyClientIsland } from './index.js';
-import { createVNode, markTestComponent } from './test-support/native-vnode.js';
+import {
+	DomainCounter,
+	InteractionChoice,
+	InteractionCounter,
+	InteractionForm,
+	InteractionInput,
+	readInteractionClicks,
+	readInteractionDomain,
+	readInteractionInputValue,
+	readInteractionSubmissions,
+	ReplacementCounter,
+	resetInteractionFixture
+} from './test-support/island-interaction.fixtures.js';
 
 function interactionIsland(
 	component: AnyComponentFunction,
@@ -10,7 +22,6 @@ function interactionIsland(
 	type: 'click' | 'input' | 'submit',
 	replay: 'native-click' | 'latest-value' | 'request-submit'
 ) {
-	markTestComponent(component);
 	return lazyClientIsland(async () => component, {
 		mode: 'interaction',
 		reasons: [],
@@ -28,25 +39,17 @@ describe('@exactjs/hydrate interaction-island adoption', () => {
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="counter-button">Count</button></div>';
 		const serverButton = container.querySelector('button')!;
-		let clicks = 0;
-		function Counter() {
-			return () =>
-				createVNode(
-					'button',
-					{ 'data-exact-id': 'counter-button', onClick: () => clicks++ },
-					'Count'
-				);
-		}
+		resetInteractionFixture();
 
 		expect(
 			hydrateClientIslands(container, {
-				Counter: interactionIsland(Counter, 'counter-button', 'click', 'native-click')
+				Counter: interactionIsland(InteractionCounter, 'counter-button', 'click', 'native-click')
 			})
 		).toBe(0);
 		serverButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		await releaseInteraction();
 
-		expect(clicks).toBe(1);
+		expect(readInteractionClicks()).toBe(1);
 		expect(container.querySelector('button')).toBe(serverButton);
 		expect(
 			container
@@ -59,22 +62,18 @@ describe('@exactjs/hydrate interaction-island adoption', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction"><button data-exact-id="counter-button">Count</button></div>';
-		let componentDomain: unknown;
-		function Counter(this: Component<{}>) {
-			componentDomain = (this as Component<{}> & { domain: unknown }).domain;
-			return () => createVNode('button', { 'data-exact-id': 'counter-button' }, 'Count');
-		}
+		resetInteractionFixture();
 		const client = createExactClient(container, {
 			islands: {
-				Counter: interactionIsland(Counter, 'counter-button', 'click', 'native-click')
+				Counter: interactionIsland(DomainCounter, 'counter-button', 'click', 'native-click')
 			}
 		});
 
-		expect(componentDomain).toBeUndefined();
+		expect(readInteractionDomain()).toBeUndefined();
 		container.querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		await releaseInteraction();
 
-		expect(componentDomain).toBe(client.domain);
+		expect(readInteractionDomain()).toBe(client.domain);
 	});
 
 	it('preserves dirty input while replaying its compiled binding', async () => {
@@ -83,27 +82,17 @@ describe('@exactjs/hydrate interaction-island adoption', () => {
 			'<div data-exact-client-boundary="form" data-exact-client-name="FormIsland" data-exact-client-hydration="interaction"><input data-exact-id="name" value="server"></div>';
 		const serverInput = container.querySelector('input')!;
 		serverInput.value = 'typed';
-		let value = 'server';
-		function FormIsland() {
-			return () =>
-				createVNode('input', {
-					'data-exact-id': 'name',
-					value,
-					__exactBindInput: (event: Event) => {
-						value = (event.currentTarget as HTMLInputElement).value;
-					}
-				});
-		}
+		resetInteractionFixture();
 
 		hydrateClientIslands(container, {
-			FormIsland: interactionIsland(FormIsland, 'name', 'input', 'latest-value')
+			FormIsland: interactionIsland(InteractionInput, 'name', 'input', 'latest-value')
 		});
 		serverInput.dispatchEvent(new Event('input', { bubbles: true }));
 		await releaseInteraction();
 
 		expect(container.querySelector('input')).toBe(serverInput);
 		expect(serverInput.value).toBe('typed');
-		expect(value).toBe('typed');
+		expect(readInteractionInputValue()).toBe('typed');
 	});
 
 	it('preserves one native checkbox toggle while activating its handler', async () => {
@@ -111,24 +100,15 @@ describe('@exactjs/hydrate interaction-island adoption', () => {
 		container.innerHTML =
 			'<div data-exact-client-boundary="choice" data-exact-client-name="Choice" data-exact-client-hydration="interaction"><input data-exact-id="choice-box" type="checkbox"></div>';
 		const serverInput = container.querySelector('input')!;
-		let clicks = 0;
-		function Choice() {
-			return () =>
-				createVNode('input', {
-					'data-exact-id': 'choice-box',
-					type: 'checkbox',
-					checked: false,
-					onClick: () => clicks++
-				});
-		}
+		resetInteractionFixture();
 
 		hydrateClientIslands(container, {
-			Choice: interactionIsland(Choice, 'choice-box', 'click', 'native-click')
+			Choice: interactionIsland(InteractionChoice, 'choice-box', 'click', 'native-click')
 		});
 		serverInput.click();
 		await releaseInteraction();
 
-		expect(clicks).toBe(1);
+		expect(readInteractionClicks()).toBe(1);
 		expect(container.querySelector('input')).toBe(serverInput);
 		expect(serverInput.checked).toBe(true);
 	});
@@ -138,29 +118,15 @@ describe('@exactjs/hydrate interaction-island adoption', () => {
 		container.innerHTML =
 			'<div data-exact-client-boundary="form" data-exact-client-name="FormIsland" data-exact-client-hydration="interaction"><form data-exact-id="profile-form"><button type="submit">Save</button></form></div>';
 		const form = container.querySelector('form')!;
-		let submits = 0;
-		function FormIsland() {
-			return () =>
-				createVNode(
-					'form',
-					{
-						'data-exact-id': 'profile-form',
-						onSubmit: (event: Event) => {
-							event.preventDefault();
-							submits++;
-						}
-					},
-					createVNode('button', { type: 'submit' }, 'Save')
-				);
-		}
+		resetInteractionFixture();
 
 		hydrateClientIslands(container, {
-			FormIsland: interactionIsland(FormIsland, 'profile-form', 'submit', 'request-submit')
+			FormIsland: interactionIsland(InteractionForm, 'profile-form', 'submit', 'request-submit')
 		});
 		form.requestSubmit(form.querySelector('button')!);
 		await releaseInteraction();
 
-		expect(submits).toBe(1);
+		expect(readInteractionSubmissions()).toBe(1);
 		expect(container.querySelector('form')).toBe(form);
 	});
 
@@ -169,24 +135,16 @@ describe('@exactjs/hydrate interaction-island adoption', () => {
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="counter-button"><span>Server</span></button></div>';
 		const serverButton = container.querySelector('button')!;
-		let clicks = 0;
-		function Counter() {
-			return () =>
-				createVNode(
-					'button',
-					{ 'data-exact-id': 'counter-button', onClick: () => clicks++ },
-					'Client'
-				);
-		}
+		resetInteractionFixture();
 
 		hydrateClientIslands(container, {
-			Counter: interactionIsland(Counter, 'counter-button', 'click', 'native-click')
+			Counter: interactionIsland(ReplacementCounter, 'counter-button', 'click', 'native-click')
 		});
 		serverButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 		await releaseInteraction();
 
 		expect(container.querySelector('button')).not.toBe(serverButton);
 		expect(container.querySelector('button')?.textContent).toBe('Client');
-		expect(clicks).toBe(1);
+		expect(readInteractionClicks()).toBe(1);
 	});
 });

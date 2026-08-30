@@ -1,18 +1,10 @@
 import {
-	type AnyAuthoredComponentFunction,
-	type AnyComponentFunction,
 	createContext,
-	createVNode,
-	Dynamic,
-	Fragment,
 	peek,
-	unwrap,
 	type Child,
 	type Component,
-	type InteractionHandler,
-	type VNode
+	type InteractionHandler
 } from '@exactjs/core';
-import { getCellVNode, isCellVNode } from '@exactjs/core/runtime/render';
 import { reactive } from '@exactjs/reactive';
 import { getRequestContext, RequestContext, type RequestContextValue } from '@exactjs/request';
 import { RouterControllerContext } from './context.js';
@@ -84,17 +76,13 @@ export type RouteContextValue = {
 
 /** Provides the canonical route context value. */
 export const RouteContext = createContext<RouteContextValue>('exact.route', true);
-type OutletContextValue = { readonly current: Child | Child[] | undefined };
-const OutletContext = createContext<OutletContextValue>('exact.route.outlet', {
-	reactive: false
-});
 
 /** Defines the properties accepted by router. */
 export type RouterProps = {
 	mode?: RouterMode;
 	basename?: string;
 	source?: LocationSource;
-	children?: Child | Child[];
+	routes: readonly RouteDefinition[];
 };
 
 type RouterState = { version: number };
@@ -113,7 +101,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 		throw new Error(
 			'Router requires a location source outside a browser or ambient request context'
 		);
-	const routes = peek(() => routeChildren(props.children));
+	const routes = peek(() => normalizeRouteDefinitions(props.routes));
 	const controller = createExactRouter({ source, routes, basename, mode });
 	const routeContext = peek(() => reactive(routeContextValue(controller, basename)));
 	this.setContext(RouteContext, routeContext);
@@ -134,7 +122,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 		controller.dispose();
 	});
 
-	return () => routerBranch(controller, routeContext, this.state.version);
+	return () => routerBranch(controller, this.state.version);
 }
 
 /** Creates a reactive route context whose public getters follow the accepted router snapshot. */
@@ -167,94 +155,37 @@ function routeContextValue(
 }
 
 /** Defines the properties accepted by route. */
-export type RouteProps = {
+export type RouteDefinition = {
 	path?: string;
 	index?: boolean;
 	caseSensitive?: boolean;
-	component?: AnyAuthoredComponentFunction;
-	componentProps?: Record<string, unknown>;
-	children?: Child | Child[];
+	/** Supplies compiler-classified route output around the already-composed nested outlet. */
+	render?: (outlet: Child) => Child;
+	children?: readonly RouteDefinition[];
 };
 
-/** Declarative route marker consumed by Router; it does not render independently. */
-export function Route(this: Component<Record<string, never>>, _props: RouteProps) {
-	return () => null;
-}
+type RouteRecord = Omit<RouteDefinition, 'children'> &
+	ExactRouteDefinition & { children: RouteRecord[] };
 
-type RouteRecord = RouteProps & ExactRouteDefinition & { children: RouteRecord[] };
-
-function routeChildren(children: Child | Child[] | undefined, parentId = 'root'): RouteRecord[] {
-	const values = Array.isArray(children) ? children : children === undefined ? [] : [children];
-	const output: RouteRecord[] = [];
-	const collect = (value: Child) => {
-		if (Array.isArray(value)) {
-			for (const child of value) collect(child);
-			return;
-		}
-		const vnode = unwrapCell(value);
-		if (!vnode) return;
-		if (vnode.type === Dynamic) {
-			const resolved = unwrap(vnode.props.value) as Child | Child[];
-			if (Array.isArray(resolved)) for (const child of resolved) collect(child);
-			else collect(resolved);
-			return;
-		}
-		if (vnode.type === Fragment) {
-			for (const child of vnode.children) collect(child);
-			return;
-		}
-		if (vnode.type !== Route) return;
-		const rawProps = vnode.props as RouteProps;
-		const props: RouteProps = {
-			...rawProps,
-			...(rawProps.path !== undefined ? { path: unwrap(rawProps.path) as string } : {}),
-			...(rawProps.index !== undefined ? { index: unwrap(rawProps.index) as boolean } : {}),
-			...(rawProps.caseSensitive !== undefined
-				? { caseSensitive: unwrap(rawProps.caseSensitive) as boolean }
-				: {}),
-			...(rawProps.component !== undefined
-				? { component: unwrap(rawProps.component) as AnyAuthoredComponentFunction }
-				: {}),
-			...(rawProps.componentProps !== undefined
-				? {
-						componentProps: unwrap(rawProps.componentProps) as Record<string, unknown>
-					}
-				: {})
+function normalizeRouteDefinitions(
+	routes: readonly RouteDefinition[],
+	parentId = 'root'
+): RouteRecord[] {
+	return routes.map((route, index) => {
+		const id = `${parentId}.${index}`;
+		return {
+			...route,
+			id,
+			children: normalizeRouteDefinitions(route.children ?? [], id)
 		};
-		const id = `${parentId}.${output.length}`;
-		const children = routeChildren(vnode.children.length ? vnode.children : props.children, id);
-		output.push({ ...props, id, children });
-	};
-	for (const value of values) collect(value);
-	return output;
+	});
 }
 
-function unwrapCell(value: Child): VNode | undefined {
-	if (!value || typeof value !== 'object') return undefined;
-	let vnode = value as VNode;
-	while (isCellVNode(vnode)) vnode = getCellVNode(vnode);
-	return vnode;
-}
-
-function renderBranch(routes: RouteRecord[], context: RouteContextValue): Child {
+function renderBranch(routes: RouteRecord[]): Child {
 	let outlet: Child = null;
 	for (let index = routes.length - 1; index >= 0; index--) {
 		const route = routes[index]!;
-		const child = outlet;
-		// Route definitions retain authored types; compiled router code receives the
-		// same function identities after canonical component normalization.
-		outlet = createVNode(
-			MatchedRoute,
-			{
-				context,
-				key: route.id,
-				render: () =>
-					route.component
-						? createVNode(route.component as AnyComponentFunction, route.componentProps ?? {})
-						: child
-			},
-			child
-		);
+		outlet = route.render?.(outlet) ?? outlet;
 	}
 	return outlet;
 }
@@ -263,37 +194,9 @@ function renderBranch(routes: RouteRecord[], context: RouteContextValue): Child 
  * Projects the current matched branch for one reactive router version.
  * @exact pure
  */
-function routerBranch(
-	controller: ExactRouter<RouteRecord>,
-	context: RouteContextValue,
-	_version: number
-): Child {
+function routerBranch(controller: ExactRouter<RouteRecord>, _version: number): Child {
 	const matches = controller.getSnapshot().matches;
-	return matches.length
-		? renderBranch(
-				matches.map((match) => match.route),
-				context
-			)
-		: null;
-}
-
-function MatchedRoute(
-	this: Component<{}>,
-	props: { context: RouteContextValue; render: () => Child; children?: Child | Child[] }
-) {
-	this.setContext(RouteContext, props.context);
-	this.setContext(OutletContext, {
-		get current() {
-			return props.children;
-		}
-	});
-	return () => props.render();
-}
-
-/** Performs the outlet domain operation. */
-export function Outlet(this: Component<{}>) {
-	const outlet = this.getContext(OutletContext);
-	return () => outlet.current as Child;
+	return matches.length ? renderBranch(matches.map((match) => match.route)) : null;
 }
 
 /** Defines the properties accepted by link. */

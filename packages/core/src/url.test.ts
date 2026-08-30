@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCKED_JAVASCRIPT_URL, sanitizeUrlAttribute, unsafeHtml, UnsafeHtml } from './index.js';
+import { BLOCKED_JAVASCRIPT_URL, sanitizeUrlAttribute, unsafeHtml } from './index.js';
+import { readUnsafeHtmlReceipt } from './runtime/component-abi.js';
 
 describe('native URL and raw HTML primitives', () => {
 	it('blocks obfuscated javascript protocols only for URL attributes', () => {
@@ -10,10 +11,9 @@ describe('native URL and raw HTML primitives', () => {
 		expect(sanitizeUrlAttribute('title', 'javascript:alert(1)')).toBe('javascript:alert(1)');
 	});
 
-	it('represents unsafe HTML as an opaque vnode rather than a magic prop', () => {
+	it('represents unsafe HTML as an opaque target receipt rather than a magic prop', () => {
 		const value = unsafeHtml('<strong>trusted by caller</strong>');
-		expect(value.type).toBe(UnsafeHtml);
-		expect(value.props.value).toBe('<strong>trusted by caller</strong>');
-		expect(value.children).toEqual([]);
+		expect(Object.keys(value)).toEqual([]);
+		expect(readUnsafeHtmlReceipt(value)?.value).toBe('<strong>trusted by caller</strong>');
 	});
 });

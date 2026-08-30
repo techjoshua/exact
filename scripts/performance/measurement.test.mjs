@@ -7,6 +7,25 @@ import {
 	summarizeValues
 } from './measurement.mjs';
 import { summarizeServerLoad } from './server-load-measurement.mjs';
+import { installPerformanceDom } from './dom-environment.mjs';
+
+test('installs every DOM constructor referenced by client and hydration scenarios', () => {
+	const target = {};
+	const dom = installPerformanceDom(target);
+
+	for (const name of [
+		'HTMLButtonElement',
+		'HTMLDialogElement',
+		'HTMLFormElement',
+		'HTMLInputElement',
+		'HTMLScriptElement',
+		'HTMLSelectElement',
+		'HTMLTextAreaElement'
+	]) {
+		assert.equal(target[name], dom.window[name], `${name} was not installed`);
+	}
+	dom.window.close();
+});
 
 test('uses nearest-rank percentiles for isolated process samples', () => {
 	assert.equal(percentile([1, 2, 3, 4, 5], 0.5), 3);

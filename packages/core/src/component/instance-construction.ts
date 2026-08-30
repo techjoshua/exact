@@ -1,4 +1,4 @@
-import type { ExactCompiledComponentContract } from '../component-contracts.js';
+import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import type {
 	AnyComponentInstance,
@@ -9,11 +9,11 @@ import type {
 
 /** Compiler-linked constructor signature shared by every component storage lane. */
 export type CompiledComponentInstanceConstructor = (
-	type: AnyComponentFunction,
-	rawProps: Record<string, unknown>,
+	this: Readonly<{ instantiate: AnyComponentFunction }>,
 	parent: AnyComponentInstance | undefined,
+	rawProps: Record<string, unknown>,
 	ambientContexts: ComponentContextValues | undefined,
 	domain: ComponentDomain,
 	execution: PreparedComponentExecution | undefined,
-	contract: ExactCompiledComponentContract
+	contract: ExactExecutableComponentContract
 ) => AnyComponentInstance;

@@ -69,6 +69,34 @@ describe('compiler-generated component updates', () => {
 		scope.stop();
 	});
 
+	it('publishes every repeated region bound to the same generated target index', () => {
+		const state = indexedReactiveObjects<{ count: number }>(['count']);
+		state.count = 1;
+		const apply = vi.fn();
+		const updates = { bindings: [[0, 1, 0]] as const, apply };
+		const scope = createEffectScope();
+		const owner = { state, scope } as unknown as AnyComponentInstance;
+		const releases: Array<{ stop(): void }> = [];
+		const targets = [0, 1].map(() => {
+			const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
+			const target = { mounted, stopBindings: releases, valid: true };
+			bindCompiledStateComponentUpdate(target, 0, updates);
+			return target;
+		});
+
+		state.count = 2;
+		flushSync();
+		expect(apply.mock.calls.map(([bound]) => bound)).toEqual([[targets[0]], [targets[1]]]);
+
+		apply.mockClear();
+		releases[0]!.stop();
+		state.count = 3;
+		flushSync();
+		expect(apply).toHaveBeenCalledOnce();
+		expect(apply).toHaveBeenCalledWith([targets[1]], 1, 0);
+		scope.stop();
+	});
+
 	it('subscribes source-qualified prop dependencies without a generic watcher', () => {
 		const state = indexedReactiveObjects<{ count: number }>(['count']);
 		const parent = indexedReactiveObjects<{ label: string }>(['label']);

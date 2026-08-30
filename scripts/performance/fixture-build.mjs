@@ -85,6 +85,18 @@ export async function buildServerPerformanceFixture(outputDirectory) {
 	};
 }
 
+/** Builds the compiler-owned SSR workload used by the DevTools performance gate. */
+export async function buildDevToolsPerformanceFixture(outputDirectory) {
+	const filename = path.join(outputDirectory, 'devtools-ssr.mjs');
+	await buildFixture(
+		path.join(fixtureRoot, 'devtools-ssr.tsx'),
+		outputDirectory,
+		path.basename(filename),
+		{ ssr: true, target: 'server' }
+	);
+	return filename;
+}
+
 function assertCompilerClosedServerBundle(source) {
 	for (const signature of [
 		'ComponentInstanceImpl',

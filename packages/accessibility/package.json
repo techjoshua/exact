@@ -28,9 +28,26 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": [
-		"Accessibility"
-	],
+	"exactCompiledComponents": {
+		".": [
+			"Accessibility"
+		],
+		"./enhancements": [
+			"activeDescendant",
+			"controls",
+			"describedBy",
+			"details",
+			"errorMessage",
+			"flowTo",
+			"focusScope",
+			"initialFocus",
+			"labelledBy",
+			"navigate",
+			"owns",
+			"returnFocus",
+			"default"
+		]
+	},
 	"exactComponentLibrary": {
 		"protocol": 2,
 		"build": "./dist/exact-component-build.json"

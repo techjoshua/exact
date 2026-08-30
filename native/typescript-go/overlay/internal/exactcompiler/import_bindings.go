@@ -12,8 +12,22 @@ type externalImportReference struct {
 }
 
 type externalImportBindings struct {
-	bySymbol map[ast.SymbolId]externalImportReference
-	byName   map[string]externalImportReference
+	byName map[string]externalImportReference
+}
+
+// exactCoreStructuralReference identifies compiler-owned structural syntax values. They are imported
+// runtime symbols, but JSX lowering consumes them as native target operations rather than as
+// foreign component dependencies.
+func exactCoreStructuralReference(moduleSpecifier string, exportName string) bool {
+	if moduleSpecifier != "@exactjs/core" {
+		return false
+	}
+	switch exportName {
+	case "Activity", "Cell", "Dynamic", "Fragment", "Portal", "RenderProgram", "ServerBoundary", "ServerSlot", "Suspense", "Target", "Text", "UnsafeHtml":
+		return true
+	default:
+		return false
+	}
 }
 
 func collectExternalImportBindings(
@@ -21,8 +35,7 @@ func collectExternalImportBindings(
 	typeChecker *checker.Checker,
 ) externalImportBindings {
 	result := externalImportBindings{
-		bySymbol: make(map[ast.SymbolId]externalImportReference),
-		byName:   make(map[string]externalImportReference),
+		byName: make(map[string]externalImportReference),
 	}
 	for _, statement := range sourceFile.Statements.Nodes {
 		if !ast.IsImportDeclaration(statement) {
@@ -95,14 +108,6 @@ func bindExternalImportSymbol(
 	typeChecker *checker.Checker,
 ) {
 	bindings.byName[name.Text()] = reference
-	symbol := typeChecker.GetSymbolAtLocation(name)
-	if symbol == nil {
-		return
-	}
-	bindings.bySymbol[ast.GetSymbolId(symbol)] = reference
-	if target := resolvedCallableSymbol(symbol, typeChecker); target != nil {
-		bindings.bySymbol[ast.GetSymbolId(target)] = reference
-	}
 }
 
 func externalImportForExpression(
@@ -117,27 +122,6 @@ func externalImportForExpression(
 			return externalImportForExpression(member.Expression, bindings, typeChecker)
 		}
 		if ast.IsIdentifier(member.Expression) {
-			bindingSymbol := typeChecker.GetSymbolAtLocation(member.Expression)
-			symbol := typeChecker.GetResolvedSymbol(member.Expression)
-			if symbol != nil {
-				reference, exists := bindings.bySymbol[ast.GetSymbolId(symbol)]
-				if exists && reference.namespace {
-					reference.exportName = member.Name().Text()
-					reference.namespace = false
-					return reference, true
-				}
-				if !exists &&
-					(symbolDeclaredByImport(symbol) ||
-						symbolDeclaredByImport(bindingSymbol) ||
-						symbolDeclaredOutsideSource(symbol, member.Expression)) {
-					reference, exists = bindings.byName[member.Expression.Text()]
-					if exists && reference.namespace {
-						reference.exportName = member.Name().Text()
-						reference.namespace = false
-						return reference, true
-					}
-				}
-			}
 			if reference, exists := bindings.byName[member.Expression.Text()]; exists &&
 				reference.namespace {
 				reference.exportName = member.Name().Text()
@@ -153,59 +137,8 @@ func externalImportForExpression(
 		// unrelated callback/object graph.
 		return externalImportReference{}, false
 	}
-	symbol := typeChecker.GetResolvedSymbol(expression)
-	bindingSymbol := typeChecker.GetSymbolAtLocation(expression)
-	if symbol == nil {
-		reference, exists := bindings.byName[expression.Text()]
-		return reference, exists && !reference.namespace
+	if reference, exists := bindings.byName[expression.Text()]; exists && !reference.namespace {
+		return reference, true
 	}
-	reference, exists := bindings.bySymbol[ast.GetSymbolId(symbol)]
-	if !exists {
-		target := resolvedCallableSymbol(symbol, typeChecker)
-		if target != nil {
-			reference, exists = bindings.bySymbol[ast.GetSymbolId(target)]
-		}
-	}
-	if !exists &&
-		(symbolDeclaredByImport(symbol) ||
-			symbolDeclaredByImport(bindingSymbol) ||
-			symbolDeclaredOutsideSource(symbol, expression)) {
-		reference, exists = bindings.byName[expression.Text()]
-	}
-	if !exists {
-		reference, exists = bindings.byName[expression.Text()]
-	}
-	return reference, exists && !reference.namespace
-}
-
-func symbolDeclaredOutsideSource(symbol *ast.Symbol, location *ast.Node) bool {
-	if symbol == nil || location == nil {
-		return false
-	}
-	current := ast.GetSourceFileOfNode(location)
-	if current == nil {
-		return false
-	}
-	for _, declaration := range symbol.Declarations {
-		source := ast.GetSourceFileOfNode(declaration)
-		if source != nil && source != current {
-			return true
-		}
-	}
-	return false
-}
-
-func symbolDeclaredByImport(symbol *ast.Symbol) bool {
-	if symbol == nil {
-		return false
-	}
-	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
-		return true
-	}
-	for _, declaration := range symbol.Declarations {
-		if enclosingImportDeclaration(declaration) != nil {
-			return true
-		}
-	}
-	return false
+	return externalImportReference{}, false
 }

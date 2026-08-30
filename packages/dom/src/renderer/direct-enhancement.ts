@@ -1,14 +1,24 @@
 import {
 	type AnyComponentInstance,
-	Fragment,
+	type Child,
 	isExactEnhancementPassThrough,
-	readExactEnhancementContexts,
-	type VNode
+	readExactEnhancementContexts
 } from '@exactjs/core';
+import { readRenderProgramReceipt } from '@exactjs/core/runtime/render-operations';
+import {
+	readCompiledComponentReceipt,
+	readCompiledFragmentReceipt,
+	readCompiledIntrinsicReceipt
+} from '@exactjs/core/runtime/component-operations';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../placement.js';
 import type { Mounted, Root } from '../types.js';
-import { createEnhancementChain, withoutEnhancements } from './enhancement-chain.js';
+import {
+	childEnhancementEntries,
+	createEnhancementChain,
+	restoreMountedAuthoredOperation,
+	withoutEnhancements
+} from './enhancement-chain.js';
 import type { EnhancementMountOperation } from './enhancement-capability.js';
 import { createMarker } from './root-support.js';
 import { disposeMounted } from './teardown.js';
@@ -16,13 +26,13 @@ import { disposeMounted } from './teardown.js';
 /** Mounts a context-providing direct target before constructing its descendants. */
 export function mountDirectEnhancementBoundary(
 	root: Root,
-	vnode: VNode,
+	operation: Child,
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	mount: EnhancementMountOperation
 ): Mounted | undefined {
-	if (typeof vnode.type !== 'string' && vnode.type !== Fragment) return undefined;
-	const entries = (vnode.enhancement?.entries ?? []).filter((entry) => {
+	if (!isDirectTarget(operation)) return undefined;
+	const entries = childEnhancementEntries(operation).filter((entry) => {
 		const component = root.enhancementCatalog?.get(entry.identity);
 		if (component !== undefined && !isExactEnhancementPassThrough(component)) return true;
 		reportUnavailable(root, entry.identity);
@@ -36,7 +46,7 @@ export function mountDirectEnhancementBoundary(
 	const end = createMarker(root, 'enhancement-end');
 	const physicalParent = document.createDocumentFragment();
 	physicalParent.append(start, end);
-	const leaf = withoutEnhancements(vnode);
+	const leaf = withoutEnhancements(operation);
 	let enhancement: Mounted;
 	try {
 		enhancement = mount(
@@ -50,20 +60,20 @@ export function mountDirectEnhancementBoundary(
 		throw error;
 	}
 	placeMountedBefore(root, physicalParent, enhancement, end);
-	const target = findMountedVNode(enhancement, leaf);
+	const target = findMountedOperation(enhancement, leaf);
 	if (!target) {
 		disposeMounted(physicalParent, enhancement);
 		scope.stop();
 		throw new Error('Direct enhancement chain did not retain its authored target');
 	}
-	target.vnode = vnode;
+	restoreMountedAuthoredOperation(target, operation);
 	return {
-		vnode,
 		dom: start,
 		end,
 		scope,
 		children: [enhancement],
 		enhancement: {
+			operation,
 			entries,
 			inheritedIdentities: new Set(),
 			target,
@@ -77,10 +87,29 @@ function providesContext(root: Root, identity: string): boolean {
 	return (readExactEnhancementContexts(component)?.provides?.length ?? 0) > 0;
 }
 
-function findMountedVNode(mounted: Mounted, vnode: VNode): Mounted | undefined {
-	if (mounted.vnode === vnode) return mounted;
+function isDirectTarget(operation: Child): boolean {
+	return !!(
+		readCompiledIntrinsicReceipt(operation) ??
+		readCompiledFragmentReceipt(operation) ??
+		readRenderProgramReceipt(operation)
+	);
+}
+
+function findMountedOperation(mounted: Mounted, operation: Child): Mounted | undefined {
+	if (mounted.operation === operation) return mounted;
+	const component = readCompiledComponentReceipt(operation);
+	const intrinsic = readCompiledIntrinsicReceipt(operation);
+	const fragment = readCompiledFragmentReceipt(operation);
+	const program = readRenderProgramReceipt(operation);
+	if (
+		(component !== undefined && mounted.componentReceipt === component) ||
+		(intrinsic !== undefined && mounted.intrinsicReceipt === intrinsic) ||
+		(fragment !== undefined && mounted.fragmentReceipt === fragment) ||
+		(program !== undefined && mounted.renderProgramReceipt === program)
+	)
+		return mounted;
 	for (const child of mounted.children) {
-		const found = findMountedVNode(child, vnode);
+		const found = findMountedOperation(child, operation);
 		if (found) return found;
 	}
 	return undefined;

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exactjs/core';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import {
 	createExactClient,
 	hydrateClientIslands,
@@ -120,7 +120,7 @@ describe('@exactjs/sample-server-components', () => {
 					headers: {}
 				},
 				runtime,
-				() => createVNode(ServerIdentityProjection, {}),
+				() => createCompiledComponentReceipt(ServerIdentityProjection, {}),
 				{
 					hydration: false,
 					markers: false

@@ -52,7 +52,8 @@ export function isExcludedNativeCompilerCorpusDirectory(name) {
 		name === '.build' ||
 		name === '.exact' ||
 		name === '.git' ||
-		name === '.tmp'
+		name === '.tmp' ||
+		name === 'test-support'
 	);
 }
 

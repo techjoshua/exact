@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.37.0"
+const ProtocolVersion = "1.38.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -93,8 +93,15 @@ type ModuleExportReplacement struct {
 // JSXInterop identifies the host-owned runtime brand adapter for component
 // values that cannot be proven to be local native eXact components.
 type JSXInterop struct {
-	AdapterModule string `json:"adapterModule"`
-	AdapterExport string `json:"adapterExport"`
+	AdapterModule   string                     `json:"adapterModule"`
+	AdapterExport   string                     `json:"adapterExport"`
+	ExactComponents []JSXInteropExactComponent `json:"exactComponents,omitempty"`
+}
+
+// JSXInteropExactComponent is one host-classified import that remains on the native target ABI.
+type JSXInteropExactComponent struct {
+	ModuleSpecifier string `json:"moduleSpecifier"`
+	ExportName      string `json:"exportName"`
 }
 
 // CapabilityPolicy contains application-owned grants for privileged features.
@@ -204,9 +211,11 @@ type Component struct {
 	StateSlots           []string                  `json:"-"`
 	PropsSlots           []string                  `json:"-"`
 	Collections          bool                      `json:"-"`
+	Targets              bool                      `json:"-"`
 	CompiledRender       bool                      `json:"-"`
 	ClientCompiledRender bool                      `json:"-"`
 	ClientRangeOutput    bool                      `json:"-"`
+	TargetArtifact       bool                      `json:"-"`
 	Lifecycle            bool                      `json:"-"`
 	Lists                bool                      `json:"-"`
 	DirectSurface        ComponentSurfacePlan      `json:"-"`
@@ -229,14 +238,14 @@ type ComponentSurfacePlan struct {
 // ComponentTargetPlan is the compiler's authoritative target-local execution decision. Lowering
 // passes consume this plan instead of independently reconstructing server lanes and projections.
 type ComponentTargetPlan struct {
-	ClientExecution      ComponentExecution
-	ServerExecution      ComponentExecution
-	ClientSurface        ComponentSurfacePlan
-	ServerSurface        ComponentSurfacePlan
-	DeferredTaskProps    []string
-	DirectServer         bool
-	DirectServerFrame    bool
-	GenericServerRuntime bool
+	ClientExecution   ComponentExecution
+	ServerExecution   ComponentExecution
+	ClientSurface     ComponentSurfacePlan
+	ServerSurface     ComponentSurfacePlan
+	DeferredTaskProps []string
+	DirectServer      bool
+	DirectServerFrame bool
+	UsesCompatibility bool
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.
@@ -1161,6 +1170,7 @@ type Response struct {
 	Analysis            Analysis                `json:"analysis"`
 	Timings             Timings                 `json:"timings"`
 	Counters            WorkCounters            `json:"counters"`
+	Structure           ArtifactStructure       `json:"structure"`
 	CacheHit            bool                    `json:"cacheHit,omitempty"`
 	Error               string                  `json:"error,omitempty"`
 	Extension           any                     `json:"extension,omitempty"`

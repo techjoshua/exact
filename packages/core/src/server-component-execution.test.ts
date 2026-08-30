@@ -1,13 +1,18 @@
+import { createContext } from './index.js';
+import { createExpression } from './runtime/render.js';
 import { describe, expect, it } from 'vitest';
 import {
 	activateServerComponentTaskForHost,
 	awaitServerComponentTask,
 	createServerComponentExecutionFrame,
-	issueServerComponentVNode,
+	issueServerComponentReceipt,
+	registerServerComponentContinuationContextsForHost,
 	serverComponentDependencyForValue,
+	serverComponentContinuationContextValuesForHost,
 	serverComponentExecutionValueForHost,
 	serverComponentTaskTimeout,
-	withServerComponentVNodeIssuer,
+	settledServerComponentContinuationIdsForHost,
+	withServerComponentIssuer,
 	type ServerComponentTaskSlice
 } from './framework/server-component-execution.js';
 
@@ -20,6 +25,10 @@ const valueSlice = [
 const consumeSlice = [[-1], [], 'blocking', 'consume'] as const satisfies ServerComponentTaskSlice;
 
 describe('compiler-closed server component execution', () => {
+	it('publishes an empty context selection without requiring an execution frame', () => {
+		expect(serverComponentContinuationContextValuesForHost({}, [])).toEqual({});
+	});
+
 	it('recognizes dependency tokens created by another evaluated runtime copy', () => {
 		const token = {
 			[Symbol.for('@exactjs/server-component-dependency')]: {
@@ -78,6 +87,51 @@ describe('compiler-closed server component execution', () => {
 		}
 	});
 
+	it('projects aggregate task outputs only after every selected path settles', async () => {
+		const host = { state: { name: '', accent: '' } };
+		const settlements: Promise<unknown>[] = [];
+		const frame = createServerComponentExecutionFrame(host, {
+			observe: (settlement) => settlements.push(settlement)
+		});
+		try {
+			activateServerComponentTaskForHost(
+				host,
+				[
+					[],
+					[
+						[0, ['name']],
+						[1, ['accent']]
+					],
+					'blocking',
+					'project'
+				],
+				'project',
+				async () => {
+					await Promise.resolve();
+					host.state.name = 'Northwind';
+					host.state.accent = '#2255aa';
+				}
+			);
+			const token = serverComponentExecutionValueForHost(
+				host,
+				['name', 'accent'],
+				createExpression(() => ({
+					name: host.state.name,
+					accent: host.state.accent
+				}))
+			);
+			const source = serverComponentDependencyForValue(token)!;
+			expect(source.read().status).toBe('pending');
+			await Promise.all(settlements);
+			expect(source.read()).toMatchObject({
+				status: 'available',
+				value: { name: 'Northwind', accent: '#2255aa' }
+			});
+		} finally {
+			await frame[Symbol.asyncDispose]();
+		}
+	});
+
 	it('aborts active work, runs cleanup, and releases host lookup on disposal', async () => {
 		const host = { state: { value: 'pending' } };
 		let cleanupCalls = 0;
@@ -105,20 +159,46 @@ describe('compiler-closed server component execution', () => {
 		);
 	});
 
-	it('scopes compiler VNode issuance synchronously and restores nested issuers', () => {
+	it('publishes registered direct contexts and successfully settled continuation ids', async () => {
+		const Status = createContext<{ message: string }>('status');
+		const host = {
+			contexts: new Map<symbol, unknown>(),
+			state: { value: 'pending' }
+		};
+		const settlements: Promise<unknown>[] = [];
+		const frame = createServerComponentExecutionFrame(host, {
+			observe: (settlement) => settlements.push(settlement)
+		});
+		try {
+			registerServerComponentContinuationContextsForHost(host, [{ name: 'Status', token: Status }]);
+			activateServerComponentTaskForHost(host, valueSlice, 'load', async () => {
+				host.contexts.set(Status.id, { message: 'ready' });
+				host.state.value = 'ready';
+			});
+			await Promise.all(settlements);
+			expect(serverComponentContinuationContextValuesForHost(host, ['Status'])).toEqual({
+				Status: { message: 'ready' }
+			});
+			expect(settledServerComponentContinuationIdsForHost(host)).toEqual(['load']);
+		} finally {
+			await frame[Symbol.asyncDispose]();
+		}
+	});
+
+	it('scopes compiler receipt issuance synchronously and restores nested issuers', () => {
 		const issued: string[] = [];
-		withServerComponentVNodeIssuer(
+		withServerComponentIssuer(
 			(value) => issued.push(`outer:${String(value)}`),
 			() => {
-				issueServerComponentVNode('one');
-				withServerComponentVNodeIssuer(
+				issueServerComponentReceipt('one');
+				withServerComponentIssuer(
 					(value) => issued.push(`inner:${String(value)}`),
-					() => issueServerComponentVNode('two')
+					() => issueServerComponentReceipt('two')
 				);
-				issueServerComponentVNode('three');
+				issueServerComponentReceipt('three');
 			}
 		);
-		issueServerComponentVNode('outside');
+		issueServerComponentReceipt('outside');
 		expect(issued).toEqual(['outer:one', 'inner:two', 'outer:three']);
 	});
 

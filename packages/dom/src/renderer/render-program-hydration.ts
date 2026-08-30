@@ -15,12 +15,9 @@ export function indexProgramHydration(root: Element): ProgramHydrationIndex {
 		let current: Node = node;
 		if (current instanceof Element) {
 			elements.push(current);
-		} else if (current instanceof Comment && current.data.startsWith('exact:dynamic:')) {
+		} else if (current instanceof Comment && current.data.startsWith('x:')) {
 			(markers ??= new Map()).set(current.data, current);
-			const closing = `/${current.data}`;
-			let boundary: Node | null = current.nextSibling;
-			while (boundary && (!(boundary instanceof Comment) || boundary.data !== closing))
-				boundary = boundary.nextSibling;
+			const boundary = findLegacyDynamicClosingMarker(current);
 			if (boundary) current = boundary;
 		}
 		if (current.firstChild) {
@@ -49,10 +46,8 @@ export function claimProgramChildSlot(
 	id: string
 ): Comment | undefined {
 	const identity = markerIdentity(id);
-	const marker = index.markers?.get(`exact:dynamic:${identity}`);
-	return marker instanceof Comment && marker.data === `exact:dynamic:${identity}`
-		? marker
-		: undefined;
+	const marker = index.markers?.get(`x:${identity}`);
+	return marker instanceof Comment && marker.data === `x:${identity}` ? marker : undefined;
 }
 
 /** Claims one compiler-identified SSR scalar range and materializes its empty text node. */
@@ -62,12 +57,11 @@ export function claimProgramTextSlot(
 	id: string
 ): Text | undefined {
 	const identity = markerIdentity(id);
-	const marker = index.markers?.get(`exact:dynamic:${identity}`);
-	if (!(marker instanceof Comment) || marker.data !== `exact:dynamic:${identity}`) return undefined;
+	const marker = index.markers?.get(`x:${identity}`);
+	if (!(marker instanceof Comment) || marker.data !== `x:${identity}`) return undefined;
 	let text = marker.nextSibling instanceof Text ? marker.nextSibling : undefined;
 	const closing = text ? text.nextSibling : marker.nextSibling;
-	if (!(closing instanceof Comment) || closing.data !== `/exact:dynamic:${identity}`)
-		return undefined;
+	if (!(closing instanceof Comment) || closing.data !== `/x:${identity}`) return undefined;
 	if (!text) {
 		text = root.ownerDocument.createTextNode('');
 		closing.parentNode?.insertBefore(text, closing);
@@ -109,4 +103,11 @@ export function markedProgramRange(
 
 function markerIdentity(id: string): string {
 	return id.startsWith('exact:') ? id.slice('exact:'.length) : id;
+}
+
+function findLegacyDynamicClosingMarker(start: Comment): Comment | undefined {
+	const closing = `/${start.data}`;
+	for (let node = start.nextSibling; node; node = node.nextSibling)
+		if (node instanceof Comment && node.data === closing) return node;
+	return undefined;
 }

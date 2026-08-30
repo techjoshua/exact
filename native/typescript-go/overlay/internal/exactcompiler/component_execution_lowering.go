@@ -16,7 +16,7 @@ func planComponentTargets(
 	components []Component,
 	tasks []Task,
 	resumptions []ComponentResumption,
-	compatibilityEnabled bool,
+	interop *JSXInterop,
 ) {
 	for index := range components {
 		component := &components[index]
@@ -26,16 +26,8 @@ func planComponentTargets(
 		}
 		execution := projectComponentExecution(component.Execution, TargetServer)
 		serverSurface := projectServerComponentSurface(componentNode, *component, tasks)
-		hasResumption := component.Placement == "isomorphic" &&
-			componentHasResumption(component.ID, resumptions)
-		directResumption := hasResumption &&
-			directServerResumptionSupported(component.ID, resumptions)
-		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
+		usesCompatibility := componentUsesJSXInterop(*component, componentNode, interop)
 		hasLifecycle := serverSurface.ServerLifecycle
-		unsupportedSurface := (serverSurface.ServerLifecycle &&
-			!directServerLifecycleSupported(componentNode)) ||
-			(serverSurface.Reactivity && !directServerReactivitySupported(componentNode)) ||
-			(serverSurface.Refs && !directServerRefsSupported(componentNode))
 		abi := componentRuntimeABI(
 			*component,
 			serverSurface,
@@ -44,34 +36,28 @@ func planComponentTargets(
 			false,
 			usesCompatibility,
 			component.CompiledRender,
+			false,
 		)
 		directABI := componentABICompiledRender | componentABITasks | componentABICollections |
 			componentABIContexts | componentABILifecycle
-		tasksSupported := true
-		for _, task := range tasks {
-			if task.Component == component.Name && !directServerTaskSupported(task) {
-				tasksSupported = false
-				break
-			}
-		}
-		directServer := (!hasResumption || directResumption) && !usesCompatibility &&
-			!component.DynamicComponents && !unsupportedSurface && tasksSupported && abi&^directABI == 0
+		// Every non-client native component owns one direct request-local server artifact. Dynamic
+		// selection, resumptions, and focused surfaces change emitted operations, never the lane.
+		directServer := component.Placement != "client" && abi&^directABI == 0
 		component.TargetPlan = ComponentTargetPlan{
-			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
-			ServerExecution:      execution,
-			ClientSurface:        component.Surface,
-			ServerSurface:        serverSurface,
-			DeferredTaskProps:    deferredServerTaskProps(*component, execution, componentNode, tasks),
-			DirectServer:         directServer,
-			DirectServerFrame:    directServer && len(execution.Transitions) == 0,
-			GenericServerRuntime: component.Placement != "client" && !directServer,
+			ClientExecution:   projectComponentExecution(component.Execution, TargetClient),
+			ServerExecution:   execution,
+			ClientSurface:     component.Surface,
+			ServerSurface:     serverSurface,
+			DeferredTaskProps: deferredServerTaskProps(*component, execution, componentNode, tasks),
+			DirectServer:      directServer,
+			DirectServerFrame: directServer && len(execution.Transitions) == 0,
+			UsesCompatibility: usesCompatibility,
 		}
 	}
 }
 
-// directServerLifecycleSupported accepts only complete canonical operations that can be linked to
-// the request-local lifecycle sidecar. Extracted, optional, dynamic, or forwarded operations retain
-// durable component ownership because the compiler cannot prove their eventual registration.
+// directServerLifecycleSupported accepts canonical and extracted named operations that generated
+// code can link to the request-local lifecycle sidecar.
 func directServerLifecycleSupported(componentNode *ast.Node) bool {
 	supported := true
 	walkNode(componentNode, func(node *ast.Node) bool {
@@ -86,10 +72,7 @@ func directServerLifecycleSupported(componentNode *ast.Node) bool {
 			supported = false
 			return false
 		}
-		parent := node.Parent
-		supported = parent != nil && ast.IsCallExpression(parent) &&
-			parent.AsCallExpression().Expression == node &&
-			parent.AsCallExpression().QuestionDotToken == nil
+		supported = !dynamic
 		return supported
 	})
 	return supported
@@ -97,7 +80,7 @@ func directServerLifecycleSupported(componentNode *ast.Node) bool {
 
 // directServerReactivitySupported accepts the canonical component convenience operation. Its
 // request-local value recomputes on observation, so task-driven plain-frame state writes remain
-// fresh without constructing a dependency graph. Extraction and forwarded helpers remain durable.
+// fresh without constructing a dependency graph. Named extraction receives a stable focused method.
 func directServerReactivitySupported(componentNode *ast.Node) bool {
 	supported := true
 	walkNode(componentNode, func(node *ast.Node) bool {
@@ -112,20 +95,14 @@ func directServerReactivitySupported(componentNode *ast.Node) bool {
 			supported = false
 			return false
 		}
-		parent := node.Parent
-		supported = parent != nil &&
-			((ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == node &&
-				parent.AsCallExpression().QuestionDotToken == nil) ||
-				(ast.IsTaggedTemplateExpression(parent) &&
-					parent.AsTaggedTemplateExpression().Tag == node))
+		supported = !dynamic
 		return supported
 	})
 	return supported
 }
 
 // directServerRefsSupported accepts only ref operations whose complete server semantics can be
-// linked to the request-local direct-ref helpers. Extracted, dynamic, or forwarded ref surfaces
-// remain on the durable lane because their eventual operation cannot be proven here.
+// linked to the request-local direct-ref helpers. Named extraction receives stable focused methods.
 func directServerRefsSupported(componentNode *ast.Node) bool {
 	supported := true
 	walkNode(componentNode, func(node *ast.Node) bool {
@@ -140,26 +117,7 @@ func directServerRefsSupported(componentNode *ast.Node) bool {
 			supported = false
 			return false
 		}
-		parent := node.Parent
-		switch name {
-		case "ref", "readRef":
-			supported = parent != nil && ast.IsCallExpression(parent) &&
-				parent.AsCallExpression().Expression == node &&
-				parent.AsCallExpression().QuestionDotToken == nil
-		case "refs":
-			if parent == nil || !ast.IsPropertyAccessExpression(parent) {
-				supported = false
-				break
-			}
-			access := parent.AsPropertyAccessExpression()
-			operation := access.Name().Text()
-			call := parent.Parent
-			supported = access.QuestionDotToken == nil &&
-				(operation == "get" || operation == "root") &&
-				call != nil && ast.IsCallExpression(call) &&
-				call.AsCallExpression().Expression == parent &&
-				call.AsCallExpression().QuestionDotToken == nil
-		}
+		supported = !dynamic
 		return supported
 	})
 	return supported
@@ -251,12 +209,18 @@ func directServerTaskSupported(task Task) bool {
 	if task.Placement == "client" {
 		return true
 	}
+	// Invoked tasks are continuation operations, not request-render setup. Their generated execute
+	// entry belongs to the same artifact but does not require a durable component during SSR.
+	if task.Invoked {
+		return true
+	}
 	if directServerSetupComputation(task) {
 		return true
 	}
-	return !task.Invoked && !task.Detached && task.KeyLength == 0 &&
-		(task.Readiness == "" || task.Readiness == "blocking" || !task.Async) &&
-		len(task.Contexts) == 0
+	// The direct scheduled frame already owns blocking and nonblocking generations, cancellation,
+	// context reads, sibling pre-issuance, and request disposal. Detached and keyed setup lanes still
+	// require their dedicated request-local encodings before they may enter this path.
+	return !task.Detached && task.KeyLength == 0
 }
 
 func componentTargetExecution(component Component, target Target) ComponentExecution {
@@ -314,10 +278,13 @@ func componentExecutionMetadata(
 	return contractObject(factory, true, properties...)
 }
 
-// componentDefinitionMetadata emits the single compiler-owned executable description consumed
-// while creating each durable state-machine instance.
-func componentDefinitionMetadata(
+// componentArtifactMetadata emits the one current target-discriminated executable carried by a
+// native export. Inert continuation and build facts remain outside this runtime artifact.
+func componentArtifactMetadata(
 	factory *printer.NodeFactory,
+	componentID string,
+	target Target,
+	operations componentTargetOperations,
 	instantiate *ast.Node,
 	construct *ast.Node,
 	execution ComponentExecution,
@@ -334,6 +301,7 @@ func componentDefinitionMetadata(
 	compatibility bool,
 	dynamicComponents bool,
 	collections bool,
+	targets bool,
 	runtimeABI int,
 	directServer bool,
 	server bool,
@@ -371,6 +339,9 @@ func componentDefinitionMetadata(
 	if runtimeABI&componentABIContexts != 0 {
 		capabilities = append(capabilities, "contexts")
 	}
+	if targets {
+		capabilities = append(capabilities, "targets")
+	}
 	reactive := make([]*ast.Node, 0, len(execution.Reactive))
 	for _, binding := range execution.Reactive {
 		reactive = append(reactive, contractObject(factory, true,
@@ -382,6 +353,8 @@ func componentDefinitionMetadata(
 	}
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
+		contractProperty(factory, "target", contractString(factory, string(target))),
+		contractProperty(factory, "id", contractString(factory, componentID)),
 		contractProperty(factory, "instantiate", instantiate),
 		contractProperty(factory, "construct", construct),
 		contractProperty(factory, "abi", contractNumber(factory, runtimeABI)),
@@ -389,13 +362,26 @@ func componentDefinitionMetadata(
 		contractProperty(factory, "state", stringMetadata(factory, state)),
 		contractProperty(factory, "props", stringMetadata(factory, props)),
 	}
+	if target == TargetClient {
+		properties = append(properties,
+			contractProperty(factory, "attach", operations.attach),
+			contractProperty(factory, "receive", operations.receive),
+			contractProperty(factory, "dispose", operations.dispose),
+		)
+	} else {
+		properties = append(properties,
+			contractProperty(factory, "issue", operations.issue),
+			contractProperty(factory, "write", operations.write),
+			contractProperty(factory, "dispose", operations.dispose),
+		)
+	}
 	if updates != nil {
 		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
 	if server {
 		properties = append(properties, contractProperty(
 			factory,
-			"server",
+			"execution",
 			serverComponentExecutionMetadata(
 				factory,
 				execution,
@@ -433,15 +419,12 @@ func serverComponentExecutionMetadata(
 	lifecycle *ast.Node,
 ) *ast.Node {
 	classification := "synchronous"
-	if dynamic {
+	if dynamic && !direct {
 		classification = "dynamic"
 	} else if len(execution.Transitions) != 0 {
 		classification = "scheduled"
 	}
-	lane := "generic"
-	if direct && classification != "dynamic" {
-		lane = "direct"
-	}
+	lane := "direct"
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "classification", contractString(factory, classification)),
@@ -603,6 +586,7 @@ func componentRuntimeABI(
 	hasInteractions bool,
 	compatibility bool,
 	compiledRender bool,
+	continuationDispatch bool,
 ) int {
 	abi := 0
 	rangeOutput := compiledRender && component.ClientRangeOutput
@@ -618,13 +602,13 @@ func componentRuntimeABI(
 	if component.Lists {
 		abi |= componentABILists
 	}
-	if len(execution.Transitions) != 0 || hasInteractions || compatibility {
+	if len(execution.Transitions) != 0 || compatibility || continuationDispatch {
 		abi |= componentABITasks
 	}
 	if component.Collections {
 		abi |= componentABICollections
 	}
-	if surface.Contexts {
+	if surface.Contexts || surface.Localization {
 		abi |= componentABIContexts
 	}
 	return abi

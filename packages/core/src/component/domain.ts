@@ -10,11 +10,6 @@ import type {
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
 import type { Logger } from '../logging.js';
 
-let activeDomain: ComponentDomain | undefined;
-const resumingDomains = new WeakMap<ComponentDomain, number>();
-const domainCapabilities = new WeakMap<ComponentDomain, StoredComponentDomainCapabilities>();
-const wallClockUsedDomains = new WeakSet<ComponentDomain>();
-
 /** Public options for creating an application-owned component domain. */
 export type ComponentDomainOptions = ComponentDomainIdentity;
 
@@ -39,6 +34,28 @@ type StoredComponentDomainCapabilities = ComponentDomainCapabilities & {
 	logging?: ComponentDomainLogging;
 };
 
+type ComponentDomainRuntimeState = {
+	activeDomain?: ComponentDomain;
+	resumingDomains: WeakMap<ComponentDomain, number>;
+	domainCapabilities: WeakMap<ComponentDomain, StoredComponentDomainCapabilities>;
+	wallClockUsedDomains: WeakSet<ComponentDomain>;
+};
+
+const componentDomainRuntimeStateKey = Symbol.for('@exactjs/component-domain.runtime-state');
+const componentDomainRuntimeState: ComponentDomainRuntimeState = (() => {
+	const scope = globalThis as typeof globalThis & {
+		[componentDomainRuntimeStateKey]?: ComponentDomainRuntimeState;
+	};
+	const initial: ComponentDomainRuntimeState = {
+		resumingDomains: new WeakMap(),
+		domainCapabilities: new WeakMap(),
+		wallClockUsedDomains: new WeakSet()
+	};
+	return (scope[componentDomainRuntimeStateKey] ??= initial);
+})();
+
+const { domainCapabilities, resumingDomains, wallClockUsedDomains } = componentDomainRuntimeState;
+
 /** Internal construction options used by framework render and hydration boundaries. */
 export type FrameworkComponentDomainOptions = ComponentDomainOptions &
 	ComponentDomainCapabilities & { logger?: Logger };
@@ -50,7 +67,7 @@ const sharedDomains = globalThis as Record<PropertyKey, unknown>;
 export const pageComponentDomain = (sharedDomains[pageComponentDomainKey] ??=
 	constructComponentDomain({ executionRoot: 'page' })) as ComponentDomain;
 
-/** Creates immutable ownership metadata carried by VNodes and component instances. */
+/** Creates immutable ownership metadata carried by operations and component instances. */
 export function createComponentDomain(options: ComponentDomainOptions): ComponentDomain {
 	return constructComponentDomain(options);
 }
@@ -167,14 +184,14 @@ export function dispatchComponentContinuation<Result = void>(
 	}) as Promise<Result>;
 }
 
-/** Runs synchronous VNode creation with an explicit immutable component domain. */
+/** Runs synchronous operation creation with an explicit immutable component domain. */
 export function withComponentDomain<T>(domain: ComponentDomain, work: () => T): T {
-	const previous = activeDomain;
-	activeDomain = domain;
+	const previous = componentDomainRuntimeState.activeDomain;
+	componentDomainRuntimeState.activeDomain = domain;
 	try {
 		return work();
 	} finally {
-		activeDomain = previous;
+		componentDomainRuntimeState.activeDomain = previous;
 	}
 }
 
@@ -200,7 +217,7 @@ export function resolveComponentResumption(
 		: undefined;
 }
 
-/** Returns the domain currently responsible for authored VNode creation. */
+/** Returns the domain currently responsible for authored operation creation. */
 export function currentComponentDomain(): ComponentDomain | undefined {
-	return activeDomain;
+	return componentDomainRuntimeState.activeDomain;
 }

@@ -2,7 +2,7 @@ import { createServerDynamicComponent } from '@exactjs/core/runtime/dynamic-comp
 import { Fragment } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr dynamic component boundaries', () => {
 	it('publishes an inert marker without reading the client resolver', async () => {
@@ -17,7 +17,7 @@ describe('@exactjs/ssr dynamic component boundaries', () => {
 		const early: (readonly string[])[] = [];
 		const first = createServerDynamicComponent('fixture:first');
 		const second = createServerDynamicComponent('fixture:second');
-		const result = renderToString(createVNode(Fragment, null, first, first, second), {
+		const result = renderToString(createOperation(Fragment, null, first, first, second), {
 			maxDynamicComponentPreloads: 1,
 			dynamicComponentArtifacts: {
 				'fixture:first': {

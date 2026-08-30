@@ -1,17 +1,16 @@
 import {
 	createComponentDomain,
 	createRef,
-	createVNode,
 	isExactComponentAuthorizationIdentity,
 	watch,
 	type Child,
 	type Component,
-	type ComponentDomain,
-	type VNode
+	type ComponentDomain
 } from '@exactjs/core';
 import { createExactClient, type ExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
-import { readExactCompiledComponentContract } from '@exactjs/core/framework/component-contracts';
+import { readExactClientExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
+import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-abi';
 import type { ExactRemoteModule } from './artifacts.js';
 import { importIntegrityPinnedRemoteModule } from './client-integrity.js';
 import { registerExactRemoteRecovery, type ExactRemoteRecoveryRegistration } from './recovery.js';
@@ -116,7 +115,7 @@ export function RemoteComponent(
 		reconcile: number;
 	}>,
 	props: RemoteComponentProps
-): () => VNode {
+): () => Child {
 	const containerRef = createRef<Element>('exact.remote.container');
 	let remote: ExactRemoteModule | undefined;
 	let client: ExactClient | undefined;
@@ -246,7 +245,7 @@ export function RemoteComponent(
 		(
 			void this.state.generation,
 			void this.state.reconcile,
-			createVNode(
+			createCompiledIntrinsicReceipt(
 				'div',
 				{
 					ref: this.ref(containerRef),
@@ -323,7 +322,7 @@ function validateRemoteModule(value: unknown): ExactRemoteModule {
 		throw new Error('Invalid eXact remote module');
 	let contract;
 	try {
-		contract = readExactCompiledComponentContract(module.component);
+		contract = readExactClientExecutableComponentContract(module.component);
 	} catch {
 		throw new Error('Invalid eXact remote module: component is not a compiled client artifact');
 	}

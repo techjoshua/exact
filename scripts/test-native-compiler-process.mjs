@@ -43,7 +43,7 @@ try {
 			start: 0,
 			length: request.source.length,
 			exported: true,
-			signals: ['named-jsx'],
+			signals: ['named-jsx', 'named-render'],
 			placement: 'isomorphic',
 			subgraphPlacement: 'isomorphic',
 			environmentEffect: 'neutral',
@@ -201,7 +201,8 @@ try {
 		'export function NativePanel() { return () => <button onClick={() => alert(1)}>Go</button>; }',
 		{ filename: 'native-panel.tsx', serverComponents: true, session }
 	);
-	assert.match(result.code, /createCompiledVNode/);
+	assert.match(result.code, /createPreparedRenderProgram/);
+	assert.doesNotMatch(result.code, /createCompiledVNode/);
 	assert.equal(resultAnalysis.components[0]?.name, 'NativePanel');
 	assert.equal(
 		resultAnalysis.symbols.some((symbol) => symbol.role === 'root'),

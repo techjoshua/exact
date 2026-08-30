@@ -163,6 +163,9 @@ Pass `{ state, publicContexts }` as the second argument when the document carrie
 state or context. When the client entry imports the compiler-generated hydration registration, use
 `includeContinuations: false`; this keeps the authoritative continuation contracts in that client
 registration instead of transmitting a duplicate copy in the HTML.
+The registration generator can emit a named client bootstrap for entries that reach server tasks
+or client islands. Import that generated function instead of separately importing the general
+hydration facade and merging the registration by hand.
 
 Hydration metadata uses compact defaults on the wire. Schema-defined empty arrays and objects are
 omitted and restored as shared immutable empty values by the hydration runtime. Empty arrays and

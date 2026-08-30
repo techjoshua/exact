@@ -1,5 +1,8 @@
 import { createLogger, createServer } from 'vite';
+import { createServer as createHttpServer } from 'node:http';
+import { once } from 'node:events';
 import { describe, expect, it } from 'vitest';
+import { exact } from '@exactjs/vite-plugin';
 
 describe('shipping development SSR graph', () => {
 	it('loads the server application without analyzing Node-only config imports', async () => {
@@ -15,15 +18,44 @@ describe('shipping development SSR graph', () => {
 			configFile: false,
 			appType: 'custom',
 			customLogger: logger,
+			plugins: [exact({ renderMode: 'hydrate' })],
 			server: { middlewareMode: true }
 		});
 		try {
-			await vite.ssrLoadModule('/src/server-app.ts');
+			const { handleParcelLabRequest } = await vite.ssrLoadModule('/src/server-app.tsx');
+			let renderError: unknown;
+			const http = createHttpServer((request, response) => {
+				void handleParcelLabRequest(request, response, {
+					clientScript: '/src/client.ts'
+				}).catch((error: unknown) => {
+					renderError = error;
+					response.statusCode = 500;
+					response.end(error instanceof Error ? error.stack : String(error));
+				});
+			});
+			try {
+				http.listen(0, '127.0.0.1');
+				await once(http, 'listening');
+				const address = http.address();
+				if (!address || typeof address === 'string') throw new Error('Test server did not bind');
+				const response = await fetch(`http://127.0.0.1:${address.port}/`);
+				const html = await response.text();
+				expect(renderError).toBeUndefined();
+				expect(response.status).toBe(200);
+				expect(html).toContain('Find the right way to send it.');
+			} finally {
+				http.close();
+				await once(http, 'close');
+			}
 			const { ShippingCalculatorPage } = await vite.ssrLoadModule('/.exact/App.exact.server.ts');
-			const { createVNode } = await vite.ssrLoadModule('@exactjs/core');
+			const { createCompiledComponentReceipt } = await vite.ssrLoadModule(
+				'@exactjs/core/runtime/component-operations'
+			);
 			const { renderToHydratableStringAsync } = await vite.ssrLoadModule('@exactjs/ssr');
 			const rendered = await renderToHydratableStringAsync(
-				createVNode(ShippingCalculatorPage, { url: 'http://localhost:4175/' }),
+				createCompiledComponentReceipt(ShippingCalculatorPage, {
+					url: 'http://localhost:4175/'
+				}),
 				{ maxTaskPasses: 3, maxTaskDurationMs: 1_200 }
 			);
 			expect(rendered.html).toContain('Find the right way to send it.');

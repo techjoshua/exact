@@ -4,7 +4,7 @@ import {
 	renderReactToStringAsync,
 	withBootstrapScripts,
 	type ServerRenderOptions
-} from './server-shared.js';
+} from './server/shared.js';
 import { prerender, resume, resumeAndPrerender } from './static-shared.js';
 
 export { prerender, resume, resumeAndPrerender };

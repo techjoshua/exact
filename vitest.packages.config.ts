@@ -1,6 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 
 const packageProjectConfigs = [
+	'packages/component-composition-corpus/vitest.config.ts',
 	'packages/hydrate/vitest.config.ts',
 	'packages/ssr/vitest.config.ts',
 	'packages/testing/vitest.config.ts',

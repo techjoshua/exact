@@ -1,5 +1,5 @@
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
+import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
 import {
 	reactiveIndexedDependencies,
 	readMutationVersion
@@ -19,9 +19,16 @@ export type CompiledComponentDependencyGroup = {
 /** Opaque owner field used by exactly one update ABI for a compiled component definition. */
 export const compiledComponentUpdateState = Symbol('exact.dom.component-updates');
 
+/** One generated target index may have several live regions when its source program is repeated. */
+export type CompiledComponentUpdateTargets = Array<
+	ExactRenderProgramBindingTarget | Set<ExactRenderProgramBindingTarget> | undefined
+>;
+
 /** Binding target shape owned by the render-program binder. */
 export type CompiledProgramBindingTarget = {
 	readonly mounted: Mounted;
+	/** Explicit durable owner for non-render-program compiled targets. */
+	readonly owner?: AnyComponentInstance;
 	readonly stopBindings: Array<{ stop(): void }>;
 	valid: boolean;
 };
@@ -32,7 +39,9 @@ export function componentUpdateOwner(
 ): AnyComponentInstance | undefined {
 	const context = target as CompiledProgramBindingTarget;
 	const owner =
-		context.mounted.renderProgram?.bindingOwner ?? context.mounted.renderProgram?.parentInstance;
+		context.owner ??
+		context.mounted.renderProgram?.bindingOwner ??
+		context.mounted.renderProgram?.parentInstance;
 	if (owner) return owner;
 	context.valid = false;
 	return undefined;
@@ -41,15 +50,49 @@ export function componentUpdateOwner(
 /** Installs one compiler-indexed region target and clears it when that region is released. */
 export function bindComponentUpdateTarget(
 	target: ExactRenderProgramBindingTarget,
-	targets: Array<ExactRenderProgramBindingTarget | undefined>,
+	targets: CompiledComponentUpdateTargets,
 	index: number
 ): void {
-	targets[index] = target;
+	const current = targets[index];
+	if (!current) targets[index] = target;
+	else if (current instanceof Set) current.add(target);
+	else if (current !== target) targets[index] = new Set([current, target]);
 	(target as CompiledProgramBindingTarget).stopBindings.push({
 		stop: () => {
-			if (targets[index] === target) targets[index] = undefined;
+			const bound = targets[index];
+			if (bound === target) targets[index] = undefined;
+			else if (bound instanceof Set) {
+				bound.delete(target);
+				if (bound.size === 0) targets[index] = undefined;
+				else if (bound.size === 1) targets[index] = bound.values().next().value;
+			}
 		}
 	});
+}
+
+/** Applies a generated update once to singleton regions and once to every repeated region. */
+export function publishComponentUpdateTargets(
+	targets: CompiledComponentUpdateTargets,
+	apply: (targets: Array<ExactRenderProgramBindingTarget | undefined>) => void
+): void {
+	const singletons: Array<ExactRenderProgramBindingTarget | undefined> = [];
+	let hasSingleton = false;
+	for (let index = 0; index < targets.length; index++) {
+		const target = targets[index];
+		if (!target || target instanceof Set) continue;
+		singletons[index] = target;
+		hasSingleton = true;
+	}
+	if (hasSingleton) apply(singletons);
+	for (let index = 0; index < targets.length; index++) {
+		const repeated = targets[index];
+		if (!(repeated instanceof Set)) continue;
+		for (const target of repeated) {
+			const occurrence: Array<ExactRenderProgramBindingTarget | undefined> = [];
+			occurrence[index] = target;
+			apply(occurrence);
+		}
+	}
 }
 
 /** Resolves the subset of generated dependencies backed by one indexed state or props facade. */

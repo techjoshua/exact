@@ -34,7 +34,7 @@ type jsxLoweringPlan struct {
 // prepare creates the mutable traversal state only when the analyzed module needs JSX-owned work.
 func (plan jsxLoweringPlan) prepare(
 	sourceFile *ast.SourceFile,
-	factory *printer.NodeFactory,
+	emitContext *printer.EmitContext,
 ) (*jsxLowering, bool) {
 	hasJSX := sourceFile.SubtreeFacts()&ast.SubtreeContainsJsx != 0
 	derived, elidedDerived := planDerivedBindings(
@@ -55,7 +55,8 @@ func (plan jsxLoweringPlan) prepare(
 	}
 	lowering := &jsxLowering{
 		sourceFile:                  sourceFile,
-		factory:                     factory,
+		factory:                     emitContext.Factory,
+		emitContext:                 emitContext,
 		names:                       allocateJSXRuntimeNames(sourceFile),
 		nodeIDs:                     expressionNodeIDs(sourceFile),
 		writes:                      indexStateWrites(plan.stateWrites),
@@ -81,6 +82,7 @@ func (plan jsxLoweringPlan) prepare(
 		renderProgramDefinitions:    make(map[int]string),
 		componentUpdates:            make(map[string]*componentUpdateBuild),
 		componentRangeOutputs:       make(map[string]struct{}),
+		componentRangeReaders:       make(map[string]struct{}),
 		cachedDerivedNames:          make(map[int]string),
 		derived:                     derived,
 		elidedDerived:               elidedDerived,
@@ -93,6 +95,7 @@ func (plan jsxLoweringPlan) prepare(
 		componentTagSymbols:         make(map[ast.SymbolId]bool),
 		resolvedComponentTagSymbols: make(map[ast.SymbolId]struct{}),
 		componentDeclarationSpans:   make(map[*ast.SourceFile][]SourceSpan),
+		publishedComponentImports:   make(map[string]bool),
 		microComponents:             lexicalMicroComponentSymbols(sourceFile, plan.typeChecker),
 		renderEdges:                 indexRenderEdges(plan.components),
 		contextWrites:               indexContinuationContextWrites(plan.continuations),
@@ -107,22 +110,40 @@ func (plan jsxLoweringPlan) prepare(
 		componentLocalization:       plan.componentLocalization,
 		externalImports:             collectExternalImportBindings(sourceFile, plan.typeChecker),
 		closedServerWriters:         make(map[string]struct{}),
+		redirectedRootImports:       make(map[string]struct{}),
+		genericPropertyGroups:       make(map[string]struct{}),
+		parentChildRouting:          make(map[string]struct{}),
+	}
+	lowering.structure.NativeComponents = len(plan.components)
+	artifactTarget := string(plan.target)
+	if plan.target == TargetDefault {
+		artifactTarget = string(TargetClient)
+	}
+	for _, component := range plan.components {
+		for _, target := range component.ArtifactTargets {
+			if target == artifactTarget {
+				lowering.structure.TargetArtifacts++
+				break
+			}
+		}
 	}
 	lowering.indexComponentRangeOutputs()
 	lowering.indexCollectionMaps()
 	return lowering, true
 }
 
-// indexComponentRangeOutputs selects the component boundary as the update range when a client
-// render function has reactive output but no JSX topology from which to build a finite program.
+// indexComponentRangeOutputs gives an output without finite JSX topology one focused dynamic
+// range. The client uses the range as the reactive replacement boundary; the server must emit the
+// same boundary so hydration can claim that target-local structure without rebuilding it.
 func (lowering *jsxLowering) indexComponentRangeOutputs() {
-	if lowering.target != TargetClient {
-		return
-	}
 	record := func(expression *ast.Node) {
-		if expression == nil || containsJSX(expression) {
+		expression = unwrapRenderExpression(expression)
+		if expression == nil || ast.IsJsxElement(expression) ||
+			ast.IsJsxSelfClosingElement(expression) || ast.IsJsxFragment(expression) {
 			return
 		}
+		// A conditional or collection expression that contains JSX does not itself have one finite
+		// root topology. Its lowered JSX values remain ordinary children inside this focused range.
 		// An opaque output call may read component props or state inside its body. Its execution is
 		// the dependency observation boundary even when the call site contains no direct read. Only
 		// a same-project JSX helper is proven to lower into a finite program of its own.
@@ -133,7 +154,13 @@ func (lowering *jsxLowering) indexComponentRangeOutputs() {
 		}
 		component, exists := lowering.componentContaining(expression)
 		if exists {
-			lowering.componentRangeOutputs[component.Name] = struct{}{}
+			if lowering.contractProjection == ComponentContractProjectionHydrate {
+				// Phase 4 migrates same-build adoption to generated attachment. Preserve the
+				// established component-boundary adoption topology until that owner moves.
+				lowering.componentRangeOutputs[component.Name] = struct{}{}
+			} else {
+				lowering.componentRangeReaders[nodeSpanKey(expression)] = struct{}{}
+			}
 		}
 	}
 	for _, render := range resolveComponentRenders(lowering.sourceFile) {

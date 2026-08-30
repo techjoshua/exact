@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite",
+		"dev": "node ../../scripts/start-owned-vite-dev-server.mjs",
 		"build": "node scripts/build.mjs",
 		"preview": "node scripts/preview.mjs",
 		"test": "vitest run src/code-highlighting.test.ts src/theme-isolation.test.ts src/syntax-theme.test.ts",

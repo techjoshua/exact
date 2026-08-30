@@ -1,11 +1,5 @@
-import {
-	createContext,
-	createVNode,
-	peek,
-	type Child,
-	type Component,
-	type ContextToken
-} from '@exactjs/core';
+import { createContext, peek, type Child, type Component, type ContextToken } from '@exactjs/core';
+import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-abi';
 import type {
 	ResolvedTheme,
 	ResolvedThemeSource,
@@ -122,7 +116,7 @@ export function ThemeScopeEnhancement(
 		return observeSystemPreferences(applyPreferences);
 	});
 	return () =>
-		createVNode(
+		createCompiledIntrinsicReceipt(
 			props.element ?? 'div',
 			{
 				'data-exact-theme': 'exact-theme/1',

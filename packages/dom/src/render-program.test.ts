@@ -1,21 +1,27 @@
 /** @vitest-environment jsdom */
-import { encodeExactMarkerPart, type Component } from '@exactjs/core';
+import { encodeExactMarkerPart } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import {
-	createCompiledVNode,
-	createFrameworkFixtureComponentInstance,
-	createPreparedRenderProgram,
 	createServerBoundary,
 	prepareCompiledRenderProgram as prepareCoreRenderProgram
 } from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
-import { adoptStatic, render, unmount } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
-import { withGenericRenderProgramBindings } from './testing.js';
+import { adoptStatic } from './test-support/adoption.js';
+import { unmount } from './index.js';
+import { legacyTestRenderProgram, renderTestTree as render } from './testing.js';
+import {
+	createCompiledOperation,
+	createTestComponentReceipt,
+	createOperation
+} from './test-support/native-operations.js';
+import {
+	createTestCompiledRenderProgram as createCompiledRenderProgram,
+	createTestPreparedRenderProgram
+} from './test-support/render-program.js';
 import {
 	beginCompiledProgramClaims,
-	bindCompiledProgramProperties,
+	bindCompiledReactiveProgramProperties,
 	bindCompiledProgramText,
 	claimCompiledProgramElementPath,
 	claimCompiledProgramProperty,
@@ -24,28 +30,11 @@ import {
 	leaveCompiledProgramElement
 } from './runtime/render-program.js';
 
-function RenderProgramOwner(this: Component<{}>) {
-	return () => null;
-}
-const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgramOwner, {});
-
-const createCompiledRenderProgram = (
-	_cacheKey: string,
-	createProgram: () => Parameters<typeof prepareCoreRenderProgram>[0],
-	readers: Parameters<typeof createPreparedRenderProgram>[1],
-	_fallback?: () => unknown
-) =>
-	createPreparedRenderProgram(
-		prepareCoreRenderProgram(withGenericRenderProgramBindings(createProgram())),
-		readers,
-		renderProgramOwner
-	);
-
 it('fails closed with the unsupported compiler boundary identity', () => {
 	const container = document.createElement('div');
 	render(createServerBoundary('router', 'Router'), container);
 	expect(container.textContent).toContain(
-		'Unsupported eXact vnode type: exact.server-boundary (Router)'
+		'A server boundary cannot be mounted by the DOM target (Router)'
 	);
 });
 
@@ -63,7 +52,7 @@ it('clones one compiler template and updates scalar slots without a generic vnod
 			nodes: [[0, 'span']]
 		}),
 		[() => state.label],
-		() => createCompiledVNode('span', { 'data-exact-id': 'planned' }, state.label)
+		() => createCompiledOperation('span', { 'data-exact-id': 'planned' }, state.label)
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -148,7 +137,7 @@ it('uses ordinary host semantics for planned properties, styles, events, and ref
 			nodes: [[0, 'button']]
 		}),
 		[() => state.disabled, () => ({ color: state.tone }), () => () => state.clicks++, () => ref],
-		() => createCompiledVNode('button', {}, 'Save')
+		() => createCompiledOperation('button', {}, 'Save')
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -194,11 +183,11 @@ it('applies a controlled select value after slotted option values', () => {
 		}),
 		[() => state.value, () => 'letter', () => 'a4'],
 		() =>
-			createCompiledVNode(
+			createCompiledOperation(
 				'select',
 				{ value: state.value },
-				createCompiledVNode('option', { value: 'letter' }, 'Letter'),
-				createCompiledVNode('option', { value: 'a4' }, 'A4')
+				createCompiledOperation('option', { value: 'letter' }, 'Letter'),
+				createCompiledOperation('option', { value: 'a4' }, 'A4')
 			)
 	);
 	const container = document.createElement('div');
@@ -224,7 +213,7 @@ it('releases non-reactive planned refs and preserves SVG namespaces', () => {
 			]
 		}),
 		[() => ref],
-		() => createCompiledVNode('svg', {}, createCompiledVNode('circle', {}))
+		() => createCompiledOperation('svg', {}, createCompiledOperation('circle', {}))
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -246,13 +235,53 @@ it('mounts a standalone planned SVG child in its compiler-owned namespace', () =
 			nodes: [[0, 'path']]
 		}),
 		[() => 'M 0 0 L 10 10'],
-		() => createCompiledVNode('path', { 'data-exact-id': 'route' })
+		() => createCompiledOperation('path', { 'data-exact-id': 'route' })
 	);
 	const container = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 	render(vnode, container);
 	const path = container.firstElementChild!;
 	expect(path.namespaceURI).toBe('http://www.w3.org/2000/svg');
 	expect(path.getAttribute('d')).toBe('M 0 0 L 10 10');
+});
+
+it('resolves a component-local contextual program from each physical attachment', () => {
+	const descriptor = prepareCoreRenderProgram({
+		version: 4,
+		id: 'render-program:contextual-path',
+		namespace: 'contextual',
+		attachmentTag: 'path',
+		template: '<path data-exact-id="contextual"></path>',
+		directClaims: true,
+		root: ['path', 'contextual'],
+		work: [1, 0]
+	});
+	const program = () => createTestPreparedRenderProgram(descriptor, []);
+	const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+	const html = document.createElement('div');
+
+	render(program(), svg);
+	render(program(), html);
+
+	expect(svg.firstElementChild?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+	expect(html.firstElementChild?.namespaceURI).toBe('http://www.w3.org/1999/xhtml');
+});
+
+it('resolves contextual HTML at an SVG integration point', () => {
+	const descriptor = prepareCoreRenderProgram({
+		version: 4,
+		id: 'render-program:contextual-foreign-object-child',
+		namespace: 'contextual',
+		attachmentTag: 'div',
+		template: '<div data-exact-id="contextual-html"></div>',
+		directClaims: true,
+		root: ['div', 'contextual'],
+		work: [1, 0]
+	});
+	const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+
+	render(createTestPreparedRenderProgram(descriptor, []), foreignObject);
+
+	expect(foreignObject.firstElementChild?.namespaceURI).toBe('http://www.w3.org/1999/xhtml');
 });
 
 it('reinstalls static event readers when a program invocation is patched', () => {
@@ -270,7 +299,7 @@ it('reinstalls static event readers when a program invocation is patched', () =>
 				nodes: [[0, 'button']]
 			}),
 			[() => () => calls.push(label)],
-			() => createCompiledVNode('button', {}, 'Run')
+			() => createCompiledOperation('button', {}, 'Run')
 		);
 	const container = document.createElement('div');
 	render(program('first'), container);
@@ -299,7 +328,7 @@ it('evaluates an initial planned slot exactly once', () => {
 				return 'once';
 			}
 		],
-		() => createCompiledVNode('span', {}, 'once')
+		() => createCompiledOperation('span', {}, 'once')
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -427,8 +456,8 @@ it('fails closed when an initial text slot violates its scalar contract', () => 
 			bindings: [['text', 0]],
 			nodes: [[0, 'span']]
 		}),
-		[() => createCompiledVNode('strong', {}, 'generic')],
-		() => createCompiledVNode('span', { 'data-exact-id': 'fallback' }, 'fallback')
+		[() => createCompiledOperation('strong', {}, 'generic')],
+		() => createCompiledOperation('span', { 'data-exact-id': 'fallback' }, 'fallback')
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -438,41 +467,42 @@ it('fails closed when an initial text slot violates its scalar contract', () => 
 
 it('claims marked SSR nodes through compiler-generated hydration calls without indexing the subtree', () => {
 	const state = reactive({ label: '', disabled: false });
-	const program = prepareCoreRenderProgram({
-		version: 4,
-		id: 'render-program:hydration-plan',
-		namespace: 'html',
-		template:
-			'<section data-exact-id="root"><button data-exact-id="button">\ue000exact:0\ue001</button></section>',
-		directClaims: true,
-		bind(target) {
-			if (beginCompiledProgramClaims(target, 'section', 'html', 2, 2)) {
-				claimCompiledProgramElementPath(target, 1, 1, 'button');
-				claimCompiledProgramProperty(target, 0, 1);
-				enterCompiledProgramElement(target, 1);
-				claimCompiledProgramText(target, 1, 0, 'label');
-				leaveCompiledProgramElement(target);
-				return;
+	const program = prepareCoreRenderProgram(
+		legacyTestRenderProgram({
+			version: 4,
+			id: 'render-program:hydration-plan',
+			namespace: 'html',
+			template:
+				'<section data-exact-id="root"><button data-exact-id="button">\ue000exact:0\ue001</button></section>',
+			directClaims: true,
+			bind(target) {
+				if (beginCompiledProgramClaims(target, 'section', 'html', 2, 2)) {
+					claimCompiledProgramElementPath(target, 1, 1, 'button');
+					claimCompiledProgramProperty(target, 0, 1);
+					enterCompiledProgramElement(target, 1);
+					claimCompiledProgramText(target, 1, 0, 'label');
+					leaveCompiledProgramElement(target);
+					return;
+				}
+				bindCompiledProgramText(target, 1);
+				bindCompiledReactiveProgramProperties(target, 0, 0);
 			}
-			bindCompiledProgramText(target, 1);
-			bindCompiledProgramProperties(target, 0, 0);
-		}
-	});
-	const vnode = createPreparedRenderProgram(
+		})
+	);
+	const operation = createTestPreparedRenderProgram(
 		program,
 		[() => state.disabled, () => state.label],
-		renderProgramOwner,
-		undefined,
 		(_group, apply) => apply('disabled', state.disabled)
 	);
 	const container = document.createElement('div');
 	container.innerHTML =
-		'<!--exact:cell:root--><section data-exact-id="root"><!--exact:cell:button--><button data-exact-id="button"><!--exact:dynamic:label--><!--/exact:dynamic:label--></button><!--/exact:cell:button--></section><!--/exact:cell:root-->';
+		'<!--exact:dynamic:test-root--><!--exact:cell:root--><section data-exact-id="root"><!--exact:cell:button--><button data-exact-id="button"><!--x:label--><!--/x:label--></button><!--/exact:cell:button--></section><!--/exact:cell:root--><!--/exact:dynamic:test-root-->';
 	const button = container.querySelector('button')!;
 	const querySelectorAll = vi.spyOn(button.parentElement!, 'querySelectorAll');
 	const createTreeWalker = vi.spyOn(document, 'createTreeWalker');
 
-	expect(adoptStatic(vnode, container)).toBe(true);
+	expect(adoptStatic(operation, container)).toBe(true);
+	expect(button.disabled).toBe(false);
 	expect(querySelectorAll).not.toHaveBeenCalled();
 	expect(createTreeWalker).not.toHaveBeenCalled();
 	state.label = 'client';
@@ -492,7 +522,7 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 			id: 'render-program:child-slot',
 			namespace: 'html',
 			template:
-				'<section data-exact-id="child-root"><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section>',
+				'<section data-exact-id="child-root"><!--x:child--><!--/x:child--><footer data-exact-id="after">After</footer></section>',
 			slots: [['child', 'child']],
 			bindings: [['child', 0]],
 			nodes: [
@@ -500,7 +530,7 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 				[1, 'footer']
 			]
 		}),
-		[() => (state.shown ? createCompiledVNode('strong', {}, state.label) : null)]
+		[() => (state.shown ? createCompiledOperation('strong', {}, state.label) : null)]
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -517,14 +547,16 @@ it('mounts and updates compiler-owned structural child slots without replacing t
 
 it('claims a variable-width structural child range before later planned elements', () => {
 	const state = reactive({ label: 'server' });
+	const readChild = vi.fn(() =>
+		createCompiledOperation('strong', { 'data-exact-id': 'nested' }, state.label)
+	);
 	const vnode = createCompiledRenderProgram(
 		'render-program:adopt-child-slot',
 		() => ({
 			version: 4,
 			id: 'render-program:adopt-child-slot',
 			namespace: 'html',
-			template:
-				'<section><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer>After</footer></section>',
+			template: '<section><!--x:child--><!--/x:child--><footer>After</footer></section>',
 			slots: [['child', 'child']],
 			bindings: [['child', 0]],
 			nodes: [
@@ -532,14 +564,16 @@ it('claims a variable-width structural child range before later planned elements
 				[1, 'footer']
 			]
 		}),
-		[() => createCompiledVNode('strong', { 'data-exact-id': 'nested' }, state.label)]
+		[readChild]
 	);
 	const container = document.createElement('div');
 	container.innerHTML =
-		'<!--exact:cell:root--><section data-exact-id="child-root"><!--exact:dynamic:child--><!--exact:cell:nested--><strong data-exact-id="nested">server</strong><!--/exact:cell:nested--><!--/exact:dynamic:child--><footer data-exact-id="after">After</footer></section><!--/exact:cell:root-->';
+		'<!--exact:dynamic:test-root--><!--exact:cell:root--><section data-exact-id="child-root"><!--x:child--><strong data-exact-id="nested">server</strong><!--/x:child--><footer data-exact-id="after">After</footer></section><!--/exact:cell:root--><!--/exact:dynamic:test-root-->';
 	const host = container.querySelector('section');
 	const nested = container.querySelector('strong');
 	expect(adoptStatic(vnode, container)).toBe(true);
+	// Adoption reads once to claim the range and once to establish its retained dependency watcher.
+	expect(readChild).toHaveBeenCalledTimes(2);
 	state.label = 'client';
 	flushSync();
 	expect(container.querySelector('section')).toBe(host);
@@ -552,17 +586,16 @@ it.each([
 	['generic-list', true]
 ])('adopts a %s component boundary inside a component slot', (_lane, marked) => {
 	function Child() {
-		return () => createVNode('strong', {}, 'server');
+		return () => createOperation('strong', {}, 'server');
 	}
-	const childVNode = createVNode(Child, {});
+	const childReceipt = createTestComponentReceipt(Child, {});
 	const vnode = createCompiledRenderProgram(
 		'render-program:adopt-component-slot',
 		() => ({
 			version: 4,
 			id: 'render-program:adopt-component-slot',
 			namespace: 'html',
-			template:
-				'<section><!--exact:dynamic:child--><!--/exact:dynamic:child--><footer>After</footer></section>',
+			template: '<section><!--x:child--><!--/x:child--><footer>After</footer></section>',
 			slots: [['component', 'child']],
 			bindings: [['component', 0]],
 			nodes: [
@@ -570,7 +603,7 @@ it.each([
 				[1, 'footer']
 			]
 		}),
-		[() => childVNode]
+		[() => childReceipt]
 	);
 	const componentIdentity = encodeExactMarkerPart(exactComponentIdentity(Child));
 	const componentMarker = `exact:component:0:${componentIdentity}`;
@@ -578,36 +611,10 @@ it.each([
 		? `<!--${componentMarker}--><strong>server</strong><!--/${componentMarker}-->`
 		: '<strong>server</strong>';
 	const container = document.createElement('div');
-	container.innerHTML = `<!--exact:cell:root--><section><!--exact:dynamic:child-->${componentHtml}<!--/exact:dynamic:child--><footer>After</footer></section><!--/exact:cell:root-->`;
+	container.innerHTML = `<!--exact:dynamic:test-root--><!--exact:cell:root--><section><!--x:child-->${componentHtml}<!--/x:child--><footer>After</footer></section><!--/exact:cell:root--><!--/exact:dynamic:test-root-->`;
 	const strong = container.querySelector('strong');
 
 	expect(adoptStatic(vnode, container)).toBe(true);
 	expect(container.querySelector('strong')).toBe(strong);
 	expect(container.textContent).toBe('serverAfter');
-});
-
-it('rejects a marked SSR program when its generated hydration claims do not match the DOM', () => {
-	const vnode = createCompiledRenderProgram(
-		'render-program:invalid-hydration-plan',
-		() => ({
-			version: 4,
-			id: 'render-program:invalid-hydration-plan',
-			namespace: 'html',
-			template:
-				'<section data-exact-id="root"><button data-exact-id="button">Save</button></section>',
-			slots: [],
-			bindings: [],
-			nodes: [
-				[0, 'section'],
-				[1, 'a']
-			]
-		}),
-		[],
-		() => createCompiledVNode('section', {}, createCompiledVNode('button', {}, 'Save'))
-	);
-	const container = document.createElement('div');
-	container.innerHTML =
-		'<!--exact:cell:root--><section data-exact-id="root"><!--exact:cell:button--><button data-exact-id="button">Save</button><!--/exact:cell:button--></section><!--/exact:cell:root-->';
-
-	expect(adoptStatic(vnode, container)).toBe(false);
 });

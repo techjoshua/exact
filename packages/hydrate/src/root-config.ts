@@ -2,7 +2,7 @@ import {
 	isExactComponentAuthorizationIdentity,
 	sameExactComponentAuthorization
 } from '@exactjs/core';
-import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom/root';
+import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom/framework/component-root';
 import {
 	isRecord,
 	normalizeSerializedComponentResumptions,
@@ -16,6 +16,7 @@ import { hasOnlyKeys } from './validation.js';
 const rootConfigKeys = [
 	'pluginRegistryFingerprint',
 	'state',
+	'm',
 	'resumptions',
 	'publicContexts',
 	'wallClockSnapshot',
@@ -64,6 +65,8 @@ export function resolveRootHydrateOptions(
 	return {
 		...options,
 		state: options.state === undefined ? config.state : options.state,
+		markerlessRoot: options.markerlessRoot ?? config.markerlessRoot,
+		allowMarkerless: options.allowMarkerless ?? config.markerlessRoot,
 		resumptions: options.resumptions ?? config.resumptions,
 		publicContexts: options.publicContexts ?? config.publicContexts,
 		wallClockSnapshot: options.wallClockSnapshot ?? config.wallClockSnapshot,
@@ -126,7 +129,7 @@ function scriptBelongsToContainer(script: HTMLScriptElement, container: Element)
 	return false;
 }
 
-/** Reads the server-published component-root props before constructing the client root VNode. */
+/** Reads server-published component-root props before constructing the client root operation. */
 export function readPublishedRootProps<Props extends Record<string, unknown>>(
 	container: Element,
 	limits?: ExactHydrationConfigLimits,
@@ -182,6 +185,7 @@ function parseRootConfig(
 				? { pluginRegistryFingerprint: record.pluginRegistryFingerprint }
 				: {}),
 			...('state' in record ? { state: record.state } : {}),
+			...(record.m === 1 ? { markerlessRoot: true as const } : {}),
 			...(resumptions ? { resumptions } : {}),
 			...(isRecord(record.publicContexts) ? { publicContexts: record.publicContexts } : {}),
 			...(typeof record.wallClockSnapshot === 'number' && Number.isFinite(record.wallClockSnapshot)

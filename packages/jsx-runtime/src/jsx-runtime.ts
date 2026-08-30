@@ -1,16 +1,13 @@
-import { createVNode, Fragment } from '@exactjs/core';
-import { createCellVNode } from '@exactjs/core/runtime/render';
+import { Fragment } from '@exactjs/core';
 import type {
 	AnyAuthoredComponentFunction,
-	AnyComponentFunction,
 	AnyStateAuthoredComponentFunction,
 	AnyStateComponentFunction,
 	Activity,
 	Child,
 	InteractionHandler,
 	RefBinding,
-	Suspense,
-	VNode
+	Suspense
 } from '@exactjs/core';
 
 export { Fragment };
@@ -46,58 +43,52 @@ declare global {
 type InteropElementType =
 	ExactJsxInteropElementTypeRegistry[keyof ExactJsxInteropElementTypeRegistry];
 
-/** Creates a vnode for the automatic JSX runtime's single-child entrypoint. */
+/** Type-only result consumed and replaced by the eXact compiler before JavaScript emission. */
+export type CompiledJsxOperation = Readonly<{ __exactCompiledJsxOperation: never }>;
+
+/** Describes the compiler-only JSX operation for the automatic runtime's single-child entrypoint. */
 export function jsx<P extends Props>(
 	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
 	key?: string
-): VNode<P>;
+): CompiledJsxOperation;
 export function jsx(
 	type: string | typeof Activity | typeof Fragment | typeof Suspense,
 	props: Props | null,
 	key?: string
-): VNode;
-export function jsx(type: JsxType, props: Props | null, key?: string): VNode {
-	return createJsxVNode(type, props, key);
+): CompiledJsxOperation;
+export function jsx(_type: JsxType, _props: Props | null, _key?: string): CompiledJsxOperation {
+	return rejectUncompiledJsx();
 }
 
-/** Creates a vnode for the automatic JSX runtime's multi-child entrypoint. */
+/** Describes the compiler-only JSX operation for the automatic runtime's multi-child entrypoint. */
 export function jsxs<P extends Props>(
 	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
 	key?: string
-): VNode<P>;
+): CompiledJsxOperation;
 export function jsxs(
 	type: string | typeof Activity | typeof Fragment | typeof Suspense,
 	props: Props | null,
 	key?: string
-): VNode;
-export function jsxs(type: JsxType, props: Props | null, key?: string): VNode {
-	return createJsxVNode(type, props, key);
+): CompiledJsxOperation;
+export function jsxs(_type: JsxType, _props: Props | null, _key?: string): CompiledJsxOperation {
+	return rejectUncompiledJsx();
 }
 
-/** Creates a vnode for development JSX transforms. */
-export function jsxDEV(type: JsxType, props: Props | null, key?: string): VNode {
-	return createJsxVNode(type, props, key);
+/** Rejects development JSX calls that escaped the mandatory native compiler transform. */
+export function jsxDEV(_type: JsxType, _props: Props | null, _key?: string): CompiledJsxOperation {
+	return rejectUncompiledJsx();
 }
 
-function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode {
-	// Strip JSX-only fields during construction so the authored prop bag never enters dictionary
-	// mode through delete before core performs its own normalization.
-	const { children, key: authoredKey, ...rest } = props ?? {};
-	const normalizedKey = key ?? (typeof authoredKey === 'string' ? authoredKey : undefined);
-	const childList = Array.isArray(children) ? children : children === undefined ? [] : [children];
-	return createCellVNode(
-		createVNode(
-			type as AnyComponentFunction,
-			normalizedKey !== undefined ? { ...rest, key: normalizedKey } : rest,
-			...childList
-		)
+function rejectUncompiledJsx(): never {
+	throw new Error(
+		'Native eXact JSX must be lowered by the eXact compiler; no runtime JSX fallback exists'
 	);
 }
 
 export namespace JSX {
-	export type Element = VNode;
+	export type Element = CompiledJsxOperation;
 	export type ElementType =
 		| string
 		| typeof Activity

@@ -8,5 +8,5 @@
 	},
 	"references": [{ "path": "../devtools-protocol" }, { "path": "../core" }, { "path": "../dom" }],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts"]
+	"exclude": ["src/**/*.fixtures.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }

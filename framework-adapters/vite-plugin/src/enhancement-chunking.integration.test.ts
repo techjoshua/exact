@@ -80,7 +80,8 @@ export function LazyPanel() { return () => <button motion:preset="fade">Lazy</bu
 	const entry = [...chunks.values()].find((chunk) => chunk.isEntry)!;
 	const entryModules = reachableModules(entry, chunks, false);
 	const allModules = reachableModules(entry, chunks, true);
-	const enhancementHost = /[\\/]packages[\\/]dom[\\/]dist[\\/]renderer[\\/]enhancements\.js$/u;
+	const enhancementHost =
+		/[\\/]packages[\\/]dom[\\/]dist[\\/](?:client[\\/])?renderer[\\/]enhancement-integration\.js$/u;
 
 	expect([...entryModules].some((id) => enhancementHost.test(id))).toBe(false);
 	expect([...allModules].some((id) => enhancementHost.test(id))).toBe(true);

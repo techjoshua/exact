@@ -113,10 +113,10 @@ export function CatalogEditor(this: Component<CatalogState>) {
 
 /** Annotated pseudocode for the browser artifact produced by the compiler tour. */
 export const compilerTourGeneratedClientSource = `import {
-  createDynamicChild as __exactDynamic,
+  createCompiledChildRangeReceipt as __exactDynamic,
+  createCompiledIntrinsicReceipt as __exactIntrinsic,
   createExpression as __exactExpression,
-  createCompiledVNode as __exactVNode
-} from '@exactjs/core/runtime/render';
+} from '@exactjs/core/runtime/component-abi';
 import {
   activateTaskForHost as __exactActivateTask,
   defineTask as __exactDefineTask,
@@ -161,8 +161,8 @@ export function CatalogEditor(this: Component<CatalogState>) {
     (name) => { document.title = name ?? 'Catalog'; }
   ), this.reactive(() => this.state.selected?.name));
 
-  return () => __exactVNode('section', null,
-    __exactVNode('input', {
+  return () => __exactIntrinsic('section', null,
+    __exactIntrinsic('input', {
       type: 'search',
       // A binding is a reactive read paired with a typed state write.
       value: __exactExpression(() => this.state.query),
@@ -170,7 +170,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
         this.state.query = event.currentTarget.value;
       }
     }),
-    __exactVNode('output', null,
+    __exactIntrinsic('output', null,
       // Each dynamic child owns a narrow DOM marker range.
       __exactDynamic(() => this.state.quantity, '<quantity>'),
       ' × ',
@@ -180,7 +180,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
     ),
     __exactDynamic(() =>
       this.state.query && this.state.products.length === 0
-        ? __exactVNode('p', { role: 'status' }, 'No matches')
+        ? __exactIntrinsic('p', { role: 'status' }, 'No matches')
         : null,
       '<empty-status>'
     ),
@@ -188,7 +188,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
     __exactDynamic(() => this.map(
       this.state.products,
       (product) => product.id,
-      (product) => __exactVNode('button', {
+      (product) => __exactIntrinsic('button', {
         onClick: () => { this.state.selected = product; }
       }, product.name)
     ), '<product-list>')

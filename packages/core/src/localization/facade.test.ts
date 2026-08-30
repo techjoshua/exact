@@ -1,6 +1,6 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it } from 'vitest';
 import '../runtime/localization.js';
-import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import type { Component } from '../component/contracts.js';
 import type { ComponentLocalizationOwner } from '../component/localization-capability.js';
 import { LocalizationContext } from './context.js';

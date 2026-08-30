@@ -27,6 +27,7 @@ export {
 	createEffectScope,
 	createProfiledEffectScope,
 	effectScopeWorkPriority,
+	registerEffectScopeCleanup,
 	setEffectScopeWorkPriority,
 	transferEffectScope,
 	whenEffectScopeResumed,
@@ -51,19 +52,24 @@ export {
 	subscribe,
 	subscribeKeys,
 	trackCollectionStructure,
-	watch
+	watch,
+	watchStructural
 } from '../observation.js';
 export {
+	createIndexedReactiveValue,
+	deleteIndexedReactiveSlot,
+	updateIndexedReactive,
 	reactiveIndexedDependencies,
 	reactiveOwnDependencies,
 	readIndexedReactiveSource,
 	readIndexedReactiveSlot,
-	readReactiveOwnProperty
+	readReactiveOwnProperty,
+	setIndexedReactiveSlot
 } from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
 export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';
-export { updateReactive } from '../reconciliation.js';
+export { updateReactive, updateReactiveShallow } from '../reconciliation.js';
 export {
 	deleteIndexedReactiveValue,
 	deleteReactiveValue,
@@ -74,7 +80,7 @@ export {
 	updateIndexedReactiveValueWithResult,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
-	writeIndexedReactiveLazy,
+	writeIndexedReactiveValue,
 	writeReactive,
 	writeReactiveLazy
 } from '../writes.js';

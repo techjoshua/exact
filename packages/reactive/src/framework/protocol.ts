@@ -1,1 +1,5 @@
-export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
+export {
+	decodeReactiveProtocolValue,
+	encodeReactiveProtocolValue,
+	encodeValidatedReactiveCollection
+} from '../protocol.js';

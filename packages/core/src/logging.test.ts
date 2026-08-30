@@ -1,3 +1,4 @@
+import { createFrameworkFixtureComponentInstance } from './testing.js';
 import { describe, expect, it, vi } from 'vitest';
 import { flushSync, reactive, watch } from '@exactjs/reactive';
 import {
@@ -7,7 +8,6 @@ import {
 	type LogEvent,
 	type Logger
 } from './index.js';
-import { createFrameworkFixtureComponentInstance } from './runtime/render.js';
 import { componentLogMethod } from './runtime/logging.js';
 import { createFrameworkComponentDomain } from './framework/component-domains.js';
 

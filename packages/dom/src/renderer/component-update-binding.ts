@@ -1,6 +1,6 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactNarrowComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
-import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render';
+import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
 import {
 	createCompiledComponentDependencies,
 	type CompiledComponentDependencies,
@@ -9,13 +9,15 @@ import {
 import {
 	bindComponentUpdateTarget,
 	compiledComponentUpdateState,
-	componentUpdateOwner
+	componentUpdateOwner,
+	publishComponentUpdateTargets,
+	type CompiledComponentUpdateTargets
 } from './component-update-storage.js';
 
 /** Lazily allocated component-owned state for one compiler-generated update program. */
 type CompiledComponentUpdateState = {
 	readonly d: CompiledComponentDependencies;
-	readonly t: Array<ExactRenderProgramBindingTarget | undefined>;
+	readonly t: CompiledComponentUpdateTargets;
 };
 
 type ComponentUpdateOwner = AnyComponentInstance & {
@@ -72,5 +74,8 @@ function publishCompiledComponentUpdate(
 		},
 		forwardedBinding
 	);
-	if (dirtyLow || dirtyHigh) updates.apply(state.t, dirtyLow, dirtyHigh);
+	if (dirtyLow || dirtyHigh)
+		publishComponentUpdateTargets(state.t, (targets) =>
+			updates.apply(targets, dirtyLow, dirtyHigh)
+		);
 }

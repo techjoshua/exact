@@ -73,7 +73,7 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain(
 			'const __exactImplementation_ClientWidget_1 = function ClientWidget(props = {})'
 		);
-		expect(server).toContain('definition:');
+		expect(server).toContain('artifact:');
 		expect(server).toContain('instantiate: __exactImplementation_ClientWidget_1');
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('"ClientWidget"');
@@ -98,8 +98,10 @@ describe('@exactjs/compiler: island boundaries', () => {
 
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('"ClientShell"');
-		expect(server).toContain('__exactVNode("p"');
-		expect(server).toContain('"Server child"');
+		expect(server).toContain('attachmentTag: "p"');
+		expect(server).not.toContain('__exactVNode("p"');
+		expect(server).toContain('__exactSsr.static(__exactOutput, "<p")');
+		expect(server).toContain('__exactSsr.static(__exactOutput, ">Server child</p>")');
 		expect(server).not.toContain('window.innerWidth');
 	});
 
@@ -383,8 +385,10 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('"ClientWidget"');
 		expect(server).toContain('title: this.state.title');
-		expect(server).toContain('__exactVNode("p"');
-		expect(server).toContain('"Server child"');
+		expect(server).toContain('attachmentTag: "p"');
+		expect(server).not.toContain('__exactVNode("p"');
+		expect(server).toContain('__exactSsr.static(__exactOutput, "<p")');
+		expect(server).toContain('__exactSsr.static(__exactOutput, ">Server child</p>")');
 		expect(server).not.toContain('from "./ClientWidget"');
 		expect(server).not.toContain('window.innerWidth');
 		expect(artifactAnalysis(page).boundaries).toContainEqual(

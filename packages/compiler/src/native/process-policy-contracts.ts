@@ -30,7 +30,7 @@ export type NativeCompilerPolicyFlow = Readonly<{
 		| 'context'
 		| 'call'
 		| 'state'
-		| 'vnode'
+		| 'operation'
 		| 'error'
 		| 'log';
 	authorized: boolean;

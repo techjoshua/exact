@@ -1,11 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 import { testContinuation } from './test-support/responses.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { OtherRemoteIsland, StaticRemoteIsland } from './test-support/islands.fixtures.js';
 
 describe('@exactjs/hydrate remote-registry', () => {
 	it('registers remote hydration metadata after client creation', async () => {
@@ -73,13 +72,6 @@ describe('@exactjs/hydrate remote-registry', () => {
 
 	it('rejects conflicting remote component registrations', () => {
 		const container = document.createElement('div');
-		function RemoteIsland(this: Component<{}>) {
-			return () => createVNode('button', null, 'Remote');
-		}
-		function OtherRemoteIsland(this: Component<{}>) {
-			return () => createVNode('button', null, 'Other');
-		}
-
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			endpoints: {
@@ -94,7 +86,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 				})
 			},
 			islands: {
-				RemoteIsland
+				RemoteIsland: StaticRemoteIsland
 			}
 		});
 
@@ -143,9 +135,6 @@ describe('@exactjs/hydrate remote-registry', () => {
 
 	it('allows idempotent remote component registrations', () => {
 		const container = document.createElement('div');
-		function RemoteIsland(this: Component<{}>) {
-			return () => createVNode('button', null, 'Remote');
-		}
 		const remoteFetch = async () => ({
 			ok: true,
 			status: 200,
@@ -170,7 +159,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 				})
 			},
 			islands: {
-				RemoteIsland
+				RemoteIsland: StaticRemoteIsland
 			},
 			transports: {
 				'https://remote.test/__exact': {

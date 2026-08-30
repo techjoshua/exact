@@ -3,7 +3,7 @@
  */
 import { createErrorContext, ErrorContext } from '@exactjs/core';
 import '@exactjs/core/runtime/refs';
-import { render } from '@exactjs/dom';
+import { renderTestTree as render } from '@exactjs/dom/testing';
 import { testComponent } from '@exactjs/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {

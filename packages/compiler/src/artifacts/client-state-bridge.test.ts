@@ -23,9 +23,10 @@ describe('@exactjs/compiler: client state bridges', () => {
 			}
 		);
 
-		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(output).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() => {');
+		expect(output).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(output).toContain('Object.assign(this.state, __exactReadState(props, 0))');
-		expect(output).toContain('title: __exactExpression(() => __exactReadState(this.state, 0)');
+		expect(output).toContain('title: __exactIndexedExpression(this.state, 0)');
 		expect(output).toContain('onClick: () => __exactUpdateStateResult(this.state, 0, previous =>');
 		expect(output).not.toContain('export const Panel_ExactClient_1 = Panel');
 	});
@@ -41,7 +42,8 @@ describe('@exactjs/compiler: client state bridges', () => {
 			}
 		);
 
-		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(output).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() => {');
+		expect(output).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(output).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
 		expect(output).toContain('__exactBoundary(');
 		expect(output).not.toContain('node:fs/promises');

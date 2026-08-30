@@ -1,52 +1,37 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	type AnyComponentInstance,
-	createContext,
-	createVNode,
-	type Component
-} from '@exactjs/core';
+import { type AnyComponentInstance, type Component } from '@exactjs/core';
 import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exactjs/dom';
-import { constructDurableComponentInstance } from '@exactjs/core/runtime/component-construction/durable';
+import '@exactjs/core/runtime/tasks';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { getHydrationRoot, type CoreHydrationRoot, type ExactClient } from '@exactjs/hydrate';
-import { createTestVNode } from '@exactjs/testing/internal/fixtures';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { loadExactRemoteModule, registerExactRemoteClientBindings } from './client.js';
 import {
-	loadExactRemoteModule,
-	registerExactRemoteClientBindings,
-	RemoteComponent
-} from './client.js';
+	fallbackRemoteRoot,
+	incrementPatchingChild,
+	pairedRetiringRoot,
+	patchingChild,
+	patchingLifecycle,
+	patchingPageRoot,
+	remoteRoot,
+	replacementPageRoot,
+	resetPatchingLifecycle,
+	setShellProfileName,
+	shellPageRoot,
+	updateReplacementPage
+} from './client.fixtures.js';
+import {
+	installRemoteComponentFixtures,
+	remoteComponentReference,
+	removeRemoteComponentFixtures
+} from './test-support/remote-component-fixture.js';
+import * as remoteFixtureComponents from './remote-components.fixtures.js';
+import { stubUnsupportedBuild } from './test-support/unsupported-build.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 
-function remoteBrand(name: string): string {
-	return `Object.defineProperties(${name}, {
-  [Symbol.for("@exactjs/component")]: { value: "test:${name}" },
-  [Symbol.for("@exactjs/component-contract")]: { value: {
-    version: 2,
-    placement: "client",
-    role: "client",
-    implementations: [{ id: "test:${name}:implementation", name: "${name}", role: "root", implementation: ${name} }],
-    continuations: [],
-    executors: [],
-    boundaries: [],
-    execution: { version: 1, ports: [], transitions: [], reactive: [] },
-    definition: {
-      version: 1,
-      instantiate: ${name},
-      construct: globalThis.__exactConstructDurableComponent,
-      abi: 8,
-      state: [],
-      tasks: [],
-      reactive: [],
-      render: "returned-function",
-      capabilities: ["interactions", "tasks"]
-    }
-  } }
-});`;
-}
 const probeRegistration = JSON.stringify({
 	continuations: {
 		probe: {
@@ -61,8 +46,7 @@ const probeRegistration = JSON.stringify({
 	}
 });
 const entrySource = `
-function BillingArea(props) { return () => props.label ?? "Loaded billing"; }
-${remoteBrand('BillingArea')}
+${remoteComponentReference('BillingArea')}
 export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/billing#./BillingArea",
@@ -71,8 +55,7 @@ export default Object.freeze({
 });`;
 const clientEntry = `data:text/javascript;base64,${Buffer.from(entrySource).toString('base64')}`;
 const brandSource = `
-function BrandArea() { return () => "Loaded brand"; }
-${remoteBrand('BrandArea')}
+${remoteComponentReference('BrandArea')}
 export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/brand#./BrandArea",
@@ -81,8 +64,7 @@ export default Object.freeze({
 });`;
 const brandEntry = `data:text/javascript;base64,${Buffer.from(brandSource).toString('base64')}`;
 const shellSource = `
-function Shell(props) { return () => props.children; }
-${remoteBrand('Shell')}
+${remoteComponentReference('Shell')}
 export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/brand#./Shell",
@@ -91,14 +73,7 @@ export default Object.freeze({
 });`;
 const shellEntry = `data:text/javascript;base64,${Buffer.from(shellSource).toString('base64')}`;
 const patchingSource = `
-function PatchingShell(props) {
-  return () => globalThis.__exactCreateVNode(
-    "section",
-    { "data-exact-id": "remote-boundary" },
-    props.children
-  );
-}
-${remoteBrand('PatchingShell')}
+${remoteComponentReference('PatchingShell')}
 export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/brand#./PatchingShell",
@@ -108,10 +83,7 @@ export default Object.freeze({
 const patchingEntry = `data:text/javascript;base64,${Buffer.from(patchingSource).toString('base64')}`;
 const replacementBuildKey = '89abcdef0123456789abcdef0123456789abcdef';
 const retiringSource = `
-function RetiringArea() {
-  return () => "Old remote";
-}
-${remoteBrand('RetiringArea')}
+${remoteComponentReference('RetiringArea')}
 export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/retiring#./Area",
@@ -120,8 +92,7 @@ export default Object.freeze({
 });`;
 const retiringEntry = `data:text/javascript;base64,${Buffer.from(retiringSource).toString('base64')}`;
 const replacementSource = `
-function ReplacementArea() { return () => "New remote"; }
-${remoteBrand('ReplacementArea')}
+${remoteComponentReference('ReplacementArea')}
 export default Object.freeze({
   buildKey: "${replacementBuildKey}",
   root: "@company/retiring#./Area",
@@ -131,10 +102,7 @@ export default Object.freeze({
 const replacementEntry = `data:text/javascript;base64,${Buffer.from(replacementSource).toString('base64')}`;
 const resolveRetiringEntry = vi.fn(async () => replacementEntry);
 const retiringShellSource = `
-function RetiringShell(props) {
-  return () => props.children;
-}
-${remoteBrand('RetiringShell')}
+${remoteComponentReference('RetiringShell')}
 export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/retiring#./Shell",
@@ -143,8 +111,7 @@ export default Object.freeze({
 });`;
 const retiringShellEntry = `data:text/javascript;base64,${Buffer.from(retiringShellSource).toString('base64')}`;
 const replacementShellSource = `
-function ReplacementShell(props) { return () => props.children; }
-${remoteBrand('ReplacementShell')}
+${remoteComponentReference('ReplacementShell')}
 export default Object.freeze({
   buildKey: "${replacementBuildKey}",
   root: "@company/retiring#./Shell",
@@ -190,29 +157,13 @@ const bindings = Object.freeze({
 	broken: Object.freeze({ clientEntry: brokenEntry })
 });
 
-function stubUnsupportedBuild(): void {
-	vi.stubGlobal(
-		'fetch',
-		vi.fn(async () => ({
-			ok: false,
-			status: 410,
-			headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
-			async json() {
-				return { error: 'exact_build_unsupported' };
-			}
-		}))
-	);
-}
-
 describe('RemoteComponent', () => {
 	beforeAll(() => {
-		(globalThis as Record<string, unknown>).__exactConstructDurableComponent =
-			constructDurableComponentInstance;
+		installRemoteComponentFixtures(remoteFixtureComponents);
 		registerExactRemoteClientBindings(bindings);
 	});
-	afterAll(() => delete (globalThis as Record<string, unknown>).__exactConstructDurableComponent);
+	afterAll(removeRemoteComponentFixtures);
 	afterEach(() => {
-		delete (globalThis as Record<string, unknown>).__exactCreateVNode;
 		vi.unstubAllGlobals();
 		resolveRetiringEntry.mockClear();
 		resolveRetiringShellEntry.mockClear();
@@ -287,7 +238,7 @@ describe('RemoteComponent', () => {
 
 	it('loads a canonical entry client-side and renders it under the configured binding', async () => {
 		const container = document.createElement('div');
-		render(createVNode(RemoteComponent, { binding: 'billing' }), container);
+		render(remoteRoot('billing'), container);
 
 		await waitFor(() => container.textContent === 'Loaded billing');
 		expect(container.querySelector('[data-exact-remote="billing"]')).not.toBeNull();
@@ -297,13 +248,7 @@ describe('RemoteComponent', () => {
 
 	it('renders only the host-owned fallback for an unknown binding', async () => {
 		const container = document.createElement('div');
-		render(
-			createVNode(RemoteComponent, {
-				binding: 'missing',
-				fallback: createVNode('p', { role: 'alert' }, 'Unavailable')
-			}),
-			container
-		);
+		render(fallbackRemoteRoot('missing', 'Unavailable', true), container);
 
 		await waitFor(() => container.textContent === 'Unavailable');
 		expect(container.querySelector('[role="alert"]')?.textContent).toBe('Unavailable');
@@ -312,13 +257,7 @@ describe('RemoteComponent', () => {
 
 	it('renders the host fallback when the configured module import rejects', async () => {
 		const container = document.createElement('div');
-		render(
-			createVNode(RemoteComponent, {
-				binding: 'broken',
-				fallback: createVNode('p', null, 'Unavailable')
-			}),
-			container
-		);
+		render(fallbackRemoteRoot('broken', 'Unavailable'), container);
 
 		await waitFor(() => container.textContent === 'Unavailable');
 		expect(container.querySelector('[data-exact-remote-state="failed"]')).not.toBeNull();
@@ -327,12 +266,12 @@ describe('RemoteComponent', () => {
 
 	it('ignores a stale module completion after the binding changes', async () => {
 		const container = document.createElement('div');
-		render(createVNode(RemoteComponent, { binding: 'slow' }), container);
+		render(remoteRoot('slow'), container);
 		await waitFor(
 			() => typeof (globalThis as Record<string, unknown>).__releaseSlowRemote === 'function'
 		);
 
-		render(createVNode(RemoteComponent, { binding: 'billing' }), container);
+		render(remoteRoot('billing'), container);
 		await waitFor(() => container.textContent === 'Loaded billing');
 		((globalThis as Record<string, unknown>).__releaseSlowRemote as () => void)();
 		await Promise.resolve();
@@ -345,7 +284,7 @@ describe('RemoteComponent', () => {
 
 	it('does not install a module that settles after its component unmounts', async () => {
 		const container = document.createElement('div');
-		render(createVNode(RemoteComponent, { binding: 'unmountedSlow' }), container);
+		render(remoteRoot('unmountedSlow'), container);
 		await waitFor(
 			() => typeof (globalThis as Record<string, unknown>).__releaseUnmountedRemote === 'function'
 		);
@@ -361,21 +300,15 @@ describe('RemoteComponent', () => {
 
 	it('updates props without replacing the remote instance and replaces it when binding changes', async () => {
 		const container = document.createElement('div');
-		render(
-			createVNode(RemoteComponent, { binding: 'billing', props: { label: 'First' } }),
-			container
-		);
+		render(remoteRoot('billing', { label: 'First' }), container);
 		await waitFor(() => container.textContent === 'First');
 		const first = remoteInstance(inspectDomRoot(container), '@company/billing#./BillingArea');
 
-		render(
-			createVNode(RemoteComponent, { binding: 'billing', props: { label: 'Second' } }),
-			container
-		);
+		render(remoteRoot('billing', { label: 'Second' }), container);
 		await waitFor(() => container.textContent === 'Second');
 		expect(remoteInstance(inspectDomRoot(container), '@company/billing#./BillingArea')).toBe(first);
 
-		render(createVNode(RemoteComponent, { binding: 'brand' }), container);
+		render(remoteRoot('brand'), container);
 		await waitFor(() => container.textContent === 'Loaded brand');
 		expect(remoteInstance(inspectDomRoot(container), '@company/brand#./BrandArea')).not.toBe(first);
 		unmount(container);
@@ -383,56 +316,24 @@ describe('RemoteComponent', () => {
 
 	it('keeps page-owned children and live page context when a remote parent renders them', async () => {
 		const container = document.createElement('div');
-		const Profile = createContext<{ name: string }>('remote-test-profile', {
-			global: false,
-			reactive: true
-		});
-		let page!: Component<{ profile: { name: string } }>;
-		function PageChild(this: Component<{}>) {
-			const profile = this.getContext(Profile);
-			return () => createVNode('strong', null, profile.name);
-		}
-		function Page(this: Component<{ profile: { name: string } }>) {
-			page = this;
-			this.state.profile = { name: 'Ada' };
-			this.setContext(Profile, this.state.profile);
-			return () =>
-				createVNode(RemoteComponent, { binding: 'shell' }, createTestVNode(PageChild, null));
-		}
-
-		render(createTestVNode(Page, null), container);
+		render(shellPageRoot(), container);
 		await waitFor(() => container.textContent === 'Ada');
 		const tree = inspectDomRoot(container);
 		expect(remoteInstance(tree, '@company/brand#./Shell')).toBeDefined();
-		expect(namedInstanceRoot(tree, 'PageChild')).toBe('page');
+		expect(namedInstanceRoot(tree, 'ShellPageChild')).toBe('page');
 
-		page.state.profile.name = 'Grace';
+		setShellProfileName('Grace');
 		await waitFor(() => container.textContent === 'Grace');
-		expect(namedInstanceRoot(inspectDomRoot(container), 'PageChild')).toBe('page');
+		expect(namedInstanceRoot(inspectDomRoot(container), 'ShellPageChild')).toBe('page');
 		unmount(container);
 	});
 
 	it('reattaches a page-owned child after a remote protocol patch replaces its ancestor', async () => {
 		const container = document.createElement('div');
-		let mounts = 0;
-		let unmounts = 0;
-		let child!: Component<{ count: number }>;
-		function PageChild(this: Component<{ count: number }>) {
-			child = this;
-			this.state.count = 0;
-			this.onMount(() => mounts++);
-			this.onUnmount(() => unmounts++);
-			return () => createVNode('strong', { 'data-page-child': '' }, this.state.count);
-		}
-		function Page() {
-			return () =>
-				createVNode(RemoteComponent, { binding: 'patching' }, createTestVNode(PageChild, null));
-		}
-
-		(globalThis as Record<string, unknown>).__exactCreateVNode = createVNode;
-		render(createTestVNode(Page, null), container);
+		resetPatchingLifecycle();
+		render(patchingPageRoot(), container);
 		await waitFor(() => container.querySelector('[data-page-child]') !== null);
-		const before = namedInstance(inspectDomRoot(container), 'PageChild');
+		const before = namedInstance(inspectDomRoot(container), 'PatchingPageChild');
 		const remoteBefore = namedInstance(inspectDomRoot(container), 'PatchingShell');
 		const wrapper = namedInstance(inspectDomRoot(container), 'RemoteComponent') as Component<{
 			reconcile: number;
@@ -458,25 +359,25 @@ describe('RemoteComponent', () => {
 
 		await waitFor(
 			() =>
-				namedInstance(inspectDomRoot(container), 'PageChild') === before &&
+				namedInstance(inspectDomRoot(container), 'PatchingPageChild') === before &&
 				container.querySelector('[data-page-child]') !== null
 		);
 		expect(namedInstance(inspectDomRoot(container), 'PatchingShell')).not.toBe(remoteBefore);
 		expect(container.querySelector('[data-page-child]')).not.toBeNull();
+		const child = patchingChild();
 		expect(child).toBe(before);
 		expect(findComponentDomNode(before!)).toBe(container.querySelector('[data-page-child]'));
 		expect(container.contains(findComponentDomNode(before!))).toBe(true);
-		child.state.count++;
+		incrementPatchingChild();
 		await waitFor(() => container.querySelector('[data-page-child]')?.textContent === '1');
-		expect(mounts).toBe(1);
-		expect(unmounts).toBe(0);
+		expect(patchingLifecycle()).toEqual({ mounts: 1, unmounts: 0 });
 		unmount(container);
 	});
 
 	it('coordinates an unsupported-build replacement through the page-owned resolver', async () => {
-		stubUnsupportedBuild();
+		stubUnsupportedBuild(replacementBuildKey);
 		const container = document.createElement('div');
-		render(createVNode(RemoteComponent, { binding: 'retiring' }), container);
+		render(remoteRoot('retiring'), container);
 		await waitFor(() => container.textContent === 'Old remote');
 		void remoteClient(container, 'retiring')
 			.invokeTask('probe')
@@ -520,15 +421,7 @@ describe('RemoteComponent', () => {
 			})
 		);
 		const container = document.createElement('div');
-		render(
-			createVNode(
-				'div',
-				null,
-				createVNode(RemoteComponent, { binding: 'retiring', key: 'left' }),
-				createVNode(RemoteComponent, { binding: 'retiring', key: 'right' })
-			),
-			container
-		);
+		render(pairedRetiringRoot(), container);
 		await waitFor(() => container.textContent === 'Old remoteOld remote');
 		for (const element of Array.from(container.querySelectorAll('[data-exact-remote="retiring"]')))
 			void requestClient(element)
@@ -541,15 +434,9 @@ describe('RemoteComponent', () => {
 	});
 
 	it('falls back after one bounded attempt when a resolver returns the unchanged build', async () => {
-		stubUnsupportedBuild();
+		stubUnsupportedBuild(replacementBuildKey);
 		const container = document.createElement('div');
-		render(
-			createVNode(RemoteComponent, {
-				binding: 'unchanged',
-				fallback: createVNode('p', null, 'Remote unavailable')
-			}),
-			container
-		);
+		render(fallbackRemoteRoot('unchanged', 'Remote unavailable'), container);
 		await waitFor(() => container.textContent === 'Old remote');
 		void remoteClient(container, 'unchanged')
 			.invokeTask('probe')
@@ -561,15 +448,9 @@ describe('RemoteComponent', () => {
 	});
 
 	it('falls back when the page-owned replacement resolver rejects', async () => {
-		stubUnsupportedBuild();
+		stubUnsupportedBuild(replacementBuildKey);
 		const container = document.createElement('div');
-		render(
-			createVNode(RemoteComponent, {
-				binding: 'rejecting',
-				fallback: createVNode('p', null, 'Replacement unavailable')
-			}),
-			container
-		);
+		render(fallbackRemoteRoot('rejecting', 'Replacement unavailable'), container);
 		await waitFor(() => container.textContent === 'Old remote');
 		void remoteClient(container, 'rejecting')
 			.invokeTask('probe')
@@ -598,32 +479,9 @@ describe('RemoteComponent', () => {
 			})
 		);
 		const container = document.createElement('div');
-		const Profile = createContext<{ name: string }>('replacement-profile', {
-			global: false,
-			reactive: true
-		});
-		let page!: Component<{ profile: { name: string } }>;
-		let pageChild!: Component<{ count: number }>;
-		function PageChild(this: Component<{ count: number }>) {
-			pageChild = this;
-			this.state.count = 0;
-			const profile = this.getContext(Profile);
-			return () => createVNode('strong', null, `${profile.name}:${this.state.count}`);
-		}
-		function Page(this: Component<{ profile: { name: string } }>) {
-			page = this;
-			this.state.profile = { name: 'Ada' };
-			this.setContext(Profile, this.state.profile);
-			return () =>
-				createVNode(
-					RemoteComponent,
-					{ binding: 'retiringShell' },
-					createTestVNode(PageChild, null)
-				);
-		}
-		render(createTestVNode(Page, null), container);
+		render(replacementPageRoot(), container);
 		await waitFor(() => container.textContent === 'Ada:0');
-		const before = namedInstance(inspectDomRoot(container), 'PageChild');
+		const before = namedInstance(inspectDomRoot(container), 'ReplacementPageChild');
 		expect(before).toBeDefined();
 		void remoteClient(container, 'retiringShell')
 			.invokeTask('probe')
@@ -631,9 +489,8 @@ describe('RemoteComponent', () => {
 
 		release();
 		await waitFor(() => namedInstance(inspectDomRoot(container), 'ReplacementShell') !== undefined);
-		expect(namedInstance(inspectDomRoot(container), 'PageChild')).toBe(before);
-		page.state.profile.name = 'Grace';
-		pageChild.state.count++;
+		expect(namedInstance(inspectDomRoot(container), 'ReplacementPageChild')).toBe(before);
+		updateReplacementPage('Grace', 1);
 		await waitFor(() => container.textContent === 'Grace:1');
 		unmount(container);
 	});

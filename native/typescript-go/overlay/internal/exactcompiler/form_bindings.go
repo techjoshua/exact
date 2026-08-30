@@ -912,12 +912,16 @@ func (lowering *jsxLowering) formBindingUpdate(
 				ast.TokenFlagsNone,
 			)
 		}
+		argument := lowering.arrow(value)
+		if name == lowering.names.writeState {
+			argument = value
+		}
 		return lowering.call(
 			name,
 			[]*ast.Node{
 				lowering.stateRoot(),
 				reference,
-				lowering.arrow(value),
+				argument,
 			},
 		)
 	}

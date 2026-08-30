@@ -393,8 +393,8 @@ func collectPolicySinks(
 			addSink(
 				node,
 				secretPolicyInputs(expression, typeChecker, analysis.subjectsBySymbol),
-				"vnode",
-				"secret-qualified value cannot influence a VNode spread attribute",
+				"operation",
+				"secret-qualified value cannot influence an operation spread attribute",
 			)
 		case ast.IsJsxExpression(node):
 			expression := node.AsJsxExpression().Expression
@@ -405,15 +405,15 @@ func collectPolicySinks(
 				addSink(
 					node,
 					secretPolicyInputs(expression, typeChecker, analysis.subjectsBySymbol),
-					"vnode",
-					"secret-qualified value cannot influence a VNode attribute",
+					"operation",
+					"secret-qualified value cannot influence an operation attribute",
 				)
 			} else {
 				addSink(
 					node,
 					secretPolicyInputs(expression, typeChecker, analysis.subjectsBySymbol),
-					"vnode",
-					"secret-qualified value cannot influence VNode output",
+					"operation",
+					"secret-qualified value cannot influence operation output",
 				)
 			}
 		case ast.IsThrowStatement(node):

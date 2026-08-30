@@ -4,6 +4,7 @@ import {
 	cpuMillisecondsPerRequest,
 	parseSsrConcurrencyLevels,
 	retainedBytesPerRequest,
+	summarizeAvailableWorkerPhases,
 	summarizeSsrSamples,
 	summarizeWorkerRequests
 } from '../src/ssr-benchmark-statistics.mjs';
@@ -53,7 +54,26 @@ describe('SSR benchmark statistics', () => {
 				cpuBatchSize: 5,
 				userCpuPerRequestMs: { p50: 2, p75: 4, p95: 4, p99: 4 },
 				systemCpuPerRequestMs: { p50: 1, p75: 2, p95: 2, p99: 2 },
-				totalCpuPerRequestMs: { p50: 3, p75: 6, p95: 6, p99: 6 }
+				totalCpuPerRequestMs: { p50: 3, p75: 6, p95: 6, p99: 6 },
+				phases: {}
+			}
+		);
+	});
+
+	it('summarizes only participant phases with observations', () => {
+		assert.deepEqual(
+			summarizeAvailableWorkerPhases({
+				dataLoadMs: [3, 1, 2],
+				dataFetchMs: [2, 0.5, 1],
+				dataDecodeMs: [0.4, 0.2, 0.3],
+				renderMs: [0.8, 0.7, 0.9],
+				envelopeMs: []
+			}),
+			{
+				dataLoadMs: { p50: 2, p75: 3, p95: 3, p99: 3 },
+				dataFetchMs: { p50: 1, p75: 2, p95: 2, p99: 2 },
+				dataDecodeMs: { p50: 0.3, p75: 0.4, p95: 0.4, p99: 0.4 },
+				renderMs: { p50: 0.8, p75: 0.9, p95: 0.9, p99: 0.9 }
 			}
 		);
 	});

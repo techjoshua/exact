@@ -37,7 +37,7 @@ export function createExactPublishedComponentBuildFacts(
 				})
 			});
 		})
-		.sort((left, right) => left.path.localeCompare(right.path));
+		.sort((left, right) => compareCanonicalStrings(left.path, right.path));
 	if (new Set(modules.map((module) => module.path)).size !== modules.length)
 		throw new Error('Published component build facts contain duplicate module paths');
 	const exports = input.exports
@@ -49,11 +49,10 @@ export function createExactPublishedComponentBuildFacts(
 			})
 		)
 		.sort((left, right) =>
-			[left.subpath, left.condition, left.exportName, left.componentId]
-				.join('\0')
-				.localeCompare(
-					[right.subpath, right.condition, right.exportName, right.componentId].join('\0')
-				)
+			compareCanonicalStrings(
+				[left.subpath, left.condition, left.exportName, left.componentId].join('\0'),
+				[right.subpath, right.condition, right.exportName, right.componentId].join('\0')
+			)
 		);
 	const exportSelections = new Map<string, string>();
 	for (const record of exports) {
@@ -114,4 +113,8 @@ function normalizePackagePath(value: string): string {
 	)
 		throw new Error(`Invalid package-relative component module path: ${value}`);
 	return normalized;
+}
+
+function compareCanonicalStrings(left: string, right: string): number {
+	return left < right ? -1 : left > right ? 1 : 0;
 }

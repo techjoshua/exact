@@ -1,19 +1,24 @@
-import { createContext, createVNode, type Component } from '@exactjs/core';
+import { createContext, type Component } from '@exactjs/core';
 import { createComponentInstance, renderInstance } from '@exactjs/core/runtime/render';
 import {
-	exactComponentContract,
-	exactComponentType,
-	readExactCompiledComponentContract,
+	readExactExecutableComponentContract,
 	type AnyExactComponentCallable
 } from '@exactjs/core/framework/component-contracts';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/testing';
 import {
-	createFrameworkComponentDomain,
-	withComponentDomain
-} from '@exactjs/core/framework/component-domains';
+	compatibilityContributionKey,
+	createCompatibilityContribution,
+	placeCompatibilityContribution
+} from '@exactjs/core/framework/compatibility-contributions';
+import {
+	createCompiledIntrinsicReceipt,
+	isOpaqueOperation,
+	readCompiledComponentReceipt
+} from '@exactjs/core/runtime/component-operations';
 import '@exactjs/core/runtime/contexts';
 import { describe, expect, it } from 'vitest';
 import { adaptReactComponent } from './exact.js';
+import { ReactClientIsland, ReactServerIsland } from './runtime/island-artifacts.js';
 import {
 	Children,
 	cloneElement,
@@ -22,7 +27,8 @@ import {
 	isValidElement,
 	withReactProfile
 } from './index.js';
-import { HookHost, toExactNode } from './internals.js';
+import { HookHost } from './internals.js';
+import { reactElementCompatibilityContribution } from './runtime/nodes.js';
 import {
 	bridgeReactContext,
 	defineInteropContext,
@@ -36,23 +42,20 @@ const fixture = <T extends AnyExactComponentCallable>(component: T): T =>
 	createExactFrameworkFixtureArtifact(component, `@exactjs/react-compat:test:${++nextFixture}`);
 
 describe('eXact and React context interop', () => {
-	it('creates distinct target-local adapters from the active execution domain', () => {
-		const ReactPanel = () => createElement('span', null, 'panel');
-		const client = adaptReactComponent(ReactPanel);
-		const serverDomain = createFrameworkComponentDomain({
-			executionRoot: 'react-server-fixture',
-			target: 'server'
-		});
-		const server = withComponentDomain(serverDomain, () => adaptReactComponent(ReactPanel));
-
-		expect(server).not.toBe(client);
-		expect(readExactCompiledComponentContract(client)).toMatchObject({
+	it('publishes fixed target-local island artifacts without adapting React types', () => {
+		expect(ReactServerIsland).not.toBe(ReactClientIsland);
+		expect(adaptReactComponent).toBe(ReactClientIsland);
+		expect(readExactExecutableComponentContract(ReactClientIsland)).toMatchObject({
 			placement: 'client',
-			definition: { abi: 30 }
+			artifact: { target: 'client', abi: 30 }
 		});
-		expect(readExactCompiledComponentContract(server)).toMatchObject({
+		expect(readExactExecutableComponentContract(ReactServerIsland)).toMatchObject({
 			placement: 'server',
-			definition: { abi: 31 }
+			artifact: {
+				target: 'server',
+				abi: 30,
+				execution: { lane: 'compatibility' }
+			}
 		});
 	});
 
@@ -93,11 +96,11 @@ describe('eXact and React context interop', () => {
 			}),
 			{}
 		);
-		const Reader = adaptReactComponent(function Reader() {
+		const Reader = function Reader() {
 			observed = useExactContext(Service);
 			return null;
-		});
-		const child = createComponentInstance(Reader, {}, parent);
+		};
+		const child = createComponentInstance(ReactClientIsland, { component: Reader }, parent);
 		renderInstance(child, () => undefined);
 		expect(observed).toBe('native-value');
 	});
@@ -138,11 +141,13 @@ describe('eXact and React context interop', () => {
 		function Native(this: Component<{}>) {
 			return () => 'native';
 		}
-		const Boundary = exposeExactComponent(Native);
-		const vnode = toExactNode(createElement(Boundary, {}));
-		expect(Array.isArray(vnode)).toBe(false);
-		expect((vnode as { type: unknown }).type).toBe(Native);
-		expect(adaptReactComponent(Boundary)).toBe(Native);
+		const Boundary = exposeExactComponent(fixture(Native));
+		const contribution = reactElementCompatibilityContribution(createElement(Boundary, {}));
+		let operation: unknown;
+		placeCompatibilityContribution(contribution!, {
+			place: (value) => (operation = value) as object
+		});
+		expect(isOpaqueOperation(operation)).toBe(true);
 	});
 
 	it('normalizes compiler-authored refs at a direct React adapter boundary', () => {
@@ -152,7 +157,10 @@ describe('eXact and React context interop', () => {
 			observed = forwardedRef;
 			return null;
 		});
-		const instance = createComponentInstance(adaptReactComponent(Forwarded), { ref });
+		const instance = createComponentInstance(ReactClientIsland, {
+			component: Forwarded,
+			ref
+		});
 
 		renderInstance(instance, () => undefined);
 
@@ -167,8 +175,15 @@ describe('eXact and React context interop', () => {
 			expect(isValidElement(child)).toBe(true);
 			return cloneElement(child as never, { title: 'wrapped' });
 		}
-		const instance = createComponentInstance(adaptReactComponent(Wrapper), {
-			children: createVNode('span', { key: 'native', title: 'source' }, 'child')
+		const instance = createComponentInstance(ReactClientIsland, {
+			component: Wrapper,
+			children: createCompatibilityContribution(
+				(target) =>
+					target.place(
+						createCompiledIntrinsicReceipt('span', { key: 'native', title: 'source' }, 'child')
+					),
+				'native'
+			)
 		});
 
 		renderInstance(instance, () => undefined);
@@ -181,24 +196,12 @@ describe('eXact and React context interop', () => {
 		function Native(this: Component<{}>) {
 			return () => 'native';
 		}
-		Object.assign(Native, {
-			[exactComponentType]: 'fixture.native',
-			[exactComponentContract]: {
-				version: 2,
-				placement: 'client',
-				role: 'client',
-				implementations: [],
-				continuations: [],
-				executors: [],
-				boundaries: []
-			}
-		});
+		fixture(Native);
 
 		const reactOwnedType: import('react').JSXElementConstructor<{}> = Native;
-		const vnode = toExactNode(createElement(Native, {}));
+		const contribution = reactElementCompatibilityContribution(createElement(Native, {}));
 		expect(reactOwnedType).toBe(Native);
-		expect((vnode as { type: unknown }).type).toBe(Native);
-		expect(adaptReactComponent(Native)).toBe(Native);
+		expect(contribution).toBeDefined();
 	});
 
 	it('preserves keys, children, and explicitly forwarded refs at native boundaries', () => {
@@ -206,30 +209,32 @@ describe('eXact and React context interop', () => {
 		function Native(this: Component<{}>, _props: { nativeRef?: unknown; children?: unknown }) {
 			return () => null;
 		}
-		const Boundary = exposeExactComponent(Native, 'Native', { refProp: 'nativeRef' });
-		const vnode = toExactNode(createElement(Boundary, { key: 'stable', ref }, 'child')) as {
-			key?: string;
-			props: Record<string, unknown>;
-		};
-		expect(vnode.key).toBe('stable');
-		expect(vnode.props.nativeRef).toBe(ref);
-		expect(vnode.props.children).toBe('child');
+		const Boundary = exposeExactComponent(fixture(Native), 'Native', { refProp: 'nativeRef' });
+		const contribution = reactElementCompatibilityContribution(
+			createElement(Boundary, { key: 'stable', ref }, 'child')
+		)!;
+		let operation: unknown;
+		placeCompatibilityContribution(contribution, {
+			place: (value) => (operation = value) as object
+		});
+		const receipt = readCompiledComponentReceipt(operation);
+		expect(compatibilityContributionKey(contribution)).toBe('stable');
+		expect(receipt?.props.nativeRef).toBe(ref);
+		expect(receipt?.children).toHaveLength(1);
 	});
 
-	it('preserves a custom native ref prop through explicit double adaptation', () => {
+	it('preserves a custom native ref prop through the explicit native boundary', () => {
 		const ref = { current: null };
 		function Native(this: Component<{}>, _props: { nativeRef?: unknown }) {
 			return () => null;
 		}
-		const Boundary = exposeExactComponent(Native, 'Native', { refProp: 'nativeRef' });
-		const adapter = adaptReactComponent(Boundary);
-		const instance = createComponentInstance(adapter, { ref });
-		const rendered = renderInstance(instance, () => undefined);
-		const vnode = rendered[0] as { props: Record<string, unknown> };
-
-		expect(adapter).not.toBe(Native);
-		expect(vnode.props.nativeRef).toBe(ref);
-		instance.unmount();
+		const Boundary = exposeExactComponent(fixture(Native), 'Native', { refProp: 'nativeRef' });
+		const contribution = reactElementCompatibilityContribution(createElement(Boundary, { ref }))!;
+		let operation: unknown;
+		placeCompatibilityContribution(contribution, {
+			place: (value) => (operation = value) as object
+		});
+		expect(readCompiledComponentReceipt(operation)?.props.nativeRef).toBe(ref);
 	});
 
 	it('keeps nearest-provider semantics through alternating ownership layers', () => {

@@ -1,37 +1,42 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementNode, Fragment, Target, type Child, type Component } from '@exactjs/core';
-import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/runtime-component-artifacts';
+import { exactEnhancementPassThrough } from '@exactjs/core';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
+import '@exactjs/dom/framework/enhancements';
 import '@exactjs/dom/runtime/target';
-import { renderToString } from '@exactjs/ssr';
+import { renderToHydratableString } from '@exactjs/ssr';
 import { TimeUpdate } from '@exactjs/time';
-import { createTimeActivation } from '@exactjs/time/internal';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './enhanced.js';
-import { createVNode } from './test-support/native-vnode.js';
+import {
+	clockEnhancementIdentity,
+	clockRoot,
+	facadeEnhancementIdentity,
+	FacadeEnhancement,
+	facadePageRoot,
+	targetOrderRoot
+} from './test-support/enhanced.fixtures.js';
+import {
+	clockRoot as serverClockRoot,
+	facadePageRoot as serverFacadePageRoot,
+	targetOrderRoot as serverTargetOrderRoot
+} from './test-support/enhanced.fixtures.js?exact-target=server';
 import { noopLogger } from './test-support/responses.js';
 
 describe('enhanced hydration facade', () => {
 	it('adopts a direct target intrinsic ahead of a later nested target in a fragment', () => {
-		const vnode = createVNode(
-			Target,
-			{ className: 'outer' },
-			createVNode(
-				Fragment,
-				null,
-				createVNode('section', { id: 'host' }, 'Host'),
-				createVNode(Target, { className: 'inner' }, createVNode('h2', null, 'Heading'))
-			)
-		);
 		const root = document.createElement('div');
-		root.innerHTML = renderToString(vnode).html;
-		const host = root.querySelector('#host'),
-			heading = root.querySelector('h2');
+		const rendered = renderToHydratableString(serverTargetOrderRoot);
+		root.innerHTML = rendered.html;
+		const host = root.querySelector('#host');
+		const heading = root.querySelector('h2');
 
-		hydrate(vnode, root, { logger: noopLogger, onMismatch: 'throw' });
+		hydrate(targetOrderRoot, root, {
+			logger: noopLogger,
+			onMismatch: 'throw',
+			resumptions: rendered.resumptions
+		});
 
 		expect(root.querySelector('#host')).toBe(host);
 		expect(root.querySelector('h2')).toBe(heading);
@@ -40,37 +45,22 @@ describe('enhanced hydration facade', () => {
 	});
 
 	it('adopts the server clock text before one settled live refresh', async () => {
-		const identity = '@exactjs/time:TimeUpdate';
 		let now = 100;
 		vi.spyOn(Date, 'now').mockImplementation(() => now);
-		const plan = { protocol: 1, kind: 'continuous' } as const;
-		const timeVNode = (activation: ReturnType<typeof createTimeActivation>) =>
-			createVNode(
-				'time',
-				{
-					__exactEnhancements: createEnhancementNode([{ identity, props: { update: activation } }])
-				},
-				createDynamicChild(() => String(activation.readEpochMilliseconds()), 'time-sample', false)
-			);
-		const ClockView = createExactFrameworkFixtureArtifact(function ClockView() {
-			const activation = createTimeActivation('second', plan);
-			return () => timeVNode(activation);
-		}, '@test/time-hydration');
 		const root = document.createElement('div');
-		const rendered = renderToString(createVNode(ClockView, {}), {
-			enhancementCatalog: new Map([[identity, TimeUpdate]])
+		const rendered = renderToHydratableString(serverClockRoot, {
+			enhancementCatalog: new Map([[clockEnhancementIdentity, exactEnhancementPassThrough]])
 		});
 		root.innerHTML = rendered.html;
 		const adopted = root.querySelector('time');
 		expect(adopted?.textContent).toBe('100');
 
-		await Promise.resolve();
 		now = 1_000;
-		registerExactEnhancement(identity, TimeUpdate);
-		const client = hydrate(createVNode(ClockView, {}), root, {
-			allowMarkerless: true,
+		registerExactEnhancement(clockEnhancementIdentity, TimeUpdate);
+		const client = hydrate(clockRoot, root, {
 			logger: noopLogger,
 			onMismatch: 'throw',
+			resumptions: rendered.resumptions,
 			wallClockSnapshot: rendered.wallClockSnapshot
 		});
 		expect(root.querySelector('time')).toBe(adopted);
@@ -84,27 +74,19 @@ describe('enhanced hydration facade', () => {
 	});
 
 	it('supplies the application-bundle catalog after adoption', () => {
-		const identity = '@exactjs/hydrate:enhanced-facade';
-		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			return () => createVNode('aside', { 'data-enhanced': true }, props.children);
-		}, identity);
-		const vnode = createVNode(
-			'button',
-			{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
-			'Save'
-		);
 		const root = document.createElement('div');
-		root.innerHTML = renderToString(vnode, {
-			enhancementCatalog: new Map([[identity, Enhancement]])
-		}).html;
-		registerExactEnhancement(identity, Enhancement);
+		const rendered = renderToHydratableString(serverFacadePageRoot, {
+			enhancementCatalog: new Map([[facadeEnhancementIdentity, exactEnhancementPassThrough]])
+		});
+		root.innerHTML = rendered.html;
+		registerExactEnhancement(facadeEnhancementIdentity, FacadeEnhancement);
 
-		hydrate(vnode, root, { logger: noopLogger });
+		hydrate(facadePageRoot, root, {
+			logger: noopLogger,
+			resumptions: rendered.resumptions
+		});
 
-		expect(root.innerHTML).toContain('<aside data-enhanced="true"><button>Save</button></aside>');
+		expect(root.querySelector('aside')?.dataset.enhanced).toBe('true');
+		expect(root.querySelector('aside > button')?.textContent).toBe('Save');
 	});
 });
-import '@exactjs/core/runtime/contexts';

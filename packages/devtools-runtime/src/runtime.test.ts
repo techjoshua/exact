@@ -1,17 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 // @vitest-environment jsdom
-import {
-	activateTaskForHost,
-	createExactRuntimeInspectionOwner,
-	createVNode,
-	defineTask,
-	markExactInspectionSource,
-	type Component
-} from '@exactjs/core';
+import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import { render, unmount } from '@exactjs/dom';
-import { createCompiledTestVNode, createTestVNode } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Card, accountRoot, cardRoot, counterRoot, lateRoot } from './runtime.fixtures.js';
 import {
 	exactDevtoolsHookSymbol,
 	exactDevtoolsRuntimeSymbol,
@@ -33,11 +26,6 @@ afterEach(async () => {
 
 describe('page-world eXact DevTools runtime', () => {
 	it('automatically owns roots created after an instrumented bootstrap and preserves authored styles', async () => {
-		function Card(this: Component<{ label?: string }>) {
-			this.state.label = 'Ready';
-			return () =>
-				createVNode('article', { id: 'card', style: 'outline: 1px solid red' }, this.state.label);
-		}
 		const fetchServer = vi.fn(async () => {
 			throw new Error('server unavailable');
 		});
@@ -48,7 +36,7 @@ describe('page-world eXact DevTools runtime', () => {
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createTestVNode(Card, {}), container);
+		render(cardRoot(), container);
 
 		await installation.hook.connect();
 		expect(fetchServer).not.toHaveBeenCalled();
@@ -101,10 +89,6 @@ describe('page-world eXact DevTools runtime', () => {
 	});
 
 	it('projects roots mounted after a client-only inspection session connects', async () => {
-		function LateRoot(this: Component<{ label?: string }>) {
-			this.state.label = 'Mounted after connect';
-			return () => createVNode('p', { id: 'late-root' }, this.state.label);
-		}
 		installation = installExactDevtoolsRuntime({
 			buildKey: 'late-build',
 			executionRoot: 'page'
@@ -113,7 +97,7 @@ describe('page-world eXact DevTools runtime', () => {
 		container = document.createElement('main');
 		document.body.append(container);
 
-		render(createCompiledTestVNode(LateRoot, {}), container);
+		render(lateRoot(), container);
 		const tree = await installation.hook.request({
 			protocol: 1,
 			id: 'late-tree',
@@ -132,19 +116,15 @@ describe('page-world eXact DevTools runtime', () => {
 	});
 
 	it('redacts compiler-qualified state paths before snapshot traversal', async () => {
-		function Account(this: Component<{ profile?: { token: string; name: string } }>) {
-			this.state.profile = { token: 'must-never-appear', name: 'Ada' };
-			return () => createVNode('p', null, this.state.profile!.name);
-		}
 		installation = installExactDevtoolsRuntime({
-			redactions: { statePaths: ['state.profile.token'] },
+			redactions: { statePaths: ['state.profile.token', 'props.token'] },
 			fetch: vi.fn(async () => {
 				throw new Error('server unavailable');
 			}) as typeof fetch
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createTestVNode(Account, {}), container);
+		render(accountRoot('Ada', 'must-never-appear'), container);
 		await installation.hook.connect();
 
 		const tree = await installation.hook.request({
@@ -158,17 +138,13 @@ describe('page-world eXact DevTools runtime', () => {
 	});
 
 	it('automatically applies compiler-emitted redaction selectors', async () => {
-		function Account(this: Component<{ profile?: { token: string; name: string } }>) {
-			this.state.profile = { token: 'compiler-secret-value', name: 'Grace' };
-			return () => createVNode('p', null, this.state.profile!.name);
-		}
 		(globalThis as any)[exactDevtoolsRuntimeSymbol] = {
 			sources: [
 				{
 					protocol: 1,
 					components: [],
 					redactions: {
-						statePaths: ['state.profile.token'],
+						statePaths: ['state.profile.token', 'props.token'],
 						contextTokens: [],
 						secretNames: []
 					}
@@ -185,7 +161,7 @@ describe('page-world eXact DevTools runtime', () => {
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createTestVNode(Account, {}), container);
+		render(accountRoot('Grace', 'compiler-secret-value'), container);
 		await installation.hook.connect();
 
 		const tree = await installation.hook.request({
@@ -199,31 +175,13 @@ describe('page-world eXact DevTools runtime', () => {
 	});
 
 	it('late-attaches to active roots and exposes only bounded read-only projections', async () => {
-		function Counter(this: Component<{ count?: number }>) {
-			this.state.count = 1;
-			activateTaskForHost(
-				this,
-				defineTask(
-					{},
-					markExactInspectionSource('Counter:task:load', async () => Promise.resolve())
-				)
-			);
-			const increment = defineTask(
-				{ label: 'Increment' },
-				markExactInspectionSource('Counter:task:increment', () => {
-					this.state.count = (this.state.count ?? 0) + 1;
-				})
-			);
-			increment();
-			return () => createVNode('button', { id: 'counter' }, this.state.count);
-		}
 		const owner = createExactRuntimeInspectionOwner({
 			buildKey: 'a'.repeat(40),
 			executionRoot: 'page'
 		});
 		container = document.createElement('main');
 		document.body.append(container);
-		render(createTestVNode(Counter, {}), container, { inspection: owner });
+		render(counterRoot(), container, { inspection: owner });
 
 		(globalThis as any)[exactDevtoolsRuntimeSymbol] = {
 			sources: [
@@ -254,10 +212,10 @@ describe('page-world eXact DevTools runtime', () => {
 					name: 'Counter',
 					state: { kind: 'object' },
 					tasks: [
-						{ id: { sourceEntityId: 'Counter:task:load' } },
+						{ name: 'load' },
 						{
-							id: { sourceEntityId: 'Counter:task:increment' },
-							activation: 'invoked'
+							name: 'increment',
+							activation: 'initialization'
 						}
 					]
 				}

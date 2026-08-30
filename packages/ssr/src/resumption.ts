@@ -6,8 +6,12 @@ import {
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readPreparedExactCompiledComponentContract
+	readPreparedExactServerExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
+import {
+	serverComponentContinuationContextValuesForHost,
+	settledServerComponentContinuationIdsForHost
+} from '@exactjs/core/framework/server-component-execution';
 import type { RenderToStringOptions } from './types.js';
 import type { DirectSsrComponentSnapshot } from './types.js';
 import { readReactiveOwnProperty } from '@exactjs/reactive/framework/indexed-objects';
@@ -24,6 +28,19 @@ export type SsrResumptionLayout = Readonly<{
 	statePaths: readonly string[];
 	contexts: readonly string[];
 }>;
+
+type SsrResumptionSchema = Readonly<{
+	layout: SsrResumptionLayout;
+	state: readonly Readonly<{
+		path: string;
+		segments: readonly string[];
+		propSegments?: readonly string[];
+	}>[];
+	contexts: readonly string[];
+	continuations: ReadonlySet<string>;
+}>;
+
+const resumptionSchemas = new WeakMap<object, SsrResumptionSchema>();
 
 /** Captures compiler-selected state and settled work in deterministic construction order. */
 export function createSsrResumptionCapture(
@@ -44,6 +61,7 @@ export function createSsrResumptionCapture(
 	const reserveDirect = (snapshot: DirectSsrComponentSnapshot): void => {
 		const resumption = snapshot.contract.resumption;
 		if (!resumption) return;
+		const schema = resumptionSchema(snapshot.contract);
 		const record: MutableResumption = {
 			componentId: snapshot.componentId,
 			values: {},
@@ -54,10 +72,7 @@ export function createSsrResumptionCapture(
 			rootInputRecords.add(record);
 			rootInputClaimed = true;
 		}
-		layouts.set(snapshot.componentId, {
-			statePaths: resumption.statePaths,
-			contexts: resumption.contexts
-		});
+		if (!layouts.has(snapshot.componentId)) layouts.set(snapshot.componentId, schema.layout);
 		recordsByDirectFrame.set(snapshot, record);
 		records.push(record);
 	};
@@ -65,14 +80,22 @@ export function createSsrResumptionCapture(
 		const resumption = snapshot.contract.resumption;
 		const record = recordsByDirectFrame.get(snapshot);
 		if (!resumption || !record) return;
+		const schema = resumptionSchema(snapshot.contract);
 		captureStateValues(
 			record,
 			rootInputRecords.has(record),
 			snapshot.state,
 			snapshot.props,
-			resumption,
+			schema,
 			publishedRootProps
 		);
+		record.contexts = serverComponentContinuationContextValuesForHost(
+			snapshot.host,
+			schema.contexts
+		);
+		record.settledContinuations = settledServerComponentContinuationIdsForHost(
+			snapshot.host
+		).filter((id) => schema.continuations.has(id));
 	};
 	return {
 		options: {
@@ -95,14 +118,13 @@ export function createSsrResumptionCapture(
 				if (typeof checkpoint === 'number') records.splice(checkpoint);
 			},
 			onComponentCreated(instance) {
-				const contract = readPreparedExactCompiledComponentContract(instance.type);
+				const contract = readPreparedExactServerExecutableComponentContract(instance.type);
 				if (contract.resumption) {
-					layouts.set(exactComponentIdentity(instance.type), {
-						statePaths: contract.resumption.statePaths,
-						contexts: contract.resumption.contexts
-					});
+					const schema = resumptionSchema(contract);
+					const componentId = exactComponentIdentity(instance.type);
+					if (!layouts.has(componentId)) layouts.set(componentId, schema.layout);
 					const record: MutableResumption = {
-						componentId: exactComponentIdentity(instance.type),
+						componentId,
 						values: {},
 						contexts: {},
 						settledContinuations: []
@@ -118,23 +140,20 @@ export function createSsrResumptionCapture(
 			},
 			onComponentRendered(instance) {
 				const record = recordsByInstance.get(instance);
-				const contract = readPreparedExactCompiledComponentContract(instance.type);
+				const contract = readPreparedExactServerExecutableComponentContract(instance.type);
 				if (record && contract.resumption) {
+					const schema = resumptionSchema(contract);
 					captureStateValues(
 						record,
 						rootInputRecords.has(record),
 						instance.state,
 						instance.props,
-						contract.resumption,
+						schema,
 						publishedRootProps
 					);
-					record.contexts = componentContinuationContextValues(
-						instance,
-						contract.resumption.contexts
-					);
-					const allowed = new Set(contract.continuations.map((continuation) => continuation.id));
+					record.contexts = componentContinuationContextValues(instance, schema.contexts);
 					record.settledContinuations = settledComponentContinuationIds(instance).filter((id) =>
-						allowed.has(id)
+						schema.continuations.has(id)
 					);
 				}
 				options.onComponentRendered?.(instance);
@@ -150,20 +169,15 @@ function captureStateValues(
 	rootInput: boolean,
 	state: unknown,
 	props: unknown,
-	resumption: {
-		statePaths: readonly string[];
-		stateInputs: readonly (readonly [string, string])[];
-	},
+	schema: SsrResumptionSchema,
 	publishedRootProps: Readonly<Record<string, unknown>> | undefined
 ): void {
-	const inputs = new Map(resumption.stateInputs);
-	for (const path of resumption.statePaths) {
-		const found = readPath(state, path);
+	for (const field of schema.state) {
+		const found = readPath(state, field.segments);
 		if (!found.present || found.value === undefined) continue;
-		const propPath = inputs.get(path);
-		if (rootInput && publishedRootProps && propPath) {
-			const local = readPath(props, propPath);
-			const published = readPath(publishedRootProps, propPath);
+		if (rootInput && publishedRootProps && field.propSegments) {
+			const local = readPath(props, field.propSegments);
+			const published = readPath(publishedRootProps, field.propSegments);
 			if (
 				local.present &&
 				published.present &&
@@ -172,23 +186,53 @@ function captureStateValues(
 			)
 				continue;
 		}
-		record.values[path] = found.value;
+		record.values[field.path] = found.value;
 	}
 }
 
 /** Reads one own-property state path without invoking accessors. */
 function readPath(
 	value: unknown,
-	path: string
+	segments: readonly string[]
 ): { present: true; value: unknown } | { present: false } {
 	let cursor = value;
-	for (const segment of path.split('.')) {
+	for (const segment of segments) {
 		if (!safeSegment(segment) || !cursor || typeof cursor !== 'object') return { present: false };
 		const field = readReactiveOwnProperty(cursor, segment);
 		if (!field.present) return field;
 		cursor = field.value;
 	}
 	return { present: true, value: cursor };
+}
+
+function resumptionSchema(contract: {
+	resumption?: {
+		statePaths: readonly string[];
+		stateInputs: readonly (readonly [string, string])[];
+		contexts: readonly string[];
+	};
+	continuations: readonly Readonly<{ id: string }>[];
+}): SsrResumptionSchema {
+	const key = contract as object;
+	const cached = resumptionSchemas.get(key);
+	if (cached) return cached;
+	const resumption = contract.resumption!;
+	const inputs = new Map(resumption.stateInputs);
+	const schema: SsrResumptionSchema = {
+		layout: { statePaths: resumption.statePaths, contexts: resumption.contexts },
+		state: resumption.statePaths.map((path) => {
+			const propPath = inputs.get(path);
+			return {
+				path,
+				segments: path.split('.'),
+				...(propPath ? { propSegments: propPath.split('.') } : {})
+			};
+		}),
+		contexts: resumption.contexts,
+		continuations: new Set(contract.continuations.map((continuation) => continuation.id))
+	};
+	resumptionSchemas.set(key, schema);
+	return schema;
 }
 
 /** Rejects prototype-bearing path segments while inspecting component state. */

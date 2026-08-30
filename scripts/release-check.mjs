@@ -18,6 +18,7 @@ const npmCommand =
 		? { command: process.execPath, prefix: [npmCli] }
 		: { command: 'npm', prefix: [] };
 const timings = [];
+const performanceOutputs = [];
 const started = performance.now();
 const sharedEnvironment = {
 	...process.env,
@@ -42,6 +43,10 @@ const staticChecks = [
 	task('style', ['run', 'check:style']),
 	task('platform boundaries', ['run', 'check:platform-boundaries']),
 	task('source architecture', ['run', 'check:source-architecture']),
+	task('component-local target ABI reachability', [
+		'run',
+		'check:component-local-target-abi-reachability'
+	]),
 	task('JSDoc contracts', ['run', 'check:jsdoc']),
 	task('explicit-any ratchet', ['run', 'check:explicit-any']),
 	task('core API ownership', ['run', 'check:core-api']),
@@ -79,12 +84,21 @@ try {
 	if (!['affected', 'check', 'quick', 'full', 'performance'].includes(profile)) {
 		throw new Error(`Unknown release profile "${profile}"`);
 	}
-	await run(build);
-	await run(typescript7Compatibility);
+	if (profile !== 'performance') {
+		await run(build);
+		await run(typescript7Compatibility);
+	}
 	if (profile === 'affected') {
 		await runAffected();
 	} else if (profile !== 'performance') {
-		await runPool(staticChecks, 3);
+		await runPool(
+			profile === 'check'
+				? staticChecks.filter(
+						(entry) => entry.name !== 'style' && entry.name !== 'source architecture'
+					)
+				: staticChecks,
+			3
+		);
 		await runPool(sampleBuilds, 2);
 		await run(testSuite);
 		if (profile !== 'quick') {
@@ -119,6 +133,19 @@ try {
 			2
 		)}\n`
 	);
+	if (profile === 'performance')
+		await writeFile(
+			path.join(root, '.tmp', 'release-performance-output.json'),
+			`${JSON.stringify(
+				{
+					schemaVersion: 1,
+					generatedAt: new Date().toISOString(),
+					phases: performanceOutputs
+				},
+				null,
+				2
+			)}\n`
+		);
 }
 
 if (failure) throw failure;
@@ -126,13 +153,27 @@ if (failure) throw failure;
 async function run(entry) {
 	const phaseStarted = performance.now();
 	process.stdout.write(`\n[release:${profile}] ${entry.name}\n`);
+	let output = '';
+	let errorOutput = '';
 	const exitCode = await new Promise((resolve, reject) => {
 		const child = spawn(entry.command, entry.args, {
 			cwd: root,
 			env: entry.environment,
-			stdio: 'inherit',
+			stdio: profile === 'performance' ? ['ignore', 'pipe', 'pipe'] : 'inherit',
 			windowsHide: true
 		});
+		if (profile === 'performance') {
+			child.stdout.setEncoding('utf8');
+			child.stderr.setEncoding('utf8');
+			child.stdout.on('data', (chunk) => {
+				output += chunk;
+				process.stdout.write(chunk);
+			});
+			child.stderr.on('data', (chunk) => {
+				errorOutput += chunk;
+				process.stderr.write(chunk);
+			});
+		}
 		child.once('error', reject);
 		child.once('exit', (code, signal) => {
 			if (signal) reject(new Error(`${entry.name} terminated by ${signal}`));
@@ -140,6 +181,7 @@ async function run(entry) {
 		});
 	});
 	const elapsedMs = performance.now() - phaseStarted;
+	if (profile === 'performance') performanceOutputs.push({ name: entry.name, output, errorOutput });
 	timings.push({ name: entry.name, elapsedMs, status: exitCode === 0 ? 'passed' : 'failed' });
 	if (exitCode !== 0) throw new Error(`${entry.name} failed with exit code ${exitCode}`);
 }

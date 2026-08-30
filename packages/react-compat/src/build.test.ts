@@ -136,6 +136,16 @@ describe('React compatibility build engine', () => {
 		).toBe('exact');
 		expect(
 			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'server-app.tsx'),
+				sourceModule: '../.exact/App.exact.server.js',
+				localName: 'ShippingCalculatorPage',
+				tagName: 'ShippingCalculatorPage',
+				declarationSources: [],
+				declarationSignatures: []
+			})
+		).toBe('exact');
+		expect(
+			engine.jsxInterop.classify({
 				importer: path.join(fixtureRoot, 'src', 'App.tsx'),
 				sourceModule: 'unclassified-components',
 				localName: 'Unknown',

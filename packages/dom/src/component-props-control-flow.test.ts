@@ -5,8 +5,8 @@ import { type Component } from '@exactjs/core';
 import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { render } from './index.js';
-import { createCompiledVNode } from './test-support/native-vnode.js';
+import { renderTestTree as render } from './testing.js';
+import { createCompiledOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/dom component prop control flow', () => {
 	it('keeps a compiled boolean prop reactive across conditional branch toggles', () => {
@@ -14,10 +14,10 @@ describe('@exactjs/dom component prop control flow', () => {
 
 		function Menu(this: Component<{}>, props: { open: boolean }) {
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'section',
 					{},
-					createDynamicChild(() => (props.open ? createCompiledVNode('div', {}, 'menu') : null))
+					createDynamicChild(() => (props.open ? createCompiledOperation('div', {}, 'menu') : null))
 				);
 		}
 
@@ -25,13 +25,13 @@ describe('@exactjs/dom component prop control flow', () => {
 			parent = this;
 			this.state.open = false;
 			return () =>
-				createCompiledVNode(Menu, {
+				createCompiledOperation(Menu, {
 					open: createExpression(() => this.state.open)
 				});
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container);
+		render(createCompiledOperation(Parent, {}), container);
 		expect(container.querySelector('div')).toBeNull();
 
 		parent.state.open = true;
