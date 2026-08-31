@@ -34,11 +34,16 @@ npm run start:framework-comparison-service
 npm run build -w @exactjs/framework-comparison-suite
 npm run test:e2e -w @exactjs/framework-comparison-suite
 npm run test:native -w @exactjs/framework-comparison-suite
-npm run measure:development -w @exactjs/framework-comparison-suite
-npm run measure:startup-cpu:development -w @exactjs/framework-comparison-suite
-npm run measure:ssr:development -w @exactjs/framework-comparison-suite
-npm run measure:native:development -w @exactjs/framework-comparison-suite
+npm run measure -w @exactjs/framework-comparison-suite
+npm run measure:startup-cpu -w @exactjs/framework-comparison-suite
+npm run measure:ssr -w @exactjs/framework-comparison-suite
+npm run measure:native -w @exactjs/framework-comparison-suite
 ```
+
+Collectors always preserve correctness-gated raw evidence. When one or more participant reviews are
+incomplete, they warn and mark the result `publishable: false`; the report or checkpoint policy decides
+whether that evidence may be published after collection. Review status never aborts and discards a local
+measurement run.
 
 The startup CPU profile uses a fresh cache-disabled browser context for every sample and separates
 Chromium's JavaScript parse, compile, evaluation, and total script-duration signals through semantic

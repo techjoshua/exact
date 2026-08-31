@@ -48,10 +48,13 @@ export {
 export { unsafeExactHtml, type ExactTrustedHtml } from '../trusted-html.js';
 export {
 	createExactBufferedResponse,
+	createExactProducedResponse,
 	exactResponseBody,
 	exactResponseBodyOf,
 	type ExactResponseBody,
+	type ExactResponseBodyScopeRelease,
 	type ExactResponseBodyWriter,
+	type ExactSynchronousResponseBodyProducer,
 	type ExactResponseWithBody
 } from '../response-body.js';
 export {

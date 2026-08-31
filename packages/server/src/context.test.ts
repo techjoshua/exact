@@ -3,7 +3,9 @@ import { RequestContext } from '@exactjs/request';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactContextRuntime,
+	createExactProducedResponse,
 	defineExactOperationContract,
+	exactResponseBodyOf,
 	handleExactRequest,
 	openExactRequestScope,
 	runWithExactRequestScope,
@@ -505,6 +507,63 @@ describe('server context scopes', () => {
 		const reader = response.stream!.getReader();
 		expect(new TextDecoder().decode((await reader.read()).value)).toBe('ok');
 		expect((await reader.read()).done).toBe(true);
+		expect(disposeRequest).toHaveBeenCalledOnce();
+	});
+
+	it('transfers request ownership to a produced response body', async () => {
+		const disposeRequest = vi.fn();
+		const context = server({
+			requestContexts: [
+				[
+					RequestValue,
+					{
+						create: () => 'produced',
+						dispose: disposeRequest
+					}
+				]
+			]
+		});
+		const response = await runWithExactRequestScope(request('produced'), context, (scoped) =>
+			createExactProducedResponse(200, {}, (write) => {
+				write(scoped.contexts!.getSync(RequestValue));
+			})
+		);
+		const chunks: string[] = [];
+
+		expect(disposeRequest).not.toHaveBeenCalled();
+		await exactResponseBodyOf(response)?.writeTo((chunk) => {
+			chunks.push(chunk);
+		});
+
+		expect(chunks).toEqual(['produced']);
+		expect(disposeRequest).toHaveBeenCalledOnce();
+	});
+
+	it('disposes an unread produced body when its host request aborts', async () => {
+		const disposeRequest = vi.fn();
+		const abort = new AbortController();
+		const context = server({
+			requestContexts: [
+				[
+					RequestValue,
+					{
+						create: () => 'unread produced',
+						dispose: disposeRequest
+					}
+				]
+			]
+		});
+		const response = await runWithExactRequestScope(
+			request('unread-produced', abort.signal),
+			context,
+			() => createExactProducedResponse(200, {}, () => undefined)
+		);
+
+		abort.abort(new DOMException('disconnected', 'AbortError'));
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(exactResponseBodyOf(response)).toBeDefined();
 		expect(disposeRequest).toHaveBeenCalledOnce();
 	});
 

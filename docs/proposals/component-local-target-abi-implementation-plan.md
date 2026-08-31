@@ -636,6 +636,16 @@ complete lowering. Scheduled components retain their issued protocol. This speci
 preserve request-local checkpoints, rollback, hooks, disposal, child artifact dispatch, response
 identity, and resumption publication.
 
+A synchronous compiler-closed response may additionally use a produced response body owned by the
+server package. Request-scope disposal transfers to that body and occurs after successful adapter
+consumption, renderer or transport failure, cancellation, or host abort. The Node adapter collects
+settled spans as a string rope and performs one terminal write; it must not call the HTTP response
+once per compiler span or introduce array joins, native-buffer copies, or Web-stream encoding into
+this synchronous lane. Fetch-compatible adapters consume the same body contract through their
+native response representation. This checkpoint does not replace the scheduled artifact writer:
+genuine progressive output requires an asynchronous writer that awaits coarse transport
+backpressure and has an explicit post-commit failure protocol.
+
 ## Phase progression and regressions
 
 A phase is not complete merely because its implementation and tests pass. It is complete after its

@@ -12,10 +12,12 @@ export async function renderOnlyDiagnostic(participant, url) {
 		100
 	);
 	const cpuIterations = boundedInteger(url.searchParams.get('cpuIterations'), 1, 10_000, 1_000);
-	await participant.renderOnly(Math.min(iterations, 100));
-	const timing = await participant.renderOnly(iterations);
-	const cpu = await profileNodeCpu(() => participant.renderOnly(cpuIterations));
-	const allocation = await profileNodeAllocations(() => participant.renderOnly(profileIterations));
+	await participant.renderOnly(Math.min(iterations, 100), url);
+	const timing = await participant.renderOnly(iterations, url);
+	const cpu = await profileNodeCpu(() => participant.renderOnly(cpuIterations, url));
+	const allocation = await profileNodeAllocations(() =>
+		participant.renderOnly(profileIterations, url)
+	);
 	return {
 		supported: true,
 		iterations,

@@ -60,6 +60,15 @@ export function renderChildren(
 				}
 			}
 		}
+		if (context.outputSink?.publishesDirectly()) {
+			if (context.textSeparators && isText && previousWasText) {
+				context.outputSink.accountKnown('<!-- -->', 8);
+				context.outputSink.publishAccounted('<!-- -->');
+			}
+			context.outputSink.publishAccounted(rendered);
+			previousWasText = isText;
+			continue;
+		}
 		html = captureNestedEnhancementStringPrefix(context, html);
 		if (context.textSeparators && isText && previousWasText)
 			context.outputSink?.accountKnown('<!-- -->', 8);

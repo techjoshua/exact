@@ -1,5 +1,6 @@
 import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
 import type { Child } from '@exactjs/core';
+import { createExactProducedResponse, type ExactResponseLike } from '@exactjs/server';
 import type {
 	HydratableStringResult,
 	HydrationScriptOptions,
@@ -11,7 +12,7 @@ import { createSsrResumptionCapture } from './resumption.js';
 import { readServerComponentReference } from './render/server-component-reference.js';
 import { createSsrContext } from './render/context.js';
 import { countSsrNode, withTaskDeadline } from './render/limits.js';
-import { SsrOutputBuffer } from './render/output-buffer.js';
+import { SsrOutputBuffer, utf8ByteLength } from './render/output-buffer.js';
 import {
 	createChunkedHydratableResult,
 	createChunkedStringResult
@@ -79,6 +80,64 @@ export function renderCompilerClosedToHydratableString(
 	return createChunkedHydratableResult(result, resumptions, hydrationScript);
 }
 
+/** Writes one synchronous compiler-closed hydratable root through an environment-owned adapter. */
+export function renderCompilerClosedToHydratableSink(
+	operation: Child,
+	write: (value: string) => void,
+	options: RenderToStringOptions & HydrationScriptOptions = {}
+): number {
+	const prepared = rootPropsOptions(operation, options);
+	const capture = createSsrResumptionCapture(
+		prepared,
+		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootComponentIdentity(operation)
+	);
+	const output = renderCompilerClosedOutputSync(operation, capture.options, true, write);
+	if (output.context.reactResourceHints?.length)
+		throw new TypeError('Direct compiler-closed publication cannot reorder late resource hints');
+	const result = createCompilerClosedStringResult(output, capture.options);
+	const captured = capture.serializedRecords();
+	const hydrationScript = renderHydrationScript(
+		{
+			...hydrationScriptOptions(
+				prepared,
+				result,
+				captured.length && prepared.outputExtensions?.length
+					? capture.activations()
+					: prepared.resumptions
+			),
+			markerlessRoot: true
+		},
+		undefined,
+		captured
+	);
+	write(hydrationScript);
+	return output.outputBytes + utf8ByteLength(hydrationScript);
+}
+
+/** Creates an adapter-owned response whose compiler-closed root is produced on body consumption. */
+export function renderCompilerClosedToHydratableResponse(
+	operation: Child,
+	options: RenderToStringOptions &
+		HydrationScriptOptions & {
+			status?: number;
+			headers?: Record<string, string>;
+			contentType?: string;
+		} = {}
+): ExactResponseLike {
+	const { status = 200, headers, contentType, ...renderOptions } = options;
+	return createExactProducedResponse(
+		status,
+		{
+			'content-type': contentType ?? 'text/html; charset=utf-8',
+			...(headers ?? {})
+		},
+		(write) => {
+			renderCompilerClosedToHydratableSink(operation, write, renderOptions);
+		}
+	);
+}
+
 /**
  * Compiler-only async string entrypoint for a statically proven direct component root.
  * Authored code continues to import `renderToStringAsync` from `@exactjs/ssr`; the compiler lowers
@@ -142,6 +201,7 @@ export async function renderCompilerClosedToHydratableStringAsync(
 type CompilerClosedOutput = {
 	context: ReturnType<typeof createSsrContext>;
 	chunks: readonly string[];
+	outputBytes: number;
 };
 
 async function renderCompilerClosedOutput(
@@ -169,20 +229,21 @@ async function renderCompilerClosedOutput(
 		);
 	} else output.append(await renderChildrenAsync(context, [operation], undefined, renderOptions));
 	output.prepend(context.reactResourceHints ?? []);
-	return { context, chunks: output.finish() };
+	return { context, chunks: output.finish(), outputBytes: output.encodedBytes() };
 }
 
 function renderCompilerClosedOutputSync(
 	operation: Child,
 	options: RenderToStringOptions,
-	omitRootComponentBoundary = false
+	omitRootComponentBoundary = false,
+	publish?: (value: string) => void
 ): CompilerClosedOutput {
 	const component = readServerComponentReference(operation);
 	if (!component)
 		throw new TypeError('Compiler-closed synchronous SSR root requires a component operation');
 	const renderOptions = withTaskDeadline(options);
 	const context = createSsrContext(renderOptions);
-	const output = new SsrOutputBuffer(context.maxOutputBytes);
+	const output = new SsrOutputBuffer(context.maxOutputBytes, publish);
 	context.outputSink = output;
 	attachSsrRootExecutionBlueprint(context, operation);
 	if (omitRootComponentBoundary) {
@@ -197,7 +258,7 @@ function renderCompilerClosedOutputSync(
 		);
 	} else output.appendAccounted(renderChildren(context, [operation], undefined));
 	output.prepend(context.reactResourceHints ?? []);
-	return { context, chunks: output.finish() };
+	return { context, chunks: output.finish(), outputBytes: output.encodedBytes() };
 }
 
 function createCompilerClosedStringResult(

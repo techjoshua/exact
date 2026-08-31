@@ -1,6 +1,11 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createExactBufferedResponse, defineExactOperationContract } from '@exactjs/server';
+import {
+	createExactBufferedResponse,
+	createExactProducedResponse,
+	defineExactOperationContract,
+	exactResponseBodyOf
+} from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
 
@@ -218,6 +223,129 @@ describe('@exactjs/node-adapter', () => {
 
 		expect(response.body).toBe('<main>ready</main>');
 		expect(() => result.stream).toThrow('already claimed');
+	});
+
+	it('hands a produced SSR rope to one terminal Node write', async () => {
+		const writes: string[] = [];
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			headersSent: false,
+			body: '',
+			setHeader() {
+				return this;
+			},
+			write(chunk: string) {
+				writes.push(chunk);
+				return true;
+			},
+			end(chunk?: string) {
+				if (chunk) this.body += chunk;
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & { body: string };
+		const result = createExactProducedResponse(200, {}, (write) => {
+			write('<main>');
+			write('ready');
+			write('</main>');
+		});
+
+		const completion = writeNodeResponse(response, result);
+		expect(writes).toEqual([]);
+		expect(response.body).toBe('<main>ready</main>');
+		await completion;
+	});
+
+	it('publishes an internal error when a produced body fails before commitment', async () => {
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			headersSent: false,
+			headers: new Map<string, unknown>(),
+			body: '',
+			setHeader(name: string, value: unknown) {
+				this.headers.set(name, value);
+				return this;
+			},
+			getHeaderNames() {
+				return [...this.headers.keys()];
+			},
+			removeHeader(name: string) {
+				this.headers.delete(name);
+			},
+			end(chunk?: string) {
+				if (chunk) this.body += chunk;
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & {
+			body: string;
+			headers: Map<string, unknown>;
+		};
+		const result = createExactProducedResponse(
+			200,
+			{ 'content-length': '123', 'x-produced': 'stale' },
+			() => {
+				throw new Error('render failed');
+			}
+		);
+
+		await writeNodeResponse(response, result);
+
+		expect(response.statusCode).toBe(500);
+		expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
+		expect(response.headers.has('content-length')).toBe(false);
+		expect(response.headers.has('x-produced')).toBe(false);
+		expect(response.body).toBe('{"error":"internal_error"}');
+		expect(response.destroyed).toBe(false);
+	});
+
+	it('publishes a request-scope cleanup failure before commitment', async () => {
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			headersSent: false,
+			headers: new Map<string, unknown>(),
+			body: '',
+			setHeader(name: string, value: unknown) {
+				this.headers.set(name, value);
+				return this;
+			},
+			getHeaderNames() {
+				return [...this.headers.keys()];
+			},
+			removeHeader(name: string) {
+				this.headers.delete(name);
+			},
+			end(chunk?: string) {
+				if (chunk) this.body += chunk;
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & {
+			body: string;
+			headers: Map<string, unknown>;
+		};
+		const result = createExactProducedResponse(200, {}, (write) => write('uncommitted'));
+		exactResponseBodyOf(result)!.retainRequestScope?.(async () => {
+			throw new Error('cleanup failed');
+		});
+
+		await writeNodeResponse(response, result);
+
+		expect(response.statusCode).toBe(500);
+		expect(response.body).toBe('{"error":"internal_error"}');
+		expect(response.destroyed).toBe(false);
 	});
 
 	it('resumes ordered buffered chunks only after Node backpressure clears', async () => {

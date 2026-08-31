@@ -10,6 +10,7 @@ import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
 import { summarizePercentiles, summarizeSampleMetric } from './percentile-summary.mjs';
 import { hashArtifactDirectory, hashSemanticResponse } from './artifact-integrity.mjs';
+import { measurementPublication } from './measurement-publication.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -60,12 +61,7 @@ const participantMetadata = await Promise.all(
 		)
 	)
 );
-const unreviewed = participantMetadata.filter((metadata) => metadata.status !== 'complete');
-if (unreviewed.length > 0 && !process.argv.includes('--allow-unreviewed')) {
-	throw new Error(
-		`Publishable measurement refused: incomplete or unreviewed participants: ${unreviewed.map((item) => item.id).join(', ')}`
-	);
-}
+const publication = measurementPublication(participantMetadata, 'browser');
 
 const builds = Object.fromEntries(
 	participants.map((participant) => [participant.id, measureBuild(participant.directory)])
@@ -87,7 +83,7 @@ try {
 		kind: 'framework-comparison-raw-run',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
-		publishable: unreviewed.length === 0,
+		publishable: publication.publishable,
 		environment: environmentMetadata(),
 		harness: {
 			commit: git('rev-parse', 'HEAD'),

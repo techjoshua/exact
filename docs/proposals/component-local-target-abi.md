@@ -634,6 +634,20 @@ Node and Bun adapters call the same artifact ABI. Bun uses its native request an
 infrastructure at the outer server boundary; component execution does not pass through a Node
 compatibility layer.
 
+A compiler-closed synchronous root may transfer a request-owned produced response body to the
+selected environment adapter. The body retains the root operation and request scope until exactly
+one adapter claims, completes, fails, or cancels it. Component execution publishes settled string
+spans into the SSR sink; it never receives a Node `ServerResponse`, Fetch controller, Bun response,
+or other environment object. Node may retain those spans as a V8 string rope and pass the completed
+rope to one terminal response write, while Fetch and Bun select their own body representation.
+
+Recoverable component and structural ranges remain locally staged until their complete subtree
+succeeds. Before transport commitment, an adapter may discard the uncommitted body and publish the
+ordinary error response. After commitment, rollback is impossible: scheduled or progressive output
+must use its replacement protocol or terminate the response. A synchronous produced body does not
+claim to provide progressive backpressure; scheduled artifacts retain their issued asynchronous
+protocol until their writer can await coarse adapter flushes through the same target-local ABI.
+
 ## Continuations and pending client work
 
 A server artifact with continuations exposes a generated operation dispatcher or indexed operation
