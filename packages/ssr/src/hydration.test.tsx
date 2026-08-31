@@ -172,6 +172,12 @@ describe('@exactjs/ssr hydration', () => {
 		expect(result.resumptions).toContainEqual(expect.objectContaining({ values: { show: true } }));
 	});
 
+	it('applies hydration graph limits to direct indexed resumptions', () => {
+		expect(() =>
+			renderToHydratableString(createOperation(HydrationPanel, {}), { maxHydrationNodes: 1 })
+		).toThrow('Hydration payload must be JSON-serializable');
+	});
+
 	it('projects named resumptions before invoking hydration output extensions', () => {
 		let observed: unknown;
 		renderToHydratableString(createOperation(HydrationPanel, {}), {

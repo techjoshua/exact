@@ -2,6 +2,7 @@ import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework
 
 type ValidationState = {
 	readonly active: Set<object>;
+	readonly structurallyKnown?: { has(value: object): boolean };
 	readonly maxDepth: number;
 	readonly maxNodes: number;
 	nodes: number;
@@ -15,10 +16,15 @@ type ValidationState = {
  */
 export function validateJsonSafeHydrationValue(
 	value: unknown,
-	limits: { maxDepth?: number; maxNodes?: number }
+	limits: {
+		maxDepth?: number;
+		maxNodes?: number;
+		structurallyKnown?: { has(value: object): boolean };
+	}
 ): string | undefined {
 	const state: ValidationState = {
 		active: new Set(),
+		structurallyKnown: limits.structurallyKnown,
 		maxDepth: positiveLimit(limits.maxDepth, 100),
 		maxNodes: positiveLimit(limits.maxNodes, 100_000),
 		nodes: 0
@@ -40,7 +46,12 @@ function validateValue(
 	if (value === null || typeof value === 'string' || typeof value === 'boolean') return undefined;
 	if (typeof value === 'number') return Number.isFinite(value) ? undefined : path;
 	if (typeof value !== 'object' || state.active.has(value)) return path;
-	if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype) return path;
+	if (
+		!state.structurallyKnown?.has(value) &&
+		!Array.isArray(value) &&
+		Object.getPrototypeOf(value) !== Object.prototype
+	)
+		return path;
 	state.active.add(value);
 	try {
 		return validateContainer(value, path, depth, state);
@@ -56,8 +67,19 @@ function validateContainer(
 	state: ValidationState
 ): string | undefined {
 	const array = Array.isArray(source);
+	const structurallyKnown = state.structurallyKnown?.has(source) ?? false;
 	for (const key of Object.keys(source)) {
 		const itemPath = `${path}${array ? `[${key}]` : `.${key}`}`;
+		if (structurallyKnown) {
+			const unsafePath = validateValue(
+				(source as Record<string, unknown>)[key],
+				itemPath,
+				depth + 1,
+				state
+			);
+			if (unsafePath) return unsafePath;
+			continue;
+		}
 		const descriptor = Object.getOwnPropertyDescriptor(source, key);
 		if (!descriptor || !('value' in descriptor)) return itemPath;
 		const unsafePath = validateValue(descriptor.value, itemPath, depth + 1, state);

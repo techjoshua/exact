@@ -460,6 +460,14 @@ composed through the same ABI as a local child; the parent and renderer do not i
 the child's source graph. These lanes behave identically on Node and Bun and construct no
 client-style durable component instance.
 
+Hydratable compiler-closed renders reserve request-local resumption tokens and publish their
+compiler-indexed state directly into final compact tuples. Hydration publication places those
+tuples into one request-owned envelope without reconstructing named records or passing through the
+optional output-extension host. Framework-created envelope and tuple containers are structurally
+known to the validator, while every authored value nested inside them still receives descriptor-
+safe traversal before native JSON serialization. Selecting an output extension retains the
+explicit generic transformation boundary and its named public resumption view.
+
 ## Runtime inventory
 
 | Existing path                                     | Classification                    | Required replacement                                                          |
