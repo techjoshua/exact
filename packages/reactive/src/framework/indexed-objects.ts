@@ -1,5 +1,9 @@
 import { createIndexedReactive } from '../indexed-base.js';
-export { readReactiveOwnProperty } from '../indexed-base.js';
+export {
+	readReactiveOwnProperty,
+	readReactiveOwnPropertyInto,
+	type ReactiveOwnPropertyReadCell
+} from '../indexed-base.js';
 import type { Reactive, ReactiveOptions } from '../internal/types.js';
 import { reactiveObjects } from './objects.js';
 
