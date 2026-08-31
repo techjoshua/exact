@@ -776,3 +776,91 @@ response identity, and improved participant work. It does not claim the original
 Exact uses `bun-fetch` while the other participants use Bun's Node HTTP compatibility path. The
 next server slice is provenance-aware byte accounting in the request-owned sink; indexed resumption
 capture remains separate until that accounting checkpoint is measured.
+
+### Post-acceptance provenance-aware output-byte checkpoint
+
+Compiler-closed synchronous render programs now carry immutable UTF-8 byte facts for their static
+spans. The focused server operations charge those facts, markers, escaped dynamic text, attributes,
+and committed child output directly into the request-owned bounded sink. The sink owns its byte
+ledger, surrogate-boundary state, and allocation-free component-attempt checkpoints alongside the
+ordered output. Rollback restores both output and accounting state. Compatibility, extension,
+unsafe, enhancement, and otherwise foreign output invalidates partial provenance and receives one
+exact scan when the root is committed. Older imported artifacts without the byte fact retain the
+per-static-write exact scanner. This is an extension of the accepted component-local server
+program, not a general output tape or a second execution path.
+
+Before implementation, the accepted direct-executor artifact still performed a final root scan.
+Its render-only profile attributed 7.584 ms and 291,208 sampled bytes to
+`SsrOutputBuffer.charge`. The expected gate called for a 4-10% render-only p50 improvement, 3-8%
+preloaded participant-work and c32-throughput improvements, and 0.2-0.5 MB lower sampled
+allocation, while retaining the 4,500-byte response and exact rollback and Unicode accounting.
+
+The accepted validation ran `npm run performance:check` once after focused compiler, core, SSR,
+formatting, JSDoc, source-architecture, and composition-corpus checks passed. Its release
+prerequisite passed 1,937 package tests with five skips, all maintained application and browser
+matrices, Theme Lab, React compatibility, and the 335-file native compiler corpus. The composition
+corpus now has 37 compiler paths and 36 normative tests. The immutable evidence is:
+
+- current browser population, 50 samples per framework:
+  `.tmp/output-byte-accounting/accepted/browser-50.json`;
+- current startup CPU/function population, 50 samples per framework at 1x, 4x, and 6x:
+  `.tmp/output-byte-accounting/accepted/startup-50.json`;
+- current SSR population, 50 sequential samples and 50 ordinary concurrent waves:
+  `framework-comparison/results/raw/ssr-2026-08-31T01-23-33-332Z.json`;
+- 25 clean alternating fresh-process focused profile pairs, whose candidate evidence is under
+  `.tmp/output-byte-accounting` and whose accepted-checkout counterparts are preserved under
+  `.tmp/output-byte-accounting/accepted/focused-baseline`; and
+- the complete current and immediate-prior control-normalized report:
+  `.tmp/output-byte-accounting/complete-framework-report.md`.
+
+All four client artifacts remain deterministic. Exact remains 199,054 raw, 60,707 gzip, and
+52,967 Brotli client bytes, with 194,551 decoded bytes, 102,115 executed bytes, 772 parsed
+functions, 787 compiled functions, 568 invoked functions, and 2,605,840 browser heap bytes. This
+server-only checkpoint attributes no client movement.
+
+The Exact Node server artifact changes from 207,374 to 212,606 raw bytes (+2.5%), 44,874 to
+46,067 gzip bytes (+2.7%), and 37,317 to 38,192 Brotli bytes (+2.3%). Its three-file count and
+4,500-byte response are unchanged. The size increase is the deterministic cost of static byte
+operands and the request-owned ledger; it remains a counter-metric rather than a runtime proxy or
+an acceptance limit.
+
+Render-only time changes from 0.052/0.056/0.081/0.109 ms to
+0.049/0.053/0.073/0.112 ms at p50/p75/p95/p99: -5.2%, -5.7%, -10.9%, and +2.8% raw. This lane
+has only one unchanged control and therefore cannot be normalized under the two-control rule. The
+25-pair focused profile independently records median p50 and p75 improvements of 3.6% and 2.9%,
+with p50 wins in 23 pairs and p75 wins in 19. Its median accounting CPU falls from 8.096 to
+1.993 ms (-75.4%). In the complete profile, `charge` falls from 7.584 to 1.536 ms and the new
+`accountKnown` operation accounts for 3.587 ms, a combined 32.4% reduction in the accounting
+sites.
+
+The broad render-only allocation sampler moves from 8,805,544 to 9,242,280 bytes (+5.0%), contrary
+to the expected reduction. No byte-ledger operation appears among its sampled allocation sites,
+and the 25-pair focused population moves median allocation from 9,602,160 to 9,410,360 bytes
+(-2.0%), with 19 of 25 pairs improving. The checkpoint therefore does not claim a broad sampled-
+allocation win; it records the reproducible focused reduction and retains the broader sampler as a
+counter-metric. Post-GC retained heap is effectively stable at p50 (+0.06%) and rises 1.1% at the
+p95/p99 tails after eligible normalization.
+
+Ordinary concurrent Exact throughput is 3,116/3,290/3,396/3,513 requests per second at
+p50/p75/p95/p99. Its comparison population is 2,865/3,129/3,179/3,330, producing +8.8%, +5.1%,
++6.8%, and +5.5%. P50 remains raw because control dispersion exceeds 1.2x; p75-p99 use eligible
+control normalization with dispersion of 1.138x, 1.122x, and 1.109x. Participant work improves
+5.9-10.9% across that population, although its p95/p99 control populations are ineligible.
+
+At preloaded c32, raw throughput rises from 4,495 to 4,703 requests per second (+4.6%), participant
+work falls from 0.186 to 0.182 ms (-2.2%), and render time falls from 0.120 to 0.118 ms (-1.7%).
+Only React participates as a control in that diagnostic, so these changes remain raw rather than
+being mislabeled as normalized. At equal-8-KiB c32, eligible normalized p50 throughput rises from
+1,776 to 1,831 requests per second (+3.1%); p75-p99 are effectively unchanged. Ordinary saturation
+c32 improves 7.3%, 5.1%, 4.8%, and 4.8% at p50/p75/p95/p99 after eligible normalization. The
+4,500-byte response, response decomposition, markers, hydration payload, and request retention
+contract remain unchanged.
+
+The checkpoint is accepted for removing the redundant full-output byte scan from the normal
+compiler-closed root, exact request-owned accounting and rollback, lower render-only p50-p95,
+reproducibly lower focused accounting CPU and allocation, and improved ordinary, preloaded, equal-
+payload, and saturation throughput. The p99 render tail, broader allocation sample, retained-heap
+tails, and server artifact growth remain explicit counter-metrics. Bun remains a separate
+diagnostic because Exact uses `bun-fetch` while the other participants use Bun's Node HTTP
+compatibility path. The next server slice is direct compact indexed resumption capture in the same
+request-owned sink; hydration publication remains a separate later checkpoint.

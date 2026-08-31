@@ -99,11 +99,13 @@ export function executeDirectSsrComponentSync<Result>(
 		};
 		context.onDirectComponentCreated?.(snapshot);
 		const checkpoint = context.onComponentAttemptCheckpoint?.();
+		const outputCheckpoint = context.outputSink?.checkpoint();
 		try {
 			const output = sink(content, owner, props, snapshot);
 			context.onDirectComponentRendered?.(snapshot);
 			return output;
 		} catch (error) {
+			if (outputCheckpoint !== undefined) context.outputSink?.rollback(outputCheckpoint);
 			context.onComponentAttemptRollback?.(checkpoint);
 			throw error;
 		}

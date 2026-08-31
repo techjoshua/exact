@@ -24,11 +24,18 @@ export function markerPair(
 	render: () => string | Promise<string>
 ): string | Promise<string> {
 	if (!context.markers) return render();
+	const opening = `<!--exact:${id}-->`;
+	const closing = `<!--/exact:${id}-->`;
+	context.outputSink?.accountKnown(opening, opening.length);
 	const rendered = render();
 	if (rendered instanceof Promise) {
-		return rendered.then((html) => `<!--exact:${id}-->${html}<!--/exact:${id}-->`);
+		return rendered.then((html) => {
+			context.outputSink?.accountKnown(closing, closing.length);
+			return `${opening}${html}${closing}`;
+		});
 	}
-	return `<!--exact:${id}-->${rendered}<!--/exact:${id}-->`;
+	context.outputSink?.accountKnown(closing, closing.length);
+	return `${opening}${rendered}${closing}`;
 }
 
 /** Allocates a marker id from render context, kind, optional name, and optional key. */

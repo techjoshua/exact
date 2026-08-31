@@ -327,6 +327,8 @@ export type SsrContext = {
 	maxTreeNodes: number;
 	traversedNodes: number;
 	maxOutputBytes: number;
+	/** Request-owned sink receiving compiler-proven synchronous output byte facts. */
+	outputSink?: import('./render/output-buffer.js').SsrOutputBuffer;
 	reactResourceHints?: string[];
 	reactResourceKeys?: Set<string>;
 	dynamicComponentArtifacts?: RenderToStringOptions['dynamicComponentArtifacts'];

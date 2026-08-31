@@ -14,6 +14,7 @@ export const corpusScenarios = [
 			'props-only-forwarding',
 			'sync-direct-ssr',
 			'sync-direct-server-executor',
+			'compiler-proven-output-bytes',
 			'hydration-static-claims'
 		],
 		modes: ['client-mount', 'ssr-sync', 'ssr-async', 'ssr-stream', 'hydrate-match']

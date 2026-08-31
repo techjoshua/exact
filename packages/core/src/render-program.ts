@@ -33,8 +33,14 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 	/** Reads and validates one host value before serialization mutates request state. */
 	prepareAttribute(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reserves the finite region's ownership identities and charges its request limit once. */
-	begin(context: object, nodeCount: number, slotCount: number, staticCharacters: number): void;
-	/** Appends compiler-owned static markup under the request output limit. */
+	begin(
+		context: object,
+		nodeCount: number,
+		slotCount: number,
+		staticCharacters: number,
+		staticBytes?: number
+	): void;
+	/** Appends compiler-owned static markup already charged by the generated program. */
 	static(output: ExactRenderProgramSsrOutput, value: string): void;
 	/** Writes one prepared escaped scalar and its delimiters when required. */
 	text(

@@ -89,8 +89,10 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		))
 	}
 	staticCharacters := 0
+	staticBytes := 0
 	for _, segment := range build.serverSegments {
 		staticCharacters += utf16Length(segment)
+		staticBytes += len(segment)
 	}
 	call(
 		"begin",
@@ -98,6 +100,7 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		numberLiteral(len(build.nodes)),
 		numberLiteral(len(build.slots)),
 		numberLiteral(staticCharacters),
+		numberLiteral(staticBytes),
 	)
 	statements = append(statements, lowering.factory.NewVariableStatement(
 		nil,

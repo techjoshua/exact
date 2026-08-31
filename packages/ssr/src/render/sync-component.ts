@@ -47,6 +47,7 @@ export function renderSyncComponentReceipt(
 	if (contract.artifact.execution.classification === 'scheduled')
 		throw new SsrScheduledComponentSignal();
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
+	if (receipt.enhancement) context.outputSink?.invalidateAccounting();
 	const output = executeDirectSsrComponentSync(
 		context,
 		contract,

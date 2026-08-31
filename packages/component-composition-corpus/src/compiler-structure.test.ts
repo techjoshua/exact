@@ -97,6 +97,12 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/return __exactPreparedServerRenderProgram\(/);
 		expect(code).not.toMatch(/return \(\) => __exactPreparedServerRenderProgram\(/);
 	});
+
+	it('emits exact UTF-8 byte facts beside compiler-owned server spans', async () => {
+		const { code } = await compileFixture('fundamentals.fixtures.tsx', 'server');
+
+		expect(code).toMatch(/__exactSsr\.begin\(__exactContext, \d+, \d+, \d+, \d+\)/);
+	});
 });
 
 async function compileFixture(

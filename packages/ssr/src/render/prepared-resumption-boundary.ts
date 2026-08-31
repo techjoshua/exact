@@ -18,7 +18,10 @@ export function renderPreparedResumptionBoundary(
 	const unsafePath = jsonUnsafePath(snapshot);
 	if (unsafePath) throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	const payload = serializeHydrationPayload({ props: snapshot });
-	const boundary = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(payload)}" data-exact-client-resumption="true">${html}</div>`;
+	const opening = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(payload)}" data-exact-client-resumption="true">`;
+	context.outputSink?.account(opening);
+	context.outputSink?.accountKnown('</div>', 6);
+	const boundary = `${opening}${html}</div>`;
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => boundary);
 }
 
