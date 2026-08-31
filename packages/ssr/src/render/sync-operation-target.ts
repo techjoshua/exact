@@ -55,7 +55,7 @@ import {
 	renderSuspenseReceipt,
 	renderTargetReceipt
 } from './structural-receipts.js';
-import { renderSyncComponentReceipt } from './sync-component.js';
+import { renderSyncComponentReceipt, type SyncComponentOperations } from './sync-component.js';
 import { renderUnsafeHtmlValue } from './host.js';
 import { renderOperationEnhancements } from './operation-enhancements.js';
 import { exactSerializedSsrHtmlOperation } from './serialized-html-operation.js';
@@ -69,20 +69,25 @@ type RenderChildren = (
 ) => string;
 
 /** Sync SSR target selected directly by each opaque compiler-issued operation. */
-export class SyncSsrOperationTarget {
+export class SyncSsrOperationTarget implements SyncComponentOperations {
 	constructor(
 		private readonly context: SsrContext,
 		private readonly parent: AnyComponentInstance | undefined,
 		private readonly hasComponentAncestor: boolean,
-		private readonly renderChildren: RenderChildren
+		private readonly renderChildList: RenderChildren
 	) {}
+
+	/** Returns the stable child-list operation without allocating a bound callback. */
+	get renderChildren(): RenderChildren {
+		return this.renderChildList;
+	}
 
 	/** Serializes a synchronous component operation. */
 	[exactComponentOperation](_operation: object, data: ExactComponentReceiptData): string {
 		this.context.enhancementOperationComponentDepth =
 			(this.context.enhancementOperationComponentDepth ?? 0) + 1;
 		try {
-			return this.renderComponent(data, this.parent, this.hasComponentAncestor);
+			return this.renderComponentReceipt(data, this.parent, this.hasComponentAncestor);
 		} finally {
 			this.context.enhancementOperationComponentDepth!--;
 		}
@@ -100,10 +105,10 @@ export class SyncSsrOperationTarget {
 					data,
 					this.parent,
 					this.hasComponentAncestor,
-					this.renderChildren
+					this.renderChildList
 				),
 			this.parent,
-			this.renderChildren,
+			this.renderChildList,
 			withoutCompiledIntrinsicReceiptEnhancement(operation)
 		);
 	}
@@ -129,9 +134,9 @@ export class SyncSsrOperationTarget {
 					program,
 					this.parent,
 					(children) =>
-						this.renderChildren(this.context, children, this.parent, this.hasComponentAncestor),
+						this.renderChildList(this.context, children, this.parent, this.hasComponentAncestor),
 					(component) =>
-						this.renderComponent(component, this.parent, this.hasComponentAncestor, true)
+						this.renderComponentReceipt(component, this.parent, this.hasComponentAncestor, true)
 				)
 			);
 		this.context.outputSink?.invalidateAccounting();
@@ -140,7 +145,7 @@ export class SyncSsrOperationTarget {
 			data as ExactKeyedChildReceiptData,
 			this.parent,
 			this.hasComponentAncestor,
-			this.renderChildren
+			this.renderChildList
 		);
 	}
 
@@ -156,10 +161,10 @@ export class SyncSsrOperationTarget {
 					data,
 					this.parent,
 					this.hasComponentAncestor,
-					this.renderChildren
+					this.renderChildList
 				),
 			this.parent,
-			this.renderChildren,
+			this.renderChildList,
 			withoutCompiledSuspenseReceiptEnhancement(operation)
 		);
 	}
@@ -172,7 +177,7 @@ export class SyncSsrOperationTarget {
 			data,
 			this.parent,
 			this.hasComponentAncestor,
-			this.renderChildren
+			this.renderChildList
 		);
 	}
 
@@ -188,10 +193,10 @@ export class SyncSsrOperationTarget {
 					data,
 					this.parent,
 					this.hasComponentAncestor,
-					this.renderChildren
+					this.renderChildList
 				),
 			this.parent,
-			this.renderChildren,
+			this.renderChildList,
 			withoutCompiledFragmentReceiptEnhancement(operation)
 		);
 	}
@@ -204,7 +209,7 @@ export class SyncSsrOperationTarget {
 			data,
 			this.parent,
 			this.hasComponentAncestor,
-			this.renderChildren
+			this.renderChildList
 		);
 	}
 
@@ -230,7 +235,7 @@ export class SyncSsrOperationTarget {
 		return markerPair(this.context, identity, () =>
 			dynamicComponent
 				? ''
-				: this.renderChildren(
+				: this.renderChildList(
 						this.context,
 						normalizeRenderResult(unwrap(data.value) as Child | Child[]),
 						this.parent,
@@ -258,14 +263,19 @@ export class SyncSsrOperationTarget {
 	[exactServerSlotOperation](_operation: object, data: ExactServerSlotReceiptData): string {
 		this.context.outputSink?.invalidateAccounting();
 		return data.children.length
-			? `${serverSlotOpening(serverSlotReceiptReference(data), this.context)}${this.renderChildren(this.context, data.children, this.parent, this.hasComponentAncestor)}</span>`
+			? `${serverSlotOpening(serverSlotReceiptReference(data), this.context)}${this.renderChildList(this.context, data.children, this.parent, this.hasComponentAncestor)}</span>`
 			: '';
 	}
 
 	/** Serializes portal children in logical ownership order. */
 	[exactPortalOperation](_operation: object, data: ExactPortalReceiptData): string {
 		this.context.outputSink?.invalidateAccounting();
-		return this.renderChildren(this.context, data.children, this.parent, this.hasComponentAncestor);
+		return this.renderChildList(
+			this.context,
+			data.children,
+			this.parent,
+			this.hasComponentAncestor
+		);
 	}
 
 	/** Serializes a compiler-closed server render program. */
@@ -278,7 +288,7 @@ export class SyncSsrOperationTarget {
 			data.enhancement,
 			() => this.renderPreparedServerProgram(program),
 			this.parent,
-			this.renderChildren,
+			this.renderChildList,
 			withoutRenderProgramReceiptEnhancement(operation)
 		);
 	}
@@ -292,8 +302,9 @@ export class SyncSsrOperationTarget {
 			program,
 			this.parent,
 			(children) =>
-				this.renderChildren(this.context, children, this.parent, this.hasComponentAncestor),
-			(component) => this.renderComponent(component, this.parent, this.hasComponentAncestor, true)
+				this.renderChildList(this.context, children, this.parent, this.hasComponentAncestor),
+			(component) =>
+				this.renderComponentReceipt(component, this.parent, this.hasComponentAncestor, true)
 		);
 	}
 
@@ -302,7 +313,7 @@ export class SyncSsrOperationTarget {
 		this.context.enhancementOperationComponentDepth =
 			(this.context.enhancementOperationComponentDepth ?? 0) + 1;
 		try {
-			return this.renderComponent(component, this.parent, this.hasComponentAncestor);
+			return this.renderComponentReceipt(component, this.parent, this.hasComponentAncestor);
 		} finally {
 			this.context.enhancementOperationComponentDepth!--;
 		}
@@ -310,7 +321,7 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes a compiler-proven root without its redundant outer component delimiter. */
 	renderCompilerClosedRootComponent(component: ServerComponentReference): string {
-		return this.renderComponent(component, undefined, false, false, true);
+		return this.renderComponentReceipt(component, undefined, false, false, true);
 	}
 
 	/** Returns already serialized SSR output without reparsing it. */
@@ -319,7 +330,23 @@ export class SyncSsrOperationTarget {
 		return html;
 	}
 
-	private renderComponent(
+	/** Crosses one child component boundary with its own owner-aware target. */
+	renderComponent(
+		context: SsrContext,
+		component: ExactComponentReceiptData,
+		parent?: AnyComponentInstance,
+		hasComponentAncestor = false,
+		omitCompilerOwnedBoundary = false
+	): string {
+		return new SyncSsrOperationTarget(
+			context,
+			parent,
+			hasComponentAncestor,
+			this.renderChildList
+		).renderComponentReceipt(component, parent, hasComponentAncestor, omitCompilerOwnedBoundary);
+	}
+
+	private renderComponentReceipt(
 		component: ExactComponentReceiptData,
 		parent: AnyComponentInstance | undefined,
 		hasComponentAncestor: boolean,
@@ -331,16 +358,7 @@ export class SyncSsrOperationTarget {
 			component,
 			parent,
 			hasComponentAncestor,
-			{
-				renderChildren: this.renderChildren,
-				renderComponent: (context, child, owner, ancestor = false, omit = false) =>
-					new SyncSsrOperationTarget(context, owner, ancestor, this.renderChildren).renderComponent(
-						child,
-						owner,
-						ancestor,
-						omit
-					)
-			},
+			this,
 			omitCompilerOwnedBoundary,
 			omitRootBoundary
 		);
