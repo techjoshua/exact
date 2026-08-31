@@ -1142,3 +1142,104 @@ render-only tail regression, small normalized saturation regression, retained-he
 unattributed client timing variation remain explicit counter-metrics. The next decision point is a
 fresh profile of the remaining server attribute allocation—especially root-plan iteration—before
 either expanding attribute specialization or returning to the deferred hydration-adoption work.
+
+### Experimental synchronous produced-response checkpoint
+
+The next server experiment replaces the benchmark-only callback sink with a request-owned produced
+response body shared by `@exactjs/server`, compiler-closed SSR, and the real Node and Bun adapters.
+The renderer publishes settled spans without constructing the former complete hydratable result.
+Node retains those spans as a V8 string rope and supplies the rope to one `response.end()` call.
+Request-scope cleanup transfers to the body and is released on success, failure, cancellation, or
+host abort. Fetch and Bun consume the same body through their own response representation.
+
+Focused alternatives rejected before the production-shaped candidate were per-span Node writes,
+corked per-span writes, arrays followed by `join()`, an 8 KiB `Buffer.write()` slab, and a 4 KiB
+string threshold. Corked writes retained only 21.3% of the string-rope adapter's paired median
+throughput. The native buffer retained 94.3%, and arrays retained 96.9%. An 8 KiB string threshold
+beat 4 KiB by 6.0% at the paired median for the 4,500-byte fixture. These results show that the
+dominant cost is per-span response bookkeeping and redundant copying, not the final native UTF-8
+encoding boundary.
+
+After replacing the custom benchmark adapter with the production response body and removing its
+unnecessary synchronous microtask, 50 alternating preloaded c32 pairs report accepted/direct
+aggregate throughput of 6,127/6,307 requests per second at p50. The paired direct-to-accepted ratio
+is 1.000/1.032/1.054 at p25/p50/p75 with a 1.032 mean. Direct-first and direct-second medians are
+1.033 and 1.030. Aggregate total latency changes from 4.844/5.705/7.505/9.072 ms to
+4.767/5.605/7.124/8.293 ms at p50/p75/p95/p99. The response remains 4,500 bytes with the accepted
+hash. Absolute values reflect the contemporaneous workstation load; only the alternating paired
+ratios are used for the candidate decision.
+
+The candidate subsequently passed `npm run performance:check`, including the complete release
+admission, 1,946 package tests with five skips, maintained application and documentation builds,
+React compatibility, browser matrices, the native compiler corpus, and every performance suite.
+Focused server, SSR, Node, Bun, composition-corpus, source-architecture, JSDoc, explicit-any, and
+TypeScript 7 checks also pass. The framework-comparison collector now preserves raw evidence for
+unreviewed participants, warns, and records `publishable: false`; publication policy remains in the
+checkpoint/report layer instead of aborting and discarding a valid local run.
+
+Accepted immutable evidence is:
+
+- the written gate: `.tmp/direct-response-stream/expected-metrics.md`;
+- five alternating focused profiles: `.tmp/direct-response-stream/focused-paired-5.json`;
+- 50 alternating preloaded c32 pairs:
+  `.tmp/direct-response-stream/paired-produced-body-sync-claim-50.json`;
+- 50 interleaved ordinary c32 rounds with four frameworks and a contemporaneous Exact-before lane:
+  `.tmp/direct-response-stream/four-framework-interleaved-50.json`;
+- browser, 50 samples per framework:
+  `.tmp/direct-response-stream/accepted-browser-50.json`;
+- startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
+  `.tmp/direct-response-stream/accepted-startup-50.json`;
+- the corrected full SSR population, including 50 sequential samples and 50 ordinary concurrent
+  waves: `.tmp/direct-response-stream/accepted-ssr-corrected-50.json`; and
+- the complete current and immediate-prior control-normalized report:
+  `.tmp/direct-response-stream/complete-framework-report.md`.
+
+The client artifact and deterministic startup topology are unchanged: 199,054 raw, 60,706 gzip,
+53,008 Brotli, 194,551 decoded, 102,115 executed, and 568 invoked functions. Startup heap remains
+2,461,668 bytes at p50. Eligible normalization reports evaluation improvements of 0.9% and 0.5% at
+p50/p75; p95/p99 controls disperse beyond 1.2x. Browser navigation improves 1.0%, 5.1%, 2.7%, and
+0.4% after eligible normalization, while heap is effectively identical. These are environment
+counter-metrics for a server-only change, not claimed client work.
+
+The Node server artifact grows from 219,993 to 225,111 raw bytes (+2.33%), 47,592 to 48,084 gzip
+bytes (+1.03%), and 39,430 to 40,140 Brotli bytes (+1.80%). Response size, semantic hash, rendered
+markup, hydration payload, and response decomposition remain unchanged. The 4,500-byte response is
+produced as settled spans into a request-owned body; Node retains one V8 string rope and passes it
+to one terminal `response.end()`. Bun and Fetch consume the same body through a Web stream. The
+request scope is released after success, failure, cancellation, or host abort, and pre-commit
+production or cleanup failures replace stale response headers with the ordinary internal-error
+response.
+
+Five alternating focused profiles report median render p50/p75/p95/p99 changes of -10.0%, -21.1%,
+-12.8%, and -12.6%. Median sampled allocation falls from 8,219,920 to 7,056,096 bytes (-14.2%).
+The broad corrected render-only population is 0.0515/0.0841/0.1316/0.1921 ms and 6,658,824 sampled
+bytes. Its raw timing is slower than the immediately prior cross-run population while allocation is
+17.2% lower; the timing conflict is retained because that lane has only React as a control. The
+alternating focused result is the stronger direction signal on the actively used workstation.
+
+At preloaded c32, 50 alternating same-worker pairs produce a direct-to-before throughput ratio of
+1.000/1.032/1.054 at p25/p50/p75 with a 1.032 mean. Direct-first and direct-second medians are 1.033
+and 1.030, so execution order does not explain the gain. In the 50-round four-framework ordinary
+c32 experiment, the paired ratio is 0.961/1.012/1.062 at p25/p50/p75 with a 1.010 mean; direct-first
+and direct-second medians are 1.013 and 1.011. Absolute ordinary values varied substantially while
+the workstation was in use, so the checkpoint does not substitute raw cross-run direction for
+these paired comparisons.
+
+The complete framework population confirms useful normalized capacity movement where controls are
+eligible. Node saturation c32 throughput improves 22.1%, 13.4%, 12.3%, and 12.3% through p99.
+Equal-8-KiB c32 throughput improves 13.6%, 7.9%, 7.9%, and 7.9%. Equal-payload participant work
+improves 8.9% and 9.5% at p50/p75, is effectively flat at p95, and regresses 9.6% at p99. Ordinary
+concurrent center comparisons are ineligible because control dispersion reaches 1.9x; its eligible
+p99 total latency improves 3.3%. This checkpoint therefore claims the paired throughput, focused
+render/allocation, and eligible saturation/equal-payload gains, not the unstable raw ordinary
+cross-run values.
+
+Normalized post-GC heap used moves +3.6% and +3.8% at p50/p75; its p95/p99 controls are ineligible.
+Post-GC heap total moves +0.1%, +0.1%, -2.1%, and -2.1%. The retained slope remains negative at
+-1,268 bytes per request and cannot be normalized because controls are non-positive. No request,
+component, output, or captured value is retained by a module-level artifact. The checkpoint accepts
+the synchronous produced-response architecture with server artifact growth, post-GC used-heap
+movement, noisy broad render tails, and equal-payload p99 participant work recorded as explicit
+counter-metrics. Progressive scheduled output and backpressure remain a later executor checkpoint;
+explicit string-result consumers retain the collecting surface, while production-shaped synchronous
+response consumers now select the produced body without an environment-specific renderer path.

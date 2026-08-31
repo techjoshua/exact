@@ -26,6 +26,14 @@ export function markerPair(
 	if (!context.markers) return render();
 	const opening = `<!--exact:${id}-->`;
 	const closing = `<!--/exact:${id}-->`;
+	if (context.outputSink?.publishesDirectly()) {
+		return context.outputSink.bufferRange(() => {
+			const rendered = render();
+			if (rendered instanceof Promise)
+				throw new TypeError('Synchronous direct SSR range selected asynchronous content');
+			return `${opening}${rendered}${closing}`;
+		});
+	}
 	context.outputSink?.accountKnown(opening, opening.length);
 	const rendered = render();
 	if (rendered instanceof Promise) {

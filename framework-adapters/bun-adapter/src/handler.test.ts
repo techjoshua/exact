@@ -1,4 +1,8 @@
-import { createExactBufferedResponse, defineExactOperationContract } from '@exactjs/server';
+import {
+	createExactBufferedResponse,
+	createExactProducedResponse,
+	defineExactOperationContract
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactBunHandler, exactResponseToBunResponse } from './index.js';
 
@@ -46,6 +50,17 @@ it('passes chunked SSR bodies to the Fetch runtime without materializing a Web s
 		'Ready',
 		'</main>'
 	]);
+	const response = exactResponseToBunResponse(exact);
+
+	expect(await response.text()).toBe('<main>Ready</main>');
+});
+
+it('consumes produced SSR bodies through the Fetch stream boundary', async () => {
+	const exact = createExactProducedResponse(200, { 'content-type': 'text/html' }, (write) => {
+		write('<main>');
+		write('Ready');
+		write('</main>');
+	});
 	const response = exactResponseToBunResponse(exact);
 
 	expect(await response.text()).toBe('<main>Ready</main>');

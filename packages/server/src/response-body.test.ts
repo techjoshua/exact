@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { createExactBufferedResponse, exactResponseBodyOf } from './response-body.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+	createExactBufferedResponse,
+	createExactProducedResponse,
+	exactResponseBodyOf
+} from './response-body.js';
 
 describe('buffered eXact response bodies', () => {
 	it('joins chunks only when a direct consumer reads body', () => {
@@ -45,5 +49,52 @@ describe('buffered eXact response bodies', () => {
 		await exactResponseBodyOf(response)?.cancel('unused');
 
 		expect(() => response.stream).toThrow('already claimed');
+	});
+});
+
+describe('produced eXact response bodies', () => {
+	it('runs one synchronous producer only after an adapter claims it', async () => {
+		const produce = vi.fn((write: (chunk: string) => void) => {
+			write('<main>');
+			write('ready');
+			write('</main>');
+		});
+		const response = createExactProducedResponse(200, {}, produce);
+		const chunks: string[] = [];
+
+		expect(produce).not.toHaveBeenCalled();
+		expect(exactResponseBodyOf(response)?.kind).toBe('produced');
+		await exactResponseBodyOf(response)?.writeTo((chunk) => {
+			chunks.push(chunk);
+		});
+
+		expect(chunks).toEqual(['<main>', 'ready', '</main>']);
+		expect(produce).toHaveBeenCalledTimes(1);
+		expect(() => response.body).toThrow('already claimed');
+	});
+
+	it('releases a transferred request scope after publication', async () => {
+		const release = vi.fn(async () => undefined);
+		const response = createExactProducedResponse(200, {}, (write) => write('ready'));
+		const body = exactResponseBodyOf(response)!;
+		body.retainRequestScope?.(release);
+
+		expect(release).not.toHaveBeenCalled();
+		await body.writeTo(() => undefined);
+
+		expect(release).toHaveBeenCalledWith('eXact produced response complete');
+	});
+
+	it('cancels an unclaimed producer and releases its request scope', async () => {
+		const produce = vi.fn();
+		const release = vi.fn(async () => undefined);
+		const response = createExactProducedResponse(200, {}, produce);
+		const body = exactResponseBodyOf(response)!;
+		body.retainRequestScope?.(release);
+
+		await body.cancel('client disconnected');
+
+		expect(produce).not.toHaveBeenCalled();
+		expect(release).toHaveBeenCalledWith('client disconnected');
 	});
 });

@@ -27,6 +27,7 @@ import {
 	ssrEnvironmentMetadata
 } from './ssr-run-environment.mjs';
 import { controlSsrWorker, startSsrWorker, stopSsrWorker } from './ssr-worker-controller.mjs';
+import { measurementPublication } from './measurement-publication.mjs';
 
 if (!process.argv.includes('--correctness-passed'))
 	throw new Error('Run `npm run measure:ssr` so correctness gates the SSR benchmark.');
@@ -81,11 +82,7 @@ const participantMetadata = await Promise.all(
 const participantMetadataById = Object.fromEntries(
 	participants.map((participant, index) => [participant.id, participantMetadata[index]])
 );
-const unreviewed = participantMetadata.filter((metadata) => metadata.status !== 'complete');
-if (unreviewed.length && !process.argv.includes('--allow-unreviewed'))
-	throw new Error(
-		`Publishable SSR measurement refused: incomplete or unreviewed participants: ${unreviewed.map((item) => item.id).join(', ')}`
-	);
+const publication = measurementPublication(participantMetadata, 'SSR');
 const service = await startComparisonServer();
 
 try {
@@ -144,7 +141,7 @@ try {
 		kind: 'framework-comparison-ssr-run',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
-		publishable: unreviewed.length === 0,
+		publishable: publication.publishable,
 		environment: ssrEnvironmentMetadata(runtimes),
 		harness: {
 			sampleCount,

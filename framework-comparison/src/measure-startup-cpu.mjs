@@ -11,6 +11,7 @@ import { preciseExecutedBytes } from './precise-coverage.mjs';
 import { summarizeSampleMetric } from './percentile-summary.mjs';
 import { hashArtifactDirectory, hashSemanticResponse } from './artifact-integrity.mjs';
 import { attributeClientModules } from './module-attribution.mjs';
+import { measurementPublication } from './measurement-publication.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error(
@@ -47,12 +48,7 @@ const metadata = await Promise.all(
 		)
 	)
 );
-const unreviewed = metadata.filter((entry) => entry.status !== 'complete');
-if (unreviewed.length && !process.argv.includes('--allow-unreviewed')) {
-	throw new Error(
-		`Publishable measurement refused: incomplete or unreviewed participants: ${unreviewed.map((entry) => entry.id).join(', ')}`
-	);
-}
+const publication = measurementPublication(metadata, 'startup');
 
 const artifacts = Object.fromEntries(
 	await Promise.all(
@@ -110,7 +106,7 @@ try {
 		kind: 'framework-comparison-startup-cpu-profile',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
-		publishable: unreviewed.length === 0,
+		publishable: publication.publishable,
 		environment: environmentMetadata(),
 		harness: {
 			commit: git('rev-parse', 'HEAD'),

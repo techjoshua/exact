@@ -4,6 +4,7 @@ import { cpus, platform, release, totalmem } from 'node:os';
 import { relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { chromium } from 'playwright';
+import { measurementPublication } from './measurement-publication.mjs';
 import { startNativeHarness } from './native-harness.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
@@ -24,12 +25,7 @@ const metadata = await Promise.all(
 		)
 	)
 );
-const unreviewed = metadata.filter((participant) => participant.status !== 'complete');
-if (unreviewed.length && !process.argv.includes('--allow-unreviewed')) {
-	throw new Error(
-		`Publishable native measurement refused: incomplete or unreviewed participants: ${unreviewed.map((item) => item.id).join(', ')}`
-	);
-}
+const publication = measurementPublication(metadata, 'native');
 
 const builds = Object.fromEntries(
 	participants.map((participant) => [participant.id, measureBuild(participant.directory)])
@@ -49,7 +45,7 @@ try {
 		track: 'native-full-stack',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:native' },
-		publishable: unreviewed.length === 0,
+		publishable: publication.publishable,
 		environment: {
 			node: process.version,
 			platform: `${platform()} ${release()}`,

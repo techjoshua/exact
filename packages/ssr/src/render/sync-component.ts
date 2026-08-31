@@ -48,45 +48,84 @@ export function renderSyncComponentReceipt(
 		throw new SsrScheduledComponentSignal();
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
 	if (receipt.enhancement) context.outputSink?.invalidateAccounting();
+	const renderBuffered = () =>
+		executeDirectSsrComponentSync(
+			context,
+			contract,
+			serverComponentProps(receipt),
+			parent,
+			(content, owner, props) => {
+				const html = renderOperationEnhancements(
+					context,
+					receipt.enhancement,
+					() =>
+						content.program
+							? renderPreparedSsrProgramString(
+									context,
+									content.program,
+									owner,
+									(children) => operations.renderChildren(context, children, owner, true),
+									(component) => operations.renderComponent(context, component, owner, true, true)
+								)
+							: operations.renderChildren(context, content.children, owner, true),
+					owner,
+					operations.renderChildren
+				);
+				return directComponentHtml(
+					context,
+					componentMarkerId(context, receipt),
+					html,
+					props,
+					contract.artifact.execution.publication,
+					{
+						enhancement: false,
+						documentProbe,
+						hasComponentAncestor,
+						omitCompilerOwnedBoundary,
+						omitRootBoundary
+					}
+				);
+			}
+		);
+	const resumable = contract.artifact.execution.publication?.kind === 'resumption';
+	const delimited =
+		!omitRootBoundary && !(omitCompilerOwnedBoundary && !resumable) && !documentProbe;
+	const requiresBufferedBoundary =
+		!!receipt.enhancement || (documentProbe && context.documentRootSeen) || delimited;
+	if (!context.outputSink?.publishesDirectly() || requiresBufferedBoundary) {
+		const buffered = context.outputSink?.publishesDirectly()
+			? context.outputSink.bufferRange(() => {
+					const output = renderBuffered();
+					if (output === undefined)
+						throw new TypeError(
+							'Synchronous component operation selected a scheduled server artifact'
+						);
+					return output;
+				})
+			: renderBuffered();
+		if (buffered === undefined)
+			throw new TypeError('Synchronous component operation selected a scheduled server artifact');
+		return buffered;
+	}
+
 	const output = executeDirectSsrComponentSync(
 		context,
 		contract,
 		serverComponentProps(receipt),
 		parent,
-		(content, owner, props) => {
-			const html = renderOperationEnhancements(
-				context,
-				receipt.enhancement,
-				() =>
-					content.program
-						? renderPreparedSsrProgramString(
-								context,
-								content.program,
-								owner,
-								(children) => operations.renderChildren(context, children, owner, true),
-								(component) => operations.renderComponent(context, component, owner, true, true)
-							)
-						: operations.renderChildren(context, content.children, owner, true),
-				owner,
-				operations.renderChildren
-			);
-			return directComponentHtml(
-				context,
-				componentMarkerId(context, receipt),
-				html,
-				props,
-				contract.artifact.execution.publication,
-				{
-					enhancement: false,
-					documentProbe,
-					hasComponentAncestor,
-					omitCompilerOwnedBoundary,
-					omitRootBoundary
-				}
-			);
-		}
+		(content, owner) =>
+			content.program
+				? renderPreparedSsrProgramString(
+						context,
+						content.program,
+						owner,
+						(children) => operations.renderChildren(context, children, owner, true),
+						(component) => operations.renderComponent(context, component, owner, true, true)
+					)
+				: operations.renderChildren(context, content.children, owner, true)
 	);
 	if (output === undefined)
 		throw new TypeError('Synchronous component operation selected a scheduled server artifact');
+	componentMarkerId(context, receipt);
 	return output;
 }

@@ -1,4 +1,8 @@
-import { defineExactBoundaryContract, defineExactOperationContract } from '@exactjs/server';
+import {
+	defineExactBoundaryContract,
+	defineExactOperationContract,
+	exactResponseBodyOf
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerHandlerRegistry,
@@ -6,6 +10,11 @@ import {
 	renderToString,
 	renderToStringAsync
 } from './index.js';
+import {
+	renderCompilerClosedToHydratableSink,
+	renderCompilerClosedToHydratableResponse,
+	renderCompilerClosedToHydratableString
+} from './compiler-closed.js';
 import { createOperation } from './test-support/native-operations.js';
 import {
 	ObservedServerComponent,
@@ -28,6 +37,39 @@ describe('@exactjs/ssr component and server contracts', () => {
 		expect(result.html).toContain('<article>Server</article>');
 		expect(result.html).toContain('<!--exact:component:');
 		expect(readComponentRenderingFixtureState().cardMounts).toBe(0);
+	});
+
+	it('publishes a compiler-closed hydratable root through an ordered string sink', () => {
+		const operation = createOperation(ServerCard, { title: 'Server' });
+		const expected = renderCompilerClosedToHydratableString(operation, {
+			markers: false
+		}).htmlWithHydration;
+		const chunks: string[] = [];
+		const bytes = renderCompilerClosedToHydratableSink(operation, (chunk) => chunks.push(chunk), {
+			markers: false
+		});
+		const rendered = chunks.join('');
+
+		expect(rendered).toBe(expected);
+		expect(new TextEncoder().encode(rendered)).toHaveLength(bytes);
+	});
+
+	it('defers a compiler-closed root until an adapter consumes its response body', async () => {
+		const operation = createOperation(ServerCard, { title: 'Server' });
+		const expected = renderCompilerClosedToHydratableString(operation, {
+			markers: false
+		}).htmlWithHydration;
+		const response = renderCompilerClosedToHydratableResponse(operation, { markers: false });
+		const chunks: string[] = [];
+
+		expect(exactResponseBodyOf(response)?.kind).toBe('produced');
+		await exactResponseBodyOf(response)?.writeTo((chunk) => {
+			chunks.push(chunk);
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.headers['content-type']).toBe('text/html; charset=utf-8');
+		expect(chunks.join('')).toBe(expected);
 	});
 
 	it('observes settled sync and async components before renderer disposal', async () => {

@@ -381,6 +381,10 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 	private append(value: string): void {
 		if (this.context.enhancementOperationRoutes?.length)
 			this.context.outputSink?.invalidateAccounting();
+		if (this.context.outputSink?.publishesDirectly()) {
+			this.context.outputSink.publishAccounted(value);
+			return;
+		}
 		this.html = captureNestedEnhancementStringPrefix(this.context, this.html);
 		if (value !== '') this.html = appendBoundedHtml(this.context, this.html, value);
 	}

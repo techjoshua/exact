@@ -25,7 +25,53 @@ export class SsrOutputBuffer {
 	private pendingHighSurrogate = false;
 	private accountingValid = true;
 
-	constructor(private readonly maxBytes: number) {}
+	private directPublicationDepth = 0;
+
+	constructor(
+		private readonly maxBytes: number,
+		private readonly publish?: (value: string) => void
+	) {
+		if (publish) this.directPublicationDepth = 1;
+	}
+
+	/** Reports whether the current renderer frame may publish settled spans immediately. */
+	publishesDirectly(): boolean {
+		return this.directPublicationDepth > 0;
+	}
+
+	/** Publishes one already-accounted span or retains it in the ordinary collecting adapter. */
+	publishAccounted(value: string): void {
+		if (!value) return;
+		if (this.publishesDirectly()) this.publish!(value);
+		else this.values.push(value);
+	}
+
+	/** Temporarily retains one recoverable range while its complete subtree is attempted. */
+	bufferRange(render: () => string): string {
+		if (!this.publishesDirectly()) return render();
+		const bytes = this.bytes;
+		const pendingHighSurrogate = this.pendingHighSurrogate;
+		const accountingValid = this.accountingValid;
+		const retainedValues = this.values.length;
+		this.directPublicationDepth--;
+		try {
+			const value = render();
+			this.bytes = bytes;
+			this.pendingHighSurrogate = pendingHighSurrogate;
+			this.accountingValid = accountingValid;
+			this.values.length = retainedValues;
+			this.account(value);
+			return value;
+		} catch (error) {
+			this.bytes = bytes;
+			this.pendingHighSurrogate = pendingHighSurrogate;
+			this.accountingValid = accountingValid;
+			this.values.length = retainedValues;
+			throw error;
+		} finally {
+			this.directPublicationDepth++;
+		}
+	}
 
 	/** Appends a renderer chunk without flattening previously rendered descendants. */
 	append(value: string): void {
@@ -114,6 +160,12 @@ export class SsrOutputBuffer {
 			this.addBytes(3);
 		}
 		return this.values;
+	}
+
+	/** Returns the finalized exact UTF-8 byte count owned by this request sink. */
+	encodedBytes(): number {
+		this.finish();
+		return this.bytes;
 	}
 
 	private recount(): void {
