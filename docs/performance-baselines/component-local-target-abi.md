@@ -955,3 +955,97 @@ Bun remains a separate diagnostic because Exact uses `bun-fetch` while the other
 Bun's Node HTTP compatibility path. The next server slice rebuilds hydration publication around
 the already-final compact capture representation while retaining descriptor-safe validation and
 native `JSON.stringify`.
+
+### Post-acceptance compact hydration-publication checkpoint
+
+The normal direct-capture path now constructs the final compact hydration envelope once from the
+already-indexed resumption tuples. Framework-created envelope arrays and tuples are recorded in a
+request-local structural-known set, so validation does not repeat prototype and property-descriptor
+inspection for those containers. Validation still recursively visits every value, and authored
+objects retain the descriptor-safe accessor, cycle, depth, entry, and byte limits. The explicit
+output-extension path keeps the generic named-resumption and compaction behavior. Publication
+continues to use native `JSON.stringify`; no custom serializer or second wire representation was
+introduced.
+
+Before implementation, the accepted indexed-capture profile still attributed 7.462 ms to
+`serializeJson`, 7.010 ms to `validateContainer`, 2.488 ms to `validateValue`, and 1,166,288 sampled
+bytes to property-descriptor inspection. The expected gate called for a 4-10% render-only center
+improvement and 0.3-0.8 MB lower sampled allocation while preserving the 4,500-byte response,
+descriptor-safe authored-value validation, graph limits, extensions, and request isolation. These
+ranges were hypotheses rather than acceptance limits.
+
+The accepted validation ran `npm run performance:check` exactly once after the focused SSR build,
+178-test SSR suite, formatting, explicit-any, JSDoc, source-architecture, and 36-test composition
+corpus passed. Its release prerequisite passed 1,937 package tests with five skips, all maintained
+application and browser matrices, Theme Lab, React compatibility, and the 335-file native compiler
+corpus. The composition inventory remains 37 compiler paths and 36 normative tests because this
+checkpoint changes server publication rather than compiler acceptance. The immutable evidence is:
+
+- the unchanged accepted client browser population, 50 samples per framework:
+  `.tmp/indexed-resumption-capture/accepted/browser-50.json`;
+- the unchanged accepted startup CPU and function population, 50 samples per framework at 1x, 4x,
+  and 6x: `.tmp/indexed-resumption-capture/accepted/startup-50.json`;
+- current SSR, 50 sequential samples and 50 ordinary concurrent waves:
+  `framework-comparison/results/raw/ssr-2026-08-31T03-28-05-551Z.json`;
+- five current and five immediate-prior focused render profiles under
+  `.tmp/output-byte-accounting/focused-render-profile-hydration-publication-*.json` and
+  `.tmp/output-byte-accounting/focused-render-profile-indexed-resumption-nosnapshot-*.json`;
+- the pre-implementation gate: `.tmp/hydration-publication/expected-metrics.md`; and
+- the complete current and immediate-prior control-normalized report:
+  `.tmp/hydration-publication/complete-framework-report.md`.
+
+The Exact client artifact is byte-identical to the preceding accepted checkpoint, so its existing
+50-sample browser and startup population remains the relevant evidence. Exact remains 199,054 raw,
+60,707 gzip, and 52,967 Brotli client bytes, with 194,551 decoded bytes, 102,115 executed bytes, 772
+parsed functions, 787 compiled functions, 568 invoked functions, and 2,461,668 startup-heap bytes.
+This server-only checkpoint attributes no client movement.
+
+The Exact Node server artifact changes from 214,520 to 217,155 raw bytes (+1.23%), 46,620 to 47,134
+gzip bytes (+1.10%), and 38,649 to 39,068 Brotli bytes (+1.08%). Its three-file count, 4,500-byte
+response, 964-byte hydration payload, and 234-byte resumption field are unchanged. The increase is
+the deterministic cost of separating direct and extensible metadata ownership and carrying the
+request-local structural-known set. It is recorded as a counter-metric, not a hard size limit or a
+proxy for execution performance.
+
+Render-only time changes from 0.048/0.058/0.084/0.113 ms to
+0.045/0.051/0.068/0.098 ms at p50/p75/p95/p99: -5.8%, -12.5%, -18.5%, and -12.9% raw. Only Exact
+and React expose this renderer-owned lane, so no two-control-normalized magnitude is claimed. The
+independent five-run focused population improves median p50/p75/p95/p99 by 5.5%, 6.1%, 5.0%, and
+6.0%. Broad sampled render allocation falls from 8,810,456 to 8,076,656 bytes (-733,800 bytes,
+-8.3%); the five-run median falls from 8,946,760 to 8,383,544 bytes (-563,216 bytes, -6.3%).
+Property-descriptor allocation falls from 1,166,288 to 618,200 sampled bytes, directly confirming
+that final framework containers are no longer rediscovered as authored structures. In the single
+broad CPU sample, `serializeJson`, `validateContainer`, and `validateValue` do not individually
+fall, while `renderHydrationScript` allocation rises from 152,272 to 184,632 bytes; those stochastic
+site movements remain counter-metrics rather than being hidden by the consistent total-time and
+allocation improvements.
+
+Ordinary concurrent Exact throughput is 3,089/3,182/3,323/3,362 requests per second at
+p50/p75/p95/p99, versus 2,971/3,092/3,341/3,410 raw before. P50 improves 4.0% raw but is ineligible
+for normalization. Eligible p75-p99 control-normalized comparisons move -1.5%, -3.6%, and -3.7%.
+Exact participant work improves 2.0-12.5% raw, while GC duration rises from 11.59 to 20.58 ms in the
+ordinary population. The center throughput gain, normalized tail regression, and garbage-collection
+movement are all retained; none is inferred solely from the last run.
+
+At ordinary saturation c32, eligible normalized throughput improves 0.9%, 1.5%, 2.0%, and 2.0% at
+p50/p75/p95/p99, with participant work improving 0.8-1.7%. Saturation c64 improves 1.4%, 2.9%,
+2.6%, and 2.6%. At equal-8-KiB c32, eligible normalized throughput changes -3.6%, +0.1%, +0.1%, and
++0.1%; participant work is 0.6-8.6% slower. The equal-payload p50 and work regressions therefore
+remain explicit counter-metrics.
+
+Preloaded c32 raw throughput rises from 4,583/4,623/4,623/4,623 to
+4,675/4,689/4,689/4,689 requests per second. Participant work improves at p50-p95 and render time
+improves across the population; c8 and c64 show the same broad direction. This diagnostic has only
+React as a control, so it remains raw. Post-GC retained heap is nearly unchanged raw at the center
+and rises 0.36% at p95/p99, while eligible control normalization reports +5.6% to +8.8% because the
+controls moved. The retained slope remains negative at -1,597 bytes per request, so the checkpoint
+records both views and does not infer a leak or dismiss the normalized counter-metric.
+
+The checkpoint is accepted for deleting redundant hydration-envelope compaction and structural
+descriptor inspection from the direct path, preserving authored-value validation and extensions,
+and producing consistent 5-6% focused render-time and 6-8% allocation reductions. Its artifact
+growth, ordinary normalized tail throughput, equal-payload p50 and work, GC duration, and normalized
+retained-heap movements remain part of the accepted record. Bun remains a separate diagnostic
+because Exact uses `bun-fetch` while the other participants use Bun's Node HTTP compatibility path.
+The next client slice profiles and specializes hydration range adoption without changing the native
+component ABI or weakening transactional mismatch recovery.
