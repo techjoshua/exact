@@ -85,6 +85,8 @@ export type RenderToStringOptions = {
 	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** @internal Publishes a compiler-closed component without manufacturing a durable instance. */
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** @internal Request-owned compact resumption capture selected by hydratable entry points. */
+	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
 	/** @internal Allows framework-owned observers to be replayed after independent sibling work. */
 	allowIndependentComponentObservation?: boolean;
 	/** Receives SSR rendering profiling observations. */
@@ -377,6 +379,8 @@ export type SsrContext = {
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** Request-owned direct indexed resumption capture. */
+	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
 	/** Request-local scheduler shared by every eligible sibling group. */
 	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */

@@ -60,11 +60,21 @@ export function renderCompilerClosedToHydratableString(
 	);
 	const output = renderCompilerClosedOutputSync(operation, capture.options, true);
 	const result = createCompilerClosedStringResult(output, capture.options);
-	const captured = capture.records();
-	const resumptions = captured.length ? captured : prepared.resumptions;
+	const captured = capture.serializedRecords();
+	const resumptions = captured.length ? capture.activations : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
-		{ ...hydrationScriptOptions(prepared, result, resumptions), markerlessRoot: true },
-		capture.layouts()
+		{
+			...hydrationScriptOptions(
+				prepared,
+				result,
+				captured.length && prepared.outputExtensions?.length
+					? capture.activations()
+					: prepared.resumptions
+			),
+			markerlessRoot: true
+		},
+		undefined,
+		captured
 	);
 	return createChunkedHydratableResult(result, resumptions, hydrationScript);
 }
@@ -110,11 +120,21 @@ export async function renderCompilerClosedToHydratableStringAsync(
 	const renderOptions = capture.options;
 	const output = await renderCompilerClosedOutput(operation, renderOptions, true);
 	const result = createCompilerClosedStringResult(output, renderOptions);
-	const captured = capture.records();
-	const resumptions = captured.length ? captured : prepared.resumptions;
+	const captured = capture.serializedRecords();
+	const resumptions = captured.length ? capture.activations : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
-		{ ...hydrationScriptOptions(prepared, result, resumptions), markerlessRoot: true },
-		capture.layouts()
+		{
+			...hydrationScriptOptions(
+				prepared,
+				result,
+				captured.length && prepared.outputExtensions?.length
+					? capture.activations()
+					: prepared.resumptions
+			),
+			markerlessRoot: true
+		},
+		undefined,
+		captured
 	);
 	return createChunkedHydratableResult(result, resumptions, hydrationScript);
 }

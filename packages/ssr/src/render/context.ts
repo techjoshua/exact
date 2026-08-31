@@ -97,6 +97,7 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		onComponentAttemptRollback: options.onComponentAttemptRollback,
 		onDirectComponentCreated: options.onDirectComponentCreated,
 		onDirectComponentRendered: options.onDirectComponentRendered,
+		resumptionCapture: options.resumptionCapture,
 		asyncScheduler: new AsyncSsrScheduler(options.maxAsyncSsrConcurrency),
 		asyncFrame: false
 	};

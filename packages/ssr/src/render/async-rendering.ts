@@ -75,11 +75,18 @@ export async function renderToHydratableStringAsync(
 		rootComponentIdentity(operation)
 	);
 	const result = await renderToStringAsync(operation, capture.options);
-	const resumptions = capture.records();
-	const emittedResumptions = resumptions.length ? resumptions : prepared.resumptions;
+	const resumptions = capture.serializedRecords();
+	const emittedResumptions = resumptions.length ? capture.activations : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(prepared, result, emittedResumptions),
-		capture.layouts()
+		hydrationScriptOptions(
+			prepared,
+			result,
+			resumptions.length && prepared.outputExtensions?.length
+				? capture.activations()
+				: prepared.resumptions
+		),
+		undefined,
+		resumptions
 	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
@@ -141,7 +148,7 @@ export async function streamDocumentRender(
 		}
 
 		if (shouldEmitDocumentHydration(options)) {
-			const resumptions = capture.records();
+			const resumptions = capture.serializedRecords();
 			await emit({
 				event: 'hydration',
 				version: 1,
@@ -149,9 +156,12 @@ export async function streamDocumentRender(
 					hydrationScriptOptions(
 						options,
 						final,
-						resumptions.length > 0 ? resumptions : options.resumptions
+						resumptions.length > 0 && options.outputExtensions?.length
+							? capture.activations()
+							: options.resumptions
 					),
-					capture.layouts()
+					undefined,
+					resumptions
 				)
 			});
 		}

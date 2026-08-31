@@ -160,6 +160,35 @@ describe('@exactjs/ssr hydration', () => {
 		}
 	});
 
+	it('captures indexed resumptions while preserving lazy public activations', () => {
+		const result = renderToHydratableString(createOperation(HydrationPanel, {}));
+		const descriptor = Object.getOwnPropertyDescriptor(result, 'resumptions');
+		const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as {
+			resumptions?: unknown[];
+		};
+
+		expect(descriptor?.get).toBeTypeOf('function');
+		expect(payload.resumptions).toContainEqual([expect.any(String), [[0, true]]]);
+		expect(result.resumptions).toContainEqual(expect.objectContaining({ values: { show: true } }));
+	});
+
+	it('projects named resumptions before invoking hydration output extensions', () => {
+		let observed: unknown;
+		renderToHydratableString(createOperation(HydrationPanel, {}), {
+			outputExtensions: [
+				{
+					transform(value, context) {
+						if (context.kind === 'hydration')
+							observed = (value as { resumptions?: unknown }).resumptions;
+						return value;
+					}
+				}
+			]
+		});
+
+		expect(observed).toContainEqual(expect.objectContaining({ values: { show: true } }));
+	});
+
 	it('publishes the compact compiler-closed root proof', () => {
 		const script = renderHydrationScript({ markerlessRoot: true });
 		expect(JSON.parse(script.match(/>(.*)<\/script>/s)![1])).toEqual({ m: 1 });

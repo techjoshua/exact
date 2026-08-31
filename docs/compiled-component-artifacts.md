@@ -275,6 +275,16 @@ charged at their individual static writes. A lane whose output provenance is not
 invalidates the partial ledger and receives one exact scan when the completed root is committed;
 it does not install a second renderer or weaken the output limit.
 
+Hydratable execution reserves each compiler-selected resumption as its final request-owned indexed
+tuple. The synchronous executor carries an opaque numeric capture token, publishes state and
+context values by their cached schema indexes, and rolls the tuple list back with the component
+attempt. Scheduled artifacts carry the same token on their issued request frame so stabilization
+and replay retain construction order. The normal hydration envelope consumes these tuples directly;
+it does not construct named records and compact them afterward. An application that observes
+`HydratableStringResult.resumptions` still receives the documented named activation shape through a
+lazy request-local projection, and hydration output extensions retain that generic named-record
+boundary. Neither projection is retained by the immutable artifact.
+
 The compiler also specializes authored `renderToStringAsync()` and
 `renderToHydratableStringAsync()` calls whose local root graph is closed and whose options cannot
 enable foreign React markup. A runtime `markers` choice still uses the closed marked entrypoint;

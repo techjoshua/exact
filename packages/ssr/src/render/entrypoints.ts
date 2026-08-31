@@ -135,11 +135,18 @@ export function renderToHydratableString(
 		rootComponentIdentity(operation)
 	);
 	const result = renderToString(operation, capture.options);
-	const resumptions = capture.records();
-	const emittedResumptions = resumptions.length ? resumptions : prepared.resumptions;
+	const resumptions = capture.serializedRecords();
+	const emittedResumptions = resumptions.length ? capture.activations : prepared.resumptions;
 	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(prepared, result, emittedResumptions),
-		capture.layouts()
+		hydrationScriptOptions(
+			prepared,
+			result,
+			resumptions.length && prepared.outputExtensions?.length
+				? capture.activations()
+				: prepared.resumptions
+		),
+		undefined,
+		resumptions
 	);
 	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
 }
