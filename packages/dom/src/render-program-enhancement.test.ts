@@ -33,7 +33,7 @@ it('keeps compiled updates owned when the render program is the direct enhanceme
 	};
 	const program = prepareCompiledRenderProgram(
 		legacyTestRenderProgram({
-			version: 4,
+			version: 5,
 			id: identity,
 			namespace: 'html',
 			template: '<output><!---->\ue000exact:0\ue001<!----></output>',

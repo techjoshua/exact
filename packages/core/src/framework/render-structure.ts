@@ -21,6 +21,7 @@ export {
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
 	type ExactRenderProgramSsrOperations,
+	type ExactRenderProgramSsrAttribute,
 	type ExactRenderProgramSsrOutput,
 	type ExactRenderProgramSsrWriter,
 	type ExactRenderProgramWiring,

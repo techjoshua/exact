@@ -257,7 +257,7 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).toContain('__exactSsr.static(__exactOutput, "<section")');
 		expect(server).toContain('__exactSsr.static(__exactOutput, "><button class=\\"primary\\"")');
 		expect(server).toContain('[{}, this.state.count, true, this.state.count]');
-		expect(server).toContain('__exactSsr.attribute(');
+		expect(server).toContain('__exactSsr.compiledAttribute(');
 		expect(server).not.toContain('onClick');
 		expect(
 			artifactAnalysis(result)

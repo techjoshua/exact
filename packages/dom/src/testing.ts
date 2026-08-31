@@ -17,7 +17,7 @@ import { TestOperationRoot } from './testing-component.js';
 
 /** Obsolete executable program shape accepted only by focused low-level test fixtures. */
 export type LegacyTestDirectRenderProgram = Readonly<{
-	version: 4;
+	version: 5;
 	id: string;
 	namespace: ExactRenderProgram['namespace'];
 	template: string;

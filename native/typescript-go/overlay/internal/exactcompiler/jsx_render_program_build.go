@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"fmt"
-	"html"
 	"strconv"
 	"strings"
 
@@ -33,6 +32,12 @@ type renderProgramNode struct {
 	namespace string
 }
 
+type renderProgramSsrAttribute struct {
+	kind      int
+	property  string
+	attribute string
+}
+
 // renderProgramBuild owns the finite intrinsic topology and its parallel server segments.
 type renderProgramBuild struct {
 	template       strings.Builder
@@ -46,6 +51,8 @@ type renderProgramBuild struct {
 	rootAttributes *ast.Node
 	rootStaticHtml string
 	rootStaticKeys []string
+	rootSsrPlan    []renderProgramSsrAttribute
+	rootSsrClosed  bool
 	directOperands map[int]componentUpdateDependency
 	nextMarker     int
 }
@@ -172,30 +179,4 @@ func (build *renderProgramBuild) rootAttributesSlot(path []int, node int, tag st
 	build.slots = append(build.slots, renderProgramSlot{
 		kind: "root-attributes", path: append([]int(nil), path...), node: node, name: tag, reader: reader,
 	})
-}
-
-// captureRootStaticAttributes records literal attributes that the server target can publish
-// without re-running native attribute normalization. The authored prop bag remains available for
-// the uncommon semantic-target composition path.
-func (build *renderProgramBuild) captureRootStaticAttributes(attributes *ast.Node) {
-	if attributes == nil {
-		return
-	}
-	conditionalClasses := jsxHasConditionalClassName(attributes)
-	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-		if !ast.IsJsxAttribute(property) {
-			continue
-		}
-		attribute := property.AsJsxAttribute()
-		name := jsxAttributeText(attribute.Name())
-		if conditionalClasses && (name == "class" || name == "className") {
-			continue
-		}
-		attributeName, value, static := staticRenderProgramAttribute(name, attribute.Initializer)
-		if !static {
-			continue
-		}
-		build.rootStaticHtml += ` ` + attributeName + `="` + html.EscapeString(value) + `"`
-		build.rootStaticKeys = append(build.rootStaticKeys, name)
-	}
 }

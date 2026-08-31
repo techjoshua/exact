@@ -33,6 +33,12 @@ describe('composition corpus server behavior', () => {
 		expect(renderToString(registryRoot('second'), { markers: false }).html).toContain('second');
 	});
 
+	it('serializes compiler-known state attributes with native semantics', () => {
+		expect(renderToString(stateRoot('count'), { markers: false }).html).toBe(
+			'<section data-scenario="state"><output>count:1</output><small hidden>COUNT</small><button data-count="1">increment</button></section>'
+		);
+	});
+
 	it('leaves an open dynamic component inert during async server rendering', async () => {
 		const rendered = await renderToStringAsync(dynamicRoot(), { markers: false });
 		expect(rendered.html).toBe('<section data-scenario="dynamic"></section>');

@@ -176,6 +176,12 @@ export const compilerPathInventory = [
 		['ssr-sync']
 	),
 	path(
+		'compiler-selected-ssr-attributes',
+		'specialized',
+		'Compiler-known native attributes execute through component-local behavior plans.',
+		['ssr-sync']
+	),
+	path(
 		'async-task-ssr',
 		'supported-general',
 		'Async task settlement is represented by async/progressive SSR.',

@@ -256,7 +256,7 @@ describe('renderer enhancements', () => {
 		};
 		const program = prepareCompiledRenderProgram(
 			legacyTestRenderProgram({
-				version: 4,
+				version: 5,
 				id: '@test/compiled-update-enhancement-owner',
 				namespace: 'html',
 				template: '<output><!---->\ue000exact:0\ue001<!----></output>',
