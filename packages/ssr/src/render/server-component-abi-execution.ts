@@ -41,6 +41,7 @@ type IssuedScheduledServerComponent = ExactServerFrame & {
 	readonly checkpoint: unknown;
 	readonly parent: AnyComponentInstance | undefined;
 	readonly props: Record<string, unknown>;
+	readonly resumptionToken: number | undefined;
 	readonly scheduled: DirectScheduledSsrComponent;
 	readonly reference: ServerComponentReference;
 	disposed: boolean;
@@ -161,12 +162,18 @@ function createRequestExecution<Publication>(
 				));
 			if (!scheduled)
 				throw new TypeError('Scheduled server artifact did not issue a request-local frame');
+			const checkpoint = execution.context.onComponentAttemptCheckpoint?.();
+			const resumptionToken = execution.context.resumptionCapture?.reserveDirect(
+				blueprint.componentId,
+				blueprint.contract
+			);
 			execution.context.onDirectComponentCreated?.(scheduled.snapshot);
 			return createIssuedFrame({
 				artifact,
-				checkpoint: execution.context.onComponentAttemptCheckpoint?.(),
+				checkpoint,
 				parent: owner,
 				props: scheduled.props,
+				resumptionToken,
 				scheduled,
 				reference
 			});
@@ -328,6 +335,13 @@ function publishFrame<Publication>(
 		snapshot,
 		execution.publication
 	);
+	if (frame.resumptionToken !== undefined)
+		execution.context.resumptionCapture?.publishDirect(
+			frame.resumptionToken,
+			snapshot.host,
+			snapshot.state,
+			frame.props
+		);
 	execution.context.onDirectComponentRendered?.(snapshot);
 	return output;
 }

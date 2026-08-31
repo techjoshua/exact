@@ -44,7 +44,7 @@ export type DirectSsrSyncSink<Result> = (
 	content: DirectSsrComponentContent,
 	owner: AnyComponentInstance | undefined,
 	props: Record<string, unknown>,
-	snapshot: DirectSsrComponentSnapshot
+	snapshot: DirectSsrComponentSnapshot | undefined
 ) => Result;
 
 /** Executes and publishes one synchronous artifact without an intermediate issued-result object. */
@@ -90,22 +90,31 @@ export function executeDirectSsrComponentSync<Result>(
 			)
 		);
 		lifecycle?.rendered(frame, performanceNow() - started);
-		const snapshot = {
-			componentId: artifact.id,
-			contract,
-			host: frame,
-			state: frame.state,
-			props
-		};
-		context.onDirectComponentCreated?.(snapshot);
 		const checkpoint = context.onComponentAttemptCheckpoint?.();
+		const resumptionCheckpoint = context.resumptionCapture?.checkpoint();
 		const outputCheckpoint = context.outputSink?.checkpoint();
+		const resumptionToken = context.resumptionCapture?.reserveDirect(artifact.id, contract);
+		const snapshot =
+			context.onDirectComponentCreated || context.onDirectComponentRendered
+				? {
+						componentId: artifact.id,
+						contract,
+						host: frame,
+						state: frame.state,
+						props
+					}
+				: undefined;
+		if (snapshot) context.onDirectComponentCreated?.(snapshot);
 		try {
 			const output = sink(content, owner, props, snapshot);
-			context.onDirectComponentRendered?.(snapshot);
+			if (resumptionToken !== undefined)
+				context.resumptionCapture?.publishDirect(resumptionToken, frame, frame.state, props);
+			if (snapshot) context.onDirectComponentRendered?.(snapshot);
 			return output;
 		} catch (error) {
 			if (outputCheckpoint !== undefined) context.outputSink?.rollback(outputCheckpoint);
+			if (resumptionCheckpoint !== undefined)
+				context.resumptionCapture?.rollback(resumptionCheckpoint);
 			context.onComponentAttemptRollback?.(checkpoint);
 			throw error;
 		}
@@ -187,13 +196,19 @@ export async function executeDirectSsrComponent<Result>(
 			state: frame.state,
 			props
 		};
-		context.onDirectComponentCreated?.(snapshot);
 		const checkpoint = context.onComponentAttemptCheckpoint?.();
+		const resumptionCheckpoint = context.resumptionCapture?.checkpoint();
+		const resumptionToken = context.resumptionCapture?.reserveDirect(artifact.id, contract);
+		context.onDirectComponentCreated?.(snapshot);
 		try {
 			const output = await sink(issued.content, owner, props, snapshot);
+			if (resumptionToken !== undefined)
+				context.resumptionCapture?.publishDirect(resumptionToken, frame, frame.state, props);
 			context.onDirectComponentRendered?.(snapshot);
 			return output;
 		} catch (error) {
+			if (resumptionCheckpoint !== undefined)
+				context.resumptionCapture?.rollback(resumptionCheckpoint);
 			context.onComponentAttemptRollback?.(checkpoint);
 			throw error;
 		}

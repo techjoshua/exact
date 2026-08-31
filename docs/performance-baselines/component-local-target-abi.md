@@ -864,3 +864,94 @@ tails, and server artifact growth remain explicit counter-metrics. Bun remains a
 diagnostic because Exact uses `bun-fetch` while the other participants use Bun's Node HTTP
 compatibility path. The next server slice is direct compact indexed resumption capture in the same
 request-owned sink; hydration publication remains a separate later checkpoint.
+
+### Post-acceptance direct indexed resumption-capture checkpoint
+
+Synchronous compiler-closed components now reserve a numeric request-local capture token and
+publish state directly as stable indexed entries in the final compact resumption tuple. The
+request-owned capture owns ordering, checkpoints, rollback, and publication. Scheduled components
+reserve their token on their existing issued frame so stabilization order remains unchanged;
+generic components retain their instance-token association. Compiler schemas cache only immutable
+field paths, indexes, and continuation facts. Public render results and output extensions still
+observe the named activation contract through a lazy request-owned projection. No props, state,
+captures, or serialized request values are retained by module-level artifacts.
+
+Before implementation, the accepted output-accounting profile still attributed 234,608 sampled
+bytes to named state capture, 225,320 bytes to `compactResumption`, and 165,752 bytes to
+`compactEntries`. The expected gate called for removing those copy and compaction sites, reducing
+sampled render allocation by 0.5-0.9 MB, improving render/publication time by 4-9%, and retaining
+the response, ordering, rollback, extension, and public-result contracts. Those ranges remained
+hypotheses rather than acceptance limits.
+
+The accepted validation ran `npm run performance:check` once after the focused SSR build and
+176-test package suite, formatting, explicit-any, JSDoc, source-architecture, and 36-test
+composition-corpus checks passed. Its release prerequisite passed 1,937 package tests with five
+skips, all maintained application and browser matrices, Theme Lab, React compatibility, and the
+335-file native compiler corpus. The composition inventory remains 37 compiler paths and 36
+normative tests because this checkpoint changes the server runtime representation rather than
+compiler acceptance. The immutable evidence is:
+
+- browser, 50 samples per framework:
+  `.tmp/indexed-resumption-capture/accepted/browser-50.json`;
+- startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
+  `.tmp/indexed-resumption-capture/accepted/startup-50.json`;
+- SSR, 50 sequential samples and 50 ordinary concurrent waves:
+  `framework-comparison/results/raw/ssr-2026-08-31T02-30-18-618Z.json`;
+- the pre-implementation gate: `.tmp/indexed-resumption-capture/expected-metrics.md`; and
+- the complete current and immediate-prior control-normalized report:
+  `.tmp/indexed-resumption-capture/complete-framework-report.md`.
+
+All four client artifact hashes and deterministic client counters remain unchanged. Exact remains
+199,054 raw, 60,707 gzip, and 52,967 Brotli client bytes, with 194,551 decoded bytes, 102,115
+executed bytes, 772 parsed functions, 787 compiled functions, 568 invoked functions, and 2,461,668
+startup-heap bytes. The separately sampled browser-startup allocation rises from 1,208,888 to
+1,270,604 bytes, while React falls 4.4%, SvelteKit falls 5.1%, and Nuxt rises 6.7%; because the
+client artifact is identical and the controls disagree, this server-only checkpoint attributes no
+client allocation or timing movement to the change.
+
+The Exact Node server artifact changes from 212,606 to 214,520 raw bytes (+0.9%), 46,067 to
+46,620 gzip bytes (+1.2%), and 38,192 to 38,649 Brotli bytes (+1.2%). Its three-file count,
+4,500-byte response, 964-byte hydration payload, and 234-byte resumption field are unchanged. The
+artifact increase is the deterministic cost of token publication and lazy named projection; it is
+recorded as a counter-metric rather than treated as a runtime proxy or hard size limit.
+
+Render-only allocation falls from 9,242,280 to 8,810,456 sampled bytes (-431,824 bytes, -4.7%),
+and sample count falls from 2,119 to 2,025. A separate five-run focused population records a median
+fall from 9,410,360 to 8,946,760 bytes (-463,600 bytes, -4.9%). `compactResumption`,
+`compactEntries`, and the former named `captureStateValues` site are absent from the current top
+sites; direct `captureStateEntries` accounts for 334,200 sampled bytes. The measured reduction is
+slightly below the estimated 0.5 MB lower bound but confirms that the obsolete intermediate
+records and copies were removed rather than moved.
+
+Render-only time changes from 0.049/0.053/0.073/0.112 ms to
+0.048/0.058/0.084/0.113 ms at p50/p75/p95/p99: -2.4%, +10.2%, +15.7%, and +0.6% raw. The focused
+five-run population improves median p50 from 0.0730 to 0.0705 ms (-3.4%). Only Exact and React
+expose render-only data, so the lane cannot satisfy the two-control rule. The checkpoint therefore
+claims the repeatable center improvement and allocation reduction, not the projected 4-9% broad
+timing win; the p75-p99 full-profile movements remain explicit counter-metrics.
+
+Ordinary concurrent Exact throughput is 2,971/3,092/3,341/3,410 requests per second at
+p50/p75/p95/p99, versus 3,116/3,290/3,372/3,513 before: -4.7%, -6.0%, -0.9%, and -2.9%. React
+and Nuxt also fall while SvelteKit rises, leaving p50, p75, and p99 control dispersion above 1.2x;
+only p95 is eligible, at 1.177x dispersion. These raw end-to-end movements are reported as a
+regression and are not attributed solely to the indexed capture. At ordinary saturation c32,
+eligible normalized throughput changes by -2.8%, -2.3%, -3.4%, and -3.4%. At equal-8-KiB c32,
+eligible normalized throughput changes by -0.9%, -1.5%, -1.5%, and -1.5%. Both counter-movements
+are retained.
+
+At preloaded c32, raw throughput changes from 4,703/4,763/4,763/4,763 to
+4,583/4,623/4,623/4,623 requests per second (-2.6% to -2.9%). Participant work changes from
+0.182/0.191/0.217/0.254 to 0.185/0.194/0.225/0.304 ms, while render time is effectively stable at
+the center, 0.118/0.124 ms versus 0.118/0.122 ms. Only React participates as a control in this
+diagnostic, so these values remain raw. The higher GC duration and upper-tail participant work are
+consistent with the concurrent counter-metrics and are not hidden by the focused allocation win.
+
+The checkpoint is accepted for coherently deleting named intermediate resumption records and
+post-render compaction, preserving request isolation and all publication contracts, and producing
+a repeatable 4.7-4.9% sampled-allocation reduction with a smaller center render-time improvement.
+It does not claim an end-to-end throughput win: the ordinary, saturation, equal-payload, and
+preloaded regressions remain part of the accepted record and are inputs to the next profile gate.
+Bun remains a separate diagnostic because Exact uses `bun-fetch` while the other participants use
+Bun's Node HTTP compatibility path. The next server slice rebuilds hydration publication around
+the already-final compact capture representation while retaining descriptor-safe validation and
+native `JSON.stringify`.

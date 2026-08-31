@@ -8,11 +8,13 @@ import { validateJsonSafeHydrationValue } from './hydration-json.js';
 import { utf8ByteLength } from './render/utf8.js';
 import type { HydrationScriptOptions } from './types.js';
 import type { SsrResumptionLayout } from './resumption.js';
+import type { SsrSerializedResumption } from './resumption.js';
 
 /** Renders the JSON script tag consumed by the hydration client. */
 export function renderHydrationScript(
 	options: HydrationScriptOptions = {},
-	resumptionLayouts?: ReadonlyMap<string, SsrResumptionLayout>
+	resumptionLayouts?: ReadonlyMap<string, SsrResumptionLayout>,
+	capturedResumptions?: readonly SsrSerializedResumption[]
 ): string {
 	if (
 		options.buildKey &&
@@ -20,6 +22,10 @@ export function renderHydrationScript(
 		options.componentAuthorization.buildKey !== options.buildKey
 	)
 		throw new Error('Component authorization identity does not match the hydration build key');
+	const directResumptions =
+		!options.outputExtensions?.length && capturedResumptions?.length
+			? capturedResumptions
+			: undefined;
 	const payloadValue = processExactOutputSync<Record<string, unknown>>(
 		omitUndefinedProperties({
 			pluginRegistryFingerprint: options.pluginRegistryFingerprint,
@@ -28,7 +34,7 @@ export function renderHydrationScript(
 			state: options.state,
 			m: options.markerlessRoot ? 1 : undefined,
 			continuations: options.continuations,
-			resumptions: options.resumptions,
+			resumptions: directResumptions ?? options.resumptions,
 			publicContexts: options.publicContexts,
 			wallClockSnapshot: options.wallClockSnapshot,
 			h: options.hydrationTable,
