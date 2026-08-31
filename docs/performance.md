@@ -28,6 +28,15 @@ Its bounded, participant-owned `node:http` keep-alive agent is closed between pa
 client ephemeral-port churn from contaminating the capacity curve.
 A discarded two-second c32 capacity prime runs before concurrent measurement, followed by a telemetry reset,
 so engine tier-up does not appear as a framework throughput discontinuity in the recorded curve.
+The ordinary concurrent lane uses 50 waves. Its reports always place the raw before/current movement
+beside any control-normalized movement. Control normalization answers whether a movement can be
+attributed across environments; it neither excuses a large raw regression nor erases a reproducible
+raw improvement. A primary metric with an adverse raw movement of 10% or more blocks checkpoint
+acceptance until a repeated capture with the same artifacts either reproduces the movement or
+demonstrates that the original population was unstable. A reproducible favorable movement remains
+an accepted measured improvement even when dispersed controls prevent assigning its exact magnitude
+to one change. Repeated captures rotate participant order, retain every raw window, and never select
+only the most favorable run.
 
 Attribution counter-metrics include total participant work for every framework and, where the integration
 owns the complete renderer call, controlled-data loading, rendering, response-envelope construction, and
@@ -153,7 +162,10 @@ Closed client and hydrate artifacts give compiler-proven call-only
 lane. The lane retains durable owner cancellation, structural interaction settlement, task frames,
 cleanup, inspection events, component performance logging, and reactive setup activation, but it
 does not allocate general status objects, keyed lane maps, queues, option validators, or generic
-generation records. A task that escapes as a value, uses optimism, captures authored parameter
+generation records. When the same authored function task is called during setup and retained by an
+interaction, its declaration owns the single durable definition and both sites invoke that binding.
+The setup call does not emit a second task body, dependency plan, identity, or status owner. A task
+that escapes as a value, uses optimism, captures authored parameter
 defaults, changes readiness or priority, selects another concurrency policy, belongs to a
 rendering-mode-neutral artifact, or crosses the server boundary retains the universal task ABI.
 Synchronous compiler-owned computations and resumption deferral also live in focused modules so
@@ -233,8 +245,13 @@ execution. Closed server artifacts emit only that component-specific SSR functio
 generated preparation prefix reads the known slots, then generated calls write static markup,
 text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
-tables. The direct server facet carries only its compact execution classification, the setup prop
-names read before construction, and its generated render function. Scheduled calls reference
+tables. The direct server facet carries only its compact execution classification and the setup
+prop names read before construction. For a compiler-proven synchronous JSX root, the compiler
+folds the returned render arrow into the setup implementation and marks that closed form. The
+request-local executor writes the resulting prepared program into its sink without allocating a
+returned render closure, synchronous issued-result object, or snapshot projection. Forwarded and
+arbitrary output retains its callable contract, and scheduled components retain their issued
+protocol; there is no parallel fast path for one artifact. Scheduled calls reference
 module-level input/output slices emitted from the canonical component dataflow graph; request
 execution consumes those constants rather than serializing or rebuilding a generic plan. Synchronous,
 scheduled, and dynamic components therefore have an explicit bundle boundary for progressively
@@ -707,6 +724,11 @@ closure, computed reaction, dependency set, or scheduler entry. Derived expressi
 ranges keep the general computed path because they own evaluation, caching, and invalidation rather
 than merely forwarding one slot. Generated descriptor calls retain their slot identity in component
 update tables; finalizing a prop or `children` value therefore cannot detach its parent update.
+Compiler-proven scalar text reads use the same storage identity in component-local render-program
+wiring. The immutable operation carries a compact state-or-props source and slot tuple; its focused
+DOM operation reads the durable owner directly. Other text expressions keep their generated reader,
+so this specialization does not introduce a general expression interpreter or transfer computation
+ownership into the renderer.
 
 Every compiled component definition carries immutable state and props layouts, including explicit
 empty layouts. Client construction therefore has one compiler-indexed storage contract rather than
@@ -804,8 +826,12 @@ Compiler-created synchronous setup computations are also target-specialized. On 
 already-known dependency expressions feed the generated computation directly in authored order;
 the artifact does not construct a task definition, reactive dependency wrapper, readiness watcher,
 continuation executor, or transition port for that work. Authored tasks retain their declared
-scheduling, cancellation, readiness, and inspection semantics. Client artifacts continue to use
-durable reactive activation because those dependencies can change after hydration.
+scheduling, cancellation, readiness, and inspection semantics. On the client, an exact top-level
+prop-slot read that performs one direct indexed state write becomes an immutable receiver-owned
+input-update plan. The initial write stays in authored setup order; later finalized prop batches
+route one dirty mask through the receiving instance. Nested reactive reads, authored calls, and
+arbitrary expressions continue to use durable computation ownership because a top-level prop slot
+cannot represent their complete dependency semantics.
 
 Target projection also closes over deferred client work before runtime imports are selected. A
 client-placed function task that remains referenced by server-rendered component props becomes an

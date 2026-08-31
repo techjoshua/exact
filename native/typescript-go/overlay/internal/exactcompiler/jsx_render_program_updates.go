@@ -14,6 +14,7 @@ type renderProgramDirectUpdate struct {
 	group        int
 	firstSlot    int
 	dependencies []componentUpdateDependency
+	operand      *componentUpdateDependency
 }
 
 type componentUpdateDependency struct {
@@ -37,12 +38,12 @@ func (lowering *jsxLowering) directRenderProgramWiring(
 		bindings = append(bindings, lowering.renderProgramOperation(kind, arguments...))
 	}
 	listSlots := make([]*ast.Node, 0, len(build.slots))
-	directText := make(map[int]struct{}, len(directUpdates))
+	directText := make(map[int]renderProgramDirectUpdate, len(directUpdates))
 	directChildren := make(map[int]struct{}, len(directUpdates))
 	directProperties := make(map[int]struct{}, len(directUpdates))
 	for _, update := range directUpdates {
 		if update.kind == "text" {
-			directText[update.index] = struct{}{}
+			directText[update.index] = update
 		} else if update.kind == "child" {
 			directChildren[update.index] = struct{}{}
 		} else {
@@ -62,7 +63,13 @@ func (lowering *jsxLowering) directRenderProgramWiring(
 		switch slot.kind {
 		case "text":
 			arguments := []*ast.Node{slotIndex}
+			if update, exists := directText[index]; exists && update.operand != nil {
+				arguments = append(arguments, lowering.renderProgramOperand(*update.operand))
+			}
 			if _, direct := directText[index]; direct {
+				if len(arguments) == 1 {
+					arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
+				}
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
 			emit(0, arguments...)
@@ -170,8 +177,12 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 	for index, slot := range build.slots {
 		if slot.kind == "text" {
 			if dependencies, direct := lowering.directScalarProgramDependencies(slot.reader); direct {
+				var operand *componentUpdateDependency
+				if exact, exists := lowering.directRenderProgramOperand(slot.reader); exists {
+					operand = &exact
+				}
 				updates = append(updates, renderProgramDirectUpdate{
-					kind: "text", index: index, dependencies: dependencies,
+					kind: "text", index: index, dependencies: dependencies, operand: operand,
 				})
 			}
 			continue
@@ -221,6 +232,75 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 		}
 	}
 	return updates, componentReceipts, reactivePropertyGroups
+}
+
+// directRenderProgramOperand accepts only a complete indexed state or prop read. Derived and
+// arbitrary expressions keep their executable reader and reactive computation ownership.
+func (lowering *jsxLowering) directRenderProgramOperand(
+	node *ast.Node,
+) (componentUpdateDependency, bool) {
+	for node != nil {
+		switch {
+		case ast.IsParenthesizedExpression(node):
+			node = node.AsParenthesizedExpression().Expression
+		case ast.IsAsExpression(node):
+			node = node.AsAsExpression().Expression
+		case ast.IsSatisfiesExpression(node):
+			node = node.AsSatisfiesExpression().Expression
+		case ast.IsNonNullExpression(node):
+			node = node.AsNonNullExpression().Expression
+		case ast.IsArrowFunction(node) && !ast.IsBlock(node.AsArrowFunction().Body):
+			node = node.AsArrowFunction().Body
+		case ast.IsCallExpression(node):
+			call := node.AsCallExpression()
+			if ast.IsIdentifier(call.Expression) && call.Expression.Text() == lowering.names.readState &&
+				call.Arguments != nil && len(call.Arguments.Nodes) == 2 &&
+				ast.IsNumericLiteral(call.Arguments.Nodes[1]) {
+				slot, error := strconv.Atoi(call.Arguments.Nodes[1].Text())
+				if error != nil {
+					return componentUpdateDependency{}, false
+				}
+				source := "props"
+				receiver := call.Arguments.Nodes[0]
+				if ast.IsPropertyAccessExpression(receiver) {
+					member := receiver.AsPropertyAccessExpression()
+					if member.Expression.Kind == ast.KindThisKeyword && member.Name() != nil &&
+						member.Name().Text() == "state" {
+						source = "state"
+					} else {
+						return componentUpdateDependency{}, false
+					}
+				} else if !ast.IsIdentifier(receiver) {
+					return componentUpdateDependency{}, false
+				}
+				return componentUpdateDependency{source: source, slot: slot}, true
+			}
+			if !ast.IsIdentifier(call.Expression) ||
+				call.Expression.Text() != lowering.names.expression ||
+				call.Arguments == nil || len(call.Arguments.Nodes) != 1 ||
+				!ast.IsArrowFunction(call.Arguments.Nodes[0]) ||
+				ast.IsBlock(call.Arguments.Nodes[0].AsArrowFunction().Body) {
+				return lowering.directRenderProgramDependency(node)
+			}
+			node = call.Arguments.Nodes[0].AsArrowFunction().Body
+		default:
+			return lowering.directRenderProgramDependency(node)
+		}
+	}
+	return componentUpdateDependency{}, false
+}
+
+func (lowering *jsxLowering) renderProgramOperand(
+	operand componentUpdateDependency,
+) *ast.Node {
+	source := "0"
+	if operand.source == "props" {
+		source = "1"
+	}
+	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+		lowering.factory.NewNumericLiteral(source, ast.TokenFlagsNone),
+		lowering.factory.NewNumericLiteral(strconv.Itoa(operand.slot), ast.TokenFlagsNone),
+	}), false)
 }
 
 func (lowering *jsxLowering) directComponentProgramReader(
@@ -490,6 +570,16 @@ func (lowering *jsxLowering) directUpdateStatement(
 	arguments := []*ast.Node{
 		target,
 		lowering.factory.NewNumericLiteral(strconv.Itoa(update.index), ast.TokenFlagsNone),
+	}
+	if update.kind == "text" && update.operand != nil {
+		source := "0"
+		if update.operand.source == "props" {
+			source = "1"
+		}
+		arguments = append(arguments,
+			lowering.factory.NewNumericLiteral(source, ast.TokenFlagsNone),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(update.operand.slot), ast.TokenFlagsNone),
+		)
 	}
 	if update.kind == "properties" {
 		helper = lowering.names.applyProgramProperties

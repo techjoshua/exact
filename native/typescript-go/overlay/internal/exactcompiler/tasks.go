@@ -363,6 +363,7 @@ func collectTasks(
 			return true
 		})
 	}
+	tasks = reuseInvokedFunctionTaskDefinitions(tasks)
 	sort.Slice(tasks, func(left int, right int) bool {
 		return tasks[left].Start < tasks[right].Start
 	})

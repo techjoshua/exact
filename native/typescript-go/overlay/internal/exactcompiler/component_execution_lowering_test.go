@@ -75,6 +75,56 @@ func TestTaskFreeExportCarriesCanonicalArtifactWithoutTaskCapability(t *testing.
 	}
 }
 
+func TestSynchronousServerArtifactExecutesClosedProgramWithoutReturnedClosure(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "direct-server-executor.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			type Child = unknown;
+			export function Direct(props: { label: string }): () => Child {
+				return () => <p>{props.label}</p>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	compact := strings.Join(strings.Fields(response.Code), " ")
+	for _, expected := range []string{
+		`return __exactPreparedServerRenderProgram(`,
+		`classification: "synchronous"`,
+		`mode: "direct"`,
+	} {
+		if !strings.Contains(compact, expected) {
+			t.Fatalf("direct server executor omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(compact, `return () => __exactPreparedServerRenderProgram(`) {
+		t.Fatalf("direct server executor retained the returned render closure:\n%s", response.Code)
+	}
+}
+
+func TestSynchronousServerArtifactRetainsCallableForForwardedOutput(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "forwarded-server-output.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			type Child = unknown;
+			export function Forward(props: { child: Child }): () => Child {
+				return () => props.child;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	compact := strings.Join(strings.Fields(response.Code), " ")
+	if !strings.Contains(compact, `return () => __exactDynamic(() => props.child)`) {
+		t.Fatalf("forwarded server output lost its callable fallback:\n%s", response.Code)
+	}
+	if strings.Contains(compact, `mode: "direct"`) {
+		t.Fatalf("forwarded server output incorrectly selected the closed executor:\n%s", response.Code)
+	}
+}
+
 func TestClientComponentReadsCompilerIndexedStateSlots(t *testing.T) {
 	source := `
 		declare class Component<State> { state: State }
@@ -90,10 +140,11 @@ func TestClientComponentReadsCompilerIndexedStateSlots(t *testing.T) {
 		t.Fatalf("client compile failed: %s %#v", client.Error, client.Diagnostics)
 	}
 	for _, expected := range []string{
-		"readIndexedReactiveSlot as __exactReadState",
 		"writeIndexedReactiveValue as __exactWriteState",
 		"__exactWriteState(this.state, 0, 0)",
-		"__exactReadState(this.state, 0)",
+		"[[0, 0, [0, 0], true]",
+		"__exactApplyProgramText(__exactTarget0, 0, 0, 0)",
+		"__exactPreparedRenderProgram(__exact_render_program_1, [], this)",
 		`state: [`,
 		`"count"`,
 	} {
@@ -164,13 +215,14 @@ func TestClientNestedCallbackWritesThroughIndexedStateFacadeAlias(t *testing.T) 
 	}
 }
 
-func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *testing.T) {
+func TestHydrateProjectionUsesIndexedSynchronousComponentInputUpdates(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			declare class Component<State> { state: State }
 			export function Greeting(this: Component<{ message: string }>, props: { name: string }) {
+				this.state.message = "initial";
 				this.state.message = "Hello " + props.name;
 				return () => <p>{this.state.message}</p>;
 			}
@@ -179,16 +231,63 @@ func TestHydrateProjectionUsesLightweightSynchronousComponentComputations(t *tes
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, "activateComputationForHost as __exactActivateComputation") ||
-		!strings.Contains(response.Code, "__exactActivateComputation(this") {
-		t.Fatalf("hydrate projection did not select the synchronous computation lane:\n%s", response.Code)
+	for _, expected := range []string{
+		`const __exact_component_inputs_1 = { bindings: [[0, 1, 0]] as const`,
+		`const __exactDependency = __exactReadState(props, 0) as string`,
+		`__exactWriteState(__exactInstance.state, 0, "Hello " + __exactDependency)`,
+		`__exact_component_inputs_1.apply(this, 1, 0)`,
+		`inputs: __exact_component_inputs_1`,
+		`RenderComponentInstance as __exactConstructRenderComponent`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("hydrate projection omitted indexed component input update %q:\n%s", expected, response.Code)
+		}
 	}
-	if !strings.Contains(response.Code, "__exactWriteState(this.state, 0") ||
+	if strings.Contains(response.Code, "activateComputationForHost as") ||
+		strings.Contains(response.Code, "__exactActivateComputation(this") ||
+		strings.Contains(response.Code, `"tasks"`) ||
+		strings.Contains(response.Code, `"continuations"`) {
+		t.Fatalf("indexed component input update retained computation/task machinery:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, "__exactWriteState(__exactInstance.state, 0") ||
 		strings.Contains(response.Code, `__exactWrite(this.state, ["message"]`) {
-		t.Fatalf("compiler-generated computation did not preserve its indexed write:\n%s", response.Code)
+		t.Fatalf("indexed component input update did not preserve its indexed write:\n%s", response.Code)
 	}
-	if strings.Contains(response.Code, `label: "__exactComponentComputation_`) {
-		t.Fatalf("hydrate projection wrapped a synchronous computation in a task definition:\n%s", response.Code)
+	if strings.Count(response.Code, "const __exact_component_inputs_1") != 1 ||
+		strings.Contains(response.Code, `updates: __exact_component_inputs_1`) {
+		t.Fatalf("component input and DOM update artifacts collided:\n%s", response.Code)
+	}
+	initialWrite := strings.Index(response.Code, `__exactWriteState(this.state, 0, "initial")`)
+	initialApply := strings.Index(response.Code, `__exact_component_inputs_1.apply(this, 1, 0)`)
+	if initialWrite < 0 || initialApply < initialWrite {
+		t.Fatalf("initial component input update moved ahead of authored setup order:\n%s", response.Code)
+	}
+}
+
+func TestHydrateProjectionRetainsNestedAndAuthoredComponentComputations(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "hydrate-nested-computation.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			declare class Component<State> { state: State }
+			type Input = { name: string };
+			declare function formatName(value: string): string;
+			export function Greeting(this: Component<{ nested: string; formatted: string }>, props: { input: Input }) {
+				this.state.nested = props.input.name;
+				this.state.formatted = formatName(props.input.name);
+				return () => <p>{this.state.nested} {this.state.formatted}</p>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if strings.Count(response.Code, "__exactActivateComputation(this") != 2 ||
+		!strings.Contains(response.Code, "activateComputationForHost as __exactActivateComputation") {
+		t.Fatalf("nested or authored-call computation lost its executable owner:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "component_inputs") {
+		t.Fatalf("nested or authored-call computation entered the indexed input plan:\n%s", response.Code)
 	}
 }
 
@@ -1457,7 +1556,7 @@ func TestClientComponentIndexesProvenPropsWithoutRewritingDynamicAccess(t *testi
 		t.Fatalf("client compile failed: %s %#v", client.Error, client.Diagnostics)
 	}
 	for _, expected := range []string{
-		`props: [`, `"title"`, `__exactReadState(props, 0) as string`, `props[key]`,
+		`props: [`, `"title"`, `[0, 0, [1, 0], true]`, `props[key]`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf("indexed client props are missing %q:\n%s", expected, client.Code)
@@ -1475,6 +1574,26 @@ func TestClientComponentIndexesProvenPropsWithoutRewritingDynamicAccess(t *testi
 		!strings.Contains(server.Code, `props: [`) ||
 		!strings.Contains(server.Code, `"title"`) {
 		t.Fatalf("server artifact did not retain its compiler-owned props layout:\n%s", server.Code)
+	}
+}
+
+func TestClientComponentKeepsDerivedTextAsExecutableReader(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "derived-text-reader.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Count(this: Component<{ count: number }>) {
+				this.state.count = 0;
+				return () => <output>{this.state.count + 1}</output>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `() => (__exactReadState(this.state, 0) as number) + 1`) ||
+		strings.Contains(response.Code, `[0, 0, [0, 0], true]`) {
+		t.Fatalf("derived text did not retain its executable reader fallback:\n%s", response.Code)
 	}
 }
 
@@ -1716,16 +1835,20 @@ func TestClientLatestTasksUseCompilerSelectedCompactLane(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"bindCompiledClientLatestTaskForHost as __exactBindClientLatestTask",
-		"activateCompiledClientLatestTaskForHost as __exactActivateClientLatestTask",
 		`const load = __exactBindClientLatestTask(this, "load", async`,
-		`__exactActivateClientLatestTask(this, "load", async`,
+		`load();`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("compact client/latest output is missing %q:\n%s", expected, response.Code)
 		}
 	}
 	compact := response.Code[strings.Index(response.Code, "const __exactImplementation_Queue_1"):]
-	for _, universal := range []string{"defineTask as", "bindTaskForHost as", "activateTaskForHost as"} {
+	for _, universal := range []string{
+		"defineTask as",
+		"bindTaskForHost as",
+		"activateTaskForHost as",
+		"activateCompiledClientLatestTaskForHost as",
+	} {
 		if strings.Contains(compact, universal) {
 			t.Fatalf("compact client/latest output retained %q:\n%s", universal, response.Code)
 		}

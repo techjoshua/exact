@@ -167,6 +167,7 @@ export type ExactComponentExecutionContract = Readonly<{
 /** One component-owned direct DOM update program shared by every instance of its definition. */
 export type {
 	ExactCompiledComponentCapability,
+	ExactCompiledComponentInputUpdateContract,
 	ExactCompiledComponentUpdateContract,
 	ExactNarrowComponentUpdateContract,
 	ExactWideComponentUpdateContract

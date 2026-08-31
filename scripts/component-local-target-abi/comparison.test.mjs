@@ -52,6 +52,8 @@ test('normalizes historical eXact values with stable controls', () => {
 	);
 	assert.equal(readiness.controlFactor, 1.1);
 	assert.equal(readiness.normalizedBefore, 11);
+	assert.equal(readiness.rawDelta, -1);
+	assert.ok(Math.abs(readiness.rawDeltaRatio + 0.1) < Number.EPSILON);
 	assert.equal(readiness.delta, -2);
 	assert.equal(readiness.eligibility, 'eligible');
 	const bytes = comparison.rows.find((row) => row.metric === 'bytes' && row.percentile === 'p50');
@@ -119,6 +121,7 @@ test('rejects normalization when control movement disagrees beyond the dispersio
 	assert.equal(readiness.eligibility, 'control-dispersion');
 	assert.equal(readiness.controlFactor, undefined);
 	assert.equal(readiness.normalizedBefore, 10);
+	assert.ok(Math.abs(readiness.rawDeltaRatio + 0.1) < Number.EPSILON);
 });
 
 test('compares every accepted checkpoint suite without silently dropping a lane', () => {

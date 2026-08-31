@@ -238,14 +238,15 @@ type ComponentSurfacePlan struct {
 // ComponentTargetPlan is the compiler's authoritative target-local execution decision. Lowering
 // passes consume this plan instead of independently reconstructing server lanes and projections.
 type ComponentTargetPlan struct {
-	ClientExecution   ComponentExecution
-	ServerExecution   ComponentExecution
-	ClientSurface     ComponentSurfacePlan
-	ServerSurface     ComponentSurfacePlan
-	DeferredTaskProps []string
-	DirectServer      bool
-	DirectServerFrame bool
-	UsesCompatibility bool
+	ClientExecution      ComponentExecution
+	ServerExecution      ComponentExecution
+	ClientSurface        ComponentSurfacePlan
+	ServerSurface        ComponentSurfacePlan
+	DeferredTaskProps    []string
+	DirectServer         bool
+	DirectServerFrame    bool
+	DirectServerExecutor bool
+	UsesCompatibility    bool
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.

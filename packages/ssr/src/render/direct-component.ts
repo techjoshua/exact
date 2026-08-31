@@ -1,19 +1,27 @@
 import { attachSuppressedCleanupFailure, type AnyComponentInstance } from '@exactjs/core';
-import type { SsrContext } from '../types.js';
+import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
+import type { ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { prepareComponentProps } from './component-props.js';
-import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
-import { readDirectSsrContent } from './direct-component-content.js';
+import {
+	readDirectSsrContent,
+	type DirectSsrComponentContent
+} from './direct-component-content.js';
 import {
 	inComponentDomain,
 	type DirectSsrLifecycleCapability
 } from './direct-component-support.js';
-import { selectDirectSsrFrame } from './direct-frame-selection.js';
-import type { DirectIssuedRender, DirectSsrComponentResult } from './direct-component-contracts.js';
+import { createSelectedDirectSsrFrame, selectedDirectSsrOwner } from './direct-frame-selection.js';
+import type { DirectIssuedRender } from './direct-component-contracts.js';
 import {
 	disposeDirectSsrLifetimeSync,
 	renderIssuedServerComponentChildren
 } from './direct-component-scheduling.js';
+import {
+	disposeAsyncPreservingPrimary,
+	disposePreservingPrimary,
+	noPrimaryFailure
+} from './ownership.js';
 
 export type { DirectSsrComponentContent } from './direct-component-content.js';
 export type {
@@ -21,7 +29,6 @@ export type {
 	DirectScheduledPreparation,
 	DirectScheduledSsrComponent,
 	DirectSsrComponentPublisher,
-	DirectSsrComponentResult,
 	PreparedDirectScheduledSsrComponent
 } from './direct-component-contracts.js';
 export {
@@ -32,104 +39,177 @@ export {
 	takePreparedDirectScheduledSsrComponent
 } from './direct-component-scheduling.js';
 
-/**
- * Executes a compiler-classified synchronous component without constructing durable client
- * ownership. The request-local frame supports compiler-known state, contexts, lists, and scheduled
- * tasks; lifecycle, dynamic selection, and other durable surfaces remain separately classified.
- * Encountering a non-function result is therefore an artifact defect.
- */
-export function renderDirectSsrComponent(
+/** Sink selected by the synchronous renderer after the component-local program is executed. */
+export type DirectSsrSyncSink<Result> = (
+	content: DirectSsrComponentContent,
+	owner: AnyComponentInstance | undefined,
+	props: Record<string, unknown>,
+	snapshot: DirectSsrComponentSnapshot
+) => Result;
+
+/** Executes and publishes one synchronous artifact without an intermediate issued-result object. */
+export function executeDirectSsrComponentSync<Result>(
 	context: SsrContext,
-	blueprint: SsrComponentExecutionBlueprint,
-	rawProps: Record<string, unknown>,
-	parent: AnyComponentInstance | undefined
-): DirectSsrComponentResult | undefined;
-export function renderDirectSsrComponent(
-	context: SsrContext,
-	blueprint: SsrComponentExecutionBlueprint,
-	rawProps: Record<string, unknown>,
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
 	parent: AnyComponentInstance | undefined,
-	options: SsrRenderOptions
-): DirectSsrComponentResult | Promise<DirectSsrComponentResult> | undefined;
-export function renderDirectSsrComponent(
-	context: SsrContext,
-	blueprint: SsrComponentExecutionBlueprint,
-	rawProps: Record<string, unknown>,
-	parent: AnyComponentInstance | undefined,
-	options?: SsrRenderOptions
-): DirectSsrComponentResult | Promise<DirectSsrComponentResult> | undefined {
-	const server = blueprint.contract.artifact.execution;
+	sink: DirectSsrSyncSink<Result>
+): Result | undefined {
+	const artifact = contract.artifact;
+	const server = artifact.execution;
 	if (server?.lane !== 'direct' || server.classification !== 'synchronous' || !server.render)
 		return undefined;
-	if (options) {
-		const prepared = prepareComponentProps(rawProps, server.deferredTaskProps, options.signal);
-		if (prepared && typeof (prepared as Promise<Record<string, unknown>>).then === 'function')
-			return Promise.resolve(prepared).then(async (props) => {
-				const rendered = renderDirectSsrComponent(context, blueprint, props, parent, options);
-				if (!rendered)
-					throw new TypeError('Direct synchronous component lost its server artifact lane');
-				return await rendered;
-			});
-		rawProps = prepared as Record<string, unknown>;
-	}
-	const { frame, owner } = selectDirectSsrFrame(context, blueprint, parent);
-	const props = rawProps;
+	const frame = createSelectedDirectSsrFrame(context, contract, parent);
+	const owner = selectedDirectSsrOwner(contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let render: unknown;
-	try {
-		render = inComponentDomain(context, () => server.render!.call(frame, props));
-		if (typeof render !== 'function')
-			throw new TypeError(
-				'Compiled synchronous server component did not return its render function'
-			);
-	} catch (error) {
-		if (lifecycle) {
-			try {
-				disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr construction failed');
-			} catch (cleanup) {
-				attachSuppressedCleanupFailure(error, cleanup);
+	if (server.mode !== 'direct') {
+		try {
+			render = inComponentDomain(context, () => server.render!.call(frame, props));
+			if (typeof render !== 'function')
+				throw new TypeError(
+					'Compiled synchronous server component did not return its render function'
+				);
+		} catch (error) {
+			if (lifecycle) {
+				try {
+					disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr construction failed');
+				} catch (cleanup) {
+					attachSuppressedCleanupFailure(error, cleanup);
+				}
 			}
+			throw error;
 		}
-		throw error;
 	}
-	const invokeRender = () => {
+	let primary: unknown = noPrimaryFailure;
+	try {
 		const started = lifecycle ? performanceNow() : 0;
-		const output = inComponentDomain(context, () => (render as () => unknown)());
+		const content = readDirectSsrContent(
+			inComponentDomain(context, () =>
+				server.mode === 'direct' ? server.render!.call(frame, props) : (render as () => unknown)()
+			)
+		);
 		lifecycle?.rendered(frame, performanceNow() - started);
-		return output;
-	};
-	let rendered: DirectIssuedRender | Promise<DirectIssuedRender>;
-	try {
-		rendered = options
-			? renderIssuedServerComponentChildren(context, options, invokeRender, owner)
-			: { content: readDirectSsrContent(invokeRender()) };
-	} catch (error) {
-		if (lifecycle) {
-			try {
-				disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr render failed');
-			} catch (cleanup) {
-				attachSuppressedCleanupFailure(error, cleanup);
-			}
-		}
-		throw error;
-	}
-	const project = ({ content, preparation }: DirectIssuedRender): DirectSsrComponentResult => ({
-		content,
-		...(lifecycle ? { lifetime: { frame, lifecycle } } : {}),
-		owner,
-		...(preparation ? { preparation } : {}),
-		props,
-		snapshot: {
-			componentId: blueprint.componentId,
-			contract: blueprint.contract,
+		const snapshot = {
+			componentId: artifact.id,
+			contract,
 			host: frame,
 			state: frame.state,
 			props
+		};
+		context.onDirectComponentCreated?.(snapshot);
+		const checkpoint = context.onComponentAttemptCheckpoint?.();
+		try {
+			const output = sink(content, owner, props, snapshot);
+			context.onDirectComponentRendered?.(snapshot);
+			return output;
+		} catch (error) {
+			context.onComponentAttemptRollback?.(checkpoint);
+			throw error;
 		}
-	});
-	return rendered && typeof (rendered as Promise<DirectIssuedRender>).then === 'function'
-		? Promise.resolve(rendered).then(project)
-		: project(rendered as DirectIssuedRender);
+	} catch (error) {
+		primary = error;
+		throw error;
+	} finally {
+		if (lifecycle)
+			disposePreservingPrimary(
+				() => disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr render complete'),
+				primary
+			);
+	}
+}
+
+/** Sink selected by the asynchronous renderer after direct child preparation. */
+export type DirectSsrAsyncSink<Result> = (
+	content: DirectSsrComponentContent,
+	owner: AnyComponentInstance | undefined,
+	props: Record<string, unknown>,
+	snapshot: DirectSsrComponentSnapshot
+) => Result | Promise<Result>;
+
+/** Executes one synchronous artifact directly into a request-owned asynchronous sink. */
+export async function executeDirectSsrComponent<Result>(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	rawProps: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	sink: DirectSsrAsyncSink<Result>
+): Promise<Result | undefined> {
+	const artifact = contract.artifact;
+	const server = artifact.execution;
+	if (server?.lane !== 'direct' || server.classification !== 'synchronous' || !server.render)
+		return undefined;
+	const props = await prepareComponentProps(rawProps, server.deferredTaskProps, options.signal);
+	const frame = createSelectedDirectSsrFrame(context, contract, parent);
+	const owner = selectedDirectSsrOwner(contract, frame, parent);
+	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
+	let render: unknown;
+	if (server.mode !== 'direct') {
+		try {
+			render = inComponentDomain(context, () => server.render!.call(frame, props));
+			if (typeof render !== 'function')
+				throw new TypeError(
+					'Compiled synchronous server component did not return its render function'
+				);
+		} catch (error) {
+			if (lifecycle) {
+				try {
+					disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr construction failed');
+				} catch (cleanup) {
+					attachSuppressedCleanupFailure(error, cleanup);
+				}
+			}
+			throw error;
+		}
+	}
+	let preparation: DirectIssuedRender['preparation'];
+	let primary: unknown = noPrimaryFailure;
+	try {
+		const started = lifecycle ? performanceNow() : 0;
+		const issued = await renderIssuedServerComponentChildren(
+			context,
+			options,
+			() =>
+				inComponentDomain(context, () =>
+					server.mode === 'direct' ? server.render!.call(frame, props) : (render as () => unknown)()
+				),
+			owner
+		);
+		lifecycle?.rendered(frame, performanceNow() - started);
+		preparation = issued.preparation;
+		const snapshot = {
+			componentId: artifact.id,
+			contract,
+			host: frame,
+			state: frame.state,
+			props
+		};
+		context.onDirectComponentCreated?.(snapshot);
+		const checkpoint = context.onComponentAttemptCheckpoint?.();
+		try {
+			const output = await sink(issued.content, owner, props, snapshot);
+			context.onDirectComponentRendered?.(snapshot);
+			return output;
+		} catch (error) {
+			context.onComponentAttemptRollback?.(checkpoint);
+			throw error;
+		}
+	} catch (error) {
+		primary = error;
+		throw error;
+	} finally {
+		if (preparation)
+			await disposeAsyncPreservingPrimary(
+				() => Promise.resolve(preparation![Symbol.asyncDispose]()),
+				primary
+			);
+		if (lifecycle)
+			await disposeAsyncPreservingPrimary(
+				() => Promise.resolve(lifecycle.dispose(frame, 'ssr render complete')),
+				primary
+			);
+	}
 }
 
 function performanceNow(): number {

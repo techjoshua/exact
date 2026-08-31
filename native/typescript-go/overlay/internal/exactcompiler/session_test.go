@@ -310,11 +310,11 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`[[0, 2, true], [5, 0, 0, true], [9, 0, __exact_component_updates_1]]`,
+		`[[0, 2, [0, 0], true], [5, 0, 0, true], [9, 0, __exact_component_updates_1]]`,
 		`updates: __exact_component_updates_1`,
 		`bindings: [[0, 1, 0], [1, 2, 0]] as const`,
 		`apply: (__exactTargets: object[], __exactDirtyLow: number, __exactDirtyHigh: number) =>`,
-		`__exactApplyProgramText(__exactTarget0, 2)`,
+		`__exactApplyProgramText(__exactTarget0, 2, 0, 0)`,
 		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -612,8 +612,8 @@ func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 		`<!---->\uE000exact:1\uE001<!---->`,
 		`[3, 0, 0,`,
 		`[3, 1, 1,`,
-		`[0, 0, true]`,
-		`[0, 1, true]`,
+		`[0, 0, [1, 0], true]`,
+		`[0, 1, [1, 1], true]`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("adjacent scalar program omitted %q:\n%s", expected, response.Code)
@@ -3110,7 +3110,8 @@ __fixtureTask2();
 		`instantiate: __exactImplementation_Panel_1`,
 		`__exactSlot === 0 ? __exactReadState(this.state, 1) as string`,
 		`__exactSlot === 1 ? () => __exactUpdateStateResult(this.state, 0`,
-		`: __exactReadState(this.state, 0) as number`,
+		`[0, 2, [0, 0], true]`,
+		`__exactApplyProgramText(__exactTarget0, 2, 0, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -5578,6 +5579,43 @@ func TestSessionLowersInvokedFunctionTaskThroughPublicABI(t *testing.T) {
 	}
 	if strings.Contains(response.Code, "TaskContext.server().latest()") {
 		t.Fatalf("task policy builder escaped into runtime output:\n%s", response.Code)
+	}
+}
+
+func TestSessionReusesInvokedFunctionTaskBindingDuringSetup(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			function Editor(props: { ready: boolean }) {
+				async function load(task: TaskContext = TaskContext.client().latest()) {
+					await consume("one durable task body", task.signal);
+				}
+				const refresh = () => load();
+				if (!props.ready) void load();
+				return () => <button onClick={refresh}>Refresh</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`const load = __exactBind`,
+		`if (!(__exactReadState(props, 0) as boolean))`,
+		`void load()`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("reused function task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if count := strings.Count(response.Code, "one durable task body"); count != 1 {
+		t.Fatalf("function task body was emitted %d times:\n%s", count, response.Code)
+	}
+	if strings.Count(response.Code, `label: "load"`) != 1 {
+		t.Fatalf("function task definition was duplicated:\n%s", response.Code)
 	}
 }
 

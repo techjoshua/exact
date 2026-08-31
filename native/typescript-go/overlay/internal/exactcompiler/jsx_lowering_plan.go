@@ -81,6 +81,8 @@ func (plan jsxLoweringPlan) prepare(
 		materializedNames:           make(map[int]string),
 		renderProgramDefinitions:    make(map[int]string),
 		componentUpdates:            make(map[string]*componentUpdateBuild),
+		componentInputUpdates:       make(map[string]*componentInputUpdateBuild),
+		componentInputTaskIDs:       make(map[string]struct{}),
 		componentRangeOutputs:       make(map[string]struct{}),
 		componentRangeReaders:       make(map[string]struct{}),
 		cachedDerivedNames:          make(map[int]string),

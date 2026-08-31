@@ -1,5 +1,6 @@
 import type {
 	ExactCompiledComponentCapability,
+	ExactCompiledComponentInputUpdateContract,
 	ExactCompiledComponentUpdateContract
 } from '../component-definition-contracts.js';
 import type {
@@ -62,6 +63,8 @@ export type ExactClientComponentArtifact = Readonly<{
 	/** Compact compiler/runtime capability bits selecting instance storage and owned sidecars. */
 	abi: number;
 	updates?: ExactCompiledComponentUpdateContract;
+	/** Immutable receiver-owned plan for exact indexed prop-to-state relationships. */
+	inputs?: ExactCompiledComponentInputUpdateContract;
 	state: readonly string[];
 	props: readonly string[];
 	/** Foreign-owned prop values retained by identity without recursive reactive proxying. */

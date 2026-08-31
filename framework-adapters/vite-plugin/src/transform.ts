@@ -101,6 +101,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	const ownership = intlAnalysis
 		? jsxSourceOwnership(filename, analyzedCode, input.reactCompatibility)
 		: authoredOwnership;
+	const shouldCompile = shouldCompileExactBuildModule(filename, analyzedCode, options);
 	const output = transformExactAdapterModule({
 		source: analyzedCode,
 		filename,
@@ -108,7 +109,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 		jsxOwnership: ownership,
 		usesReactRuntimeImports: usesReactRuntimeImports(analyzedCode, filename),
 		transformReact: containsExactBuildJsx(filename, analyzedCode),
-		shouldCompile: shouldCompileExactBuildModule(filename, analyzedCode, options),
+		shouldCompile,
 		...(input.reactCompatibility
 			? {
 					react: () => {
@@ -137,7 +138,9 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					: undefined,
 				packageEnhancements: input.packageEnhancements,
 				target,
-				componentContractProjection: exactComponentContractProjection(target, renderMode),
+				componentContractProjection: shouldCompile
+					? exactComponentContractProjection(target, renderMode)
+					: 'complete',
 				serverComponents: options.serverComponents,
 				sourceMap: false,
 				assetRules: options.assetRules,

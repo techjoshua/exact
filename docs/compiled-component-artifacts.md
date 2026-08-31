@@ -169,6 +169,12 @@ child's interior or route child operations through a generic function-component 
 applies whether the child eventually owns text, intrinsics, other components, or a focused dynamic
 range. Dynamic component identity and unresolved authored dependency surfaces continue to own an
 explicit structural reaction selected by the compiler.
+When a compiler-created synchronous relationship is exactly one top-level prop-slot read and one
+direct indexed state write, the client artifact also carries an immutable input-update plan. Its
+initial operation remains at the authored setup position, while later prop receipts collect exact
+changed slots and apply the receiver's plan once after the complete batch is staged. Nested reads,
+authored calls, and other computations retain their reactive owners; the plan contains no
+component-instance values and is not a general expression interpreter.
 Compiler-created enhancement providers remain ordinary semantic parents for contexts, refs,
 lifecycle, and inspection, while their descendants retain the authored component as the owner of
 compiler-indexed update targets. This prevents a transparent provider's unrelated state layout
@@ -226,10 +232,18 @@ facade retains the same numeric identity inside nested callbacks. Nested-state a
 references retain path-based operations because their final target is runtime data.
 Compiler-synthesized computation and task wrappers consume the same analyzed write identity; they
 do not reconstruct a string path merely because the authored assignment moved into managed work.
+An authored function task referenced by an interaction owns one durable compiled definition at its
+declaration. A setup call to that function invokes the same binding and does not create a second
+task transition or clone its work and dependency readers.
 Client render programs use only dense, zero-based compiler indexes in immutable component-local
 claim and binding tuples. Shared focused DOM operations execute those tuples; the compiler no
 longer emits one structural binder closure per program, and hydration does not build a node table
-or string-identity map.
+or string-identity map. A scalar text binding whose complete value is one compiler-proven indexed
+state or prop read carries `[source, slot]` in that immutable wiring (`0` for state and `1` for
+props). Its focused text operation reads the durable component instance's existing indexed facade;
+the invocation does not allocate a reader closure or an operand array. Derived values, nested reads,
+structural work, and arbitrary authored expressions retain executable readers and their existing
+reactive computation ownership.
 `data-exact-id` remains a separate identity only for operations that must address a live DOM target,
 such as authorized server patches and interaction replay. It is not a second render-program ABI.
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
@@ -416,13 +430,16 @@ another compiled callable; foreign functions enter only through a compiled compa
 Compiler-closed server artifacts instead link a fail-closed construction entry: they execute their
 generated request-local frame and do not retain either durable client record merely to populate a
 contract field. Sending such an artifact through generic instance construction is an error.
-The SSR owner resolves the current server artifact at each native component boundary and invokes
-its `issue`, `write`, and `dispose` methods. `issue` establishes the request-local frame and starts
-eligible task work, `write` publishes that frame in authored output order, and `dispose` releases
-task, preparation, context, and lifecycle ownership exactly once. A child imported from another
-module or package is therefore composed through its own ABI just like a local child; the parent and
-renderer do not inspect or require the child's source graph. Synchronous, scheduled, resumable, and
-continuation-bearing artifacts use this same sequence on Node and Bun, and none constructs a
+The SSR owner resolves the current server artifact at each native component boundary. A
+compiler-proven synchronous JSX root executes setup and its prepared server program directly into
+the request-owned sink; the compiler folds away the returned render closure, and execution owns
+checkpoint, hook, rollback, and disposal cleanup without projecting an issued result. Forwarded or
+arbitrary output retains its component-local callable contract. Scheduled artifacts separately use
+`issue`, `write`, and `dispose`: issuance establishes the request-local frame and starts eligible
+task work, writing publishes that frame in authored order, and disposal releases task, preparation,
+context, and lifecycle ownership exactly once. A child imported from another module or package is
+composed through the same ABI as a local child; the parent and renderer do not inspect or require
+the child's source graph. These lanes behave identically on Node and Bun and construct no
 client-style durable component instance.
 
 ## Runtime inventory

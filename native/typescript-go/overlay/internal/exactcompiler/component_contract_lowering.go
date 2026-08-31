@@ -1,8 +1,6 @@
 package exactcompiler
 
 import (
-	"strings"
-
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/printer"
 )
@@ -24,6 +22,7 @@ func lowerComponentContracts(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	componentInputUpdates map[string]string,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -83,6 +82,7 @@ func lowerComponentContracts(
 						compatibility,
 						projection,
 						componentUpdates,
+						componentInputUpdates,
 						&constructors,
 					)
 					if preserveHoisting {
@@ -114,6 +114,7 @@ func lowerComponentContracts(
 				compatibility,
 				projection,
 				componentUpdates,
+				componentInputUpdates,
 				&constructors,
 			)
 			if rootChanged {
@@ -160,7 +161,11 @@ func lowerComponentContracts(
 		}
 	}
 	if len(rootContracts) != 0 {
-		updateDefinitions, retained := extractComponentUpdateDefinitions(statements, componentUpdates)
+		updateDefinitions, retained := extractComponentUpdateDefinitions(
+			statements,
+			componentUpdates,
+			componentInputUpdates,
+		)
 		statements = retained
 		insertionIndex := 0
 		for insertionIndex < len(statements) {
@@ -432,9 +437,13 @@ func componentOperationImports(
 func extractComponentUpdateDefinitions(
 	statements []*ast.Node,
 	componentUpdates map[string]string,
+	componentInputUpdates map[string]string,
 ) ([]*ast.Node, []*ast.Node) {
-	names := make(map[string]struct{}, len(componentUpdates))
+	names := make(map[string]struct{}, len(componentUpdates)+len(componentInputUpdates))
 	for _, name := range componentUpdates {
+		names[name] = struct{}{}
+	}
+	for _, name := range componentInputUpdates {
 		names[name] = struct{}{}
 	}
 	definitions := make([]*ast.Node, 0, len(names))
@@ -504,8 +513,23 @@ func wrapRootComponentFunction(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	componentInputUpdates map[string]string,
 	constructors *componentConstructorImports,
 ) []*ast.Node {
+	factory := emitContext.Factory
+	if target == TargetServer && component.TargetPlan.DirectServerExecutor && declaration.Type != nil {
+		declaration = factory.UpdateFunctionDeclaration(
+			declaration,
+			declaration.Modifiers(),
+			declaration.AsteriskToken,
+			declaration.Name(),
+			declaration.TypeParameters,
+			declaration.Parameters,
+			nil,
+			declaration.FullSignature,
+			declaration.Body,
+		).AsFunctionDeclaration()
+	}
 	if !preserveComponentHoisting {
 		return wrapRootComponentFunctionValue(
 			emitContext,
@@ -521,10 +545,10 @@ func wrapRootComponentFunction(
 			compatibility,
 			projection,
 			componentUpdates,
+			componentInputUpdates,
 			constructors,
 		)
 	}
-	factory := emitContext.Factory
 	name := declaration.Name()
 	implementationIdentifier := factory.NewIdentifier(name.Text())
 	attachment := rootComponentContractAttachment(
@@ -543,6 +567,7 @@ func wrapRootComponentFunction(
 		compatibility,
 		projection,
 		componentUpdates,
+		componentInputUpdates,
 		constructors,
 	)
 	attachmentStatement := factory.NewExpressionStatement(attachment)
@@ -563,6 +588,7 @@ func wrapRootComponentFunctionValue(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	componentInputUpdates map[string]string,
 	constructors *componentConstructorImports,
 ) []*ast.Node {
 	factory := emitContext.Factory
@@ -589,7 +615,12 @@ func wrapRootComponentFunctionValue(
 		factory.NewIdentifier(name.Text()),
 		declaration.TypeParameters,
 		declaration.Parameters,
-		declaration.Type,
+		func() *ast.Node {
+			if target == TargetServer && component.TargetPlan.DirectServerExecutor {
+				return nil
+			}
+			return declaration.Type
+		}(),
 		declaration.FullSignature,
 		declaration.Body,
 	)
@@ -609,6 +640,7 @@ func wrapRootComponentFunctionValue(
 		compatibility,
 		projection,
 		componentUpdates,
+		componentInputUpdates,
 		constructors,
 	)
 	implementationDeclaration := factory.NewVariableStatement(
@@ -681,6 +713,7 @@ func rootComponentContractAttachment(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	componentInputUpdates map[string]string,
 	constructors *componentConstructorImports,
 ) *ast.Node {
 	factory := emitContext.Factory
@@ -767,6 +800,10 @@ func rootComponentContractAttachment(
 	if name, exists := componentUpdates[component.Name]; exists {
 		updates = factory.NewIdentifier(name)
 	}
+	var inputs *ast.Node
+	if name, exists := componentInputUpdates[component.Name]; exists {
+		inputs = factory.NewIdentifier(name)
+	}
 	serverPublicationName := ""
 	if target == TargetServer && hasResumption && len(componentContinuations) != 0 {
 		serverPublicationName = component.Name
@@ -824,9 +861,11 @@ func rootComponentContractAttachment(
 		component.Targets,
 		runtimeABI,
 		component.TargetPlan.DirectServer,
+		component.TargetPlan.DirectServerExecutor,
 		target == TargetServer,
 		projection != ComponentContractProjectionComplete,
 		updates,
+		inputs,
 	)
 	contractProperties := []*ast.Node{
 		contractProperty(
@@ -971,44 +1010,6 @@ func rootComponentContractAttachment(
 	)
 }
 
-func componentUsesJSXInterop(
-	component Component,
-	componentFunction *ast.Node,
-	interop *JSXInterop,
-) bool {
-	if interop == nil {
-		return false
-	}
-	for _, edge := range component.RenderEdges {
-		if edge.ModuleSpecifier != "" && edge.ComponentID == "" {
-			if exactCoreStructuralReference(edge.ModuleSpecifier, edge.ExportName) {
-				continue
-			}
-			exact := false
-			for _, configured := range interop.ExactComponents {
-				if configured.ModuleSpecifier == edge.ModuleSpecifier &&
-					configured.ExportName == edge.ExportName {
-					exact = true
-					break
-				}
-			}
-			if !exact {
-				return true
-			}
-		}
-	}
-	used := false
-	walkNode(componentFunction, func(node *ast.Node) bool {
-		if !ast.IsIdentifier(node) {
-			return true
-		}
-		name := node.Text()
-		used = name == "__exactInteropComponent" || strings.HasPrefix(name, "__exactInteropComponent_")
-		return !used
-	})
-	return used
-}
-
 func componentHasResumption(componentID string, resumptions []ComponentResumption) bool {
 	for _, resumption := range resumptions {
 		if resumption.ComponentID == componentID &&
@@ -1074,6 +1075,7 @@ func wrapRootComponentVariables(
 	compatibility bool,
 	projection ComponentContractProjection,
 	componentUpdates map[string]string,
+	componentInputUpdates map[string]string,
 	constructors *componentConstructorImports,
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
@@ -1129,6 +1131,7 @@ func wrapRootComponentVariables(
 			compatibility,
 			projection,
 			componentUpdates,
+			componentInputUpdates,
 			constructors,
 		)
 		body := factory.NewBlock(

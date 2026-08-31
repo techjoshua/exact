@@ -165,6 +165,7 @@ export function compareComponentLocalTargetAbiMeasurements({
 				}
 			}
 			const normalizedBefore = factor === undefined ? beforeRaw : beforeRaw * factor;
+			const rawDelta = currentRaw - beforeRaw;
 			rows.push(
 				Object.freeze({
 					metric,
@@ -178,6 +179,8 @@ export function compareComponentLocalTargetAbiMeasurements({
 					eligibility,
 					normalizedBefore,
 					current: currentRaw,
+					rawDelta,
+					rawDeltaRatio: beforeRaw === 0 ? undefined : currentRaw / beforeRaw - 1,
 					delta: currentRaw - normalizedBefore,
 					deltaRatio: normalizedBefore === 0 ? undefined : currentRaw / normalizedBefore - 1
 				})
