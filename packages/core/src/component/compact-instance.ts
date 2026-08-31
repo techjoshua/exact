@@ -1,8 +1,8 @@
 import {
 	batch,
 	createEffectScope,
-	deleteIndexedReactiveSlot,
-	setIndexedReactiveSlot,
+	deleteIndexedReactiveSlotWithResult,
+	setIndexedReactiveSlotWithResult,
 	withEffectScope,
 	type Reactive
 } from '@exactjs/reactive/framework/runtime';
@@ -30,6 +30,7 @@ import { ComponentRuntimeSurface } from './runtime-surface.js';
 import { createComponentProps, createComponentState } from './state.js';
 import { compiledComponentCollectionsABI } from './compiled-abi.js';
 import { optionalComponentContextCapability } from './context-capability.js';
+import type { ExactCompiledComponentInputUpdateContract } from '../component-definition-contracts.js';
 
 /**
  * Compact durable record shared by compiler-selected render and task construction lanes.
@@ -64,6 +65,7 @@ export abstract class CompactComponentInstance<
 	private activityBlockers?: Set<symbol>;
 	private renderFunctionValue: RenderFunction = () => null;
 	protected readonly componentResumption: ComponentResumptionActivation | undefined;
+	private readonly inputUpdates: ExactCompiledComponentInputUpdateContract | undefined;
 
 	protected constructor(
 		type: ComponentFunction<State, Props>,
@@ -96,6 +98,7 @@ export abstract class CompactComponentInstance<
 			contract.artifact.opaqueProps
 		);
 		this.componentResumption = resolveComponentResumption(this.domain, this.type);
+		this.inputUpdates = 'inputs' in contract.artifact ? contract.artifact.inputs : undefined;
 		if (this.componentResumption)
 			applyComponentResumption(
 				this.state as Reactive<Record<string, unknown>>,
@@ -151,14 +154,30 @@ export abstract class CompactComponentInstance<
 		children: readonly unknown[]
 	): void {
 		batch(() => {
+			let dirtyLow = 0;
+			let dirtyHigh = 0;
+			let binding = 0;
+			const bindings = this.inputUpdates?.bindings;
 			for (let slot = 0; slot < slots.length; slot++) {
 				const name = slots[slot]!;
+				while (bindings && binding < bindings.length && bindings[binding]![0] < slot) binding++;
+				let changed: boolean;
 				if (name === 'children' && children.length !== 0) {
-					setIndexedReactiveSlot(this.props, slot, children.length === 1 ? children[0] : children);
+					changed = setIndexedReactiveSlotWithResult(
+						this.props,
+						slot,
+						children.length === 1 ? children[0] : children
+					);
 				} else if (Object.prototype.hasOwnProperty.call(source, name)) {
-					setIndexedReactiveSlot(this.props, slot, source[name]);
-				} else deleteIndexedReactiveSlot(this.props, slot);
+					changed = setIndexedReactiveSlotWithResult(this.props, slot, source[name]);
+				} else changed = deleteIndexedReactiveSlotWithResult(this.props, slot);
+				const dependency = bindings?.[binding];
+				if (changed && dependency?.[0] === slot) {
+					dirtyLow |= dependency[1];
+					dirtyHigh |= dependency[2];
+				}
 			}
+			if (dirtyLow || dirtyHigh) this.inputUpdates!.apply(this, dirtyLow, dirtyHigh);
 		});
 		this.inspection?.publish({ kind: 'props.change', component: this, path: 'props' });
 	}

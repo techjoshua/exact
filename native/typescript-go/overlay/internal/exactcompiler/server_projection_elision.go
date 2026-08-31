@@ -49,6 +49,32 @@ func (lowering *jsxLowering) directServerArtifactComponent(node *ast.Node) bool 
 	return false
 }
 
+// lowerDirectServerExecutorReturn folds the compiler-proven expression render arrow into setup so
+// synchronous server execution produces its component-local program without retaining a closure.
+func (lowering *jsxLowering) lowerDirectServerExecutorReturn(node *ast.Node) *ast.Node {
+	if lowering.target != TargetServer || !ast.IsReturnStatement(node) {
+		return nil
+	}
+	component, found := lowering.componentContaining(node)
+	if !found || !component.TargetPlan.DirectServerExecutor {
+		return nil
+	}
+	for current := node.Parent; current != nil; current = current.Parent {
+		if !ast.IsFunctionLike(current) {
+			continue
+		}
+		if current.Pos() != component.Start {
+			return nil
+		}
+		break
+	}
+	expression := unwrapRenderExpression(node.AsReturnStatement().Expression)
+	if !ast.IsArrowFunction(expression) || ast.IsBlock(expression.AsArrowFunction().Body) {
+		return nil
+	}
+	return lowering.factory.NewReturnStatement(lowering.visit(expression.AsArrowFunction().Body))
+}
+
 // directServerFrameComponent reports whether the containing component has only synchronous,
 // compiler-closed server work. The predicate mirrors the contract's direct-lane exclusions so
 // server-only eager derived values and output forwarding cannot diverge from runtime selection.

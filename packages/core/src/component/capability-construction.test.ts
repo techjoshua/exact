@@ -19,6 +19,10 @@ import { RenderComponentInstance } from './render-instance.js';
 import { constructRenderComponentInstance } from './render-instance-construction.js';
 import { TaskComponentInstance } from './task-instance.js';
 import { constructTaskComponentInstance } from './task-instance-construction.js';
+import {
+	readIndexedReactiveSlot,
+	setIndexedReactiveSlot
+} from '@exactjs/reactive/framework/runtime';
 
 describe('compiled component capability construction', () => {
 	it('releases component-owned resources with the durable instance', () => {
@@ -84,6 +88,75 @@ describe('compiled component capability construction', () => {
 		expect(instance.runtimeABI).toBe(0);
 		expect(instance).toBeInstanceOf(RenderComponentInstance);
 		expect(taskOwnerForHost(instance)).toBeUndefined();
+		instance.unmount();
+	});
+
+	it('applies receiver-owned indexed input updates once per finalized prop batch', () => {
+		let applications = 0;
+		let initialLoading: unknown;
+		const implementation = function InputPanel(this: Component<{ loading: boolean }>) {
+			inputs.apply(this as unknown as Readonly<{ state: object; props: object }>, 1, 0);
+			initialLoading = this.state.loading;
+			return () => null;
+		};
+		const inputs = {
+			bindings: [[0, 1, 0]] as const,
+			apply(
+				instance: Readonly<{ state: object; props: object }>,
+				dirtyLow: number,
+				_dirtyHigh: number
+			) {
+				if ((dirtyLow & 1) === 0) return;
+				applications++;
+				const value = readIndexedReactiveSlot(instance.props, 0);
+				setIndexedReactiveSlot(instance.state, 0, !value);
+				if (value === 'throw') throw new Error('projection failed');
+			}
+		};
+		const artifact = {
+			version: 1 as const,
+			target: 'client' as const,
+			id: 'component:InputPanel',
+			attach: attachExactCompiledClientComponent,
+			receive: receiveExactClientComponentProps,
+			dispose: disposeExactClientComponent,
+			instantiate: implementation,
+			construct: constructRenderComponentInstance,
+			abi: 0,
+			inputs,
+			state: ['loading'],
+			props: ['initialData'],
+			capabilities: []
+		};
+		const InputPanel = Object.assign(implementation, {
+			[exactComponentType]: 'component:InputPanel',
+			[exactComponentContract]: {
+				version: 3 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				artifact
+			}
+		}) as ComponentFunction<{ loading: boolean }, { initialData?: object | string }>;
+
+		const instance = createComponentInstance(InputPanel, {});
+		expect(initialLoading).toBe(true);
+		expect(applications).toBe(1);
+
+		artifact.receive.call(artifact, instance, { initialData: {} });
+		expect(instance.state.loading).toBe(false);
+		expect(applications).toBe(2);
+		artifact.receive.call(artifact, instance, { initialData: instance.props.initialData });
+		expect(applications).toBe(2);
+
+		expect(() => artifact.receive.call(artifact, instance, { initialData: 'throw' })).toThrow(
+			'projection failed'
+		);
+		expect(instance.state.loading).toBe(false);
+		expect(instance.props.initialData).not.toBe('throw');
 		instance.unmount();
 	});
 

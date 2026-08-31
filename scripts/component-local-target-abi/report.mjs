@@ -131,12 +131,12 @@ function renderComparison(comparison) {
 	const lines = [
 		`### ${comparison.suite} vs ${baseline}`,
 		'',
-		'| Metric | Unit | Percentile | Before raw | Control factor | Before normalized | Current | Delta | Delta % | Confidence |',
-		'| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |'
+		'| Metric | Unit | Percentile | Before raw | Current | Raw delta | Raw delta % | Control factor | Before normalized | Normalized delta | Normalized delta % | Confidence |',
+		'| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |'
 	];
 	for (const row of comparison.rows) {
 		lines.push(
-			`| ${escapeCell(row.metric)} | ${escapeCell(row.unit)} | ${row.percentile} | ${formatNumber(row.beforeRaw)} | ${row.controlFactor === undefined ? 'not applied' : formatNumber(row.controlFactor)} | ${formatNumber(row.normalizedBefore)} | ${formatNumber(row.current)} | ${formatNumber(row.delta)} | ${row.deltaRatio === undefined ? 'N/A' : formatPercent(row.deltaRatio)} | ${escapeCell(row.confidence)} |`
+			`| ${escapeCell(row.metric)} | ${escapeCell(row.unit)} | ${row.percentile} | ${formatNumber(row.beforeRaw)} | ${formatNumber(row.current)} | ${formatNumber(row.rawDelta)} | ${row.rawDeltaRatio === undefined ? 'N/A' : formatPercent(row.rawDeltaRatio)} | ${row.controlFactor === undefined ? 'not applied' : formatNumber(row.controlFactor)} | ${formatNumber(row.normalizedBefore)} | ${formatNumber(row.delta)} | ${row.deltaRatio === undefined ? 'N/A' : formatPercent(row.deltaRatio)} | ${escapeCell(row.confidence)} |`
 		);
 	}
 	return [...lines, ''];

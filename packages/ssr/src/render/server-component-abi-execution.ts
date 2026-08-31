@@ -14,13 +14,11 @@ import { renderDirectSsrContent } from './direct-component-content.js';
 import type {
 	DirectIssuedRender,
 	DirectScheduledSsrComponent,
-	DirectSsrComponentPublisher,
-	DirectSsrComponentResult
+	DirectSsrComponentPublisher
 } from './direct-component-contracts.js';
-import { renderDirectSsrComponent } from './direct-component.js';
+import { executeDirectSsrComponent } from './direct-component.js';
 import {
 	createDirectScheduledSsrComponent,
-	disposeDirectSsrLifetime,
 	takePreparedDirectScheduledSsrComponent
 } from './direct-component-scheduling.js';
 import type { SsrRenderOptions } from './entrypoints.js';
@@ -28,6 +26,7 @@ import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js'
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 import {
 	receiptExecutionBlueprint,
+	receiptExecutionContract,
 	serverComponentProps,
 	type ServerComponentReference
 } from './server-component-reference.js';
@@ -37,14 +36,12 @@ import {
 	restoreTargetReceiptLayers
 } from './receipt-target-contributions.js';
 
-type IssuedServerComponent = ExactServerFrame & {
+type IssuedScheduledServerComponent = ExactServerFrame & {
 	readonly artifact: ExactServerComponentArtifact;
 	readonly checkpoint: unknown;
-	readonly kind: 'scheduled' | 'synchronous';
 	readonly parent: AnyComponentInstance | undefined;
 	readonly props: Record<string, unknown>;
-	readonly scheduled?: DirectScheduledSsrComponent;
-	readonly synchronous?: DirectSsrComponentResult;
+	readonly scheduled: DirectScheduledSsrComponent;
 	readonly reference: ServerComponentReference;
 	disposed: boolean;
 	deferredScheduledDisposal?: boolean;
@@ -81,8 +78,8 @@ export async function renderServerComponentArtifactOutput<Publication>(
 	publish: DirectSsrComponentPublisher<Publication>,
 	publication: Publication
 ): Promise<string | undefined> {
-	const blueprint = receiptExecutionBlueprint(reference);
-	const artifact = blueprint.contract.artifact;
+	const contract = receiptExecutionContract(reference);
+	const artifact = contract.artifact;
 	const props = serverComponentProps(reference);
 	if (artifact.selection) {
 		const selected = await artifact.selection.resolve();
@@ -109,12 +106,15 @@ export async function renderServerComponentArtifactOutput<Publication>(
 		renderChildren,
 		renderOwnedComponent
 	} satisfies ServerArtifactExecution<Publication>;
+	if (artifact.execution.classification === 'synchronous')
+		return executeSynchronousArtifact(execution, contract, reference, parent, props);
+	const blueprint = receiptExecutionBlueprint(reference);
 	const frame = (await artifact.issue.call(
 		artifact,
 		createRequestExecution(execution, blueprint, reference),
 		parent,
 		props
-	)) as IssuedServerComponent;
+	)) as IssuedScheduledServerComponent;
 	const output = createHtmlWriter(execution);
 	let primary: unknown = noPrimaryFailure;
 	try {
@@ -159,35 +159,15 @@ function createRequestExecution<Publication>(
 					owner,
 					execution.options
 				));
-			if (scheduled) {
-				execution.context.onDirectComponentCreated?.(scheduled.snapshot);
-				return createIssuedFrame({
-					artifact,
-					checkpoint: execution.context.onComponentAttemptCheckpoint?.(),
-					kind: 'scheduled',
-					parent: owner,
-					props: scheduled.props,
-					scheduled,
-					reference
-				});
-			}
-			const synchronous = await renderDirectSsrComponent(
-				execution.context,
-				blueprint,
-				props,
-				owner,
-				execution.options
-			);
-			if (!synchronous)
-				throw new TypeError('Direct server artifact did not issue a request-local frame');
-			execution.context.onDirectComponentCreated?.(synchronous.snapshot);
+			if (!scheduled)
+				throw new TypeError('Scheduled server artifact did not issue a request-local frame');
+			execution.context.onDirectComponentCreated?.(scheduled.snapshot);
 			return createIssuedFrame({
 				artifact,
 				checkpoint: execution.context.onComponentAttemptCheckpoint?.(),
-				kind: 'synchronous',
 				parent: owner,
-				props: synchronous.props,
-				synchronous,
+				props: scheduled.props,
+				scheduled,
 				reference
 			});
 		}
@@ -195,9 +175,9 @@ function createRequestExecution<Publication>(
 }
 
 function createIssuedFrame(
-	frame: Omit<IssuedServerComponent, keyof ExactServerFrame | 'disposed'>
-): IssuedServerComponent {
-	const issued: IssuedServerComponent = {
+	frame: Omit<IssuedScheduledServerComponent, keyof ExactServerFrame | 'disposed'>
+): IssuedScheduledServerComponent {
+	const issued: IssuedScheduledServerComponent = {
 		...frame,
 		disposed: false,
 		async [exactServerDispose](artifact: ExactServerComponentArtifact) {
@@ -209,10 +189,7 @@ function createIssuedFrame(
 				issued.preparation = undefined;
 				await preparation[Symbol.asyncDispose]();
 			}
-			if (frame.scheduled && !issued.deferredScheduledDisposal)
-				await frame.scheduled[Symbol.asyncDispose]();
-			else if (frame.synchronous?.lifetime)
-				await disposeDirectSsrLifetime(frame.synchronous.lifetime, 'ssr render complete');
+			if (!issued.deferredScheduledDisposal) await frame.scheduled[Symbol.asyncDispose]();
 		}
 	};
 	return issued;
@@ -225,12 +202,10 @@ function createHtmlWriter<Publication>(
 	return {
 		writer: {
 			async [exactServerWrite](artifact, candidate) {
-				const frame = candidate as IssuedServerComponent;
+				const frame = candidate as IssuedScheduledServerComponent;
 				assertArtifact(artifact, frame.artifact);
 				if (frame.disposed) throw new Error('Cannot write a disposed server component frame');
-				output = await (frame.kind === 'scheduled'
-					? writeScheduledFrame(execution, frame)
-					: writeSynchronousFrame(execution, frame));
+				output = await writeScheduledFrame(execution, frame);
 			}
 		},
 		read() {
@@ -243,9 +218,9 @@ function createHtmlWriter<Publication>(
 
 async function writeScheduledFrame<Publication>(
 	execution: ServerArtifactExecution<Publication>,
-	frame: IssuedServerComponent
+	frame: IssuedScheduledServerComponent
 ): Promise<string> {
-	const scheduled = frame.scheduled!;
+	const scheduled = frame.scheduled;
 	for (let pass = 0; pass < execution.context.maxTaskPasses; pass++) {
 		const renderCheckpoint = execution.context.onComponentAttemptCheckpoint?.();
 		const targetCheckpoint = checkpointTargetReceiptLayers(execution.context);
@@ -293,43 +268,56 @@ async function writeScheduledFrame<Publication>(
 	);
 }
 
-async function writeSynchronousFrame<Publication>(
+async function executeSynchronousArtifact<Publication>(
 	execution: ServerArtifactExecution<Publication>,
-	frame: IssuedServerComponent
+	contract: import('@exactjs/core/framework/component-contracts').ExactServerExecutableComponentContract,
+	reference: ServerComponentReference,
+	parent: AnyComponentInstance | undefined,
+	props: Record<string, unknown>
 ): Promise<string> {
-	const direct = frame.synchronous!;
-	frame.preparation = direct.preparation;
-	let primary: unknown = noPrimaryFailure;
-	try {
-		const html = await renderOperationEnhancementsAsync(
-			execution.context,
-			frame.reference.enhancement,
-			() =>
-				renderDirectSsrContent(
-					execution.context,
-					direct.content,
-					direct.owner,
-					execution.renderChildren,
-					execution.renderOwnedComponent
-				),
-			direct.owner,
-			execution.options,
-			(_context, children, parent) => execution.renderChildren(children, parent)
-		);
-		return publishFrame(execution, frame, html, direct.snapshot);
-	} catch (error) {
-		primary = error;
-		throw error;
-	} finally {
-		await disposeFramePreparation(frame, primary);
-	}
+	const output = await executeDirectSsrComponent(
+		execution.context,
+		contract,
+		props,
+		parent,
+		execution.options,
+		async (content, owner, preparedProps, snapshot) => {
+			const html = await renderOperationEnhancementsAsync(
+				execution.context,
+				reference.enhancement,
+				() =>
+					renderDirectSsrContent(
+						execution.context,
+						content,
+						owner,
+						execution.renderChildren,
+						execution.renderOwnedComponent
+					),
+				owner,
+				execution.options,
+				(_context, children, childParent) => execution.renderChildren(children, childParent)
+			);
+			return execution.publish(
+				execution.context,
+				reference,
+				parent,
+				html,
+				preparedProps,
+				snapshot,
+				execution.publication
+			);
+		}
+	);
+	if (output === undefined)
+		throw new TypeError('Synchronous server artifact did not execute its request-owned sink');
+	return output;
 }
 
 function publishFrame<Publication>(
 	execution: ServerArtifactExecution<Publication>,
-	frame: IssuedServerComponent,
+	frame: IssuedScheduledServerComponent,
 	html: string,
-	snapshot: DirectSsrComponentResult['snapshot']
+	snapshot: DirectScheduledSsrComponent['snapshot']
 ): string {
 	const output = execution.publish(
 		execution.context,
@@ -345,7 +333,7 @@ function publishFrame<Publication>(
 }
 
 async function disposeFramePreparation(
-	frame: IssuedServerComponent,
+	frame: IssuedScheduledServerComponent,
 	primary: unknown
 ): Promise<void> {
 	if (!frame.preparation) return;

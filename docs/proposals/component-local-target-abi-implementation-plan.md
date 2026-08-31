@@ -621,6 +621,15 @@ slot identity into component update planning. Derived expressions and structural
 their computation owner. Profile such a change against normalized controls; deterministic code and
 function inventories remain raw, unnormalized evidence.
 
+Post-acceptance server specialization may fold a compiler-proven synchronous returned render arrow
+into the component's server implementation. The artifact marks that closed form, and the request
+executor runs setup and writes the resulting prepared program into the request-owned sink without
+creating a returned render closure, issued synchronous result, snapshot projection, or parallel
+fast path. Forwarded and arbitrary output remains callable until the compiler can prove an equally
+complete lowering. Scheduled components retain their issued protocol. This specialization must
+preserve request-local checkpoints, rollback, hooks, disposal, child artifact dispatch, response
+identity, and resumption publication.
+
 ## Phase progression and regressions
 
 A phase is not complete merely because its implementation and tests pass. It is complete after its

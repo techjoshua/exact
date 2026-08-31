@@ -31,6 +31,6 @@ describe('composition corpus diagnostics and compatibility boundary', () => {
 });
 
 async function diagnosticSource(name: string) {
-	const filename = fileURLToPath(new URL(`../test-fixtures/diagnostics/${name}`, import.meta.url));
+	const filename = fileURLToPath(new URL(`../test-support/diagnostics/${name}`, import.meta.url));
 	return { filename, source: await readFile(filename, 'utf8') };
 }

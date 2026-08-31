@@ -38,7 +38,7 @@ const sampleCount = positiveInteger(process.env.COMPARISON_SSR_SAMPLES, 50);
 const warmupCount = positiveInteger(process.env.COMPARISON_SSR_WARMUPS, 10);
 const startupSampleCount = positiveInteger(process.env.COMPARISON_SSR_STARTUP_SAMPLES, 5);
 const concurrency = positiveInteger(process.env.COMPARISON_SSR_CONCURRENCY, 16);
-const concurrencyWaves = positiveInteger(process.env.COMPARISON_SSR_CONCURRENCY_WAVES, 8);
+const concurrencyWaves = positiveInteger(process.env.COMPARISON_SSR_CONCURRENCY_WAVES, 50);
 const capacityPrimeConcurrency = positiveInteger(
 	process.env.COMPARISON_SSR_CAPACITY_PRIME_CONCURRENCY,
 	32
@@ -539,7 +539,7 @@ function printSummary(report) {
 	for (const [runtimeId, runtime] of Object.entries(report.runtimes)) {
 		for (const [participantId, result] of Object.entries(runtime)) {
 			process.stdout.write(
-				`${runtimeId}/${participantId}: warm total p50=${format(result.sequential.client.totalMs.p50)}ms p95=${format(result.sequential.client.totalMs.p95)}ms, concurrent p50=${format(result.concurrent.client.totalMs.p50)}ms, heap slope=${format(result.retention.bytesPerRequest.heapUsed)} B/request\n`
+				`${runtimeId}/${participantId}: warm total p50=${format(result.sequential.client.totalMs.p50)}ms p95=${format(result.sequential.client.totalMs.p95)}ms, concurrent p50=${format(result.concurrent.client.totalMs.p50)}ms, concurrent p50=${format(result.concurrent.requestsPerSecond.p50)} rps, heap slope=${format(result.retention.bytesPerRequest.heapUsed)} B/request\n`
 			);
 		}
 	}

@@ -3,10 +3,9 @@ import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-
 import type { SsrContext } from '../types.js';
 import { componentMarkerId } from './component-markers.js';
 import { directComponentHtml } from './direct-component-output.js';
-import { disposeDirectSsrLifetimeSync, renderDirectSsrComponent } from './direct-component.js';
-import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
+import { executeDirectSsrComponentSync } from './direct-component.js';
 import { renderPreparedSsrProgramString } from './render-program.js';
-import { receiptExecutionBlueprint, serverComponentProps } from './server-component-reference.js';
+import { receiptExecutionContract, serverComponentProps } from './server-component-reference.js';
 import { renderOperationEnhancements } from './operation-enhancements.js';
 
 /** Target-local recursion supplied to synchronous component serialization. */
@@ -44,64 +43,49 @@ export function renderSyncComponentReceipt(
 	omitCompilerOwnedBoundary = false,
 	omitRootBoundary = false
 ): string {
-	const blueprint = receiptExecutionBlueprint(receipt);
-	if (blueprint.contract.artifact.execution.classification === 'scheduled')
+	const contract = receiptExecutionContract(receipt);
+	if (contract.artifact.execution.classification === 'scheduled')
 		throw new SsrScheduledComponentSignal();
-	const direct = renderDirectSsrComponent(
-		context,
-		blueprint,
-		serverComponentProps(receipt),
-		parent
-	);
-	if (!direct)
-		throw new TypeError('Synchronous component operation selected a scheduled server artifact');
-	const checkpoint = context.onComponentAttemptCheckpoint?.();
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
-	let primary: unknown = noPrimaryFailure;
-	try {
-		context.onDirectComponentCreated?.(direct.snapshot);
-		const html = renderOperationEnhancements(
-			context,
-			receipt.enhancement,
-			() =>
-				direct.content.program
-					? renderPreparedSsrProgramString(
-							context,
-							direct.content.program,
-							direct.owner,
-							(children) => operations.renderChildren(context, children, direct.owner, true),
-							(component) =>
-								operations.renderComponent(context, component, direct.owner, true, true)
-						)
-					: operations.renderChildren(context, direct.content.children, direct.owner, true),
-			direct.owner,
-			operations.renderChildren
-		);
-		const output = directComponentHtml(
-			context,
-			componentMarkerId(context, receipt),
-			html,
-			direct.props,
-			blueprint.contract.artifact.execution.publication,
-			{
-				enhancement: false,
-				documentProbe,
-				hasComponentAncestor,
-				omitCompilerOwnedBoundary,
-				omitRootBoundary
-			}
-		);
-		context.onDirectComponentRendered?.(direct.snapshot);
-		return output;
-	} catch (error) {
-		primary = error;
-		context.onComponentAttemptRollback?.(checkpoint);
-		throw error;
-	} finally {
-		if (direct.lifetime)
-			disposePreservingPrimary(
-				() => disposeDirectSsrLifetimeSync(direct.lifetime!, 'ssr render complete'),
-				primary
+	const output = executeDirectSsrComponentSync(
+		context,
+		contract,
+		serverComponentProps(receipt),
+		parent,
+		(content, owner, props) => {
+			const html = renderOperationEnhancements(
+				context,
+				receipt.enhancement,
+				() =>
+					content.program
+						? renderPreparedSsrProgramString(
+								context,
+								content.program,
+								owner,
+								(children) => operations.renderChildren(context, children, owner, true),
+								(component) => operations.renderComponent(context, component, owner, true, true)
+							)
+						: operations.renderChildren(context, content.children, owner, true),
+				owner,
+				operations.renderChildren
 			);
-	}
+			return directComponentHtml(
+				context,
+				componentMarkerId(context, receipt),
+				html,
+				props,
+				contract.artifact.execution.publication,
+				{
+					enhancement: false,
+					documentProbe,
+					hasComponentAncestor,
+					omitCompilerOwnedBoundary,
+					omitRootBoundary
+				}
+			);
+		}
+	);
+	if (output === undefined)
+		throw new TypeError('Synchronous component operation selected a scheduled server artifact');
+	return output;
 }

@@ -1,7 +1,7 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { SsrContext } from '../types.js';
+import type { ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
 import { createDirectSsrContextFrame } from '../runtime/direct-context-frame.js';
-import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 import {
 	createDirectSsrComponentFrame,
 	directSsrContextOwner,
@@ -9,28 +9,29 @@ import {
 	type DirectSsrComponentFrameConstructor
 } from './direct-component-support.js';
 
-/** Request-local frame and logical owner selected from compiler-emitted component capabilities. */
-export type SelectedDirectSsrFrame = Readonly<{
-	frame: DirectSsrComponentFrame;
-	owner: AnyComponentInstance | undefined;
-}>;
-
-/** Selects renderer-owned frame construction without embedding renderer imports in an artifact. */
-export function selectDirectSsrFrame(
+/** Constructs the request-owned frame selected by immutable component capabilities. */
+export function createSelectedDirectSsrFrame(
 	context: SsrContext,
-	blueprint: SsrComponentExecutionBlueprint,
+	contract: ExactServerExecutableComponentContract,
 	parent: AnyComponentInstance | undefined
-): SelectedDirectSsrFrame {
-	const artifact = blueprint.contract.artifact;
+): DirectSsrComponentFrame {
+	const artifact = contract.artifact;
 	const server = artifact.execution;
 	const contextBearing = artifact.capabilities.includes('contexts');
 	const createFrame: DirectSsrComponentFrameConstructor = contextBearing
 		? createDirectSsrContextFrame
 		: ((server.frame as DirectSsrComponentFrameConstructor | undefined) ??
 			createDirectSsrComponentFrame);
-	const frame = createFrame(context, artifact.instantiate, blueprint.componentId, parent);
-	return {
-		frame,
-		owner: contextBearing || server.frame ? directSsrContextOwner(frame) : parent
-	};
+	return createFrame(context, artifact.instantiate, artifact.id, parent);
+}
+
+/** Resolves logical ownership without projecting a temporary frame/owner pair. */
+export function selectedDirectSsrOwner(
+	contract: ExactServerExecutableComponentContract,
+	frame: DirectSsrComponentFrame,
+	parent: AnyComponentInstance | undefined
+): AnyComponentInstance | undefined {
+	return contract.artifact.capabilities.includes('contexts') || contract.artifact.execution.frame
+		? directSsrContextOwner(frame)
+		: parent;
 }

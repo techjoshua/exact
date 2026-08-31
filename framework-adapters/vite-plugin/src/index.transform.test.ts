@@ -99,6 +99,14 @@ describe('@exactjs/vite-plugin: transform', () => {
 		});
 	});
 
+	it('does not project component contracts for ordinary SSR-loaded TypeScript', () => {
+		const plugin = exact({ reactCompatibility: false, renderMode: 'client' });
+
+		expect(
+			plugin.transform('export const label = "ordinary";', '/src/utility.ts', { ssr: true })
+		).toBeNull();
+	});
+
 	it('projects component contracts for the configured browser render mode', () => {
 		const source = `export function Counter() {
 			this.state.count = 0;

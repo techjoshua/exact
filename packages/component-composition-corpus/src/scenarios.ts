@@ -13,6 +13,7 @@ export const corpusScenarios = [
 			'direct-child-artifact',
 			'props-only-forwarding',
 			'sync-direct-ssr',
+			'sync-direct-server-executor',
 			'hydration-static-claims'
 		],
 		modes: ['client-mount', 'ssr-sync', 'ssr-async', 'ssr-stream', 'hydrate-match']
@@ -23,9 +24,11 @@ export const corpusScenarios = [
 		fixture: 'state.fixtures.tsx',
 		compilerPaths: [
 			'direct-text-binding',
+			'arbitrary-expression-fallback',
 			'direct-property-binding',
 			'state-only-update-mask',
 			'mixed-prop-state-update',
+			'indexed-input-update-plan',
 			'durable-component-abi'
 		],
 		modes: ['client-mount', 'client-update', 'ssr-sync', 'hydrate-match']
@@ -64,7 +67,7 @@ export const corpusScenarios = [
 	{
 		id: 'lexical-component-diagnostic',
 		description: 'A local component cannot receive one stable target-local artifact.',
-		fixture: 'test-fixtures/diagnostics/lexical-component.tsx',
+		fixture: 'test-support/diagnostics/lexical-component.tsx',
 		compilerPaths: ['lexical-micro-component'],
 		modes: []
 	},
@@ -80,14 +83,14 @@ export const corpusScenarios = [
 		description:
 			'A compiler-defined task updates client state and settles during server rendering.',
 		fixture: 'tasks.fixtures.tsx',
-		compilerPaths: ['task-capability', 'async-task-ssr'],
+		compilerPaths: ['task-capability', 'defined-function-task-reuse', 'async-task-ssr'],
 		modes: ['client-mount', 'client-update', 'ssr-async', 'ssr-progressive']
 	},
 	{
 		id: 'explicit-react-compatibility-boundary',
 		description:
 			'Compatibility ownership is tracked but excluded from native runtime expectations.',
-		fixture: 'test-fixtures/diagnostics/react-compatibility.tsx',
+		fixture: 'test-support/diagnostics/react-compatibility.tsx',
 		compilerPaths: ['react-owned-component'],
 		modes: []
 	},

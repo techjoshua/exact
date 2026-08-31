@@ -159,7 +159,12 @@ export type ExactRenderProgramClaimOperation = readonly [
 export type ExactRenderProgramBindingOperation = readonly [
 	kind: number,
 	first: number | readonly number[],
-	second?: number | boolean | readonly (readonly [slot: number])[] | object,
+	second?:
+		| number
+		| boolean
+		| readonly [source: 0 | 1, slot: number]
+		| readonly (readonly [slot: number])[]
+		| object,
 	third?: number | boolean | object
 ];
 

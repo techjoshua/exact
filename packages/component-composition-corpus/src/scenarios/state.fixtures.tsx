@@ -16,6 +16,7 @@ function IndexedState(
 			<output>
 				{props.prefix}:{this.state.count}
 			</output>
+			<small hidden>{props.prefix.toUpperCase()}</small>
 			<button disabled={!this.state.enabled} data-count={this.state.count}>
 				increment
 			</button>
@@ -33,4 +34,29 @@ export const stateRoot = (
 export function stateOwner(): Component<StateModel> {
 	if (!mountedState) throw new Error('Indexed state scenario is not mounted');
 	return mountedState;
+}
+
+type InputProjectionState = { loading: boolean };
+let mountedInputProjection: Component<InputProjectionState> | undefined;
+
+function IndexedInputProjection(
+	this: Component<InputProjectionState>,
+	props: { payload?: object }
+) {
+	mountedInputProjection = this;
+	this.state.loading = !props.payload;
+	return () => (
+		<output data-scenario="input-projection">{this.state.loading ? 'loading' : 'ready'}</output>
+	);
+}
+
+/** Creates a root whose exact top-level prop relationship is receiver-owned. */
+export const inputProjectionRoot = (payload?: object) => (
+	<IndexedInputProjection payload={payload} />
+);
+
+/** Reads the durable owner of the indexed input projection. */
+export function inputProjectionOwner(): Component<InputProjectionState> {
+	if (!mountedInputProjection) throw new Error('Indexed input projection is not mounted');
+	return mountedInputProjection;
 }

@@ -51,3 +51,15 @@ export type ExactWideComponentUpdateContract = Readonly<{
 export type ExactCompiledComponentUpdateContract =
 	| ExactNarrowComponentUpdateContract
 	| ExactWideComponentUpdateContract;
+
+/** Receiver-owned prop-to-state operations proven to depend on top-level indexed prop slots. */
+export type ExactCompiledComponentInputUpdateContract = Readonly<{
+	/** Stable prop slot plus its low/high operation masks. */
+	bindings: readonly (readonly [slot: number, dirtyLow: number, dirtyHigh: number])[];
+	/** Applies finalized prop inputs to the receiving durable component state. */
+	apply(
+		instance: Readonly<{ state: object; props: object }>,
+		dirtyLow: number,
+		dirtyHigh: number
+	): void;
+}>;

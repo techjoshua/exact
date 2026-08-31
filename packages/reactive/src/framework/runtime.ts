@@ -58,13 +58,15 @@ export {
 export {
 	createIndexedReactiveValue,
 	deleteIndexedReactiveSlot,
+	deleteIndexedReactiveSlotWithResult,
 	updateIndexedReactive,
 	reactiveIndexedDependencies,
 	reactiveOwnDependencies,
 	readIndexedReactiveSource,
 	readIndexedReactiveSlot,
 	readReactiveOwnProperty,
-	setIndexedReactiveSlot
+	setIndexedReactiveSlot,
+	setIndexedReactiveSlotWithResult
 } from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';

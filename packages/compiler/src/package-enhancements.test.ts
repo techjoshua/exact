@@ -91,7 +91,7 @@ describe('package-scoped enhancements', () => {
 			`import { motion } from '../dom/src/test-support/enhancements/enhancement-routing.fixtures.js' with { type: 'exact-enhancement' };
 			function Card() { return () => <button>Save</button>; }
 			export function Page() { return () => <main><Card motion:tone="active" /></main>; }`,
-			{ filename: path.resolve('Page.tsx') }
+			{ filename: path.resolve('packages/compiler/Page.tsx') }
 		);
 
 		expect(transformed.code).toContain('__exactSsr.prepareChild(__exactInvocation, 0)');

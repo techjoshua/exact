@@ -77,6 +77,8 @@ type jsxLowering struct {
 	renderProgramDefinitions     map[int]string
 	renderProgramDefinitionNodes []namedRenderProgramDefinition
 	componentUpdates             map[string]*componentUpdateBuild
+	componentInputUpdates        map[string]*componentInputUpdateBuild
+	componentInputTaskIDs        map[string]struct{}
 	declarativeRenderDepth       int
 	componentRangeOutputs        map[string]struct{}
 	componentRangeReaders        map[string]struct{}
@@ -135,15 +137,15 @@ func lowerExactJSX(
 	sourceFile *ast.SourceFile,
 	emitContext *printer.EmitContext,
 	plan jsxLoweringPlan,
-) (*ast.SourceFile, map[string]string, map[string]struct{}, ArtifactStructure, map[string]struct{}) {
+) (*ast.SourceFile, map[string]string, map[string]string, map[string]struct{}, map[string]struct{}, ArtifactStructure, map[string]struct{}) {
 	lowering, required := plan.prepare(sourceFile, emitContext)
 	if !required {
-		return sourceFile, nil, nil, ArtifactStructure{}, nil
+		return sourceFile, nil, nil, nil, nil, ArtifactStructure{}, nil
 	}
 	transformed := lowering.lowerAuthoredTree(sourceFile)
 	transformed = lowering.projectTargetTree(transformed)
-	transformed, componentUpdateNames, sourceStatementCount := lowering.prepareDefinitions(transformed)
-	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames, lowering.componentRangeOutputs, lowering.artifactStructure(), lowering.componentListOwners()
+	transformed, componentUpdateNames, componentInputUpdateNames, sourceStatementCount := lowering.prepareDefinitions(transformed)
+	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames, componentInputUpdateNames, lowering.componentInputTaskIDs, lowering.componentRangeOutputs, lowering.artifactStructure(), lowering.componentListOwners()
 }
 
 // componentListOwners returns target-local constructor facts discovered only after typed JSX
@@ -215,7 +217,7 @@ func (lowering *jsxLowering) projectTargetTree(transformed *ast.SourceFile) *ast
 
 func (lowering *jsxLowering) prepareDefinitions(
 	transformed *ast.SourceFile,
-) (*ast.SourceFile, map[string]string, int) {
+) (*ast.SourceFile, map[string]string, map[string]string, int) {
 	lowering.advancePhase(jsxLoweringProjected, jsxLoweringDefinitionsReady)
 	for _, definition := range lowering.renderProgramDefinitionNodes {
 		if containsIdentifier(transformed.AsNode(), definition.name) {
@@ -223,6 +225,7 @@ func (lowering *jsxLowering) prepareDefinitions(
 		}
 	}
 	componentUpdateNames := lowering.emitComponentUpdateDefinitions()
+	componentInputUpdateNames := lowering.emitComponentInputUpdateDefinitions()
 	sourceStatementCount := len(transformed.Statements.Nodes)
 	if len(lowering.clientDefinitions) != 0 {
 		statements := append(
@@ -237,7 +240,7 @@ func (lowering *jsxLowering) prepareDefinitions(
 		).AsSourceFile()
 		ast.SetParentInChildren(transformed.AsNode())
 	}
-	return transformed, componentUpdateNames, sourceStatementCount
+	return transformed, componentUpdateNames, componentInputUpdateNames, sourceStatementCount
 }
 
 func (lowering *jsxLowering) assembleModule(
@@ -291,6 +294,9 @@ func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLow
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
+	}
+	if direct := lowering.lowerDirectServerExecutorReturn(node); direct != nil {
+		return direct
 	}
 	if ast.IsImportDeclaration(node) {
 		if _, exists := lowering.enhancementImports.declarations[node.Pos()]; exists {

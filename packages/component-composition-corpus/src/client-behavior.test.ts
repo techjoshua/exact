@@ -17,7 +17,12 @@ import {
 import { dynamicRoot } from './scenarios/dynamic.fixtures.js';
 import { fundamentalsRoot } from './scenarios/fundamentals.fixtures.js';
 import { registryRoot } from './scenarios/registry.fixtures.js';
-import { stateOwner, stateRoot } from './scenarios/state.fixtures.js';
+import {
+	inputProjectionOwner,
+	inputProjectionRoot,
+	stateOwner,
+	stateRoot
+} from './scenarios/state.fixtures.js';
 import { structureOwner, structureRoot } from './scenarios/structure.fixtures.js';
 import { taskRoot } from './scenarios/tasks.fixtures.js';
 
@@ -50,6 +55,20 @@ describe('composition corpus client behavior', () => {
 		expect(output.textContent).toBe('items:2');
 		expect(button.disabled).toBe(true);
 		expect(button.dataset.count).toBe('2');
+	});
+
+	it('applies one finalized prop replacement through the receiving input plan', () => {
+		const container = mount(inputProjectionRoot());
+		const output = container.querySelector('output')!;
+		const owner = inputProjectionOwner();
+		expect(output.textContent).toBe('loading');
+
+		render(inputProjectionRoot({}), container);
+		flushSync();
+
+		expect(container.querySelector('output')).toBe(output);
+		expect(inputProjectionOwner()).toBe(owner);
+		expect(output.textContent).toBe('ready');
 	});
 
 	it('updates a conditional range without replacing adjacent siblings', () => {
@@ -91,13 +110,25 @@ describe('composition corpus client behavior', () => {
 
 	it('executes a compiler-defined client task through its authored interaction', async () => {
 		const container = mount(taskRoot);
+		await expect
+			.poll(() => {
+				flushSync();
+				return {
+					status: container.querySelector('output')?.textContent,
+					runs: container.querySelector('data')?.textContent
+				};
+			})
+			.toEqual({ status: 'ready', runs: '1' });
 		container.querySelector('button')!.click();
 		await expect
 			.poll(() => {
 				flushSync();
-				return container.querySelector('output')?.textContent;
+				return {
+					status: container.querySelector('output')?.textContent,
+					runs: container.querySelector('data')?.textContent
+				};
 			})
-			.toBe('ready');
+			.toEqual({ status: 'ready', runs: '2' });
 	});
 
 	it('routes intrinsic and component enhancements to their semantic targets', () => {

@@ -7,6 +7,7 @@ export function isExactServerExecutionMetadata(value: unknown, selection = false
 		'lane',
 		'deferredTaskProps',
 		'render',
+		'mode',
 		'frame',
 		'lifecycle',
 		'publication'
@@ -21,6 +22,11 @@ export function isExactServerExecutionMetadata(value: unknown, selection = false
 			value.classification === 'dynamic') &&
 		(direct || lane === 'generic' || lane === 'compatibility') &&
 		(value.deferredTaskProps === undefined || stringList(value.deferredTaskProps)) &&
+		(value.mode === undefined ||
+			(value.mode === 'direct' &&
+				direct &&
+				value.classification === 'synchronous' &&
+				!selection)) &&
 		(value.frame === undefined || (direct && typeof value.frame === 'function')) &&
 		(value.lifecycle === undefined || validLifecycle(value.lifecycle, direct)) &&
 		(value.publication === undefined || validPublication(value.publication)) &&

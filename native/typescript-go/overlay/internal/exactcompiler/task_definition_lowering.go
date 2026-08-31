@@ -164,6 +164,15 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		runtimeArgumentCount,
 		directServerComputation || directServerSlice,
 	)
+	if initialization, registered := lowering.registerComponentInputUpdate(
+		task,
+		work,
+		dependencies,
+		rewrittenWork,
+		contextBindings,
+	); registered {
+		return initialization
+	}
 	if directServerComputation {
 		arguments := append([]*ast.Node{}, nextArguments...)
 		arguments = append(arguments, lowering.factory.NewObjectLiteralExpression(

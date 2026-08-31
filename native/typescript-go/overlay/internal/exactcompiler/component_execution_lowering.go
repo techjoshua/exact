@@ -43,17 +43,31 @@ func planComponentTargets(
 		// Every non-client native component owns one direct request-local server artifact. Dynamic
 		// selection, resumptions, and focused surfaces change emitted operations, never the lane.
 		directServer := component.Placement != "client" && abi&^directABI == 0
+		directServerFrame := directServer && len(execution.Transitions) == 0
 		component.TargetPlan = ComponentTargetPlan{
-			ClientExecution:   projectComponentExecution(component.Execution, TargetClient),
-			ServerExecution:   execution,
-			ClientSurface:     component.Surface,
-			ServerSurface:     serverSurface,
-			DeferredTaskProps: deferredServerTaskProps(*component, execution, componentNode, tasks),
-			DirectServer:      directServer,
-			DirectServerFrame: directServer && len(execution.Transitions) == 0,
-			UsesCompatibility: usesCompatibility,
+			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
+			ServerExecution:      execution,
+			ClientSurface:        component.Surface,
+			ServerSurface:        serverSurface,
+			DeferredTaskProps:    deferredServerTaskProps(*component, execution, componentNode, tasks),
+			DirectServer:         directServer,
+			DirectServerFrame:    directServerFrame,
+			DirectServerExecutor: directServerFrame && directServerExecutorSupported(componentNode),
+			UsesCompatibility:    usesCompatibility,
 		}
 	}
+}
+
+// directServerExecutorSupported accepts the normalized single expression render arrow whose body
+// can execute immediately after setup without retaining the authored closure.
+func directServerExecutorSupported(componentNode *ast.Node) bool {
+	returns := directCallableReturns(componentNode)
+	if len(returns) != 1 {
+		return false
+	}
+	render := unwrapRenderExpression(returns[0])
+	return ast.IsArrowFunction(render) && !ast.IsBlock(render.AsArrowFunction().Body) &&
+		containsJSX(render.AsArrowFunction().Body)
 }
 
 // directServerLifecycleSupported accepts canonical and extracted named operations that generated
@@ -304,9 +318,11 @@ func componentArtifactMetadata(
 	targets bool,
 	runtimeABI int,
 	directServer bool,
+	directServerExecutor bool,
 	server bool,
 	compact bool,
 	updates *ast.Node,
+	inputs *ast.Node,
 ) *ast.Node {
 	state := append([]string{}, stateSlots...)
 	props := append([]string{}, propsSlots...)
@@ -378,6 +394,9 @@ func componentArtifactMetadata(
 	if updates != nil {
 		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
+	if inputs != nil {
+		properties = append(properties, contractProperty(factory, "inputs", inputs))
+	}
 	if server {
 		properties = append(properties, contractProperty(
 			factory,
@@ -388,6 +407,7 @@ func componentArtifactMetadata(
 				deferredTaskProps,
 				instantiate,
 				directServer,
+				directServerExecutor,
 				dynamicComponents,
 				serverPublicationName,
 				serverFrame,
@@ -413,6 +433,7 @@ func serverComponentExecutionMetadata(
 	deferredTaskProps []string,
 	instantiate *ast.Node,
 	direct bool,
+	directExecutor bool,
 	dynamic bool,
 	publicationName string,
 	frame *ast.Node,
@@ -439,6 +460,11 @@ func serverComponentExecutionMetadata(
 		properties = append(properties,
 			contractProperty(factory, "render", instantiate),
 		)
+		if directExecutor {
+			properties = append(properties,
+				contractProperty(factory, "mode", contractString(factory, "direct")),
+			)
+		}
 		if frame != nil {
 			properties = append(properties, contractProperty(factory, "frame", frame))
 		}

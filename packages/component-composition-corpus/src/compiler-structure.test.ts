@@ -65,13 +65,50 @@ describe('normative compiled structure', () => {
 			])
 		);
 	});
+
+	it('emits one durable definition for setup and interaction calls to one function task', async () => {
+		const { code } = await compileFixture('tasks.fixtures.tsx', 'client');
+
+		expect(code.match(/label: "load"/g)).toHaveLength(1);
+		expect(code.match(/this\.state, \d+, 'ready'/g)).toHaveLength(1);
+		expect(code).toContain('void load();');
+	});
+
+	it('encodes exact text operands while retaining arbitrary expression readers', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toMatch(/\[0, \d+, \[0, \d+\], true\]/);
+		expect(code).toMatch(/\[0, \d+, \[1, \d+\], true\]/);
+		expect(code).toMatch(/__exactSlot =>/);
+	});
+
+	it('moves exact top-level prop relationships into the receiver input plan', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toMatch(/const __exact_component_inputs_\d+ = \{ bindings:/);
+		expect(code).toMatch(/inputs: __exact_component_inputs_\d+/);
+		expect(code).toMatch(/__exactWriteState\(__exactInstance\.state, \d+, !__exactDependency\)/);
+	});
+
+	it('executes compiler-closed synchronous server programs without returned render closures', async () => {
+		const { code } = await compileFixture('fundamentals.fixtures.tsx', 'server');
+
+		expect(code.match(/mode: "direct"/g)).toHaveLength(2);
+		expect(code).toMatch(/return __exactPreparedServerRenderProgram\(/);
+		expect(code).not.toMatch(/return \(\) => __exactPreparedServerRenderProgram\(/);
+	});
 });
 
-async function compileFixture(fixture: string, target: 'client' | 'server') {
+async function compileFixture(
+	fixture: string,
+	target: 'client' | 'server',
+	componentContractProjection?: 'hydrate'
+) {
 	const filename = fileURLToPath(new URL(`./scenarios/${fixture}`, import.meta.url));
 	return transformSource(await readFile(filename, 'utf8'), {
 		filename,
 		target,
+		componentContractProjection,
 		configFile: typescriptConfig
 	});
 }

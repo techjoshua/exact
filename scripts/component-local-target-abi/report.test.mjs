@@ -77,6 +77,8 @@ test('renders every participant, percentile, comparison, and structural counter'
 					unit: 'ms',
 					percentile: 'p50',
 					beforeRaw: 2,
+					rawDelta: -1,
+					rawDeltaRatio: -0.5,
 					controlFactor: 1.1,
 					normalizedBefore: 2.2,
 					current: 1,
@@ -90,6 +92,8 @@ test('renders every participant, percentile, comparison, and structural counter'
 	assert.match(markdown, /\| eXact \| 1 \/ 2 \/ 3 \/ 4 \|/);
 	assert.match(markdown, /\| control \| 5 \/ 2 \/ 3 \/ 4 \|/);
 	assert.match(markdown, /browser vs P0/);
+	assert.match(markdown, /Raw delta %/);
+	assert.match(markdown, /-50%/);
 	assert.match(markdown, /declinedNativeJsxRegions/);
 	assert.match(markdown, /does not determine ABI checkpoint eligibility/);
 	assert.match(markdown, /Source limitations: local loopback/);

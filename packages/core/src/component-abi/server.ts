@@ -43,6 +43,8 @@ export type ExactServerComponentExecution = Readonly<{
 	lane: 'direct' | 'generic' | 'compatibility';
 	deferredTaskProps?: readonly string[];
 	render?: AnyExactComponentCallable;
+	/** Compiler-proven setup function that returns its server program directly. */
+	mode?: 'direct';
 	frame?: AnyExactComponentCallable;
 	lifecycle?: Readonly<{
 		rendered: AnyExactComponentCallable;

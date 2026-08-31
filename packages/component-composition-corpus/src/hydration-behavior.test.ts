@@ -24,8 +24,11 @@ import { fundamentalsRoot } from './scenarios/fundamentals.fixtures.js';
 import { fundamentalsRoot as serverFundamentalsRoot } from './scenarios/fundamentals.fixtures.js?exact-target=server';
 import { registryRoot } from './scenarios/registry.fixtures.js';
 import { registryRoot as serverRegistryRoot } from './scenarios/registry.fixtures.js?exact-target=server';
-import { stateOwner, stateRoot } from './scenarios/state.fixtures.js';
-import { stateRoot as serverStateRoot } from './scenarios/state.fixtures.js?exact-target=server';
+import { inputProjectionRoot, stateOwner, stateRoot } from './scenarios/state.fixtures.js';
+import {
+	inputProjectionRoot as serverInputProjectionRoot,
+	stateRoot as serverStateRoot
+} from './scenarios/state.fixtures.js?exact-target=server';
 import { structureRoot } from './scenarios/structure.fixtures.js';
 import { structureRoot as serverStructureRoot } from './scenarios/structure.fixtures.js?exact-target=server';
 
@@ -61,6 +64,14 @@ describe('composition corpus hydration behavior', () => {
 		expect(container.querySelector('button')).toBe(button);
 		expect(output?.textContent).toBe('count:3');
 		expect(button?.hasAttribute('disabled')).toBe(true);
+	});
+
+	it('applies indexed input state while adopting the server range', () => {
+		const { container, resumptions } = serverContainer(serverInputProjectionRoot());
+		const output = container.querySelector('[data-scenario="input-projection"]');
+		hydrate(inputProjectionRoot(), container, { onMismatch: 'throw', resumptions });
+		expect(container.querySelector('[data-scenario="input-projection"]')).toBe(output);
+		expect(output?.textContent).toBe('loading');
 	});
 
 	it('adopts context, keyed ranges, and both enhancement target forms', () => {

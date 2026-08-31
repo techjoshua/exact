@@ -610,7 +610,7 @@ func (s *Session) Execute(request Request) Response {
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
 	intlPlan := planIntlOperations(sourceFile, generation.checker)
-	transformed, componentUpdates, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
+	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
@@ -636,6 +636,13 @@ func (s *Session) Execute(request Request) Response {
 			componentLocalization: intlPlan.componentLocalization,
 		},
 	)
+	if request.Target == TargetClient && len(componentInputTaskIDs) != 0 {
+		components, continuations = omitComponentInputTaskTransitions(
+			components,
+			continuations,
+			componentInputTaskIDs,
+		)
+	}
 	for index := range components {
 		_, components[index].ClientRangeOutput = componentRangeOutputs[components[index].Name]
 		if request.Target == TargetClient {
@@ -665,6 +672,7 @@ func (s *Session) Execute(request Request) Response {
 		request.JSXInterop != nil,
 		request.ComponentContractProjection,
 		componentUpdates,
+		componentInputUpdates,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

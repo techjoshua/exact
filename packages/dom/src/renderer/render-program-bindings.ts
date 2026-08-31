@@ -1,4 +1,3 @@
-import { unwrap } from '@exactjs/reactive/framework/values';
 import type {
 	ExactRenderProgramBindingOperation,
 	ExactRenderProgramBindingTarget,
@@ -10,6 +9,7 @@ import type {
 	ExactWideComponentUpdateContract
 } from '@exactjs/core/framework/component-contracts';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
 import { currentWorkPriority, scheduleWork } from '@exactjs/reactive/framework/runtime';
 import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
@@ -34,6 +34,7 @@ import {
 	bindCompiledStateComponentUpdate,
 	bindCompiledWideStateComponentUpdate
 } from './component-state-update-binding.js';
+import { applyProgramText } from './render-program-text.js';
 
 type ProgramBindingTarget = {
 	readonly mounted: Mounted;
@@ -113,10 +114,14 @@ function executeCompiledProgramBinding(
 ): void {
 	switch (operation[0]) {
 		case 0:
+			const operand = Array.isArray(operation[2])
+				? (operation[2] as unknown as readonly [source: 0 | 1, slot: number])
+				: undefined;
 			bindCompiledProgramText(
 				target,
 				operation[1] as number,
-				operation[2] === true ? true : undefined
+				(operand ? operation[3] : operation[2]) === true ? true : undefined,
+				operand
 			);
 			return;
 		case 1:
@@ -217,12 +222,13 @@ export function bindCompiledProgramComponent(
 export function bindCompiledProgramText(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
-	direct?: true
+	direct?: true,
+	operand?: readonly [source: 0 | 1, slot: number]
 ): void {
 	const context = target as ProgramBindingTarget;
 	let initialTarget: ProgramBindingTarget | undefined = context;
 	const applyText = () => {
-		if (!applyProgramText(context.mounted, index)) {
+		if (!applyProgramText(context.mounted, index, operand?.[0], operand?.[1])) {
 			if (initialTarget) initialTarget.valid = false;
 		}
 	};
@@ -234,10 +240,12 @@ export function bindCompiledProgramText(
 /** Applies one compiler-selected text operation without installing a dynamic watcher. */
 export function applyCompiledProgramText(
 	target: ExactRenderProgramBindingTarget,
-	index: number
+	index: number,
+	source?: 0 | 1,
+	operandSlot?: number
 ): void {
 	const context = target as ProgramBindingTarget;
-	if (!applyProgramText(context.mounted, index)) context.valid = false;
+	if (!applyProgramText(context.mounted, index, source, operandSlot)) context.valid = false;
 }
 
 /** Binds one compiler-selected structural child slot. */
@@ -333,22 +341,6 @@ export function applyCompiledProgramProperties(
 		return;
 	}
 	applyCompiledProps(context.mounted, element, group, false);
-}
-
-function applyProgramText(mounted: Mounted, index: number): boolean {
-	const state = mounted.renderProgram!;
-	const value = unwrap(readRenderProgramSlot(state.invocation, index));
-	const node = state.slotNodes[index];
-	if (!(node instanceof Text)) return false;
-	const text =
-		value === null || value === undefined || value === false || value === true
-			? ''
-			: typeof value === 'string' || typeof value === 'number'
-				? String(value)
-				: undefined;
-	if (text === undefined) return false;
-	if (node.data !== text) node.data = text;
-	return true;
 }
 
 function retainBinding(context: ProgramBindingTarget, apply: () => void): void {

@@ -16,16 +16,6 @@ export type DirectSsrComponentLifetime = Readonly<{
 /** Cleanup boundary for eagerly issued compiler-proven descendant task frames. */
 export type DirectScheduledPreparation = AsyncDisposable;
 
-/** Completed setup and render result awaiting successful descendant serialization. */
-export type DirectSsrComponentResult = Readonly<{
-	content: DirectSsrComponentContent;
-	lifetime?: DirectSsrComponentLifetime;
-	owner: AnyComponentInstance | undefined;
-	preparation?: DirectScheduledPreparation;
-	props: Record<string, unknown>;
-	snapshot: DirectSsrComponentSnapshot;
-}>;
-
 /** Render output paired with ownership for child work issued during operation materialization. */
 export type DirectIssuedRender = Readonly<{
 	content: DirectSsrComponentContent;

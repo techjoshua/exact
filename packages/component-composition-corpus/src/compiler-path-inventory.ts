@@ -29,6 +29,12 @@ export const compilerPathInventory = [
 		['client-update', 'hydrate-match']
 	),
 	path(
+		'arbitrary-expression-fallback',
+		'supported-general',
+		'Arbitrary authored expressions retain executable readers and their computation owners.',
+		['client-mount', 'hydrate-match']
+	),
+	path(
 		'direct-property-binding',
 		'specialized',
 		'Reactive DOM properties update at their owning intrinsic.',
@@ -51,6 +57,12 @@ export const compilerPathInventory = [
 		'specialized',
 		'Prop and state dependencies remain distinct in one component.',
 		['client-update', 'hydrate-match']
+	),
+	path(
+		'indexed-input-update-plan',
+		'specialized',
+		'Exact top-level prop relationships apply through a receiver-owned indexed update plan.',
+		['client-mount', 'client-update', 'hydrate-match']
 	),
 	path(
 		'conditional-structural-range',
@@ -85,6 +97,12 @@ export const compilerPathInventory = [
 		'ssr-async',
 		'ssr-progressive'
 	]),
+	path(
+		'defined-function-task-reuse',
+		'specialized',
+		'Setup and interaction calls share one durable function-task definition.',
+		['client-mount', 'client-update']
+	),
 	path(
 		'compact-render-abi',
 		'specialized',
@@ -143,6 +161,12 @@ export const compilerPathInventory = [
 		'sync-direct-ssr',
 		'specialized',
 		'Synchronous server artifacts render without a generic component renderer.',
+		['ssr-sync']
+	),
+	path(
+		'sync-direct-server-executor',
+		'specialized',
+		'Compiler-closed synchronous roots execute their server program without a returned render closure.',
 		['ssr-sync']
 	),
 	path(

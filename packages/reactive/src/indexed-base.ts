@@ -8,6 +8,7 @@ import type { Reactive, ReactiveOptions, ReactiveRef, ReactiveValue } from './in
 import {
 	batch,
 	hasActiveTransaction,
+	readMutationVersion,
 	recordTransactionUndo,
 	track,
 	trigger
@@ -186,9 +187,29 @@ export function setIndexedReactiveSlot(value: object, index: number, next: unkno
 	writeIndexedRecord(indexedRecord(value, index, 'write'), index, next);
 }
 
+/** Commits one compiler-proven slot and reports whether its dependency version advanced. */
+export function setIndexedReactiveSlotWithResult(
+	value: object,
+	index: number,
+	next: unknown
+): boolean {
+	const indexed = indexedRecord(value, index, 'write');
+	const previous = readMutationVersion(indexed.target, index);
+	writeIndexedRecord(indexed, index, next);
+	return readMutationVersion(indexed.target, index) !== previous;
+}
+
 /** Deletes one compiler-proven slot without entering the facade's proxy traps. */
 export function deleteIndexedReactiveSlot(value: object, index: number): boolean {
 	return deleteIndexedRecord(indexedRecord(value, index, 'delete'), index);
+}
+
+/** Deletes one compiler-proven slot and reports whether its dependency version advanced. */
+export function deleteIndexedReactiveSlotWithResult(value: object, index: number): boolean {
+	const indexed = indexedRecord(value, index, 'delete');
+	const previous = readMutationVersion(indexed.target, index);
+	deleteIndexedRecord(indexed, index);
+	return readMutationVersion(indexed.target, index) !== previous;
 }
 
 function indexedRecord(value: object, index: number, operation: string): IndexedRecord {

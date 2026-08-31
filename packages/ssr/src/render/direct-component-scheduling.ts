@@ -23,7 +23,7 @@ import {
 	inComponentDomain,
 	type DirectSsrLifecycleCapability
 } from './direct-component-support.js';
-import { selectDirectSsrFrame } from './direct-frame-selection.js';
+import { createSelectedDirectSsrFrame, selectedDirectSsrOwner } from './direct-frame-selection.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js';
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
@@ -114,7 +114,8 @@ function constructDirectScheduledSsrComponent(
 	options: SsrRenderOptions
 ): DirectScheduledSsrComponent | Promise<never> {
 	const server = blueprint.contract.artifact.execution!;
-	const { frame, owner } = selectDirectSsrFrame(context, blueprint, parent);
+	const frame = createSelectedDirectSsrFrame(context, blueprint.contract, parent);
+	const owner = selectedDirectSsrOwner(blueprint.contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	const pending = new Set<Promise<unknown>>();
 	const execution: ServerComponentExecutionFrame = createServerComponentExecutionFrame(frame, {

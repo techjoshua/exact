@@ -46,6 +46,7 @@ type renderProgramBuild struct {
 	rootAttributes *ast.Node
 	rootStaticHtml string
 	rootStaticKeys []string
+	directOperands map[int]componentUpdateDependency
 	nextMarker     int
 }
 

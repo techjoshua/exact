@@ -1078,6 +1078,13 @@ claim or range identity. Preserve focused controls and authoritative root recove
 **Server concurrency:** immutable artifacts must never retain frames, requests, signals, tasks, or
 loggers. Test overlapping requests and failure cleanup adversarially.
 
+For compiler-proven synchronous JSX roots, the server implementation may return its prepared
+component-local program directly and identify that closed execution form in immutable artifact
+metadata. The request executor owns setup, sink commitment, checkpoints, hooks, and disposal; it
+must not recreate the removed returned-render closure or synchronous issued-result projection.
+Forwarded or arbitrary output continues through the component-local callable contract until the
+compiler proves a closed lowering, and scheduled work keeps its distinct request-owned protocol.
+
 **Compatibility leakage:** React and plugin code must have explicit package roots and bundle tests.
 A native component capability bit is not permission to import an entire compatibility runtime.
 

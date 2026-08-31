@@ -37,12 +37,20 @@ export function serverComponentProps(reference: ServerComponentReference): Recor
 export function receiptExecutionBlueprint(
 	receipt: ExactComponentReceiptData
 ): SsrComponentExecutionBlueprint {
+	const contract = receiptExecutionContract(receipt);
+	return {
+		componentId: contract.artifact.id,
+		contract
+	};
+}
+
+/** Reads the immutable receipt-carried server contract without projecting a request object. */
+export function receiptExecutionContract(
+	receipt: ExactComponentReceiptData
+): ExactServerExecutableComponentContract {
 	if (receipt.contract.artifact.target !== 'server')
 		throw new TypeError('Server renderer received a client component receipt');
-	return {
-		componentId: receipt.contract.artifact.id,
-		contract: receipt.contract as ExactServerExecutableComponentContract
-	};
+	return receipt.contract as ExactServerExecutableComponentContract;
 }
 
 /** Returns authored identity inputs needed by marker publication. */

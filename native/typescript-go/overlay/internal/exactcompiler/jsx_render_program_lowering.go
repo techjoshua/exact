@@ -114,10 +114,15 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	var propertyWriter *ast.Node
 	runtimeReaders := readers
 	if lowering.target == TargetClient {
+		runtimeReaders = append([]*ast.Node(nil), readers...)
 		propertyWriter = lowering.renderProgramPropertyWriter(build, readers)
+		if len(build.directOperands) != 0 {
+			for index := range build.directOperands {
+				runtimeReaders[index] = nil
+			}
+		}
 		if propertyWriter != nil &&
 			lowering.contractProjection != ComponentContractProjectionComplete {
-			runtimeReaders = append([]*ast.Node(nil), readers...)
 			for index, slot := range build.slots {
 				if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
 					runtimeReaders[index] = nil
@@ -1115,6 +1120,15 @@ func (lowering *jsxLowering) renderProgramLiteral(
 			componentTarget = &target
 			componentUpdates = updates
 			componentUpdate = update
+			for _, directUpdate := range directUpdates {
+				if directUpdate.operand == nil {
+					continue
+				}
+				if build.directOperands == nil {
+					build.directOperands = make(map[int]componentUpdateDependency)
+				}
+				build.directOperands[directUpdate.index] = *directUpdate.operand
+			}
 		} else {
 			// Direct state operations are component-owned. JSX outside a compiled component retains
 			// ordinary expression bindings rather than materializing a second update runtime.
