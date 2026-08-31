@@ -31,7 +31,12 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	}
 	build := &renderProgramBuild{rootAttributes: rootAttributes}
 	if lowering.target == TargetServer || lowering.contractProjection == ComponentContractProjectionComplete {
-		build.captureRootStaticAttributes(opening.Attributes())
+		lowering.captureRootSsrAttributes(
+			build,
+			opening.Attributes(),
+			sourceText(lowering.sourceFile, openingTag(opening)),
+			rootAttributes != nil,
+		)
 	}
 	if !lowering.appendRenderProgramElement(build, identityNode, opening, children, nil, parentNamespace) {
 		return nil, build.declineReason
@@ -1091,22 +1096,15 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		nodes[index] = array(members)
 	}
 	members := []*ast.Node{
-		property("version", lowering.factory.NewNumericLiteral("4", ast.TokenFlagsNone)),
+		property("version", lowering.factory.NewNumericLiteral("5", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}
 	if build.namespace == "contextual" {
 		members = append(members, property("attachmentTag", lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone)))
 	}
-	if build.rootStaticHtml != "" {
-		keys := make([]*ast.Node, len(build.rootStaticKeys))
-		for index, key := range build.rootStaticKeys {
-			keys[index] = lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone)
-		}
-		members = append(members, property("ssrRootStatic", array([]*ast.Node{
-			lowering.factory.NewStringLiteral(build.rootStaticHtml, ast.TokenFlagsNone),
-			array(keys),
-		})))
+	if build.rootStaticHtml != "" || build.rootSsrClosed {
+		members = append(members, property("ssrRootStatic", lowering.renderProgramSsrRootStatic(build)))
 	}
 	directUpdates := []renderProgramDirectUpdate{}
 	componentReceipts := map[int][]componentUpdateDependency{}

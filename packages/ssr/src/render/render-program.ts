@@ -8,8 +8,12 @@ import {
 	type ExactRenderProgramInvocation
 } from '@exactjs/core/framework/render-structure';
 import { escapeText } from '../html.js';
-import { exactMarkerId, renderAttrs, renderNativeAttribute } from '../markup.js';
-import { consumeTargetReceiptLayers } from './receipt-target-contributions.js';
+import {
+	exactMarkerId,
+	renderAttrs,
+	renderCompiledNativeAttribute,
+	renderNativeAttribute
+} from '../markup.js';
 import { appendBoundedHtml, countSsrNodes, SsrOutputLimitError } from './limits.js';
 import type { Child, SsrContext } from '../types.js';
 import {
@@ -18,6 +22,7 @@ import {
 } from './server-component-reference.js';
 import { captureNestedEnhancementStringPrefix } from './operation-enhancements.js';
 import { escapeSsrText } from './output-text.js';
+import { renderSsrRootAttributes, type SsrAttributeKind } from './render-program-attributes.js';
 
 /** Executes a compiler-closed server invocation directly. */
 export function renderPreparedSsrProgram(
@@ -160,6 +165,15 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 		if (html !== '') output.push(html);
 		return nextCharacters;
 	},
+	compiledAttribute(opaqueContext, output, value, kind, name, attributeName, tag, characters) {
+		const context = opaqueContext as SsrContext;
+		const html = renderCompiledNativeAttribute(value, kind, name, attributeName, tag, context);
+		const nextCharacters = characters + html.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (html !== '') output.push(html);
+		return nextCharacters;
+	},
 	attributes(opaqueContext, output, value, tag, characters) {
 		const context = opaqueContext as SsrContext;
 		const props = value !== null && typeof value === 'object' ? value : {};
@@ -172,16 +186,7 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	},
 	rootAttributes(opaqueContext, output, value, tag, characters, staticAttributes) {
 		const context = opaqueContext as SsrContext;
-		const props = value !== null && typeof value === 'object' ? value : {};
-		const effective = consumeTargetReceiptLayers(context, props as Record<string, unknown>);
-		const html = renderAttrs(
-			effective as Record<string, unknown>,
-			false,
-			tag,
-			context,
-			effective === props ? staticAttributes?.[1] : undefined
-		);
-		const rendered = effective === props ? `${staticAttributes?.[0] ?? ''}${html}` : html;
+		const rendered = renderSsrRootAttributes(context, value, tag, staticAttributes);
 		const nextCharacters = characters + rendered.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
@@ -316,6 +321,22 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		return this.appendAttribute(renderNativeAttribute(value, name, tag, this.context), characters);
 	}
 
+	compiledAttribute(
+		_context: object,
+		_output: object,
+		value: unknown,
+		kind: SsrAttributeKind,
+		name: string,
+		attributeName: string,
+		tag: string,
+		characters: number
+	): number {
+		return this.appendAttribute(
+			renderCompiledNativeAttribute(value, kind, name, attributeName, tag, this.context),
+			characters
+		);
+	}
+
 	attributes(
 		_context: object,
 		_output: object,
@@ -336,19 +357,10 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		value: unknown,
 		tag: string,
 		characters: number,
-		staticAttributes?: readonly [html: string, propNames: readonly string[]]
+		staticAttributes?: import('@exactjs/core/framework/render-structure').ExactRenderProgram['ssrRootStatic']
 	): number {
-		const props = value !== null && typeof value === 'object' ? value : {};
-		const effective = consumeTargetReceiptLayers(this.context, props as Record<string, unknown>);
-		const html = renderAttrs(
-			effective as Record<string, unknown>,
-			false,
-			tag,
-			this.context,
-			effective === props ? staticAttributes?.[1] : undefined
-		);
 		return this.appendAttribute(
-			effective === props ? `${staticAttributes?.[0] ?? ''}${html}` : html,
+			renderSsrRootAttributes(this.context, value, tag, staticAttributes),
 			characters
 		);
 	}

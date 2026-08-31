@@ -9,6 +9,7 @@ import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-abi';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
 import type { RefBinding } from '@exactjs/core';
+import type { ExactRenderProgramSsrAttribute } from '@exactjs/core/framework/render-structure';
 import {
 	hasOwn,
 	isEventProperty,
@@ -225,6 +226,57 @@ export function renderNativeAttribute(
 	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
 ): string {
 	return renderAttribute(value, name, false, tag, context, false, false);
+}
+
+/** Serializes one compiler-classified native attribute without rediscovering its behavior. */
+export function renderCompiledNativeAttribute(
+	value: unknown,
+	kind: ExactRenderProgramSsrAttribute[0],
+	name: string,
+	attributeName: string,
+	tag: string,
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
+): string {
+	if (kind === 6) return renderNativeAttribute(value, name, tag, context);
+	const unwrapped = kind === 4 ? unsafeHtmlAttribute(value, context) : unwrap(value);
+	const normalized =
+		kind === 1
+			? normalizeClassValue(unwrapped)
+			: kind === 5 && unwrapped instanceof Date
+				? Number.isNaN(unwrapped.getTime())
+					? ''
+					: unwrapped.toISOString().slice(0, 10)
+				: unwrapped;
+	const sanitized = kind === 3 ? sanitizeUrlAttribute(name, normalized) : normalized;
+	if (sanitized === null || sanitized === undefined || sanitized === false) return '';
+	if (kind === 2) {
+		const style = renderStyle(sanitized, false);
+		return style ? ` style="${escapeAttr(style)}"` : '';
+	}
+	if (sanitized === true) return ` ${attributeName}`;
+	return ` ${attributeName}="${escapeAttr(String(sanitized))}"`;
+}
+
+/** Serializes a compiler-owned root plan from its request-local prop values. */
+export function renderCompiledNativeAttributes(
+	props: Readonly<Record<string, unknown>>,
+	plan: readonly ExactRenderProgramSsrAttribute[],
+	tag: string,
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
+): string {
+	let attributes = '';
+	for (let index = 0; index < plan.length; index++) {
+		const [kind, property, attributeName] = plan[index]!;
+		attributes += renderCompiledNativeAttribute(
+			props[property],
+			kind,
+			property,
+			attributeName,
+			tag,
+			context
+		);
+	}
+	return attributes;
 }
 
 function unsafeHtmlAttribute(

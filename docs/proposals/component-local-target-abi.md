@@ -26,6 +26,14 @@ The proposal is decision-complete about the central architecture:
 Names and compact encodings shown below are illustrative internal contracts. They are not proposed
 application APIs.
 
+Post-acceptance specialization now includes compiler-selected native SSR attribute operations.
+Render-program ABI version 5 carries immutable component-local root attribute plans and selects
+focused ordinary, class, style, URL, unsafe-HTML, and form-control behavior where the compiler has
+proved the exact authored property. Spreads, target contributions, and other unproven cases retain
+the focused generic attribute operation. The server renderer consumes the selected operation
+without introducing a render tape, inspecting child output shape, or retaining request values in
+the module-level plan.
+
 The conceptual ABI relocates existing framework behavior behind target artifacts; it does not
 redefine component lifecycle, Activity retention, hydration recovery, task readiness, error
 cleanup, or request ownership. Unless this proposal explicitly replaces a behavior, the referenced

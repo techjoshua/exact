@@ -185,12 +185,15 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 				),
 			)
 		default:
+			attribute := compiledSsrAttribute(build.nodes[slot.node].tag, slot.name)
 			assignCall(
-				"attribute",
+				"compiledAttribute",
 				context,
 				output,
 				value,
+				numberLiteral(attribute.kind),
 				stringLiteral(slot.name),
+				stringLiteral(attribute.attribute),
 				stringLiteral(build.nodes[slot.node].tag),
 				characters,
 			)

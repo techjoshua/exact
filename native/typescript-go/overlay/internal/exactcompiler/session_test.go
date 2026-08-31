@@ -171,7 +171,7 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedServerRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 4",
+		"version: 5",
 		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
 		`__exactSsr.begin(__exactContext, 2, 2, 30, 30)`,
 		`__exactSsr.static(__exactOutput, "<span")`,
@@ -587,7 +587,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedServerRenderProgram",
-		`ssrRootStatic: [" class=\"action\"", ["className"]]`,
+		`ssrRootStatic: [" class=\"action\"", ["className"], [[0, "data-exact-id", "data-exact-id"], [0, "disabled", "disabled"]]]`,
 		`const __exactValue_0 = __exactSsr.prepareAttribute(__exactInvocation, 0)`,
 		`__exactSsr.rootAttributes(__exactContext, __exactOutput, __exactValue_0, "button", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
@@ -1078,7 +1078,7 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"]], ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
+	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"], [[0, "d", "d"]]], ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
 		!strings.Contains(response.Code, `__exactSsr.static(__exactOutput, "<path")`) ||
 		!strings.Contains(response.Code, `__exactSsr.rootAttributes(__exactContext, __exactOutput, __exactValue_0, "path", __exactCharacters, __exactInvocation.program.ssrRootStatic)`) ||
 		!strings.Contains(response.Code, `[{ className: "route", d: props.path }]`) {

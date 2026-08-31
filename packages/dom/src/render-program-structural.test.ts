@@ -47,7 +47,7 @@ it('applies a compiler-owned structural child operation without a retained watch
 	let target: Parameters<typeof bindCompiledProgramChild>[0] | undefined;
 	const program = prepareCoreRenderProgram(
 		legacyTestRenderProgram({
-			version: 4,
+			version: 5,
 			id: 'render-program:direct-child-update',
 			namespace: 'html',
 			template: '<section><!--x:child--><!--/x:child--><footer>After</footer></section>',
@@ -82,7 +82,7 @@ it('reconciles compiler-keyed program children without list or item marker range
 	const vnode = createCompiledRenderProgram(
 		'render-program:direct-keyed-array',
 		() => ({
-			version: 4,
+			version: 5,
 			id: 'render-program:direct-keyed-array',
 			namespace: 'html',
 			template: '<ul><!--x:items--><!--/x:items--></ul>',
@@ -112,7 +112,7 @@ it('owns a final compiler-keyed child lane without structural marker nodes', () 
 	const state = reactive({ items: [{ id: 'a' }, { id: 'b' }] });
 	const program = prepareCoreRenderProgram(
 		legacyTestRenderProgram({
-			version: 4,
+			version: 5,
 			id: 'render-program:markerless-keyed-tail',
 			namespace: 'html',
 			template: '<ul></ul>',
@@ -162,7 +162,7 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 	const vnode = createCompiledRenderProgram(
 		'render-program:component-slot',
 		() => ({
-			version: 4,
+			version: 5,
 			id: 'render-program:component-slot',
 			namespace: 'html',
 			template: '<main data-exact-id="component-root"><!--x:counter--><!--/x:counter--></main>',

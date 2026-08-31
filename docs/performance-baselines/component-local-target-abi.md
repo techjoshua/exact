@@ -1049,3 +1049,96 @@ retained-heap movements remain part of the accepted record. Bun remains a separa
 because Exact uses `bun-fetch` while the other participants use Bun's Node HTTP compatibility path.
 The next client slice profiles and specializes hydration range adoption without changing the native
 component ABI or weakening transactional mismatch recovery.
+
+### Post-acceptance compiler-selected SSR attribute checkpoint
+
+The hydration range-adoption hypothesis was profiled first and rejected without changing the
+accepted architecture; its recoverable work remains in `stash@{0}`. The next current server profile
+confirmed that compiler-known native attributes still rediscovered property behavior at runtime.
+The accepted implementation extends the component-local render program with immutable root
+attribute plans and focused direct-attribute operations. Exact ordinary, class, style, URL, unsafe
+`srcdoc`, and form-control behavior is selected by the compiler only when it can prove the authored
+property. Spreads, semantic target contributions, refs, bindings, and unproven input behavior retain
+the existing generic focused operation. Render-program ABI version 5 makes that new required
+operation explicit so a mismatched imported or lazy package artifact is rejected rather than
+executed against the wrong call signature.
+
+Before implementation, five accepted focused profiles attributed a median 630,392 sampled bytes
+to generic `renderAttribute`. The written gate expected at least a 20% reduction at that site, at
+least a 2% broad allocation reduction or an attributable focused equivalent, a non-regressing
+render-only center with a promising 1-3% gain, and no normalized preloaded regression. These were
+hypotheses rather than size or acceptance limits.
+
+The accepted validation ran `npm run performance:check` exactly once after the initial focused
+compiler, core, SSR, source-architecture, JSDoc, composition-corpus, and framework-comparison gates
+passed. The release prerequisite passed 1,937 tests with five skips, the 335-file native compiler
+corpus, maintained applications, React compatibility, Theme Lab, and framework benchmarks. The
+final ABI-version correction was then rebuilt and rechecked through the focused package suites,
+native compiler tests, 28-test comparison E2E suite, and a supplemental release check. The
+composition corpus now records 38 compiler paths and 37 normative tests. Immutable evidence is:
+
+- browser, 50 samples per framework:
+  `.tmp/ssr-attribute-specialization/accepted/browser-50.json`;
+- startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
+  `.tmp/ssr-attribute-specialization/accepted/startup-50.json`;
+- SSR, 50 sequential samples and 50 ordinary concurrent waves:
+  `framework-comparison/results/raw/ssr-2026-08-31T05-25-56-996Z.json`;
+- five current focused profiles under `.tmp/ssr-attribute-specialization/focused-final-*.json`;
+- the pre-implementation gate: `.tmp/ssr-attribute-specialization/expected-metrics.md`; and
+- the complete current and immediate-prior control-normalized report:
+  `.tmp/ssr-attribute-specialization/complete-framework-report.md`.
+
+The client stays competitive and effectively unchanged in size: 199,054 raw and 60,706 gzip bytes,
+while Brotli changes by 41 bytes to 53,008. Decoded code remains 194,551 bytes, executed code
+102,115 bytes, and invoked functions 568. Startup heap remains 2,461,668 bytes at p50. The final
+50-sample startup population records 19.082/19.334/20.545/21.687 ms evaluation at
+p50/p75/p95/p99; eligible normalization versus the preceding server-only checkpoint moves +2.1%,
+-0.3%, +0.3%, and -20.0%. Browser navigation moves -0.7%, +0.4%, and -1.2% through p95 after
+eligible normalization. Optimistic feedback moves +10.8% and +6.3% at eligible p50/p75, while its
+p95/p99 controls disperse beyond 1.2x. Those client timing movements are counter-metrics rather than
+being attributed to the server-only operation selection.
+
+The Exact Node server artifact changes from 217,155 to 219,993 raw bytes (+1.31%), 47,134 to
+47,592 gzip bytes (+0.97%), and 39,068 to 39,430 Brotli bytes (+0.93%). Its three-file count,
+4,500-byte response, rendered markup, 964-byte hydration payload, and response decomposition are
+unchanged. The increase is the deterministic cost of the immutable plans, focused operations, and
+explicit ABI revision; it is a counter-metric, not a hard size limit or a proxy for runtime work.
+
+Across the final five focused profiles, median render p50 and p75 improve 2.9% and 2.1%, while p95
+and p99 move +1.7% and +0.5%. Median sampled allocation falls 64,072 bytes (-0.8%). The broad
+render-only population changes from 0.0453/0.0508/0.0676/0.1029 ms to
+0.0460/0.0520/0.0747/0.1130 ms, so its center and tails are slower even though the focused repeated
+center improves. Broad sampled allocation changes from 8,076,656 to 8,044,528 bytes (-0.4%). The
+new selected root and direct attribute sites account for 461,448 and 131,816 sampled bytes in one
+profile. The checkpoint therefore claims removal of repeated behavior classification and the
+repeatable focused center improvement, not a broad allocation or tail-time win.
+
+Ordinary concurrent Node throughput is 3,297/3,494/3,644/3,694 requests per second. All four
+percentiles are eligible against three controls, with dispersion between 1.051x and 1.073x; the
+control-normalized improvements are 7.0%, 12.7%, 14.7%, and 16.5%. Participant work improves 9.4%
+and 9.6% at eligible p50/p75, p95 is ineligible, and p99 improves 43.1% after eligible
+normalization. Sequential participant work improves 1.9%, 4.6%, and 2.8% through p95 after eligible
+normalization; p99 controls disperse beyond 1.2x.
+
+At preloaded c32, raw throughput changes from 4,675/4,689/4,689/4,689 to
+4,682/4,787/4,787/4,787 requests per second. Render time improves from
+0.1131/0.1179/0.1387/0.1889 ms to 0.1110/0.1165/0.1341/0.1803 ms. Participant work is 0.4% slower
+at p50 but improves 0.6-3.6% through the remaining percentiles. This diagnostic has only React as a
+control and remains raw. At equal-8-KiB c32, eligible normalized throughput improves 2.8%, 3.5%,
+3.5%, and 3.5%, with participant work improving through p95 and moving +1.0% at p99. Ordinary
+saturation c32 moves -1.8%, -0.6%, -0.1%, and -0.1% after eligible normalization, so the small
+saturation regression remains explicit beside the ordinary and equal-payload gains.
+
+Post-GC heap used moves +0.3%, +0.3%, +2.8%, and +2.8% after eligible normalization, and post-GC
+heap total moves +0.5%, +0.5%, +1.3%, and +1.3%. The retained slope remains negative at -927 bytes
+per request; its comparison cannot be normalized because controls are non-positive. No request or
+component value is stored in the module-level plans. Bun remains a separate diagnostic because
+Exact uses `bun-fetch` while the other participants use Bun's Node HTTP compatibility path.
+
+The checkpoint is accepted for replacing runtime attribute-behavior rediscovery with
+compiler-selected component-local operations while preserving generic semantic fallbacks, package
+ABI safety, markup, security policy, and request isolation. Its server artifact growth, broad
+render-only tail regression, small normalized saturation regression, retained-heap movement, and
+unattributed client timing variation remain explicit counter-metrics. The next decision point is a
+fresh profile of the remaining server attribute allocation—especially root-plan iteration—before
+either expanding attribute specialization or returning to the deferred hydration-adoption work.

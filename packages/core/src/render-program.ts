@@ -18,6 +18,13 @@ export type ExactRenderProgramNode = readonly [
 /** Compiler-owned server output containing serialized spans and deferred child ranges. */
 export type ExactRenderProgramSsrOutput = Array<string | readonly unknown[] | object>;
 
+/** Compiler-selected native SSR attribute: behavior, source property, serialized name. */
+export type ExactRenderProgramSsrAttribute = readonly [
+	kind: 0 | 1 | 2 | 3 | 4 | 5 | 6,
+	property: string,
+	attribute: string
+];
+
 /** Stateless server operations invoked directly by compiler-generated component wiring. */
 export type ExactRenderProgramSsrOperations = Readonly<{
 	/** Private sentinel returned when generated slot validation rejects malformed output. */
@@ -79,6 +86,17 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		tag: string,
 		characters: number
 	): number;
+	/** Serializes one prepared host value through a compiler-selected native attribute operation. */
+	compiledAttribute(
+		context: object,
+		output: ExactRenderProgramSsrOutput,
+		value: unknown,
+		kind: ExactRenderProgramSsrAttribute[0],
+		name: string,
+		attributeName: string,
+		tag: string,
+		characters: number
+	): number;
 	/** Serializes one prepared host spread through ordinary SSR attribute policy. */
 	attributes(
 		context: object,
@@ -94,7 +112,11 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		value: unknown,
 		tag: string,
 		characters: number,
-		staticAttributes?: readonly [html: string, propNames: readonly string[]]
+		staticAttributes?: readonly [
+			html: string,
+			propNames: readonly string[],
+			dynamic?: readonly ExactRenderProgramSsrAttribute[]
+		]
 	): number;
 }>;
 
@@ -187,7 +209,7 @@ export type ExactRenderProgramWiring = readonly [
 ];
 
 type ExactRenderProgramBase = Readonly<{
-	version: 4;
+	version: 5;
 	id: string;
 	namespace: ExactRenderProgramNamespace;
 	/** Root intrinsic used to resolve a contextual namespace at physical attachment time. */
@@ -197,7 +219,11 @@ type ExactRenderProgramBase = Readonly<{
 	/** Compiler-keyed child slots, encoded as a compact bit mask or explicit indexes. */
 	keyedChildren?: number | readonly number[];
 	/** Static root attributes paired with their authored prop names for the server fast path. */
-	ssrRootStatic?: readonly [html: string, propNames: readonly string[]];
+	ssrRootStatic?: readonly [
+		html: string,
+		propNames: readonly string[],
+		dynamic?: readonly ExactRenderProgramSsrAttribute[]
+	];
 }>;
 
 /** Closed client program whose executable lanes own topology instead of descriptor tables. */
@@ -340,8 +366,8 @@ export type ExactPreparedServerRenderProgram = ExactRenderProgramInvocation &
  * can reach this compiler-only operation.
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
-	if ((program as { version: number }).version !== 4)
-		throw new TypeError('Unsupported eXact render-program ABI; expected version 4');
+	if ((program as { version: number }).version !== 5)
+		throw new TypeError('Unsupported eXact render-program ABI; expected version 5');
 	return program as BrandedRenderProgram;
 }
 
