@@ -1243,3 +1243,68 @@ movement, noisy broad render tails, and equal-payload p99 participant work recor
 counter-metrics. Progressive scheduled output and backpressure remain a later executor checkpoint;
 explicit string-result consumers retain the collecting surface, while production-shaped synchronous
 response consumers now select the produced body without an environment-specific renderer path.
+
+### Synchronous component-operation target checkpoint
+
+The next remaining-site specialization removes the operations object and child-routing closure that
+`SyncSsrOperationTarget` previously created for every native component receipt. The target now
+implements `SyncComponentOperations` itself. Child crossings still construct their required
+owner-aware target, while enhancement code receives the stable module-level child-list operation
+through a prototype getter. No target, component, request, prop, state, capture, or output value is
+stored in a module-level artifact.
+
+The written gate was captured before implementation. It expected lower focused render allocation,
+no response or hydration-shape change, and no client-topology movement; ordinary saturation and
+retained heap remained counter-metrics. The candidate passed all 182 focused SSR tests, all 224 core
+tests, all 37 composition-corpus tests, source-architecture, JSDoc, and TypeScript checks. It then
+passed `npm run performance:check`, including release admission, 1,946 package tests with five
+skips, framework comparison correctness, maintained applications and documentation, React
+compatibility, browser matrices, and the native compiler corpus.
+
+Accepted immutable evidence is:
+
+- the written gate: `.tmp/sync-component-operation-target/expected-metrics.md`;
+- five fresh-worker focused render/allocation captures recorded with the checkpoint evidence;
+- browser, 50 samples per framework:
+  `.tmp/sync-component-operation-target/accepted-browser-50.json`;
+- startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
+  `.tmp/sync-component-operation-target/accepted-startup-50.json`;
+- the full SSR population, including 50 sequential samples and 50 ordinary concurrent waves:
+  `.tmp/sync-component-operation-target/accepted-ssr-50.json`; and
+- the complete current and immediate-prior control-normalized report:
+  `.tmp/sync-component-operation-target/complete-framework-report.md`.
+
+Across the five focused fresh-worker captures, the median sampled allocation changes from 7,056,096
+to 6,769,320 bytes (-4.1%). Median render p50 changes from 0.0611 to 0.0635 ms (+3.9%), while p75,
+p95, and p99 improve 17.6%, 37.7%, and 2.2%. The complete render-only population improves from
+0.0515/0.0841/0.1316/0.1921 ms to 0.0461/0.0567/0.0913/0.1128 ms at p50/p75/p95/p99. That lane
+has only React as a corresponding renderer control, so these cross-run timing magnitudes remain raw.
+
+The broad allocation sample contradicts the focused median, moving from 6,658,824 to 7,011,520
+bytes (+5.3%). Site attribution nevertheless confirms that the former per-component routing
+closure is gone; variation in validation, capture, component setup, and profiler attribution more
+than offsets it in this one broad sample. The checkpoint therefore claims the focused allocation
+direction and the eliminated allocation mechanism, not a 5.3% whole-render allocation gain.
+
+Node preloaded c32 raw throughput moves from 4,184/4,299/4,299/4,299 to
+4,926/5,014/5,014/5,014 requests per second, with participant work improving from
+0.193/0.266/0.312/0.377 ms to 0.172/0.182/0.205/0.327 ms. Only React exposes the same preloaded
+renderer lane, so it remains a raw diagnostic. The multi-control saturation population is mixed:
+eligible normalized c32 throughput moves -14.0%/-9.6%/-8.5%/-8.5%, while c64 moves
++4.2%/+4.5%/-3.1%/-3.1%. Equal-8-KiB c32 moves -8.5%/-6.5%/-6.5%/-6.5%; c64 raw throughput
+and participant work improve substantially but most percentiles are ineligible because controls
+disperse. These contradictions prevent attributing broad service-capacity movement to this small
+target-shape change.
+
+The Node artifact grows by 346 raw bytes (+0.15%), 77 gzip bytes (+0.16%), and 81 Brotli bytes
+(+0.20%). Response size remains 4,500 bytes, and response decomposition, semantic markup,
+hydration payload, and client deterministic topology are unchanged. Control-normalized post-GC heap
+used moves +0.3%/+0.3%/+1.2%/+1.2%, while post-GC RSS improves 4.5-5.2%. The retained slopes remain
+negative and cannot be normalized because controls are non-positive.
+
+The checkpoint accepts the deletion because it removes superseded per-component execution
+structure, improves the focused cost it directly owns, and preserves every ABI, ownership, cleanup,
+and output invariant. The broad allocation conflict, c32 saturation regressions, small artifact
+growth, and retained-heap movement remain explicit counter-metrics. The next remaining-site profile
+should distinguish prepared component-reference construction from state-capture and validation work
+before changing another allocation site.
