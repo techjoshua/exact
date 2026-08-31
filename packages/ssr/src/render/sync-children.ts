@@ -7,12 +7,12 @@ import {
 	readPreparedServerRenderProgram
 } from '@exactjs/core/framework/server-render-structure';
 import { unwrap } from '@exactjs/reactive/framework/values';
-import { escapeText } from '../html.js';
 import type { Child, SsrContext } from '../types.js';
 import { claimRootText } from './host.js';
 import { appendBoundedHtml, countSsrNode, enterSsrTreeDepth, leaveSsrTreeDepth } from './limits.js';
 import { SyncSsrOperationTarget } from './sync-operation-target.js';
 import { captureNestedEnhancementStringPrefix } from './operation-enhancements.js';
+import { escapeSsrText } from './output-text.js';
 
 /** Serializes opaque native operations and scalar children without component classification. */
 export function renderChildren(
@@ -55,12 +55,14 @@ export function renderChildren(
 							'Native SSR children require compiler-issued operations or scalar values'
 						);
 					claimRootText(context);
-					rendered = escapeText(String(value));
+					rendered = escapeSsrText(context, String(value));
 					isText = rendered !== '';
 				}
 			}
 		}
 		html = captureNestedEnhancementStringPrefix(context, html);
+		if (context.textSeparators && isText && previousWasText)
+			context.outputSink?.accountKnown('<!-- -->', 8);
 		if (context.textSeparators && isText && previousWasText)
 			html = appendBoundedHtml(context, html, '<!-- -->');
 		if (rendered !== '') html = appendBoundedHtml(context, html, rendered);

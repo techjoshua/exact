@@ -17,6 +17,7 @@ import {
 	type ServerComponentReference
 } from './server-component-reference.js';
 import { captureNestedEnhancementStringPrefix } from './operation-enhancements.js';
+import { escapeSsrText } from './output-text.js';
 
 /** Executes a compiler-closed server invocation directly. */
 export function renderPreparedSsrProgram(
@@ -100,7 +101,7 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	prepareChild: prepareSsrChild,
 	prepareComponent: prepareSsrComponent,
 	prepareAttribute: prepareSsrAttribute,
-	begin(opaqueContext, nodeCount, slotCount, staticCharacters) {
+	begin(opaqueContext, nodeCount, slotCount, staticCharacters, _staticBytes) {
 		beginSsrProgram(opaqueContext as SsrContext, nodeCount, slotCount, staticCharacters);
 	},
 	static(output, value) {
@@ -198,6 +199,7 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 	readonly unprepared = unpreparedSsrValue;
 	private html = '';
+	private staticBytesAccounted = false;
 
 	constructor(
 		private readonly context: SsrContext,
@@ -225,11 +227,22 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		return prepareSsrAttribute(invocation, index);
 	}
 
-	begin(_context: object, nodeCount: number, slotCount: number, staticCharacters: number): void {
+	begin(
+		_context: object,
+		nodeCount: number,
+		slotCount: number,
+		staticCharacters: number,
+		staticBytes?: number
+	): void {
 		beginSsrProgram(this.context, nodeCount, slotCount, staticCharacters);
+		if (staticBytes !== undefined) {
+			this.context.outputSink?.accountClosedBytes(staticBytes);
+			this.staticBytesAccounted = true;
+		}
 	}
 
 	static(_output: object, value: string): void {
+		if (!this.staticBytesAccounted) this.context.outputSink?.account(value);
 		this.append(value);
 	}
 
@@ -241,14 +254,15 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		characters: number,
 		markerless?: true
 	): number {
+		const opening = this.context.markers && !markerless ? `<!--x:${exactMarkerId(id)}-->` : '';
+		const closing = this.context.markers && !markerless ? `<!--/x:${exactMarkerId(id)}-->` : '';
+		this.accountAscii(opening);
 		const rendered =
 			value === null || value === undefined || value === false || value === true
 				? ''
-				: escapeText(String(value));
-		const html =
-			this.context.markers && !markerless
-				? `<!--x:${exactMarkerId(id)}-->${rendered}<!--/x:${exactMarkerId(id)}-->`
-				: rendered;
+				: escapeSsrText(this.context, String(value));
+		this.accountAscii(closing);
+		const html = `${opening}${rendered}${closing}`;
 		this.assertCharacters(characters + html.length);
 		this.append(html);
 		return characters + html.length;
@@ -259,8 +273,10 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		const closing = this.context.markers ? `<!--/x:${exactMarkerId(id)}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
+		this.accountAscii(opening);
 		this.append(opening);
 		this.append(this.renderChildren(normalizeRenderResult(value as Child | Child[])));
+		this.accountAscii(closing);
 		this.append(closing);
 		return nextCharacters;
 	}
@@ -281,8 +297,10 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		const closing = this.context.markers && !markerless ? `<!--/x:${exactMarkerId(id)}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
+		this.accountAscii(opening);
 		this.append(opening);
 		this.append(this.renderOwnedComponent(value as ServerComponentReference));
+		this.accountAscii(closing);
 		this.append(closing);
 		return nextCharacters;
 	}
@@ -343,13 +361,20 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 	private appendAttribute(html: string, characters: number): number {
 		const nextCharacters = characters + html.length;
 		this.assertCharacters(nextCharacters);
+		this.context.outputSink?.account(html);
 		this.append(html);
 		return nextCharacters;
 	}
 
 	private append(value: string): void {
+		if (this.context.enhancementOperationRoutes?.length)
+			this.context.outputSink?.invalidateAccounting();
 		this.html = captureNestedEnhancementStringPrefix(this.context, this.html);
 		if (value !== '') this.html = appendBoundedHtml(this.context, this.html, value);
+	}
+
+	private accountAscii(value: string): void {
+		if (value) this.context.outputSink?.accountKnown(value, value.length);
 	}
 
 	private assertCharacters(characters: number): void {

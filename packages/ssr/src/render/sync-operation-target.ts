@@ -90,6 +90,7 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes an intrinsic operation and any enhancement wrapper. */
 	[exactIntrinsicOperation](operation: object, data: ExactIntrinsicReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return renderOperationEnhancements(
 			this.context,
 			data.enhancement,
@@ -133,6 +134,7 @@ export class SyncSsrOperationTarget {
 						this.renderComponent(component, this.parent, this.hasComponentAncestor, true)
 				)
 			);
+		this.context.outputSink?.invalidateAccounting();
 		return renderKeyedChildReceipt(
 			this.context,
 			data as ExactKeyedChildReceiptData,
@@ -144,6 +146,7 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes a synchronously settling Suspense operation. */
 	[exactSuspenseOperation](operation: object, data: ExactSuspenseReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return renderOperationEnhancements(
 			this.context,
 			data.enhancement,
@@ -163,6 +166,7 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes the currently selected Activity content. */
 	[exactActivityOperation](_operation: object, data: ExactActivityReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return renderActivityReceipt(
 			this.context,
 			data,
@@ -174,6 +178,7 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes a transparent compiler-owned fragment range. */
 	[exactFragmentOperation](operation: object, data: ExactFragmentReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return renderOperationEnhancements(
 			this.context,
 			data.enhancement,
@@ -193,6 +198,7 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes the children selected by a semantic target operation. */
 	[exactTargetOperation](_operation: object, data: ExactTargetReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return renderTargetReceipt(
 			this.context,
 			data,
@@ -235,18 +241,22 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes audited raw HTML without reparsing it. */
 	[exactUnsafeHtmlOperation](_operation: object, data: ExactUnsafeHtmlReceiptData): string {
-		return markerPair(this.context, markerId(this.context, 'unsafe-html'), () =>
-			renderUnsafeHtmlValue(this.context, data.value)
-		);
+		return markerPair(this.context, markerId(this.context, 'unsafe-html'), () => {
+			const html = renderUnsafeHtmlValue(this.context, data.value);
+			this.context.outputSink?.account(html);
+			return html;
+		});
 	}
 
 	/** Serializes a client-island publication boundary. */
 	[exactServerBoundaryOperation](operation: object, data: ExactServerBoundaryReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return renderServerBoundary(this.context, data, isFiniteClientBoundary(operation));
 	}
 
 	/** Serializes a retained server-owned child slot. */
 	[exactServerSlotOperation](_operation: object, data: ExactServerSlotReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return data.children.length
 			? `${serverSlotOpening(serverSlotReceiptReference(data), this.context)}${this.renderChildren(this.context, data.children, this.parent, this.hasComponentAncestor)}</span>`
 			: '';
@@ -254,6 +264,7 @@ export class SyncSsrOperationTarget {
 
 	/** Serializes portal children in logical ownership order. */
 	[exactPortalOperation](_operation: object, data: ExactPortalReceiptData): string {
+		this.context.outputSink?.invalidateAccounting();
 		return this.renderChildren(this.context, data.children, this.parent, this.hasComponentAncestor);
 	}
 
@@ -304,6 +315,7 @@ export class SyncSsrOperationTarget {
 
 	/** Returns already serialized SSR output without reparsing it. */
 	[exactSerializedSsrHtmlOperation](html: string): string {
+		this.context.outputSink?.account(html);
 		return html;
 	}
 

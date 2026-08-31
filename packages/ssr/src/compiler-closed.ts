@@ -163,10 +163,11 @@ function renderCompilerClosedOutputSync(
 	const renderOptions = withTaskDeadline(options);
 	const context = createSsrContext(renderOptions);
 	const output = new SsrOutputBuffer(context.maxOutputBytes);
+	context.outputSink = output;
 	attachSsrRootExecutionBlueprint(context, operation);
 	if (omitRootComponentBoundary) {
 		countSsrNode(context);
-		output.append(
+		output.appendAccounted(
 			new SyncSsrOperationTarget(
 				context,
 				undefined,
@@ -174,7 +175,7 @@ function renderCompilerClosedOutputSync(
 				renderChildren
 			).renderCompilerClosedRootComponent(component)
 		);
-	} else output.append(renderChildren(context, [operation], undefined));
+	} else output.appendAccounted(renderChildren(context, [operation], undefined));
 	output.prepend(context.reactResourceHints ?? []);
 	return { context, chunks: output.finish() };
 }

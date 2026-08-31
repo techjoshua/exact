@@ -17,6 +17,46 @@ describe('SSR output buffering', () => {
 		expect(output.finish()).toEqual(['\ud83d', '\ude80']);
 	});
 
+	it('joins compiler-known byte facts across surrogate boundaries', () => {
+		const output = new SsrOutputBuffer(4);
+		output.accountKnown('\ud83d', 3);
+		output.accountKnown('\ude80', 3);
+		output.appendAccounted('\ud83d\ude80');
+
+		expect(output.finish()).toEqual(['\ud83d\ude80']);
+	});
+
+	it('charges a compiler-proven byte-closed program as one span', () => {
+		const output = new SsrOutputBuffer(8);
+		output.accountKnown('\ud800', 3);
+		output.accountClosedBytes(4);
+		output.appendAccounted('\ud800caf\u00e9');
+
+		expect(output.finish()).toEqual(['\ud800caf\u00e9']);
+	});
+
+	it('restores byte provenance after a failed component attempt', () => {
+		const output = new SsrOutputBuffer(4);
+		output.accountKnown('ab', 2);
+		const checkpoint = output.checkpoint();
+		output.accountKnown('cd', 2);
+		output.rollback(checkpoint);
+		output.accountKnown('Ã©', 2);
+		output.appendAccounted('abÃ©');
+
+		expect(output.finish()).toEqual(['abÃ©']);
+	});
+
+	it('rescans the completed root after foreign output invalidates provenance', () => {
+		const output = new SsrOutputBuffer(4);
+		output.accountKnown('ignored', 1);
+		output.invalidateAccounting();
+
+		expect(() => output.appendAccounted('abcÃ©')).toThrow(
+			'eXact SSR output exceeds the configured maximum of 4 bytes'
+		);
+	});
+
 	it('rejects output incrementally before constructing a final string', () => {
 		const output = new SsrOutputBuffer(4);
 		output.append('abc');

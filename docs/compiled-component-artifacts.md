@@ -267,6 +267,14 @@ graph rather than for the whole module: a local direct graph can remain closed e
 component in the module uses a foreign boundary. A graph with a generic, imported, client-owned,
 enhancement-owned, or general-child descendant retains the ordinary renderer.
 
+Each generated synchronous server program also carries the exact UTF-8 byte total for its
+compiler-owned static spans. The request-owned output sink charges that immutable fact once, counts
+dynamic escaping and known ASCII delimiters as they are produced, and restores the ledger with the
+component attempt checkpoint on failure. Imported artifacts compiled before this optional fact are
+charged at their individual static writes. A lane whose output provenance is not compiler-closed
+invalidates the partial ledger and receives one exact scan when the completed root is committed;
+it does not install a second renderer or weaken the output limit.
+
 The compiler also specializes authored `renderToStringAsync()` and
 `renderToHydratableStringAsync()` calls whose local root graph is closed and whose options cannot
 enable foreign React markup. A runtime `markers` choice still uses the closed marked entrypoint;

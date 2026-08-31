@@ -173,7 +173,7 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		"prepareCompiledRenderProgram",
 		"version: 4",
 		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
-		`__exactSsr.begin(__exactContext, 2, 2, 30)`,
+		`__exactSsr.begin(__exactContext, 2, 2, 30, 30)`,
 		`__exactSsr.static(__exactOutput, "<span")`,
 		`__exactSsr.rootAttributes(__exactContext, __exactOutput, __exactValue_0, "span", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`const __exactValue_1 = __exactSsr.prepareText(__exactInvocation, 1)`,
@@ -188,6 +188,19 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		if strings.Contains(response.Code, omitted) {
 			t.Fatalf("generated server program retained %q topology metadata:\n%s", omitted, response.Code)
 		}
+	}
+}
+
+func TestSessionEmitsExactUTF8BytesForStaticServerSpans(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "static-unicode.tsx", Kind: "compile", Target: TargetServer,
+		Source: `export function StaticUnicode() { return () => <p>café🚀</p>; }`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactSsr.begin(__exactContext, 1, 1, 13, 16)`) {
+		t.Fatalf("static server program omitted its exact UTF-8 byte fact:\n%s", response.Code)
 	}
 }
 

@@ -170,6 +170,12 @@ export const compilerPathInventory = [
 		['ssr-sync']
 	),
 	path(
+		'compiler-proven-output-bytes',
+		'specialized',
+		'Synchronous server programs carry exact UTF-8 byte facts for compiler-owned spans.',
+		['ssr-sync']
+	),
+	path(
 		'async-task-ssr',
 		'supported-general',
 		'Async task settlement is represented by async/progressive SSR.',
