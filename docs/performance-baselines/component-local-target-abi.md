@@ -1308,3 +1308,70 @@ and output invariant. The broad allocation conflict, c32 saturation regressions,
 growth, and retained-heap movement remain explicit counter-metrics. The next remaining-site profile
 should distinguish prepared component-reference construction from state-capture and validation work
 before changing another allocation site.
+
+### Request-owned resumption path read-cell checkpoint
+
+The next remaining-site profile separated final resumption entries from the temporary result object
+allocated for every state-path segment. `readReactiveOwnPropertyInto` now reads an indexed or plain
+own data property into a caller-owned cell without invoking authored accessors. Each SSR resumption
+capture owns one cell, reuses it only during synchronous publication, and clears it in a `finally`
+block before returning. Compact indexed entries, root-input omission, descriptor-safe authored-value
+inspection, rollback, and public activation projection remain unchanged.
+
+The candidate passed 148 reactive tests, 182 SSR tests, 224 core tests, 37 composition-corpus tests,
+source architecture, JSDoc, formatting, and TypeScript 7 checks. `npm run performance:check` passed
+once, including the 419-second release admission, 1,946 package tests with five skips, maintained
+applications and documentation, React and R3F compatibility, the 335-file native compiler corpus,
+and the complete 252-second performance profile. The four admitted framework participants then
+passed all 28 browser correctness tests and were reused without rebuilding for every measurement.
+
+Accepted immutable evidence is:
+
+- the written gate: `.tmp/resumption-path-read-cell/expected-metrics.md`;
+- ten baseline and ten candidate focused captures:
+  `.tmp/resumption-path-read-cell/paired-baseline-10.json` and
+  `.tmp/resumption-path-read-cell/paired-candidate-10.json`;
+- browser, 50 samples per framework:
+  `.tmp/resumption-path-read-cell/accepted-browser-50.json`;
+- startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
+  `.tmp/resumption-path-read-cell/accepted-startup-50.json`;
+- the full SSR population, including 50 sequential samples and 50 ordinary concurrent waves:
+  `.tmp/resumption-path-read-cell/accepted-ssr-50.json`; and
+- the complete current and immediate-prior control-normalized report:
+  `.tmp/resumption-path-read-cell/complete-framework-report.md`.
+
+In the contemporaneous ten-capture A/B, median `captureStateEntries` sampled allocation falls from
+292,976 to 140,680 bytes (-52.0%), and total sampled allocation falls from 6,801,816 to 6,659,896
+bytes (-2.1%). Render p50/p75/p95 moves +0.5%/+2.2%/+3.6%, while p99 improves 1.5%. The complete
+render-only allocation sample confirms the direction: total sampled allocation falls from 7,011,520
+to 6,435,992 bytes (-8.2%), and `captureStateEntries` falls from 359,008 to 128,496 bytes (-64.2%).
+
+The broad render-only timing population contradicts the allocation result, moving from
+0.0461/0.0567/0.0913/0.1128 ms to 0.0479/0.0775/0.1208/0.1933 ms. That renderer-owned lane has
+only React as a corresponding control, and its raw cross-run tails disagree with the controlled
+A/B. The checkpoint therefore claims the allocation reduction it directly measures, not a render
+latency gain. Preloaded c32 is also raw and mixed: throughput moves from
+4,926/5,014/5,014/5,014 to 4,597/4,785/4,785/4,785 requests per second, while participant work
+moves from 0.172/0.182/0.205/0.327 ms to 0.179/0.192/0.270/0.373 ms.
+
+The multi-control saturation population moves in the opposite and more favorable direction after
+eligible normalization. Node throughput improves 30.7%/19.8%/6.0%/6.0% at c8,
+17.7%/14.3%/11.7%/11.7% at c32, and 14.6%/13.4%/10.7%/10.7% at c64. Ordinary concurrent
+throughput improves 24.2% at p50 and 11.4-12.9% at p95/p99; p75 is ineligible because controls
+disperse. Equal-8-KiB c32 is raw and 6.8-10.1% lower because controls disperse, while eligible c64
+throughput improves 9.0-21.1%. These mixed lanes are reported rather than reduced to one service
+capacity claim.
+
+The Node artifact changes by +162 raw bytes (+0.07%), +24 gzip bytes (+0.05%), and -12 Brotli
+bytes (-0.03%). Response size remains 4,500 bytes, and response decomposition, semantic markup,
+hydration payload, client artifact bytes, decoded and executed bytes, 568 invoked functions, and
+startup heap remain unchanged. Normalized post-GC heap used is flat at p50/p75 and +6.8% at
+p95/p99; post-GC RSS moves +6.8-7.2%. All retained slopes remain negative, and the read cell is
+cleared after every publication so it cannot extend request-value reachability.
+
+The checkpoint accepts the request-owned read cell because it deletes a repeated temporary
+allocation at the measured site, preserves the descriptor-safe serialization boundary, and improves
+total focused and broad allocation. Broad render tails, raw preloaded and equal-payload movement,
+post-GC RSS, and small artifact movement remain explicit counter-metrics. Prepared component
+references and validation now remain the largest separable construction and authored-value
+inspection sites for a later experiment.

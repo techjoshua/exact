@@ -9,7 +9,8 @@ import {
 	reactiveOwnDependencies,
 	createIndexedReactiveValue,
 	readIndexedReactiveSource,
-	readIndexedReactiveSlot
+	readIndexedReactiveSlot,
+	readReactiveOwnPropertyInto
 } from './indexed-base.js';
 import { subscribeKeys } from './observation.js';
 import { snapshot } from './snapshot.js';
@@ -131,10 +132,15 @@ describe('indexed reactive state', () => {
 		const state = indexedReactive<{ value: number }>(['value']);
 		state.value = 3;
 		expect(readReactiveOwnProperty(state, 'value')).toEqual({ present: true, value: 3 });
+		const cell = { value: undefined as unknown };
+		expect(readReactiveOwnPropertyInto(state, 'value', cell)).toBe(true);
+		expect(cell.value).toBe(3);
 
 		const accessor = vi.fn(() => 4);
 		const untrusted = Object.defineProperty({}, 'value', { get: accessor });
 		expect(readReactiveOwnProperty(untrusted, 'value')).toEqual({ present: false });
+		expect(readReactiveOwnPropertyInto(untrusted, 'value', cell)).toBe(false);
+		expect(cell.value).toBeUndefined();
 		expect(accessor).not.toHaveBeenCalled();
 	});
 

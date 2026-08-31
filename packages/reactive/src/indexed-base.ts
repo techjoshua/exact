@@ -129,21 +129,42 @@ export function updateIndexedReactive(
 	return true;
 }
 
+/** Request-owned result cell for allocation-free repeated own-property reads. */
+export type ReactiveOwnPropertyReadCell = { value: unknown };
+
+/** Reads an own field into a caller-owned cell without invoking an arbitrary accessor. */
+export function readReactiveOwnPropertyInto(
+	value: object,
+	key: PropertyKey,
+	cell: ReactiveOwnPropertyReadCell
+): boolean {
+	const indexed = indexedRecords.get(value);
+	if (indexed) {
+		const index = indexedRecordIndex(indexed, key);
+		if (index !== undefined && indexed.initialized[index]) {
+			cell.value = indexed.target[key];
+			return true;
+		}
+		cell.value = undefined;
+		return false;
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	if (descriptor && 'value' in descriptor) {
+		cell.value = descriptor.value;
+		return true;
+	}
+	cell.value = undefined;
+	return false;
+}
+
 /** Reads an own field without invoking an arbitrary user-defined accessor. */
 export function readReactiveOwnProperty(
 	value: object,
 	key: PropertyKey
 ): { present: true; value: unknown } | { present: false } {
-	const indexed = indexedRecords.get(value);
-	if (indexed) {
-		const index = indexedRecordIndex(indexed, key);
-		return index !== undefined && indexed.initialized[index]
-			? { present: true, value: indexed.target[key] }
-			: { present: false };
-	}
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	return descriptor && 'value' in descriptor
-		? { present: true, value: descriptor.value }
+	const cell: ReactiveOwnPropertyReadCell = { value: undefined };
+	return readReactiveOwnPropertyInto(value, key, cell)
+		? { present: true, value: cell.value }
 		: { present: false };
 }
 

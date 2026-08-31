@@ -13,7 +13,10 @@ import {
 	serverComponentContinuationContextValuesForHost,
 	settledServerComponentContinuationIdsForHost
 } from '@exactjs/core/framework/server-component-execution';
-import { readReactiveOwnProperty } from '@exactjs/reactive/framework/indexed-objects';
+import {
+	readReactiveOwnPropertyInto,
+	type ReactiveOwnPropertyReadCell
+} from '@exactjs/reactive/framework/indexed-objects';
 import type { RenderToStringOptions } from './types.js';
 
 type IndexedResumptionEntry = readonly [index: number, value: unknown];
@@ -86,6 +89,7 @@ export function createSsrResumptionCapture(
 	const schemas: SsrResumptionSchema[] = [];
 	const recordsByInstance = new WeakMap<AnyComponentInstance, number>();
 	const rootInputTokens = new Set<number>();
+	const pathReadCell: ReactiveOwnPropertyReadCell = { value: undefined };
 	let rootInputClaimed = false;
 	let projectedActivations: readonly ComponentResumptionActivation[] | undefined;
 
@@ -121,7 +125,8 @@ export function createSsrResumptionCapture(
 			state,
 			props,
 			schema,
-			publishedRootProps
+			publishedRootProps,
+			pathReadCell
 		);
 		const indexedContexts = captureContextEntries(contexts, schema.contexts);
 		const settled = settledContinuations.filter((id) => schema.continuations.has(id));
@@ -219,24 +224,31 @@ function captureStateEntries(
 	state: unknown,
 	props: unknown,
 	schema: SsrResumptionSchema,
-	publishedRootProps: Readonly<Record<string, unknown>> | undefined
+	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
+	cell: ReactiveOwnPropertyReadCell
 ): IndexedResumptionEntry[] {
 	const entries: IndexedResumptionEntry[] = [];
-	for (const field of schema.state) {
-		const found = readPath(state, field.segments);
-		if (!found.present || found.value === undefined) continue;
-		if (rootInput && publishedRootProps && field.propSegments) {
-			const local = readPath(props, field.propSegments);
-			const published = readPath(publishedRootProps, field.propSegments);
-			if (
-				local.present &&
-				published.present &&
-				Object.is(found.value, local.value) &&
-				Object.is(local.value, published.value)
-			)
-				continue;
+	try {
+		for (const field of schema.state) {
+			if (!readPath(state, field.segments, cell) || cell.value === undefined) continue;
+			const stateValue = cell.value;
+			if (rootInput && publishedRootProps && field.propSegments) {
+				if (!readPath(props, field.propSegments, cell)) {
+					entries.push([field.index, stateValue]);
+					continue;
+				}
+				const localValue = cell.value;
+				if (
+					readPath(publishedRootProps, field.propSegments, cell) &&
+					Object.is(stateValue, localValue) &&
+					Object.is(localValue, cell.value)
+				)
+					continue;
+			}
+			entries.push([field.index, stateValue]);
 		}
-		entries.push([field.index, found.value]);
+	} finally {
+		cell.value = undefined;
 	}
 	return entries;
 }
@@ -289,16 +301,22 @@ function projectEntries(
 /** Reads one own-property state path without invoking accessors. */
 function readPath(
 	value: unknown,
-	segments: readonly string[]
-): { present: true; value: unknown } | { present: false } {
+	segments: readonly string[],
+	cell: ReactiveOwnPropertyReadCell
+): boolean {
 	let cursor = value;
 	for (const segment of segments) {
-		if (!safeSegment(segment) || !cursor || typeof cursor !== 'object') return { present: false };
-		const field = readReactiveOwnProperty(cursor, segment);
-		if (!field.present) return field;
-		cursor = field.value;
+		if (
+			!safeSegment(segment) ||
+			!cursor ||
+			typeof cursor !== 'object' ||
+			!readReactiveOwnPropertyInto(cursor, segment, cell)
+		)
+			return false;
+		cursor = cell.value;
 	}
-	return { present: true, value: cursor };
+	cell.value = cursor;
+	return true;
 }
 
 function resumptionSchema(contract: ExactServerExecutableComponentContract): SsrResumptionSchema {
