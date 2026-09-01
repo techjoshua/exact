@@ -1614,3 +1614,22 @@ better at the center, but initial prop construction does not execute in that int
 movement is not attributed to this candidate. The optimized spread plus lazy second clone performs
 better in the admitted browser topology than a mandatory mutation loop over one final record, so
 the candidate was removed. Evidence is under `.tmp/client-final-prop-construction`.
+
+### Client receipt prop-retention experiment
+
+The accepted server prepared-reference construction was also tested one layer earlier in client
+component receipt creation. The candidate retained the supplied parent-owned prop record when it
+contained neither `key` nor `__exactEnhancements`, cloning only when a control field had to be
+removed. This eliminated one unconditional prop clone without mutating the source object.
+
+The first 50 captures were invalidated because the default core output rebuilt but the comparison's
+target-local client variant did not; the admitted bundle was byte-identical to the baseline. After
+explicitly regenerating the client/server package variants, 50 valid browser profiles showed
+startup sampled allocation moving -0.2%/-0.3%/+0.3%/+1.9%/+4.7% at
+p25/p50/p75/p95/p99. Interaction allocation was contradictory, including +6.6% at p50 and -2.0%
+at p75. Retained heap rose 364 bytes through p75, covered and invoked functions stayed at
+1,173/633, and the client artifact grew about 120 raw bytes. Diagnostic interaction CPU improved,
+but workstation use and contradictory allocation do not establish a production gain. The candidate
+was removed. Valid evidence uses the `browser-real-*` prefix under
+`.tmp/client-component-receipt-props`; unchanged-bundle captures are retained separately as a
+build-validation failure record.
