@@ -9,6 +9,7 @@ import type {
 } from './contracts.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
 import type { Logger } from '../logging.js';
+import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 
 /** Public options for creating an application-owned component domain. */
 export type ComponentDomainOptions = ComponentDomainIdentity;
@@ -190,6 +191,21 @@ export function withComponentDomain<T>(domain: ComponentDomain, work: () => T): 
 	componentDomainRuntimeState.activeDomain = domain;
 	try {
 		return work();
+	} finally {
+		componentDomainRuntimeState.activeDomain = previous;
+	}
+}
+
+/** Runs an existing operation under one component domain and reactive ownership scope. */
+export function callWithComponentDomainInEffectScope<T>(
+	domain: ComponentDomain,
+	scope: EffectScope | undefined,
+	work: () => T
+): T {
+	const previous = componentDomainRuntimeState.activeDomain;
+	componentDomainRuntimeState.activeDomain = domain;
+	try {
+		return withEffectScope(scope, work);
 	} finally {
 		componentDomainRuntimeState.activeDomain = previous;
 	}
