@@ -755,8 +755,12 @@ component-wide reactive watcher. This preserves the existing marker-free root to
 ownership while avoiding an extra dependency subscription on every client navigation.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
-the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
-ownership to the claimed `Text` node. Structural child markers remain when a later sibling requires
+the text boundary. When one scalar is adjacent only to authored static text, the compiler projects
+that text into the same focused operation: the immutable wire retains the prefix and suffix while
+the expression keeps its existing reader or indexed operand. Runs containing several expressions
+retain their independent operations and fallback sentinels rather than transferring computation
+ownership to a shared interpreter. Ambiguous adjacent text releases its fallback sentinels after
+transferring ownership to the claimed `Text` node. Structural child markers remain when a later sibling requires
 an explicit variable-width boundary. A native component emitted directly by a generated component
 slot uses that slot's structural delimiters, or the parent end for a final keyed slot, instead of
 emitting a second component-marker pair. If the same slot executes through a generic list lane, its

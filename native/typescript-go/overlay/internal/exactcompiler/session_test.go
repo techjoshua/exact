@@ -3146,8 +3146,8 @@ __fixtureTask2();
 		`instantiate: __exactImplementation_Panel_1`,
 		`__exactSlot === 0 ? __exactReadState(this.state, 1) as string`,
 		`__exactSlot === 1 ? () => __exactUpdateStateResult(this.state, 0`,
-		`[0, 2, [0, 0], true]`,
-		`__exactApplyProgramText(__exactTarget0, 2, 0, 0)`,
+		`[11, 2, ["Save ", "", true, 0, 0]]`,
+		`__exactApplyProgramText(__exactTarget0, 2, 0, 0, "Save ", "")`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -4777,7 +4777,7 @@ func TestClientRenderProgramRetainsNestedPropReactivity(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `[[0, 0]]`) {
+	if !strings.Contains(response.Code, `[[11, 0, ["Version ", ""]]]`) {
 		t.Fatalf("nested prop read lost its focused reactive text binding:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `[[0, 0, true]]`) ||

@@ -27,7 +27,15 @@ export function createGenericRenderProgramBinder(
 				continue;
 			}
 			if (binding[0] === 'text') {
-				bindCompiledProgramText(target, binding[1]);
+				const slot = slots[binding[1]];
+				bindCompiledProgramText(
+					target,
+					binding[1],
+					undefined,
+					undefined,
+					slot?.[0] === 'text' ? (slot[4] ?? '') : '',
+					slot?.[0] === 'text' ? (slot[5] ?? '') : ''
+				);
 				continue;
 			}
 			bindCompatibleProgramProperties(target, propertyGroup++, binding[1], slots);

@@ -191,7 +191,7 @@ function executeSyncComponentOutput(
 	let render: unknown;
 	if (server.mode !== 'direct' && server.mode !== 'stateless') {
 		try {
-				render = callInComponentDomain(context, server.render, frame, props);
+			render = callInComponentDomain(context, server.render, frame, props);
 			if (typeof render !== 'function')
 				throw new TypeError(
 					'Compiled synchronous server component did not return its render function'

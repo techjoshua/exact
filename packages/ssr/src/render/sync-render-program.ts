@@ -95,7 +95,9 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		value: unknown,
 		id: string,
 		characters: number,
-		markerless?: true
+		markerless?: true,
+		prefix = '',
+		suffix = ''
 	): number {
 		const opening = this.context.markers && !markerless ? `<!--x:${exactMarkerId(id)}-->` : '';
 		const closing = this.context.markers && !markerless ? `<!--/x:${exactMarkerId(id)}-->` : '';
@@ -105,10 +107,10 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 				? ''
 				: escapeSsrText(this.context, String(value));
 		this.accountAscii(closing);
-		const html = `${opening}${rendered}${closing}`;
-		this.assertCharacters(characters + html.length);
+		const html = `${prefix}${opening}${rendered}${closing}${suffix}`;
+		this.assertCharacters(characters + opening.length + rendered.length + closing.length);
 		this.append(html);
-		return characters + html.length;
+		return characters + opening.length + rendered.length + closing.length;
 	}
 
 	child(_context: object, _output: object, value: unknown, id: string, characters: number): number {

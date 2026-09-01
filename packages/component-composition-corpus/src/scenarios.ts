@@ -27,6 +27,7 @@ export const corpusScenarios = [
 		fixture: 'state.fixtures.tsx',
 		compilerPaths: [
 			'direct-text-binding',
+			'adjacent-text-projection',
 			'arbitrary-expression-fallback',
 			'direct-property-binding',
 			'state-only-update-mask',
