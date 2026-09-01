@@ -1998,4 +1998,5 @@ Current four-framework Node saturation c32 is 1,714/1,799/1,883/1,883 RPS for Ex
 heap is 12.55 MB for Exact versus 13.15 MB for React, 14.15 MB for SvelteKit, and 18.00 MB for Nuxt;
 the fitted Exact heap slope is 3,288 bytes per request versus React at 3,036. Client code,
 function inventory, and retained browser heap are unchanged by this server-only phase. The complete
-286-KB metrics report and immutable raw evidence are under `.tmp/resumption-structural-trust`.
+[metrics report](component-local-target-abi-shape-aware-resumption-validation.md) is tracked with
+this ledger. Its immutable raw evidence remains under `.tmp/resumption-structural-trust`.
