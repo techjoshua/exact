@@ -47,9 +47,8 @@ function renderHydrationScriptValue(
 		!options.outputExtensions?.length && capturedResumptions?.length
 			? capturedResumptions
 			: undefined;
-	const structurallyKnown = new WeakSet<object>();
 	const compacted = directResumptions
-		? createDirectHydrationMetadata(options, directResumptions, structurallyKnown)
+		? createDirectHydrationMetadata(options, directResumptions)
 		: createExtensibleHydrationMetadata(options, resumptionLayouts);
 	const reactiveCollections = new WeakMap<unknown[], unknown>();
 	let hasReactiveCollections = false;
@@ -62,7 +61,8 @@ function renderHydrationScriptValue(
 			reactiveCollections.set(value, encoded);
 			hasReactiveCollections = true;
 		},
-		structurallyKnown
+		directResumptions,
+		structurallyKnownRoot: directResumptions ? compacted : undefined
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
 	const payload = serializeValidatedHydrationPayload(
