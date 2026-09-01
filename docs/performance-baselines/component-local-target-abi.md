@@ -1563,3 +1563,14 @@ moves upward at the center even though setup input projection is not executed by
 it remains an unattributed counter-metric from an active-workstation, exact-only population.
 Evidence is under `.tmp/nested-component-inputs`. The quiet admitted four-framework population and
 control-normalized comparison remain outstanding.
+
+### Client artifact-attachment wrapper experiment
+
+The remaining pure attachment IIFEs in readable compiler output were measured rather than assumed
+to survive production admission. A candidate removed all 12 wrappers from the three comparison
+components, reducing readable generated output by 788 bytes and 12 syntactic functions. The
+admitted client artifact nevertheless remained exactly 194,540 bytes, with 82,327 precisely
+executed bytes, 1,173 covered functions, 633 invoked functions, and unchanged retained heap.
+Fifty fresh-process profiles produced mixed startup and interaction allocation. Rollup and V8
+already erase the pure wrapper from the shipped execution topology, so the candidate and its added
+island-binding machinery were removed. Evidence is under `.tmp/artifact-attachment-iife`.
