@@ -1675,3 +1675,25 @@ tests, focused SSR target-composition test, and the composition corpus pass. The
 unchanged native attribute semantics while the compiler-structure gate requires generated identity
 to remain outside the dynamic server plan. The written gate and ten focused captures are under
 `.tmp/compiler-static-root-identity`.
+
+### Successful-path hydration validation focused candidate
+
+Descriptor-safe hydration validation now tracks property paths only after a value is rejected. The
+ordinary successful pass retains prototype checks, own-property descriptors, cycle detection,
+depth and node limits, structurally known framework tuples, and reactive collection registration,
+but does not create or mutate diagnostic path arrays. A rejected graph reruns the same validator
+with path tracking and without collection-registration side effects; if the graph changes between
+passes, publication fails conservatively at `$`.
+
+Against the immediately preceding ten-profile population, median combined sampled CPU attributed
+to `validateValue`, `validateContainer`, and `pushValidationPath` moves from 5.1535 to 4.2405 ms
+(-17.7%); the successful profile no longer attributes samples to `pushValidationPath`. Median
+whole-render allocation moves from 4,835,344 to 4,784,816 bytes (-1.0%). Diagnostic render
+p50/p75/p95/p99 moves from 0.0427/0.0466/0.0614/0.1044 ms to
+0.0409/0.0448/0.0613/0.0973 ms. Every response remains byte-identical at 4,500 bytes.
+
+The three-file Node artifact moves from 232,031 to 232,281 raw bytes (+250), 49,206 to 49,268 gzip
+bytes (+62), and 41,012 to 41,041 Brotli bytes (+29). The extra diagnostic branch is retained
+because it removes work from every valid request without weakening the serialization boundary or
+its exact failure paths. The written gate and ten focused captures are under
+`.tmp/hydration-validation-success-path`.
