@@ -636,6 +636,12 @@ complete lowering. Scheduled components retain their issued protocol. This speci
 preserve request-local checkpoints, rollback, hooks, disposal, child artifact dispatch, response
 identity, and resumption publication.
 
+Once that direct lane is exclusive, the synchronous renderer also owns setup, local-program
+execution, checkpoint publication, lifecycle cleanup, and boundary formatting without calling a
+generic synchronous executor with an allocated sink callback. Delete that executor and its sink
+type; do not keep them as a compatibility route. The asynchronous renderer and scheduled
+stabilization protocol remain separate owners.
+
 A later focused specialization may also issue a statically selected child directly from that
 program when its invocation consists only of finalized plain props. Store the callable in the
 immutable generated writer, keep props request-owned, and reuse the existing child artifact ABI.

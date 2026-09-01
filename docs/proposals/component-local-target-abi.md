@@ -630,6 +630,12 @@ function. It never classifies a component VNode, searches a contract catalog, or
 render watcher. Stabilization remains bounded where authored tasks can legitimately change values
 required by output.
 
+The synchronous renderer owns artifact setup, component-local program execution, attempt
+checkpoints, indexed resumption publication, lifecycle cleanup, and final boundary formatting as one
+operation. It does not route completed component content through a generic synchronous executor or
+per-component sink callback. Scheduled artifacts retain their separate stabilization owner because
+they cross an actual asynchronous completion boundary.
+
 Node and Bun adapters call the same artifact ABI. Bun uses its native request and response
 infrastructure at the outer server boundary; component execution does not pass through a Node
 compatibility layer.
