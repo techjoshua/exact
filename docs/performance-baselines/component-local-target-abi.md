@@ -2003,3 +2003,63 @@ function inventory, and retained browser heap were unchanged by this server-only
 complete [metrics report](component-local-target-abi-shape-aware-resumption-validation.md) remains
 tracked as rejected evidence rather than accepted history. Its immutable raw evidence remains under
 `.tmp/resumption-structural-trust`.
+
+### Compact direct resumption shape-state checkpoint
+
+The rejected validation experiment was revisited from the restored 229,756-byte server artifact,
+not from its unaccepted implementation. The earlier form added 2,758 raw server bytes and several
+hot helper functions to remove request-local structural-known bookkeeping. The revised candidate
+carries one numeric compiler-owned container shape through the existing validation recursion and
+returns to the descriptor-safe path as soon as traversal reaches an authored value. It adds no
+callbacks, identity registry, serializer, or helper stack. Prototype, accessor, cycle, depth,
+node-count, DOM-node, reactive-collection, extension, and request-isolation boundaries remain.
+
+The rebuilt production server entry is 229,778 bytes, only 22 bytes above the byte-identical
+restored artifact. The client artifact is byte-identical. The current comparison response is 4,479
+bytes, the same byte-for-byte response measured from this candidate and the rejected predecessor;
+the 21-byte reduction from the older 4,500-byte checkpoint belongs to the intervening accepted
+server work and is not attributed to validation. Across 100
+alternating render-only pairs, candidate/before median ratios are 0.959/0.971/0.970/1.001 at
+p50/p75/p95/p99; arithmetic means are 0.958/0.962/0.978/0.997. The candidate wins 72, 68, 61, and
+50 pairs respectively, with the center improvement present in both execution positions. Twenty
+alternating allocation pairs record a 0.950 median and 0.946 mean total sampled-allocation ratio,
+with 19 pairs improving. Median native `WeakSet.add` attribution falls from 225,512 to 143,760
+sampled bytes.
+
+Ten restarted five-round worker cohorts do not reproduce the rejected all-lane throughput pattern.
+Candidate/before cohort-mean ratios are 1.001 for concurrent c16, 1.016 for saturation c32, 1.010
+for preloaded c32, and 0.993 for equal-8-KiB c32. Because the first equal-payload population moves
+with worker start position, a longer 20-cohort, four-window confirmation was run instead of
+dismissing the counter-signal. Its balanced aggregate records a 1.012 cohort-mean ratio, 1.019
+cohort median, 11 of 20 winning cohorts, a 1.017 paired-window mean, and 44 of 80 winning windows.
+The persistent start-position split confirms process-placement sensitivity; balancing it removes
+the apparent aggregate regression but does not justify crediting the candidate for an equal-payload
+gain.
+
+The complete release prerequisite and `npm run performance:check` passed. Because this change is
+server-only and the production client asset is SHA-256-identical, the complete report reuses the
+same 50-sample browser and startup captures and measures a new 50-sample Node/Bun SSR population
+from the rebuilt admitted server artifacts. The complete
+[metrics report](component-local-target-abi-compact-resumption-shape-state.md) includes every
+browser, startup CPU, function-inventory, artifact, Node SSR, allocation, response-decomposition,
+equal-payload, preloaded, saturation, retention, and Bun diagnostic table.
+
+The controlling immediate Exact-before population does not reproduce the rejected coherent
+all-lane regression. Current/before requests-per-second ratios are positive in unrestricted c16 and
+ordinary saturation c1 through c64. Preloaded c32 and c64 have mixed centers and tails, and
+equal-8-KiB c32 is 6.2-6.3% lower while c8 and c64 improve. The much larger 3.6-35.4% ordinary-lane
+movements cannot plausibly come from this 22-byte change; together with the restarted-cohort
+experiment, they expose persistent worker-placement sensitivity. They are therefore a veto check,
+not claimed optimization credit. The attributable evidence remains the alternating render and
+allocation populations: roughly 4% faster center rendering, about 5% lower sampled allocation,
+and removal of request-local structural-registration work without weakening authored-value
+validation.
+
+Current Node Exact and React are effectively level in unrestricted concurrent p50 at 1,597 and
+1,582 requests per second. Exact leads React at ordinary saturation c32
+(1,834/1,916/2,009/2,009 versus 1,790/1,880/1,930/1,930) but trails in some lower-concurrency lanes.
+Render-only remains slower at 0.0656/0.0793/0.1222/0.2425 ms versus React at
+0.0277/0.0325/0.0761/0.1681, while sampled render allocation remains materially lower at 4.59 MB
+versus 6.98 MB. The compact shape-state implementation is accepted on the focused CPU/allocation
+evidence and the absence of a coherent broad throughput veto. Immutable evidence and the written
+gate are under `.tmp/direct-resumption-shape-state`.

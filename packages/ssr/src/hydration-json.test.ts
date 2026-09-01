@@ -17,17 +17,13 @@ describe('hydration JSON validation', () => {
 		const resumption: [string, [number, unknown][]] = ['component', entries];
 		const resumptions = [resumption];
 		const payload = { resumptions };
-		const structurallyKnown = new WeakSet<object>([
-			payload,
-			resumptions,
-			resumption,
-			entries,
-			entry
-		]);
 
-		expect(validateJsonSafeHydrationValue(payload, { structurallyKnown })).toBe(
-			'$.resumptions[0][1][0][1].secret'
-		);
+		expect(
+			validateJsonSafeHydrationValue(payload, {
+				directResumptions: resumptions,
+				structurallyKnownRoot: payload
+			})
+		).toBe('$.resumptions[0][1][0][1].secret');
 		expect(accessorInvoked).toBe(false);
 	});
 
@@ -81,5 +77,49 @@ describe('hydration JSON validation', () => {
 		const structurallyKnown = new WeakSet<object>([entries, entry as object]);
 
 		expect(validateJsonSafeHydrationValue(entries, { structurallyKnown })).toBe('$[0][1]');
+	});
+
+	it('observes authored arrays but not compiler-owned resumption tuples', () => {
+		const authored: unknown[] = ['value'];
+		const resumptions = [['component', [[0, authored]]]] as const;
+		const payload = { resumptions };
+		const observed: unknown[][] = [];
+
+		expect(
+			validateJsonSafeHydrationValue(payload, {
+				directResumptions: resumptions,
+				structurallyKnownRoot: payload,
+				onValidatedArray: (value) => observed.push(value)
+			})
+		).toBeUndefined();
+		expect(observed).toEqual([authored]);
+	});
+
+	it('applies graph limits across compiler-owned resumption tuples', () => {
+		const resumptions = [['component', [[0, 'value']]]] as const;
+		const payload = { resumptions };
+
+		expect(
+			validateJsonSafeHydrationValue(payload, {
+				directResumptions: resumptions,
+				structurallyKnownRoot: payload,
+				maxNodes: 5
+			})
+		).toBe('$.resumptions[0][1][0]');
+	});
+
+	it('rejects authored values that point back into compiler-owned tuples', () => {
+		const entry: [number, unknown] = [0, undefined];
+		const resumption: [string, [number, unknown][]] = ['component', [entry]];
+		const resumptions = [resumption];
+		entry[1] = resumptions;
+		const payload = { resumptions };
+
+		expect(
+			validateJsonSafeHydrationValue(payload, {
+				directResumptions: resumptions,
+				structurallyKnownRoot: payload
+			})
+		).toBe('$.resumptions[0][1][0][1]');
 	});
 });
