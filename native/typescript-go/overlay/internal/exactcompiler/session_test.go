@@ -923,7 +923,7 @@ func TestSessionWiresInferredProgramListsThroughComponentLocalCache(t *testing.T
 		!strings.Contains(response.Code, `item => item.id`) {
 		t.Fatalf("compiler-owned list omitted component-local key wiring:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `ComponentInstanceImpl as __exactConstructDurableComponent`) ||
+	if !strings.Contains(response.Code, `constructDurableComponentInstance as __exactConstructDurableComponent`) ||
 		!strings.Contains(response.Code, `abi: 5`) {
 		t.Fatalf("authored JSX key omitted component list ownership from the constructor ABI:\n%s", response.Code)
 	}
@@ -982,7 +982,7 @@ func TestSessionCarriesPrimitiveKeyInferenceIntoTheComponentConstructorABI(t *te
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `__exactMapKeyedChildren(this,`) ||
-		!strings.Contains(response.Code, `ComponentInstanceImpl as __exactConstructDurableComponent`) ||
+		!strings.Contains(response.Code, `constructDurableComponentInstance as __exactConstructDurableComponent`) ||
 		!strings.Contains(response.Code, `abi: 5`) {
 		t.Fatalf("primitive key inference did not reach the component constructor ABI:\n%s", response.Code)
 	}
@@ -1792,12 +1792,12 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 		t.Fatalf("component runtime ABI did not distinguish render, lifecycle, and task paths:\n%s", response.Code)
 	}
 	for _, expected := range []string{
-		`RenderComponentInstance as __exactConstructRenderComponent`,
-		`TaskComponentInstance as __exactConstructTaskComponent`,
-		`ComponentInstanceImpl as __exactConstructDurableComponent`,
-		`construct: (__exactParent: any, __exactRawProps: any, __exactAmbientContexts: any, __exactDomain: any, __exactExecution: any, __exactContract: any) => new __exactConstructRenderComponent`,
-		`construct: (__exactParent: any, __exactRawProps: any, __exactAmbientContexts: any, __exactDomain: any, __exactExecution: any, __exactContract: any) => new __exactConstructTaskComponent`,
-		`construct: (__exactParent: any, __exactRawProps: any, __exactAmbientContexts: any, __exactDomain: any, __exactExecution: any, __exactContract: any) => new __exactConstructDurableComponent`,
+		`constructRenderComponentInstance as __exactConstructRenderComponent`,
+		`constructTaskComponentInstance as __exactConstructTaskComponent`,
+		`constructDurableComponentInstance as __exactConstructDurableComponent`,
+		`construct: __exactConstructRenderComponent`,
+		`construct: __exactConstructTaskComponent`,
+		`construct: __exactConstructDurableComponent`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("component artifact did not select constructor %q:\n%s", expected, response.Code)
@@ -1853,7 +1853,7 @@ func TestSessionPropagatesComponentSurfaceThroughBoundLocalHelpers(t *testing.T)
 	if next := strings.Index(inputContract[1:], "const __exactImplementation_"); next >= 0 {
 		inputContract = inputContract[:next+1]
 	}
-	if !strings.Contains(inputContract, `construct: (__exactParent: any, __exactRawProps: any, __exactAmbientContexts: any, __exactDomain: any, __exactExecution: any, __exactContract: any) => new __exactConstructDurableComponent`) ||
+	if !strings.Contains(inputContract, `construct: __exactConstructDurableComponent`) ||
 		!strings.Contains(inputContract, `"contexts"`) {
 		t.Fatalf("bound helper requirements did not widen the owning component ABI:\n%s", response.Code)
 	}

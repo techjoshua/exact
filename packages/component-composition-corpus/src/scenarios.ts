@@ -48,6 +48,7 @@ export const corpusScenarios = [
 		description: 'Keyed identity composes with context, refs, and owner cleanup.',
 		fixture: 'capabilities.fixtures.tsx',
 		compilerPaths: [
+			'artifact-local-instance-construction',
 			'keyed-list-reconciliation',
 			'context-capability',
 			'ref-capability',
