@@ -4786,6 +4786,34 @@ func TestClientRenderProgramRetainsNestedPropReactivity(t *testing.T) {
 	}
 }
 
+func TestServerComponentPropForwardingDoesNotPublishClientIndexedSources(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "server-state-prop.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State }
+			function Child(props: { value: { label: string } }) {
+				return () => <span>{props.value.label}</span>;
+			}
+			export function Parent(this: Component<{ value: { label: string } }>) {
+				this.state.value = { label: 'ready' };
+				return () => <Child value={this.state.value} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "createIndexedReactiveValue") ||
+		strings.Contains(response.Code, "__exactIndexedExpression") {
+		t.Fatalf("server prop forwarding retained a client indexed source:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `value: this.state.value`) {
+		t.Fatalf("server prop forwarding lost its request-owned state value:\n%s", response.Code)
+	}
+}
+
 func TestSessionRetainsSharedAndMaterializesSoleConsumerDerivedBindings(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "shared-derived.tsx",

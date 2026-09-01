@@ -27,6 +27,11 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 	if forwardLiveSlot && lowering.unownedParameterForwarding(source) {
 		return expression
 	}
+	// A compiler-closed synchronous server component finishes setup before issuing its child. Its
+	// finalized prop value is request-owned and needs neither a client indexed source nor a reader.
+	if forwardLiveSlot && lowering.directServerFrameComponent(source) {
+		return expression
+	}
 	// A module-owned collection is stable, so values derived only from its callback
 	// parameters do not need subscriptions. Captures from the component are different:
 	// suppressing their wrappers freezes child props at the collection's first render.
@@ -83,6 +88,11 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 // indexedReactiveExpression replaces a one-use read closure and general computed node with the
 // stable reactive source already owned by a compiler-indexed state slot.
 func (lowering *jsxLowering) indexedReactiveExpression(source *ast.Node, expression *ast.Node) *ast.Node {
+	// Server setup executes against request-owned ordinary state. A live indexed source is a client
+	// update operand and cannot cross the server component boundary as a prop value.
+	if lowering.target == TargetServer {
+		return nil
+	}
 	read, exists := lowering.stateReadSlots[nodeSpanKey(source)]
 	if !exists || (expression != source && !lowering.isIndexedReadExpression(expression)) {
 		return nil
