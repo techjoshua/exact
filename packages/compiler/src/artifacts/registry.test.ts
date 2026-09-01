@@ -254,8 +254,9 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).toContain('export { Panel as Panel_ExactServer_1 }');
 		expect(server).toContain('statePaths: [');
 		expect(server).toContain('"count"');
-		expect(server).toContain('__exactSsr.static(__exactOutput, "<section")');
-		expect(server).toContain('__exactSsr.static(__exactOutput, "><button class=\\"primary\\"")');
+		expect(server).toContain(
+			'__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "section", "<section", "><button class=\\"primary\\""'
+		);
 		expect(server).toContain('[{}, this.state.count, true, this.state.count]');
 		expect(server).toContain('__exactSsr.compiledAttribute(');
 		expect(server).not.toContain('onClick');
