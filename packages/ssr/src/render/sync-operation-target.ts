@@ -319,37 +319,32 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 		return html;
 	}
 
-	/** Crosses one child component boundary with its own owner-aware target. */
+	/** Crosses one child component boundary while ownership remains explicit in its arguments. */
 	renderComponent(
-		context: SsrContext,
+		_context: SsrContext,
 		component: ExactComponentReceiptData,
 		parent?: AnyComponentInstance,
 		hasComponentAncestor = false,
 		omitCompilerOwnedBoundary = false
 	): string {
-		return new SyncSsrOperationTarget(
-			context,
+		return this.renderComponentReceipt(
+			component,
 			parent,
 			hasComponentAncestor,
-			this.renderChildList
-		).renderComponentReceipt(component, parent, hasComponentAncestor, omitCompilerOwnedBoundary);
+			omitCompilerOwnedBoundary
+		);
 	}
 
 	/** Crosses one statically selected child boundary without a prepared reference allocation. */
 	renderDirectComponent(
-		context: SsrContext,
+		_context: SsrContext,
 		component: AnyExactComponentCallable,
 		props: Record<string, unknown> | null,
 		parent?: AnyComponentInstance,
 		hasComponentAncestor = false,
 		omitCompilerOwnedBoundary = false
 	): string {
-		return new SyncSsrOperationTarget(
-			context,
-			parent,
-			hasComponentAncestor,
-			this.renderChildList
-		).renderDirectComponentReceipt(
+		return this.renderDirectComponentReceipt(
 			component,
 			props,
 			parent,
