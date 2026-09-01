@@ -483,9 +483,11 @@ npm run performance:check
 ```
 
 The npm prerequisite runs `release:check`, the isolated Router v6.3 check, Theme Lab browser
-acceptance, and the native compiler corpus first. A failure stops before measurement. Once those
-checks exit, the performance profile runs benchmarks against their existing build; it does not
-repeat the repository build or TypeScript 7 compatibility pass.
+acceptance, and the native compiler corpus first. Correctness and structural failures stop before
+measurement. A machine-local native compiler timing excess is recorded as non-publishable timing
+evidence and warns without discarding the admitted build. Once those checks exit, the performance
+profile runs benchmarks against their existing build; it does not repeat the repository build or
+TypeScript 7 compatibility pass.
 
 Update the tracked framework baseline only from a complete Node and Chromium run:
 

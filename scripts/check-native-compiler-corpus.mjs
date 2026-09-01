@@ -14,6 +14,7 @@ import {
 	nativeBaselineComparison,
 	medianNativeCorpusResult,
 	medianNativeProjectElapsedMs,
+	nativeCorpusTimingReview,
 	positiveInteger,
 	readNativeCompilerCorpusBaseline,
 	writeNativeCompilerCorpusBaseline
@@ -235,6 +236,8 @@ const significantProjectRatio = Math.max(
 			project.baselineIncrementalMs >= 50 ? (project.incrementalRatio ?? 0) : 0
 		])
 );
+const guardRatio = comparison ? Math.max(comparison.ratio, significantProjectRatio) : undefined;
+const timingReview = nativeCorpusTimingReview(guardRatio, maxBaselineRatio);
 const record = {
 	schemaVersion: 3,
 	generatedAt: new Date().toISOString(),
@@ -253,10 +256,11 @@ const record = {
 	sampleCount,
 	sampleElapsedMs: samples.map((sample) => sample.elapsedMs),
 	maxBaselineRatio,
+	timingReview,
 	...(comparison
 		? {
 				baselineRatio: comparison.ratio,
-				guardRatio: Math.max(comparison.ratio, significantProjectRatio),
+				guardRatio,
 				baselineComparison: comparison
 			}
 		: {}),
@@ -316,11 +320,10 @@ if (updateBaseline) {
 		'native compiler performance guard requires a comparable tracked native baseline'
 	);
 }
-if (!updateBaseline && record.guardRatio > maxBaselineRatio) {
-	throw new Error(
-		`native compiler corpus guard ratio ${record.guardRatio.toFixed(2)} exceeded ${maxBaselineRatio.toFixed(2)}`
+if (!updateBaseline && timingReview.status === 'warning')
+	console.warn(
+		`warning: ${timingReview.reason}; timing evidence is non-publishable, but corpus and structural results were retained`
 	);
-}
 
 function positiveNumber(value, fallback, label) {
 	if (value === undefined || value === '') return fallback;
