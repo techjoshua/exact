@@ -67,3 +67,22 @@ export function inputProjectionOwner(): Component<InputProjectionState> {
 	if (!mountedInputProjection) throw new Error('Indexed input projection is not mounted');
 	return mountedInputProjection;
 }
+
+type ServerProjectionState = { direct: string; computed: string };
+
+function normalizeServerLabel(label: string): string {
+	return label.trim().toUpperCase();
+}
+
+function ServerSetupProjection(this: Component<ServerProjectionState>, props: { label: string }) {
+	this.state.direct = props.label;
+	this.state.computed = normalizeServerLabel(props.label);
+	return () => (
+		<output data-scenario="server-setup-projection">
+			{this.state.direct}:{this.state.computed}
+		</output>
+	);
+}
+
+/** Compiler-issued root covering direct and authored synchronous server setup. */
+export const serverSetupProjectionRoot = (label: string) => <ServerSetupProjection label={label} />;

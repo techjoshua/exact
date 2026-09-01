@@ -2,6 +2,62 @@ import { describe, expect, it } from 'vitest';
 import { isExactComponentContract } from './contract-validation.js';
 
 describe('component contract validation', () => {
+	it('requires stateless server executors to remain capability- and state-free', () => {
+		const componentId = 'component:Label';
+		const instantiate = () => undefined;
+		const artifact = {
+			version: 1,
+			target: 'server',
+			id: componentId,
+			issue() {},
+			write() {},
+			dispose() {},
+			instantiate,
+			construct: instantiate,
+			abi: 0,
+			state: [],
+			props: ['label'],
+			capabilities: [],
+			execution: {
+				version: 1,
+				classification: 'synchronous',
+				lane: 'direct',
+				mode: 'stateless',
+				render: instantiate
+			}
+		};
+		const contract = {
+			version: 3,
+			placement: 'server',
+			role: 'render',
+			implementations: [],
+			continuations: [],
+			executors: [],
+			boundaries: [],
+			artifact
+		};
+
+		expect(isExactComponentContract(contract, componentId)).toBe(true);
+		expect(
+			isExactComponentContract(
+				{ ...contract, artifact: { ...artifact, capabilities: ['registry'] } },
+				componentId
+			)
+		).toBe(true);
+		expect(
+			isExactComponentContract(
+				{ ...contract, artifact: { ...artifact, state: ['value'] } },
+				componentId
+			)
+		).toBe(false);
+		expect(
+			isExactComponentContract(
+				{ ...contract, artifact: { ...artifact, capabilities: ['contexts'] } },
+				componentId
+			)
+		).toBe(false);
+	});
+
 	it('accepts an explicit foreign compatibility server lane without direct executable fields', () => {
 		const componentId = 'component:CompatibilityIsland';
 		const instantiate = () => undefined;

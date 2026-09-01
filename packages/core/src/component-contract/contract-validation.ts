@@ -166,7 +166,22 @@ function isServerArtifact(value: Record<PropertyKey, unknown>): boolean {
 		typeof value.dispose === 'function' &&
 		(value.execute === undefined || typeof value.execute === 'function') &&
 		(value.selection === undefined || isServerSelection(value.selection)) &&
-		isServerExecution(value.execution, value.selection !== undefined)
+		isServerExecution(value.execution, value.selection !== undefined) &&
+		hasConsistentStatelessServerExecution(value)
+	);
+}
+
+/** Ensures a stateless executor cannot smuggle request-owned component surfaces into its artifact. */
+function hasConsistentStatelessServerExecution(value: Record<PropertyKey, unknown>): boolean {
+	if (!isContractRecord(value.execution) || value.execution.mode !== 'stateless') return true;
+	return (
+		Array.isArray(value.state) &&
+		value.state.length === 0 &&
+		Array.isArray(value.capabilities) &&
+		value.capabilities.every((capability) => capability === 'registry') &&
+		value.execution.frame === undefined &&
+		value.execution.lifecycle === undefined &&
+		value.execution.publication === undefined
 	);
 }
 

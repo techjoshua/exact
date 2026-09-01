@@ -398,6 +398,8 @@ func componentArtifactMetadata(
 		properties = append(properties, contractProperty(factory, "inputs", inputs))
 	}
 	if server {
+		statelessDirectExecutor := directServerExecutor && len(state) == 0 &&
+			len(capabilities) == 0 && serverFrame == nil && serverLifecycle == nil
 		properties = append(properties, contractProperty(
 			factory,
 			"execution",
@@ -408,6 +410,7 @@ func componentArtifactMetadata(
 				instantiate,
 				directServer,
 				directServerExecutor,
+				statelessDirectExecutor,
 				dynamicComponents,
 				serverPublicationName,
 				serverFrame,
@@ -434,6 +437,7 @@ func serverComponentExecutionMetadata(
 	instantiate *ast.Node,
 	direct bool,
 	directExecutor bool,
+	statelessDirectExecutor bool,
 	dynamic bool,
 	publicationName string,
 	frame *ast.Node,
@@ -460,7 +464,11 @@ func serverComponentExecutionMetadata(
 		properties = append(properties,
 			contractProperty(factory, "render", instantiate),
 		)
-		if directExecutor {
+		if statelessDirectExecutor {
+			properties = append(properties,
+				contractProperty(factory, "mode", contractString(factory, "stateless")),
+			)
+		} else if directExecutor {
 			properties = append(properties,
 				contractProperty(factory, "mode", contractString(factory, "direct")),
 			)

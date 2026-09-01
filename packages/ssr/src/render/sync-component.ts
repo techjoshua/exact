@@ -179,13 +179,17 @@ function executeSyncComponentOutput(
 	const server = artifact.execution;
 	if (server.lane !== 'direct' || server.classification !== 'synchronous' || !server.render)
 		throw new TypeError('Synchronous component operation selected a scheduled server artifact');
-	const frame = createSelectedDirectSsrFrame(context, contract, parent);
-	const owner = selectedDirectSsrOwner(contract, frame, parent);
+	const stateless =
+		server.mode === 'stateless' &&
+		!context.onDirectComponentCreated &&
+		!context.onDirectComponentRendered;
+	const frame = stateless ? undefined : createSelectedDirectSsrFrame(context, contract, parent);
+	const owner = frame ? selectedDirectSsrOwner(contract, frame, parent) : parent;
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let render: unknown;
-	if (server.mode !== 'direct') {
+	if (server.mode !== 'direct' && server.mode !== 'stateless') {
 		try {
-			render = callInComponentDomain(context, server.render, frame, props);
+			render = callInComponentDomain(context, server.render, frame!, props);
 			if (typeof render !== 'function')
 				throw new TypeError(
 					'Compiled synchronous server component did not return its render function'
@@ -193,7 +197,7 @@ function executeSyncComponentOutput(
 		} catch (error) {
 			if (lifecycle) {
 				try {
-					disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr construction failed');
+					disposeDirectSsrLifetimeSync({ frame: frame!, lifecycle }, 'ssr construction failed');
 				} catch (cleanup) {
 					attachSuppressedCleanupFailure(error, cleanup);
 				}
@@ -204,22 +208,26 @@ function executeSyncComponentOutput(
 	let primary: unknown = noPrimaryFailure;
 	try {
 		const started = lifecycle ? performanceNow() : 0;
-		const content = readDirectSsrContent(
-			server.mode === 'direct'
+		const rendered =
+			server.mode === 'direct' || server.mode === 'stateless'
 				? callInComponentDomain(context, server.render, frame, props)
 				: callInComponentDomain(
 						context,
 						render as (argument: undefined) => unknown,
 						undefined,
 						undefined
-					)
-		);
-		lifecycle?.rendered(frame, performanceNow() - started);
+					);
+		const content = readDirectSsrContent(rendered);
+		lifecycle?.rendered(frame!, performanceNow() - started);
 		const checkpoint = context.onComponentAttemptCheckpoint?.();
-		const resumptionCheckpoint = context.resumptionCapture?.checkpoint();
+		const resumptionCheckpoint = stateless ? undefined : context.resumptionCapture?.checkpoint();
 		const outputCheckpoint = context.outputSink?.checkpoint();
-		const resumptionToken = context.resumptionCapture?.reserveDirect(artifact.id, contract);
-		const snapshot = createObservedSnapshot(context, artifact.id, contract, frame, props);
+		const resumptionToken = stateless
+			? undefined
+			: context.resumptionCapture?.reserveDirect(artifact.id, contract);
+		const snapshot = frame
+			? createObservedSnapshot(context, artifact.id, contract, frame, props)
+			: undefined;
 		if (snapshot) context.onDirectComponentCreated?.(snapshot);
 		try {
 			const output = boundary
@@ -237,7 +245,7 @@ function executeSyncComponentOutput(
 					: operations.renderChildren(context, content.children, owner, true);
 			if (!boundary) markerId(context, 'component', artifact.id, directKey);
 			if (resumptionToken !== undefined)
-				context.resumptionCapture?.publishDirect(resumptionToken, frame, frame.state, props);
+				context.resumptionCapture?.publishDirect(resumptionToken, frame!, frame!.state, props);
 			if (snapshot) context.onDirectComponentRendered?.(snapshot);
 			return output;
 		} catch (error) {
@@ -253,7 +261,7 @@ function executeSyncComponentOutput(
 	} finally {
 		if (lifecycle)
 			disposePreservingPrimary(
-				() => disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr render complete'),
+				() => disposeDirectSsrLifetimeSync({ frame: frame!, lifecycle }, 'ssr render complete'),
 				primary
 			);
 	}
