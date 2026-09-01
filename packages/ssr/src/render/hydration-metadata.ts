@@ -6,8 +6,7 @@ import type { HydrationScriptOptions } from '../types.js';
 /** Constructs the already-final compiler-closed envelope without generic output transformation. */
 export function createDirectHydrationMetadata(
 	options: HydrationScriptOptions,
-	resumptions: readonly SsrSerializedResumption[],
-	structurallyKnown: WeakSet<object>
+	resumptions: readonly SsrSerializedResumption[]
 ): Record<string, unknown> {
 	const output: Record<string, unknown> = {};
 	assignDefined(output, 'pluginRegistryFingerprint', options.pluginRegistryFingerprint);
@@ -28,7 +27,6 @@ export function createDirectHydrationMetadata(
 	assignDefined(output, 'binding', options.binding);
 	assignDefined(output, 'buildKey', options.buildKey);
 	assignDefined(output, 'componentAuthorization', options.componentAuthorization);
-	trustDirectHydrationStructure(output, resumptions, structurallyKnown);
 	return output;
 }
 
@@ -58,24 +56,6 @@ export function createExtensibleHydrationMetadata(
 		(options.outputExtensions ?? []) as readonly ExactOutputExtension<Record<string, unknown>>[]
 	);
 	return compactHydrationMetadata(payloadValue, resumptionLayouts);
-}
-
-function trustDirectHydrationStructure(
-	payload: Record<string, unknown>,
-	resumptions: readonly SsrSerializedResumption[],
-	structurallyKnown: WeakSet<object>
-): void {
-	structurallyKnown.add(payload);
-	structurallyKnown.add(resumptions as object);
-	for (const resumption of resumptions) {
-		structurallyKnown.add(resumption as object);
-		for (const entries of [resumption[1], resumption[2]]) {
-			if (!entries) continue;
-			structurallyKnown.add(entries as object);
-			for (const entry of entries) structurallyKnown.add(entry as object);
-		}
-		if (resumption[3]) structurallyKnown.add(resumption[3] as object);
-	}
 }
 
 function compactHydrationMetadata(
