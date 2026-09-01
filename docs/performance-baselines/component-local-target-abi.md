@@ -1574,3 +1574,27 @@ executed bytes, 1,173 covered functions, 633 invoked functions, and unchanged re
 Fifty fresh-process profiles produced mixed startup and interaction allocation. Rollup and V8
 already erase the pure wrapper from the shipped execution topology, so the candidate and its added
 island-binding machinery were removed. Evidence is under `.tmp/artifact-attachment-iife`.
+
+### Synchronous operation-target reuse
+
+The synchronous component target no longer constructs another owner-aware target at every child
+component call. Component ownership was already carried by explicit parent and owner arguments,
+while each component-local render program owns its request-local program target. Reusing the
+already-selected operation target therefore removes duplicate request structure without mutable
+target state, component classification, or any change to recursive child-list ownership.
+
+Against the immediately preceding 50-process focused population, whole-render sampled allocation
+improves 0.3%/1.7%/1.5%/1.4%/4.7% at p25/p50/p75/p95/p99. Median `directComponent` allocation
+falls from 124,048 to 57,568 bytes (-53.6%). Diagnostic render p50/p75/p95 moves
+-0.8%/0.0%/-0.5%; p99 is 4.6% worse while the workstation is active and is retained as a
+counter-metric rather than treated as an accepted latency result. Ten confirmation processes after
+restoring and rebuilding the accepted compiler source preserved the allocation direction. Every
+response remained 4,500 bytes.
+
+An immediate old/new artifact rebuild shows both Node and Bun artifacts shrinking 169 raw bytes.
+Node gzip/Brotli changes by +2/+8 bytes and Bun by +5/-6 bytes, so no compressed-size improvement is
+claimed. The candidate passed all 189 SSR tests, the 39-test composition corpus, the native compiler
+suite during the clean compiler rebuild, and exact response identity. Evidence and the written gate
+are under `.tmp/sync-operation-target-reuse`; the 50 candidate captures and ten rebuilt-compiler
+confirmations are the corresponding `focused-render-profile-target-reuse-*` files under
+`.tmp/output-byte-accounting`.
