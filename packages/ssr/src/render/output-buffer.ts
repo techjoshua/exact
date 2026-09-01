@@ -29,7 +29,8 @@ export class SsrOutputBuffer {
 
 	constructor(
 		private readonly maxBytes: number,
-		private readonly publish?: (value: string) => void
+		private readonly publish?: (value: string) => void,
+		private readonly encodedByteLength?: (value: string) => number
 	) {
 		if (publish) this.directPublicationDepth = 1;
 	}
@@ -176,6 +177,14 @@ export class SsrOutputBuffer {
 	}
 
 	private charge(value: string): void {
+		if (
+			this.encodedByteLength &&
+			!this.pendingHighSurrogate &&
+			!isHighSurrogate(value.charCodeAt(value.length - 1))
+		) {
+			this.addBytes(this.encodedByteLength(value));
+			return;
+		}
 		let index = 0;
 		if (this.pendingHighSurrogate) {
 			this.pendingHighSurrogate = false;

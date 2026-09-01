@@ -15,8 +15,17 @@ export const exactResponseBody = Symbol.for('@exactjs/server/response-body');
 /** Writes one buffered response chunk to a platform transport. */
 export type ExactResponseBodyWriter = (chunk: string) => void | Promise<void>;
 
+/** Immutable encoding operations supplied by the adapter consuming a synchronous response. */
+export type ExactSynchronousResponseEnvironment = Readonly<{
+	/** Returns the exact UTF-8 byte length without materializing encoded output. */
+	encodedByteLength?: (value: string) => number;
+}>;
+
 /** Produces settled response spans synchronously while request-owned values remain valid. */
-export type ExactSynchronousResponseBodyProducer = (write: (chunk: string) => void) => void;
+export type ExactSynchronousResponseBodyProducer = (
+	write: (chunk: string) => void,
+	environment?: ExactSynchronousResponseEnvironment
+) => void;
 
 /** Releases ownership transferred from one request scope to its response body. */
 export type ExactResponseBodyScopeRelease = (reason?: unknown) => Promise<void>;
@@ -28,7 +37,10 @@ export interface ExactResponseBody {
 	/** Claims and writes the body without encoding it into a Web stream first. */
 	writeTo(write: ExactResponseBodyWriter): Promise<void>;
 	/** Claims a synchronous producer without introducing an adapter-visible microtask. */
-	writeSynchronously?(write: (chunk: string) => void): void | Promise<void>;
+	writeSynchronously?(
+		write: (chunk: string) => void,
+		environment?: ExactSynchronousResponseEnvironment
+	): void | Promise<void>;
 	/** Claims and joins the body for direct response consumers. */
 	toText(): string;
 	/** Claims the body as a lazily encoded Web stream. */
@@ -237,10 +249,13 @@ class ProducedResponseBody implements ExactResponseBody {
 		}
 	}
 
-	writeSynchronously(write: (chunk: string) => void): void | Promise<void> {
+	writeSynchronously(
+		write: (chunk: string) => void,
+		environment?: ExactSynchronousResponseEnvironment
+	): void | Promise<void> {
 		const produce = this.claim();
 		try {
-			produce(write);
+			produce(write, environment);
 		} catch (error) {
 			const failure = { error };
 			const completion = this.finish(error, failure);

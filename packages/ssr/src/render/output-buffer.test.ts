@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SsrOutputBuffer, utf8ByteLength } from './output-buffer.js';
 
 describe('SSR output buffering', () => {
@@ -15,6 +15,18 @@ describe('SSR output buffering', () => {
 		output.append('\ude80');
 
 		expect(output.finish()).toEqual(['\ud83d', '\ude80']);
+	});
+
+	it('uses an environment byte-length operation without weakening split-surrogate accounting', () => {
+		const encodedByteLength = vi.fn(utf8ByteLength);
+		const output = new SsrOutputBuffer(9, undefined, encodedByteLength);
+		output.append('caf\u00e9');
+		output.append('\ud83d');
+		output.append('\ude80');
+
+		expect(output.encodedBytes()).toBe(9);
+		expect(encodedByteLength).toHaveBeenCalledOnce();
+		expect(encodedByteLength).toHaveBeenCalledWith('caf\u00e9');
 	});
 
 	it('joins compiler-known byte facts across surrogate boundaries', () => {

@@ -165,7 +165,7 @@ async function createParticipantHandler(id) {
 							renderParticipantToSink(diagnosticData, '/incidents/inc-101', (chunk) => {
 								pending += chunk;
 								if (pending.length >= 8 * 1024) pending = '';
-							}) + exactDocumentEnvelopeBytes;
+							}, Buffer.byteLength) + exactDocumentEnvelopeBytes;
 						document = pending;
 					} else {
 						const rendered = await renderParticipant(diagnosticData, '/incidents/inc-101');
@@ -558,9 +558,14 @@ function createExactProducedDocument(initialData, path, payloadTarget, renderPar
 			'cache-control': 'no-store',
 			'content-type': 'text/html; charset=utf-8'
 		},
-		(write) => {
+		(write, environment) => {
 			write(exactDocumentPrefix);
-			const renderedBytes = renderParticipantToSink(initialData, path, write);
+			const renderedBytes = renderParticipantToSink(
+				initialData,
+				path,
+				write,
+				environment?.encodedByteLength
+			);
 			const baseBytes = exactDocumentEnvelopeBytes + renderedBytes;
 			const padding =
 				payloadTarget === undefined ? '' : ' '.repeat(Math.max(0, payloadTarget - baseBytes));

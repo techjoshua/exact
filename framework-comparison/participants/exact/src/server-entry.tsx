@@ -12,12 +12,14 @@ export function renderParticipant(initialData: InitialData, path: string) {
 export function renderParticipantToSink(
 	initialData: InitialData,
 	path: string,
-	write: (value: string) => void
+	write: (value: string) => void,
+	encodedByteLength?: (value: string) => number
 ): number {
 	return renderCompilerClosedToHydratableSink(
 		<IncidentApp initialData={initialData} path={path} />,
 		write,
-		{ publishRootProps: true }
+		{ publishRootProps: true },
+		{ encodedByteLength }
 	);
 }
 

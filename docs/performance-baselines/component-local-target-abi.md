@@ -1440,6 +1440,16 @@ improved 0.7% and 1.9%, respectively. Their allocation p75 ratios of 1.028 and 1
 timing tails remain counter-metrics. Evidence is under `.tmp/direct-sync-buffer-closure` and
 `.tmp/direct-component-domain-call`.
 
+The produced-response handoff now lets an environment adapter supply an immutable allocation-free
+UTF-8 byte-length operation. Node supplies `Buffer.byteLength`; portable string and Fetch/Bun paths
+retain the exact JavaScript scanner, and no encoded `Uint8Array` is constructed merely for
+accounting. Across fifty alternating fresh-process profiles, median `charge` CPU fell from 8.584 to
+3.012 sampled milliseconds (-64.9%). Diagnostic render p50/p75/p95 moved from
+0.0544/0.0687/0.1257 ms to 0.0509/0.0667/0.1240 ms; p99 moved from 0.2605 to 0.2736 ms while the
+workstation was active. Median sampled allocation fell 0.5%, allocation p95 fell 1.9%, and every
+response remained 4,500 bytes. Evidence is under `.tmp/native-byte-length` and the corresponding
+`focused-render-profile-native-byte-*` captures.
+
 Two transfers were measured and removed. Staged optional assignment in the opaque client component
 operation increased median constructor allocation 8.0%; the frozen opaque identity and WeakMap
 payload retain their existing construction. Direct root-attribute spans produced a 1.001 paired

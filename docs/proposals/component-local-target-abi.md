@@ -638,8 +638,11 @@ A compiler-closed synchronous root may transfer a request-owned produced respons
 selected environment adapter. The body retains the root operation and request scope until exactly
 one adapter claims, completes, fails, or cancels it. Component execution publishes settled string
 spans into the SSR sink; it never receives a Node `ServerResponse`, Fetch controller, Bun response,
-or other environment object. Node may retain those spans as a V8 string rope and pass the completed
-rope to one terminal response write, while Fetch and Bun select their own body representation.
+or other environment object. The adapter may supply immutable operations such as allocation-free
+UTF-8 byte length through the produced-body handoff; the request sink consumes that narrow operation
+without inspecting platform globals or retaining the adapter object. Node may retain settled spans
+as a V8 string rope and pass the completed rope to one terminal response write, while Fetch and Bun
+select their own body representation.
 
 Recoverable component and structural ranges remain locally staged until their complete subtree
 succeeds. Before transport commitment, an adapter may discard the uncommitted body and publish the

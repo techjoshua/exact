@@ -74,6 +74,21 @@ describe('produced eXact response bodies', () => {
 		expect(() => response.body).toThrow('already claimed');
 	});
 
+	it('passes immutable environment capabilities only to a synchronous adapter claim', () => {
+		const encodedByteLength = vi.fn((value: string) => value.length);
+		const environment = Object.freeze({ encodedByteLength });
+		const produce = vi.fn((_write, receivedEnvironment) => {
+			expect(receivedEnvironment).toBe(environment);
+			expect(receivedEnvironment?.encodedByteLength?.('ready')).toBe(5);
+		});
+		const response = createExactProducedResponse(200, {}, produce);
+
+		exactResponseBodyOf(response)?.writeSynchronously?.(() => undefined, environment);
+
+		expect(produce).toHaveBeenCalledOnce();
+		expect(encodedByteLength).toHaveBeenCalledWith('ready');
+	});
+
 	it('releases a transferred request scope after publication', async () => {
 		const release = vi.fn(async () => undefined);
 		const response = createExactProducedResponse(200, {}, (write) => write('ready'));

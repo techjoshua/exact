@@ -249,7 +249,9 @@ describe('@exactjs/node-adapter', () => {
 				return this;
 			}
 		}) as unknown as ServerResponse & { body: string };
-		const result = createExactProducedResponse(200, {}, (write) => {
+		const environmentByteLengths: number[] = [];
+		const result = createExactProducedResponse(200, {}, (write, environment) => {
+			environmentByteLengths.push(environment?.encodedByteLength?.('\ud83d\ude80') ?? -1);
 			write('<main>');
 			write('ready');
 			write('</main>');
@@ -258,6 +260,7 @@ describe('@exactjs/node-adapter', () => {
 		const completion = writeNodeResponse(response, result);
 		expect(writes).toEqual([]);
 		expect(response.body).toBe('<main>ready</main>');
+		expect(environmentByteLengths).toEqual([4]);
 		await completion;
 	});
 
