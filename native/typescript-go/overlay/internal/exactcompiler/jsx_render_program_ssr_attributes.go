@@ -13,11 +13,14 @@ func (lowering *jsxLowering) captureRootSsrAttributes(
 	build *renderProgramBuild,
 	attributes *ast.Node,
 	tag string,
+	identityNode *ast.Node,
 	generatedRootAttributes bool,
 ) {
 	build.rootSsrClosed = true
 	if generatedRootAttributes {
-		build.rootSsrPlan = append(build.rootSsrPlan, compiledSsrAttribute(tag, "data-exact-id"))
+		generatedRootID := lowering.elementID(identityNode)
+		build.rootStaticHtml += ` data-exact-id="` + html.EscapeString(generatedRootID) + `"`
+		build.rootStaticKeys = append(build.rootStaticKeys, "data-exact-id")
 	}
 	if attributes == nil {
 		return

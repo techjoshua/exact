@@ -33,6 +33,7 @@ export const corpusScenarios = [
 			'indexed-input-update-plan',
 			'nested-indexed-input-update-plan',
 			'compiler-selected-ssr-attributes',
+			'compiler-static-root-identity',
 			'durable-component-abi'
 		],
 		modes: ['client-mount', 'client-update', 'ssr-sync', 'hydrate-match']
