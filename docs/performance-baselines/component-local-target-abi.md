@@ -1598,3 +1598,19 @@ suite during the clean compiler rebuild, and exact response identity. Evidence a
 are under `.tmp/sync-operation-target-reuse`; the 50 candidate captures and ten rebuilt-compiler
 confirmations are the corresponding `focused-render-profile-target-reuse-*` files under
 `.tmp/output-byte-accounting`.
+
+### Client final-prop construction experiment
+
+The server-side final-object construction pattern was tested at initial client prop delivery rather
+than assumed transferable. The candidate combined marked-operand resolution and authored-child
+attachment into one final child prop record, removing a second object clone whenever a compiler-
+indexed receipt contained reactive operands. After a mixed ten-browser result, the population was
+extended to 50.
+
+Against the immediately preceding 50-profile client checkpoint, startup sampled allocation moved
++0.5%/+0.3%/+1.7%/+2.1%/+2.1% at p25/p50/p75/p95/p99. Retained heap moved up one 2,196-byte step
+at the median; covered and invoked functions stayed at 1,173 and 633. Interaction allocation was
+better at the center, but initial prop construction does not execute in that interaction and the
+movement is not attributed to this candidate. The optimized spread plus lazy second clone performs
+better in the admitted browser topology than a mandatory mutation loop over one final record, so
+the candidate was removed. Evidence is under `.tmp/client-final-prop-construction`.
