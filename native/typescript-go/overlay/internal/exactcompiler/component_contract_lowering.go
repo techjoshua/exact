@@ -257,57 +257,22 @@ func (imports *componentConstructorImports) selectConstructor(
 	factory *printer.NodeFactory,
 	abi int,
 	directServer bool,
-	implementation *ast.Node,
 ) *ast.Node {
 	if directServer {
 		imports.directServerUsed = true
 		return factory.NewIdentifier(imports.directServerName)
 	}
-	className := imports.renderName
-	arguments := []string{"__exactRawProps", "__exactParent", "__exactAmbientContexts", "__exactDomain"}
+	constructorName := imports.renderName
 	if abi&(componentABILifecycle|componentABILists|componentABITasks) == 0 {
 		imports.renderUsed = true
 	} else if abi&(componentABILifecycle|componentABILists) == 0 && abi&componentABITasks != 0 {
 		imports.taskUsed = true
-		className = imports.taskName
-		arguments = append(arguments, "__exactExecution")
+		constructorName = imports.taskName
 	} else {
 		imports.durableUsed = true
-		className = imports.durableName
-		arguments = append([]string{"__exactImplementation"}, arguments...)
-		arguments = append(arguments, "__exactExecution")
+		constructorName = imports.durableName
 	}
-	arguments = append(arguments, "__exactContract")
-	constructorArguments := []*ast.Node{implementation}
-	for _, argument := range arguments {
-		if argument == "__exactImplementation" {
-			constructorArguments = append(constructorArguments, implementation)
-			continue
-		}
-		constructorArguments = append(constructorArguments, factory.NewIdentifier(argument))
-	}
-	parameterNames := []string{
-		"__exactParent", "__exactRawProps", "__exactAmbientContexts", "__exactDomain",
-		"__exactExecution", "__exactContract",
-	}
-	parameters := make([]*ast.Node, len(parameterNames))
-	for index, name := range parameterNames {
-		parameters[index] = factory.NewParameterDeclaration(
-			nil,
-			nil,
-			factory.NewIdentifier(name),
-			nil,
-			factory.NewKeywordTypeNode(ast.KindAnyKeyword),
-			nil,
-		)
-	}
-	return factory.NewArrowFunction(
-		nil, nil, factory.NewNodeList(parameters), nil, nil,
-		factory.NewToken(ast.KindEqualsGreaterThanToken),
-		factory.NewNewExpression(
-			factory.NewIdentifier(className), nil, factory.NewNodeList(constructorArguments),
-		),
-	)
+	return factory.NewIdentifier(constructorName)
 }
 
 func componentConstructorImport(
@@ -355,7 +320,7 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 	if imports.renderUsed {
 		declarations = append(declarations, componentConstructorImport(
 			factory,
-			"RenderComponentInstance",
+			"constructRenderComponentInstance",
 			imports.renderName,
 			"@exactjs/core/runtime/component-construction/render",
 		))
@@ -363,7 +328,7 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 	if imports.taskUsed {
 		declarations = append(declarations, componentConstructorImport(
 			factory,
-			"TaskComponentInstance",
+			"constructTaskComponentInstance",
 			imports.taskName,
 			"@exactjs/core/runtime/component-construction/task",
 		))
@@ -371,7 +336,7 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 	if imports.durableUsed {
 		declarations = append(declarations, componentConstructorImport(
 			factory,
-			"ComponentInstanceImpl",
+			"constructDurableComponentInstance",
 			imports.durableName,
 			"@exactjs/core/runtime/component-construction/durable",
 		))
@@ -842,7 +807,6 @@ func rootComponentContractAttachment(
 			factory,
 			runtimeABI,
 			target == TargetServer && component.TargetPlan.DirectServer,
-			implementation,
 		),
 		projectedExecution,
 		component.TargetPlan.DeferredTaskProps,

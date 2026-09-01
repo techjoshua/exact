@@ -90,6 +90,21 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/__exactWriteState\(__exactInstance\.state, \d+, !__exactDependency\)/);
 	});
 
+	it('selects capability-specific client constructors without generated wrappers', async () => {
+		const capabilities = await compileFixture('capabilities.fixtures.tsx', 'client', 'hydrate');
+		const tasks = await compileFixture('tasks.fixtures.tsx', 'client');
+
+		expect(capabilities.code).toMatch(
+			/constructRenderComponentInstance as __exactConstructRenderComponent/
+		);
+		expect(tasks.code).toMatch(/constructTaskComponentInstance as __exactConstructTaskComponent/);
+		expect(capabilities.code).toMatch(
+			/constructDurableComponentInstance as __exactConstructDurableComponent/
+		);
+		expect(capabilities.code).not.toMatch(/construct:\s*\([^)]*\)\s*=>\s*new __exactConstruct/);
+		expect(tasks.code).not.toMatch(/construct:\s*\([^)]*\)\s*=>\s*new __exactConstruct/);
+	});
+
 	it('executes compiler-closed synchronous server programs without returned render closures', async () => {
 		const { code } = await compileFixture('fundamentals.fixtures.tsx', 'server');
 

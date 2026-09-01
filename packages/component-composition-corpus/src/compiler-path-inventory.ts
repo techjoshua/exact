@@ -110,6 +110,12 @@ export const compilerPathInventory = [
 		['client-mount', 'ssr-sync']
 	),
 	path(
+		'artifact-local-instance-construction',
+		'specialized',
+		'Client artifacts directly select their immutable capability-specific instance constructor.',
+		['client-mount', 'client-update', 'hydrate-match']
+	),
+	path(
 		'durable-component-abi',
 		'specialized',
 		'Stateful and capability-owning components use durable instances.',
