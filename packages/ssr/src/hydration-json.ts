@@ -110,11 +110,16 @@ function validateContainer(
 	if (array && structurallyKnown) {
 		for (let index = 0; index < source.length; index++) {
 			if (path) pushValidationPath(path, String(index), true);
-			let childShape: DirectHydrationShape = 0;
-			if (shape === 2) childShape = 3;
-			else if (shape === 4) childShape = 5;
-			else if (shape === 3 && (index === 1 || index === 2)) childShape = 4;
-			else if (shape === 3 && index === 3) childShape = 6;
+			const childShape: DirectHydrationShape =
+				shape === 2
+					? 3
+					: shape === 4
+						? 5
+						: shape === 3 && (index === 1 || index === 2)
+							? 4
+							: shape === 3 && index === 3
+								? 6
+								: 0;
 			if (!validateValue(source[index], depth + 1, state, childShape)) return false;
 			if (path) popValidationPath(path);
 		}
