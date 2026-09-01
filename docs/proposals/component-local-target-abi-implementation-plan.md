@@ -642,6 +642,12 @@ generic synchronous executor with an allocated sink callback. Delete that execut
 type; do not keep them as a compatibility route. The asynchronous renderer and scheduled
 stabilization protocol remain separate owners.
 
+Compiler-closed artifact roots construct the same indexed request-owned resumption capture without
+installing the ordinary renderer's instance-to-token `WeakMap` or generic component-observation
+wrappers. Authored attempt and observation hooks remain present, while direct and scheduled
+executors publish through the capture ABI themselves. Generic and extensible render entrypoints
+retain the instance bridge for values crossing those renderer boundaries.
+
 A later focused specialization may also issue a statically selected child directly from that
 program when its invocation consists only of finalized plain props. Store the callable in the
 immutable generated writer, keep props request-owned, and reuse the existing child artifact ABI.
