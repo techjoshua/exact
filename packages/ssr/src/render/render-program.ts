@@ -75,17 +75,18 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	static(output, value) {
 		if (value !== '') output.push(value);
 	},
-	text(opaqueContext, output, value, id, characters, markerless) {
+	text(opaqueContext, output, value, id, characters, markerless, prefix = '', suffix = '') {
 		const context = opaqueContext as SsrContext;
 		const rendered =
 			value === null || value === undefined || value === false || value === true
 				? ''
 				: escapeText(String(value));
-		const html =
+		const dynamic =
 			context.markers && !markerless
 				? `<!--x:${exactMarkerId(id)}-->${rendered}<!--/x:${exactMarkerId(id)}-->`
 				: rendered;
-		const nextCharacters = characters + html.length;
+		const html = `${prefix}${dynamic}${suffix}`;
+		const nextCharacters = characters + dynamic.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
 		if (html !== '') output.push(html);

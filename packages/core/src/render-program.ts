@@ -58,7 +58,11 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		value: unknown,
 		id: string,
 		characters: number,
-		markerless?: true
+		markerless?: true,
+		/** Compiler-escaped static text projected into the same physical scalar node. */
+		prefix?: string,
+		/** Compiler-escaped static text projected into the same physical scalar node. */
+		suffix?: string
 	): number;
 	/** Recursively renders one prepared structural or component child. */
 	child(
@@ -147,7 +151,11 @@ export type ExactRenderProgramTextSlot = readonly [
 	id: string,
 	path: readonly number[],
 	/** The surrounding static markup prevents this value from merging with another text node. */
-	markerlessSsr?: true
+	markerlessSsr?: true,
+	/** Authored static prefix retained by this scalar node. */
+	prefix?: string,
+	/** Authored static suffix retained by this scalar node. */
+	suffix?: string
 ];
 
 /** Compact property slot: kind, target node index, property name. */
@@ -205,6 +213,7 @@ export type ExactRenderProgramBindingOperation = readonly [
 		| number
 		| boolean
 		| readonly [source: 0 | 1, slot: number]
+		| readonly [prefix: string, suffix: string, direct?: true, source?: 0 | 1, slot?: number]
 		| readonly (readonly [slot: number])[]
 		| object,
 	third?: number | boolean | object

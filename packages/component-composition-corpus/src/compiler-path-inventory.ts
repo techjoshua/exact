@@ -29,6 +29,12 @@ export const compilerPathInventory = [
 		['client-update', 'hydrate-match']
 	),
 	path(
+		'adjacent-text-projection',
+		'specialized',
+		'One scalar and its adjacent authored text share one compiler-owned text operation.',
+		['client-update', 'ssr-sync', 'hydrate-match']
+	),
+	path(
 		'arbitrary-expression-fallback',
 		'supported-general',
 		'Arbitrary authored expressions retain executable readers and their computation owners.',

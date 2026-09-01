@@ -16,6 +16,7 @@ function IndexedState(
 			<output>
 				{props.prefix}:{this.state.count}
 			</output>
+			<data data-role="adjacent-text">Count &amp; {this.state.count}</data>
 			<small hidden>{props.prefix.toUpperCase()}</small>
 			<button
 				disabled={!this.state.enabled}

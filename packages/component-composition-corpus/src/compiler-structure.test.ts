@@ -79,6 +79,7 @@ describe('normative compiled structure', () => {
 
 		expect(code).toMatch(/\[0, \d+, \[0, \d+\], true\]/);
 		expect(code).toMatch(/\[0, \d+, \[1, \d+\], true\]/);
+		expect(code).toMatch(/\[11, \d+, \["Count & ", "", true, 0, \d+\]\]/);
 		expect(code).toMatch(/__exactSlot =>/);
 	});
 

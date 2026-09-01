@@ -55,6 +55,7 @@ describe('composition corpus hydration behavior', () => {
 	it('activates indexed state bindings on adopted DOM', () => {
 		const { container, resumptions } = serverContainer(serverStateRoot('count'));
 		const output = container.querySelector('output');
+		const projected = container.querySelector('[data-role="adjacent-text"]');
 		const button = container.querySelector('button');
 		hydrate(stateRoot('count'), container, { onMismatch: 'throw', resumptions });
 		stateOwner().state.count = 3;
@@ -63,6 +64,8 @@ describe('composition corpus hydration behavior', () => {
 		expect(container.querySelector('output')).toBe(output);
 		expect(container.querySelector('button')).toBe(button);
 		expect(output?.textContent).toBe('count:3');
+		expect(container.querySelector('[data-role="adjacent-text"]')).toBe(projected);
+		expect(projected?.textContent).toBe('Count & 3');
 		expect(button?.hasAttribute('disabled')).toBe(true);
 	});
 

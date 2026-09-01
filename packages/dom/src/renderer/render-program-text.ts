@@ -13,7 +13,9 @@ export function applyProgramText(
 	mounted: Mounted,
 	index: number,
 	source?: 0 | 1,
-	operandSlot?: number
+	operandSlot?: number,
+	prefix = '',
+	suffix = ''
 ): boolean {
 	const state = mounted.renderProgram!;
 	const owner = state.invocation.owner as IndexedOperandOwner;
@@ -31,6 +33,7 @@ export function applyProgramText(
 				? String(value)
 				: undefined;
 	if (text === undefined) return false;
-	if (node.data !== text) node.data = text;
+	const projected = `${prefix}${text}${suffix}`;
+	if (node.data !== projected) node.data = projected;
 	return true;
 }

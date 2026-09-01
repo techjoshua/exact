@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"html"
 	"strconv"
 
 	"github.com/microsoft/typescript-go/internal/ast"
@@ -96,6 +97,15 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		staticCharacters += utf16Length(segment)
 		staticBytes += len(segment)
 	}
+	for _, slot := range build.slots {
+		if slot.kind != "text" {
+			continue
+		}
+		prefix := html.EscapeString(slot.textPrefix)
+		suffix := html.EscapeString(slot.textSuffix)
+		staticCharacters += utf16Length(prefix) + utf16Length(suffix)
+		staticBytes += len(prefix) + len(suffix)
+	}
 	call(
 		"begin",
 		context,
@@ -143,8 +153,20 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		switch slot.kind {
 		case "text":
 			arguments := []*ast.Node{context, output, value, stringLiteral(slot.id), characters}
-			if build.markerlessTextSlot(slotIndex) {
-				arguments = append(arguments, lowering.factory.NewTrueExpression())
+			markerless := build.markerlessTextSlot(slotIndex)
+			if markerless || slot.textPrefix != "" || slot.textSuffix != "" {
+				if markerless {
+					arguments = append(arguments, lowering.factory.NewTrueExpression())
+				} else {
+					arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
+				}
+			}
+			if slot.textPrefix != "" || slot.textSuffix != "" {
+				arguments = append(
+					arguments,
+					stringLiteral(html.EscapeString(slot.textPrefix)),
+					stringLiteral(html.EscapeString(slot.textSuffix)),
+				)
 			}
 			assignCall("text", arguments...)
 		case "child":

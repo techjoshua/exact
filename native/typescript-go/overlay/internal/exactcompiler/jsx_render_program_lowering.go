@@ -470,54 +470,6 @@ func (lowering *jsxLowering) renderProgramReaders(readers []*ast.Node) *ast.Node
 	)
 }
 
-// renderProgramParentNamespace resolves the concrete DOM namespace inherited by
-// a planned region from intrinsic JSX ancestors. A component ancestor makes the
-// eventual insertion point component-defined, so that region stays on the
-// generic renderer where namespace inheritance is resolved at mount time.
-func (lowering *jsxLowering) renderProgramParentNamespace(node *ast.Node) (string, bool) {
-	if lowering.renderProgramContexts == nil {
-		lowering.renderProgramContexts = make(map[int]renderProgramContext)
-		walkNode(lowering.sourceFile.AsNode(), func(candidate *ast.Node) bool {
-			if ast.IsJsxElement(candidate) || ast.IsJsxSelfClosingElement(candidate) {
-				namespace, certain := lowering.renderProgramSourceParentNamespace(candidate)
-				lowering.renderProgramContexts[candidate.Pos()] = renderProgramContext{
-					namespace: namespace,
-					certain:   certain,
-				}
-			}
-			return true
-		})
-	}
-	if context, exists := lowering.renderProgramContexts[node.Pos()]; exists {
-		return context.namespace, context.certain
-	}
-	return lowering.renderProgramSourceParentNamespace(node)
-}
-
-func (lowering *jsxLowering) renderProgramSourceParentNamespace(node *ast.Node) (string, bool) {
-	tags := make([]string, 0, 2)
-	for current := node.Parent; current != nil; current = current.Parent {
-		if !ast.IsJsxElement(current) {
-			continue
-		}
-		tag := sourceText(lowering.sourceFile, openingTag(current.AsJsxElement().OpeningElement))
-		if tag == "_" {
-			continue
-		}
-		if !jsxIntrinsic(tag) {
-			return "", false
-		}
-		tags = append(tags, tag)
-	}
-	parentNamespace := "html"
-	for index := len(tags) - 1; index >= 0; index-- {
-		tag := tags[index]
-		namespace := renderProgramNamespace(tag, parentNamespace)
-		parentNamespace = renderProgramChildNamespace(tag, namespace)
-	}
-	return parentNamespace, true
-}
-
 func (lowering *jsxLowering) appendRenderProgramElement(
 	build *renderProgramBuild,
 	identityNode *ast.Node,
@@ -561,10 +513,14 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if children != nil {
 		semantic = ast.GetSemanticJsxChildren(children.Nodes)
 	}
+	textProjections := lowering.renderProgramTextProjections(semantic)
 	for childIndex, child := range semantic {
 		childPath := append(append([]int(nil), path...), domIndex)
 		switch {
 		case ast.IsJsxText(child):
+			if textProjections.consumed[childIndex] {
+				continue
+			}
 			text := normalizeJSXChildText(child.AsJsxText().Text, childIndex, len(semantic))
 			if text == "" {
 				continue
@@ -617,7 +573,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
-			build.textSlot(lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression))
+			projection := textProjections.values[childIndex]
+			build.textSlot(
+				lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression),
+				projection.prefix, projection.suffix,
+			)
 			domIndex += 3
 		case ast.IsJsxElement(child):
 			element := child.AsJsxElement()
@@ -799,32 +759,6 @@ func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
 	}
 	plan, exists := lowering.collectionMaps[nodeSpanKey(node)]
 	return exists && plan.keyed
-}
-
-func renderProgramNamespace(tag string, parent string) string {
-	if tag == "svg" {
-		return "svg"
-	}
-	if tag == "math" {
-		return "mathml"
-	}
-	if parent == "svg" {
-		return "svg"
-	}
-	if parent == "mathml" {
-		return "mathml"
-	}
-	if parent == "contextual" {
-		return "contextual"
-	}
-	return "html"
-}
-
-func renderProgramChildNamespace(tag string, namespace string) string {
-	if namespace == "svg" && tag == "foreignObject" {
-		return "html"
-	}
-	return namespace
 }
 
 func (lowering *jsxLowering) appendRenderProgramAttributes(
@@ -1037,6 +971,15 @@ func (lowering *jsxLowering) renderProgramLiteral(
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone), path(slot.path))
 			if build.markerlessTextSlot(index) {
 				members = append(members, lowering.factory.NewTrueExpression())
+			} else if slot.textPrefix != "" || slot.textSuffix != "" {
+				members = append(members, lowering.factory.NewIdentifier("undefined"))
+			}
+			if slot.textPrefix != "" || slot.textSuffix != "" {
+				members = append(
+					members,
+					lowering.factory.NewStringLiteral(slot.textPrefix, ast.TokenFlagsNone),
+					lowering.factory.NewStringLiteral(slot.textSuffix, ast.TokenFlagsNone),
+				)
 			}
 		} else if slot.kind == "child" || slot.kind == "component" {
 			members = append(members, lowering.factory.NewStringLiteral(slot.id, ast.TokenFlagsNone))

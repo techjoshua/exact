@@ -16,6 +16,8 @@ type renderProgramContext struct {
 type renderProgramSlot struct {
 	id              string
 	kind            string
+	textPrefix      string
+	textSuffix      string
 	path            []int
 	node            int
 	name            string
@@ -126,7 +128,13 @@ func (build *renderProgramBuild) markerlessTextSlot(index int) bool {
 	return strings.HasSuffix(before, ">") && strings.HasPrefix(after, "<")
 }
 
-func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Node) {
+func (build *renderProgramBuild) textSlot(
+	id string,
+	path []int,
+	reader *ast.Node,
+	prefix string,
+	suffix string,
+) {
 	index := len(build.slots)
 	id = strconv.FormatInt(int64(build.nextMarker), 36)
 	build.nextMarker++
@@ -134,7 +142,10 @@ func (build *renderProgramBuild) textSlot(id string, path []int, reader *ast.Nod
 	build.serverSlot(index)
 	mountPath := append([]int(nil), path...)
 	mountPath[len(mountPath)-1]++
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "text", path: mountPath, reader: reader})
+	build.slots = append(build.slots, renderProgramSlot{
+		id: id, kind: "text", textPrefix: prefix, textSuffix: suffix,
+		path: mountPath, reader: reader,
+	})
 }
 
 func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.Node, list bool, directList bool, markerlessTail bool) {

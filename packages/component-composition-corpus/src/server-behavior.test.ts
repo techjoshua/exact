@@ -40,7 +40,7 @@ describe('composition corpus server behavior', () => {
 		const html = renderToString(stateRoot('count'), { markers: false }).html;
 		expect(html).toMatch(/^<section data-exact-id="[^"]+" data-scenario="state">/);
 		expect(html.replace(/ data-exact-id="[^"]+"/, '')).toBe(
-			'<section data-scenario="state"><output>count:1</output><small hidden>COUNT</small><button data-count="1">increment</button></section>'
+			'<section data-scenario="state"><output>count:1</output><data data-role="adjacent-text">Count &amp; 1</data><small hidden>COUNT</small><button data-count="1">increment</button></section>'
 		);
 	});
 

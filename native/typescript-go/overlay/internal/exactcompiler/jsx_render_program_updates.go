@@ -13,6 +13,8 @@ type renderProgramDirectUpdate struct {
 	index        int
 	group        int
 	firstSlot    int
+	textPrefix   string
+	textSuffix   string
 	dependencies []componentUpdateDependency
 	operand      *componentUpdateDependency
 }
@@ -62,6 +64,30 @@ func (lowering *jsxLowering) directRenderProgramWiring(
 		}
 		switch slot.kind {
 		case "text":
+			if slot.textPrefix != "" || slot.textSuffix != "" {
+				projection := []*ast.Node{
+					lowering.factory.NewStringLiteral(slot.textPrefix, ast.TokenFlagsNone),
+					lowering.factory.NewStringLiteral(slot.textSuffix, ast.TokenFlagsNone),
+				}
+				if update, exists := directText[index]; exists {
+					projection = append(projection, lowering.factory.NewTrueExpression())
+					if update.operand != nil {
+						source := "0"
+						if update.operand.source == "props" {
+							source = "1"
+						}
+						projection = append(
+							projection,
+							lowering.factory.NewNumericLiteral(source, ast.TokenFlagsNone),
+							lowering.factory.NewNumericLiteral(strconv.Itoa(update.operand.slot), ast.TokenFlagsNone),
+						)
+					}
+				}
+				emit(11, slotIndex, lowering.factory.NewArrayLiteralExpression(
+					lowering.factory.NewNodeList(projection), false,
+				))
+				continue
+			}
 			arguments := []*ast.Node{slotIndex}
 			if update, exists := directText[index]; exists && update.operand != nil {
 				arguments = append(arguments, lowering.renderProgramOperand(*update.operand))
@@ -182,7 +208,8 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 					operand = &exact
 				}
 				updates = append(updates, renderProgramDirectUpdate{
-					kind: "text", index: index, dependencies: dependencies, operand: operand,
+					kind: "text", index: index, textPrefix: slot.textPrefix,
+					textSuffix: slot.textSuffix, dependencies: dependencies, operand: operand,
 				})
 			}
 			continue
@@ -579,6 +606,20 @@ func (lowering *jsxLowering) directUpdateStatement(
 		arguments = append(arguments,
 			lowering.factory.NewNumericLiteral(source, ast.TokenFlagsNone),
 			lowering.factory.NewNumericLiteral(strconv.Itoa(update.operand.slot), ast.TokenFlagsNone),
+		)
+	}
+	if update.kind == "text" && (update.textPrefix != "" || update.textSuffix != "") {
+		if update.operand == nil {
+			arguments = append(
+				arguments,
+				lowering.factory.NewIdentifier("undefined"),
+				lowering.factory.NewIdentifier("undefined"),
+			)
+		}
+		arguments = append(
+			arguments,
+			lowering.factory.NewStringLiteral(update.textPrefix, ast.TokenFlagsNone),
+			lowering.factory.NewStringLiteral(update.textSuffix, ast.TokenFlagsNone),
 		)
 	}
 	if update.kind == "properties" {

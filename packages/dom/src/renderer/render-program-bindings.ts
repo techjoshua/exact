@@ -124,6 +124,26 @@ function executeCompiledProgramBinding(
 				operand
 			);
 			return;
+		case 11: {
+			const projection = operation[2] as readonly [
+				prefix: string,
+				suffix: string,
+				direct?: true,
+				source?: 0 | 1,
+				slot?: number
+			];
+			const projectedOperand =
+				projection[3] === undefined ? undefined : ([projection[3], projection[4]!] as const);
+			bindCompiledProgramText(
+				target,
+				operation[1] as number,
+				projection[2],
+				projectedOperand,
+				projection[0],
+				projection[1]
+			);
+			return;
+		}
 		case 1:
 			bindCompiledProgramChild(
 				target,
@@ -223,12 +243,14 @@ export function bindCompiledProgramText(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
 	direct?: true,
-	operand?: readonly [source: 0 | 1, slot: number]
+	operand?: readonly [source: 0 | 1, slot: number],
+	prefix = '',
+	suffix = ''
 ): void {
 	const context = target as ProgramBindingTarget;
 	let initialTarget: ProgramBindingTarget | undefined = context;
 	const applyText = () => {
-		if (!applyProgramText(context.mounted, index, operand?.[0], operand?.[1])) {
+		if (!applyProgramText(context.mounted, index, operand?.[0], operand?.[1], prefix, suffix)) {
 			if (initialTarget) initialTarget.valid = false;
 		}
 	};
@@ -242,10 +264,13 @@ export function applyCompiledProgramText(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
 	source?: 0 | 1,
-	operandSlot?: number
+	operandSlot?: number,
+	prefix = '',
+	suffix = ''
 ): void {
 	const context = target as ProgramBindingTarget;
-	if (!applyProgramText(context.mounted, index, source, operandSlot)) context.valid = false;
+	if (!applyProgramText(context.mounted, index, source, operandSlot, prefix, suffix))
+		context.valid = false;
 }
 
 /** Binds one compiler-selected structural child slot. */
