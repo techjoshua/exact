@@ -12,6 +12,7 @@ import { summarizeSampleMetric } from './percentile-summary.mjs';
 import { hashArtifactDirectory, hashSemanticResponse } from './artifact-integrity.mjs';
 import { attributeClientModules } from './module-attribution.mjs';
 import { measurementPublication } from './measurement-publication.mjs';
+import { balancedRoundOrder } from './balanced-round-order.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error(
@@ -24,6 +25,7 @@ const repositoryRoot = resolve(suiteRoot, '..');
 const sampleCount = positiveInteger(process.env.COMPARISON_STARTUP_SAMPLES, 10);
 const throttleRates = throttleRateList(process.env.COMPARISON_CPU_RATES ?? '1,4,6');
 const attributionEnabled = process.env.COMPARISON_STARTUP_ATTRIBUTION === '1';
+const measurementRound = nonNegativeInteger(process.env.COMPARISON_MEASUREMENT_ROUND, 0);
 const participants = [
 	{ id: 'exact-controlled', directory: 'exact', artifact: 'dist', url: 'http://127.0.0.1:4401' },
 	{ id: 'react-controlled', directory: 'react', artifact: 'dist', url: 'http://127.0.0.1:4402' },
@@ -66,28 +68,36 @@ const browser = await chromium.launch();
 
 try {
 	const profiles = {};
+	const sampleOrders = {};
 	for (const rate of throttleRates) {
-		const rateResults = {};
-		for (const participant of rotate(participants, rate % participants.length)) {
-			const samples = [];
-			for (let index = 0; index < sampleCount; index++) {
+		const samples = Object.fromEntries(participants.map((participant) => [participant.id, []]));
+		const orders = [];
+		for (let index = 0; index < sampleCount; index++) {
+			const order = balancedRoundOrder(participants, index, measurementRound + rate);
+			orders.push(order.map((participant) => participant.id));
+			for (const participant of order) {
 				console.log(
 					`Profiling ${participant.id} at ${rate}x CPU sample ${index + 1}/${sampleCount}`
 				);
-				samples.push(await measureColdStartup(browser, participant, rate));
+				samples[participant.id].push(await measureColdStartup(browser, participant, rate));
 			}
-			const responseHashes = new Set(samples.map((sample) => sample.responseHash));
+		}
+		const rateResults = {};
+		for (const participant of participants) {
+			const participantSamples = samples[participant.id];
+			const responseHashes = new Set(participantSamples.map((sample) => sample.responseHash));
 			if (responseHashes.size !== 1)
 				throw new Error(`${participant.id} produced unstable startup responses at ${rate}x`);
 			rateResults[participant.id] = {
-				samples,
-				response: { hash: samples[0].responseHash, stable: true },
-				summary: summarizeSamples(samples)
+				samples: participantSamples,
+				response: { hash: participantSamples[0].responseHash, stable: true },
+				summary: summarizeSamples(participantSamples)
 			};
 		}
 		if (new Set(Object.values(rateResults).map((entry) => entry.response.hash)).size !== 1)
 			throw new Error(`Controlled participants produced different startup responses at ${rate}x`);
 		profiles[`${rate}x`] = rateResults;
+		sampleOrders[`${rate}x`] = orders;
 	}
 	const diagnostics = {};
 	for (const participant of participants) {
@@ -113,6 +123,9 @@ try {
 			workingTreeDirty: git('status', '--porcelain').length > 0,
 			sampleCount,
 			cpuThrottleRates: throttleRates,
+			measurementRound,
+			sampleOrders,
+			measurementTopology: 'balanced-round-interleaved',
 			cache: 'disabled',
 			network: 'local-loopback-unthrottled'
 		},
@@ -126,7 +139,8 @@ try {
 			'Untimed CPU and heap top sites retain emitted locations; attribution-enabled Exact runs additionally join precise coverage and trace function sites to the emitted source map.',
 			'Best-effort coverage preserves normal V8 optimization but can omit functions collected before capture.',
 			'Sampling heap profiles estimate allocation sites and do not represent exact byte accounting.',
-			'Every sample uses a fresh browser context with the HTTP cache disabled.'
+			'Every sample uses a fresh browser context with the HTTP cache disabled.',
+			'Every timed round measures one cold sample from each participant in balanced rotating order.'
 		]
 	};
 	const output = outputPath();
@@ -399,6 +413,13 @@ function positiveInteger(value, fallback) {
 	return parsed;
 }
 
+function nonNegativeInteger(value, fallback) {
+	const parsed = Number(value ?? fallback);
+	if (!Number.isSafeInteger(parsed) || parsed < 0)
+		throw new TypeError('Measurement round must be a non-negative integer');
+	return parsed;
+}
+
 function throttleRateList(value) {
 	const rates = value.split(',').map(Number);
 	if (!rates.length || rates.some((rate) => !Number.isFinite(rate) || rate < 1))
@@ -420,10 +441,6 @@ function environmentMetadata() {
 
 function git(...arguments_) {
 	return execFileSync('git', arguments_, { cwd: repositoryRoot, encoding: 'utf8' }).trim();
-}
-
-function rotate(values, offset) {
-	return [...values.slice(offset), ...values.slice(0, offset)];
 }
 
 function outputPath() {

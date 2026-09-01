@@ -11,6 +11,7 @@ import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
 import { summarizePercentiles, summarizeSampleMetric } from './percentile-summary.mjs';
 import { hashArtifactDirectory, hashSemanticResponse } from './artifact-integrity.mjs';
 import { measurementPublication } from './measurement-publication.mjs';
+import { balancedRoundNames, balancedRoundOrder } from './balanced-round-order.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
@@ -20,6 +21,7 @@ const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');
 const sampleCount = Number(process.env.COMPARISON_SAMPLES ?? 7);
 const browserWarmupCount = 1;
+const measurementRound = nonNegativeInteger(process.env.COMPARISON_MEASUREMENT_ROUND, 0);
 const participants = [
 	{
 		id: 'exact-controlled',
@@ -63,20 +65,34 @@ const participantMetadata = await Promise.all(
 );
 const publication = measurementPublication(participantMetadata, 'browser');
 
+const buildOrder = balancedRoundOrder(participants, measurementRound);
 const builds = Object.fromEntries(
-	participants.map((participant) => [participant.id, measureBuild(participant.directory)])
+	buildOrder.map((participant) => [participant.id, measureBuild(participant.directory)])
 );
 const harness = await import('./e2e-server.mjs');
 const browser = await chromium.launch();
 
 try {
-	const browserResults = {};
-	for (const participant of rotate(
-		participants,
-		new Date().getUTCSeconds() % participants.length
-	)) {
-		browserResults[participant.id] = await measureParticipant(browser, participant);
+	const samples = Object.fromEntries(participants.map((participant) => [participant.id, []]));
+	const warmupOrders = [];
+	for (let round = 0; round < browserWarmupCount; round++) {
+		const order = balancedRoundOrder(participants, round, measurementRound);
+		warmupOrders.push(order.map((participant) => participant.id));
+		for (const participant of order) await measureBrowserSample(browser, participant);
 	}
+	const sampleOrders = [];
+	for (let round = 0; round < sampleCount; round++) {
+		const order = balancedRoundOrder(participants, round, measurementRound);
+		sampleOrders.push(order.map((participant) => participant.id));
+		for (const participant of order)
+			samples[participant.id].push(await measureBrowserSample(browser, participant));
+	}
+	const browserResults = Object.fromEntries(
+		participants.map((participant) => [
+			participant.id,
+			createParticipantResult(participant, samples[participant.id])
+		])
+	);
 	assertEquivalentBrowserResponses(browserResults);
 	const result = {
 		schemaVersion: 1,
@@ -90,7 +106,12 @@ try {
 			workingTreeDirty: git('status', '--porcelain').length > 0,
 			sampleCount,
 			browserWarmupCount,
-			order: Object.keys(browserResults),
+			measurementRound,
+			buildOrder: buildOrder.map((participant) => participant.id),
+			warmupOrders,
+			sampleOrders,
+			order: balancedRoundNames(participants, 0, measurementRound),
+			measurementTopology: 'balanced-round-interleaved',
 			paintTiming: { canonical: 'first-contentful-paint.startTime' }
 		},
 		browser: browserResults,
@@ -99,6 +120,7 @@ try {
 		complexity: await Promise.all(participants.map(profileParticipant)),
 		limitations: [
 			'Browser samples use local loopback without network or CPU throttling.',
+			'Every timed round measures one fresh sample from each participant in balanced rotating order.',
 			'Browser samples are warm: each participant completes one equivalent discarded scenario before measurement.',
 			'Chromium heap is an experimental post-GC retained point-in-time signal, not a repeated-lifecycle leak measurement.',
 			'Controlled-service requests are sequential loopback probes and do not measure framework SSR.'
@@ -113,13 +135,7 @@ try {
 	await harness.close();
 }
 
-async function measureParticipant(browserInstance, participant) {
-	const samples = [];
-	for (let index = 0; index < browserWarmupCount; index += 1)
-		await measureBrowserSample(browserInstance, participant);
-	for (let index = 0; index < sampleCount; index += 1) {
-		samples.push(await measureBrowserSample(browserInstance, participant));
-	}
+function createParticipantResult(participant, samples) {
 	const responseHashes = new Set(samples.map((sample) => sample.responseHash));
 	if (responseHashes.size !== 1)
 		throw new Error(`${participant.id} produced unstable semantic browser responses`);
@@ -479,8 +495,11 @@ function git(...arguments_) {
 	return execFileSync('git', arguments_, { cwd: repositoryRoot, encoding: 'utf8' }).trim();
 }
 
-function rotate(values, offset) {
-	return [...values.slice(offset), ...values.slice(0, offset)];
+function nonNegativeInteger(value, fallback) {
+	const parsed = Number(value ?? fallback);
+	if (!Number.isSafeInteger(parsed) || parsed < 0)
+		throw new TypeError('Measurement round must be a non-negative integer');
+	return parsed;
 }
 
 function outputPath() {

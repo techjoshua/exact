@@ -1,21 +1,18 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
-import { performance } from 'node:perf_hooks';
 import { startComparisonServer } from './server.mjs';
 import {
-	cpuMillisecondsPerRequest,
 	parseSsrConcurrencyLevels,
 	retainedBytesPerRequest,
-	summarizeSsrSamples,
-	summarizeWorkerRequests
+	summarizeSsrSamples
 } from './ssr-benchmark-statistics.mjs';
 import { ssrTransportFor } from './ssr-benchmark-transport.mjs';
 import {
 	measureSsrRequest,
 	resetSsrClientConnections,
-	runConcurrentSsrRequests,
-	runSustainedSsrWindow
+	runConcurrentSsrRequests
 } from './ssr-benchmark-client.mjs';
 import {
 	balancedParticipantOrder,
@@ -28,6 +25,7 @@ import {
 } from './ssr-run-environment.mjs';
 import { controlSsrWorker, startSsrWorker, stopSsrWorker } from './ssr-worker-controller.mjs';
 import { measurementPublication } from './measurement-publication.mjs';
+import { measureInterleavedSsrParticipants } from './ssr-interleaved-measurement.mjs';
 
 if (!process.argv.includes('--correctness-passed'))
 	throw new Error('Run `npm run measure:ssr` so correctness gates the SSR benchmark.');
@@ -63,6 +61,10 @@ const attributionConcurrency = parseSsrConcurrencyLevels(
 const attributionWindows = positiveInteger(process.env.COMPARISON_SSR_ATTRIBUTION_WINDOWS, 3);
 const attributionWindowMs = positiveInteger(process.env.COMPARISON_SSR_ATTRIBUTION_WINDOW_MS, 300);
 const payloadSweepBytes = [2_048, 3_072, 3_384, 4_096, 5_120, 6_046, 8_192];
+const exactBeforeArtifacts = {
+	node: optionalPath(process.env.COMPARISON_EXACT_BEFORE_NODE_ARTIFACT),
+	bun: optionalPath(process.env.COMPARISON_EXACT_BEFORE_BUN_ARTIFACT)
+};
 const retentionBatches = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCHES, 5);
 const retentionBatchSize = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCH_SIZE, 50);
 const participants = [
@@ -108,8 +110,19 @@ try {
 			])
 		)
 	);
+	const historicalArtifacts = Object.fromEntries(
+		await Promise.all(
+			Object.entries(exactBeforeArtifacts)
+				.filter(([, artifact]) => artifact)
+				.map(async ([runtimeId, artifact]) => [
+					runtimeId,
+					await measureHistoricalArtifact(artifact)
+				])
+		)
+	);
 	const results = {};
 	const executionOrder = {};
+	const interleaved = {};
 	const serviceProbes = {};
 	for (const [runtimeIndex, runtime] of runtimes.entries()) {
 		results[runtime.id] = {};
@@ -120,14 +133,20 @@ try {
 			runtimeIndex + 1
 		);
 		executionOrder[runtime.id] = runtimeParticipants.map((participant) => participant.id);
-		for (const participant of runtimeParticipants) {
+		for (const participant of runtimeParticipants)
 			serviceProbes[runtime.id][participant.id] = await probeControlledService(
 				service.url,
 				serviceProbeRequests
 			);
+		const interleavedRuntime = await measureRuntimeInterleaved(
+			runtime,
+			runtimeParticipants,
+			runtimeIndex
+		);
+		for (const participant of runtimeParticipants) {
 			const transport = ssrTransportFor(participantMetadataById[participant.id], runtime.id);
 			process.stdout.write(
-				`Measuring ${participant.id} SSR on ${runtime.id} through ${transport}...\n`
+				`Profiling ${participant.id} isolated SSR diagnostics on ${runtime.id} through ${transport}...\n`
 			);
 			results[runtime.id][participant.id] = await measureParticipant(
 				runtime,
@@ -135,9 +154,18 @@ try {
 				transport
 			);
 		}
+		applyInterleavedResults(results[runtime.id], interleavedRuntime.participants);
+		interleaved[runtime.id] = {
+			measurementTopology: interleavedRuntime.measurementTopology,
+			participantOrder: interleavedRuntime.participantOrder,
+			orders: interleavedRuntime.orders,
+			...(interleavedRuntime.participants.exactBefore
+				? { exactBefore: interleavedRuntime.participants.exactBefore }
+				: {})
+		};
 	}
 	const report = {
-		schemaVersion: 5,
+		schemaVersion: 6,
 		kind: 'framework-comparison-ssr-run',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
@@ -168,8 +196,10 @@ try {
 			workingTreeDirty: gitStatusDirty()
 		},
 		artifacts,
+		historicalArtifacts,
 		serviceProbes,
 		runtimes: results,
+		interleaved,
 		limitations: [
 			'Latency uses warm keep-alive requests over unthrottled local loopback.',
 			'Every SSR route loads the same fixture through the controlled service before rendering.',
@@ -177,6 +207,7 @@ try {
 			'Render-only and equal-payload lanes are attribution diagnostics and do not replace end-to-end framework results.',
 			'Post-GC slopes are leak signals across a bounded run, not proof of unbounded retention.',
 			'Each participant declares its production transport per runtime; transport identity is recorded with every result.',
+			'Comparable SSR timing windows use simultaneously warm isolated workers in balanced round-interleaved order; startup, retention, and intrusive profiles remain isolated diagnostics.',
 			"Frameworks without native Bun hosting remain on Bun's node:http compatibility layer."
 		]
 	};
@@ -187,6 +218,75 @@ try {
 	process.stdout.write(`SSR comparison written to ${relative(repositoryRoot, output)}\n`);
 } finally {
 	await service.close();
+}
+
+/** Starts one warm worker per comparison lane and transfers its interleaved timing populations. */
+async function measureRuntimeInterleaved(runtime, runtimeParticipants, runtimeIndex) {
+	const entries = runtimeParticipants.map((participant) => ({
+		key: participant.id,
+		participantId: participant.id,
+		transport: ssrTransportFor(participantMetadataById[participant.id], runtime.id),
+		supportsRendererDiagnostics: participant.id === 'exact' || participant.id === 'react'
+	}));
+	const exactBeforeArtifact = exactBeforeArtifacts[runtime.id];
+	if (exactBeforeArtifact)
+		entries.push({
+			key: 'exactBefore',
+			participantId: 'exact',
+			transport: ssrTransportFor(participantMetadataById.exact, runtime.id),
+			supportsRendererDiagnostics: true,
+			serverEntry: exactBeforeArtifact
+		});
+	const started = [];
+	try {
+		for (const entry of balancedParticipantOrder(entries, measurementRound, runtimeIndex + 1)) {
+			entry.worker = await startSsrWorker({
+				runtime,
+				participantId: entry.participantId,
+				transport: entry.transport,
+				workerPath,
+				workingDirectory: suiteRoot,
+				serviceUrl: service.url,
+				environment: entry.serverEntry ? { COMPARISON_EXACT_SERVER_ENTRY: entry.serverEntry } : {}
+			});
+			started.push(entry.worker);
+		}
+		return await measureInterleavedSsrParticipants(entries, {
+			warmupCount,
+			sampleCount,
+			concurrency,
+			concurrencyWaves,
+			capacityPrimeConcurrency,
+			capacityPrimeMs,
+			saturationConcurrency,
+			saturationWindows,
+			saturationWindowMs,
+			attributionConcurrency,
+			attributionWindows,
+			attributionWindowMs,
+			equalPayloadBytes,
+			payloadSweepBytes,
+			orderOffset: measurementRound + runtimeIndex
+		});
+	} finally {
+		for (const worker of started) await stopSsrWorker(worker);
+		resetSsrClientConnections();
+	}
+}
+
+/** Replaces sequentially captured comparison lanes while preserving isolated diagnostics. */
+function applyInterleavedResults(runtimeResults, participants) {
+	for (const [participantId, measured] of Object.entries(participants)) {
+		if (participantId === 'exactBefore') continue;
+		const target = runtimeResults[participantId];
+		target.sequential = measured.sequential;
+		target.concurrent = measured.concurrent;
+		target.saturation = measured.saturation;
+		target.diagnostics.preloadedSaturation = measured.preloadedSaturation;
+		target.diagnostics.servicePhaseSaturation = measured.servicePhaseSaturation;
+		target.diagnostics.equalPayload = measured.equalPayload;
+		target.diagnostics.payloadSweep = measured.payloadSweep;
+	}
 }
 
 /** Measures one framework/runtime pair while retaining exactly one owned worker at a time. */
@@ -207,30 +307,8 @@ async function measureParticipant(runtime, participantId, transport) {
 			startupMs.push(worker.startupMs);
 		}
 		for (let index = 0; index < warmupCount; index += 1) await measureSsrRequest(worker.url);
-
-		await control(worker, 'reset');
-		const sequentialBefore = await telemetry(worker);
-		const sequentialSamples = [];
-		for (let index = 0; index < sampleCount; index += 1)
-			sequentialSamples.push(await measureSsrRequest(worker.url));
-		const sequentialAfter = await telemetry(worker);
-		validateResponses(participantId, sequentialSamples);
-		const capacityPrime = await runSustainedSsrWindow(
-			worker.url,
-			capacityPrimeConcurrency,
-			capacityPrimeMs
-		);
-		validateResponses(participantId, capacityPrime.samples);
-
-		const concurrent = await measureConcurrentLane(
-			worker,
-			participantId,
-			concurrency,
-			concurrencyWaves
-		);
-		const saturation = {};
-		for (const level of saturationConcurrency)
-			saturation[level] = await measureSustainedLane(worker, participantId, level);
+		const responseSample = await measureSsrRequest(worker.url);
+		validateResponses(participantId, [responseSample]);
 
 		await control(worker, 'reset');
 		const retention = [{ requests: 0, memory: (await snapshot(worker)).memory }];
@@ -242,14 +320,6 @@ async function measureParticipant(runtime, participantId, transport) {
 			});
 		}
 
-		const preloadedSaturation =
-			participantId === 'exact' || participantId === 'react'
-				? await measurePreloadedLanes(worker, participantId)
-				: { supported: false, reason: 'participant-renderer-not-exposed' };
-		const servicePhaseSaturation =
-			participantId === 'exact' || participantId === 'react'
-				? await measureServicePhaseLanes(worker, participantId)
-				: { supported: false, reason: 'participant-renderer-not-exposed' };
 		const renderOnly =
 			participantId === 'exact' || participantId === 'react'
 				? await control(
@@ -257,8 +327,6 @@ async function measureParticipant(runtime, participantId, transport) {
 						'render-only?iterations=1000&cpuIterations=1000&profileIterations=100'
 					)
 				: { supported: false, reason: 'participant-renderer-not-exposed' };
-		const equalPayload = await measureEqualPayloadLanes(worker, participantId);
-		const payloadSweep = await measurePayloadSweep(worker);
 		const responseBreakdown =
 			participantId === 'exact' || participantId === 'react'
 				? await control(worker, 'response-breakdown')
@@ -272,186 +340,17 @@ async function measureParticipant(runtime, participantId, transport) {
 					: 'node-response-first-byte-and-finish',
 			startupMs: summarizeSsrSamples(startupMs),
 			startupSamplesMs: startupMs,
-			sequential: summarizeLane(sequentialSamples, sequentialBefore, sequentialAfter, sampleCount),
-			concurrent,
-			saturation,
 			retention: summarizeRetention(retention),
 			diagnostics: {
-				preloadedSaturation,
-				servicePhaseSaturation,
 				renderOnly,
-				responseBreakdown,
-				equalPayload,
-				payloadSweep
+				responseBreakdown
 			},
-			response: responseIdentity(sequentialSamples)
+			response: responseIdentity([responseSample])
 		};
 	} finally {
 		if (worker) await stopSsrWorker(worker);
 		resetSsrClientConnections();
 	}
-}
-
-/** Measures service fetch and decode attribution without instrumenting primary requests. */
-async function measureServicePhaseLanes(worker, participantId) {
-	const url = `${worker.url}?__benchmarkServicePhases=true`;
-	const saturation = {};
-	for (const level of attributionConcurrency)
-		saturation[level] = await measureSustainedLane(worker, participantId, level, {
-			windows: attributionWindows,
-			durationMs: attributionWindowMs,
-			url
-		});
-	return { supported: true, saturation };
-}
-
-/** Measures renderer and response delivery with one cached immutable service snapshot. */
-async function measurePreloadedLanes(worker, participantId) {
-	const url = `${worker.url}?__benchmarkPreloaded=true`;
-	const prime = await measureSsrRequest(url);
-	validateResponses(participantId, [prime]);
-	const saturation = {};
-	for (const level of attributionConcurrency)
-		saturation[level] = await measureSustainedLane(worker, participantId, level, {
-			windows: attributionWindows,
-			durationMs: attributionWindowMs,
-			url
-		});
-	return { supported: true, saturation };
-}
-
-/** Measures one bounded concurrency level with independent CPU and scheduler telemetry. */
-async function measureConcurrentLane(worker, participantId, level, waves) {
-	await control(worker, 'reset');
-	const before = await telemetry(worker);
-	const samples = [];
-	const throughput = [];
-	for (let wave = 0; wave < waves; wave += 1) {
-		const startedAt = performance.now();
-		const waveSamples = await runConcurrentSsrRequests(worker.url, level, level);
-		throughput.push((waveSamples.length / (performance.now() - startedAt)) * 1_000);
-		samples.push(...waveSamples);
-	}
-	const after = await telemetry(worker);
-	validateResponses(participantId, samples);
-	return {
-		concurrency: level,
-		waves,
-		requests: samples.length,
-		samples,
-		throughputSamples: throughput,
-		client: summarizeClientSamples(samples),
-		workerSamples: after.statistics,
-		worker: summarizeWorkerRequests(after.statistics),
-		requestsPerSecond: summarizeSsrSamples(throughput),
-		cpuPerRequest: cpuMillisecondsPerRequest(before.cpu, after.cpu, samples.length),
-		eventLoopDelayMs: after.eventLoopDelayMs,
-		garbageCollection: after.garbageCollection
-	};
-}
-
-/** Measures a sustained closed-loop saturation population at one client concurrency. */
-async function measureSustainedLane(worker, participantId, level, options = {}) {
-	await control(worker, 'reset');
-	const before = await telemetry(worker);
-	const samples = [];
-	const throughput = [];
-	const windows = [];
-	const count = options.windows ?? saturationWindows;
-	const durationMs = options.durationMs ?? saturationWindowMs;
-	const url = options.url ?? worker.url;
-	for (let window = 0; window < count; window++) {
-		const result = await runSustainedSsrWindow(url, level, durationMs);
-		throughput.push(result.requestsPerSecond);
-		samples.push(...result.samples);
-		windows.push({ requests: result.samples.length, elapsedMs: result.elapsedMs });
-	}
-	if (options.validate !== false) validateResponses(participantId, samples);
-	const after = await telemetry(worker);
-	const workerSummary = summarizeWorkerRequests(after.statistics);
-	return {
-		mode: 'sustained-closed-loop',
-		concurrency: level,
-		windowCount: count,
-		windowTargetMs: durationMs,
-		windows,
-		requests: samples.length,
-		observations: {
-			client: samples.length,
-			worker: after.statistics.firstByteMs.length,
-			workerCpuBatches: Math.ceil(after.statistics.userCpuMs.length / 5),
-			participantWork: after.statistics.participantWorkMs.length
-		},
-		throughputSamples: throughput,
-		client: summarizeClientSamples(samples),
-		worker: workerSummary,
-		requestsPerSecond: summarizeSsrSamples(throughput),
-		cpuPerRequest: cpuMillisecondsPerRequest(before.cpu, after.cpu, samples.length),
-		eventLoopDelayMs: after.eventLoopDelayMs,
-		garbageCollection: after.garbageCollection
-	};
-}
-
-/** Equalizes complete response bytes while preserving each framework's ordinary render path. */
-async function measureEqualPayloadLanes(worker, participantId) {
-	const result = {};
-	for (const level of attributionConcurrency)
-		result[level] = await measureSustainedLane(worker, participantId, level, {
-			windows: attributionWindows,
-			durationMs: attributionWindowMs,
-			url: `${worker.url}?__benchmarkPayloadBytes=${equalPayloadBytes}`
-		});
-	return { targetBytes: equalPayloadBytes, saturation: result };
-}
-
-/** Measures transport-only response-size sensitivity without invoking participant renderers. */
-async function measurePayloadSweep(worker) {
-	const result = {};
-	for (const bytes of payloadSweepBytes) {
-		const throughput = [];
-		const samples = [];
-		for (let window = 0; window < attributionWindows; window++) {
-			const measured = await runSustainedSsrWindow(
-				`${worker.controlUrl}/payload/${bytes}`,
-				32,
-				attributionWindowMs
-			);
-			throughput.push(measured.requestsPerSecond);
-			samples.push(...measured.samples);
-		}
-		result[bytes] = {
-			concurrency: 32,
-			requests: samples.length,
-			observations: { client: samples.length },
-			client: summarizeClientSamples(samples),
-			requestsPerSecond: summarizeSsrSamples(throughput),
-			throughputSamples: throughput
-		};
-	}
-	return result;
-}
-
-function summarizeLane(samples, before, after, requests) {
-	return {
-		requests,
-		samples,
-		client: summarizeClientSamples(samples),
-		workerSamples: after.statistics,
-		worker: summarizeWorkerRequests(after.statistics),
-		cpuPerRequest: cpuMillisecondsPerRequest(before.cpu, after.cpu, requests),
-		eventLoopDelayMs: after.eventLoopDelayMs,
-		garbageCollection: after.garbageCollection,
-		memoryBefore: before.memory,
-		memoryAfter: after.memory
-	};
-}
-
-function summarizeClientSamples(samples) {
-	return {
-		ttfbMs: summarizeSsrSamples(samples.map((sample) => sample.ttfbMs)),
-		totalMs: summarizeSsrSamples(samples.map((sample) => sample.totalMs)),
-		responseBytes: summarizeSsrSamples(samples.map((sample) => sample.bytes))
-	};
 }
 
 function summarizeRetention(checkpoints) {
@@ -475,10 +374,6 @@ function summarizeRetention(checkpoints) {
 
 async function snapshot(worker) {
 	return control(worker, 'snapshot');
-}
-
-async function telemetry(worker) {
-	return control(worker, 'telemetry');
 }
 
 async function control(worker, operation) {
@@ -507,6 +402,20 @@ function outputPath() {
 		'raw',
 		`ssr-${new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')}.json`
 	);
+}
+
+function optionalPath(value) {
+	return typeof value === 'string' && value.length > 0 ? resolve(value) : undefined;
+}
+
+async function measureHistoricalArtifact(path) {
+	const bytes = await readFile(path);
+	return {
+		kind: 'server-entry-file',
+		path: relative(repositoryRoot, path),
+		rawBytes: bytes.length,
+		sha256: createHash('sha256').update(bytes).digest('hex')
+	};
 }
 
 function positiveInteger(value, fallback) {
