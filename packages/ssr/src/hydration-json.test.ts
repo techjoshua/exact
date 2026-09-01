@@ -30,4 +30,47 @@ describe('hydration JSON validation', () => {
 		);
 		expect(accessorInvoked).toBe(false);
 	});
+
+	it('preserves object, array, cycle, and limit failure paths', () => {
+		expect(validateJsonSafeHydrationValue({ rows: [{ value: Number.NaN }] }, {})).toBe(
+			'$.rows[0].value'
+		);
+		const cycle: Record<string, unknown> = {};
+		cycle.self = cycle;
+		expect(validateJsonSafeHydrationValue({ cycle }, {})).toBe('$.cycle.self');
+		expect(validateJsonSafeHydrationValue({ first: { second: true } }, { maxDepth: 1 })).toBe(
+			'$.first.second'
+		);
+		expect(validateJsonSafeHydrationValue({ first: true }, { maxNodes: 1 })).toBe('$.first');
+	});
+
+	it('observes arrays only after their complete contents pass validation', () => {
+		const observed: unknown[][] = [];
+		const safe = [[{ value: true }]];
+		expect(
+			validateJsonSafeHydrationValue(safe, {
+				onValidatedArray: (value) => observed.push(value)
+			})
+		).toBeUndefined();
+		expect(observed).toEqual([safe[0], safe]);
+
+		const rejected: unknown[] = [];
+		Object.defineProperty(rejected, '0', { enumerable: true, get: () => 'unsafe' });
+		expect(
+			validateJsonSafeHydrationValue(rejected, {
+				onValidatedArray: (value) => observed.push(value)
+			})
+		).toBe('$[0]');
+		expect(observed).toEqual([safe[0], safe]);
+	});
+
+	it('traverses framework-created dense tuples without trusting authored entries', () => {
+		const authored = Object.create(null) as Record<string, unknown>;
+		authored.value = 'unsafe prototype';
+		const entry = [0, authored] as const;
+		const entries = [entry];
+		const structurallyKnown = new WeakSet<object>([entries, entry as object]);
+
+		expect(validateJsonSafeHydrationValue(entries, { structurallyKnown })).toBe('$[0][1]');
+	});
 });

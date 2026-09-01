@@ -6,6 +6,7 @@ export {
 	componentDomainWallClockSnapshot,
 	componentDomainUsesWallClock,
 	createFrameworkComponentDomain,
+	callWithComponentDomain,
 	currentComponentDomain,
 	isHydrationComponentDomain,
 	markComponentDomainWallClockUsed,

@@ -1375,3 +1375,80 @@ total focused and broad allocation. Broad render tails, raw preloaded and equal-
 post-GC RSS, and small artifact movement remain explicit counter-metrics. Prepared component
 references and validation now remain the largest separable construction and authored-value
 inspection sites for a later experiment.
+
+### Direct child and remaining synchronous-site focused candidates
+
+The next focused batch first extended the existing component-local server writer only for a
+compiler-proven static child with finalized plain props. The immutable writer retains the callable,
+the request owns the props, and the synchronous target issues the child through its ordinary target
+ABI without allocating a prepared reference. Keys, authored children, enhancements, spreads,
+dynamic and lazy selection, and deferred publication retain the general operation. Render-program
+ABI 6 prevents an older runtime from silently accepting the new focused operation. The composition
+corpus now records 39 compiler paths and retains 37 normative tests.
+
+Ten alternating focused pairs measured median whole-render sampled allocation falling from
+6,592,060 to 6,323,620 bytes (-4.1%). Prepared-reference allocation in the exercised direct slots
+fell from 160,868 bytes to zero, and child traversal fell from 333,132 to 172,296 bytes (-48.3%).
+The response remained 4,500 bytes. Timing was collected while the workstation was active and is
+diagnostic rather than publishable acceptance evidence. The written gate and raw captures are under
+`.tmp/direct-child-issuance`.
+
+Hydration validation then stopped constructing complete path strings for every safe value and
+traverses framework-known dense tuples by index. Authored containers still require own data-property
+descriptors, and only the first rejected path is formatted. Across ten alternating pairs, median
+whole-render sampled allocation fell from 6,328,884 to 5,501,460 bytes (-13.1%); the former
+657,624-byte `validateContainer` site disappeared and native property-descriptor attribution fell
+5.4%. The response remained 4,500 bytes. Evidence is under
+`.tmp/hydration-validation-paths`.
+
+### Request-local construction and sink-publication focused candidates
+
+Prepared server references now allocate their final request-local object directly and assign only
+present optional fields. A ten-process constructor profile over 100,000 references reduced median
+sampled allocation from 75,070,512 to 62,991,504 bytes (-16.1%). Prepared server render-program
+invocations use the same final-object construction discipline: an escape-preserving ten-process
+profile reduced median sampled allocation from 24,152,552 to 15,265,648 bytes (-36.8%), and ten
+real-fixture captures removed `createPreparedServerRenderProgram` from sampled sites while reducing
+median whole-render allocation from 5,542,728 to 5,386,080 bytes (-2.8%). Evidence is under
+`.tmp/prepared-server-reference-allocation` and
+`.tmp/prepared-server-render-program-allocation`.
+
+The produced-response sink no longer constructs a public lazy string result that no consumer
+receives. Fifty alternating pairs removed the `createChunkedStringResult` site, while paired total
+allocation remained neutral at a 0.999 median ratio and diagnostic render p50/p75/p99 ratios were
+0.981/0.975/0.964; p95 was 1.021. Hydration-script byte accounting now reuses the payload byte count
+already computed for the security limit and adds only the small escaped envelope. Fifty alternating
+pairs removed a 106,896-byte median `utf8ByteLength` site, improved paired median whole-render
+allocation 0.9%, and produced diagnostic p50/p75/p95 ratios of 0.968/0.971/0.979; p99 was 1.042.
+Every response and returned byte count remained 4,500 bytes. Evidence is under
+`.tmp/direct-hydration-output-projection` and
+`.tmp/hydration-script-byte-accounting`.
+
+Validation now also records arrays requiring keyed reactive protocol envelopes only after their
+complete contents pass the descriptor-safe boundary. Ordinary payloads use native `JSON.stringify`
+without a replacer; keyed collections retain the guarded replacer and identical hashes. Fifty
+alternating pairs produced consistent diagnostic render ratios of 0.916/0.929/0.935/0.950 through
+p99, while paired allocation moved 1.004 at the median and 1.041 at p75. This is explicitly accepted
+as a CPU-topology tradeoff rather than an allocation win. Evidence is under
+`.tmp/hydration-reactive-collection-publication`.
+
+Finally, direct-publication components no longer allocate an unused buffered-render closure, and
+synchronous component setup/render enters its request domain through a direct receiver call rather
+than adapter closures. Fifty-pair profiles reduced median `renderSyncComponent` allocation 9.8%
+and `executeDirectSsrComponentSync` allocation 12.0%. Paired whole-render allocation medians
+improved 0.7% and 1.9%, respectively. Their allocation p75 ratios of 1.028 and 1.012 and small mixed
+timing tails remain counter-metrics. Evidence is under `.tmp/direct-sync-buffer-closure` and
+`.tmp/direct-component-domain-call`.
+
+Two transfers were measured and removed. Staged optional assignment in the opaque client component
+operation increased median constructor allocation 8.0%; the frozen opaque identity and WeakMap
+payload retain their existing construction. Direct root-attribute spans produced a 1.001 paired
+median allocation ratio and redistributed work into individual attribute calls without reducing the
+whole render. Those rejection records are under `.tmp/compiled-component-operation-allocation` and
+`.tmp/direct-root-attribute-spans`.
+
+These are focused candidates, not a replacement for the accepted four-framework checkpoint. The
+complete browser, startup, function-inventory, artifact, Node SSR, allocation, response,
+equal-payload, preloaded, saturation, retained-heap, and Bun diagnostic populations must be captured
+once from admitted artifacts when the workstation is quiet, then compared with eligible controls
+before this batch becomes the next published performance checkpoint.

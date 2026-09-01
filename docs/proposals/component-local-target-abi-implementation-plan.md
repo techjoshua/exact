@@ -636,6 +636,12 @@ complete lowering. Scheduled components retain their issued protocol. This speci
 preserve request-local checkpoints, rollback, hooks, disposal, child artifact dispatch, response
 identity, and resumption publication.
 
+A later focused specialization may also issue a statically selected child directly from that
+program when its invocation consists only of finalized plain props. Store the callable in the
+immutable generated writer, keep props request-owned, and reuse the existing child artifact ABI.
+Do not extend this form to authored children, keys, enhancements, spreads, dynamic or lazy
+selection, or deferred publication; those forms retain their prepared component operation.
+
 A synchronous compiler-closed response may additionally use a produced response body owned by the
 server package. Request-scope disposal transfers to that body and occurs after successful adapter
 consumption, renderer or transport failure, cancellation, or host abort. The Node adapter collects

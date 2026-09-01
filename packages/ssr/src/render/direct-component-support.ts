@@ -1,5 +1,4 @@
 import {
-	withComponentDomain,
 	type AnyComponentFunction,
 	type AnyComponentInstance,
 	type ContextToken,
@@ -7,6 +6,10 @@ import {
 	type ReactiveValue,
 	type Child
 } from '@exactjs/core';
+import {
+	callWithComponentDomain,
+	withComponentDomain
+} from '@exactjs/core/framework/component-domains';
 import {
 	createCompiledFragmentReceipt,
 	createCompiledKeyedChildReceipt
@@ -65,6 +68,18 @@ export function directSsrContextOwner(frame: DirectSsrComponentFrame): AnyCompon
 /** Executes component work in the request's error and inspection domain when present. */
 export function inComponentDomain<T>(context: SsrContext, work: () => T): T {
 	return context.componentDomain ? withComponentDomain(context.componentDomain, work) : work();
+}
+
+/** Calls one synchronous component function without allocating a domain adapter closure. */
+export function callInComponentDomain<Receiver, Argument, Result>(
+	context: SsrContext,
+	work: (this: Receiver, argument: Argument) => Result,
+	receiver: Receiver,
+	argument: Argument
+): Result {
+	return context.componentDomain
+		? callWithComponentDomain(context.componentDomain, work, receiver, argument)
+		: work.call(receiver, argument);
 }
 
 /** Materializes a compiler-generated keyed-list fallback without retained registration. */

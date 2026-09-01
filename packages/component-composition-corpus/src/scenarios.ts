@@ -11,6 +11,7 @@ export const corpusScenarios = [
 			'static-render-program',
 			'compact-render-abi',
 			'direct-child-artifact',
+			'direct-server-child-issuance',
 			'props-only-forwarding',
 			'sync-direct-ssr',
 			'sync-direct-server-executor',

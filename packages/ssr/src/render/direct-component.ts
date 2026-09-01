@@ -8,6 +8,7 @@ import {
 	type DirectSsrComponentContent
 } from './direct-component-content.js';
 import {
+	callInComponentDomain,
 	inComponentDomain,
 	type DirectSsrLifecycleCapability
 } from './direct-component-support.js';
@@ -65,7 +66,7 @@ export function executeDirectSsrComponentSync<Result>(
 	let render: unknown;
 	if (server.mode !== 'direct') {
 		try {
-			render = inComponentDomain(context, () => server.render!.call(frame, props));
+			render = callInComponentDomain(context, server.render, frame, props);
 			if (typeof render !== 'function')
 				throw new TypeError(
 					'Compiled synchronous server component did not return its render function'
@@ -85,9 +86,14 @@ export function executeDirectSsrComponentSync<Result>(
 	try {
 		const started = lifecycle ? performanceNow() : 0;
 		const content = readDirectSsrContent(
-			inComponentDomain(context, () =>
-				server.mode === 'direct' ? server.render!.call(frame, props) : (render as () => unknown)()
-			)
+			server.mode === 'direct'
+				? callInComponentDomain(context, server.render, frame, props)
+				: callInComponentDomain(
+						context,
+						render as (argument: undefined) => unknown,
+						undefined,
+						undefined
+					)
 		);
 		lifecycle?.rendered(frame, performanceNow() - started);
 		const checkpoint = context.onComponentAttemptCheckpoint?.();

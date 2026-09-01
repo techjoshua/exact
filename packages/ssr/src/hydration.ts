@@ -18,6 +18,25 @@ export function renderHydrationScript(
 	resumptionLayouts?: ReadonlyMap<string, SsrResumptionLayout>,
 	capturedResumptions?: readonly SsrSerializedResumption[]
 ): string {
+	return renderHydrationScriptValue(options, resumptionLayouts, capturedResumptions);
+}
+
+/** Renders hydration markup while publishing its exact UTF-8 length to one request-owned record. */
+export function renderHydrationScriptWithByteCount(
+	options: HydrationScriptOptions,
+	resumptionLayouts: ReadonlyMap<string, SsrResumptionLayout> | undefined,
+	capturedResumptions: readonly SsrSerializedResumption[] | undefined,
+	target: { hydrationBytes?: number }
+): string {
+	return renderHydrationScriptValue(options, resumptionLayouts, capturedResumptions, target);
+}
+
+function renderHydrationScriptValue(
+	options: HydrationScriptOptions,
+	resumptionLayouts?: ReadonlyMap<string, SsrResumptionLayout>,
+	capturedResumptions?: readonly SsrSerializedResumption[],
+	byteTarget?: { hydrationBytes?: number }
+): string {
 	if (
 		options.buildKey &&
 		options.componentAuthorization &&
@@ -32,19 +51,34 @@ export function renderHydrationScript(
 	const compacted = directResumptions
 		? createDirectHydrationMetadata(options, directResumptions, structurallyKnown)
 		: createExtensibleHydrationMetadata(options, resumptionLayouts);
+	const reactiveCollections = new WeakMap<unknown[], unknown>();
+	let hasReactiveCollections = false;
 	const unsafePath = validateJsonSafeHydrationValue(compacted, {
 		maxDepth: options.maxHydrationDepth,
 		maxNodes: options.maxHydrationNodes,
+		onValidatedArray(value) {
+			const encoded = encodeValidatedReactiveCollection(value, value);
+			if (encoded === value) return;
+			reactiveCollections.set(value, encoded);
+			hasReactiveCollections = true;
+		},
 		structurallyKnown
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
-	const payload = serializeValidatedHydrationPayload(compacted);
-	if (utf8ByteLength(payload) > positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)) {
+	const payload = serializeValidatedHydrationPayload(
+		compacted,
+		hasReactiveCollections ? reactiveCollections : undefined
+	);
+	const payloadBytes = utf8ByteLength(payload);
+	if (payloadBytes > positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)) {
 		throw new Error('Hydration payload exceeded maxHydrationBytes');
 	}
 	const id = options.scriptId ?? '__exact_hydration';
 	const nonce = options.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : '';
-	return `<script type="application/json" id="${escapeAttr(id)}"${nonce}>${payload}</script>`;
+	const prefix = `<script type="application/json" id="${escapeAttr(id)}"${nonce}>`;
+	const suffix = '</script>';
+	if (byteTarget) byteTarget.hydrationBytes = utf8ByteLength(prefix) + payloadBytes + suffix.length;
+	return `${prefix}${payload}${suffix}`;
 }
 
 /** Serializes hydration JSON while escaping script-breaking characters. */
@@ -57,13 +91,18 @@ function serializeEncodedHydrationPayload(payload: unknown): string {
 }
 
 /** Encodes registered arrays as JSON visits them without cloning the validated payload graph. */
-function serializeValidatedHydrationPayload(payload: unknown): string {
-	const encodedCollections = new WeakSet<unknown[]>();
+function serializeValidatedHydrationPayload(
+	payload: unknown,
+	reactiveCollections?: WeakMap<unknown[], unknown>
+): string {
+	if (!reactiveCollections) return serializeJson(payload);
+	const emittedCollections = new WeakSet<unknown[]>();
 	return serializeJson(payload, function (_key, value) {
 		if (!Array.isArray(value)) return value;
-		if (encodedCollections.has(value)) return value;
-		const encoded = encodeValidatedReactiveCollection(value, value);
-		if (encoded !== value) encodedCollections.add(value);
+		if (emittedCollections.has(value)) return value;
+		const encoded = reactiveCollections.get(value);
+		if (encoded === undefined) return value;
+		emittedCollections.add(value);
 		return encoded;
 	});
 }

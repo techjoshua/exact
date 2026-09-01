@@ -54,6 +54,8 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 			method = "prepareText"
 		} else if slot.kind == "child" {
 			method = "prepareChild"
+		} else if slot.kind == "component" && slot.serverComponent != nil {
+			method = "prepareComponentProps"
 		} else if slot.kind == "component" {
 			method = "prepareComponent"
 		}
@@ -150,11 +152,16 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 				assignCall("child", context, output, value, stringLiteral(slot.id), characters)
 			}
 		case "component":
+			method := "component"
 			arguments := []*ast.Node{context, output, value, stringLiteral(slot.id), characters}
+			if slot.serverComponent != nil {
+				method = "directComponent"
+				arguments = []*ast.Node{context, output, slot.serverComponent, value, stringLiteral(slot.id), characters}
+			}
 			if slot.markerlessTail {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
-			assignCall("component", arguments...)
+			assignCall(method, arguments...)
 		case "spread":
 			assignCall(
 				"attributes",

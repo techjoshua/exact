@@ -122,6 +122,12 @@ export const compilerPathInventory = [
 		universalRenderModes
 	),
 	path(
+		'direct-server-child-issuance',
+		'specialized',
+		'Compiler-proven server child slots issue the selected artifact without a prepared reference.',
+		['ssr-sync']
+	),
+	path(
 		'eager-registry-artifact',
 		'specialized',
 		'Finite eager registries retain compiler-owned identities.',

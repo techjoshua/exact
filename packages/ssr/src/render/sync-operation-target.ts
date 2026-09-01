@@ -37,6 +37,7 @@ import {
 	normalizeRenderResult,
 	type AnyComponentInstance
 } from '@exactjs/core';
+import type { AnyExactComponentCallable } from '@exactjs/core/framework/component-contracts';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import type { ExactPreparedServerChildRange } from '@exactjs/core/framework/server-render-structure';
@@ -44,7 +45,7 @@ import type { ExactPreparedServerKeyedChild } from '@exactjs/core/framework/serv
 import type { Child, SsrContext } from '../types.js';
 import { exactMarkerId, markerId, markerPair } from '../markup.js';
 import { renderIntrinsicReceipt } from './intrinsic-receipt.js';
-import { renderPreparedSsrProgramString } from './render-program.js';
+import { renderPreparedSsrProgramString } from './sync-render-program.js';
 import { registerDynamicComponentPreload } from './resource-hints.js';
 import { renderServerBoundary } from './server-boundary-capability.js';
 import { serverSlotOpening, serverSlotReceiptReference } from './server-slots.js';
@@ -55,7 +56,11 @@ import {
 	renderSuspenseReceipt,
 	renderTargetReceipt
 } from './structural-receipts.js';
-import { renderSyncComponentReceipt, type SyncComponentOperations } from './sync-component.js';
+import {
+	renderSyncComponentReceipt,
+	renderSyncDirectComponent,
+	type SyncComponentOperations
+} from './sync-component.js';
 import { renderUnsafeHtmlValue } from './host.js';
 import { renderOperationEnhancements } from './operation-enhancements.js';
 import { exactSerializedSsrHtmlOperation } from './serialized-html-operation.js';
@@ -129,15 +134,7 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 		const program = readPreparedServerRenderProgram(data.value);
 		if (program)
 			return markerPair(this.context, markerId(this.context, 'item', undefined, data.key), () =>
-				renderPreparedSsrProgramString(
-					this.context,
-					program,
-					this.parent,
-					(children) =>
-						this.renderChildList(this.context, children, this.parent, this.hasComponentAncestor),
-					(component) =>
-						this.renderComponentReceipt(component, this.parent, this.hasComponentAncestor, true)
-				)
+				renderPreparedSsrProgramString(this.context, program, this.parent, this)
 			);
 		this.context.outputSink?.invalidateAccounting();
 		return renderKeyedChildReceipt(
@@ -297,15 +294,7 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 	renderPreparedServerProgram(
 		program: NonNullable<ReturnType<typeof readPreparedServerRenderProgram>>
 	): string {
-		return renderPreparedSsrProgramString(
-			this.context,
-			program,
-			this.parent,
-			(children) =>
-				this.renderChildList(this.context, children, this.parent, this.hasComponentAncestor),
-			(component) =>
-				this.renderComponentReceipt(component, this.parent, this.hasComponentAncestor, true)
-		);
+		return renderPreparedSsrProgramString(this.context, program, this.parent, this);
 	}
 
 	/** Serializes one direct server reference reached outside a prepared render-program segment. */
@@ -346,6 +335,29 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 		).renderComponentReceipt(component, parent, hasComponentAncestor, omitCompilerOwnedBoundary);
 	}
 
+	/** Crosses one statically selected child boundary without a prepared reference allocation. */
+	renderDirectComponent(
+		context: SsrContext,
+		component: AnyExactComponentCallable,
+		props: Record<string, unknown> | null,
+		parent?: AnyComponentInstance,
+		hasComponentAncestor = false,
+		omitCompilerOwnedBoundary = false
+	): string {
+		return new SyncSsrOperationTarget(
+			context,
+			parent,
+			hasComponentAncestor,
+			this.renderChildList
+		).renderDirectComponentReceipt(
+			component,
+			props,
+			parent,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary
+		);
+	}
+
 	private renderComponentReceipt(
 		component: ExactComponentReceiptData,
 		parent: AnyComponentInstance | undefined,
@@ -361,6 +373,24 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 			this,
 			omitCompilerOwnedBoundary,
 			omitRootBoundary
+		);
+	}
+
+	private renderDirectComponentReceipt(
+		component: AnyExactComponentCallable,
+		props: Record<string, unknown> | null,
+		parent: AnyComponentInstance | undefined,
+		hasComponentAncestor: boolean,
+		omitCompilerOwnedBoundary = false
+	): string {
+		return renderSyncDirectComponent(
+			this.context,
+			component,
+			props,
+			parent,
+			hasComponentAncestor,
+			this,
+			omitCompilerOwnedBoundary
 		);
 	}
 }
