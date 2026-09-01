@@ -1836,3 +1836,27 @@ is a locally useful specialization with neutral observable equal-payload through
 operation deletion, focused render improvement, and append-allocation reduction without crediting
 it for the full run's unrelated raw server improvement. The complete focused evidence is
 `.tmp/root-opening-checkpoint/focused-equal-payload-100.json`.
+
+A second 100-round population then interleaved immediate-before Exact, current Exact, and React
+through three isolated repository benchmark workers. Unlike an initial discarded in-process React
+adapter, this run uses the production Node adapters, per-request controlled-service fetch and
+decode, the ordinary equal-payload route, separate worker processes, and a balanced rotation through
+first, middle, and last measurement positions. Exact-before and Exact-current responses are
+byte-identical; all three responses are meaningful and exactly 8,192 bytes.
+
+Exact-before records 2,265/2,295/2,347/2,476 RPS and Exact-current records
+2,294/2,324/2,365/2,376 at p50/p75/p95/p99; React records
+2,382/2,422/2,473/2,500. Current Exact wins 65 of 100 paired rounds. Its current/before RPS ratio has
+a 1.010 mean and median, with deterministic 20,000-resample 95% intervals of 1.004 through 1.015 for
+the mean and 1.004 through 1.018 for the median. Exact's mean relative position moves from 94.87% of
+React to 95.75%, while p50 request latency moves from 13.54 to 13.36 ms; React is 12.85 ms.
+
+The current artifact is neutral when measured last and about 1.3% to 1.5% better when first or
+middle, but every position appears 33 or 34 times and the balanced aggregate excludes parity. The
+direct population therefore refines the disposition from macro-neutral to a small equal-payload
+throughput improvement under the representative worker topology. It also explains why the earlier
+control-normalized comparison pointed the wrong way: its approximately 1.158 control dispersion is
+within the broad 1.2x publication ceiling but too large to resolve a one-percent candidate. For
+effects of this size, an immediate interleaved artifact lane is the acceptance evidence; the
+cross-run comparison remains environmental context. Evidence is
+`.tmp/root-opening-checkpoint/worker-react-interleaved-100.json`.
