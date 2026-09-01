@@ -1773,3 +1773,49 @@ profitably requires moving component-local output ownership into a transactional
 merely relocating the same owner/output fields onto a shared mutable object. The written gate,
 artifacts, and both 50-pair populations remain under `.tmp/request-owned-sync-program-executor` and
 `.tmp/request-owned-sync-program-executor-refined`.
+
+### Compiler-fused root-opening full checkpoint
+
+The retained one-span root-opening form completed the full four-framework checkpoint with 50
+browser, startup, Node SSR, and Bun SSR samples. The immutable captures and the complete 379-KB
+report are under `.tmp/root-opening-checkpoint`; the report includes every current table, every
+p50/p75/p95/p99 population, immediate Exact-before comparisons, startup allocation sites, Node
+response decomposition, render-only CPU and allocation sites, preloaded and service-phase
+saturation, equal-payload lanes, and separate Bun diagnostics. The participant correctness suite
+passed all 28 tests. The performance-profile release surface passed after three compiler tests were
+updated to assert the accepted version-7 root-opening ABI instead of the removed root-attribute
+operation.
+
+Current Node saturation throughput is 2,237/2,284/2,343/2,343 requests per second at concurrency 32
+and 2,190/2,322/2,327/2,327 at concurrency 64, compared with React at
+2,470/2,476/2,487/2,487 and 2,442/2,442/2,469/2,469 respectively. At equal 8-KiB payload and
+concurrency 32, Exact is 1,919/1,923/1,923/1,923 versus React at
+2,014/2,061/2,061/2,061. The equal-payload Exact-before comparison is eligible under the unchanged
+three-control rule and moves -4.6%/-3.9%/-3.9%/-3.9%. Normal saturation c32 is eligible only at
+p95/p99 and moves -4.0% there; its p50/p75 controls disperse beyond 1.2x. The unrestricted concurrent
+lane and most other saturation percentiles also have ineligible control dispersion, so their large
+raw cross-run improvements are retained in the report but are not claimed as normalized gains.
+
+These macro counter-signals do not reverse the focused acceptance result. The immediately
+interleaved 50-pair artifact experiment isolates the changed root operation and shows faster
+render-only p50/p75/p95 together with 27.1% less append-site sampled allocation. The full checkpoint
+spans a restarted host and its controls moved by materially different amounts, so it cannot assign
+the broader cross-run movement to a roughly one-percent root-operation change. Both observations are
+kept: the focused local improvement justifies the specialization, while the eligible equal-payload
+regression prevents claiming a macro throughput win from this phase.
+
+Render-only Exact is 0.0301/0.0502/0.0660/0.0782 ms versus React at
+0.0212/0.0219/0.0273/0.0379. The raw prior Exact values were
+0.0456/0.0644/0.0948/0.1259, but that lane has only React as a control and therefore cannot satisfy
+the two-control normalization rule. Sampled render-only allocation is 4,587,280 bytes, down from the
+prior raw 4,776,520 and below React's 6,970,584. Normalized retained Node heap improves
+0.8% to 1.3%, and normalized retained RSS improves 3.2% to 3.5%. The server artifact moves from
+231,989 to 231,083 raw bytes (-906), 49,425 to 49,518 gzip (+93), and 41,189 to 41,272 Brotli (+83).
+The 4,500-byte response and its decomposition are unchanged.
+
+The client receives no intended execution change in this server-focused checkpoint. Executed code
+remains 102,128 bytes, invoked functions remain 561, and startup heap remains 2,454,120 bytes.
+Control-normalized evaluation is 4.7% slower at p50 and 9.7% slower at p75; the higher percentiles
+are ineligible because the controls disperse beyond 1.2x. Navigation is likewise 4.0%/3.5%/6.2%
+slower at eligible p50/p75/p95, while retained browser heap is unchanged. Those movements are
+unexpected workstation/run-level counter-metrics, not attributed to the server-only root opening.
