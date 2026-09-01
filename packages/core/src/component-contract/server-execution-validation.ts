@@ -23,7 +23,7 @@ export function isExactServerExecutionMetadata(value: unknown, selection = false
 		(direct || lane === 'generic' || lane === 'compatibility') &&
 		(value.deferredTaskProps === undefined || stringList(value.deferredTaskProps)) &&
 		(value.mode === undefined ||
-			(value.mode === 'direct' &&
+			((value.mode === 'direct' || value.mode === 'stateless') &&
 				direct &&
 				value.classification === 'synchronous' &&
 				!selection)) &&

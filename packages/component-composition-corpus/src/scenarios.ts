@@ -15,6 +15,7 @@ export const corpusScenarios = [
 			'props-only-forwarding',
 			'sync-direct-ssr',
 			'sync-direct-server-executor',
+			'stateless-server-leaf-executor',
 			'compiler-proven-output-bytes',
 			'hydration-static-claims'
 		],
@@ -35,6 +36,7 @@ export const corpusScenarios = [
 			'compiler-selected-ssr-attributes',
 			'compiler-static-root-identity',
 			'compiler-fused-root-opening',
+			'direct-server-value-propagation',
 			'durable-component-abi'
 		],
 		modes: ['client-mount', 'client-update', 'ssr-sync', 'hydrate-match']

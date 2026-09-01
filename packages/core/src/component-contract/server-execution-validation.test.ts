@@ -12,6 +12,15 @@ describe('server execution validation', () => {
 				render: () => null
 			})
 		).toBe(true);
+		expect(
+			isExactServerExecutionMetadata({
+				version: 1,
+				classification: 'synchronous',
+				lane: 'direct',
+				mode: 'stateless',
+				render: () => null
+			})
+		).toBe(true);
 	});
 
 	it('rejects direct mode on scheduled and selection artifacts', () => {

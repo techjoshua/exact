@@ -188,6 +188,12 @@ export const compilerPathInventory = [
 		['ssr-sync']
 	),
 	path(
+		'stateless-server-leaf-executor',
+		'specialized',
+		'Capability-free server leaves execute their compiled program without a request-local component frame.',
+		['ssr-sync']
+	),
+	path(
 		'compiler-proven-output-bytes',
 		'specialized',
 		'Synchronous server programs carry exact UTF-8 byte facts for compiler-owned spans.',
@@ -209,6 +215,12 @@ export const compilerPathInventory = [
 		'compiler-fused-root-opening',
 		'specialized',
 		'Compiler-known root prefix, attributes, and following static markup publish as one operation.',
+		['ssr-sync']
+	),
+	path(
+		'direct-server-value-propagation',
+		'specialized',
+		'Exact synchronous server relationships inline direct assignments while authored calculations remain executable.',
 		['ssr-sync']
 	),
 	path(

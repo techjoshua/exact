@@ -118,7 +118,7 @@ describe('normative compiled structure', () => {
 	it('executes compiler-closed synchronous server programs without returned render closures', async () => {
 		const { code } = await compileFixture('fundamentals.fixtures.tsx', 'server');
 
-		expect(code.match(/mode: "direct"/g)).toHaveLength(2);
+		expect(code.match(/mode: "stateless"/g)).toHaveLength(2);
 		expect(code).toMatch(/return __exactPreparedServerRenderProgram\(/);
 		expect(code).not.toMatch(/return \(\) => __exactPreparedServerRenderProgram\(/);
 		expect(code).toMatch(
@@ -145,6 +145,16 @@ describe('normative compiled structure', () => {
 
 		expect(code).toMatch(/__exactSsr\.rootOpening\([^;]+"<section"/);
 		expect(code).not.toContain('__exactSsr.rootAttributes(');
+	});
+
+	it('inlines exact server value propagation while retaining authored calculations', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+
+		expect(code).toContain('this.state.direct = props.label;');
+		expect(code).not.toMatch(/\(\([^)]*\) => \{\s*this\.state\.direct = [^}]+\}\)\(props\.label,/);
+		expect(code).toContain(
+			'normalizeServerLabel(__exactDependency); })(props.label, { signal: void 0 });'
+		);
 	});
 });
 

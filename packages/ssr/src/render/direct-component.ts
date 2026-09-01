@@ -61,7 +61,7 @@ export async function executeDirectSsrComponent<Result>(
 	const owner = selectedDirectSsrOwner(contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let render: unknown;
-	if (server.mode !== 'direct') {
+	if (server.mode !== 'direct' && server.mode !== 'stateless') {
 		try {
 			render = inComponentDomain(context, () => server.render!.call(frame, props));
 			if (typeof render !== 'function')
@@ -88,7 +88,9 @@ export async function executeDirectSsrComponent<Result>(
 			options,
 			() =>
 				inComponentDomain(context, () =>
-					server.mode === 'direct' ? server.render!.call(frame, props) : (render as () => unknown)()
+					server.mode === 'direct' || server.mode === 'stateless'
+						? server.render!.call(frame, props)
+						: (render as () => unknown)()
 				),
 			owner
 		);

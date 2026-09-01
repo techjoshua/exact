@@ -92,7 +92,7 @@ func TestSynchronousServerArtifactExecutesClosedProgramWithoutReturnedClosure(t 
 	for _, expected := range []string{
 		`return __exactPreparedServerRenderProgram(`,
 		`classification: "synchronous"`,
-		`mode: "direct"`,
+		`mode: "stateless"`,
 	} {
 		if !strings.Contains(compact, expected) {
 			t.Fatalf("direct server executor omitted %q:\n%s", expected, response.Code)
@@ -315,12 +315,20 @@ func TestServerProjectionInlinesCompilerSynchronousComputations(t *testing.T) {
 		}
 	}
 	for _, expected := range []string{
-		`})(props.name, { signal: void 0 })`,
+		`this.state.message = "Hello " + props.name`,
 		`classification: "synchronous"`,
 		`lane: "direct"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("direct server computation is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	for _, removed := range []string{
+		`})(props.name, { signal: void 0 })`,
+		`{ signal: void 0 }`,
+	} {
+		if strings.Contains(response.Code, removed) {
+			t.Fatalf("direct server computation retained %q:\n%s", removed, response.Code)
 		}
 	}
 }

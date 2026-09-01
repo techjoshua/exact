@@ -174,6 +174,12 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		return initialization
 	}
 	if directServerComputation {
+		if inlined, exact := lowering.inlineDirectServerValuePropagation(
+			rewrittenWork,
+			nextArguments,
+		); exact {
+			return inlined
+		}
 		arguments := append([]*ast.Node{}, nextArguments...)
 		arguments = append(arguments, lowering.factory.NewObjectLiteralExpression(
 			lowering.factory.NewNodeList([]*ast.Node{

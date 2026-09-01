@@ -18,7 +18,10 @@ import {
 	lazyRegistryRoot,
 	registryRoot
 } from './scenarios/registry.fixtures.js?exact-target=server';
-import { stateRoot } from './scenarios/state.fixtures.js?exact-target=server';
+import {
+	serverSetupProjectionRoot,
+	stateRoot
+} from './scenarios/state.fixtures.js?exact-target=server';
 import { structureRoot } from './scenarios/structure.fixtures.js?exact-target=server';
 import { serverTaskRoot } from './scenarios/tasks.fixtures.js?exact-target=server';
 
@@ -38,6 +41,12 @@ describe('composition corpus server behavior', () => {
 		expect(html).toMatch(/^<section data-exact-id="[^"]+" data-scenario="state">/);
 		expect(html.replace(/ data-exact-id="[^"]+"/, '')).toBe(
 			'<section data-scenario="state"><output>count:1</output><small hidden>COUNT</small><button data-count="1">increment</button></section>'
+		);
+	});
+
+	it('preserves direct and authored synchronous server setup semantics', () => {
+		expect(renderToString(serverSetupProjectionRoot(' ready '), { markers: false }).html).toBe(
+			'<output data-scenario="server-setup-projection"> ready :READY</output>'
 		);
 	});
 
