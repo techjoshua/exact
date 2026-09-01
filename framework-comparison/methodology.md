@@ -20,8 +20,10 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
 4. Production builds are measured. Development builds may be measured separately for build and feedback
    metrics, but never mixed with runtime results.
 5. A scenario must pass its correctness assertions before its timing is accepted.
-6. Warm and cold measurements are labeled and reported separately. The controlled browser runner records warm
-   samples after one equivalent discarded scenario per participant; run order is randomized or rotated.
+6. Warm and cold measurements are labeled and reported separately. Comparable timing populations use balanced
+   round interleaving: every round measures one sample or window from each participant, rotations distribute
+   order positions, and alternating cycle direction counters monotonic host drift. The controlled browser runner
+   records warm samples after one equivalent discarded scenario per participant.
 7. Raw samples, environment metadata, participant commit, dependency lockfile, and harness version accompany
    every summary.
 8. Framework specialists should review meaningful participants. Review corrections are recorded rather than
@@ -118,7 +120,9 @@ counts speculatively across modules.
 ### Isolated SSR profile
 
 The SSR track starts one production participant per child process so framework heap, RSS, external
-memory, and CPU are not mixed with the controlled fixture service or another framework. Participant
+memory, and CPU ownership remain attributable to that framework rather than the controlled fixture service.
+Comparable workers remain warm simultaneously, but requests and fixed-duration windows are issued to only one
+participant at a time in balanced round-interleaved order. Participant
 metadata declares the production transport used for each runtime. The worker imports that target-local
 server artifact directly and owns its listener; it does not start a shell, package manager, or descendant
 application process. Shutdown first uses the worker's control endpoint, then terminates only that exact
@@ -133,12 +137,18 @@ socket events. Sequential requests use warm keep-alive connections.
 The load generator owns one bounded `node:http` keep-alive agent per participant and closes it when
 that participant finishes. Reusing those connections prevents client-side ephemeral-port exhaustion
 from being misreported as framework capacity while preserving exact process and socket ownership.
-Before each participant starts, the harness probes both controlled-service resources repeatedly and records
-the resulting latency distribution. Participant order uses a balanced rotation keyed by the recorded
-measurement round and runtime offset. Successive rounds therefore move every framework through every order
-position instead of merely reversing one fixed order, while the exact order remains stored in the raw result.
-This prevents one framework from always paying service cold-start cost and makes residual order effects
-auditable.
+Before the timing population starts, the harness probes both controlled-service resources repeatedly and records
+the resulting latency distribution. Every browser, startup-CPU, and comparable SSR timing round uses a balanced
+rotation keyed by the recorded measurement round and track offset. Successive rounds move every framework through
+every order position, and alternating cycles reverse direction, while every exact order remains stored in the raw
+result. This prevents one framework from consistently inheriting host drift, background activity, or service
+temperature and makes residual order effects auditable.
+
+Cold-start populations, post-GC retention, response decomposition, and instrumented CPU/allocation diagnostics
+remain isolated because simultaneous processes or profiling changes would contaminate their ownership. When an
+admitted historical eXact server artifact is available, it may run as another interleaved worker under the same
+transport. That direct paired population is preferred for estimating a small before/current change; unchanged
+React, SvelteKit, and Nuxt controls remain useful for relating a current run to older unpaired checkpoints.
 
 The bounded concurrent lane remains a fixed request population. Saturation levels instead use several
 fixed-duration, closed-loop windows; each client immediately replaces a completed request until the window

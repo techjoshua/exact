@@ -57,6 +57,13 @@ plumbing, error paths, review findings, and standardized change effort. The suit
 overall winner. Development measurement commands may collect explicitly non-publishable samples for either
 track while reviews are pending; both publication commands reject unreviewed participants.
 
+Controlled browser, startup CPU, and comparable SSR timing results use balanced round interleaving: each round
+collects one sample or window from every framework, rotates their order positions, and reverses alternating
+rotation cycles. Exact orders are retained in raw evidence so host drift and user activity are auditable instead
+of being silently assigned to whichever framework ran last. SSR cold startup, retention, response decomposition,
+and intrusive CPU/allocation profiles remain isolated so their process ownership stays meaningful. An admitted
+historical eXact server artifact can also run in the same rounds for a direct before/current comparison.
+
 Controlled browser results are labeled warm and follow one discarded, equivalent scenario per participant.
 Interaction latency is measured from the browser's captured click to the corresponding visible DOM mutation;
 automation actionability waits and assertion polling are therefore excluded, while interaction-triggered

@@ -90,6 +90,13 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					markup, framework markers, hydration data, comparison data, and the document envelope.
 					These lanes explain a result; they do not replace the production-route comparison.
 				</p>
+				<p>
+					Comparable browser, startup, and SSR timing samples run in balanced interleaved rounds:
+					each framework takes every order position over a complete cycle, and alternating cycles
+					reverse direction. Raw reports retain those orders. Process-owned startup, retention, and
+					instrumented profiling remain isolated so their memory and CPU attribution stays
+					meaningful.
+				</p>
 			</section>
 		</Article>
 	);

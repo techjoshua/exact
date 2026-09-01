@@ -81,13 +81,9 @@ async function createParticipantHandler(id) {
 	if (usesNativeBunServer(transport)) {
 		if (id !== 'exact')
 			throw new Error(`Participant ${id} declares bun-fetch without a native benchmark entry`);
-		const entry = resolve(
-			suiteRoot,
-			'participants',
-			'exact',
-			'dist-bun-server',
-			'bun-server-entry.js'
-		);
+		const entry = process.env.COMPARISON_EXACT_SERVER_ENTRY
+			? resolve(process.env.COMPARISON_EXACT_SERVER_ENTRY)
+			: resolve(suiteRoot, 'participants', 'exact', 'dist-bun-server', 'bun-server-entry.js');
 		const { renderParticipantBunResponse } = await import(pathToFileURL(entry).href);
 		let diagnosticData;
 		return {
@@ -109,7 +105,10 @@ async function createParticipantHandler(id) {
 		};
 	}
 	if (id === 'exact' || id === 'react') {
-		const entry = resolve(suiteRoot, 'participants', id, 'dist-server', 'server-entry.js');
+		const selectedEntry = id === 'exact' ? process.env.COMPARISON_EXACT_SERVER_ENTRY : undefined;
+		const entry = selectedEntry
+			? resolve(selectedEntry)
+			: resolve(suiteRoot, 'participants', id, 'dist-server', 'server-entry.js');
 		const { renderParticipant, renderParticipantToSink } = await import(pathToFileURL(entry).href);
 		let diagnosticData;
 		return {
@@ -162,10 +161,15 @@ async function createParticipantHandler(id) {
 					if (produced) {
 						let pending = '';
 						responseBytes =
-							renderParticipantToSink(diagnosticData, '/incidents/inc-101', (chunk) => {
-								pending += chunk;
-								if (pending.length >= 8 * 1024) pending = '';
-							}, Buffer.byteLength) + exactDocumentEnvelopeBytes;
+							renderParticipantToSink(
+								diagnosticData,
+								'/incidents/inc-101',
+								(chunk) => {
+									pending += chunk;
+									if (pending.length >= 8 * 1024) pending = '';
+								},
+								Buffer.byteLength
+							) + exactDocumentEnvelopeBytes;
 						document = pending;
 					} else {
 						const rendered = await renderParticipant(diagnosticData, '/incidents/inc-101');

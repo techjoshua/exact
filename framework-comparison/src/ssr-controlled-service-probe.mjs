@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { summarizeSsrSamples } from './ssr-benchmark-statistics.mjs';
+import { balancedRoundOrder } from './balanced-round-order.mjs';
 
 /** Warms and measures the shared fixture service before one participant receives benchmark work. */
 export async function probeControlledService(serviceUrl, requests = 100) {
@@ -31,9 +32,5 @@ export function rotateParticipants(participants, offset) {
 
 /** Selects one rotation from a complete balanced measurement cycle. */
 export function balancedParticipantOrder(participants, round, runtimeOffset = 0) {
-	if (!Number.isInteger(round) || round < 0)
-		throw new TypeError('SSR measurement round must be a non-negative integer');
-	if (!Number.isInteger(runtimeOffset) || runtimeOffset < 0)
-		throw new TypeError('SSR runtime order offset must be a non-negative integer');
-	return rotateParticipants(participants, round + runtimeOffset);
+	return balancedRoundOrder(participants, round, runtimeOffset);
 }

@@ -8,7 +8,8 @@ export async function startSsrWorker({
 	transport,
 	workerPath,
 	workingDirectory,
-	serviceUrl
+	serviceUrl,
+	environment = {}
 }) {
 	const startedAt = performance.now();
 	const arguments_ = [...runtime.arguments, workerPath, participantId, '0', runtime.id, transport];
@@ -18,7 +19,8 @@ export async function startSsrWorker({
 			...process.env,
 			NODE_ENV: 'production',
 			COMPARISON_SERVICE_URL: serviceUrl,
-			NITRO_SHUTDOWN_DISABLED: 'true'
+			NITRO_SHUTDOWN_DISABLED: 'true',
+			...environment
 		},
 		stdio: ['ignore', 'pipe', 'pipe'],
 		windowsHide: true
