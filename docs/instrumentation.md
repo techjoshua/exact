@@ -89,13 +89,16 @@ but excluded from the ratio guard because scheduler noise dominates them. Run
 accepting a new native baseline. `EXACT_NATIVE_CORPUS_WORKERS`,
 `EXACT_NATIVE_CORPUS_PROJECT`, `EXACT_NATIVE_CORPUS_SAMPLES`, and
 `EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO` provide focused investigation
-overrides without changing repository policy.
+overrides without changing repository policy. A ratio above the tracked ceiling marks the timing
+comparison non-publishable and emits a warning, but it does not discard the raw corpus, structural,
+or incremental evidence or fail an otherwise valid local admission run.
 
 Corpus throughput is a controlled-machine diagnostic, not a release requirement. Hosted runners have
 variable CPU allocation and worker availability, so GitHub workflows and aggregate release profiles do not
 invoke the corpus or compare their timing with the tracked local baseline. Run
 `npm run check:native-compiler-corpus` explicitly on a stable machine when investigating compiler performance;
-its unchanged guard still fails meaningful regressions in that controlled environment.
+timing warnings require review or a controlled rerun before publication, while structural and
+correctness failures remain hard failures.
 
 ## Isolation
 
