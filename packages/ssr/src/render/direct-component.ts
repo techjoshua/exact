@@ -3,10 +3,7 @@ import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
 import type { ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { prepareComponentProps } from './component-props.js';
-import {
-	readDirectSsrContent,
-	type DirectSsrComponentContent
-} from './direct-component-content.js';
+import type { DirectSsrComponentContent } from './direct-component-content.js';
 import {
 	inComponentDomain,
 	type DirectSsrLifecycleCapability

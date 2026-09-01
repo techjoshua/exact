@@ -185,13 +185,10 @@ function collectProducedBody(
 	signal?: AbortSignal
 ): string | Promise<string> {
 	let output = '';
-	const completion = body.writeSynchronously!(
-		(chunk) => {
-			throwIfAborted(signal);
-			output += chunk;
-		},
-		nodeSynchronousResponseEnvironment
-	);
+	const completion = body.writeSynchronously!((chunk) => {
+		throwIfAborted(signal);
+		output += chunk;
+	}, nodeSynchronousResponseEnvironment);
 	return completion ? completion.then(() => output) : output;
 }
 
