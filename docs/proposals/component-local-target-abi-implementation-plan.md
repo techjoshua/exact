@@ -627,6 +627,12 @@ slot identity into component update planning. Derived expressions and structural
 their computation owner. Profile such a change against normalized controls; deterministic code and
 function inventories remain raw, unnormalized evidence.
 
+The receiver-owned indexed input plan may likewise accept an exact property path below one indexed
+prop slot when a finalized replacement of that root prop is the path's complete invalidation
+identity. The plan reevaluates the authored optional/property chain inside the receiving component
+and preserves setup order. Authored calls, multiple roots, derived values, asynchronous work, and
+observable nested mutation retain their computation or task owner.
+
 Post-acceptance server specialization may fold a compiler-proven synchronous returned render arrow
 into the component's server implementation. The artifact marks that closed form, and the request
 executor runs setup and writes the resulting prepared program into the request-owned sink without

@@ -237,7 +237,7 @@ func TestHydrateProjectionUsesIndexedSynchronousComponentInputUpdates(t *testing
 		`__exactWriteState(__exactInstance.state, 0, "Hello " + __exactDependency)`,
 		`__exact_component_inputs_1.apply(this, 1, 0)`,
 		`inputs: __exact_component_inputs_1`,
-		`RenderComponentInstance as __exactConstructRenderComponent`,
+		`constructRenderComponentInstance as __exactConstructRenderComponent`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("hydrate projection omitted indexed component input update %q:\n%s", expected, response.Code)
@@ -264,7 +264,7 @@ func TestHydrateProjectionUsesIndexedSynchronousComponentInputUpdates(t *testing
 	}
 }
 
-func TestHydrateProjectionRetainsNestedAndAuthoredComponentComputations(t *testing.T) {
+func TestHydrateProjectionIndexesNestedInputsAndRetainsAuthoredComputations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "hydrate-nested-computation.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionHydrate,
@@ -282,12 +282,13 @@ func TestHydrateProjectionRetainsNestedAndAuthoredComponentComputations(t *testi
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if strings.Count(response.Code, "__exactActivateComputation(this") != 2 ||
+	if strings.Count(response.Code, "__exactActivateComputation(this") != 1 ||
 		!strings.Contains(response.Code, "activateComputationForHost as __exactActivateComputation") {
-		t.Fatalf("nested or authored-call computation lost its executable owner:\n%s", response.Code)
+		t.Fatalf("authored-call computation lost its executable owner:\n%s", response.Code)
 	}
-	if strings.Contains(response.Code, "component_inputs") {
-		t.Fatalf("nested or authored-call computation entered the indexed input plan:\n%s", response.Code)
+	if !strings.Contains(response.Code, `const __exactDependency = (__exactReadState(props, 0) as Input).name`) ||
+		!strings.Contains(response.Code, `__exactWriteState(__exactInstance.state, 1, __exactDependency)`) {
+		t.Fatalf("exact nested prop projection omitted the indexed input plan:\n%s", response.Code)
 	}
 }
 

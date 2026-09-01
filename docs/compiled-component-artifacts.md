@@ -138,6 +138,10 @@ Durable component setup installs its component domain and reactive ownership sco
 focused call around the compiler-selected setup operation. It does not allocate an adapter closure
 whose only work is entering the second ownership context. General output and fallback functions
 remain executable and retain their existing watched or compiled output owners.
+The artifact also stores the selected render-only, task-only, or durable instance constructor
+directly. That shared constructor reads the artifact's immutable `instantiate` member through the
+artifact-method ABI; generated modules do not add wrapper arrows whose only work is selecting the
+same instance class and forwarding construction arguments.
 Fresh mount and same-build hydration invoke the same artifact-owned `attach` operation with an
 explicit mode. The DOM supplies either a placement target or a bounded hydration cursor, while the
 artifact supplies its already-normalized output and generated claims. Successful hydration does
@@ -173,11 +177,13 @@ child's interior or route child operations through a generic function-component 
 applies whether the child eventually owns text, intrinsics, other components, or a focused dynamic
 range. Dynamic component identity and unresolved authored dependency surfaces continue to own an
 explicit structural reaction selected by the compiler.
-When a compiler-created synchronous relationship is exactly one top-level prop-slot read and one
-direct indexed state write, the client artifact also carries an immutable input-update plan. Its
-initial operation remains at the authored setup position, while later prop receipts collect exact
-changed slots and apply the receiver's plan once after the complete batch is staged. Nested reads,
-authored calls, and other computations retain their reactive owners; the plan contains no
+When a compiler-created synchronous relationship is exactly one prop read and one direct indexed
+state write, the client artifact also carries an immutable input-update plan. The read may be the
+whole prop slot or an exact property path below it: in both cases, replacement of that indexed root
+prop is the complete invalidation identity. Its initial operation remains at the authored setup
+position, while later prop receipts collect exact changed slots and apply the receiver's plan once
+after the complete batch is staged. Authored calls, multiple dependency roots, observable nested
+mutation, and other computations retain their reactive owners; the plan contains no
 component-instance values and is not a general expression interpreter.
 Compiler-created enhancement providers remain ordinary semantic parents for contexts, refs,
 lifecycle, and inspection, while their descendants retain the authored component as the owner of

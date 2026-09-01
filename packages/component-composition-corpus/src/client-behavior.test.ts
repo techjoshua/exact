@@ -61,14 +61,14 @@ describe('composition corpus client behavior', () => {
 		const container = mount(inputProjectionRoot());
 		const output = container.querySelector('output')!;
 		const owner = inputProjectionOwner();
-		expect(output.textContent).toBe('loading');
+		expect(output.textContent).toBe('loading:missing');
 
-		render(inputProjectionRoot({}), container);
+		render(inputProjectionRoot({ label: 'accepted' }), container);
 		flushSync();
 
 		expect(container.querySelector('output')).toBe(output);
 		expect(inputProjectionOwner()).toBe(owner);
-		expect(output.textContent).toBe('ready');
+		expect(output.textContent).toBe('ready:accepted');
 	});
 
 	it('updates a conditional range without replacing adjacent siblings', () => {

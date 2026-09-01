@@ -65,6 +65,12 @@ export const compilerPathInventory = [
 		['client-mount', 'client-update', 'hydrate-match']
 	),
 	path(
+		'nested-indexed-input-update-plan',
+		'specialized',
+		'Exact nested prop projections reevaluate from their indexed root prop receipt.',
+		['client-mount', 'client-update', 'hydrate-match']
+	),
+	path(
 		'conditional-structural-range',
 		'supported-general',
 		'Conditional children retain a bounded structural range.',

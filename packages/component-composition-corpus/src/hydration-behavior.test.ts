@@ -71,7 +71,7 @@ describe('composition corpus hydration behavior', () => {
 		const output = container.querySelector('[data-scenario="input-projection"]');
 		hydrate(inputProjectionRoot(), container, { onMismatch: 'throw', resumptions });
 		expect(container.querySelector('[data-scenario="input-projection"]')).toBe(output);
-		expect(output?.textContent).toBe('loading');
+		expect(output?.textContent).toBe('loading:missing');
 	});
 
 	it('adopts context, keyed ranges, and both enhancement target forms', () => {

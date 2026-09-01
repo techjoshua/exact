@@ -22,9 +22,9 @@ type componentInputUpdateBuild struct {
 	operations []componentInputUpdateOperation
 }
 
-// registerComponentInputUpdate moves one compiler-proven top-level prop relationship out of the
-// task activation topology. Nested reads retain their computation owner because their dependency
-// identity cannot be represented by a root prop slot alone.
+// registerComponentInputUpdate moves one compiler-proven prop relationship out of the task
+// activation topology. An exact nested path retains the indexed root prop as its invalidation
+// identity and reevaluates only when the receiver accepts a finalized replacement for that slot.
 func (lowering *jsxLowering) registerComponentInputUpdate(
 	task Task,
 	work *ast.Node,
@@ -159,8 +159,9 @@ func (lowering *jsxLowering) exactComponentInputPropSlot(
 	}
 	text := strings.TrimSpace(sourceText(lowering.sourceFile, dependency.expression))
 	for slot, name := range component.PropsSlots {
-		expected := propsName + "." + name
-		if text == expected {
+		root := propsName + "." + name
+		if text == root || strings.HasPrefix(text, root+".") ||
+			strings.HasPrefix(text, root+"?.") {
 			return slot, true
 		}
 	}

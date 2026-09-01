@@ -1527,3 +1527,28 @@ covered function inventory remains 1,181 because one shared helper replaces the 
 The micro-profile, 50 baseline captures, 50 broad-candidate captures, 50 setup-only captures, and
 written gate are under `.tmp/client-domain-scope-call`. Timing remains diagnostic while the
 workstation is active; the admitted four-framework population remains deferred until it is quiet.
+
+### Client artifact construction focused candidate
+
+Normal client artifacts now store the same immutable capability-specific construction function
+already used by finite client islands. Four comparison-fixture wrapper arrows disappear and the
+compiler lowering deletes 35 net lines without adding a runtime classifier or bound function.
+Across 50 fresh browser profiles, covered functions fall from 1,181 to 1,179, invoked functions
+fall from 641 to 639, and retained heap falls from 1,930,300 to 1,929,240 bytes. Readable generated
+output falls 195 bytes. The production and precise-executed counters each rise 14 bytes because one
+shared durable helper replaces three locally inlined wrappers; this is an explicit topology
+tradeoff, not a size failure. Sequential sampled allocation was mixed and provides no claimed win.
+Evidence is under `.tmp/client-artifact-construction`.
+
+### Nested indexed input projection focused candidate
+
+The receiver input plan now accepts exact property paths rooted at one indexed prop slot. The
+comparison artifact moves the three `initialData?.field` relationships into that plan while the
+authored path-selection call retains its computation owner. Production and precise-executed code
+both fall 122 bytes. Across 50 fresh browser profiles, covered functions fall from 1,179 to 1,173,
+invoked functions fall from 639 to 633, and retained heap falls by roughly 9-11 KiB. Startup sampled
+allocation is mixed: +0.37% at p50, -1.18% at p75, and +1.86% at p95. Interaction allocation also
+moves upward at the center even though setup input projection is not executed by that interaction;
+it remains an unattributed counter-metric from an active-workstation, exact-only population.
+Evidence is under `.tmp/nested-component-inputs`. The quiet admitted four-framework population and
+control-normalized comparison remain outstanding.

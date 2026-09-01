@@ -31,6 +31,7 @@ export const corpusScenarios = [
 			'state-only-update-mask',
 			'mixed-prop-state-update',
 			'indexed-input-update-plan',
+			'nested-indexed-input-update-plan',
 			'compiler-selected-ssr-attributes',
 			'durable-component-abi'
 		],

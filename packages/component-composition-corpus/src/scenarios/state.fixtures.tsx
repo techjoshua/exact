@@ -36,22 +36,25 @@ export function stateOwner(): Component<StateModel> {
 	return mountedState;
 }
 
-type InputProjectionState = { loading: boolean };
+type InputProjectionState = { loading: boolean; label: string };
 let mountedInputProjection: Component<InputProjectionState> | undefined;
 
 function IndexedInputProjection(
 	this: Component<InputProjectionState>,
-	props: { payload?: object }
+	props: { payload?: { label: string } }
 ) {
 	mountedInputProjection = this;
 	this.state.loading = !props.payload;
+	this.state.label = props.payload?.label ?? 'missing';
 	return () => (
-		<output data-scenario="input-projection">{this.state.loading ? 'loading' : 'ready'}</output>
+		<output data-scenario="input-projection">
+			{this.state.loading ? 'loading' : 'ready'}:{this.state.label}
+		</output>
 	);
 }
 
 /** Creates a root whose exact top-level prop relationship is receiver-owned. */
-export const inputProjectionRoot = (payload?: object) => (
+export const inputProjectionRoot = (payload?: { label: string }) => (
 	<IndexedInputProjection payload={payload} />
 );
 
