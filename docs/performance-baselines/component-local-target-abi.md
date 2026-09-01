@@ -1697,3 +1697,13 @@ bytes (+62), and 41,012 to 41,041 Brotli bytes (+29). The extra diagnostic branc
 because it removes work from every valid request without weakening the serialization boundary or
 its exact failure paths. The written gate and ten focused captures are under
 `.tmp/hydration-validation-success-path`.
+
+The adjacent hydration script escape-scan candidate was measured and removed. It retained native
+`JSON.stringify` but replaced the three simple script-breaking replacements with one character-set
+expression and module-level replacement function. Fifty alternating artifact pairs produced a
+0.986 median allocation ratio and p95/p99 timing ratios of 0.987/0.979, but p50/p75 were both 1.006
+and the hydration publication CPU ratio was 1.145. Candidate-first and candidate-second p50 ratios
+were 1.005 and 1.007, so order does not explain the center regression. Exact's remaining weakness
+is CPU rather than sampled allocation; the three simple native replacements are restored. The
+written gate, initial ten profiles, paired artifacts, and 50-pair evidence remain under
+`.tmp/hydration-script-escape-scan`.
