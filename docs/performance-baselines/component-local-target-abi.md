@@ -1450,6 +1450,19 @@ workstation was active. Median sampled allocation fell 0.5%, allocation p95 fell
 response remained 4,500 bytes. Evidence is under `.tmp/native-byte-length` and the corresponding
 `focused-render-profile-native-byte-*` captures.
 
+The final generic synchronous executor and its per-component sink callbacks have also been removed.
+The synchronous renderer now owns setup, local-program execution, attempt checkpoints, indexed
+resumption publication, lifecycle cleanup, and boundary formatting coherently; asynchronous and
+scheduled execution are unchanged. Against the immediately preceding fifty-process population,
+whole-render sampled allocation p25/p50/p75/p95 moved from
+5,005,800/5,115,352/5,170,824/5,274,088 bytes to
+4,857,376/4,917,032/5,028,776/5,107,120 bytes. The former executor and renderer accounted for
+294,728 + 153,896 median sampled bytes; the folded executor accounts for 232,120 bytes. Diagnostic
+render p50/p75/p95/p99 moved from 0.0509/0.0667/0.1240/0.2736 ms to
+0.0467/0.0558/0.0854/0.2286 ms, but that sequential timing population was captured while the
+workstation was active and is not publishable acceptance evidence. Every response remained 4,500
+bytes. Evidence is under `.tmp/final-sync-executor` and the corresponding focused profile captures.
+
 Two transfers were measured and removed. Staged optional assignment in the opaque client component
 operation increased median constructor allocation 8.0%; the frozen opaque identity and WeakMap
 payload retain their existing construction. Direct root-attribute spans produced a 1.001 paired

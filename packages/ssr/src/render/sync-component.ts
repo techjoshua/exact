@@ -1,17 +1,28 @@
-import type { AnyComponentInstance, Child } from '@exactjs/core';
+import {
+	attachSuppressedCleanupFailure,
+	type AnyComponentInstance,
+	type Child
+} from '@exactjs/core';
 import {
 	readPreparedExactExecutableComponentContract,
 	type AnyExactComponentCallable,
 	type ExactServerExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-abi';
-import type { SsrContext } from '../types.js';
+import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
 import { markerId } from '../markup.js';
 import { directComponentHtml } from './direct-component-output.js';
-import { executeDirectSsrComponentSync } from './direct-component.js';
+import { readDirectSsrContent } from './direct-component-content.js';
+import { disposeDirectSsrLifetimeSync } from './direct-component-scheduling.js';
+import {
+	callInComponentDomain,
+	type DirectSsrLifecycleCapability
+} from './direct-component-support.js';
+import { createSelectedDirectSsrFrame, selectedDirectSsrOwner } from './direct-frame-selection.js';
 import { renderPreparedSsrProgramString } from './sync-render-program.js';
 import { receiptExecutionContract, serverComponentProps } from './server-component-reference.js';
 import { renderOperationEnhancements } from './operation-enhancements.js';
+import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 
 /** Target-local recursion supplied to synchronous component serialization. */
 export type SyncComponentOperations = Readonly<{
@@ -120,66 +131,183 @@ function renderSyncComponent(
 	const requiresBufferedBoundary =
 		!!enhancement || (documentProbe && context.documentRootSeen) || delimited;
 	if (!context.outputSink?.publishesDirectly() || requiresBufferedBoundary) {
-		const renderBuffered = () =>
-			executeDirectSsrComponentSync(
-				context,
-				contract,
-				props,
-				parent,
-				(content, owner, preparedProps) => {
-					const html = renderOperationEnhancements(
-						context,
-						enhancement,
-						() =>
-							content.program
-								? renderPreparedSsrProgramString(context, content.program, owner, operations)
-								: operations.renderChildren(context, content.children, owner, true),
-						owner,
-						operations.renderChildren
-					);
-					return directComponentHtml(
-						context,
-						markerId(context, 'component', contract.artifact.id, key),
-						html,
-						preparedProps,
-						contract.artifact.execution.publication,
-						{
-							enhancement: false,
-							documentProbe,
-							hasComponentAncestor,
-							omitCompilerOwnedBoundary,
-							omitRootBoundary
-						}
-					);
-				}
-			);
 		const buffered = context.outputSink?.publishesDirectly()
 			? context.outputSink.bufferRange(() => {
-					const output = renderBuffered();
-					if (output === undefined)
-						throw new TypeError(
-							'Synchronous component operation selected a scheduled server artifact'
-						);
-					return output;
+					return executeSyncComponentOutput(context, contract, props, parent, operations, {
+						enhancement,
+						key,
+						documentProbe,
+						hasComponentAncestor,
+						omitCompilerOwnedBoundary,
+						omitRootBoundary
+					});
 				})
-			: renderBuffered();
-		if (buffered === undefined)
-			throw new TypeError('Synchronous component operation selected a scheduled server artifact');
+			: executeSyncComponentOutput(context, contract, props, parent, operations, {
+					enhancement,
+					key,
+					documentProbe,
+					hasComponentAncestor,
+					omitCompilerOwnedBoundary,
+					omitRootBoundary
+				});
 		return buffered;
 	}
 
-	const output = executeDirectSsrComponentSync(
+	return executeSyncComponentOutput(context, contract, props, parent, operations, undefined, key);
+}
+
+type SyncComponentBoundary = Readonly<{
+	enhancement: ExactComponentReceiptData['enhancement'];
+	key: string | undefined;
+	documentProbe: boolean;
+	hasComponentAncestor: boolean;
+	omitCompilerOwnedBoundary: boolean;
+	omitRootBoundary: boolean;
+}>;
+
+/** Executes the synchronous artifact and publishes its component-local output in one owner. */
+function executeSyncComponentOutput(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
+	operations: SyncComponentOperations,
+	boundary?: SyncComponentBoundary,
+	directKey?: string
+): string {
+	const artifact = contract.artifact;
+	const server = artifact.execution;
+	if (server.lane !== 'direct' || server.classification !== 'synchronous' || !server.render)
+		throw new TypeError('Synchronous component operation selected a scheduled server artifact');
+	const frame = createSelectedDirectSsrFrame(context, contract, parent);
+	const owner = selectedDirectSsrOwner(contract, frame, parent);
+	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
+	let render: unknown;
+	if (server.mode !== 'direct') {
+		try {
+			render = callInComponentDomain(context, server.render, frame, props);
+			if (typeof render !== 'function')
+				throw new TypeError(
+					'Compiled synchronous server component did not return its render function'
+				);
+		} catch (error) {
+			if (lifecycle) {
+				try {
+					disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr construction failed');
+				} catch (cleanup) {
+					attachSuppressedCleanupFailure(error, cleanup);
+				}
+			}
+			throw error;
+		}
+	}
+	let primary: unknown = noPrimaryFailure;
+	try {
+		const started = lifecycle ? performanceNow() : 0;
+		const content = readDirectSsrContent(
+			server.mode === 'direct'
+				? callInComponentDomain(context, server.render, frame, props)
+				: callInComponentDomain(
+						context,
+						render as (argument: undefined) => unknown,
+						undefined,
+						undefined
+					)
+		);
+		lifecycle?.rendered(frame, performanceNow() - started);
+		const checkpoint = context.onComponentAttemptCheckpoint?.();
+		const resumptionCheckpoint = context.resumptionCapture?.checkpoint();
+		const outputCheckpoint = context.outputSink?.checkpoint();
+		const resumptionToken = context.resumptionCapture?.reserveDirect(artifact.id, contract);
+		const snapshot = createObservedSnapshot(context, artifact.id, contract, frame, props);
+		if (snapshot) context.onDirectComponentCreated?.(snapshot);
+		try {
+			const output = boundary
+				? renderBufferedComponentOutput(
+						context,
+						contract,
+						props,
+						owner,
+						operations,
+						content,
+						boundary
+					)
+				: content.program
+					? renderPreparedSsrProgramString(context, content.program, owner, operations)
+					: operations.renderChildren(context, content.children, owner, true);
+			if (!boundary) markerId(context, 'component', artifact.id, directKey);
+			if (resumptionToken !== undefined)
+				context.resumptionCapture?.publishDirect(resumptionToken, frame, frame.state, props);
+			if (snapshot) context.onDirectComponentRendered?.(snapshot);
+			return output;
+		} catch (error) {
+			if (outputCheckpoint !== undefined) context.outputSink?.rollback(outputCheckpoint);
+			if (resumptionCheckpoint !== undefined)
+				context.resumptionCapture?.rollback(resumptionCheckpoint);
+			context.onComponentAttemptRollback?.(checkpoint);
+			throw error;
+		}
+	} catch (error) {
+		primary = error;
+		throw error;
+	} finally {
+		if (lifecycle)
+			disposePreservingPrimary(
+				() => disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr render complete'),
+				primary
+			);
+	}
+}
+
+function renderBufferedComponentOutput(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
+	owner: AnyComponentInstance | undefined,
+	operations: SyncComponentOperations,
+	content: ReturnType<typeof readDirectSsrContent>,
+	boundary: SyncComponentBoundary
+): string {
+	const html = renderOperationEnhancements(
 		context,
-		contract,
-		props,
-		parent,
-		(content, owner) =>
+		boundary.enhancement,
+		() =>
 			content.program
 				? renderPreparedSsrProgramString(context, content.program, owner, operations)
-				: operations.renderChildren(context, content.children, owner, true)
+				: operations.renderChildren(context, content.children, owner, true),
+		owner,
+		operations.renderChildren
 	);
-	if (output === undefined)
-		throw new TypeError('Synchronous component operation selected a scheduled server artifact');
-	markerId(context, 'component', contract.artifact.id, key);
-	return output;
+	return directComponentHtml(
+		context,
+		markerId(context, 'component', contract.artifact.id, boundary.key),
+		html,
+		props,
+		contract.artifact.execution.publication,
+		{
+			enhancement: false,
+			documentProbe: boundary.documentProbe,
+			hasComponentAncestor: boundary.hasComponentAncestor,
+			omitCompilerOwnedBoundary: boundary.omitCompilerOwnedBoundary,
+			omitRootBoundary: boundary.omitRootBoundary
+		}
+	);
+}
+
+function createObservedSnapshot(
+	context: SsrContext,
+	componentId: string,
+	contract: ExactServerExecutableComponentContract,
+	host: object & { state: Record<string, unknown> },
+	props: Record<string, unknown>
+): DirectSsrComponentSnapshot | undefined {
+	return context.onDirectComponentCreated || context.onDirectComponentRendered
+		? { componentId, contract, host, state: host.state, props }
+		: undefined;
+}
+
+function performanceNow(): number {
+	return typeof globalThis.performance?.now === 'function'
+		? globalThis.performance.now()
+		: Date.now();
 }
