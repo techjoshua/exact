@@ -1481,6 +1481,17 @@ median allocation ratio and redistributed work into individual attribute calls w
 whole render. Those rejection records are under `.tmp/compiled-component-operation-allocation` and
 `.tmp/direct-root-attribute-spans`.
 
+Transactional recoverable ranges were also measured and removed. The candidate retained nested
+component and structural output in one request-owned indexed span store, then published the range
+only after success. Across ten fresh-process profiles, median whole-render sampled allocation moved
+from 4,919,600 to 4,875,368 bytes (-0.9%), below the written gate. Diagnostic p50 moved from
+0.0471 to 0.0465 ms, but p75 moved from 0.0558 to 0.0563 ms while the workstation was active. The
+former `bufferRange` allocation disappeared, but transaction commitment and the increased adapter
+write topology replaced it; the server artifact also grew about 3.75 KiB. Every response remained
+4,500 bytes and the direct sink stayed byte-for-byte identical to the string renderer. The accepted
+single-rope terminal-write path is restored. Evidence is under `.tmp/transactional-ssr-spans` and
+the corresponding `focused-render-profile-transactional-spans-*` captures.
+
 These are focused candidates, not a replacement for the accepted four-framework checkpoint. The
 complete browser, startup, function-inventory, artifact, Node SSR, allocation, response,
 equal-payload, preloaded, saturation, retained-heap, and Bun diagnostic populations must be captured
