@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+	createExactAsyncProducedResponse,
 	createExactBufferedResponse,
 	createExactProducedResponse,
 	exactResponseBodyOf
@@ -95,6 +96,60 @@ describe('produced eXact response bodies', () => {
 		await body.cancel('client disconnected');
 
 		expect(produce).not.toHaveBeenCalled();
+		expect(release).toHaveBeenCalledWith('client disconnected');
+	});
+});
+
+describe('asynchronous produced eXact response bodies', () => {
+	it('awaits each adapter write before producing the next span', async () => {
+		const events: string[] = [];
+		const response = createExactAsyncProducedResponse(200, {}, async (write) => {
+			events.push('produce:first');
+			await write('first');
+			events.push('produce:second');
+			await write('second');
+		});
+		const body = exactResponseBodyOf(response)!;
+
+		await body.writeTo(async (chunk) => {
+			events.push(`write:${chunk}`);
+			await Promise.resolve();
+			events.push(`settled:${chunk}`);
+		});
+
+		expect(events).toEqual([
+			'produce:first',
+			'write:first',
+			'settled:first',
+			'produce:second',
+			'write:second',
+			'settled:second'
+		]);
+		expect(body.writeSynchronously).toBeUndefined();
+	});
+
+	it('adapts asynchronous strings to a demand-driven UTF-8 stream', async () => {
+		const response = createExactAsyncProducedResponse(200, {}, async (write) => {
+			await write('ready ');
+			await write('🚀');
+		});
+
+		expect(await new Response(response.stream).text()).toBe('ready 🚀');
+	});
+
+	it('aborts a claimed producer and releases its request scope', async () => {
+		const release = vi.fn(async () => undefined);
+		const response = createExactAsyncProducedResponse(200, {}, async (_write, signal) => {
+			await new Promise<void>((_resolve, reject) => {
+				signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+			});
+		});
+		const body = exactResponseBodyOf(response)!;
+		body.retainRequestScope?.(release);
+		const writing = body.writeTo(() => undefined);
+
+		await body.cancel('client disconnected');
+		await expect(writing).rejects.toBe('client disconnected');
 		expect(release).toHaveBeenCalledWith('client disconnected');
 	});
 });

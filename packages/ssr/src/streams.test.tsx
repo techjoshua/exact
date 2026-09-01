@@ -18,6 +18,7 @@ import {
 } from './test-support/streams.js';
 import { createOperation } from './test-support/native-operations.js';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
+import { exactResponseBodyOf } from '@exactjs/server';
 import {
 	configureControlledText,
 	ControlledText,
@@ -234,7 +235,7 @@ describe('@exactjs/ssr streams', () => {
 		expect(rest).toContain('document.getElementById("exact-root")');
 	});
 
-	it('packages progressive html streams as neutral response objects', async () => {
+	it('packages progressive html as an asynchronously produced response', async () => {
 		const response = renderToHydratableProgressiveHtmlResponse(
 			createOperation('p', null, 'ready'),
 			{
@@ -251,7 +252,26 @@ describe('@exactjs/ssr streams', () => {
 			'content-type': 'text/html; charset=utf-8',
 			'cache-control': 'no-store'
 		});
+		expect(exactResponseBodyOf(response)?.kind).toBe('produced');
+		expect(exactResponseBodyOf(response)?.writeSynchronously).toBeUndefined();
 		expect(await readStreamText(response.stream!)).toContain('<div id="app"><p>ready</p></div>');
+	});
+
+	it('writes progressive response strings in order without a Web stream adapter', async () => {
+		const response = renderToHydratableProgressiveHtmlResponse(
+			createOperation('p', null, 'ready'),
+			{ markers: false, rootId: 'app', endpoint: '/__exact' }
+		);
+		const chunks: string[] = [];
+
+		await exactResponseBodyOf(response)?.writeTo(async (chunk) => {
+			chunks.push(chunk);
+			await Promise.resolve();
+		});
+
+		const html = chunks.join('');
+		expect(html).toContain('<div id="app"><p>ready</p></div>');
+		expect(html).toContain('<script type="application/json" id="__exact_hydration">');
 	});
 
 	it('respects explicit progressive response content type headers', () => {
@@ -265,6 +285,17 @@ describe('@exactjs/ssr streams', () => {
 
 		expect(response.headers['Content-Type']).toBe('text/html');
 		expect(overridden.headers['Content-Type']).toBe('application/xhtml+xml');
+	});
+
+	it('enforces progressive produced-response byte budgets', async () => {
+		const response = renderToProgressiveHtmlResponse(createOperation('p', null, 'x'.repeat(100)), {
+			markers: false,
+			maxStreamBytes: 32
+		});
+
+		await expect(exactResponseBodyOf(response)?.writeTo(() => undefined)).rejects.toThrow(
+			'byte limit'
+		);
 	});
 
 	it('does not construct streamed components ahead of reader demand', async () => {

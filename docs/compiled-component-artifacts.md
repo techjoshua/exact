@@ -282,6 +282,14 @@ charged at their individual static writes. A lane whose output provenance is not
 invalidates the partial ledger and receives one exact scan when the completed root is committed;
 it does not install a second renderer or weaken the output limit.
 
+Low-level progressive render responses retain the same ordered component output but expose it as an
+asynchronous produced body instead of first routing every span through a Web byte stream. A Node
+adapter writes those strings directly to its response and awaits transport drain before allowing
+the producer to continue. Fetch-compatible adapters receive a demand-driven UTF-8 stream whose
+encoding remains at that environment boundary. Request handlers that must settle status, headers,
+or preload metadata before publication continue to buffer that decision; the produced body is not
+a second component execution path or a promise that every server response can commit immediately.
+
 Hydratable execution reserves each compiler-selected resumption as its final request-owned indexed
 tuple. The synchronous executor carries an opaque numeric capture token, publishes state and
 context values by their cached schema indexes, and rolls the tuple list back with the component
