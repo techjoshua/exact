@@ -35,6 +35,12 @@ export const compilerPathInventory = [
 		['client-update', 'ssr-sync', 'hydrate-match']
 	),
 	path(
+		'static-native-attribute',
+		'specialized',
+		'Compiler-proven native numeric and boolean constants remain static across targets.',
+		['client-mount', 'ssr-sync', 'hydrate-match']
+	),
+	path(
 		'arbitrary-expression-fallback',
 		'supported-general',
 		'Arbitrary authored expressions retain executable readers and their computation owners.',

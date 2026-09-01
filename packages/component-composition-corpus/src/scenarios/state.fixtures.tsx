@@ -18,6 +18,7 @@ function IndexedState(
 			</output>
 			<data data-role="adjacent-text">Count &amp; {this.state.count}</data>
 			<small hidden>{props.prefix.toUpperCase()}</small>
+			<textarea data-role="static-native-attributes" maxLength={2000} required />
 			<button
 				disabled={!this.state.enabled}
 				data-count={this.state.count}

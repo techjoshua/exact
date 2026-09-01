@@ -860,8 +860,8 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		if ast.IsJsxNamespacedName(attribute.Name()) {
 			return build.decline("namespaced-attribute")
 		}
-		if attributeName, value, static := staticRenderProgramAttribute(name, attribute.Initializer); static {
-			build.write(` ` + attributeName + `="` + html.EscapeString(value) + `"`)
+		if _, serialized, static := staticRenderProgramAttribute(tag, name, attribute.Initializer); static {
+			build.write(serialized)
 			continue
 		}
 		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
@@ -883,7 +883,20 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 // staticRenderProgramAttribute recognizes source literals whose DOM property and SSR attribute
 // semantics are identical. Values that need URL policy, event installation, form binding, object
 // normalization, or custom-element property assignment deliberately remain runtime operations.
-func staticRenderProgramAttribute(name string, initializer *ast.Node) (string, string, bool) {
+func staticRenderProgramAttribute(tag string, name string, initializer *ast.Node) (string, string, bool) {
+	if !strings.Contains(tag, "-") && initializer == nil && name == "required" {
+		return name, ` required`, true
+	}
+	if initializer != nil && ast.IsJsxExpression(initializer) {
+		expression := initializer.AsJsxExpression().Expression
+		if !strings.Contains(tag, "-") && name == "maxLength" && ast.IsNumericLiteral(expression) {
+			value, error := strconv.ParseFloat(expression.Text(), 64)
+			if error == nil {
+				return name, ` maxLength="` + strconv.FormatFloat(value, 'f', -1, 64) + `"`, true
+			}
+		}
+		return "", "", false
+	}
 	if initializer == nil || !ast.IsStringLiteral(initializer) {
 		return "", "", false
 	}
@@ -903,7 +916,7 @@ func staticRenderProgramAttribute(name string, initializer *ast.Node) (string, s
 			return "", "", false
 		}
 	}
-	return attributeName, initializer.AsStringLiteral().Text, true
+	return attributeName, ` ` + attributeName + `="` + html.EscapeString(initializer.AsStringLiteral().Text) + `"`, true
 }
 
 func renderProgramSlotKind(name string) string {

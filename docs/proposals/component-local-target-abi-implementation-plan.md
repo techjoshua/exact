@@ -13,9 +13,10 @@ tracked impact declarations, and checkpoint ledger live under
 
 Post-acceptance compiler specialization may revise the target-local ABI when the runtime operation
 surface changes. The compiler and runtime must advance the render-program ABI together so imported
-or lazy package artifacts fail cleanly on a version mismatch. Version 5 adds compiler-selected SSR
-attribute operations and immutable root attribute plans while retaining the generic focused
-operation for spreads, target contributions, and properties whose behavior is not proven exactly.
+or lazy package artifacts fail cleanly on a version mismatch. Version 7 includes compiler-selected
+SSR attribute operations, immutable root attribute plans, fused root openings, and static native
+numeric and boolean constants while retaining focused operations for spreads, target contributions,
+dynamic values, custom-element properties, and behavior the compiler has not proven exactly.
 
 The plan deliberately separates correctness work from performance collection. A benchmark is not
 evidence merely because it completed. Results join the phase-to-phase comparison only after the

@@ -28,6 +28,7 @@ export const corpusScenarios = [
 		compilerPaths: [
 			'direct-text-binding',
 			'adjacent-text-projection',
+			'static-native-attribute',
 			'arbitrary-expression-fallback',
 			'direct-property-binding',
 			'state-only-update-mask',

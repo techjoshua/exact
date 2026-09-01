@@ -56,6 +56,9 @@ describe('composition corpus hydration behavior', () => {
 		const { container, resumptions } = serverContainer(serverStateRoot('count'));
 		const output = container.querySelector('output');
 		const projected = container.querySelector('[data-role="adjacent-text"]');
+		const textarea = container.querySelector<HTMLTextAreaElement>(
+			'[data-role="static-native-attributes"]'
+		);
 		const button = container.querySelector('button');
 		hydrate(stateRoot('count'), container, { onMismatch: 'throw', resumptions });
 		stateOwner().state.count = 3;
@@ -65,7 +68,10 @@ describe('composition corpus hydration behavior', () => {
 		expect(container.querySelector('button')).toBe(button);
 		expect(output?.textContent).toBe('count:3');
 		expect(container.querySelector('[data-role="adjacent-text"]')).toBe(projected);
+		expect(container.querySelector('[data-role="static-native-attributes"]')).toBe(textarea);
 		expect(projected?.textContent).toBe('Count & 3');
+		expect(textarea?.maxLength).toBe(2000);
+		expect(textarea?.required).toBe(true);
 		expect(button?.hasAttribute('disabled')).toBe(true);
 	});
 

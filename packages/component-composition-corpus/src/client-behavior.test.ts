@@ -45,6 +45,9 @@ describe('composition corpus client behavior', () => {
 		const container = mount(stateRoot('items'));
 		const output = container.querySelector('output')!;
 		const projected = container.querySelector('[data-role="adjacent-text"]')!;
+		const textarea = container.querySelector<HTMLTextAreaElement>(
+			'[data-role="static-native-attributes"]'
+		)!;
 		const button = container.querySelector('button')!;
 
 		stateOwner().state.count = 2;
@@ -55,6 +58,8 @@ describe('composition corpus client behavior', () => {
 		expect(container.querySelector('button')).toBe(button);
 		expect(output.textContent).toBe('items:2');
 		expect(projected.textContent).toBe('Count & 2');
+		expect(textarea.maxLength).toBe(2000);
+		expect(textarea.required).toBe(true);
 		expect(button.disabled).toBe(true);
 		expect(button.dataset.count).toBe('2');
 	});
