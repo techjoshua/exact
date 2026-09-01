@@ -7,18 +7,21 @@ import type {
 	RenderToStringOptions,
 	RenderToStringResult
 } from './types.js';
-import { renderHydrationScript } from './hydration.js';
+import { renderHydrationScript, renderHydrationScriptWithByteCount } from './hydration.js';
 import { createSsrResumptionCapture } from './resumption.js';
 import { readServerComponentReference } from './render/server-component-reference.js';
 import { createSsrContext } from './render/context.js';
 import { countSsrNode, withTaskDeadline } from './render/limits.js';
-import { SsrOutputBuffer, utf8ByteLength } from './render/output-buffer.js';
+import { SsrOutputBuffer } from './render/output-buffer.js';
 import {
 	createChunkedHydratableResult,
 	createChunkedStringResult
 } from './render/output-result.js';
 import { attachSsrRootExecutionBlueprint } from './render/root-execution-cache.js';
-import { hydrationScriptOptions } from './render/hydration-options.js';
+import {
+	hydrationScriptOptions,
+	hydrationScriptOptionsFromValues
+} from './render/hydration-options.js';
 import { rootComponentIdentity, rootPropsOptions } from './render/root-props.js';
 import { renderChildren } from './render/sync-children.js';
 import { renderChildrenAsync } from './render/async-children.js';
@@ -95,13 +98,19 @@ export function renderCompilerClosedToHydratableSink(
 	const output = renderCompilerClosedOutputSync(operation, capture.options, true, write);
 	if (output.context.reactResourceHints?.length)
 		throw new TypeError('Direct compiler-closed publication cannot reorder late resource hints');
-	const result = createCompilerClosedStringResult(output, capture.options);
 	const captured = capture.serializedRecords();
-	const hydrationScript = renderHydrationScript(
+	const hydrationTable = output.context.hydrationTable?.value();
+	const wallClockSnapshot =
+		output.context.componentDomain && componentDomainUsesWallClock(output.context.componentDomain)
+			? output.context.wallClockSnapshot
+			: undefined;
+	const hydrationScript = renderHydrationScriptWithByteCount(
 		{
-			...hydrationScriptOptions(
+			...hydrationScriptOptionsFromValues(
 				prepared,
-				result,
+				capture.options.state,
+				wallClockSnapshot,
+				hydrationTable,
 				captured.length && prepared.outputExtensions?.length
 					? capture.activations()
 					: prepared.resumptions
@@ -109,10 +118,11 @@ export function renderCompilerClosedToHydratableSink(
 			markerlessRoot: true
 		},
 		undefined,
-		captured
+		captured,
+		output
 	);
 	write(hydrationScript);
-	return output.outputBytes + utf8ByteLength(hydrationScript);
+	return output.outputBytes + output.hydrationBytes!;
 }
 
 /** Creates an adapter-owned response whose compiler-closed root is produced on body consumption. */
@@ -202,6 +212,7 @@ type CompilerClosedOutput = {
 	context: ReturnType<typeof createSsrContext>;
 	chunks: readonly string[];
 	outputBytes: number;
+	hydrationBytes?: number;
 };
 
 async function renderCompilerClosedOutput(

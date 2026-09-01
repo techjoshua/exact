@@ -55,6 +55,28 @@ describe('opaque target operations', () => {
 		expect(readPreparedServerComponentReference(reference)?.props).toBe(props);
 	});
 
+	it('preserves direct server reference metadata while removing reserved props', () => {
+		const Component = createExactCompiledDynamicBoundaryArtifact(
+			function ServerComponent() {},
+			'@exactjs/core:test-direct-server-reference-metadata',
+			'server'
+		);
+		const enhancement = { type: 'fixture' };
+		const source = { key: 42, __exactEnhancements: enhancement, message: 'ready' };
+		const reference = createPreparedServerComponentReference(Component, source, 'child');
+		const data = readPreparedServerComponentReference(reference);
+
+		expect(data).toMatchObject({
+			key: '42',
+			enhancement,
+			props: { message: 'ready' },
+			children: ['child']
+		});
+		expect(data?.props).not.toBe(source);
+		expect(data?.props).not.toHaveProperty('key');
+		expect(data?.props).not.toHaveProperty('__exactEnhancements');
+	});
+
 	it('keeps compiler-closed server child ranges off the opaque client operation path', () => {
 		const value = ['ready'];
 		const range = createPreparedServerChildRange(value, 'fixture:range');

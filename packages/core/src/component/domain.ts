@@ -195,6 +195,22 @@ export function withComponentDomain<T>(domain: ComponentDomain, work: () => T): 
 	}
 }
 
+/** Invokes one receiver directly while its immutable component domain is active. */
+export function callWithComponentDomain<Receiver, Argument, Result>(
+	domain: ComponentDomain,
+	work: (this: Receiver, argument: Argument) => Result,
+	receiver: Receiver,
+	argument: Argument
+): Result {
+	const previous = componentDomainRuntimeState.activeDomain;
+	componentDomainRuntimeState.activeDomain = domain;
+	try {
+		return work.call(receiver, argument);
+	} finally {
+		componentDomainRuntimeState.activeDomain = previous;
+	}
+}
+
 /** Runs component construction with permission to consume this domain's SSR activation. */
 export function withComponentResumption<T>(domain: ComponentDomain, work: () => T): T {
 	const depth = resumingDomains.get(domain) ?? 0;

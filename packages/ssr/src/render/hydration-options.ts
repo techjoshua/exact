@@ -6,18 +6,35 @@ export function hydrationScriptOptions(
 	result: RenderToStringResult,
 	resumptions: HydrationScriptOptions['resumptions']
 ): HydrationScriptOptions {
+	return hydrationScriptOptionsFromValues(
+		options,
+		result.state,
+		result.wallClockSnapshot,
+		result.hydrationTable,
+		resumptions
+	);
+}
+
+/** Projects hydration options directly from one completed request-owned render output. */
+export function hydrationScriptOptionsFromValues(
+	options: HydrationScriptOptions,
+	state: unknown,
+	wallClockSnapshot: number | undefined,
+	hydrationTable: RenderToStringResult['hydrationTable'],
+	resumptions: HydrationScriptOptions['resumptions']
+): HydrationScriptOptions {
 	const projected = {
 		pluginRegistryFingerprint: options.pluginRegistryFingerprint,
 		endpoint: options.endpoint,
 		endpoints: options.endpoints,
-		state: result.state,
+		state,
 		publishRootProps: undefined,
 		markerlessRoot: options.markerlessRoot,
 		continuations: options.continuations,
 		resumptions,
 		publicContexts: options.publicContexts,
-		wallClockSnapshot: result.wallClockSnapshot,
-		hydrationTable: result.hydrationTable,
+		wallClockSnapshot,
+		hydrationTable,
 		executionRoot: options.executionRoot,
 		binding: options.binding,
 		buildKey: options.buildKey,

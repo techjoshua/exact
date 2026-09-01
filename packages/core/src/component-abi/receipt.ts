@@ -129,12 +129,20 @@ export function createPreparedServerComponentReference(
 		[PreparedServerComponentReference]: true,
 		contract: readPreparedExactExecutableComponentContract(type),
 		props: componentProps,
-		children,
-		...(key === undefined ? {} : { key }),
-		...(domain ? { domain } : {}),
-		...(enhancement ? { enhancement: enhancement as CompiledEnhancementNode } : {})
+		children
+	} as {
+		readonly [key: symbol]: unknown;
+		contract: ExactExecutableComponentContract;
+		props: Record<string, unknown>;
+		children: readonly Child[];
+		key?: string;
+		domain?: ComponentDomain;
+		enhancement?: CompiledEnhancementNode;
 	};
-	return reference;
+	if (key !== undefined) reference.key = key;
+	if (domain) reference.domain = domain;
+	if (enhancement) reference.enhancement = enhancement as CompiledEnhancementNode;
+	return reference as ExactPreparedServerComponentReference;
 }
 
 /** Reads only the direct reference representation issued by a compiler-closed server artifact. */

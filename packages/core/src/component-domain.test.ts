@@ -7,7 +7,12 @@ import {
 	createCompiledIntrinsicReceipt,
 	readCompiledIntrinsicReceipt
 } from './component-abi/intrinsic-receipt.js';
-import { componentDomainInspection, createFrameworkComponentDomain } from './component/domain.js';
+import {
+	callWithComponentDomain,
+	componentDomainInspection,
+	createFrameworkComponentDomain,
+	currentComponentDomain
+} from './component/domain.js';
 
 describe('component domains', () => {
 	it('captures the active immutable domain on compiler-issued operations', () => {
@@ -20,6 +25,40 @@ describe('component domains', () => {
 		expect(() => {
 			(data.domain as { executionRoot: string }).executionRoot = 'other';
 		}).toThrow();
+	});
+
+	it('calls a receiver with an active domain and restores the previous domain after failure', () => {
+		const outer = createComponentDomain({ executionRoot: 'outer' });
+		const inner = createComponentDomain({ executionRoot: 'inner' });
+		const receiver = { value: 2 };
+		expect(
+			withComponentDomain(outer, () =>
+				callWithComponentDomain(
+					inner,
+					function (this: typeof receiver, increment: number) {
+						expect(currentComponentDomain()).toBe(inner);
+						return this.value + increment;
+					},
+					receiver,
+					3
+				)
+			)
+		).toBe(5);
+		expect(currentComponentDomain()).toBeUndefined();
+
+		expect(() =>
+			withComponentDomain(outer, () =>
+				callWithComponentDomain(
+					inner,
+					() => {
+						throw new Error('failed');
+					},
+					undefined,
+					undefined
+				)
+			)
+		).toThrow('failed');
+		expect(currentComponentDomain()).toBeUndefined();
 	});
 
 	it('uses the instance domain during setup and every render', () => {

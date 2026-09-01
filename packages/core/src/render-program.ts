@@ -37,6 +37,8 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 	prepareChild(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reads one compiler-proven native component before serialization mutates request state. */
 	prepareComponent(invocation: ExactRenderProgramInvocation, index: number): unknown;
+	/** Reads finalized props for a statically selected native component. */
+	prepareComponentProps(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reads and validates one host value before serialization mutates request state. */
 	prepareAttribute(invocation: ExactRenderProgramInvocation, index: number): unknown;
 	/** Reserves the finite region's ownership identities and charges its request limit once. */
@@ -73,6 +75,16 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		context: object,
 		output: ExactRenderProgramSsrOutput,
 		value: unknown,
+		id: string,
+		characters: number,
+		markerless?: true
+	): number;
+	/** Issues a statically selected component without materializing a request-local reference. */
+	directComponent(
+		context: object,
+		output: ExactRenderProgramSsrOutput,
+		component: unknown,
+		props: unknown,
 		id: string,
 		characters: number,
 		markerless?: true
@@ -209,7 +221,7 @@ export type ExactRenderProgramWiring = readonly [
 ];
 
 type ExactRenderProgramBase = Readonly<{
-	version: 5;
+	version: 6;
 	id: string;
 	namespace: ExactRenderProgramNamespace;
 	/** Root intrinsic used to resolve a contextual namespace at physical attachment time. */
@@ -366,8 +378,8 @@ export type ExactPreparedServerRenderProgram = ExactRenderProgramInvocation &
  * can reach this compiler-only operation.
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
-	if ((program as { version: number }).version !== 5)
-		throw new TypeError('Unsupported eXact render-program ABI; expected version 5');
+	if ((program as { version: number }).version !== 6)
+		throw new TypeError('Unsupported eXact render-program ABI; expected version 6');
 	return program as BrandedRenderProgram;
 }
 
@@ -409,14 +421,22 @@ export function createPreparedServerRenderProgram(
 	// The nominal wrapper prevents ordinary child normalization from flattening the values array.
 	// Its empty client-reader table is shared because server slots always use eager values.
 	const domain = enhancement ? currentComponentDomain() : undefined;
-	return {
+	const invocation = {
 		[PreparedServerRenderProgram]: true,
 		program: branded,
 		readers: emptyServerRenderProgramReaders,
-		eagerValues,
-		...(enhancement ? { enhancement } : {}),
-		...(domain ? { domain } : {})
+		eagerValues
+	} as {
+		readonly [key: symbol]: unknown;
+		program: BrandedRenderProgram;
+		readers: ExactRenderProgramReaders;
+		eagerValues: readonly unknown[];
+		enhancement?: CompiledEnhancementNode;
+		domain?: import('./component/contracts.js').ComponentDomain;
 	};
+	if (enhancement) invocation.enhancement = enhancement;
+	if (domain) invocation.domain = domain;
+	return invocation as ExactPreparedServerRenderProgram;
 }
 
 /** Recognizes only the realm-stable compiler-issued direct server invocation shape. */

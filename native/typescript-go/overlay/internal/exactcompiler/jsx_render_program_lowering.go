@@ -629,8 +629,13 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				if lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(element.OpeningElement.Attributes()) {
+					reader := lowering.visitRenderProgramComponent(child)
+					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
+					if serverComponent != nil {
+						reader = serverProps
+					}
 					build.componentSlot(
-						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), markerlessTail,
+						lowering.dynamicID(child), childPath, reader, markerlessTail, serverComponent,
 					)
 				} else {
 					// The focused range owns the value as an opaque child. Its ordinary lowering
@@ -691,8 +696,13 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				if lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(child.Attributes()) {
+					reader := lowering.visitRenderProgramComponent(child)
+					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
+					if serverComponent != nil {
+						reader = serverProps
+					}
 					build.componentSlot(
-						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), markerlessTail,
+						lowering.dynamicID(child), childPath, reader, markerlessTail, serverComponent,
 					)
 				} else {
 					build.childSlot(
@@ -743,13 +753,6 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		build.write("</" + tag + ">")
 	}
 	return true
-}
-
-func (lowering *jsxLowering) visitRenderProgramComponent(node *ast.Node) *ast.Node {
-	lowering.renderProgramComponentDepth++
-	result := lowering.visitor.VisitNode(node)
-	lowering.renderProgramComponentDepth--
-	return result
 }
 
 // plannedComponentChild keeps statically resolved native components in an explicit compiler-owned
@@ -1096,7 +1099,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		nodes[index] = array(members)
 	}
 	members := []*ast.Node{
-		property("version", lowering.factory.NewNumericLiteral("5", ast.TokenFlagsNone)),
+		property("version", lowering.factory.NewNumericLiteral("6", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}

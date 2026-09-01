@@ -581,7 +581,7 @@ func TestCompilerClosedServerRootDoesNotRequireImportedChildGraphClosure(t *test
 	for _, expected := range []string{
 		`renderCompilerClosedUnmarkedToStringAsync as`,
 		`from "@exactjs/ssr/runtime/compiler-closed"`,
-		`__exactComponentReceipt(Child,`,
+		`__exactSsr.directComponent(__exactContext, __exactOutput, Child,`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("imported child ABI root is missing %q:\n%s", expected, response.Code)

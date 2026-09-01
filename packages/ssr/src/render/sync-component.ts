@@ -1,10 +1,15 @@
 import type { AnyComponentInstance, Child } from '@exactjs/core';
+import {
+	readPreparedExactExecutableComponentContract,
+	type AnyExactComponentCallable,
+	type ExactServerExecutableComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-abi';
 import type { SsrContext } from '../types.js';
-import { componentMarkerId } from './component-markers.js';
+import { markerId } from '../markup.js';
 import { directComponentHtml } from './direct-component-output.js';
 import { executeDirectSsrComponentSync } from './direct-component.js';
-import { renderPreparedSsrProgramString } from './render-program.js';
+import { renderPreparedSsrProgramString } from './sync-render-program.js';
 import { receiptExecutionContract, serverComponentProps } from './server-component-reference.js';
 import { renderOperationEnhancements } from './operation-enhancements.js';
 
@@ -19,6 +24,14 @@ export type SyncComponentOperations = Readonly<{
 	renderComponent(
 		context: SsrContext,
 		component: ExactComponentReceiptData,
+		parent?: AnyComponentInstance,
+		hasComponentAncestor?: boolean,
+		omitCompilerOwnedBoundary?: boolean
+	): string;
+	renderDirectComponent(
+		context: SsrContext,
+		component: AnyExactComponentCallable,
+		props: Record<string, unknown> | null,
 		parent?: AnyComponentInstance,
 		hasComponentAncestor?: boolean,
 		omitCompilerOwnedBoundary?: boolean
@@ -44,55 +57,102 @@ export function renderSyncComponentReceipt(
 	omitRootBoundary = false
 ): string {
 	const contract = receiptExecutionContract(receipt);
+	return renderSyncComponent(
+		context,
+		contract,
+		serverComponentProps(receipt),
+		parent,
+		hasComponentAncestor,
+		operations,
+		receipt.enhancement,
+		receipt.key,
+		omitCompilerOwnedBoundary,
+		omitRootBoundary
+	);
+}
+
+/** Issues one compiler-proven child callable without constructing a prepared reference object. */
+export function renderSyncDirectComponent(
+	context: SsrContext,
+	component: AnyExactComponentCallable,
+	props: Record<string, unknown> | null,
+	parent: AnyComponentInstance | undefined,
+	hasComponentAncestor: boolean,
+	operations: SyncComponentOperations,
+	omitCompilerOwnedBoundary = false
+): string {
+	const contract = readPreparedExactExecutableComponentContract(component);
+	if (contract.artifact.target !== 'server')
+		throw new TypeError('Server renderer received a client component artifact');
+	return renderSyncComponent(
+		context,
+		contract as ExactServerExecutableComponentContract,
+		props ?? {},
+		parent,
+		hasComponentAncestor,
+		operations,
+		undefined,
+		undefined,
+		omitCompilerOwnedBoundary,
+		false
+	);
+}
+
+function renderSyncComponent(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
+	hasComponentAncestor: boolean,
+	operations: SyncComponentOperations,
+	enhancement: ExactComponentReceiptData['enhancement'],
+	key: string | undefined,
+	omitCompilerOwnedBoundary: boolean,
+	omitRootBoundary: boolean
+): string {
 	if (contract.artifact.execution.classification === 'scheduled')
 		throw new SsrScheduledComponentSignal();
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
-	if (receipt.enhancement) context.outputSink?.invalidateAccounting();
-	const renderBuffered = () =>
-		executeDirectSsrComponentSync(
-			context,
-			contract,
-			serverComponentProps(receipt),
-			parent,
-			(content, owner, props) => {
-				const html = renderOperationEnhancements(
-					context,
-					receipt.enhancement,
-					() =>
-						content.program
-							? renderPreparedSsrProgramString(
-									context,
-									content.program,
-									owner,
-									(children) => operations.renderChildren(context, children, owner, true),
-									(component) => operations.renderComponent(context, component, owner, true, true)
-								)
-							: operations.renderChildren(context, content.children, owner, true),
-					owner,
-					operations.renderChildren
-				);
-				return directComponentHtml(
-					context,
-					componentMarkerId(context, receipt),
-					html,
-					props,
-					contract.artifact.execution.publication,
-					{
-						enhancement: false,
-						documentProbe,
-						hasComponentAncestor,
-						omitCompilerOwnedBoundary,
-						omitRootBoundary
-					}
-				);
-			}
-		);
+	if (enhancement) context.outputSink?.invalidateAccounting();
 	const resumable = contract.artifact.execution.publication?.kind === 'resumption';
 	const delimited =
 		!omitRootBoundary && !(omitCompilerOwnedBoundary && !resumable) && !documentProbe;
 	const requiresBufferedBoundary =
-		!!receipt.enhancement || (documentProbe && context.documentRootSeen) || delimited;
+		!!enhancement || (documentProbe && context.documentRootSeen) || delimited;
 	if (!context.outputSink?.publishesDirectly() || requiresBufferedBoundary) {
+		const renderBuffered = () =>
+			executeDirectSsrComponentSync(
+				context,
+				contract,
+				props,
+				parent,
+				(content, owner, preparedProps) => {
+					const html = renderOperationEnhancements(
+						context,
+						enhancement,
+						() =>
+							content.program
+								? renderPreparedSsrProgramString(context, content.program, owner, operations)
+								: operations.renderChildren(context, content.children, owner, true),
+						owner,
+						operations.renderChildren
+					);
+					return directComponentHtml(
+						context,
+						markerId(context, 'component', contract.artifact.id, key),
+						html,
+						preparedProps,
+						contract.artifact.execution.publication,
+						{
+							enhancement: false,
+							documentProbe,
+							hasComponentAncestor,
+							omitCompilerOwnedBoundary,
+							omitRootBoundary
+						}
+					);
+				}
+			);
 		const buffered = context.outputSink?.publishesDirectly()
 			? context.outputSink.bufferRange(() => {
 					const output = renderBuffered();
@@ -111,21 +171,15 @@ export function renderSyncComponentReceipt(
 	const output = executeDirectSsrComponentSync(
 		context,
 		contract,
-		serverComponentProps(receipt),
+		props,
 		parent,
 		(content, owner) =>
 			content.program
-				? renderPreparedSsrProgramString(
-						context,
-						content.program,
-						owner,
-						(children) => operations.renderChildren(context, children, owner, true),
-						(component) => operations.renderComponent(context, component, owner, true, true)
-					)
+				? renderPreparedSsrProgramString(context, content.program, owner, operations)
 				: operations.renderChildren(context, content.children, owner, true)
 	);
 	if (output === undefined)
 		throw new TypeError('Synchronous component operation selected a scheduled server artifact');
-	componentMarkerId(context, receipt);
+	markerId(context, 'component', contract.artifact.id, key);
 	return output;
 }

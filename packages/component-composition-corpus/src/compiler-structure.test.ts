@@ -96,6 +96,10 @@ describe('normative compiled structure', () => {
 		expect(code.match(/mode: "direct"/g)).toHaveLength(2);
 		expect(code).toMatch(/return __exactPreparedServerRenderProgram\(/);
 		expect(code).not.toMatch(/return \(\) => __exactPreparedServerRenderProgram\(/);
+		expect(code).toMatch(
+			/__exactSsr\.directComponent\(__exactContext, __exactOutput, Label, __exactValue_\d+/
+		);
+		expect(code).not.toMatch(/__exactComponentReceipt\(Label,/);
 	});
 
 	it('emits exact UTF-8 byte facts beside compiler-owned server spans', async () => {

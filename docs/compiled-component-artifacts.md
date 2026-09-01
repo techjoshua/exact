@@ -249,7 +249,8 @@ such as authorized server patches and interaction replay. It is not a second ren
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
 value directly to its serialization operation; the runtime does not rebuild a per-region slot
 table or allocate a receiver merely to replay the compiler's ordering. Render-program ABI version
-4 identifies this direct stateless-operation contract so older precompiled writers cannot be
+6 identifies the direct stateless-operation contract and its statically selected server-child
+operation so older precompiled writers cannot be
 silently executed with the incompatible calling convention. Server artifacts return a branded
 prepared invocation directly to the SSR component lane; they do not allocate a render-program
 VNode and send it back through ordinary child normalization and kind dispatch. Durable fallback
@@ -258,7 +259,13 @@ ordinary child path. The SSR walkers therefore do not retain a second executor f
 render-program VNodes; reaching one is an invalid target artifact rather than a compatibility
 selection. Prepared server invocations can also appear as compiler-owned children inside a
 dynamic or keyed range; those ranges execute the same direct server ABI instead of coercing the
-invocation as authored data. Direct server components capture
+invocation as authored data. When a server render-program component slot selects a compiler-known
+callable and needs only finalized plain props, the generated writer retains that callable in its
+immutable module-level plan and carries only the request-owned props through slot preparation. The
+synchronous target issues the selected child artifact directly without first allocating a prepared
+component reference. Child-bearing, keyed, enhanced, spread, dynamic, and lazy forms retain the
+general prepared-reference operation, and deferred execution reconstructs that operation before
+leaving the focused writer. Direct server components capture
 compiler-known child slots during request-local task issuance, allowing independent child work to
 start before the writer publishes those slots in authored order. Generic components retain lazy
 slot evaluation where reactive stabilization remains observable. A compiler-closed server region

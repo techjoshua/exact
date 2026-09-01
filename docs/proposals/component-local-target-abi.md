@@ -1106,6 +1106,11 @@ metadata. The request executor owns setup, sink commitment, checkpoints, hooks, 
 must not recreate the removed returned-render closure or synchronous issued-result projection.
 Forwarded or arbitrary output continues through the component-local callable contract until the
 compiler proves a closed lowering, and scheduled work keeps its distinct request-owned protocol.
+Inside that program, a compiler-selected child with finalized plain props may keep its callable in
+the immutable writer and pass only request-owned props to the synchronous target. The target issues
+the child's artifact through the same ABI without constructing an intermediate prepared reference.
+Invocation metadata, dynamic selection, lazy selection, and deferred publication retain the general
+component operation rather than widening the focused direct form.
 
 **Compatibility leakage:** React and plugin code must have explicit package roots and bundle tests.
 A native component capability bit is not permission to import an entire compatibility runtime.

@@ -171,7 +171,7 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedServerRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 5",
+		"version: 6",
 		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
 		`__exactSsr.begin(__exactContext, 2, 2, 30, 30)`,
 		`__exactSsr.static(__exactOutput, "<span")`,
@@ -765,9 +765,9 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		t.Fatal(server.Error)
 	}
 	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
-		!strings.Contains(server.Code, `__exactComponentReceipt(Detail`) ||
-		!strings.Contains(server.Code, `__exactSsr.prepareComponent(`) ||
-		!strings.Contains(server.Code, `__exactSsr.component(`) ||
+		!strings.Contains(server.Code, `__exactSsr.prepareComponentProps(`) ||
+		!strings.Contains(server.Code, `__exactSsr.directComponent(__exactContext, __exactOutput, Detail,`) ||
+		strings.Contains(server.Code, `__exactComponentReceipt(Detail`) ||
 		strings.Contains(server.Code, `__exactSsr.child(`) ||
 		strings.Contains(server.Code, `__exactVNode("main"`) {
 		t.Fatalf("server artifact did not compile recursive component rendering:\n%s", server.Code)
@@ -817,6 +817,30 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		!strings.Contains(stateful.Code, `[2, 0, [], 0]`) ||
 		strings.Contains(stateful.Code, `__exactVNode("main"`) {
 		t.Fatalf("stateful component child did not enter its compiler-owned lifecycle slot:\n%s", stateful.Code)
+	}
+}
+
+func TestSessionRetainsPreparedServerReferencesForComponentInvocationMetadata(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "prepared-component-metadata.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			function Child(props: { key?: string; title?: string }) { return () => <span>child</span>; }
+			function Wrapper(props: { children?: unknown }) { return () => <section>{props.children}</section>; }
+			export function Page(props: { title?: string }) {
+				return () => <main><Wrapper><Child /></Wrapper><Child key="stable" /><Child {...props} /></main>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `__exactSsr.prepareComponent(`) ||
+		!strings.Contains(response.Code, `__exactSsr.component(`) ||
+		!strings.Contains(response.Code, `__exactComponentReceipt(Wrapper, {}, __exactComponentReceipt(Child`) ||
+		!strings.Contains(response.Code, `__exactComponentReceipt(Child, { key: "stable" })`) ||
+		!strings.Contains(response.Code, `__exactComponentReceipt(Child, { "data-exact-id":`) ||
+		!strings.Contains(response.Code, `...props })`) {
+		t.Fatalf("component invocation metadata lost its prepared-reference fallback:\n%s", response.Code)
 	}
 }
 
@@ -1118,7 +1142,9 @@ func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
-		strings.Count(response.Code, "__exactComponentReceipt(") < 2 ||
+		strings.Count(response.Code, "__exactSsr.directComponent(") < 2 ||
+		strings.Contains(response.Code, "__exactComponentReceipt(Left") ||
+		strings.Contains(response.Code, "__exactComponentReceipt(Right") ||
 		strings.Contains(response.Code, "markIndependentAsyncSiblings as") {
 		t.Fatalf("proven sibling group was not captured by the direct server program:\n%s", response.Code)
 	}
@@ -2227,7 +2253,7 @@ func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `__exactComponentReceipt(Child,`) ||
+	if !strings.Contains(response.Code, `__exactSsr.directComponent(__exactContext, __exactOutput, Child,`) ||
 		strings.Contains(response.Code, `__exactVNode("Child",`) {
 		t.Fatalf("server-render projection lost the imported component identity:\n%s", response.Code)
 	}
