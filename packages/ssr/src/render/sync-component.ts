@@ -183,13 +183,15 @@ function executeSyncComponentOutput(
 		server.mode === 'stateless' &&
 		!context.onDirectComponentCreated &&
 		!context.onDirectComponentRendered;
-	const frame = stateless ? undefined : createSelectedDirectSsrFrame(context, contract, parent);
-	const owner = frame ? selectedDirectSsrOwner(contract, frame, parent) : parent;
+	// Keep one ordinary request-local receiver shape at this shared hot callsite. Passing
+	// `undefined` for stateless leaves makes otherwise identical component calls polymorphic.
+	const frame = createSelectedDirectSsrFrame(context, contract, parent);
+	const owner = stateless ? parent : selectedDirectSsrOwner(contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let render: unknown;
 	if (server.mode !== 'direct' && server.mode !== 'stateless') {
 		try {
-			render = callInComponentDomain(context, server.render, frame!, props);
+				render = callInComponentDomain(context, server.render, frame, props);
 			if (typeof render !== 'function')
 				throw new TypeError(
 					'Compiled synchronous server component did not return its render function'
@@ -197,7 +199,7 @@ function executeSyncComponentOutput(
 		} catch (error) {
 			if (lifecycle) {
 				try {
-					disposeDirectSsrLifetimeSync({ frame: frame!, lifecycle }, 'ssr construction failed');
+					disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr construction failed');
 				} catch (cleanup) {
 					attachSuppressedCleanupFailure(error, cleanup);
 				}
@@ -218,16 +220,16 @@ function executeSyncComponentOutput(
 						undefined
 					);
 		const content = readDirectSsrContent(rendered);
-		lifecycle?.rendered(frame!, performanceNow() - started);
+		lifecycle?.rendered(frame, performanceNow() - started);
 		const checkpoint = context.onComponentAttemptCheckpoint?.();
 		const resumptionCheckpoint = stateless ? undefined : context.resumptionCapture?.checkpoint();
 		const outputCheckpoint = context.outputSink?.checkpoint();
 		const resumptionToken = stateless
 			? undefined
 			: context.resumptionCapture?.reserveDirect(artifact.id, contract);
-		const snapshot = frame
-			? createObservedSnapshot(context, artifact.id, contract, frame, props)
-			: undefined;
+		const snapshot = stateless
+			? undefined
+			: createObservedSnapshot(context, artifact.id, contract, frame, props);
 		if (snapshot) context.onDirectComponentCreated?.(snapshot);
 		try {
 			const output = boundary
@@ -245,7 +247,7 @@ function executeSyncComponentOutput(
 					: operations.renderChildren(context, content.children, owner, true);
 			if (!boundary) markerId(context, 'component', artifact.id, directKey);
 			if (resumptionToken !== undefined)
-				context.resumptionCapture?.publishDirect(resumptionToken, frame!, frame!.state, props);
+				context.resumptionCapture?.publishDirect(resumptionToken, frame, frame.state, props);
 			if (snapshot) context.onDirectComponentRendered?.(snapshot);
 			return output;
 		} catch (error) {
@@ -261,7 +263,7 @@ function executeSyncComponentOutput(
 	} finally {
 		if (lifecycle)
 			disposePreservingPrimary(
-				() => disposeDirectSsrLifetimeSync({ frame: frame!, lifecycle }, 'ssr render complete'),
+				() => disposeDirectSsrLifetimeSync({ frame, lifecycle }, 'ssr render complete'),
 				primary
 			);
 	}
