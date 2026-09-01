@@ -1473,3 +1473,23 @@ This is focused evidence rather than an accepted framework checkpoint. Workstati
 CPU movement diagnostic, while allocation, output identity, response-body ownership, backpressure,
 cancellation, and failure tests remain valid. The final admitted four-framework population and
 control-normalized comparison remain deferred until the workstation is quiet.
+
+### Client setup domain/scope focused candidate
+
+The server direct-domain call was also tested at the client ownership boundary. A broad candidate
+covering setup and both output executors removed three covered functions and 16 decoded bytes, but
+50 cold-browser profiles moved interaction sampled allocation +9.8% at p50 and +18.8% at p75. That
+form was removed rather than accepted from its synthetic microbenchmark alone.
+
+The retained candidate applies the direct call only to durable component setup. General compiled,
+watched, and fallback output remains executable through its existing ownership path. Against 50
+contemporaneous baseline profiles, startup sampled allocation improves 2.0%/1.1%/3.4%/0.4%/3.3%
+at p25/p50/p75/p95/p99, and retained heap falls 644 bytes. Interaction allocation is mixed at
+-2.2%/+0.9%/+8.6%/-13.0%/-22.0%; setup is not re-entered during that interaction, so the p75 value
+is retained as an unattributed counter-metric. Diagnostic startup CPU is mixed at
++1.2%/-0.5%/-6.7%/-7.1% from p50 through p99. The client asset grows 97 decoded bytes and its
+covered function inventory remains 1,181 because one shared helper replaces the setup adapter.
+
+The micro-profile, 50 baseline captures, 50 broad-candidate captures, 50 setup-only captures, and
+written gate are under `.tmp/client-domain-scope-call`. Timing remains diagnostic while the
+workstation is active; the admitted four-framework population remains deferred until it is quiet.

@@ -3,7 +3,6 @@ import {
 	createEffectScope,
 	deleteIndexedReactiveSlotWithResult,
 	setIndexedReactiveSlotWithResult,
-	withEffectScope,
 	type Reactive
 } from '@exactjs/reactive/framework/runtime';
 import type { ExactExecutableComponentContract } from '../component-contracts.js';
@@ -18,10 +17,10 @@ import type {
 } from './contracts.js';
 import { ErrorContext } from './contexts.js';
 import {
+	callWithComponentDomainInEffectScope,
 	componentDomainInspection,
 	isHydrationComponentDomain,
-	resolveComponentResumption,
-	withComponentDomain
+	resolveComponentResumption
 } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { allocateComponentInstanceId } from './instance-identity.js';
@@ -221,7 +220,7 @@ export abstract class CompactComponentInstance<
 				contextCapability.prepare(this, resumption);
 			}
 
-			const result = withEffectScope(this.scope, () => withComponentDomain(this.domain, invoke));
+			const result = callWithComponentDomainInEffectScope(this.domain, this.scope, invoke);
 			if (resumption) {
 				applyComponentResumption(this.state as Reactive<Record<string, unknown>>, resumption);
 				this.inspection?.publish({ kind: 'resumption.activate', component: this });

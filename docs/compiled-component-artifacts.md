@@ -134,6 +134,10 @@ per-class registry.
 Browser-target artifacts carry only their specialized template, claims, readers, bindings, and
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
+Durable component setup installs its component domain and reactive ownership scope through one
+focused call around the compiler-selected setup operation. It does not allocate an adapter closure
+whose only work is entering the second ownership context. General output and fallback functions
+remain executable and retain their existing watched or compiled output owners.
 Fresh mount and same-build hydration invoke the same artifact-owned `attach` operation with an
 explicit mode. The DOM supplies either a placement target or a bounded hydration cursor, while the
 artifact supplies its already-normalized output and generated claims. Successful hydration does

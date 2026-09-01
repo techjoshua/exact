@@ -1,4 +1,5 @@
 import { createFrameworkFixtureComponentInstance } from './testing.js';
+import { createEffectScope, reactive, watch } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import type { Component } from './index.js';
 import { createComponentDomain, pageComponentDomain, withComponentDomain } from './index.js';
@@ -9,6 +10,7 @@ import {
 } from './component-abi/intrinsic-receipt.js';
 import {
 	callWithComponentDomain,
+	callWithComponentDomainInEffectScope,
 	componentDomainInspection,
 	createFrameworkComponentDomain,
 	currentComponentDomain
@@ -25,6 +27,31 @@ describe('component domains', () => {
 		expect(() => {
 			(data.domain as { executionRoot: string }).executionRoot = 'other';
 		}).toThrow();
+	});
+
+	it('calls under one domain and reactive scope and restores both after failure', () => {
+		const domain = createComponentDomain({ executionRoot: 'scoped' });
+		const scope = createEffectScope();
+		const state = reactive({ value: 0 });
+		let observed = -1;
+		callWithComponentDomainInEffectScope(domain, scope, () => {
+			expect(currentComponentDomain()).toBe(domain);
+			watch(() => {
+				observed = state.value;
+			});
+		});
+		expect(currentComponentDomain()).toBeUndefined();
+		expect(observed).toBe(0);
+		scope.stop();
+		state.value = 1;
+		expect(observed).toBe(0);
+
+		expect(() =>
+			callWithComponentDomainInEffectScope(domain, createEffectScope(), () => {
+				throw new Error('scoped failure');
+			})
+		).toThrow('scoped failure');
+		expect(currentComponentDomain()).toBeUndefined();
 	});
 
 	it('calls a receiver with an active domain and restores the previous domain after failure', () => {
