@@ -1463,6 +1463,17 @@ render p50/p75/p95/p99 moved from 0.0509/0.0667/0.1240/0.2736 ms to
 workstation was active and is not publishable acceptance evidence. Every response remained 4,500
 bytes. Evidence is under `.tmp/final-sync-executor` and the corresponding focused profile captures.
 
+Compiler-closed sink roots now construct indexed resumption capture without the generic renderer's
+instance `WeakMap` and observation wrappers. Across fifty-process before/candidate populations,
+capture-construction allocation p25/p50/p75/p95 moved from
+111,512/123,824/140,488/160,920 bytes to 78,376/86,728/99,032/115,480 bytes. Whole-render allocation
+moved from 4,857,376/4,917,032/5,028,776/5,107,120 bytes to
+4,788,448/4,919,600/5,025,048/5,165,832 bytes: neutral at the median (+0.05%), effectively flat at
+p75, and 1.1% worse at p95. Diagnostic render timing was flat through p75. The specialization is
+retained for its 30.0% owning-site reduction and deleted unused request structure, not claimed as a
+macro render win. Every response remained 4,500 bytes. Evidence is under
+`.tmp/direct-resumption-capture-construction` and the corresponding focused profile captures.
+
 Two transfers were measured and removed. Staged optional assignment in the opaque client component
 operation increased median constructor allocation 8.0%; the frozen opaque identity and WeakMap
 payload retain their existing construction. Direct root-attribute spans produced a 1.001 paired

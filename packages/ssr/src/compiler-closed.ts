@@ -9,7 +9,7 @@ import type {
 	RenderToStringResult
 } from './types.js';
 import { renderHydrationScript, renderHydrationScriptWithByteCount } from './hydration.js';
-import { createSsrResumptionCapture } from './resumption.js';
+import { createDirectSsrResumptionCapture, createSsrResumptionCapture } from './resumption.js';
 import { readServerComponentReference } from './render/server-component-reference.js';
 import { createSsrContext } from './render/context.js';
 import { countSsrNode, withTaskDeadline } from './render/limits.js';
@@ -92,7 +92,7 @@ export function renderCompilerClosedToHydratableSink(
 	environment?: ExactSynchronousResponseEnvironment
 ): number {
 	const prepared = rootPropsOptions(operation, options);
-	const capture = createSsrResumptionCapture(
+	const capture = createDirectSsrResumptionCapture(
 		prepared,
 		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
 		rootComponentIdentity(operation)

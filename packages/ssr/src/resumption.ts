@@ -80,14 +80,36 @@ export function createSsrResumptionCapture(
 	options: RenderToStringOptions,
 	publishedRootProps?: Readonly<Record<string, unknown>>,
 	rootComponentId?: string
-): {
+): CreatedSsrResumptionCapture {
+	return createResumptionCapture(options, publishedRootProps, rootComponentId, false);
+}
+
+/** Constructs indexed capture without the generic-instance bridge unused by direct artifacts. */
+export function createDirectSsrResumptionCapture(
+	options: RenderToStringOptions,
+	publishedRootProps?: Readonly<Record<string, unknown>>,
+	rootComponentId?: string
+): CreatedSsrResumptionCapture {
+	return createResumptionCapture(options, publishedRootProps, rootComponentId, true);
+}
+
+type CreatedSsrResumptionCapture = {
 	options: RenderToStringOptions;
 	serializedRecords(): readonly SsrSerializedResumption[];
 	activations(): readonly ComponentResumptionActivation[];
-} {
+};
+
+function createResumptionCapture(
+	options: RenderToStringOptions,
+	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
+	rootComponentId: string | undefined,
+	directArtifactsOnly: boolean
+): CreatedSsrResumptionCapture {
 	const records: MutableSerializedResumption[] = [];
 	const schemas: SsrResumptionSchema[] = [];
-	const recordsByInstance = new WeakMap<AnyComponentInstance, number>();
+	const recordsByInstance = directArtifactsOnly
+		? undefined
+		: new WeakMap<AnyComponentInstance, number>();
 	const rootInputTokens = new Set<number>();
 	const pathReadCell: ReactiveOwnPropertyReadCell = { value: undefined };
 	let rootInputClaimed = false;
@@ -169,51 +191,59 @@ export function createSsrResumptionCapture(
 		}
 	};
 
-	return {
-		options: {
-			...options,
-			resumptionCapture: capture,
-			allowIndependentComponentObservation:
-				!options.onComponentCreated &&
-				!options.onComponentRendered &&
-				!options.onDirectComponentCreated &&
-				!options.onDirectComponentRendered,
-			onComponentCreated(instance) {
-				const contract = readPreparedExactServerExecutableComponentContract(instance.type);
-				const token = reserve(exactComponentIdentity(instance.type), contract);
-				if (token !== undefined) recordsByInstance.set(instance, token);
-				options.onComponentCreated?.(instance);
-			},
-			onComponentRendered(instance) {
-				const token = recordsByInstance.get(instance);
-				if (token !== undefined) {
-					const schema = schemas[token];
-					if (schema)
-						publish(
-							token,
-							instance.state,
-							instance.props,
-							schema.contexts.length
-								? componentContinuationContextValues(instance, schema.contexts)
-								: emptyContextValues,
-							schema.continuations.size
-								? settledComponentContinuationIds(instance)
-								: emptyContinuationIds
-						);
-				}
-				options.onComponentRendered?.(instance);
-			},
-			onComponentAttemptCheckpoint: () => [
-				capture.checkpoint(),
-				options.onComponentAttemptCheckpoint?.()
-			],
-			onComponentAttemptRollback(checkpoint) {
-				if (Array.isArray(checkpoint) && typeof checkpoint[0] === 'number') {
-					capture.rollback(checkpoint[0]);
-					options.onComponentAttemptRollback?.(checkpoint[1]);
-				}
+	const allowIndependentComponentObservation =
+		!options.onComponentCreated &&
+		!options.onComponentRendered &&
+		!options.onDirectComponentCreated &&
+		!options.onDirectComponentRendered;
+	const captureOptions: RenderToStringOptions = directArtifactsOnly
+		? {
+				...options,
+				resumptionCapture: capture,
+				allowIndependentComponentObservation
 			}
-		},
+		: {
+				...options,
+				resumptionCapture: capture,
+				allowIndependentComponentObservation,
+				onComponentCreated(instance) {
+					const contract = readPreparedExactServerExecutableComponentContract(instance.type);
+					const token = reserve(exactComponentIdentity(instance.type), contract);
+					if (token !== undefined) recordsByInstance!.set(instance, token);
+					options.onComponentCreated?.(instance);
+				},
+				onComponentRendered(instance) {
+					const token = recordsByInstance!.get(instance);
+					if (token !== undefined) {
+						const schema = schemas[token];
+						if (schema)
+							publish(
+								token,
+								instance.state,
+								instance.props,
+								schema.contexts.length
+									? componentContinuationContextValues(instance, schema.contexts)
+									: emptyContextValues,
+								schema.continuations.size
+									? settledComponentContinuationIds(instance)
+									: emptyContinuationIds
+							);
+					}
+					options.onComponentRendered?.(instance);
+				},
+				onComponentAttemptCheckpoint: () => [
+					capture.checkpoint(),
+					options.onComponentAttemptCheckpoint?.()
+				],
+				onComponentAttemptRollback(checkpoint) {
+					if (Array.isArray(checkpoint) && typeof checkpoint[0] === 'number') {
+						capture.rollback(checkpoint[0]);
+						options.onComponentAttemptRollback?.(checkpoint[1]);
+					}
+				}
+			};
+	return {
+		options: captureOptions,
 		serializedRecords: capture.serializedRecords,
 		activations: capture.activations
 	};
