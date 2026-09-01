@@ -62,6 +62,15 @@ describe('hydration JSON validation', () => {
 			})
 		).toBe('$[0]');
 		expect(observed).toEqual([safe[0], safe]);
+
+		const safeBeforeFailure: unknown[] = [];
+		const lateFailure = [safeBeforeFailure, { value: Number.NaN }];
+		expect(
+			validateJsonSafeHydrationValue(lateFailure, {
+				onValidatedArray: (value) => observed.push(value)
+			})
+		).toBe('$[1].value');
+		expect(observed).toEqual([safe[0], safe, safeBeforeFailure]);
 	});
 
 	it('traverses framework-created dense tuples without trusting authored entries', () => {

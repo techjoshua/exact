@@ -3,12 +3,16 @@ import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework
 type ValidationState = {
 	readonly active: Set<object>;
 	readonly onValidatedArray?: (value: unknown[]) => void;
-	readonly pathArrays: boolean[];
-	readonly pathKeys: string[];
+	readonly path?: ValidationPath;
 	readonly structurallyKnown?: { has(value: object): boolean };
 	readonly maxDepth: number;
 	readonly maxNodes: number;
 	nodes: number;
+};
+
+type ValidationPath = {
+	readonly arrays: boolean[];
+	readonly keys: string[];
 };
 
 /**
@@ -28,8 +32,6 @@ export function validateJsonSafeHydrationValue(
 ): string | undefined {
 	const state: ValidationState = {
 		active: new Set(),
-		pathArrays: [],
-		pathKeys: [],
 		structurallyKnown: limits.structurallyKnown,
 		maxDepth: positiveLimit(limits.maxDepth, 100),
 		maxNodes: positiveLimit(limits.maxNodes, 100_000),
@@ -37,7 +39,15 @@ export function validateJsonSafeHydrationValue(
 		nodes: 0
 	};
 	try {
-		return validateValue(value, 0, state) ? undefined : formatValidationPath(state);
+		if (validateValue(value, 0, state)) return undefined;
+		const diagnostic: ValidationState = {
+			...state,
+			active: new Set(),
+			onValidatedArray: undefined,
+			path: { arrays: [], keys: [] },
+			nodes: 0
+		};
+		return validateValue(value, 0, diagnostic) ? '$' : formatValidationPath(diagnostic.path!);
 	} catch {
 		return '$';
 	}
@@ -65,46 +75,47 @@ function validateValue(value: unknown, depth: number, state: ValidationState): b
 function validateContainer(source: object, depth: number, state: ValidationState): boolean {
 	const array = Array.isArray(source);
 	const structurallyKnown = state.structurallyKnown?.has(source) ?? false;
+	const path = state.path;
 	if (array && structurallyKnown) {
 		for (let index = 0; index < source.length; index++) {
-			pushValidationPath(state, String(index), true);
+			if (path) pushValidationPath(path, String(index), true);
 			if (!validateValue(source[index], depth + 1, state)) return false;
-			popValidationPath(state);
+			if (path) popValidationPath(path);
 		}
 		state.onValidatedArray?.(source);
 		return true;
 	}
 	for (const key of Object.keys(source)) {
-		pushValidationPath(state, key, array);
+		if (path) pushValidationPath(path, key, array);
 		if (structurallyKnown) {
 			if (!validateValue((source as Record<string, unknown>)[key], depth + 1, state)) return false;
-			popValidationPath(state);
+			if (path) popValidationPath(path);
 			continue;
 		}
 		const descriptor = Object.getOwnPropertyDescriptor(source, key);
 		if (!descriptor || !('value' in descriptor)) return false;
 		if (!validateValue(descriptor.value, depth + 1, state)) return false;
-		popValidationPath(state);
+		if (path) popValidationPath(path);
 	}
 	if (array) state.onValidatedArray?.(source as unknown[]);
 	return true;
 }
 
-function pushValidationPath(state: ValidationState, key: string, array: boolean): void {
-	state.pathKeys.push(key);
-	state.pathArrays.push(array);
+function pushValidationPath(path: ValidationPath, key: string, array: boolean): void {
+	path.keys.push(key);
+	path.arrays.push(array);
 }
 
-function popValidationPath(state: ValidationState): void {
-	state.pathKeys.pop();
-	state.pathArrays.pop();
+function popValidationPath(path: ValidationPath): void {
+	path.keys.pop();
+	path.arrays.pop();
 }
 
-function formatValidationPath(state: ValidationState): string {
+function formatValidationPath(pathValue: ValidationPath): string {
 	let path = '$';
-	for (let index = 0; index < state.pathKeys.length; index++) {
-		const key = state.pathKeys[index]!;
-		path += state.pathArrays[index] ? `[${key}]` : `.${key}`;
+	for (let index = 0; index < pathValue.keys.length; index++) {
+		const key = pathValue.keys[index]!;
+		path += pathValue.arrays[index] ? `[${key}]` : `.${key}`;
 	}
 	return path;
 }
