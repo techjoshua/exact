@@ -1599,6 +1599,13 @@ are under `.tmp/sync-operation-target-reuse`; the 50 candidate captures and ten 
 confirmations are the corresponding `focused-render-profile-target-reuse-*` files under
 `.tmp/output-byte-accounting`.
 
+The adjacent native property-descriptor site was attributed before another publication change.
+One instrumented comparison render issued 152 descriptor reads from descriptor-safe authored
+hydration-value validation and 128 from safe nested resumption-path reads; none came from prepared
+boundary snapshotting. Framework-created hydration envelopes already bypass descriptor inspection.
+Removing the remaining calls would either invoke authored accessors or weaken the serialization and
+resumption boundary, so no candidate was implemented for that site.
+
 ### Client final-prop construction experiment
 
 The server-side final-object construction pattern was tested at initial client prop delivery rather
@@ -1633,3 +1640,12 @@ but workstation use and contradictory allocation do not establish a production g
 was removed. Valid evidence uses the `browser-real-*` prefix under
 `.tmp/client-component-receipt-props`; unchanged-bundle captures are retained separately as a
 build-validation failure record.
+
+Together with the earlier setup-domain and artifact-constructor experiments, these results bound
+the direct server-to-client transfer surface. Client mount targets retain changing parent scope,
+logical owner, and DOM insertion state, so server-style target reuse would require mutable
+reentrancy state or another per-call wrapper. Nested state/prop property reads also retain their
+reactive computation owners because in-place nested mutations do not advance the indexed parent
+slot's dirty identity. Extending the two-field operand tuple to those reads without new nested
+dependency routing would silently miss valid updates, so it is not treated as a representation-only
+optimization.
