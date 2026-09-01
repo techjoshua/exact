@@ -118,7 +118,8 @@ func componentPropsSymbol(component *ast.Node, typeChecker *checker.Checker) *as
 	return nil
 }
 
-// Recognizes the conservative setup form `this.state.x = props.y ?? fallback`.
+// Recognizes conservative setup forms rooted in one exact prop path, including
+// `this.state.x = peek(() => props.y ?? fallback)` snapshots.
 // Runtime publication still verifies identity before omitting the state value.
 func stateWriteInputPath(
 	write *ast.Node,
@@ -129,6 +130,19 @@ func stateWriteInputPath(
 		return ""
 	}
 	value := write.AsBinaryExpression().Right
+	for value != nil && ast.IsParenthesizedExpression(value) {
+		value = value.AsParenthesizedExpression().Expression
+	}
+	if ast.IsCallExpression(value) {
+		call := value.AsCallExpression()
+		if ast.IsIdentifier(call.Expression) && call.Expression.Text() == "peek" &&
+			call.Arguments != nil && len(call.Arguments.Nodes) == 1 &&
+			ast.IsArrowFunction(call.Arguments.Nodes[0]) &&
+			len(call.Arguments.Nodes[0].Parameters()) == 0 &&
+			!ast.IsBlock(call.Arguments.Nodes[0].AsArrowFunction().Body) {
+			value = call.Arguments.Nodes[0].AsArrowFunction().Body
+		}
+	}
 	for value != nil && ast.IsParenthesizedExpression(value) {
 		value = value.AsParenthesizedExpression().Expression
 	}

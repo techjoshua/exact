@@ -83,6 +83,12 @@ export const compilerPathInventory = [
 		['client-mount', 'client-update', 'hydrate-match']
 	),
 	path(
+		'snapshot-resumption-input',
+		'specialized',
+		'Exact prop snapshots omit redundant nested resumption state after identity verification.',
+		['ssr-sync', 'hydrate-match']
+	),
+	path(
 		'conditional-structural-range',
 		'supported-general',
 		'Conditional children retain a bounded structural range.',

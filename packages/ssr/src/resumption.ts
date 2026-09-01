@@ -31,9 +31,9 @@ export type SsrSerializedResumption = readonly [
 
 type MutableSerializedResumption = [
 	componentId: string,
-	values?: IndexedResumptionEntry[],
-	contexts?: IndexedResumptionEntry[],
-	settledContinuations?: string[]
+	values?: readonly IndexedResumptionEntry[],
+	contexts?: readonly IndexedResumptionEntry[],
+	settledContinuations?: readonly string[]
 ];
 
 /** Compiler-owned field order used only to project an observed public activation. */
@@ -72,6 +72,7 @@ export type SsrResumptionCapture = Readonly<{
 }>;
 
 const resumptionSchemas = new WeakMap<object, SsrResumptionSchema>();
+const emptyIndexedEntries = Object.freeze([]) as readonly IndexedResumptionEntry[];
 const emptyContextValues = Object.freeze({}) as Readonly<Record<string, never>>;
 const emptyContinuationIds = Object.freeze([]) as readonly string[];
 
@@ -146,8 +147,12 @@ function createResumptionCapture(
 			publishedRootProps,
 			pathReadCell
 		);
-		const indexedContexts = captureContextEntries(contexts, schema.contexts);
-		const settled = settledContinuations.filter((id) => schema.continuations.has(id));
+		const indexedContexts = schema.contexts.length
+			? captureContextEntries(contexts, schema.contexts)
+			: emptyIndexedEntries;
+		const settled = schema.continuations.size
+			? settledContinuations.filter((id) => schema.continuations.has(id))
+			: emptyContinuationIds;
 		publishTuple(record, values, indexedContexts, settled);
 		projectedActivations = undefined;
 	};
@@ -257,18 +262,21 @@ function captureStateEntries(
 		for (const field of schema.state) {
 			if (!readPath(state, field.segments, cell) || cell.value === undefined) continue;
 			const stateValue = cell.value;
-			if (rootInput && publishedRootProps && field.propSegments) {
+			if (field.propSegments) {
 				if (!readPath(props, field.propSegments, cell)) {
 					entries.push([field.index, stateValue]);
 					continue;
 				}
 				const localValue = cell.value;
-				if (
-					readPath(publishedRootProps, field.propSegments, cell) &&
-					Object.is(stateValue, localValue) &&
-					Object.is(localValue, cell.value)
-				)
-					continue;
+				if (Object.is(stateValue, localValue)) {
+					if (!rootInput) continue;
+					if (
+						publishedRootProps &&
+						readPath(publishedRootProps, field.propSegments, cell) &&
+						Object.is(localValue, cell.value)
+					)
+						continue;
+				}
 			}
 			entries.push([field.index, stateValue]);
 		}
@@ -292,9 +300,9 @@ function captureContextEntries(
 
 function publishTuple(
 	record: MutableSerializedResumption,
-	values: IndexedResumptionEntry[],
-	contexts: IndexedResumptionEntry[],
-	settled: string[]
+	values: readonly IndexedResumptionEntry[],
+	contexts: readonly IndexedResumptionEntry[],
+	settled: readonly string[]
 ): void {
 	record.length = 1;
 	if (values.length || contexts.length || settled.length) record[1] = values;

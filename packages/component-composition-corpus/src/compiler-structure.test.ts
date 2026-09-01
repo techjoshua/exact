@@ -101,6 +101,15 @@ describe('normative compiled structure', () => {
 		);
 	});
 
+	it('records exact prop snapshots as resumable state inputs', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+		const hydrated = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toMatch(/stateInputs:\s*\[\s*\[\s*"label",\s*"label"\s*\]/);
+		expect(hydrated.code).not.toContain('"detail.label"');
+		expect(hydrated.code).not.toMatch(/stateInputs:\s*\[\s*\[\s*"label"/);
+	});
+
 	it('selects capability-specific client constructors without generated wrappers', async () => {
 		const capabilities = await compileFixture('capabilities.fixtures.tsx', 'client', 'hydrate');
 		const tasks = await compileFixture('tasks.fixtures.tsx', 'client');

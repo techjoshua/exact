@@ -670,6 +670,7 @@ func componentResumptionMetadata(
 	component Component,
 	resumptions []ComponentResumption,
 	boundaries []Boundary,
+	includeStateInputs bool,
 ) *ast.Node {
 	record := ComponentResumption{
 		ComponentID: component.ID,
@@ -702,6 +703,11 @@ func componentResumptionMetadata(
 			}
 		}
 		record.Client.Boundaries = filtered
+	}
+	// State-input paths authorize server-side omission only. Hydration receives finalized props and
+	// consumes state paths, so shipping the source paths would retain descriptive build facts.
+	if !includeStateInputs {
+		record.Client.StateInputs = []StateInput{}
 	}
 	return contractObject(factory, true,
 		contractProperty(
