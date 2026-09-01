@@ -56,6 +56,7 @@ export {
 	type ExactAsyncResponseBodyProducer,
 	type ExactResponseBodyScopeRelease,
 	type ExactResponseBodyWriter,
+	type ExactSynchronousResponseEnvironment,
 	type ExactSynchronousResponseBodyProducer,
 	type ExactResponseWithBody
 } from '../response-body.js';

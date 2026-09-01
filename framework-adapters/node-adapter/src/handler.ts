@@ -6,6 +6,11 @@ import {
 } from '@exactjs/server';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
+/** Node-owned immutable encoding capabilities used while consuming produced response bodies. */
+const nodeSynchronousResponseEnvironment = Object.freeze({
+	encodedByteLength: (value: string) => Buffer.byteLength(value)
+});
+
 /** Creates a Node http.createServer-compatible eXact endpoint handler. */
 export function createExactNodeHandler(
 	context: ExactServerContext
@@ -180,10 +185,13 @@ function collectProducedBody(
 	signal?: AbortSignal
 ): string | Promise<string> {
 	let output = '';
-	const completion = body.writeSynchronously!((chunk) => {
-		throwIfAborted(signal);
-		output += chunk;
-	});
+	const completion = body.writeSynchronously!(
+		(chunk) => {
+			throwIfAborted(signal);
+			output += chunk;
+		},
+		nodeSynchronousResponseEnvironment
+	);
 	return completion ? completion.then(() => output) : output;
 }
 
