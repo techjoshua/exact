@@ -1721,3 +1721,31 @@ requires the callback work that caused the CPU loss. Moving escaping into a cust
 repeat the previously rejected allocation-heavy design and unnecessarily widen the serialization
 security boundary. Production retains the three native replacements. The hybrid artifact and all 50
 alternating pairs remain under `.tmp/hydration-script-escape-hybrid`.
+
+The compiler-fused root-opening candidate advances the render-program ABI to version 7 and replaces
+the former root-attribute operation with one component-local operation that owns the compiler-known
+opening prefix, finalized root attributes, and immediately following static segment. In the Exact
+comparison server artifact this removes 38 generated static-operation calls (66 to 28) and all 19
+root-attribute calls in favor of 19 root-opening calls. The compiler, direct synchronous target, and
+generic semantic target all use the same operation; the superseded ABI operation is removed.
+
+Fifty alternating immediate-before/candidate artifact pairs produce median raw render-only values of
+0.0440/0.0531/0.0802/0.2235 ms before and 0.0436/0.0525/0.0779/0.2076 ms after at
+p50/p75/p95/p99. Median paired ratios are 0.992/0.996/0.980/0.903, with the p50 ratio at 0.993 when
+the candidate runs second and 0.989 when it runs first. The `append` allocation site falls from a
+median 355,952 to 259,328 sampled bytes (-27.1%), while whole-profile sampled allocation moves from
+4,632,524 to 4,686,304 bytes (+1.2% by raw medians; the median paired ratio is 1.006). The broader
+increase is diffuse across native and unrelated application sites rather than the changed append
+site, so it remains an explicit counter-metric rather than being attributed to the fused operation.
+Every captured response remains 4,500 bytes.
+
+A follow-up kept the fused ABI operation but published prefix, attributes, and suffix as three
+separate sink spans to test whether the combined string caused that whole-profile allocation
+movement. Against the one-span candidate, another 50 alternating pairs made p50/p75/p95
+1.007/1.007/1.011 times slower, increased append-site sampled allocation by 43.1%, and still did not
+improve total allocation (1.004 paired ratio). This shows that one settled component-local span is
+the useful part of the design; restoring adapter-level writes loses the CPU and local-allocation
+benefit without resolving the diffuse counter-metric. The one-span form is retained. The Node
+artifact moves from 231,801 to 230,603 raw bytes (-1,198), 49,046 to 49,080 gzip bytes (+34), and
+40,856 to 40,897 Brotli bytes (+41). The written gate, artifacts, and both sets of 50 alternating
+pairs remain under `.tmp/compiler-root-opening` and `.tmp/compiler-root-opening-segments`.

@@ -161,13 +161,13 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 		if (html !== '') output.push(html);
 		return nextCharacters;
 	},
-	rootAttributes(opaqueContext, output, value, tag, characters, staticAttributes) {
+	rootOpening(opaqueContext, output, value, tag, prefix, suffix, characters, staticAttributes) {
 		const context = opaqueContext as SsrContext;
 		const rendered = renderSsrRootAttributes(context, value, tag, staticAttributes);
 		const nextCharacters = characters + rendered.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
-		if (rendered !== '') output.push(rendered);
+		output.push(`${prefix}${rendered}${suffix}`);
 		return nextCharacters;
 	}
 });

@@ -171,11 +171,10 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedServerRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 6",
+		"version: 7",
 		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
 		`__exactSsr.begin(__exactContext, 2, 2, 30, 30)`,
-		`__exactSsr.static(__exactOutput, "<span")`,
-		`__exactSsr.rootAttributes(__exactContext, __exactOutput, __exactValue_0, "span", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
+		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "span", "<span", "><strong>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`const __exactValue_1 = __exactSsr.prepareText(__exactInvocation, 1)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
 		`, true)`,
@@ -590,9 +589,8 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		`ssrRootStatic: [" data-exact-id=\"`,
 		` class=\"action\"", ["data-exact-id", "className"], [[0, "disabled", "disabled"]]]`,
 		`const __exactValue_0 = __exactSsr.prepareAttribute(__exactInvocation, 0)`,
-		`__exactSsr.rootAttributes(__exactContext, __exactOutput, __exactValue_0, "button", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
+		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "button", "<button", ">", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
-		`__exactSsr.static(__exactOutput, "<button")`,
 		`"data-exact-id":`,
 		`className: "action", disabled: props.disabled`,
 		`__exactPreparedServerRenderProgram(__exact_render_program_1, [`,
@@ -707,8 +705,7 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 		t.Fatal(server.Error)
 	}
 	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
-		!strings.Contains(server.Code, `__exactSsr.static(__exactOutput, "<section")`) ||
-		!strings.Contains(server.Code, `__exactSsr.rootAttributes(`) ||
+		!strings.Contains(server.Code, `__exactSsr.rootOpening(`) ||
 		!strings.Contains(server.Code, `__exactSsr.prepareChild(`) ||
 		!strings.Contains(server.Code, `__exactSsr.child(`) ||
 		strings.Contains(server.Code, `__exactVNode("section"`) {
@@ -1104,8 +1101,7 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"], [[0, "d", "d"]]], ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
-		!strings.Contains(response.Code, `__exactSsr.static(__exactOutput, "<path")`) ||
-		!strings.Contains(response.Code, `__exactSsr.rootAttributes(__exactContext, __exactOutput, __exactValue_0, "path", __exactCharacters, __exactInvocation.program.ssrRootStatic)`) ||
+		!strings.Contains(response.Code, `__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "path", "<path", "></path>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`) ||
 		!strings.Contains(response.Code, `[{ className: "route", d: props.path }]`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
@@ -2849,7 +2845,7 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 		`generation: 1`,
 		`namespace: "contextual", attachmentTag: "p"`,
 		`__exactPreparedServerRenderProgram(__exact_render_program_1, [{}])`,
-		`__exactSsr.static(__exactOutput, ">Server child</p>")`,
+		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "p", "<p", ">Server child</p>"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(

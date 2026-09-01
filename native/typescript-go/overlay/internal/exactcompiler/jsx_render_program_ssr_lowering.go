@@ -132,11 +132,13 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 			ast.NodeFlagsLet,
 		),
 	))
+	skipStaticPosition := -1
 	for position, slotIndex := range build.serverSlots {
-		if part := build.serverSegments[position]; part != "" {
+		slot := build.slots[slotIndex]
+		if part := build.serverSegments[position]; part != "" &&
+			position != skipStaticPosition && slot.kind != "root-attributes" {
 			call("static", output, stringLiteral(part))
 		}
-		slot := build.slots[slotIndex]
 		value := values[slotIndex]
 		switch slot.kind {
 		case "text":
@@ -172,12 +174,15 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 				characters,
 			)
 		case "root-attributes":
+			skipStaticPosition = position + 1
 			assignCall(
-				"rootAttributes",
+				"rootOpening",
 				context,
 				output,
 				value,
 				stringLiteral(slot.name),
+				stringLiteral(build.serverSegments[position]),
+				stringLiteral(build.serverSegments[skipStaticPosition]),
 				characters,
 				lowering.factory.NewPropertyAccessExpression(
 					lowering.factory.NewPropertyAccessExpression(
@@ -206,8 +211,11 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 			)
 		}
 	}
-	if last := build.serverSegments[len(build.serverSegments)-1]; last != "" {
-		call("static", output, stringLiteral(last))
+	if lastPosition := len(build.serverSegments) - 1; lastPosition != skipStaticPosition {
+		last := build.serverSegments[lastPosition]
+		if last != "" {
+			call("static", output, stringLiteral(last))
+		}
 	}
 	statements = append(statements, lowering.factory.NewReturnStatement(output))
 	parameters := lowering.factory.NewNodeList([]*ast.Node{

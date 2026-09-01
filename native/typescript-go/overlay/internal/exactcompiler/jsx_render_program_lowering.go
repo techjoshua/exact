@@ -1100,7 +1100,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		nodes[index] = array(members)
 	}
 	members := []*ast.Node{
-		property("version", lowering.factory.NewNumericLiteral("6", ast.TokenFlagsNone)),
+		property("version", lowering.factory.NewNumericLiteral("7", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}

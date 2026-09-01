@@ -457,7 +457,7 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain('__exactHydration: "interaction"');
 		expect(server).toContain('Panel_ExactClient_1');
 		expect(server).toContain('{ className: "summary" }');
-		expect(server).toContain('__exactSsr.rootAttributes(');
+		expect(server).toContain('__exactSsr.rootOpening(');
 		expect(server).toContain('__exactSsr.component(');
 		expect(server).toContain('__exactComponentReceipt(ServerSummary');
 		expect(server).toContain('readFile');

@@ -5,7 +5,7 @@ authored component semantics, compiler specializations, supported general paths,
 legacy paths across client rendering, updates, disposal, server rendering, streaming, and
 hydration.
 
-The current inventory covers 42 compiler paths across 10 scenarios and 40 normative tests,
+The current inventory covers 43 compiler paths across 10 scenarios and 41 normative tests,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration.
 
