@@ -24,9 +24,15 @@ import { fundamentalsRoot } from './scenarios/fundamentals.fixtures.js';
 import { fundamentalsRoot as serverFundamentalsRoot } from './scenarios/fundamentals.fixtures.js?exact-target=server';
 import { registryRoot } from './scenarios/registry.fixtures.js';
 import { registryRoot as serverRegistryRoot } from './scenarios/registry.fixtures.js?exact-target=server';
-import { inputProjectionRoot, stateOwner, stateRoot } from './scenarios/state.fixtures.js';
+import {
+	inputProjectionRoot,
+	snapshotProjectionRoot,
+	stateOwner,
+	stateRoot
+} from './scenarios/state.fixtures.js';
 import {
 	inputProjectionRoot as serverInputProjectionRoot,
+	snapshotProjectionRoot as serverSnapshotProjectionRoot,
 	stateRoot as serverStateRoot
 } from './scenarios/state.fixtures.js?exact-target=server';
 import { structureRoot } from './scenarios/structure.fixtures.js';
@@ -81,6 +87,19 @@ describe('composition corpus hydration behavior', () => {
 		hydrate(inputProjectionRoot(), container, { onMismatch: 'throw', resumptions });
 		expect(container.querySelector('[data-scenario="input-projection"]')).toBe(output);
 		expect(output?.textContent).toBe('loading:missing');
+
+		const snapshot = serverContainer(serverSnapshotProjectionRoot('retained'));
+		const snapshotOutput = snapshot.container.querySelector(
+			'[data-scenario="snapshot-projection"]'
+		);
+		hydrate(snapshotProjectionRoot('retained'), snapshot.container, {
+			onMismatch: 'throw',
+			resumptions: snapshot.resumptions
+		});
+		expect(snapshot.container.querySelector('[data-scenario="snapshot-projection"]')).toBe(
+			snapshotOutput
+		);
+		expect(snapshotOutput?.textContent).toBe('retained');
 	});
 
 	it('adopts context, keyed ranges, and both enhancement target forms', () => {

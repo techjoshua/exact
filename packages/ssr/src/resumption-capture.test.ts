@@ -16,7 +16,7 @@ describe('SSR resumption capture construction', () => {
 		expect(generic.options.onComponentAttemptCheckpoint).not.toBe(onComponentAttemptCheckpoint);
 	});
 
-	it('claims one root-input token and restores the claim after rollback', () => {
+	it('uses one published-root verification token and restores the claim after rollback', () => {
 		const capture = createDirectSsrResumptionCapture({}, { value: 'input' }, 'root');
 		const contract = {
 			resumption: {
@@ -33,11 +33,32 @@ describe('SSR resumption capture construction', () => {
 		resumptionCapture.publishDirect(root, {}, { value: 'input' }, { value: 'input' });
 		const nested = resumptionCapture.reserveDirect('root', contract)!;
 		resumptionCapture.publishDirect(nested, {}, { value: 'input' }, { value: 'input' });
-		expect(records).toEqual([['root'], ['root', [[0, 'input']]]]);
+		expect(records).toEqual([['root'], ['root']]);
 
 		resumptionCapture.rollback(0);
 		const replacement = resumptionCapture.reserveDirect('root', contract)!;
 		resumptionCapture.publishDirect(replacement, {}, { value: 'input' }, { value: 'input' });
 		expect(records).toEqual([['root']]);
+	});
+
+	it('omits matching nested state inputs but captures values that diverged from their prop', () => {
+		const capture = createDirectSsrResumptionCapture({});
+		const contract = {
+			resumption: {
+				statePaths: ['value'],
+				stateInputs: [['value', 'value']],
+				contexts: []
+			},
+			continuations: []
+		} as never;
+		const records = capture.serializedRecords();
+		const resumptionCapture = capture.options.resumptionCapture!;
+
+		const matching = resumptionCapture.reserveDirect('nested', contract)!;
+		resumptionCapture.publishDirect(matching, {}, { value: 'input' }, { value: 'input' });
+		const diverged = resumptionCapture.reserveDirect('nested', contract)!;
+		resumptionCapture.publishDirect(diverged, {}, { value: 'changed' }, { value: 'input' });
+
+		expect(records).toEqual([['nested'], ['nested', [[0, 'changed']]]]);
 	});
 });

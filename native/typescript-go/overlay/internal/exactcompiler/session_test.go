@@ -5945,13 +5945,15 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		Target: TargetServer,
 		Source: `
 			declare class Component<State> { state: State }
+			declare function peek<T>(read: () => T): T;
 			export function Queue(
-				this: Component<{ items: string[]; selected: string }>,
-				props: { initial?: { items: string[] }; selected: string }
+				this: Component<{ items: string[]; selected: string; snapshot: string }>,
+				props: { initial?: { items: string[] }; selected: string; detail?: { label: string } }
 			) {
 				this.state.items = props.initial?.items ?? [];
 				this.state.selected = props.selected;
-				return () => <output>{this.state.items.length}:{this.state.selected}</output>;
+				this.state.snapshot = peek(() => props.detail?.label ?? "missing");
+				return () => <output>{this.state.items.length}:{this.state.selected}:{this.state.snapshot}</output>;
 			}
 		`,
 	})
@@ -5962,9 +5964,10 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		t.Fatalf("unexpected resumptions: %#v", response.Analysis.Resumptions)
 	}
 	inputs := response.Analysis.Resumptions[0].Client.StateInputs
-	if len(inputs) != 2 ||
+	if len(inputs) != 3 ||
 		inputs[0] != (StateInput{StatePath: "items", PropPath: "initial.items"}) ||
-		inputs[1] != (StateInput{StatePath: "selected", PropPath: "selected"}) {
+		inputs[1] != (StateInput{StatePath: "selected", PropPath: "selected"}) ||
+		inputs[2] != (StateInput{StatePath: "snapshot", PropPath: "detail.label"}) {
 		t.Fatalf("unexpected state inputs: %#v resumption=%#v writes=%#v\n%s", inputs, response.Analysis.Resumptions[0], response.Analysis.StateWrites, response.Code)
 	}
 	for _, expected := range []string{
@@ -5973,6 +5976,8 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		`"initial.items"`,
 		`"selected",`,
 		`"selected"`,
+		`"snapshot",`,
+		`"detail.label"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("server contract is missing %q:\n%s", expected, response.Code)

@@ -35,6 +35,7 @@ export const corpusScenarios = [
 			'mixed-prop-state-update',
 			'indexed-input-update-plan',
 			'nested-indexed-input-update-plan',
+			'snapshot-resumption-input',
 			'compiler-selected-ssr-attributes',
 			'compiler-static-root-identity',
 			'compiler-fused-root-opening',

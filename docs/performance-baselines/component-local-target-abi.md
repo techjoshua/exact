@@ -2087,3 +2087,40 @@ one fewer request object, 150 fewer server bytes, a small paired allocation impr
 attributable timing regression. Every measured response remains byte-identical at 4,479 bytes; all
 194 package-owned SSR tests pass. The written gate, artifacts, alternating profiles, restarted
 cohorts, and A/A control are under `.tmp/resumption-root-token`.
+
+### Exact snapshot resumption-input specialization
+
+The compiler now recognizes a zero-argument, expression-bodied `peek(() => props.path)` setup
+snapshot as an exact resumption input. Arbitrary snapshot calculations remain executable and do not
+receive this proof. Synchronous capture omits a nested state entry only when its finalized prop and
+captured state remain identical; a divergent task or interaction value is still serialized. Root
+records retain the additional published-root-props identity check. State-input paths authorize this
+server omission but are unused by hydration, so client contracts now emit the required empty field
+instead of shipping descriptive server facts.
+
+The composition corpus records 48 compiler paths and 45 normative tests. Its nested snapshot
+scenario independently protects server metadata, payload omission, matching hydration, and adopted
+DOM identity. Focused SSR tests also cover divergent nested state and root rollback.
+
+Deterministic comparison-fixture movement is favorable on both sides of the boundary. Hydration
+payload falls from 964 to 943 bytes, the rendered body falls 21 bytes, and the complete HTTP response
+therefore falls from 4,479 to 4,458 bytes. Client JavaScript falls from 194,696 to 194,583 raw bytes,
+and precise executed code falls from 82,439 to 82,326 bytes. Profiled and invoked functions remain
+1,173 and 633. The Node entry grows from 229,771 to 229,878 raw bytes; server code growth is recorded
+but is not a client payload concern.
+
+Twenty alternating allocation pairs are neutral overall: the paired median ratio is 0.990, the
+mean is 1.000, and 12 of 20 pairs improve. Serialization attribution falls with the payload while
+the new proof lookup redistributes capture samples. Ten restarted, balanced concurrent cohorts
+record candidate/before RPS median ratios of 1.018 at c8, 1.021 at c32, and 0.999 at c64; means are
+1.017, 1.010, and 0.999. The candidate wins 8, 6, and 5 cohorts respectively. c8 and c32 remain
+positive in both worker-start positions, while c64 is neutral.
+
+Thirty alternating cold-browser pairs record a 2.1% lower startup-allocation median and 1.6% lower
+paired mean. Retained JS heap moves from 1,920,384 to 1,919,964 bytes at the median, with 21 of 30
+pairs improving. Interaction CPU and sampled allocation are noisy around a neutral center; the
+changed metadata is not executed during that interaction, and no interaction gain or regression is
+attributed to it. The specialization is retained for the deterministic response/client reductions,
+small retained-heap improvement, positive c8/c32 capacity evidence, and neutral c64 result. Written
+gates, immediately preceding artifacts, allocation profiles, concurrent cohorts, and browser pairs
+are under `.tmp/resumption-empty-capabilities` and `.tmp/nested-resumption-input-omission`.

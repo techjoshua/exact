@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { peek, type Component } from '@exactjs/core';
 
 type StateModel = { count: number; enabled: boolean };
 let mountedState: Component<StateModel> | undefined;
@@ -69,6 +69,20 @@ export function inputProjectionOwner(): Component<InputProjectionState> {
 	if (!mountedInputProjection) throw new Error('Indexed input projection is not mounted');
 	return mountedInputProjection;
 }
+
+type SnapshotProjectionState = { label: string };
+
+function SnapshotProjection(this: Component<SnapshotProjectionState>, props: { label: string }) {
+	this.state.label = peek(() => props.label);
+	return () => <output data-scenario="snapshot-projection">{this.state.label}</output>;
+}
+
+function SnapshotProjectionParent(props: { label: string }) {
+	return () => <SnapshotProjection label={props.label} />;
+}
+
+/** Creates a nested prop snapshot whose matching state need not cross the hydration boundary. */
+export const snapshotProjectionRoot = (label: string) => <SnapshotProjectionParent label={label} />;
 
 type ServerProjectionState = { direct: string; computed: string };
 

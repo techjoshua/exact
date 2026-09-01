@@ -886,7 +886,13 @@ func rootComponentContractAttachment(
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"resumption",
-			componentResumptionMetadata(factory, component, resumptions, boundaries),
+			componentResumptionMetadata(
+				factory,
+				component,
+				resumptions,
+				boundaries,
+				target == TargetServer,
+			),
 		))
 	}
 	contract := contractObject(factory, true, contractProperties...)
