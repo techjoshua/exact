@@ -1942,10 +1942,10 @@ it deletes proven-unnecessary runtime work, reduces both target artifacts, prese
 and ownership boundary, improves the isolated allocation owner, and is macro-neutral when measured
 against the historical artifact in the same run.
 
-### Shape-aware direct resumption validation checkpoint
+### Rejected shape-aware direct resumption validation experiment
 
-Direct compiler-closed resumptions now validate their framework-created envelope and indexed tuple
-shape without first registering every tuple container in a request-local identity set. Authored
+The experiment made direct compiler-closed resumptions validate their framework-created envelope
+and indexed tuple shape without first registering every tuple container in a request-local identity set. Authored
 state and context values still cross the complete descriptor-safe validation boundary, including
 prototype, accessor, cycle, node-count, depth, DOM-node, and reactive-collection checks. Generic
 resumptions and selected output extensions retain the generic path. The change removes structural
@@ -1956,8 +1956,8 @@ each framework tuple to a `WeakSet` while constructing the response, moving the 
 walk into native `WeakSet.add` work. Native set-add allocation rose by roughly 39%, p75 and p95
 render time worsened, and total sampled allocation was neutral. A second shape-aware form initially
 used callbacks for known tuple edges; those per-edge closures increased total sampled allocation by
-roughly 9%. Both mechanisms were removed before acceptance. The retained implementation traverses
-the known tuple fields directly and allocates neither an identity registry nor per-edge callbacks.
+roughly 9%. Both mechanisms were removed before the final experiment. That implementation traversed
+the known tuple fields directly and allocated neither an identity registry nor per-edge callbacks.
 
 Across 100 alternating immediate-before/current render pairs, the retained candidate's median
 paired ratios are 0.960/0.958/0.965 at p50/p75/p95. The isolated p99 ratio is 1.016, but p99.5 is
@@ -1982,14 +1982,16 @@ The complete four-framework checkpoint used 50 balanced browser rounds, 50 cold 
 framework at 1x/4x/6x CPU, and balanced Node and Bun participant rotation. Its broad Node
 Exact-before lanes contradict the focused result: current preloaded c32 records
 5,079/5,255/5,255/5,255 RPS versus 5,377/5,534/5,534/5,534 before, while equal-8-KiB c32 records
-1,623/1,649/1,649/1,649 versus 1,730/1,775/1,775/1,775. That signal was investigated rather than
-accepted at face value. The full concurrent population attributes most of the movement outside the
+1,623/1,649/1,649/1,649 versus 1,730/1,775/1,775/1,775. That signal was investigated with longer
+alternating populations and restarted worker cohorts. Those cohorts did not reproduce the loss,
+which exposes process-placement sensitivity in the artifact lane, but they do not override the
+checkpoint's own complete same-run counter-signal. The full concurrent population attributes most of the movement outside the
 changed site: p50 data load rises from 4.93 to 6.49 ms, total CPU per request rises from 0.916 to
 1.171 ms, and garbage collections rise from 4 to 25. The preloaded and equal-payload saturation
 lanes contain only three throughput windows each, whereas the focused populations contain 20
-alternating pairs and improve in both candidate positions. The full run therefore remains an
-explicit macro counter-signal, but its direction is inconsistent with the candidate's measured
-local work and is not sufficient to attribute that movement to this change.
+alternating pairs and improve in both candidate positions. Because every published concurrent RPS
+percentile moved backward against the immediately interleaved Exact-before artifact, the complete
+counter-signal controls the disposition: the experiment is rejected and its implementation removed.
 
 Current four-framework Node saturation c32 is 1,714/1,799/1,883/1,883 RPS for Exact,
 2,095/2,101/2,234/2,234 for React, 1,287/1,321/1,416/1,416 for SvelteKit, and
@@ -1997,6 +1999,7 @@ Current four-framework Node saturation c32 is 1,714/1,799/1,883/1,883 RPS for Ex
 0.0256/0.0297/0.0609/0.1842. Sampled render-only allocation is 4,471,440 bytes for Exact. Post-GC
 heap is 12.55 MB for Exact versus 13.15 MB for React, 14.15 MB for SvelteKit, and 18.00 MB for Nuxt;
 the fitted Exact heap slope is 3,288 bytes per request versus React at 3,036. Client code,
-function inventory, and retained browser heap are unchanged by this server-only phase. The complete
-[metrics report](component-local-target-abi-shape-aware-resumption-validation.md) is tracked with
-this ledger. Its immutable raw evidence remains under `.tmp/resumption-structural-trust`.
+function inventory, and retained browser heap were unchanged by this server-only experiment. The
+complete [metrics report](component-local-target-abi-shape-aware-resumption-validation.md) remains
+tracked as rejected evidence rather than accepted history. Its immutable raw evidence remains under
+`.tmp/resumption-structural-trust`.
