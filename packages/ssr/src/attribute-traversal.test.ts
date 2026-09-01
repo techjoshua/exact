@@ -5,6 +5,8 @@ import {
 	renderCompiledNativeAttributes,
 	renderNativeAttribute
 } from './markup.js';
+import { renderSsrRootAttributes } from './render/render-program-attributes.js';
+import type { SsrContext } from './types.js';
 
 describe('SSR attribute traversal', () => {
 	it('visits only owned native attributes and owned style properties', () => {
@@ -78,5 +80,24 @@ describe('SSR attribute traversal', () => {
 				'button'
 			)
 		).toBe(' data-exact-id="row-1" class="incident active"');
+	});
+
+	it('uses static compiler identity only until a semantic target changes the prop bag', () => {
+		const props = { 'data-exact-id': 'row-1', className: 'incident' };
+		const staticRoot = [
+			' data-exact-id="row-1"',
+			['data-exact-id'],
+			[[1, 'className', 'class']]
+		] as const;
+
+		expect(renderSsrRootAttributes({} as SsrContext, props, 'button', staticRoot)).toBe(
+			' data-exact-id="row-1" class="incident"'
+		);
+		const context = {
+			targetReceiptLayers: [{ props: { 'aria-label': 'incident' }, consumed: false }]
+		} as unknown as SsrContext;
+		expect(renderSsrRootAttributes(context, props, 'button', staticRoot)).toBe(
+			' data-exact-id="row-1" class="incident" aria-label="incident"'
+		);
 	});
 });

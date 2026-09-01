@@ -587,7 +587,8 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedServerRenderProgram",
-		`ssrRootStatic: [" class=\"action\"", ["className"], [[0, "data-exact-id", "data-exact-id"], [0, "disabled", "disabled"]]]`,
+		`ssrRootStatic: [" data-exact-id=\"`,
+		` class=\"action\"", ["data-exact-id", "className"], [[0, "disabled", "disabled"]]]`,
 		`const __exactValue_0 = __exactSsr.prepareAttribute(__exactInvocation, 0)`,
 		`__exactSsr.rootAttributes(__exactContext, __exactOutput, __exactValue_0, "button", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,

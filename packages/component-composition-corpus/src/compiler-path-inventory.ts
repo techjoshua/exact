@@ -200,6 +200,12 @@ export const compilerPathInventory = [
 		['ssr-sync']
 	),
 	path(
+		'compiler-static-root-identity',
+		'specialized',
+		'Compiler-created intrinsic identity is immutable SSR data outside the dynamic attribute plan.',
+		['ssr-sync']
+	),
+	path(
 		'async-task-ssr',
 		'supported-general',
 		'Async task settlement is represented by async/progressive SSR.',

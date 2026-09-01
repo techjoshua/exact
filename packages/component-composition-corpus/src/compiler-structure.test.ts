@@ -132,6 +132,13 @@ describe('normative compiled structure', () => {
 
 		expect(code).toMatch(/__exactSsr\.begin\(__exactContext, \d+, \d+, \d+, \d+\)/);
 	});
+
+	it('keeps compiler-created root identity outside the dynamic SSR attribute plan', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+
+		expect(code).toMatch(/ssrRootStatic:\s*\[\s*" data-exact-id=\\"[^\"]+\\"/);
+		expect(code).not.toMatch(/\[\s*0,\s*"data-exact-id",\s*"data-exact-id"\s*\]/);
+	});
 });
 
 async function compileFixture(

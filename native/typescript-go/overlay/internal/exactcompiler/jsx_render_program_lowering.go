@@ -35,6 +35,7 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 			build,
 			opening.Attributes(),
 			sourceText(lowering.sourceFile, openingTag(opening)),
+			identityNode,
 			rootAttributes != nil,
 		)
 	}

@@ -34,7 +34,9 @@ describe('composition corpus server behavior', () => {
 	});
 
 	it('serializes compiler-known state attributes with native semantics', () => {
-		expect(renderToString(stateRoot('count'), { markers: false }).html).toBe(
+		const html = renderToString(stateRoot('count'), { markers: false }).html;
+		expect(html).toMatch(/^<section data-exact-id="[^"]+" data-scenario="state">/);
+		expect(html.replace(/ data-exact-id="[^"]+"/, '')).toBe(
 			'<section data-scenario="state"><output>count:1</output><small hidden>COUNT</small><button data-count="1">increment</button></section>'
 		);
 	});

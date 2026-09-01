@@ -1649,3 +1649,29 @@ reactive computation owners because in-place nested mutations do not advance the
 slot's dirty identity. Extending the two-field operand tuple to those reads without new nested
 dependency routing would silently miss valid updates, so it is not treated as a representation-only
 optimization.
+
+### Compiler-owned static root identity focused candidate
+
+The compiler-created `data-exact-id` on an interactive intrinsic is immutable artifact data, but
+the server root plan still looked it up, normalized it, escaped it, and charged it as a dynamic
+attribute on every request. The compiler now places that identity in the existing static root HTML
+and static-key inventory while retaining the value in the prop record. Semantic target composition
+therefore keeps its generic fallback and emits the identity exactly once when a target contribution
+changes the effective prop bag. This deletes work rather than revisiting the rejected direct
+root-attribute span topology.
+
+The current admitted allocation profile attributed 366,624 sampled bytes to
+`renderCompiledNativeAttributes` and 103,040 bytes to `renderCompiledNativeAttribute`. Across ten
+candidate focused profiles, their combined median is 379,028 bytes, 19.3% below that admitted
+sample. Whole-render sampled allocation has a 4,835,344-byte median versus the admitted
+4,776,520-byte sample, so no macro allocation win is claimed without a paired population. Raw
+candidate timing medians are 0.0427/0.0466/0.0614/0.1044 ms at p50/p75/p95/p99 and remain
+diagnostic. Every render is byte-identical at 4,500 bytes.
+
+The rebuilt three-file Node artifact moves from 231,989 to 232,031 raw bytes (+42), while gzip
+moves from 49,425 to 49,206 (-219) and Brotli from 41,189 to 41,012 (-177). The native compiler
+tests, focused SSR target-composition test, and the composition corpus pass. The corpus now records
+42 compiler paths and 40 normative tests; its interactive state scenario independently protects
+unchanged native attribute semantics while the compiler-structure gate requires generated identity
+to remain outside the dynamic server plan. The written gate and ten focused captures are under
+`.tmp/compiler-static-root-identity`.
