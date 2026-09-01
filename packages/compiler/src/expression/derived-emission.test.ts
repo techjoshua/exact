@@ -101,7 +101,8 @@ describe('@exactjs/compiler: derived values', () => {
 			componentContractProjection: 'server-render'
 		});
 		expect(serverOutput).toContain('const selected = this.state.incidents.find(');
-		expect(serverOutput).toContain('incident: __exactExpression(() => selected)');
+		expect(serverOutput).toContain('incident: selected');
+		expect(serverOutput).not.toContain('incident: __exactExpression(() => selected)');
 	});
 
 	it('elides a single-consumer binding that only forwards existing identity', () => {
@@ -471,7 +472,9 @@ describe('@exactjs/compiler: derived values', () => {
 			'const __exact_filtered_1 = (__exactReadState(props, 0) as string[]).filter('
 		);
 		expect(output).toContain('__exactMapKeyedChildren(this, __exact_filtered_1, item => item,');
-		expect(output).toContain('ComponentInstanceImpl as __exactConstructDurableComponent');
+		expect(output).toContain(
+			'constructDurableComponentInstance as __exactConstructDurableComponent'
+		);
 		expect(output).toContain('abi: 21');
 	});
 
