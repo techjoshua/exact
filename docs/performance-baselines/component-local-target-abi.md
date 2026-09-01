@@ -1819,3 +1819,20 @@ Control-normalized evaluation is 4.7% slower at p50 and 9.7% slower at p75; the 
 are ineligible because the controls disperse beyond 1.2x. Navigation is likewise 4.0%/3.5%/6.2%
 slower at eligible p50/p75/p95, while retained browser heap is unchanged. Those movements are
 unexpected workstation/run-level counter-metrics, not attributed to the server-only root opening.
+
+The eligible equal-payload regression was subsequently tested directly rather than allowing either
+the focused render result or the cross-run normalization to decide by itself. One hundred
+alternating immediate-before/current pairs served the same meaningful 8,192-byte document at
+concurrency 32 through identical Node response adapters. The paired RPS ratio has a 0.998 median,
+1.008 arithmetic mean, and 1.005 geometric mean; exactly 50 of 100 pairs favor each artifact. A
+deterministic 20,000-resample bootstrap places the mean ratio at 0.995 through 1.020 and the median
+at 0.982 through 1.018 with 95% confidence. Candidate-first and candidate-second mean ratios are
+1.007 and 1.008, so measurement order does not hide a consistent loss. Total CPU per request is
+also neutral: its paired median is 0.979, mean is 1.002, and both confidence intervals cross parity.
+
+This focused population excludes a four-percent candidate regression from the changed
+renderer/response path, but it does not establish a macro throughput gain. The correct disposition
+is a locally useful specialization with neutral observable equal-payload throughput: retain the
+operation deletion, focused render improvement, and append-allocation reduction without crediting
+it for the full run's unrelated raw server improvement. The complete focused evidence is
+`.tmp/root-opening-checkpoint/focused-equal-payload-100.json`.
