@@ -241,18 +241,22 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		);
 	}
 
-	rootAttributes(
+	rootOpening(
 		_context: object,
 		_output: object,
 		value: unknown,
 		tag: string,
+		prefix: string,
+		suffix: string,
 		characters: number,
 		staticAttributes?: import('@exactjs/core/framework/render-structure').ExactRenderProgram['ssrRootStatic']
 	): number {
-		return this.appendAttribute(
-			renderSsrRootAttributes(this.context, value, tag, staticAttributes),
-			characters
-		);
+		const attributes = renderSsrRootAttributes(this.context, value, tag, staticAttributes);
+		const nextCharacters = characters + attributes.length;
+		this.assertCharacters(nextCharacters);
+		this.context.outputSink?.account(attributes);
+		this.append(`${prefix}${attributes}${suffix}`);
+		return nextCharacters;
 	}
 
 	/** Returns the bounded output after the generated writer accepted every slot. */

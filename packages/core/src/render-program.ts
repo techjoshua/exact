@@ -117,12 +117,14 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		tag: string,
 		characters: number
 	): number;
-	/** Serializes the first intrinsic's complete authored props with active target contributions. */
-	rootAttributes(
+	/** Publishes the first intrinsic opening around finalized props and active target contributions. */
+	rootOpening(
 		context: object,
 		output: ExactRenderProgramSsrOutput,
 		value: unknown,
 		tag: string,
+		prefix: string,
+		suffix: string,
 		characters: number,
 		staticAttributes?: readonly [
 			html: string,
@@ -221,7 +223,7 @@ export type ExactRenderProgramWiring = readonly [
 ];
 
 type ExactRenderProgramBase = Readonly<{
-	version: 6;
+	version: 7;
 	id: string;
 	namespace: ExactRenderProgramNamespace;
 	/** Root intrinsic used to resolve a contextual namespace at physical attachment time. */
@@ -378,8 +380,8 @@ export type ExactPreparedServerRenderProgram = ExactRenderProgramInvocation &
  * can reach this compiler-only operation.
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
-	if ((program as { version: number }).version !== 6)
-		throw new TypeError('Unsupported eXact render-program ABI; expected version 6');
+	if ((program as { version: number }).version !== 7)
+		throw new TypeError('Unsupported eXact render-program ABI; expected version 7');
 	return program as BrandedRenderProgram;
 }
 

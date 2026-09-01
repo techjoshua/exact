@@ -206,6 +206,12 @@ export const compilerPathInventory = [
 		['ssr-sync']
 	),
 	path(
+		'compiler-fused-root-opening',
+		'specialized',
+		'Compiler-known root prefix, attributes, and following static markup publish as one operation.',
+		['ssr-sync']
+	),
+	path(
 		'async-task-ssr',
 		'supported-general',
 		'Async task settlement is represented by async/progressive SSR.',

@@ -139,6 +139,13 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/ssrRootStatic:\s*\[\s*" data-exact-id=\\"[^\"]+\\"/);
 		expect(code).not.toMatch(/\[\s*0,\s*"data-exact-id",\s*"data-exact-id"\s*\]/);
 	});
+
+	it('publishes each compiler-known root opening as one server operation', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+
+		expect(code).toMatch(/__exactSsr\.rootOpening\([^;]+"<section"/);
+		expect(code).not.toContain('__exactSsr.rootAttributes(');
+	});
 });
 
 async function compileFixture(
