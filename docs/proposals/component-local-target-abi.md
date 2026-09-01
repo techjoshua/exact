@@ -27,7 +27,8 @@ Names and compact encodings shown below are illustrative internal contracts. The
 application APIs.
 
 Post-acceptance specialization now includes compiler-selected native SSR attribute operations.
-Render-program ABI version 5 carries immutable component-local root attribute plans and selects
+Render-program ABI version 7 carries immutable component-local root attribute plans, fused root
+openings, and compiler-proven static native numeric and boolean attributes. It selects
 focused ordinary, class, style, URL, unsafe-HTML, and form-control behavior where the compiler has
 proved the exact authored property. Spreads, target contributions, and other unproven cases retain
 the focused generic attribute operation. The server renderer consumes the selected operation

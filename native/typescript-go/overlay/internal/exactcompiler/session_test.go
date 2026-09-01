@@ -4814,6 +4814,33 @@ func TestServerComponentPropForwardingDoesNotPublishClientIndexedSources(t *test
 	}
 }
 
+func TestServerRenderProgramFoldsOnlyProvenStaticNativeAttributes(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "static-native-attributes.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			export function Form(props: { limit: number; required: boolean }) {
+				return () => <div>
+					<textarea maxLength={2000} required />
+					<textarea maxLength={props.limit} required={props.required} />
+					<x-field maxLength={2000} required />
+				</div>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `<textarea maxLength=\"2000\" required></textarea><textarea`) {
+		t.Fatalf("static native attributes did not join compiler-owned structure:\n%s", response.Code)
+	}
+	if strings.Count(response.Code, `"maxLength", "maxLength"`) != 2 ||
+		strings.Count(response.Code, `"required", "required"`) != 2 {
+		t.Fatalf("dynamic or custom-element attributes lost runtime operations:\n%s", response.Code)
+	}
+}
+
 func TestSessionRetainsSharedAndMaterializesSoleConsumerDerivedBindings(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "shared-derived.tsx",

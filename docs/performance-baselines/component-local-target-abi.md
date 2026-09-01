@@ -1860,3 +1860,84 @@ within the broad 1.2x publication ceiling but too large to resolve a one-percent
 effects of this size, an immediate interleaved artifact lane is the acceptance evidence; the
 cross-run comparison remains environmental context. Evidence is
 `.tmp/root-opening-checkpoint/worker-react-interleaved-100.json`.
+
+### Compiler-proven static native attribute focused candidate
+
+The current three comparison components were recompiled before implementation. Their server
+programs already used compiler-selected attribute behavior, so no generic classifier remained to
+remove. The live site was narrower: `maxLength={2000}` and bare `required` still occupied prepared
+value slots and executed two direct attribute operations on every IncidentDetail render. The
+compiler now joins those proven native constants to the existing static program segment. Dynamic
+values and custom-element properties retain their runtime operations.
+
+The three generated server components drop from six to four direct attribute calls;
+IncidentDetail's generated server output shrinks 624 bytes and its generated client output shrinks
+174 bytes. In admitted bundles the immediate paired artifacts move from 230,325 to 229,756 raw
+server bytes (-569) and from 194,706 to 194,696 raw client bytes (-10). The rendered document stays
+byte-identical at 4,479 bytes before the unchanged HTTP envelope.
+
+Fifty alternating render-only artifact pairs are timing-neutral at the scale of this deletion. The
+p50 paired ratio has a 0.983 median and 1.008 arithmetic mean because the first worker in each pair
+is consistently slower; both candidate positions occur 25 times. Twenty alternating allocation
+pairs show actual work removal rather than attribution movement: total sampled allocation has a
+0.982 median ratio and 0.990 mean ratio, the two attribute sites have a 0.815 median ratio, and the
+attribute sites plus `append` have a 0.890 median ratio and 0.962 mean ratio. Both candidate
+positions improve at the combined owning sites.
+
+The focused interleaved client gate preserves all function counts, reduces decoded and executed
+code by 10 bytes, reduces retained startup heap by 44 bytes at p50/p75, and reduces browser heap by
+41 to 60 bytes. Evaluation and optimistic timing are mixed sub-millisecond counter-metrics; the
+static mount-only path does not execute during the optimistic interaction. The composition corpus
+now records 47 compiler paths and 44 normative tests. Focused evidence and the written gate are
+under `.tmp/static-native-attributes`.
+
+### Compiler-proven static native attribute full checkpoint
+
+The candidate completed the full four-framework checkpoint with 50 balanced, rotating browser
+rounds; 50 cold-start samples per framework at each of 1x, 4x, and 6x CPU; and the complete Node
+and Bun SSR populations. The 28-test participant correctness suite and the release check passed.
+The native compiler corpus reported 1.08x matched-project worker time but stopped admission because
+one local timing ratio was 1.66 against its 1.50 warning threshold. The already-built artifacts were
+retained and the performance profile was run directly instead of discarding valid local evidence.
+The raw participants remain marked unreviewed/non-publishable by metadata; that flag does not remove
+or invalidate the captured diagnostic populations. Immutable evidence, normalized comparisons, and
+the complete report are under `.tmp/static-native-attributes`.
+
+The immediately interleaved historical Exact artifact is the decisive server counter-metric. At
+concurrency 16, current Exact moves +1.1%/+3.1%/+3.8%/+0.0% against Exact-before at
+p50/p75/p95/p99. Saturation c32 is -0.0%/+0.6%/-0.6%/-0.6%; preloaded c32 is
++1.2%/-2.6%/-2.6%/-2.6%; and equal-8-KiB c32 is -1.1%/+3.1%/+3.1%/+3.1%.
+The mixed signs and small magnitudes confirm that removing two prepared attribute operations does
+not create a material macro throughput regression or gain. Current Node Exact reaches
+1,703/1,849/2,035/2,301 RPS in the concurrency-16 population, compared with React at
+1,791/1,935/2,079/2,551. At saturation c32 Exact reaches
+1,967/2,005/2,015/2,015 RPS versus React at 2,032/2,071/2,165/2,165. At equal 8-KiB c32 Exact is
+1,818/1,900/1,900/1,900 RPS versus React at 1,912/1,935/1,935/1,935. The remaining preloaded c32
+gap is larger: Exact records 5,081/5,156/5,156/5,156 RPS versus React at
+6,240/6,836/6,836/6,836.
+
+The full render-only profile records Exact at 0.0478/0.0601/0.0972/0.1772 ms and React at
+0.0244/0.0269/0.0433/0.1204 ms. Exact samples 4,556,904 transient allocation bytes, slightly below
+the prior run's raw 4,567,728 and well below React's 6,981,264. Site attribution moves in both
+directions in this single stochastic profile, so it does not replace the focused paired allocation
+population: there, the affected attribute sites improve in both execution positions and the owning
+attribute-plus-append region falls by a 0.890 median ratio. Post-GC Exact heap is 12.53 MB versus
+React at 13.15 MB, SvelteKit at 14.15 MB, and Nuxt at 18.00 MB. Exact's fitted heap slope is 3,255
+bytes per request versus React at 3,203, SvelteKit at 4,336, and Nuxt at 3,943.
+
+Client deterministic counters move only with the folded constants: decoded client code falls from
+194,706 to 194,696 bytes and executed code from 102,294 to 102,284 bytes; invoked functions remain 561. Startup heap is 2,456,384 bytes and browser retained heap is 2,602,112 bytes, both effectively
+unchanged after control normalization. Evaluation records 20.711/21.785/22.933/25.043 ms; eligible
+normalized p50/p75/p95 comparisons improve 2.6%/4.4%/6.4%, while p99 is ineligible because control
+dispersion exceeds 1.2x. Optimistic feedback is 1.6/1.8/2.6/3.7 ms. Its eligible p50/p75 values
+improve 1.7%/0.7%, p95 is ineligible, and p99 regresses 25.4%. The folded static mount attributes
+are not executed in that interaction, so neither the central improvement nor the tail regression is
+attributed to this compiler change. The 4,479-byte document, 4,500-byte HTTP response, listener
+count, and all response semantics remain unchanged.
+
+The full Node artifact moves from 231,172 to 230,236 raw bytes (-936), including the separately
+accepted request-owned server prop-forwarding correction; the isolated static-attribute entry-file
+change is -569 raw bytes. The client entry changes by -10 bytes. The candidate is retained because
+it deletes proven-unnecessary runtime work, reduces both target artifacts, preserves every semantic
+and ownership boundary, improves the isolated allocation owner, and is macro-neutral when measured
+against the historical artifact in the same run.

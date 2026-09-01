@@ -60,9 +60,9 @@ func (lowering *jsxLowering) captureRootSsrAttributes(
 			build.rootSsrClosed = false
 			return
 		}
-		attributeName, value, static := staticRenderProgramAttribute(name, attribute.Initializer)
+		_, serialized, static := staticRenderProgramAttribute(tag, name, attribute.Initializer)
 		if static {
-			build.rootStaticHtml += ` ` + attributeName + `="` + html.EscapeString(value) + `"`
+			build.rootStaticHtml += serialized
 			build.rootStaticKeys = append(build.rootStaticKeys, name)
 			continue
 		}

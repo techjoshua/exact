@@ -4,7 +4,7 @@ The component composition corpus is the normative acceptance suite for native eX
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 
-The current inventory covers 46 compiler paths across 10 scenarios and 43 normative tests,
+The current inventory covers 47 compiler paths across 10 scenarios and 44 normative tests,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration. Compiler-created
 intrinsic identity is also protected as immutable server data outside the request-local dynamic
@@ -13,6 +13,9 @@ Exact synchronous server value propagation also emits direct assignments while a
 calculations retain their executable setup boundary.
 Compiler-closed single-scalar text runs also retain adjacent authored text in one focused operation,
 while multi-expression runs keep their independent reactive owners.
+Compiler-proven native `maxLength` literals and bare `required` attributes are protected as static
+client, server, and hydration structure; dynamic values and custom-element properties retain their
+runtime operations.
 
 ## Contract model
 

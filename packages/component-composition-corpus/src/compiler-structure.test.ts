@@ -141,6 +141,13 @@ describe('normative compiled structure', () => {
 		expect(code).not.toMatch(/\[\s*0,\s*"data-exact-id",\s*"data-exact-id"\s*\]/);
 	});
 
+	it('folds compiler-proven native numeric and boolean constants into static structure', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+
+		expect(code).toContain('maxLength=\\"2000\\" required></textarea>');
+		expect(code).not.toMatch(/compiledAttribute\([^\n]+2000/);
+	});
+
 	it('publishes each compiler-known root opening as one server operation', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'server');
 
