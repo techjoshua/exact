@@ -4,7 +4,7 @@ The component composition corpus is the normative acceptance suite for native eX
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 
-The current inventory covers 40 compiler paths across 10 scenarios and 38 normative tests,
+The current inventory covers 41 compiler paths across 10 scenarios and 39 normative tests,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration.
 

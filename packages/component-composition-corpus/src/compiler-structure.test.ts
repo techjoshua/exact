@@ -90,6 +90,16 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/__exactWriteState\(__exactInstance\.state, \d+, !__exactDependency\)/);
 	});
 
+	it('routes exact nested prop projections from their indexed root prop', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toMatch(/const __exactDependency\w* = \(__exactReadState\(props, \d+\)/);
+		expect(code).toContain(')?.label;');
+		expect(code).toMatch(
+			/__exactWriteState\(__exactInstance\.state, \d+, __exactDependency\w* \?\? 'missing'\)/
+		);
+	});
+
 	it('selects capability-specific client constructors without generated wrappers', async () => {
 		const capabilities = await compileFixture('capabilities.fixtures.tsx', 'client', 'hydrate');
 		const tasks = await compileFixture('tasks.fixtures.tsx', 'client');
