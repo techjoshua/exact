@@ -110,9 +110,8 @@ function createResumptionCapture(
 	const recordsByInstance = directArtifactsOnly
 		? undefined
 		: new WeakMap<AnyComponentInstance, number>();
-	const rootInputTokens = new Set<number>();
 	const pathReadCell: ReactiveOwnPropertyReadCell = { value: undefined };
-	let rootInputClaimed = false;
+	let rootInputToken: number | undefined;
 	let projectedActivations: readonly ComponentResumptionActivation[] | undefined;
 
 	const reserve = (
@@ -124,10 +123,7 @@ function createResumptionCapture(
 		const token = records.length;
 		records.push([componentId]);
 		schemas.push(schema);
-		if (!rootInputClaimed && componentId === rootComponentId) {
-			rootInputTokens.add(token);
-			rootInputClaimed = true;
-		}
+		if (rootInputToken === undefined && componentId === rootComponentId) rootInputToken = token;
 		projectedActivations = undefined;
 		return token;
 	};
@@ -143,7 +139,7 @@ function createResumptionCapture(
 		const schema = schemas[token];
 		if (!record || !schema) return;
 		const values = captureStateEntries(
-			rootInputTokens.has(token),
+			token === rootInputToken,
 			state,
 			props,
 			schema,
@@ -161,8 +157,7 @@ function createResumptionCapture(
 		rollback(checkpoint) {
 			records.splice(checkpoint);
 			schemas.splice(checkpoint);
-			for (const token of rootInputTokens) if (token >= checkpoint) rootInputTokens.delete(token);
-			rootInputClaimed = rootInputTokens.size > 0;
+			if (rootInputToken !== undefined && rootInputToken >= checkpoint) rootInputToken = undefined;
 			projectedActivations = undefined;
 		},
 		reserveDirect(componentId, contract) {

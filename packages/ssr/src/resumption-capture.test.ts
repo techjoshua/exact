@@ -15,4 +15,29 @@ describe('SSR resumption capture construction', () => {
 		expect(generic.options.onComponentCreated).not.toBe(onComponentCreated);
 		expect(generic.options.onComponentAttemptCheckpoint).not.toBe(onComponentAttemptCheckpoint);
 	});
+
+	it('claims one root-input token and restores the claim after rollback', () => {
+		const capture = createDirectSsrResumptionCapture({}, { value: 'input' }, 'root');
+		const contract = {
+			resumption: {
+				statePaths: ['value'],
+				stateInputs: [['value', 'value']],
+				contexts: []
+			},
+			continuations: []
+		} as never;
+		const records = capture.serializedRecords();
+		const resumptionCapture = capture.options.resumptionCapture!;
+
+		const root = resumptionCapture.reserveDirect('root', contract)!;
+		resumptionCapture.publishDirect(root, {}, { value: 'input' }, { value: 'input' });
+		const nested = resumptionCapture.reserveDirect('root', contract)!;
+		resumptionCapture.publishDirect(nested, {}, { value: 'input' }, { value: 'input' });
+		expect(records).toEqual([['root'], ['root', [[0, 'input']]]]);
+
+		resumptionCapture.rollback(0);
+		const replacement = resumptionCapture.reserveDirect('root', contract)!;
+		resumptionCapture.publishDirect(replacement, {}, { value: 'input' }, { value: 'input' });
+		expect(records).toEqual([['root']]);
+	});
 });

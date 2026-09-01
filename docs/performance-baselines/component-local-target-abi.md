@@ -2063,3 +2063,27 @@ Render-only remains slower at 0.0656/0.0793/0.1222/0.2425 ms versus React at
 versus 6.98 MB. The compact shape-state implementation is accepted on the focused CPU/allocation
 evidence and the absence of a coherent broad throughput veto. Immutable evidence and the written
 gate are under `.tmp/direct-resumption-shape-state`.
+
+### Single root resumption token cleanup
+
+The capture's root-input token registry could contain at most one value but used both a
+request-local `Set<number>` and a separate claimed flag. One optional numeric token now owns claim,
+publication, and rollback state. This removes a container and its add/has/delete operations without
+changing record order, nested same-artifact treatment, replacement attempts, or descriptor-safe
+state reads. A focused rollback test proves that only the first matching record receives root-input
+omission and that rolling back its token permits the replacement attempt to claim it.
+
+The Node server entry falls from 229,778 to 229,628 raw bytes. Twenty alternating allocation pairs
+move from a 4,995,616-byte median to 4,941,312 bytes; the paired median ratio is 0.990, the mean is
+0.995, and 11 of 20 pairs improve. The initial 100-pair timing population appeared 3.5-5.4% faster,
+but its candidate worker always started second. Twenty restarted five-round cohorts remove that
+placement bias: candidate/before mean ratios are 0.997/1.020/1.007/0.992 at p50/p75/p95/p99.
+
+An identical-artifact A/A population explains the apparent p75 counter-signal. It records mean
+ratios of 1.001/1.014/1.010/1.014 at p50/p75/p95/p99 and large start-position splits of its own.
+Relative to that control, the token cleanup is effectively neutral through p95 and does not support
+the original large CPU claim. It is retained as a deletion-oriented request-allocation cleanup:
+one fewer request object, 150 fewer server bytes, a small paired allocation improvement, and no
+attributable timing regression. Every measured response remains byte-identical at 4,479 bytes; all
+194 package-owned SSR tests pass. The written gate, artifacts, alternating profiles, restarted
+cohorts, and A/A control are under `.tmp/resumption-root-token`.
