@@ -1452,3 +1452,24 @@ complete browser, startup, function-inventory, artifact, Node SSR, allocation, r
 equal-payload, preloaded, saturation, retained-heap, and Bun diagnostic populations must be captured
 once from admitted artifacts when the workstation is quiet, then compared with eligible controls
 before this batch becomes the next published performance checkpoint.
+
+### Progressive produced-response focused candidate
+
+Low-level progressive responses now retain ordered string spans through an asynchronous produced
+body. Node writes those strings directly to its response and awaits drain for backpressure;
+Fetch-compatible environments receive a demand-driven UTF-8 stream. The high-level request handler
+remains buffered where status, headers, and preload metadata must settle before commitment. The
+candidate therefore changes the environment publication boundary without adding another component
+renderer or weakening cancellation and request-scope cleanup.
+
+Ten alternating fresh-process profiles, each consuming 1,000 synthetic progressive responses,
+reduced median sampled allocation from 22,855,224 to 13,400,388 bytes (-41.4%). Diagnostic CPU time
+fell from 28.337 to 21.281 ms (-24.9%). Both paths produced exactly 1,248,000 bytes per process. The
+former Web stream controller, promise, and per-span `TextEncoder` sites disappeared from the Node
+path; Fetch-compatible consumption still encodes at its adapter boundary. The written gate, runner,
+and immutable captures are under `.tmp/progressive-produced-response`.
+
+This is focused evidence rather than an accepted framework checkpoint. Workstation use makes the
+CPU movement diagnostic, while allocation, output identity, response-body ownership, backpressure,
+cancellation, and failure tests remain valid. The final admitted four-framework population and
+control-normalized comparison remain deferred until the workstation is quiet.

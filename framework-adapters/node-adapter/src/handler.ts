@@ -105,7 +105,7 @@ export async function writeNodeResponse(
 	response.statusCode = result.status;
 	for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
 	const body = exactResponseBodyOf(result);
-	if (body?.kind === 'produced') {
+	if (body?.kind === 'produced' && body.writeSynchronously) {
 		try {
 			const collected = collectProducedBody(body, signal);
 			const output = typeof collected === 'string' ? collected : await collected;
@@ -137,7 +137,12 @@ export async function writeNodeResponse(
 		response.end();
 	} catch (error) {
 		await cancelNodeResponseBody(result, error);
-		if (!response.destroyed) response.destroy(error as Error);
+		if (body?.kind === 'produced' && !response.headersSent) {
+			for (const name of response.getHeaderNames()) response.removeHeader(name);
+			response.statusCode = 500;
+			response.setHeader('content-type', 'application/json; charset=utf-8');
+			response.end(JSON.stringify({ error: 'internal_error' }));
+		} else if (!response.destroyed) response.destroy(error as Error);
 	}
 }
 
@@ -149,7 +154,7 @@ export async function writeNodeResponseBody(
 ): Promise<void> {
 	const body = exactResponseBodyOf(result);
 	if (body) {
-		if (body.kind === 'produced') {
+		if (body.kind === 'produced' && body.writeSynchronously) {
 			const collected = collectProducedBody(body, signal);
 			const output = typeof collected === 'string' ? collected : await collected;
 			throwIfAborted(signal);

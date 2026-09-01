@@ -10,8 +10,7 @@ import { assertOutputWithinLimit } from '../render/limits.js';
 import {
 	createDocumentEventStream,
 	createHtmlStream,
-	createProgressiveHtmlStream,
-	progressiveHtmlResponse
+	createProgressiveHtmlStream
 } from '../streams.js';
 import type {
 	ExactRequestLike,
@@ -33,6 +32,7 @@ import {
 	renderToStringAsync,
 	streamDocumentRender
 } from './async-rendering.js';
+import { createProgressiveProducedResponse } from './progressive-response.js';
 import { createSsrContext } from './context.js';
 import { hydrationScriptOptions } from './hydration-options.js';
 import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
@@ -260,7 +260,7 @@ export function renderToProgressiveHtmlResponse(
 	operation: Child,
 	options: RenderToProgressiveHtmlResponseOptions = {}
 ): ExactResponseLike {
-	return progressiveHtmlResponse(renderToProgressiveHtmlStream(operation, options), options);
+	return createProgressiveProducedResponse(operation, options);
 }
 
 /** Transforms to hydratable progressive html response into its required representation. */
@@ -268,10 +268,10 @@ export function renderToHydratableProgressiveHtmlResponse(
 	operation: Child,
 	options: RenderToProgressiveHtmlResponseOptions = {}
 ): ExactResponseLike {
-	return progressiveHtmlResponse(
-		renderToHydratableProgressiveHtmlStream(operation, options),
-		options
-	);
+	return createProgressiveProducedResponse(operation, {
+		...options,
+		hydration: options.hydration ?? true
+	});
 }
 
 /** Transforms exact request to html response into its required representation. */

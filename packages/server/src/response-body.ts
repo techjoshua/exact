@@ -1,5 +1,11 @@
 import { attachSuppressedCleanupFailure } from '@exactjs/core';
 import type { ExactResponseLike } from './types.js';
+import {
+	AsyncProducedResponseBody,
+	type ExactAsyncResponseBodyProducer
+} from './async-produced-response-body.js';
+
+export type { ExactAsyncResponseBodyProducer } from './async-produced-response-body.js';
 
 const utf8Encoder = new TextEncoder();
 
@@ -79,6 +85,26 @@ export function createExactProducedResponse(
 		enumerable: true,
 		get: () => source.toText()
 	});
+	Object.defineProperty(response, 'stream', {
+		enumerable: true,
+		get: () => source.toReadableStream()
+	});
+	return response;
+}
+
+/** Creates a response whose scheduled producer awaits transport backpressure. */
+export function createExactAsyncProducedResponse(
+	status: number,
+	headers: Record<string, string>,
+	produce: ExactAsyncResponseBodyProducer
+): ExactResponseWithBody {
+	const source = new AsyncProducedResponseBody(produce);
+	const response = {
+		status,
+		headers,
+		body: ''
+	} as ExactResponseWithBody;
+	Object.defineProperty(response, exactResponseBody, { value: source });
 	Object.defineProperty(response, 'stream', {
 		enumerable: true,
 		get: () => source.toReadableStream()
