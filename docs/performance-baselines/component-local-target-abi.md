@@ -1749,3 +1749,27 @@ benefit without resolving the diffuse counter-metric. The one-span form is retai
 artifact moves from 231,801 to 230,603 raw bytes (-1,198), 49,046 to 49,080 gzip bytes (+34), and
 40,856 to 40,897 Brotli bytes (+41). The written gate, artifacts, and both sets of 50 alternating
 pairs remain under `.tmp/compiler-root-opening` and `.tmp/compiler-root-opening-segments`.
+
+The adjacent request-owned synchronous program-executor candidate was measured and removed. It
+replaced each per-program `SyncSsrProgramTarget` with one recursively reused executor whose owner,
+local output, and static-accounting state were saved on the synchronous JavaScript call stack. This
+preserved request ownership and transactional restoration without pooling or module retention. A
+first 50-pair population removed the old construction site's median 70,200 sampled bytes but made
+p50/p75/p95 1.001/1.010/1.003 times the immediate baseline; total sampled allocation improved by a
+0.991 paired ratio but was strongly order-sensitive.
+
+A refined form removed a redundant request-context argument and identity branch, then restarted the
+full 50 alternating pairs against the same admitted artifact. Its paired p50/p75/p95/p99 ratios were
+1.003/0.997/1.006/1.041 and total sampled allocation was 1.002. The apparent construction allocation
+was mostly attribution for inlined descendant work: the removed 74,376-byte
+`renderPreparedSsrProgramString` median was accompanied by a 67,500-byte increase attributed to
+`renderChildren`, with smaller shifts across child operations. Reusing mutable executor state thus
+relocated attribution and inhibited otherwise effective short-lived target optimization; it did not
+remove the underlying output work. The candidate also grew the Node artifact from 230,603 to 230,864
+raw bytes (+261), 49,080 to 49,167 gzip (+87), and 40,897 to 40,982 Brotli (+85).
+
+The candidate is fully removed. This result narrows the remaining boundary: deleting the target
+profitably requires moving component-local output ownership into a transactional request sink, not
+merely relocating the same owner/output fields onto a shared mutable object. The written gate,
+artifacts, and both 50-pair populations remain under `.tmp/request-owned-sync-program-executor` and
+`.tmp/request-owned-sync-program-executor-refined`.
