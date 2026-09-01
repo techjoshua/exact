@@ -1707,3 +1707,17 @@ were 1.005 and 1.007, so order does not explain the center regression. Exact's r
 is CPU rather than sampled allocation; the three simple native replacements are restored. The
 written gate, initial ten profiles, paired artifacts, and 50-pair evidence remain under
 `.tmp/hydration-script-escape-scan`.
+
+A follow-up artifact experiment isolated the regression instead of treating the aggregate movement
+as unexplained. The combined expression invoked a JavaScript replacement callback for every match,
+including every common `<` in the hydration payload. A hybrid retained the native constant-string
+replacement for `<` and combined only the two rare Unicode line separators. Across another 50
+alternating pairs, hydration-publication CPU returned to effectively neutral at a 0.998 median ratio,
+confirming that common-character callback dispatch caused the earlier CPU regression. The hybrid's
+median sampled-allocation ratio was only 0.996, however, and paired p50/p75 ratios remained
+1.005/1.006. The original allocation improvement therefore came from avoiding the intermediate
+string created by the common `<` replacement; preserving it with the available replacement API
+requires the callback work that caused the CPU loss. Moving escaping into a custom serializer would
+repeat the previously rejected allocation-heavy design and unnecessarily widen the serialization
+security boundary. Production retains the three native replacements. The hybrid artifact and all 50
+alternating pairs remain under `.tmp/hydration-script-escape-hybrid`.
