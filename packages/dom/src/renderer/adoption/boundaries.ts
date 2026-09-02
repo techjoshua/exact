@@ -189,7 +189,7 @@ export function adoptStaticChildrenRange(
 		const keyedReceipt = readCompiledKeyedChildReceipt(child);
 		if (keyedReceipt) {
 			const opening = nodes[cursor];
-			if (!(opening instanceof Comment) || !opening.data.startsWith('exact:item:')) {
+			if (!(opening instanceof Comment) || !opening.data.startsWith('i:')) {
 				unmountMany(mounts);
 				return undefined;
 			}

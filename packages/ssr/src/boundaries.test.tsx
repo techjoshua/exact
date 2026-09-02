@@ -481,18 +481,14 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(
 			parseKeyedListSnapshotHtml(
 				'tasks',
-				[
-					'<!--exact:item:a--><li>A</li><!--/exact:item:a-->',
-					'<!--exact:item:b--><li>B</li><!--/exact:item:b-->'
-				].join('')
+				['<!--i:a--><li>A</li><!--/i:a-->', '<!--i:b--><li>B</li><!--/i:b-->'].join('')
 			)
 		).toMatchObject({
 			listId: 'tasks',
-			innerHtml:
-				'<!--exact:item:a--><li>A</li><!--/exact:item:a--><!--exact:item:b--><li>B</li><!--/exact:item:b-->',
+			innerHtml: '<!--i:a--><li>A</li><!--/i:a--><!--i:b--><li>B</li><!--/i:b-->',
 			items: [
-				{ key: 'a', html: '<!--exact:item:a--><li>A</li><!--/exact:item:a-->' },
-				{ key: 'b', html: '<!--exact:item:b--><li>B</li><!--/exact:item:b-->' }
+				{ key: 'a', html: '<!--i:a--><li>A</li><!--/i:a-->' },
+				{ key: 'b', html: '<!--i:b--><li>B</li><!--/i:b-->' }
 			]
 		});
 	});
@@ -504,10 +500,9 @@ describe('@exactjs/ssr boundaries', () => {
 				body: {
 					type: 'refresh',
 					id: 'tasks',
-					boundaryHtml: [
-						'<!--exact:item:a--><li>A</li><!--/exact:item:a-->',
-						'<!--exact:item:b--><li>B</li><!--/exact:item:b-->'
-					].join('')
+					boundaryHtml: ['<!--i:a--><li>A</li><!--/i:a-->', '<!--i:b--><li>B</li><!--/i:b-->'].join(
+						''
+					)
 				}
 			},
 			{
@@ -539,7 +534,7 @@ describe('@exactjs/ssr boundaries', () => {
 					id: 'tasks',
 					op: 'insert',
 					key: 'c',
-					html: '<!--exact:item:c--><li>C</li><!--/exact:item:c-->'
+					html: '<!--i:c--><li>C</li><!--/i:c-->'
 				}
 			]
 		});

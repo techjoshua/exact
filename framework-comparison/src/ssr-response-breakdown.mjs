@@ -93,7 +93,10 @@ function frameworkMarkerBytes(markup) {
 					  marker.startsWith('x:') ||
 					  marker.startsWith('/x:')
 					? 'dynamic'
-					: marker.startsWith('exact:item:') || marker.startsWith('/exact:item:')
+					: marker.startsWith('i:') ||
+						  marker.startsWith('/i:') ||
+						  marker.startsWith('exact:item:') ||
+						  marker.startsWith('/exact:item:')
 						? 'item'
 						: 'other';
 		result[kind] += Buffer.byteLength(match[0]);
