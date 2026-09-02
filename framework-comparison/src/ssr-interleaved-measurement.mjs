@@ -12,6 +12,7 @@ import {
 } from './ssr-benchmark-statistics.mjs';
 import { controlSsrWorker } from './ssr-worker-controller.mjs';
 import { balancedRoundOrder } from './balanced-round-order.mjs';
+import { captureSsrDiagnostic } from './ssr-diagnostic-outcome.mjs';
 
 /**
  * Measures every comparable SSR timing lane in round-interleaved participant order.
@@ -58,15 +59,17 @@ export async function measureInterleavedSsrParticipants(entries, config) {
 		url: (entry) => `${entry.worker.url}?__benchmarkPreloaded=true`,
 		prime: true
 	});
-	const servicePhaseSaturation = await measurePreparedInventory(preloadedEntries, {
-		levels: config.attributionConcurrency,
-		count: config.attributionWindows,
-		durationMs: config.attributionWindowMs,
-		orderOffset: config.orderOffset + 4,
-		orders,
-		orderPrefix: 'service-phase',
-		url: (entry) => `${entry.worker.url}?__benchmarkServicePhases=true`
-	});
+	const servicePhase = await captureSsrDiagnostic(() =>
+		measurePreparedInventory(preloadedEntries, {
+			levels: config.attributionConcurrency,
+			count: config.attributionWindows,
+			durationMs: config.attributionWindowMs,
+			orderOffset: config.orderOffset + 4,
+			orders,
+			orderPrefix: 'service-phase',
+			url: (entry) => `${entry.worker.url}?__benchmarkServicePhases=true`
+		})
+	);
 	const equalPayload = await measurePreparedInventory(entries, {
 		levels: config.attributionConcurrency,
 		count: config.attributionWindows,
@@ -102,10 +105,12 @@ export async function measureInterleavedSsrParticipants(entries, config) {
 						servicePhaseSaturation:
 							rendererIndex < 0
 								? { supported: false, reason: 'participant-renderer-not-exposed' }
-								: {
-										supported: true,
-										saturation: servicePhaseSaturation[entry.key]
-									},
+								: servicePhase.supported
+									? {
+											supported: true,
+											saturation: servicePhase.value[entry.key]
+										}
+									: servicePhase,
 						equalPayload: {
 							targetBytes: config.equalPayloadBytes,
 							saturation: equalPayload[entry.key]
