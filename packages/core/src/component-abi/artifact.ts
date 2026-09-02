@@ -1,5 +1,6 @@
 import type { ExactClientComponentArtifact } from './client.js';
 import type { ExactServerComponentArtifact } from './server.js';
+export type { ExactValueSerializationSchema } from './value-serialization.js';
 
 /** The single current executable artifact carried by a native target-local component export. */
 export type ExactComponentExecutableArtifact =

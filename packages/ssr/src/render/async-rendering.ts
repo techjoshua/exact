@@ -16,7 +16,7 @@ import { renderChildrenAsync } from './async-children.js';
 import { shouldEmitDocumentHydration } from './document-hydration.js';
 import { createSsrContext, drainTasks } from './context.js';
 import { hydrationScriptOptions } from './hydration-options.js';
-import { rootComponentIdentity, rootPropsOptions } from './root-props.js';
+import { rootComponentIdentity, rootPropsForCapture, rootPropsOptions } from './root-props.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
@@ -71,7 +71,7 @@ export async function renderToHydratableStringAsync(
 	const prepared = rootPropsOptions(operation, options);
 	const capture = createSsrResumptionCapture(
 		prepared,
-		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootPropsForCapture(operation, prepared),
 		rootComponentIdentity(operation)
 	);
 	const result = await renderToStringAsync(operation, capture.options);

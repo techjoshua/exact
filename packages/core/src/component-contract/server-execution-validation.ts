@@ -37,6 +37,22 @@ export function isExactServerExecutionMetadata(value: unknown, selection = false
 	);
 }
 
+/** Ensures a stateless executor cannot smuggle request-owned component surfaces into its artifact. */
+export function hasConsistentStatelessServerExecution(
+	value: Record<PropertyKey, unknown>
+): boolean {
+	if (!record(value.execution) || value.execution.mode !== 'stateless') return true;
+	return (
+		Array.isArray(value.state) &&
+		value.state.length === 0 &&
+		Array.isArray(value.capabilities) &&
+		value.capabilities.every((capability) => capability === 'registry') &&
+		value.execution.frame === undefined &&
+		value.execution.lifecycle === undefined &&
+		value.execution.publication === undefined
+	);
+}
+
 function validLifecycle(value: unknown, direct: boolean): boolean {
 	return (
 		direct &&

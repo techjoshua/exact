@@ -210,6 +210,7 @@ type Component struct {
 	DynamicComponents    bool                      `json:"-"`
 	StateSlots           []string                  `json:"-"`
 	PropsSlots           []string                  `json:"-"`
+	PropsSerialization   *ComponentValueSchema     `json:"-"`
 	Collections          bool                      `json:"-"`
 	Targets              bool                      `json:"-"`
 	CompiledRender       bool                      `json:"-"`

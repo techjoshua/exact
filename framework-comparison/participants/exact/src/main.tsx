@@ -18,7 +18,7 @@ if (!root) throw new Error('Missing incident application root');
 const published = readPublishedRootProps<{
 	initialData?: InitialData;
 	path?: string;
-}>(root);
+}>(IncidentApp, root);
 const app = <IncidentApp {...published} />;
 if (root.childNodes.length > 0) void hydrateAfterNavigation(app, root, profileOptions);
 else render(app, root, profileOptions);

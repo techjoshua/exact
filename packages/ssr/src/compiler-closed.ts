@@ -23,7 +23,11 @@ import {
 	hydrationScriptOptions,
 	hydrationScriptOptionsFromValues
 } from './render/hydration-options.js';
-import { rootComponentIdentity, rootPropsOptions } from './render/root-props.js';
+import {
+	rootComponentIdentity,
+	rootPropsForCapture,
+	rootPropsOptions
+} from './render/root-props.js';
 import { renderChildren } from './render/sync-children.js';
 import { renderChildrenAsync } from './render/async-children.js';
 import { SyncSsrOperationTarget } from './render/sync-operation-target.js';
@@ -60,7 +64,7 @@ export function renderCompilerClosedToHydratableString(
 	const prepared = rootPropsOptions(operation, options);
 	const capture = createSsrResumptionCapture(
 		prepared,
-		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootPropsForCapture(operation, prepared),
 		rootComponentIdentity(operation)
 	);
 	const output = renderCompilerClosedOutputSync(operation, capture.options, true);
@@ -94,7 +98,7 @@ export function renderCompilerClosedToHydratableSink(
 	const prepared = rootPropsOptions(operation, options);
 	const capture = createDirectSsrResumptionCapture(
 		prepared,
-		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootPropsForCapture(operation, prepared),
 		rootComponentIdentity(operation)
 	);
 	const output = renderCompilerClosedOutputSync(
@@ -191,7 +195,7 @@ export async function renderCompilerClosedToHydratableStringAsync(
 	const prepared = rootPropsOptions(operation, options);
 	const capture = createSsrResumptionCapture(
 		prepared,
-		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootPropsForCapture(operation, prepared),
 		rootComponentIdentity(operation)
 	);
 	const renderOptions = capture.options;

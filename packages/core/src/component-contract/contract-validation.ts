@@ -5,7 +5,10 @@ import type {
 	ExactComponentContinuationExecutorContract,
 	ExactComponentResumptionContract
 } from '../component-contracts.js';
-import { isExactServerExecutionMetadata } from './server-execution-validation.js';
+import {
+	hasConsistentStatelessServerExecution,
+	isExactServerExecutionMetadata
+} from './server-execution-validation.js';
 import { isExactComponentBoundaryContract } from './boundary-validation.js';
 import {
 	isExactContinuationDependency,
@@ -19,6 +22,7 @@ import {
 	isSafeContractStringList
 } from './metadata-validation.js';
 import { allCompiledComponentABI } from '../component/compiled-abi.js';
+import { isExactValueSerializationSchema } from '../component-abi/value-serialization.js';
 
 /** Validates all required metadata before a generated artifact gains runtime authority. */
 export function isExactComponentContract(
@@ -98,6 +102,7 @@ function hasCommonArtifactFields(value: Record<PropertyKey, unknown>): boolean {
 		isSafeContractStringList(value.props) &&
 		(value.opaqueProps === undefined || isSafeContractStringList(value.opaqueProps)) &&
 		(value.identityProps === undefined || isSafeContractStringList(value.identityProps)) &&
+		(value.serialization === undefined || isExactValueSerializationSchema(value.serialization)) &&
 		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&
 		(value.reactive === undefined ||
 			(Array.isArray(value.reactive) && value.reactive.every(isReactiveAllocation))) &&
@@ -123,6 +128,7 @@ function isClientArtifact(value: Record<PropertyKey, unknown>): boolean {
 			'updates',
 			'state',
 			'props',
+			'serialization',
 			'opaqueProps',
 			'identityProps',
 			'tasks',
@@ -153,6 +159,7 @@ function isServerArtifact(value: Record<PropertyKey, unknown>): boolean {
 			'abi',
 			'state',
 			'props',
+			'serialization',
 			'opaqueProps',
 			'tasks',
 			'reactive',
@@ -168,20 +175,6 @@ function isServerArtifact(value: Record<PropertyKey, unknown>): boolean {
 		(value.selection === undefined || isServerSelection(value.selection)) &&
 		isServerExecution(value.execution, value.selection !== undefined) &&
 		hasConsistentStatelessServerExecution(value)
-	);
-}
-
-/** Ensures a stateless executor cannot smuggle request-owned component surfaces into its artifact. */
-function hasConsistentStatelessServerExecution(value: Record<PropertyKey, unknown>): boolean {
-	if (!isContractRecord(value.execution) || value.execution.mode !== 'stateless') return true;
-	return (
-		Array.isArray(value.state) &&
-		value.state.length === 0 &&
-		Array.isArray(value.capabilities) &&
-		value.capabilities.every((capability) => capability === 'registry') &&
-		value.execution.frame === undefined &&
-		value.execution.lifecycle === undefined &&
-		value.execution.publication === undefined
 	);
 }
 

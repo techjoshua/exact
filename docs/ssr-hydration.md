@@ -229,10 +229,11 @@ renderer has matched an SSR component marker and is constructing that exact
 component for adoption. Compiled markers use the same contract identity as
 resumption records. Mismatched route or conditional ranges mount as fresh client
 instances, even while compatible ancestors continue adopting.
-Records are consumed in their per-component construction order rather than one global cross-type
-order. SSR preparation may construct different component types ahead of their final DOM order;
-that preparation detail cannot invalidate otherwise matching client adoption. Adoption checkpoints
-still return any consumed records when a candidate range fails.
+Records follow the committed component-tree traversal rather than speculative preparation order.
+Each adopted component claims the next compact activation from a request-owned cursor before its
+descendants claim theirs. Scheduled server frames reserve their activation only when their writer
+enters that traversal, so preparation cannot reorder the hydration stream. Adoption checkpoints
+restore the cursor when a candidate range fails.
 
 Root hydration parses and validates its embedded bootstrap configuration once, then passes the
 resolved immutable inputs into client construction. Static scalar DOM props bypass reactive watcher
@@ -249,7 +250,7 @@ const result = renderToHydratableString(<App initialData={data} path={url.pathna
 });
 
 // client
-const props = readPublishedRootProps<AppProps>(container);
+const props = readPublishedRootProps<AppProps>(App, container);
 hydrateAfterNavigation(<App {...props} />, container);
 ```
 
@@ -258,7 +259,13 @@ hydrateAfterNavigation(<App {...props} />, container);
 `this.state.items = props.initialData.items`. SSR omits that resumable state value only when the
 published prop path and final state value are identical. Derived, mutated, ambiguous, or nested
 component state remains in its ordinary component resumption record. Reading the props and later
-resolving hydration options reuse the same bounded decode.
+resolving hydration options reuse the same bounded decode. For finite nested prop types, the
+compiler places an immutable positional schema on both target artifacts. The server publishes
+matching plain values as component-bound nested arrays during the existing descriptor-safe
+hydration traversal, and the client reconstructs the authored objects only after verifying the
+component identity. Structurally open values, runtime shape
+mismatches, output extensions, and unsupported types retain the named-object format. Descriptor-safe
+validation and hydration limits apply in either form.
 
 The `@exactjs/hydrate/root` entry uses a bounded hydration-only field projection. Operation
 endpoints, continuations, islands, and transports belong to the complete runtime; their presence in

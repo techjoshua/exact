@@ -11,6 +11,7 @@ import { utf8ByteLength } from './render/utf8.js';
 import type { HydrationScriptOptions } from './types.js';
 import type { SsrResumptionLayout } from './resumption.js';
 import type { SsrSerializedResumption } from './resumption.js';
+import { readPositionalRootPublication } from './render/root-props.js';
 
 /** Renders the JSON script tag consumed by the hydration client. */
 export function renderHydrationScript(
@@ -43,12 +44,10 @@ function renderHydrationScriptValue(
 		options.componentAuthorization.buildKey !== options.buildKey
 	)
 		throw new Error('Component authorization identity does not match the hydration build key');
-	const directResumptions =
-		!options.outputExtensions?.length && capturedResumptions?.length
-			? capturedResumptions
-			: undefined;
-	const compacted = directResumptions
-		? createDirectHydrationMetadata(options, directResumptions)
+	const directMetadata = !options.outputExtensions?.length && capturedResumptions !== undefined;
+	const directResumptions = directMetadata ? capturedResumptions : undefined;
+	const compacted = directMetadata
+		? createDirectHydrationMetadata(options, directResumptions!)
 		: createExtensibleHydrationMetadata(options, resumptionLayouts);
 	const reactiveCollections = new WeakMap<unknown[], unknown>();
 	let hasReactiveCollections = false;
@@ -62,7 +61,8 @@ function renderHydrationScriptValue(
 			hasReactiveCollections = true;
 		},
 		directResumptions,
-		structurallyKnownRoot: directResumptions ? compacted : undefined
+		positionalRoot: readPositionalRootPublication(options.state),
+		structurallyKnownRoot: directMetadata ? compacted : undefined
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
 	const payload = serializeValidatedHydrationPayload(

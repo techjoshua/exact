@@ -820,6 +820,7 @@ func rootComponentContractAttachment(
 		component.TargetPlan.DeferredTaskProps,
 		component.StateSlots,
 		propsSlots,
+		component.PropsSerialization,
 		runtimeContinuations,
 		hasResumption,
 		serverPublicationName,

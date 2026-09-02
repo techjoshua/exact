@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { registerReactiveListKey } from '@exactjs/reactive';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	renderHydrationScript,
 	renderToHydratableProgressiveHtmlStream,
@@ -12,6 +12,10 @@ import { createOperation } from './test-support/native-operations.js';
 import { readStreamText } from './test-support/streams.js';
 import {
 	HydrationPanel,
+	PositionalPublishedRoot,
+	renderAccessorPositionalPublishedRoot,
+	renderMismatchedPositionalPublishedRoot,
+	renderPositionalPublishedRoot,
 	renderPublishedRoot,
 	renderPublishedRootAsync
 } from './hydration.fixtures.test.js';
@@ -158,6 +162,41 @@ describe('@exactjs/ssr hydration', () => {
 			const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as any;
 			expect(payload.state).toEqual({ label: index === 0 ? 'sync' : 'async' });
 		}
+	});
+
+	it('publishes compiler-proven nested root props positionally', () => {
+		const result = renderPositionalPublishedRoot();
+		const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as any;
+		expect(payload.state).toEqual([expect.any(String), [[['first', [true]]], 'queue']]);
+	});
+
+	it('retains named root props when runtime values exceed the finite schema', () => {
+		const result = renderMismatchedPositionalPublishedRoot();
+		const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as any;
+		expect(payload.state).toEqual({
+			rows: [{ id: 'first', detail: { ready: true, source: 'runtime' } }],
+			label: 'queue'
+		});
+	});
+
+	it('rejects positional root accessors without invoking them', () => {
+		const onRead = vi.fn();
+		expect(() => renderAccessorPositionalPublishedRoot(onRead)).toThrow(
+			'Hydration payload must be JSON-serializable'
+		);
+		expect(onRead).not.toHaveBeenCalled();
+	});
+
+	it('applies hydration graph limits during positional root traversal', () => {
+		expect(() =>
+			renderToHydratableString(
+				createOperation(PositionalPublishedRoot, {
+					rows: [{ id: 'first', detail: { ready: true } }],
+					label: 'queue'
+				}),
+				{ publishRootProps: true, maxHydrationNodes: 2 }
+			)
+		).toThrow('Hydration payload must be JSON-serializable');
 	});
 
 	it('captures indexed resumptions while preserving lazy public activations', () => {
