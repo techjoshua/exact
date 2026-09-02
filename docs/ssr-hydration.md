@@ -159,6 +159,11 @@ Compiler-cell roots adopt their existing cell range directly; they do not pass t
 repair or clear the root container. Compiler-proven native component calls use the component's own
 identity marker without an additional cell marker pair. Intrinsic cells and structural expression
 ranges retain their markers because those ranges still own independent reactive updates.
+Compiler-direct structural ranges are claimed by their component-local operation and ordered
+hydration cursor, so their explicit marker pair uses one shared anonymous identity instead of
+serializing the operation's unrelated stable id. Closing claims pair nested anonymous ranges by
+depth. Dynamic-component, keyed, refreshable, and otherwise externally addressable ranges retain
+their stable marker identities.
 Closed client render programs adopt their intrinsic nodes, scalar slots, and structural child
 ranges through component-local claim tuples. Shared focused operations walk the known static topology in DOM
 order. A structural call advances directly to its matching close marker, so a variable number of

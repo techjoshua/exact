@@ -371,9 +371,15 @@ export function closingMarkerIndex(
 	end = nodes.length
 ): number {
 	const closing = `/${opening}`;
+	let nested = 0;
 	for (let index = cursor + 1; index < end; index++) {
 		const node = nodes[index];
-		if (node instanceof Comment && node.data === closing) return index;
+		if (!(node instanceof Comment)) continue;
+		if (node.data === opening) nested++;
+		else if (node.data === closing) {
+			if (nested === 0) return index;
+			nested--;
+		}
 	}
 	return -1;
 }

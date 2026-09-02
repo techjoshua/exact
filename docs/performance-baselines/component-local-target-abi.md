@@ -2487,3 +2487,62 @@ feedback remains 1.5/1.6/1.8/1.9 ms at p50/p75/p95/p99. The client transfers 195
 response are unchanged. Focused evidence and written gates are under
 `.tmp/inert-client-schema`, `.tmp/client-scope-arrays`, `.tmp/client-lazy-computed-edges`, and
 `.tmp/client-scope-singletons`.
+
+### Anonymous compiler-direct structural ranges
+
+Compiler-direct structural ranges remain explicitly owned, but their marker pair no longer repeats
+the compiler operation's unrelated 23-byte stable identity. The component-local operation and
+ordered hydration cursor already select the range. The shared anonymous marker therefore carries
+only nesting ownership, and the client closing claim counts identical nested openings by depth.
+Dynamic-component, keyed, refreshable, recovery, and otherwise addressable boundaries retain their
+stable identities.
+
+The accepted diagnostic response falls from 4,033 to 3,941 bytes, a 92-byte or 2.3% reduction. The
+same fixture rendered outside the diagnostic envelope falls from 4,128 to 4,036 bytes. Semantic
+markup and hydration data are unchanged. The production client artifact grows 46 raw bytes for the
+nesting-aware closing claim; the server artifact grows 127 raw bytes. Server bytes are recorded as a
+counter-metric rather than treated as a rejection threshold.
+
+The first 100-pair collected render population appeared about 5% slower while directly interleaved
+HTTP capacity improved. The candidate was retained for diagnosis rather than rejected from that
+contradiction. A second 100-pair experiment alternated both collection modes within every artifact
+pair. Collected rendering then improved by 1.74% on paired means, with 66/100 wins; direct-sink
+rendering was neutral at a 1.0000003 paired mean ratio, with p50 moving from 0.0289 to 0.0284 ms.
+The earlier regression was therefore order/environment interference rather than repeated work in
+the marker representation.
+
+Fifty directly alternating capacity rounds improve paired mean RPS by 1.43% at c16, 1.41% at c32,
+and 1.55% at c64, with 39, 37, and 39 wins. Sampled allocation improves 1.47% on paired means in a
+20-pair population, although its 10/10 win split is too noisy for an independent allocation claim.
+The retained conclusion is a deterministic payload reduction, neutral direct-render work, and a
+consistent modest Node-capacity gain. Gates, immutable artifacts, and focused evidence are under
+`.tmp/anonymous-direct-ranges`.
+
+The [complete grouped-percentile report](component-local-target-abi/anonymous-direct-ranges.md)
+contains 50 balanced browser samples, 50 samples at each 1x/4x/6x startup rate, the complete fresh
+Node SSR and Bun diagnostic populations, response decomposition, allocation sites, every payload
+and saturation lane, and the directly interleaved positional-root Exact-before artifact. The four
+participants were built once by the browser capture and those admitted artifacts were reused by
+startup and SSR. Immutable SSR evidence is
+`framework-comparison/results/raw/ssr-2026-09-02T09-30-23-614Z.json`; browser and startup captures
+remain under `.tmp/anonymous-direct-ranges/checkpoint`.
+
+The complete client population retains the focused heap result: warm used heap is 2,580,240 bytes,
+1,488 bytes below the eligible normalized and raw 2,581,728-byte history. Cold 1x used heap is
+2,435,280 bytes, 1,488 bytes below the raw history but 1,375 bytes above its control-normalized
+history. Evaluation improves from 18.714 ms raw and 19.106 ms normalized to 18.361 ms at p50.
+Optimistic feedback remains 1.5/1.6/1.9/2.2 ms; its p50 is unchanged, and the upper-tail movement
+is contradicted by the focused 1.5/1.6/1.8/1.9 population and moving controls. The combined lazy
+computed-edge and nesting-aware claim changes add 175 raw/decoded client bytes and 132 executed
+bytes while leaving the 1x invoked-function count at 561. Brotli falls 23 bytes despite the raw
+growth, illustrating why raw size is a counter-metric rather than a performance verdict.
+
+Fresh Node ordinary c16 is 2,103.3 RPS versus React at 2,158.3, a 2.5% gap. Exact leads React at
+saturation c32 by 0.2% and c64 by 3.1%, while trailing by 0.7% at c16. Equal-8-KiB Exact leads at
+c32 and c64 by 5.1% and 2.5%, with c8 mixed across percentiles. Directly interleaved Exact-before
+preloaded p50 improves 1.8% at c32 and 3.2% at c64, confirming the focused render-path result;
+ordinary lanes remain mixed because they include controlled-service work, and equal-payload lanes
+intentionally remove the smaller response's transport benefit. Render-only is effectively unchanged
+at 0.0340 ms p50 versus 0.0338 before and remains slower than React's 0.0232 ms. Exact retains the
+lowest Node post-GC heap at 12.52 MB p50 and the lowest used-heap slope at 2,432 bytes/request,
+versus React at 13.18 MB and 3,012 bytes/request.
