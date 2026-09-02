@@ -2903,3 +2903,34 @@ hydration, and arbitrary-expression fallback. Focused evidence is under
 The combined slice passed `npm run performance:check` on September 2, 2026. That command's internal
 framework benchmark is an acceptance gate, not the four-framework comparison suite, so its timings
 are not substituted for an interleaved Exact, React, SvelteKit, and Nuxt checkpoint.
+
+### Keyed property operand complete comparison checkpoint
+
+The committed artifact was subsequently measured with 50 balanced, round-interleaved samples in
+the browser and at each 1x, 4x, and 6x startup CPU rate, followed by the complete 50-sample Node SSR
+and separate Bun diagnostic suites. All 28 shared browser correctness scenarios passed before the
+admitted builds were reused. The
+[complete grouped-percentile report](component-local-target-abi/keyed-property-operands.md) includes
+every browser, startup, function-inventory, artifact, Node SSR, allocation, response-decomposition,
+equal-payload, preloaded, service-phase, retention, saturation, and Bun table. Raw evidence and the
+control-normalization results are under `.tmp/keyed-property-operands-checkpoint`.
+
+Against the preceding accepted checkpoint, the full client population reduces warm used heap from
+2,579,500 to 2,526,348 bytes at p50 and cold used heap from 2,434,540 to 2,385,268 bytes. Precise
+executed code falls from 103,184 to 100,279 bytes, invoked functions fall from 560 to 543, and
+profiled functions fall from 1,151 to 1,146. Evaluation is effectively neutral at 20.75 ms versus
+20.90 ms control-normalized before. The p50 and p75 optimistic-feedback values remain 1.6 and 1.8
+ms, while p95 and p99 move from 2.4 and 3.5 ms raw before to 3.1 and 4.3 ms; the upper-tail movement
+is retained as a counter-metric because the full population does not reproduce the focused timing
+neutrality there. The admitted client transfer grows by 555 bytes to 196,768 bytes. This exceeds the
+focused candidate's 190-byte prediction; the extracted indexed-layout module is the remaining
+deterministic size difference to investigate rather than attributing it to timing noise.
+
+The server artifact and its 3,794-byte response are unchanged by this client-only implementation.
+Fresh ordinary Node c16 throughput is 3,031 RPS at p50 versus React at 3,185 RPS. Saturation p50 is
+within 3.4% of React from c1 through c32, and Exact leads React by 2.2% at c64. Preloaded c32 and c64
+remain 10.0% and 8.4% behind React, while render-only p50 remains 0.0362 versus 0.0259 ms. Exact has
+the lowest post-GC used heap at 12.54 MB, followed by React at 13.17 MB, SvelteKit at 14.18 MB, and
+Nuxt at 18.02 MB. Cross-run server controls moved too differently for ordinary c16 normalization;
+eligible saturation comparisons are mixed even though the server bytes are identical, so none of
+that movement is attributed to the client change.
