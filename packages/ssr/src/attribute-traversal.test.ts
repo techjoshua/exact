@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	renderAttrs,
 	renderCompiledNativeAttribute,
@@ -6,6 +6,7 @@ import {
 	renderNativeAttribute
 } from './markup.js';
 import { renderSsrRootAttributes } from './render/render-program-attributes.js';
+import { SsrOutputBuffer, utf8ByteLength } from './render/output-buffer.js';
 import type { SsrContext } from './types.js';
 
 describe('SSR attribute traversal', () => {
@@ -61,6 +62,36 @@ describe('SSR attribute traversal', () => {
 		expect(renderCompiledNativeAttribute(true, 0, 'required', 'required', 'textarea')).toBe(
 			' required'
 		);
+	});
+
+	it('keeps non-string compiled class values on the recursive normalization path', () => {
+		expect(
+			renderCompiledNativeAttribute(
+				['primary', { active: true }],
+				1,
+				'className',
+				'class',
+				'button'
+			)
+		).toBe(' class="primary active"');
+		expect(renderCompiledNativeAttribute('', 1, 'className', 'class', 'button')).toBe(' class=""');
+	});
+
+	it('delegates accounted compiler-selected values to the environment byte operation', () => {
+		const encodedByteLength = vi.fn(utf8ByteLength);
+		const outputSink = new SsrOutputBuffer(100, undefined, encodedByteLength);
+		const context = { outputSink } as SsrContext;
+
+		expect(
+			renderCompiledNativeAttribute('caf\u00e9', 0, 'title', 'title', 'div', context, true)
+		).toBe(' title="caf\u00e9"');
+		expect(renderCompiledNativeAttribute('"<&>', 0, 'title', 'title', 'div', context, true)).toBe(
+			' title="&quot;&lt;&amp;&gt;"'
+		);
+		expect(outputSink.encodedBytes()).toBe(
+			utf8ByteLength(' title="caf\u00e9" title="&quot;&lt;&amp;&gt;"')
+		);
+		expect(encodedByteLength).toHaveBeenCalledTimes(2);
 	});
 
 	it('executes a closed root plan in compiler order', () => {

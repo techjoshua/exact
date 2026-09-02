@@ -322,7 +322,7 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`[[0, 2, [0, 0], true], [5, 0, 0, true], [9, 0, __exact_component_updates_1]]`,
+		`[[0, 2, [0, 0], true], [12, 0, 0, [["disabled", 0, 1]], true], [9, 0, __exact_component_updates_1]]`,
 		`updates: __exact_component_updates_1`,
 		`bindings: [[0, 1, 0], [1, 2, 0]] as const`,
 		`apply: (__exactTargets: object[], __exactDirtyLow: number, __exactDirtyHigh: number) =>`,
@@ -1071,20 +1071,41 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `[5, 0, 1, true]`) ||
-		!strings.Contains(response.Code, `[5, 1, 0, true]`) {
+	if !strings.Contains(response.Code, `[12, 0, 1, [["value", 1, 0]], true]`) ||
+		!strings.Contains(response.Code, `[12, 1, 0, [["value", 1, 1]], true]`) {
 		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
-		!strings.Contains(response.Code, `__exactApply("value", __exactReadState(props, 0) as string)`) {
-		t.Fatalf("closed client output omitted the direct property writer:\n%s", response.Code)
-	}
-	if !strings.Contains(response.Code, `], this, (__exactGroup, __exactApply) =>`) {
-		t.Fatalf("closed client property writer omitted its authored component owner:\n%s", response.Code)
+	if strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
+		strings.Contains(response.Code, `__exactApply("value",`) {
+		t.Fatalf("exact property operands retained a generated property writer:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactSlot === 0 ? undefined`) ||
 		strings.Contains(response.Code, `__exactSlot === 1 ? undefined`) {
 		t.Fatalf("closed client output retained redundant property reader arms:\n%s", response.Code)
+	}
+}
+
+func TestSessionEncodesExactReadersInsideMixedPropertyGroups(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "mixed-planned-properties.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Field(props: { value: string }) {
+				return () => <input value={props.value} title={props.value + "!"} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactApply("title", (__exactReadState(props, 0) as string) + "!")`) {
+		t.Fatalf("mixed property group lost its arbitrary expression fallback:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `[12, 0, 0, [["value", 1, 0]], true]`) {
+		t.Fatalf("mixed property group did not encode its exact indexed operand:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactApply("value", __exactReadState(props, 0) as string)`) {
+		t.Fatalf("mixed property group retained a redundant indexed reader:\n%s", response.Code)
 	}
 }
 

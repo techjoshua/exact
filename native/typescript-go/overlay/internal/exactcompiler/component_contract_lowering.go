@@ -752,6 +752,14 @@ func rootComponentContractAttachment(
 	usesCompatibility := component.TargetPlan.UsesCompatibility
 	hasResumption := component.Placement == "isomorphic" &&
 		componentHasResumption(component.ID, resumptions)
+	reconstructibleResumption := hasResumption &&
+		len(componentContinuations) == 0 &&
+		component.TargetPlan.DirectServerFrame &&
+		!component.TargetPlan.ServerSurface.ServerLifecycle &&
+		componentHasReconstructibleResumption(component.ID, resumptions)
+	if reconstructibleResumption {
+		hasResumption = false
+	}
 	directResumption := hasResumption && directServerResumptionSupported(component.ID, resumptions)
 	hasInteractions := target == TargetClient && component.Interactions
 	hasLifecycle := component.Lifecycle
@@ -978,35 +986,6 @@ func rootComponentContractAttachment(
 		" @__PURE__ ",
 		false,
 	)
-}
-
-func componentHasResumption(componentID string, resumptions []ComponentResumption) bool {
-	for _, resumption := range resumptions {
-		if resumption.ComponentID == componentID &&
-			(len(resumption.Client.StatePaths) != 0 ||
-				len(resumption.Client.ValueCaptures) != 0 ||
-				len(resumption.Client.Contexts) != 0 ||
-				len(resumption.Client.Boundaries) != 0) {
-			return true
-		}
-	}
-	return false
-}
-
-// directServerResumptionSupported identifies records a request-local state/context frame can
-// publish without durable client-style component ownership. Context-bearing components select the
-// focused direct context frame during artifact emission; their resumption records therefore do not
-// require the generic server component lane.
-func directServerResumptionSupported(
-	componentID string,
-	resumptions []ComponentResumption,
-) bool {
-	for _, resumption := range resumptions {
-		if resumption.ComponentID == componentID {
-			return true
-		}
-	}
-	return false
 }
 
 func omitDirectServerSetupContinuations(

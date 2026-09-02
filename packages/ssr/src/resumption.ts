@@ -13,45 +13,22 @@ import {
 	serverComponentContinuationContextValuesForHost,
 	settledServerComponentContinuationIdsForHost
 } from '@exactjs/core/framework/server-component-execution';
-import {
-	readReactiveOwnPropertyInto,
-	type ReactiveOwnPropertyReadCell
-} from '@exactjs/reactive/framework/indexed-objects';
+import { type ReactiveOwnPropertyReadCell } from '@exactjs/reactive/framework/indexed-objects';
 import type { RenderToStringOptions } from './types.js';
-
-type IndexedResumptionEntry = readonly [index: number, value: unknown];
-
-/** Final compact request-owned representation published across the hydration boundary. */
-export type SsrSerializedResumption = readonly [
-	componentId: string,
-	values?: readonly IndexedResumptionEntry[],
-	contexts?: readonly IndexedResumptionEntry[],
-	settledContinuations?: readonly string[]
-];
-
-type MutableSerializedResumption = [
-	componentId: string,
-	values?: readonly IndexedResumptionEntry[],
-	contexts?: readonly IndexedResumptionEntry[],
-	settledContinuations?: readonly string[]
-];
-
-/** Compiler-owned field order used only to project an observed public activation. */
-export type SsrResumptionLayout = Readonly<{
-	statePaths: readonly string[];
-	contexts: readonly string[];
-}>;
-
-type SsrResumptionSchema = Readonly<{
-	layout: SsrResumptionLayout;
-	state: readonly Readonly<{
-		index: number;
-		segments: readonly string[];
-		propSegments?: readonly string[];
-	}>[];
-	contexts: readonly string[];
-	continuations: ReadonlySet<string>;
-}>;
+import {
+	captureContextEntries,
+	captureStateEntries,
+	emptyContextValues,
+	emptyContinuationIds,
+	emptyIndexedEntries,
+	projectActivation,
+	publishTuple,
+	resumptionSchema,
+	type MutableSerializedResumption,
+	type SsrResumptionSchema,
+	type SsrSerializedResumption
+} from './resumption-serialization.js';
+export type { SsrResumptionLayout, SsrSerializedResumption } from './resumption-serialization.js';
 
 /** Request-local capture consumed directly by synchronous component execution. */
 export type SsrResumptionCapture = Readonly<{
@@ -71,18 +48,13 @@ export type SsrResumptionCapture = Readonly<{
 	activations(): readonly ComponentResumptionActivation[];
 }>;
 
-const resumptionSchemas = new WeakMap<object, SsrResumptionSchema>();
-const emptyIndexedEntries = Object.freeze([]) as readonly IndexedResumptionEntry[];
-const emptyContextValues = Object.freeze({}) as Readonly<Record<string, never>>;
-const emptyContinuationIds = Object.freeze([]) as readonly string[];
-
 /** Captures compiler-selected state directly in deterministic indexed construction order. */
 export function createSsrResumptionCapture(
 	options: RenderToStringOptions,
 	publishedRootProps?: Readonly<Record<string, unknown>>,
 	rootComponentId?: string
 ): CreatedSsrResumptionCapture {
-	return createResumptionCapture(options, publishedRootProps, rootComponentId, false);
+	return createResumptionCapture(options, publishedRootProps, rootComponentId);
 }
 
 /** Constructs indexed capture without the generic-instance bridge unused by direct artifacts. */
@@ -91,7 +63,7 @@ export function createDirectSsrResumptionCapture(
 	publishedRootProps?: Readonly<Record<string, unknown>>,
 	rootComponentId?: string
 ): CreatedSsrResumptionCapture {
-	return createResumptionCapture(options, publishedRootProps, rootComponentId, true);
+	return new DirectSsrResumptionCapture(options, publishedRootProps, rootComponentId);
 }
 
 type CreatedSsrResumptionCapture = {
@@ -100,17 +72,108 @@ type CreatedSsrResumptionCapture = {
 	activations(): readonly ComponentResumptionActivation[];
 };
 
+/** Request-owned direct capture whose fixed operations are shared through its prototype. */
+class DirectSsrResumptionCapture implements CreatedSsrResumptionCapture, SsrResumptionCapture {
+	readonly options: RenderToStringOptions;
+	private readonly records: MutableSerializedResumption[] = [];
+	private readonly schemas: SsrResumptionSchema[] = [];
+	private readonly pathReadCell: ReactiveOwnPropertyReadCell = { value: undefined };
+	private rootInputToken: number | undefined;
+	private projectedActivations: readonly ComponentResumptionActivation[] | undefined;
+
+	constructor(
+		options: RenderToStringOptions,
+		private readonly publishedRootProps: Readonly<Record<string, unknown>> | undefined,
+		private readonly rootComponentId: string | undefined
+	) {
+		this.options = {
+			...options,
+			resumptionCapture: this,
+			allowIndependentComponentObservation:
+				!options.onComponentCreated &&
+				!options.onComponentRendered &&
+				!options.onDirectComponentCreated &&
+				!options.onDirectComponentRendered
+		};
+	}
+
+	checkpoint(): number {
+		return this.records.length;
+	}
+
+	rollback(checkpoint: number): void {
+		this.records.splice(checkpoint);
+		this.schemas.splice(checkpoint);
+		if (this.rootInputToken !== undefined && this.rootInputToken >= checkpoint)
+			this.rootInputToken = undefined;
+		this.projectedActivations = undefined;
+	}
+
+	reserveDirect(
+		componentId: string,
+		contract: ExactServerExecutableComponentContract
+	): number | undefined {
+		if (!contract.resumption) return undefined;
+		const token = this.records.length;
+		this.records.push([componentId]);
+		this.schemas.push(resumptionSchema(contract));
+		if (this.rootInputToken === undefined && componentId === this.rootComponentId)
+			this.rootInputToken = token;
+		this.projectedActivations = undefined;
+		return token;
+	}
+
+	publishDirect(
+		token: number,
+		host: object,
+		state: Record<string, unknown>,
+		props: Record<string, unknown>
+	): void {
+		const record = this.records[token];
+		const schema = this.schemas[token];
+		if (!record || !schema) return;
+		const values = captureStateEntries(
+			token === this.rootInputToken,
+			state,
+			props,
+			schema,
+			this.publishedRootProps,
+			this.pathReadCell
+		);
+		const contexts = schema.contexts.length
+			? captureContextEntries(
+					serverComponentContinuationContextValuesForHost(host, schema.contexts),
+					schema.contexts
+				)
+			: emptyIndexedEntries;
+		const settled = schema.continuations.size
+			? settledServerComponentContinuationIdsForHost(host).filter((id) =>
+					schema.continuations.has(id)
+				)
+			: emptyContinuationIds;
+		publishTuple(record, values, contexts, settled);
+		this.projectedActivations = undefined;
+	}
+
+	serializedRecords(): readonly SsrSerializedResumption[] {
+		return this.records;
+	}
+
+	activations(): readonly ComponentResumptionActivation[] {
+		return (this.projectedActivations ??= this.records.map((record, index) =>
+			projectActivation(record, this.schemas[index]!)
+		));
+	}
+}
+
 function createResumptionCapture(
 	options: RenderToStringOptions,
 	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
-	rootComponentId: string | undefined,
-	directArtifactsOnly: boolean
+	rootComponentId: string | undefined
 ): CreatedSsrResumptionCapture {
 	const records: MutableSerializedResumption[] = [];
 	const schemas: SsrResumptionSchema[] = [];
-	const recordsByInstance = directArtifactsOnly
-		? undefined
-		: new WeakMap<AnyComponentInstance, number>();
+	const recordsByInstance = new WeakMap<AnyComponentInstance, number>();
 	const pathReadCell: ReactiveOwnPropertyReadCell = { value: undefined };
 	let rootInputToken: number | undefined;
 	let projectedActivations: readonly ComponentResumptionActivation[] | undefined;
@@ -196,191 +259,49 @@ function createResumptionCapture(
 		!options.onComponentRendered &&
 		!options.onDirectComponentCreated &&
 		!options.onDirectComponentRendered;
-	const captureOptions: RenderToStringOptions = directArtifactsOnly
-		? {
-				...options,
-				resumptionCapture: capture,
-				allowIndependentComponentObservation
+	const captureOptions: RenderToStringOptions = {
+		...options,
+		resumptionCapture: capture,
+		allowIndependentComponentObservation,
+		onComponentCreated(instance) {
+			const contract = readPreparedExactServerExecutableComponentContract(instance.type);
+			const token = reserve(exactComponentIdentity(instance.type), contract);
+			if (token !== undefined) recordsByInstance.set(instance, token);
+			options.onComponentCreated?.(instance);
+		},
+		onComponentRendered(instance) {
+			const token = recordsByInstance.get(instance);
+			if (token !== undefined) {
+				const schema = schemas[token];
+				if (schema)
+					publish(
+						token,
+						instance.state,
+						instance.props,
+						schema.contexts.length
+							? componentContinuationContextValues(instance, schema.contexts)
+							: emptyContextValues,
+						schema.continuations.size
+							? settledComponentContinuationIds(instance)
+							: emptyContinuationIds
+					);
 			}
-		: {
-				...options,
-				resumptionCapture: capture,
-				allowIndependentComponentObservation,
-				onComponentCreated(instance) {
-					const contract = readPreparedExactServerExecutableComponentContract(instance.type);
-					const token = reserve(exactComponentIdentity(instance.type), contract);
-					if (token !== undefined) recordsByInstance!.set(instance, token);
-					options.onComponentCreated?.(instance);
-				},
-				onComponentRendered(instance) {
-					const token = recordsByInstance!.get(instance);
-					if (token !== undefined) {
-						const schema = schemas[token];
-						if (schema)
-							publish(
-								token,
-								instance.state,
-								instance.props,
-								schema.contexts.length
-									? componentContinuationContextValues(instance, schema.contexts)
-									: emptyContextValues,
-								schema.continuations.size
-									? settledComponentContinuationIds(instance)
-									: emptyContinuationIds
-							);
-					}
-					options.onComponentRendered?.(instance);
-				},
-				onComponentAttemptCheckpoint: () => [
-					capture.checkpoint(),
-					options.onComponentAttemptCheckpoint?.()
-				],
-				onComponentAttemptRollback(checkpoint) {
-					if (Array.isArray(checkpoint) && typeof checkpoint[0] === 'number') {
-						capture.rollback(checkpoint[0]);
-						options.onComponentAttemptRollback?.(checkpoint[1]);
-					}
-				}
-			};
+			options.onComponentRendered?.(instance);
+		},
+		onComponentAttemptCheckpoint: () => [
+			capture.checkpoint(),
+			options.onComponentAttemptCheckpoint?.()
+		],
+		onComponentAttemptRollback(checkpoint) {
+			if (Array.isArray(checkpoint) && typeof checkpoint[0] === 'number') {
+				capture.rollback(checkpoint[0]);
+				options.onComponentAttemptRollback?.(checkpoint[1]);
+			}
+		}
+	};
 	return {
 		options: captureOptions,
 		serializedRecords: capture.serializedRecords,
 		activations: capture.activations
 	};
-}
-
-function captureStateEntries(
-	rootInput: boolean,
-	state: unknown,
-	props: unknown,
-	schema: SsrResumptionSchema,
-	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
-	cell: ReactiveOwnPropertyReadCell
-): IndexedResumptionEntry[] {
-	const entries: IndexedResumptionEntry[] = [];
-	try {
-		for (const field of schema.state) {
-			if (!readPath(state, field.segments, cell) || cell.value === undefined) continue;
-			const stateValue = cell.value;
-			if (field.propSegments) {
-				if (!readPath(props, field.propSegments, cell)) {
-					entries.push([field.index, stateValue]);
-					continue;
-				}
-				const localValue = cell.value;
-				if (Object.is(stateValue, localValue)) {
-					if (!rootInput) continue;
-					if (
-						publishedRootProps &&
-						readPath(publishedRootProps, field.propSegments, cell) &&
-						Object.is(localValue, cell.value)
-					)
-						continue;
-				}
-			}
-			entries.push([field.index, stateValue]);
-		}
-	} finally {
-		cell.value = undefined;
-	}
-	return entries;
-}
-
-function captureContextEntries(
-	values: Record<string, unknown>,
-	fields: readonly string[]
-): IndexedResumptionEntry[] {
-	const entries: IndexedResumptionEntry[] = [];
-	for (let index = 0; index < fields.length; index++) {
-		const field = fields[index]!;
-		if (Object.prototype.hasOwnProperty.call(values, field)) entries.push([index, values[field]]);
-	}
-	return entries;
-}
-
-function publishTuple(
-	record: MutableSerializedResumption,
-	values: readonly IndexedResumptionEntry[],
-	contexts: readonly IndexedResumptionEntry[],
-	settled: readonly string[]
-): void {
-	record.length = 1;
-	if (values.length || contexts.length || settled.length) record[1] = values;
-	if (contexts.length || settled.length) record[2] = contexts;
-	if (settled.length) record[3] = settled;
-}
-
-function projectActivation(
-	record: SsrSerializedResumption,
-	schema: SsrResumptionSchema
-): ComponentResumptionActivation {
-	return {
-		componentId: record[0],
-		values: projectEntries(record[1], schema.layout.statePaths),
-		contexts: projectEntries(record[2], schema.layout.contexts),
-		settledContinuations: record[3] ?? []
-	};
-}
-
-function projectEntries(
-	entries: readonly IndexedResumptionEntry[] | undefined,
-	fields: readonly string[]
-): Readonly<Record<string, unknown>> {
-	const output: Record<string, unknown> = {};
-	for (const [index, value] of entries ?? []) output[fields[index]!] = value;
-	return output;
-}
-
-/** Reads one own-property state path without invoking accessors. */
-function readPath(
-	value: unknown,
-	segments: readonly string[],
-	cell: ReactiveOwnPropertyReadCell
-): boolean {
-	let cursor = value;
-	for (const segment of segments) {
-		if (
-			!safeSegment(segment) ||
-			!cursor ||
-			typeof cursor !== 'object' ||
-			!readReactiveOwnPropertyInto(cursor, segment, cell)
-		)
-			return false;
-		cursor = cell.value;
-	}
-	cell.value = cursor;
-	return true;
-}
-
-function resumptionSchema(contract: ExactServerExecutableComponentContract): SsrResumptionSchema {
-	const key = contract as object;
-	const cached = resumptionSchemas.get(key);
-	if (cached) return cached;
-	const resumption = contract.resumption!;
-	const inputs = new Map(resumption.stateInputs);
-	const schema: SsrResumptionSchema = {
-		layout: { statePaths: resumption.statePaths, contexts: resumption.contexts },
-		state: resumption.statePaths.map((path, index) => {
-			const propPath = inputs.get(path);
-			return {
-				index,
-				segments: path.split('.'),
-				...(propPath ? { propSegments: propPath.split('.') } : {})
-			};
-		}),
-		contexts: resumption.contexts,
-		continuations: new Set(contract.continuations.map((continuation) => continuation.id))
-	};
-	resumptionSchemas.set(key, schema);
-	return schema;
-}
-
-/** Rejects prototype-bearing path segments while inspecting component state. */
-function safeSegment(segment: string): boolean {
-	return (
-		segment.length > 0 &&
-		segment !== '__proto__' &&
-		segment !== 'prototype' &&
-		segment !== 'constructor'
-	);
 }

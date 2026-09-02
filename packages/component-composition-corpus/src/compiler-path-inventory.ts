@@ -53,6 +53,12 @@ export const compilerPathInventory = [
 		['client-update', 'hydrate-match']
 	),
 	path(
+		'indexed-property-operand',
+		'specialized',
+		'Exact indexed state and prop reads execute from immutable intrinsic operand tuples.',
+		['client-mount', 'client-update', 'hydrate-match']
+	),
+	path(
 		'state-only-update-mask',
 		'specialized',
 		'State dependencies select only affected update operations.',
@@ -85,7 +91,7 @@ export const compilerPathInventory = [
 	path(
 		'snapshot-resumption-input',
 		'specialized',
-		'Exact prop snapshots omit redundant nested resumption state after identity verification.',
+		'Exact inputs and primitive defaults omit redundant state or the complete reconstructible resumption contract.',
 		['ssr-sync', 'hydrate-match']
 	),
 	path(
@@ -220,7 +226,7 @@ export const compilerPathInventory = [
 	path(
 		'compiler-selected-ssr-attributes',
 		'specialized',
-		'Compiler-known native attributes execute through component-local behavior plans.',
+		'Compiler-known native attributes and conditional classes execute through component-local behavior plans.',
 		['ssr-sync']
 	),
 	path(

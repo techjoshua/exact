@@ -65,12 +65,14 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 			}
 		);
 		expect(rendered.html).toContain('FIRST');
-		expect(rendered.resumptions).toEqual([
+		const resumptions = rendered.resumptions ?? [];
+		expect(resumptions).toEqual([
 			expect.objectContaining({
-				values: expect.objectContaining({ query: 'first', result: 'FIRST' }),
+				values: expect.objectContaining({ result: 'FIRST' }),
 				contexts: { StatusContext: { message: 'FIRST' } }
 			})
 		]);
+		expect(resumptions[0]?.values).not.toHaveProperty('query');
 		const container = document.createElement('main');
 		container.innerHTML = rendered.htmlWithHydration;
 		const serverOutput = container.querySelector('output');

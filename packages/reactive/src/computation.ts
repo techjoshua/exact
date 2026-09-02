@@ -85,7 +85,7 @@ class ComputedNode<T> implements Reaction {
 	active = true;
 	scheduled = false;
 	pendingPriority: WorkPriority | undefined;
-	deps = new Set<Dep>();
+	deps: Dep[] = [];
 	readonly source: ReactiveRef<T>;
 
 	private state: ComputationState = 'dirty';

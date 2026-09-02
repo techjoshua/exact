@@ -77,7 +77,7 @@ func collectStateAnalysis(
 					node.Pos(),
 				)
 			}
-			writes = append(writes, StateWrite{
+			write := StateWrite{
 				Component: candidate.name,
 				Path:      path,
 				Operation: operation,
@@ -90,7 +90,11 @@ func collectStateAnalysis(
 					path,
 				),
 				InputPath: stateWriteInputPath(node, propsSymbol, typeChecker),
-			})
+			}
+			if value, ok := unconditionalPrimitiveStateDefault(node, candidate.node); ok {
+				write.Default = &value
+			}
+			writes = append(writes, write)
 			return true
 		})
 	}
@@ -104,6 +108,37 @@ func collectStateAnalysis(
 		return reads[left].Start < reads[right].Start
 	})
 	return aliases, reads, writes
+}
+
+// Recognizes only a direct top-level assignment whose primitive value is safe to retain as
+// immutable compiler metadata. Nested control flow and reference-bearing values remain captured.
+func unconditionalPrimitiveStateDefault(write *ast.Node, component *ast.Node) (StateDefault, bool) {
+	if !ast.IsBinaryExpression(write) ||
+		write.AsBinaryExpression().OperatorToken.Kind != ast.KindEqualsToken ||
+		write.Parent == nil || !ast.IsExpressionStatement(write.Parent) ||
+		write.Parent.Parent == nil || write.Parent.Parent != component.Body() {
+		return StateDefault{}, false
+	}
+	value := write.AsBinaryExpression().Right
+	for value != nil && ast.IsParenthesizedExpression(value) {
+		value = value.AsParenthesizedExpression().Expression
+	}
+	if value == nil {
+		return StateDefault{}, false
+	}
+	switch value.Kind {
+	case ast.KindStringLiteral:
+		return StateDefault{Kind: "string", Value: value.Text()}, true
+	case ast.KindTrueKeyword:
+		return StateDefault{Kind: "boolean", Value: "true"}, true
+	case ast.KindFalseKeyword:
+		return StateDefault{Kind: "boolean", Value: "false"}, true
+	case ast.KindNullKeyword:
+		return StateDefault{Kind: "null"}, true
+	case ast.KindNumericLiteral:
+		return StateDefault{Kind: "number", Value: value.Text()}, true
+	}
+	return StateDefault{}, false
 }
 
 // Returns the checker identity of the component's ordinary props parameter.

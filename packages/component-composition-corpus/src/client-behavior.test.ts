@@ -48,6 +48,9 @@ describe('composition corpus client behavior', () => {
 		const textarea = container.querySelector<HTMLTextAreaElement>(
 			'[data-role="static-native-attributes"]'
 		)!;
+		const progress = container.querySelector<HTMLProgressElement>(
+			'[data-role="direct-state-property"]'
+		)!;
 		const button = container.querySelector('button')!;
 
 		stateOwner().state.count = 2;
@@ -60,22 +63,25 @@ describe('composition corpus client behavior', () => {
 		expect(projected.textContent).toBe('Count & 2');
 		expect(textarea.maxLength).toBe(2000);
 		expect(textarea.required).toBe(true);
+		expect(textarea.getAttribute('aria-label')).toBe('items');
+		expect(progress.value).toBe(2);
 		expect(button.disabled).toBe(true);
 		expect(button.dataset.count).toBe('2');
+		expect(container.querySelector('[data-scenario="state"]')?.className).toBe('state-root');
 	});
 
 	it('applies one finalized prop replacement through the receiving input plan', () => {
 		const container = mount(inputProjectionRoot());
 		const output = container.querySelector('output')!;
 		const owner = inputProjectionOwner();
-		expect(output.textContent).toBe('loading:missing');
+		expect(output.textContent).toBe('loading:missing:idle');
 
 		render(inputProjectionRoot({ label: 'accepted' }), container);
 		flushSync();
 
 		expect(container.querySelector('output')).toBe(output);
 		expect(inputProjectionOwner()).toBe(owner);
-		expect(output.textContent).toBe('ready:accepted');
+		expect(output.textContent).toBe('ready:accepted:idle');
 	});
 
 	it('updates a conditional range without replacing adjacent siblings', () => {

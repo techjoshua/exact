@@ -33,7 +33,7 @@ export type Reaction = {
 	/** Highest-priority invalidation waiting to run this reaction. */
 	pendingPriority?: WorkPriority;
 	scope?: EffectScopeImpl;
-	deps: Set<Dep>;
+	deps: Dep[];
 	run(): void;
 	schedule(): void;
 	stop(): void;

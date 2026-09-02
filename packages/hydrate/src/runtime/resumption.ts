@@ -22,7 +22,7 @@ export type ComponentResumptionResolver = ((
 export function createComponentResumptionResolver(
 	records: () => readonly ComponentResumptionActivation[] | undefined
 ): ComponentResumptionResolver {
-	const consumed = new Set<number>();
+	const consumed: boolean[] = [];
 	const history: number[] = [];
 	const resolve = ((type: AnyComponentFunction) => {
 		const contract = readPreparedExactClientExecutableComponentContract(type);
@@ -30,40 +30,34 @@ export function createComponentResumptionResolver(
 		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
-		const recordIndex = available.findIndex(
-			(record, candidate) => !consumed.has(candidate) && record.componentId === componentId
-		);
-		if (recordIndex < 0)
+		let recordIndex = 0;
+		while (
+			recordIndex < available.length &&
+			(consumed[recordIndex] === true || available[recordIndex]!.componentId !== componentId)
+		)
+			recordIndex++;
+		if (recordIndex === available.length)
 			throw new Error(`eXact SSR resumption is missing component ${componentId}`);
 		const record = available[recordIndex]!;
-		const allowedPaths = new Set(contract.resumption.statePaths);
-		const values = expandIndexedFields(record.values, contract.resumption.statePaths, componentId);
-		for (const path of Object.keys(values)) {
-			if (!allowedPaths.has(path))
-				throw new Error(
-					`eXact SSR resumption contains undeclared state path ${componentId}:${path}`
-				);
-		}
-		const allowedContexts = new Set(contract.resumption.contexts);
+		const values = expandIndexedFields(
+			record.values,
+			contract.resumption.statePaths,
+			componentId,
+			'state path'
+		);
 		const contexts = expandIndexedFields(
 			record.contexts,
 			contract.resumption.contexts,
-			componentId
-		);
-		for (const name of Object.keys(contexts)) {
-			if (!allowedContexts.has(name))
-				throw new Error(`eXact SSR resumption contains undeclared context ${componentId}:${name}`);
-		}
-		const allowedContinuations = new Set(
-			(contract.continuations ?? []).map((continuation) => continuation.id)
+			componentId,
+			'context'
 		);
 		for (const id of record.settledContinuations) {
-			if (!allowedContinuations.has(id))
+			if (!contract.continuations?.some((continuation) => continuation.id === id))
 				throw new Error(
 					`eXact SSR resumption contains undeclared continuation ${componentId}:${id}`
 				);
 		}
-		consumed.add(recordIndex);
+		consumed[recordIndex] = true;
 		history.push(recordIndex);
 		return { ...record, values, contexts };
 	}) as ComponentResumptionResolver;
@@ -71,7 +65,7 @@ export function createComponentResumptionResolver(
 	resolve.rollback = (checkpoint) => {
 		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > history.length)
 			throw new Error('Malformed eXact component resumption checkpoint');
-		while (history.length > checkpoint) consumed.delete(history.pop()!);
+		while (history.length > checkpoint) consumed[history.pop()!] = false;
 	};
 	return resolve;
 }
@@ -80,13 +74,25 @@ export function createComponentResumptionResolver(
 function expandIndexedFields(
 	values: Readonly<Record<string, unknown>>,
 	fields: readonly string[],
-	componentId: string
+	componentId: string,
+	fieldKind: 'state path' | 'context'
 ): Readonly<Record<string, unknown>> {
 	const keys = Object.keys(values);
-	if (!keys.some((key) => key.startsWith('@'))) return values;
+	if (!keys.some((key) => key.startsWith('@'))) {
+		for (const key of keys)
+			if (!fields.includes(key))
+				throw new Error(
+					`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${key}`
+				);
+		return values;
+	}
 	const output: Record<string, unknown> = {};
 	for (const key of keys) {
 		if (!key.startsWith('@')) {
+			if (!fields.includes(key))
+				throw new Error(
+					`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${key}`
+				);
 			if (Object.prototype.hasOwnProperty.call(output, key))
 				throw new Error(`Duplicate eXact resumption field ${componentId}:${key}`);
 			output[key] = values[key];

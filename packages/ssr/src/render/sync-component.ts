@@ -16,7 +16,8 @@ import { readDirectSsrContent } from './direct-component-content.js';
 import { disposeDirectSsrLifetimeSync } from './direct-component-scheduling.js';
 import {
 	callInComponentDomain,
-	type DirectSsrLifecycleCapability
+	type DirectSsrLifecycleCapability,
+	statelessDirectSsrComponentFrame
 } from './direct-component-support.js';
 import { createSelectedDirectSsrFrame, selectedDirectSsrOwner } from './direct-frame-selection.js';
 import { renderPreparedSsrProgramString } from './sync-render-program.js';
@@ -153,7 +154,7 @@ function renderSyncComponent(
 		return buffered;
 	}
 
-	return executeSyncComponentOutput(context, contract, props, parent, operations, undefined, key);
+	return executeSyncComponentOutput(context, contract, props, parent, operations);
 }
 
 type SyncComponentBoundary = Readonly<{
@@ -172,8 +173,7 @@ function executeSyncComponentOutput(
 	props: Record<string, unknown>,
 	parent: AnyComponentInstance | undefined,
 	operations: SyncComponentOperations,
-	boundary?: SyncComponentBoundary,
-	directKey?: string
+	boundary?: SyncComponentBoundary
 ): string {
 	const artifact = contract.artifact;
 	const server = artifact.execution;
@@ -183,9 +183,9 @@ function executeSyncComponentOutput(
 		server.mode === 'stateless' &&
 		!context.onDirectComponentCreated &&
 		!context.onDirectComponentRendered;
-	// Keep one ordinary request-local receiver shape at this shared hot callsite. Passing
-	// `undefined` for stateless leaves makes otherwise identical component calls polymorphic.
-	const frame = createSelectedDirectSsrFrame(context, contract, parent);
+	const frame = stateless
+		? statelessDirectSsrComponentFrame
+		: createSelectedDirectSsrFrame(context, contract, parent);
 	const owner = stateless ? parent : selectedDirectSsrOwner(contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let render: unknown;
@@ -245,7 +245,9 @@ function executeSyncComponentOutput(
 				: content.program
 					? renderPreparedSsrProgramString(context, content.program, owner, operations)
 					: operations.renderChildren(context, content.children, owner, true);
-			if (!boundary) markerId(context, 'component', artifact.id, directKey);
+			// Preserve request-local marker ordering without constructing an identity that this
+			// compiler-proven unmarked component never publishes.
+			if (!boundary) context.nextId++;
 			if (resumptionToken !== undefined)
 				context.resumptionCapture?.publishDirect(resumptionToken, frame, frame.state, props);
 			if (snapshot) context.onDirectComponentRendered?.(snapshot);

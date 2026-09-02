@@ -18,6 +18,12 @@ export type ExactRenderProgramNode = readonly [
 /** Compiler-owned server output containing serialized spans and deferred child ranges. */
 export type ExactRenderProgramSsrOutput = Array<string | readonly unknown[] | object>;
 
+/** Request-local server invocation whose generated writer consumes eager slot values. */
+export type ExactRenderProgramSsrInvocation = Readonly<{
+	program: ExactRenderProgramInvocation['program'];
+	eagerValues: readonly unknown[];
+}>;
+
 /** Compiler-selected native SSR attribute: behavior, source property, serialized name. */
 export type ExactRenderProgramSsrAttribute = readonly [
 	kind: 0 | 1 | 2 | 3 | 4 | 5 | 6,
@@ -32,15 +38,15 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 	/** Allocates the typed invocation-local output owned by the generated writer. */
 	output(): ExactRenderProgramSsrOutput;
 	/** Reads and validates one compiler-known scalar before serialization mutates request state. */
-	prepareText(invocation: ExactRenderProgramInvocation, index: number): unknown;
+	prepareText(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
 	/** Reads and validates one recursive child before serialization mutates request state. */
-	prepareChild(invocation: ExactRenderProgramInvocation, index: number): unknown;
+	prepareChild(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
 	/** Reads one compiler-proven native component before serialization mutates request state. */
-	prepareComponent(invocation: ExactRenderProgramInvocation, index: number): unknown;
+	prepareComponent(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
 	/** Reads finalized props for a statically selected native component. */
-	prepareComponentProps(invocation: ExactRenderProgramInvocation, index: number): unknown;
+	prepareComponentProps(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
 	/** Reads and validates one host value before serialization mutates request state. */
-	prepareAttribute(invocation: ExactRenderProgramInvocation, index: number): unknown;
+	prepareAttribute(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
 	/** Reserves the finite region's ownership identities and charges its request limit once. */
 	begin(
 		context: object,
@@ -142,7 +148,7 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 export type ExactRenderProgramSsrWriter = (
 	operations: ExactRenderProgramSsrOperations,
 	context: object,
-	invocation: ExactRenderProgramInvocation
+	invocation: ExactRenderProgramSsrInvocation
 ) => ExactRenderProgramSsrOutput | undefined;
 
 /** Compact text slot: kind, fallback identity, template path, and marker-free SSR proof. */
@@ -205,6 +211,13 @@ export type ExactRenderProgramClaimOperation = readonly [
 	fourth?: string | boolean
 ];
 
+/** One compiler-proven indexed value consumed inside a focused intrinsic property operation. */
+export type ExactRenderProgramPropertyOperand = readonly [
+	name: string,
+	source: 0 | 1,
+	slot: number
+];
+
 /** Compact compiler-local binding operation consumed by the focused DOM binding executor. */
 export type ExactRenderProgramBindingOperation = readonly [
 	kind: number,
@@ -215,8 +228,10 @@ export type ExactRenderProgramBindingOperation = readonly [
 		| readonly [source: 0 | 1, slot: number]
 		| readonly [prefix: string, suffix: string, direct?: true, source?: 0 | 1, slot?: number]
 		| readonly (readonly [slot: number])[]
+		| readonly ExactRenderProgramPropertyOperand[]
 		| object,
-	third?: number | boolean | object
+	third?: number | boolean | object,
+	fourth?: boolean
 ];
 
 /** Immutable component-local claim and binding data emitted instead of a generated binder closure. */
@@ -350,7 +365,6 @@ export type ExactRenderProgramReceiptData = Readonly<{
 
 const renderProgramReceipts =
 	sharedOpaqueOperationStore<ExactRenderProgramReceiptData>('render-program');
-const emptyServerRenderProgramReaders: ExactRenderProgramReaders = Object.freeze([]);
 /** Dispatch key implemented by targets that execute compiler-closed render programs. */
 export const exactRenderProgramOperation = Symbol.for('@exactjs/target-operation/render-program');
 
@@ -372,7 +386,7 @@ function executeRenderProgramOperation(this: object, target: object): unknown {
 }
 
 /** Compiler-issued server invocation consumed directly by the compiler-closed SSR lane. */
-export type ExactPreparedServerRenderProgram = ExactRenderProgramInvocation &
+export type ExactPreparedServerRenderProgram = ExactRenderProgramSsrInvocation &
 	Readonly<{
 		[PreparedServerRenderProgram]: true;
 		enhancement?: CompiledEnhancementNode;
@@ -430,17 +444,14 @@ export function createPreparedServerRenderProgram(
 	enhancement?: CompiledEnhancementNode
 ): ExactPreparedServerRenderProgram {
 	// The nominal wrapper prevents ordinary child normalization from flattening the values array.
-	// Its empty client-reader table is shared because server slots always use eager values.
 	const domain = enhancement ? currentComponentDomain() : undefined;
 	const invocation = {
 		[PreparedServerRenderProgram]: true,
 		program: branded,
-		readers: emptyServerRenderProgramReaders,
 		eagerValues
 	} as {
 		readonly [key: symbol]: unknown;
 		program: BrandedRenderProgram;
-		readers: ExactRenderProgramReaders;
 		eagerValues: readonly unknown[];
 		enhancement?: CompiledEnhancementNode;
 		domain?: import('./component/contracts.js').ComponentDomain;

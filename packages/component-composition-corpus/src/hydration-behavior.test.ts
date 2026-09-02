@@ -65,6 +65,9 @@ describe('composition corpus hydration behavior', () => {
 		const textarea = container.querySelector<HTMLTextAreaElement>(
 			'[data-role="static-native-attributes"]'
 		);
+		const progress = container.querySelector<HTMLProgressElement>(
+			'[data-role="direct-state-property"]'
+		);
 		const button = container.querySelector('button');
 		hydrate(stateRoot('count'), container, { onMismatch: 'throw', resumptions });
 		stateOwner().state.count = 3;
@@ -78,6 +81,8 @@ describe('composition corpus hydration behavior', () => {
 		expect(projected?.textContent).toBe('Count & 3');
 		expect(textarea?.maxLength).toBe(2000);
 		expect(textarea?.required).toBe(true);
+		expect(textarea?.getAttribute('aria-label')).toBe('count');
+		expect(progress?.value).toBe(3);
 		expect(button?.hasAttribute('disabled')).toBe(true);
 	});
 
@@ -86,7 +91,7 @@ describe('composition corpus hydration behavior', () => {
 		const output = container.querySelector('[data-scenario="input-projection"]');
 		hydrate(inputProjectionRoot(), container, { onMismatch: 'throw', resumptions });
 		expect(container.querySelector('[data-scenario="input-projection"]')).toBe(output);
-		expect(output?.textContent).toBe('loading:missing');
+		expect(output?.textContent).toBe('loading:missing:idle');
 
 		const snapshot = serverContainer(serverSnapshotProjectionRoot('retained'));
 		const snapshotOutput = snapshot.container.querySelector(

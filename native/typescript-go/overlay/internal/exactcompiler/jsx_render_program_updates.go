@@ -9,14 +9,20 @@ import (
 )
 
 type renderProgramDirectUpdate struct {
-	kind         string
-	index        int
-	group        int
-	firstSlot    int
-	textPrefix   string
-	textSuffix   string
-	dependencies []componentUpdateDependency
-	operand      *componentUpdateDependency
+	kind             string
+	index            int
+	group            int
+	firstSlot        int
+	textPrefix       string
+	textSuffix       string
+	dependencies     []componentUpdateDependency
+	operand          *componentUpdateDependency
+	propertyOperands []renderProgramPropertyOperand
+}
+
+type renderProgramPropertyOperand struct {
+	name       string
+	dependency componentUpdateDependency
 }
 
 type componentUpdateDependency struct {
@@ -42,14 +48,14 @@ func (lowering *jsxLowering) directRenderProgramWiring(
 	listSlots := make([]*ast.Node, 0, len(build.slots))
 	directText := make(map[int]renderProgramDirectUpdate, len(directUpdates))
 	directChildren := make(map[int]struct{}, len(directUpdates))
-	directProperties := make(map[int]struct{}, len(directUpdates))
+	directProperties := make(map[int]renderProgramDirectUpdate, len(directUpdates))
 	for _, update := range directUpdates {
 		if update.kind == "text" {
 			directText[update.index] = update
 		} else if update.kind == "child" {
 			directChildren[update.index] = struct{}{}
 		} else {
-			directProperties[update.group] = struct{}{}
+			directProperties[update.group] = update
 		}
 	}
 	for index, slot := range build.slots {
@@ -149,6 +155,27 @@ func (lowering *jsxLowering) directRenderProgramWiring(
 			emit(6, arguments...)
 			continue
 		}
+		if update, direct := directProperties[group]; direct && len(update.propertyOperands) != 0 {
+			operands := make([]*ast.Node, 0, len(update.propertyOperands))
+			for _, operand := range update.propertyOperands {
+				source := "0"
+				if operand.dependency.source == "props" {
+					source = "1"
+				}
+				operands = append(operands, lowering.factory.NewArrayLiteralExpression(
+					lowering.factory.NewNodeList([]*ast.Node{
+						lowering.factory.NewStringLiteral(operand.name, ast.TokenFlagsNone),
+						lowering.factory.NewNumericLiteral(source, ast.TokenFlagsNone),
+						lowering.factory.NewNumericLiteral(strconv.Itoa(operand.dependency.slot), ast.TokenFlagsNone),
+					}),
+					false,
+				))
+			}
+			emit(12, arguments[0], arguments[1], lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(operands), false,
+			), lowering.factory.NewTrueExpression())
+			continue
+		}
 		if _, direct := directProperties[group]; direct {
 			arguments = append(arguments, lowering.factory.NewTrueExpression())
 		}
@@ -233,8 +260,16 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 	for group, binding := range build.propertyBindings() {
 		dependencies := []componentUpdateDependency{}
 		direct := true
+		propertyOperands := make([]renderProgramPropertyOperand, 0, len(binding.slots))
 		for _, index := range binding.slots {
 			slot := build.slots[index]
+			if slot.kind != "spread" {
+				if operand, exact := lowering.directRenderProgramOperand(slot.reader); exact {
+					propertyOperands = append(propertyOperands, renderProgramPropertyOperand{
+						name: slot.name, dependency: operand,
+					})
+				}
+			}
 			slotDependencies, slotDirect := lowering.directScalarProgramDependencies(slot.reader)
 			if slotDirect {
 				dependencies = append(dependencies, slotDependencies...)
@@ -249,7 +284,8 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 		if direct && len(dependencies) != 0 {
 			updates = append(updates, renderProgramDirectUpdate{
 				kind: "properties", group: group, firstSlot: binding.slots[0],
-				dependencies: uniqueSortedComponentUpdateDependencies(dependencies),
+				dependencies:     uniqueSortedComponentUpdateDependencies(dependencies),
+				propertyOperands: propertyOperands,
 			})
 		}
 		if !direct {

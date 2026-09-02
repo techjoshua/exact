@@ -61,4 +61,29 @@ describe('SSR resumption capture construction', () => {
 
 		expect(records).toEqual([['nested'], ['nested', [[0, 'changed']]]]);
 	});
+
+	it('omits compiler-proven primitive defaults but captures divergent finalized state', () => {
+		const capture = createDirectSsrResumptionCapture({});
+		const contract = {
+			resumption: {
+				statePaths: ['status', 'count'],
+				stateInputs: [],
+				stateDefaults: [
+					['status', 'idle'],
+					['count', 0]
+				],
+				contexts: []
+			},
+			continuations: []
+		} as never;
+		const records = capture.serializedRecords();
+		const resumptionCapture = capture.options.resumptionCapture!;
+
+		const matching = resumptionCapture.reserveDirect('component', contract)!;
+		resumptionCapture.publishDirect(matching, {}, { status: 'idle', count: 0 }, {});
+		const diverged = resumptionCapture.reserveDirect('component', contract)!;
+		resumptionCapture.publishDirect(diverged, {}, { status: 'ready', count: 0 }, {});
+
+		expect(records).toEqual([['component'], ['component', [[0, 'ready']]]]);
+	});
 });

@@ -23,6 +23,7 @@ export {
 	type ExactRenderProgramReceipt,
 	type ExactRenderProgramReceiptData,
 	type ExactRenderProgramOperationTarget,
+	type ExactRenderProgramPropertyOperand,
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
 	type ExactRenderProgramSsrOperations,

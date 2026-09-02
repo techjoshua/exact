@@ -7,20 +7,26 @@ let statusRuns = 0;
 
 /** Compiled state contract used by compact wire-index tests. */
 export function ResumableCounter(this: Component<{ label: string }>) {
-	this.state.label = 'client';
+	this.state.label = authoredInitialValue('client');
 	return () => <p>{this.state.label}</p>;
 }
 
 /** First compiled state contract used to verify per-type activation ordering. */
 export function ResumableFirst(this: Component<{ label: string }>) {
-	this.state.label = 'first';
+	this.state.label = authoredInitialValue('first');
 	return () => <p>{this.state.label}</p>;
 }
 
 /** Second compiled state contract used to verify per-type activation ordering. */
 export function ResumableSecond(this: Component<{ label: string }>) {
-	this.state.label = 'second';
+	this.state.label = authoredInitialValue('second');
 	return () => <p>{this.state.label}</p>;
+}
+
+// These fixtures intentionally retain a resumption contract so resolver tests can inject values
+// that differ from setup. Ordinary primitive defaults are correctly classified reconstructible.
+function authoredInitialValue(value: string): string {
+	return value;
 }
 
 function InitialPage(this: Component<{ label: string }>) {

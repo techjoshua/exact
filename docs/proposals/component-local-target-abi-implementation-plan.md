@@ -628,6 +628,12 @@ slot identity into component update planning. Derived expressions and structural
 their computation owner. Profile such a change against normalized controls; deterministic code and
 function inventories remain raw, unnormalized evidence.
 
+The accepted intrinsic-property slice stores exact state and prop operands in the existing
+component-local `wire`. A mixed property group keeps its arbitrary-expression writer, while the
+focused property operation reads only its proven indexed subset. Dirty updates recover that same
+immutable tuple from the selected operation instead of retaining descriptor arrays on component
+instances. No capture, callback, derived expression, or spread is converted into operand data.
+
 The receiver-owned indexed input plan may likewise accept an exact property path below one indexed
 prop slot when a finalized replacement of that root prop is the path's complete invalidation
 identity. The plan reevaluates the authored optional/property chain inside the receiving component
@@ -654,6 +660,12 @@ installing the ordinary renderer's instance-to-token `WeakMap` or generic compon
 wrappers. Authored attempt and observation hooks remain present, while direct and scheduled
 executors publish through the capture ABI themselves. Generic and extensible render entrypoints
 retain the instance bridge for values crossing those renderer boundaries.
+
+A transition-free direct component whose complete captured state is recreated by exact finalized
+inputs or unconditional primitive defaults does not need a resumption contract or an empty value
+record. The compiler omits both target artifacts' resumption surface for that component. Components
+with continuations, server lifecycle, contexts, arbitrary setup values, or an uncovered state path
+retain indexed request-owned capture and ordinary hydration validation.
 
 A later focused specialization may also issue a statically selected child directly from that
 program when its invocation consists only of finalized plain props. Store the callable in the

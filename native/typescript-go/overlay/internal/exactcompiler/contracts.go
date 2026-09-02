@@ -436,6 +436,7 @@ type StateWrite struct {
 	DynamicSegments map[int]*ast.Node `json:"-"`
 	Interaction     bool              `json:"-"`
 	InputPath       string            `json:"-"`
+	Default         *StateDefault     `json:"-"`
 }
 
 // ValueCallbackBinding preserves one authored paired JSX binding across
@@ -690,17 +691,25 @@ type ServerRenderRecord struct {
 
 // ClientResumptionRecord contains the durable browser-visible resume contract.
 type ClientResumptionRecord struct {
-	StatePaths    []string     `json:"statePaths"`
-	StateInputs   []StateInput `json:"stateInputs"`
-	ValueCaptures []string     `json:"valueCaptures"`
-	Contexts      []string     `json:"contexts"`
-	Boundaries    []string     `json:"boundaries"`
+	StatePaths    []string       `json:"statePaths"`
+	StateInputs   []StateInput   `json:"stateInputs"`
+	StateDefaults []StateDefault `json:"stateDefaults"`
+	ValueCaptures []string       `json:"valueCaptures"`
+	Contexts      []string       `json:"contexts"`
+	Boundaries    []string       `json:"boundaries"`
 }
 
 // StateInput identifies state reconstructed by client setup from the published root props.
 type StateInput struct {
 	StatePath string `json:"statePath"`
 	PropPath  string `json:"propPath"`
+}
+
+// StateDefault identifies one unconditional primitive setup value that hydration recreates.
+type StateDefault struct {
+	StatePath string `json:"statePath"`
+	Kind      string `json:"kind"`
+	Value     string `json:"value"`
 }
 
 // ComponentResumption separates server activation from client resume data.
@@ -1096,6 +1105,9 @@ func normalizedResumptions(values []ComponentResumption) []ComponentResumption {
 		)
 		values[index].Client.StateInputs = nonNilSlice(
 			values[index].Client.StateInputs,
+		)
+		values[index].Client.StateDefaults = nonNilSlice(
+			values[index].Client.StateDefaults,
 		)
 		values[index].Client.ValueCaptures = nonNilSlice(
 			values[index].Client.ValueCaptures,

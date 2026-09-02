@@ -96,3 +96,9 @@ function directSsrMap<T>(
 		)
 	);
 }
+
+/** Immutable value-free receiver shared only by compiler-proven stateless server artifacts. */
+export const statelessDirectSsrComponentFrame: DirectSsrComponentFrame = Object.freeze({
+	state: Object.freeze({}),
+	map: directSsrMap
+});

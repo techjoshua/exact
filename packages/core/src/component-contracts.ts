@@ -135,6 +135,11 @@ export type ExactComponentResumptionContract = Readonly<{
 	statePaths: readonly string[];
 	/** State path and root-prop path pairs that client setup can reconstruct. */
 	stateInputs: readonly (readonly [statePath: string, propPath: string])[];
+	/** Server-only primitive setup values that sparse capture may omit. */
+	stateDefaults?: readonly (readonly [
+		statePath: string,
+		value: string | number | boolean | null
+	])[];
 	valueCaptures: readonly string[];
 	contexts: readonly string[];
 	boundaries: readonly string[];

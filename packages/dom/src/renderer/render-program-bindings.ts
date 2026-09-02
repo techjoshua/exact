@@ -1,6 +1,7 @@
 import type {
 	ExactRenderProgramBindingOperation,
 	ExactRenderProgramBindingTarget,
+	ExactRenderProgramPropertyOperand,
 	ExactRenderProgramSlot,
 	ExactRenderProgramWiring
 } from '@exactjs/core/runtime/render-operations';
@@ -10,9 +11,9 @@ import type {
 } from '@exactjs/core/framework/component-contracts';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
 import { unwrap } from '@exactjs/reactive/framework/values';
-import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
+import type { OwnedRetainedWatch } from '@exactjs/reactive/framework/watch';
 import { currentWorkPriority, scheduleWork } from '@exactjs/reactive/framework/runtime';
-import { applyCompiledProps, releaseCompiledProps } from '../compiled-props.js';
+import { releaseCompiledProps } from '../compiled-props.js';
 import { clearElementProps, updateProps } from '../props.js';
 import type { Mounted } from '../types.js';
 import {
@@ -35,13 +36,20 @@ import {
 	bindCompiledWideStateComponentUpdate
 } from './component-state-update-binding.js';
 import { applyProgramText } from './render-program-text.js';
+import {
+	bindCompiledProgramProperties,
+	bindCompiledReactiveProgramProperties
+} from './render-program-property-bindings.js';
+import {
+	retainProgramBinding,
+	type ProgramBindingTarget
+} from './render-program-retained-binding.js';
 
-type ProgramBindingTarget = {
-	readonly mounted: Mounted;
-	readonly initialBinding: boolean;
-	readonly stopBindings: OwnedRetainedWatch[];
-	valid: boolean;
-};
+export {
+	applyCompiledProgramProperties,
+	bindCompiledProgramProperties,
+	bindCompiledReactiveProgramProperties
+} from './render-program-property-bindings.js';
 
 /** Installs and owns the compiler-emitted direct bindings for one mounted program. */
 export function bindRenderProgram(mounted: Mounted): boolean {
@@ -176,6 +184,15 @@ function executeCompiledProgramBinding(
 		case 6:
 			bindCompiledReactiveProgramProperties(target, operation[1] as number, operation[2] as number);
 			return;
+		case 12:
+			bindCompiledProgramProperties(
+				target,
+				operation[1] as number,
+				operation[2] as number,
+				operation[4] === true ? true : undefined,
+				operation[3] as readonly ExactRenderProgramPropertyOperand[]
+			);
+			return;
 		case 7:
 			bindCompiledComponentUpdate(
 				target,
@@ -255,7 +272,7 @@ export function bindCompiledProgramText(
 		}
 	};
 	if (direct) applyText();
-	else retainBinding(context, applyText);
+	else retainProgramBinding(context, applyText);
 	initialTarget = undefined;
 }
 
@@ -315,67 +332,6 @@ export function bindCompiledProgramKeyedChild(
 		context.valid = false;
 }
 
-/** Binds one compiler-written property group to its exact target slot. */
-export function bindCompiledProgramProperties(
-	target: ExactRenderProgramBindingTarget,
-	group: number,
-	firstSlot: number,
-	direct?: true
-): void {
-	const context = target as ProgramBindingTarget;
-	const state = context.mounted.renderProgram!;
-	const element = state.slotNodes[firstSlot] as Element;
-	if (!state.invocation.propertyWriter || !element) {
-		context.valid = false;
-		return;
-	}
-	const apply = () => applyCompiledProps(context.mounted, element, group, context.initialBinding);
-	if (direct) apply();
-	else retainBinding(context, apply);
-}
-
-/** Binds one compiler-selected arbitrary-JavaScript property reader as a focused reactive update. */
-export function bindCompiledReactiveProgramProperties(
-	target: ExactRenderProgramBindingTarget,
-	group: number,
-	firstSlot: number
-): void {
-	const context = target as ProgramBindingTarget;
-	const state = context.mounted.renderProgram!;
-	const element = state.slotNodes[firstSlot] as Element;
-	if (!state.invocation.propertyWriter || !element) {
-		context.valid = false;
-		return;
-	}
-	retainBinding(context, () =>
-		applyCompiledProps(context.mounted, element, group, context.initialBinding)
-	);
-}
-
-/** Applies one compiler-selected property group without installing a dynamic watcher. */
-export function applyCompiledProgramProperties(
-	target: ExactRenderProgramBindingTarget,
-	group: number,
-	firstSlot: number
-): void {
-	const context = target as ProgramBindingTarget;
-	const state = context.mounted.renderProgram!;
-	const element = state.slotNodes[firstSlot];
-	if (!(element instanceof Element) || !state.invocation.propertyWriter) {
-		context.valid = false;
-		return;
-	}
-	applyCompiledProps(context.mounted, element, group, false);
-}
-
-function retainBinding(context: ProgramBindingTarget, apply: () => void): void {
-	const watcher = watchRetained(apply, undefined, {
-		scope: context.mounted.scope,
-		owned: true
-	});
-	if (watcher) context.stopBindings.push(watcher);
-}
-
 /** Binds a fallback property group retained only by explicit generic support artifacts. */
 export function bindGenericProgramProperties(
 	target: ExactRenderProgramBindingTarget,
@@ -385,7 +341,7 @@ export function bindGenericProgramProperties(
 	const context = target as ProgramBindingTarget;
 	const state = context.mounted.renderProgram!;
 	const element = state.slotNodes[indexes[0]!] as Element;
-	retainBinding(context, () => {
+	retainProgramBinding(context, () => {
 		const previous = (state.props ??= new Map<Element, Record<string, unknown>>());
 		const next: Record<string, unknown> = {};
 		for (const index of indexes) {

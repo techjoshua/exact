@@ -1309,7 +1309,7 @@ func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T)
 		t.Fatalf("hydrate projection failed: %s %#v", hydrate.Error, hydrate.Diagnostics)
 	}
 	for _, expected := range []string{
-		"artifact:", `target: "client"`, "instantiate:", "capabilities:", "state:", "resumption:",
+		"artifact:", `target: "client"`, "instantiate:", "capabilities:", "state:",
 	} {
 		if !strings.Contains(hydrate.Code, expected) {
 			t.Fatalf("hydrate projection is missing %q:\n%s", expected, hydrate.Code)
@@ -1327,6 +1327,9 @@ func TestComponentContractProjectionRetainsOnlyModeRuntimeMetadata(t *testing.T)
 	if strings.Contains(hydrate.Code, "execution:") ||
 		strings.Contains(hydrate.Code, "componentExecutionValueForHost") {
 		t.Fatalf("hydrate projection retained server-operation execution metadata:\n%s", hydrate.Code)
+	}
+	if strings.Contains(hydrate.Code, "resumption:") {
+		t.Fatalf("reconstructible synchronous state retained a resumption contract:\n%s", hydrate.Code)
 	}
 
 	client := NewSession().Execute(Request{

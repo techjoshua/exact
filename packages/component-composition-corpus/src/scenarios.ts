@@ -31,6 +31,7 @@ export const corpusScenarios = [
 			'static-native-attribute',
 			'arbitrary-expression-fallback',
 			'direct-property-binding',
+			'indexed-property-operand',
 			'state-only-update-mask',
 			'mixed-prop-state-update',
 			'indexed-input-update-plan',

@@ -320,6 +320,7 @@ function isResumption(value: unknown): value is ExactComponentResumptionContract
 			'componentId',
 			'statePaths',
 			'stateInputs',
+			'stateDefaults',
 			'valueCaptures',
 			'contexts',
 			'boundaries'
@@ -334,6 +335,18 @@ function isResumption(value: unknown): value is ExactComponentResumptionContract
 				isContractString(input[0]) &&
 				isContractString(input[1])
 		) &&
+		(value.stateDefaults === undefined ||
+			(Array.isArray(value.stateDefaults) &&
+				value.stateDefaults.every(
+					(input) =>
+						Array.isArray(input) &&
+						input.length === 2 &&
+						isContractString(input[0]) &&
+						(input[1] === null ||
+							typeof input[1] === 'string' ||
+							typeof input[1] === 'boolean' ||
+							(typeof input[1] === 'number' && Number.isFinite(input[1])))
+				))) &&
 		isSafeContractStringList(value.valueCaptures) &&
 		isSafeContractStringList(value.contexts) &&
 		isSafeContractStringList(value.boundaries)
