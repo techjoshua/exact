@@ -88,6 +88,8 @@ function frameworkMarkerBytes(markup) {
 				? 'component'
 				: marker.startsWith('exact:dynamic:') ||
 					  marker.startsWith('/exact:dynamic') ||
+					  marker === 'x' ||
+					  marker === '/x' ||
 					  marker.startsWith('x:') ||
 					  marker.startsWith('/x:')
 					? 'dynamic'

@@ -2733,3 +2733,53 @@ equal-payload, preloaded, saturation, retention, and Bun diagnostic suites. Immu
 is retained under `.tmp/final-positional-envelope-checkpoint`; Node and Bun source files remain
 separate, and the composed report input records their independent measurement rounds and runtime
 environments.
+
+### Compact anonymous synchronous compiler-direct ranges
+
+Synchronous compiler-direct structural ranges already omitted their stable operation identity and
+were selected by the component-local operation at the current adoption position. Their comments
+nevertheless retained the long `exact:dynamic:` prefix. The retained implementation preserves the
+same explicit opening/closing ownership and nesting algorithm while serializing these
+non-addressable ranges as `<!--x-->` and `<!--/x-->`. Stable dynamic-component, keyed,
+recovery-addressable, fragment, target, activity, suspense, unsafe-HTML, compatibility, and
+asynchronous boundaries are unchanged.
+
+The comparison response falls from 3,900 to 3,848 bytes. Dynamic marker comments fall from 422 to
+370 bytes; semantic markup remains 2,392 bytes, the hydration payload remains 495 bytes, identity
+attributes remain 160 bytes, and the DOM comment count is unchanged. The production client script
+is byte-identical at 195,922 bytes and the complete client artifact remains 200,413 bytes. The
+retained Node server entry grows by 29 raw bytes, from 241,616 to 241,645 bytes; the complete
+three-file artifact likewise grows from 242,096 to 242,125 bytes.
+
+The first implementation introduced a shared marker-pair helper and separate range-content methods
+in both synchronous and asynchronous operation targets. Although its focused preloaded population
+was neutral-to-positive, its complete Node run reduced directly interleaved preloaded paired mean
+RPS by about 7-8%. The mechanism also grew the Node entry by 388 bytes. That contradiction was
+investigated rather than accepted: the fixture never uses the changed asynchronous path, and the
+extra helper/method topology was the only material work beyond choosing shorter literals. The
+generalized mechanism was removed.
+
+The retained implementation leaves the asynchronous target untouched and keeps the existing
+synchronous render closure topology. An empty internal identity selects the two compact literals in
+the existing marker operation. Twenty alternating focused pairs put collected render work at a
+0.951 paired median ratio and 1.029 mean ratio, with 14 wins; the outlier-sensitive timing result is
+treated as neutral. Sampled allocation improves at a 0.967 paired median ratio and 0.977 paired mean
+ratio, also with 14 wins. Fifty balanced preloaded rounds produce paired mean RPS ratios of 1.005 at
+c16, 1.001 at c32, and 1.004 at c64, with 26, 24, and 24 wins.
+
+The complete 50-round Node matrix confirms that the broad regression is gone. Sustained saturation
+paired means range from 0.992 to 1.014 across c1-c64, with every lane split between 23 and 26 wins.
+Preloaded paired means improve 1.7% at c8, 3.2% at c32, and 0.7% at c64. The ordinary c16 p50 falls
+from 1,812 to 1,758 RPS, but its paired mean is only 0.6% lower and its individual ratios range from
+0.48 to 2.18; the longer sustained lanes do not reproduce that movement. It is retained as a noisy
+counter-signal rather than discarded or attributed to the two literal changes. The separate Bun
+diagnostic is likewise neutral overall and improves preloaded paired means 0.8% at c8 and 1.5% at
+c32 while reducing c64 by 0.9%.
+
+The specialization is accepted for its deterministic 52-byte response reduction, unchanged client
+artifact, lower sampled allocation, and neutral sustained Node capacity. The
+[complete grouped-percentile report](component-local-target-abi/compact-anonymous-ranges.md) includes
+the browser, startup, function-inventory, artifact, Node SSR, allocation, response, equal-payload,
+preloaded, saturation, retention, and separate Bun diagnostic tables. Focused and complete raw
+evidence is under `.tmp/compact-anonymous-ranges`; the rejected generalized result remains beside
+the refined result so the implementation-shape finding is reproducible.

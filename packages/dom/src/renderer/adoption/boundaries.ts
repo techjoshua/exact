@@ -147,7 +147,7 @@ export function adoptComponentChildren(
 	);
 	if (direct) return direct;
 	const opening = nodes[start];
-	if (!(opening instanceof Comment) || !opening.data.startsWith('exact:dynamic:')) return undefined;
+	if (!(opening instanceof Comment) || !isChildRangeOpening(opening.data)) return undefined;
 	const closingIndex = closingMarkerIndex(nodes, start, opening.data, end);
 	if (closingIndex !== end - 1) return undefined;
 	const adopted = adoptStaticChildren(
@@ -164,6 +164,11 @@ export function adoptComponentChildren(
 	const closing = nodes[closingIndex];
 	closing?.parentNode?.removeChild(closing);
 	return adopted;
+}
+
+/** Identifies a stable dynamic range or the compact ordered compiler-direct range. */
+export function isChildRangeOpening(value: string): boolean {
+	return value === 'x' || value.startsWith('exact:dynamic:');
 }
 
 /** Performs the adopt static children range domain operation. */
