@@ -18,7 +18,7 @@ export function createDirectHydrationMetadata(
 	assignDefined(output, 'state', options.state);
 	if (options.markerlessRoot) output.m = 1;
 	if (options.continuations) output.continuations = compactContinuations(options.continuations);
-	output.resumptions = resumptions;
+	if (resumptions.length) output.resumptions = resumptions;
 	if (options.publicContexts && !isEmptyRecord(options.publicContexts))
 		output.publicContexts = options.publicContexts;
 	assignDefined(output, 'wallClockSnapshot', options.wallClockSnapshot);

@@ -22,23 +22,19 @@ export type ComponentResumptionResolver = ((
 export function createComponentResumptionResolver(
 	records: () => readonly ComponentResumptionActivation[] | undefined
 ): ComponentResumptionResolver {
-	const consumed: boolean[] = [];
-	const history: number[] = [];
+	let cursor = 0;
 	const resolve = ((type: AnyComponentFunction) => {
 		const contract = readPreparedExactClientExecutableComponentContract(type);
 		if (!contract.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
-		let recordIndex = 0;
-		while (
-			recordIndex < available.length &&
-			(consumed[recordIndex] === true || available[recordIndex]!.componentId !== componentId)
-		)
-			recordIndex++;
-		if (recordIndex === available.length)
-			throw new Error(`eXact SSR resumption is missing component ${componentId}`);
-		const record = available[recordIndex]!;
+		const record = available[cursor];
+		if (!record) throw new Error(`eXact SSR resumption is missing component ${componentId}`);
+		if (record.componentId !== componentId)
+			throw new Error(
+				`eXact SSR resumption expected component ${record.componentId} before ${componentId}`
+			);
 		const indexed = Array.isArray(record.values) && Array.isArray(record.contexts);
 		if (indexed) {
 			prepareIndexedFields(
@@ -64,15 +60,14 @@ export function createComponentResumptionResolver(
 					`eXact SSR resumption contains undeclared continuation ${componentId}:${id}`
 				);
 		}
-		consumed[recordIndex] = true;
-		history.push(recordIndex);
+		cursor++;
 		return record;
 	}) as ComponentResumptionResolver;
-	resolve.checkpoint = () => history.length;
+	resolve.checkpoint = () => cursor;
 	resolve.rollback = (checkpoint) => {
-		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > history.length)
+		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > cursor)
 			throw new Error('Malformed eXact component resumption checkpoint');
-		while (history.length > checkpoint) consumed[history.pop()!] = false;
+		cursor = checkpoint;
 	};
 	return resolve;
 }

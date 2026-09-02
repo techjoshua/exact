@@ -21,6 +21,10 @@ export type {
 	ExactServerComponentExecution
 } from './component-abi/server.js';
 export type { AnyExactComponentCallable } from './component-abi/executable-fields.js';
+export {
+	decodeExactValueWithSchema,
+	type ExactValueSerializationSchema
+} from './component-abi/value-serialization.js';
 
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');

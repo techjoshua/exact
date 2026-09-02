@@ -7,6 +7,9 @@ package-lock.json
 
 # Generated compatibility reports and exact-text reference corpora.
 docs/performance-baselines/*.json
+# Generated complete metric tables retain the suite's compact percentile-cell layout.
+docs/performance-baselines/component-local-target-abi/direct-indexed-resumption.md
+docs/performance-baselines/component-local-target-abi/positional-root-publication.md
 packages/react-compatibility/phase-*-result.json
 packages/react-compatibility/phase-0-baseline.json
 packages/react-compatibility/renderer-certification.json

@@ -2402,3 +2402,49 @@ the preceding run even though no server byte changed. Those values quantify betw
 process variance; they are not attributed to the client-only implementation. This is why the next
 server candidate will use directly alternating before/current artifacts in addition to the four
 framework controls.
+
+### Positional root publication and resumption cursor checkpoint
+
+The accepted implementation replaces request-local indexed-resumption consumption bitmaps and
+history arrays with one ordered cursor. Scheduled server frames reserve their records only when
+their output is committed, so synchronous and scheduled component records follow the same
+component-tree order without speculative siblings reordering the stream. Compiler-proven finite
+root props use matching immutable client/server schemas. The hydration safety traversal validates
+authored descriptors and constructs the final positional cells in the same pass; open shapes,
+accessors, runtime mismatches, output extensions, and unsupported values retain the named path.
+
+The [complete grouped-percentile report](component-local-target-abi/positional-root-publication.md)
+contains the 50-sample balanced browser and 1x/4x/6x startup populations, complete fresh Node SSR
+and Bun diagnostics, every function and artifact counter, response decomposition, render/allocation,
+payload, preloaded, equal-payload, retention, and saturation lane. It keeps framework columns in
+Exact, React, SvelteKit, Nuxt order and reports eligible control-normalized Exact-before values with
+raw history in parentheses. The same admitted participant builds were reused throughout. Immutable
+evidence is `.tmp/positional-root-publication/checkpoint` and
+`framework-comparison/results/raw/ssr-2026-09-02T07-03-49-539Z.json`.
+
+The Exact response falls from 4,314 to 4,033 bytes, a 281-byte or 6.5% reduction. Directly
+interleaved accepted/current ordinary Node c16 is neutral at 2,093.9/2,097.8 RPS p50. The five-window
+saturation lanes are mixed: current exceeds the accepted artifact at c4 and c16, is effectively
+neutral at c8, and trails at c1/c32/c64. The stronger focused 50-pair population is likewise neutral:
+paired mean ratios are 1.001 at c16, 1.005 at c32, and 0.992 at c64, with c64 median ratio 0.999.
+Three-window preloaded attribution moves down 2.6%/2.1%/0.5% at c8/c32/c64; its small population is
+not used to overrule the ordinary and focused interleaved evidence. Render-only p50 is
+0.0337/0.0338 ms before/current while current p75/p95/p99 are lower. Sampled allocation is 3.68 MB
+versus 3.55 MB in separate profiles; the paired focused allocation experiment narrows that movement
+to 1.4%, identifying the fused schema traversal as the remaining cost rather than a second render
+or publication pass.
+
+On the client, the modular root schema costs 1,305 deterministic raw/decoded bytes, 1,085 executed
+bytes, two parsed and compiled functions, and one invoked function. Warm retained heap is 2,581,728
+bytes versus 2,576,364 normalized before; cold used heap is 2,436,768 bytes versus 2,434,264
+normalized before. Both heap movements are about 0.2% or less. Optimistic feedback remains
+1.5/1.6/1.8/2.1 ms. Evaluation is 18.714 ms versus 18.347 ms normalized before. These are accepted
+as a bounded client cost for eliminating 281 response bytes and the server/client record-search
+structures, not claimed as a client performance improvement.
+
+A follow-up flattened every nested schema into one prefix array. After correcting a focused-build
+mistake that had paired the new compiler output with stale target-local runtime output, production
+browser behavior passed. The correct flat decoder nevertheless added about 630 more client bytes
+to save only a few dozen small immutable arrays, so that refinement was removed. This confirms that
+future client work should reduce which schema/code is reachable for a selected root rather than
+adding a general cursor parser for already-small module metadata.

@@ -4,6 +4,7 @@ import type {
 } from './executable-fields.js';
 import type { ExactCompiledComponentCapability } from '../component-definition-contracts.js';
 import type { CompiledComponentInstanceConstructor } from '../component/instance-construction.js';
+import type { ExactValueSerializationSchema } from './value-serialization.js';
 
 /** Request protocol key that creates and owns one request-local server frame. */
 export const exactServerIssue = Symbol.for('@exactjs/server-component-issue');
@@ -72,6 +73,8 @@ export type ExactServerComponentArtifact = Readonly<{
 	abi: number;
 	state: readonly string[];
 	props: readonly string[];
+	/** Finite compiler-owned shape used only for compact root-prop publication. */
+	serialization?: ExactValueSerializationSchema;
 	/** Foreign-owned prop values retained by identity without recursive reactive proxying. */
 	opaqueProps?: readonly PropertyKey[];
 	tasks?: readonly string[];

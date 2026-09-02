@@ -674,6 +674,14 @@ the same pair arrays, removing the transitional `@index` record and the subseque
 projection. Public application-supplied registrations remain named records, and both lanes retain
 the same undeclared-field, duplicate-alias, continuation, ordering, and rollback checks.
 
+Compiler-proven finite root-prop shapes may likewise carry one immutable positional schema on each
+target artifact. Hydratable publication encodes only exact plain-object and dense-array matches;
+the component identity travels with the positional values, and the client reconstructs the named
+request-owned graph only after selecting that same artifact. Open shapes, mismatches, accessors,
+output extensions, and unsupported values retain named publication. The generic JSON safety and
+resource-limit boundary remains authoritative and constructs the positional cells during that same
+source traversal; module artifacts never retain request values.
+
 A later focused specialization may also issue a statically selected child directly from that
 program when its invocation consists only of finalized plain props. Store the callable in the
 immutable generated writer, keep props request-owned, and reuse the existing child artifact ABI.

@@ -1,5 +1,7 @@
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
+import type { ExactValueSerializationSchema } from '@exactjs/core/framework/component-contracts';
 import type { SsrSerializedResumption } from './resumption.js';
+import type { PositionalRootPublication } from './render/root-props.js';
 
 /**
  * Compiler-owned container shape carried only until traversal reaches an authored value.
@@ -14,6 +16,7 @@ type ValidationState = {
 	readonly active: Set<object>;
 	readonly onValidatedArray?: (value: unknown[]) => void;
 	readonly path?: ValidationPath;
+	readonly positionalRoot?: PositionalRootPublication;
 	readonly directResumptions?: readonly SsrSerializedResumption[];
 	readonly structurallyKnown?: { has(value: object): boolean };
 	readonly structurallyKnownRoot?: object;
@@ -42,11 +45,13 @@ export function validateJsonSafeHydrationValue(
 		directResumptions?: readonly SsrSerializedResumption[];
 		structurallyKnown?: { has(value: object): boolean };
 		structurallyKnownRoot?: object;
+		positionalRoot?: PositionalRootPublication;
 	}
 ): string | undefined {
 	const state: ValidationState = {
 		active: new Set(),
 		directResumptions: limits.directResumptions,
+		positionalRoot: limits.positionalRoot,
 		structurallyKnown: limits.structurallyKnown,
 		structurallyKnownRoot: limits.structurallyKnownRoot,
 		maxDepth: positiveLimit(limits.maxDepth, 100),
@@ -130,6 +135,26 @@ function validateContainer(
 		if (path) pushValidationPath(path, key, array);
 		if (structurallyKnown) {
 			const item = (source as Record<string, unknown>)[key];
+			if (shape === 1 && key === 'state' && state.positionalRoot) {
+				const publication = state.positionalRoot;
+				const encoded = validatePositionalValue(
+					publication.props,
+					publication.schema,
+					depth + 2,
+					state
+				);
+				if (encoded === positionalUnsafe) return false;
+				if (encoded === positionalMismatch) {
+					(source as Record<string, unknown>)[key] = publication.props;
+					if (!validateValue(publication.props, depth + 1, state)) return false;
+				} else {
+					if (depth + 1 > state.maxDepth || state.nodes + 2 > state.maxNodes) return false;
+					state.nodes += 2;
+					(source as Record<string, unknown>)[key] = [publication.componentId, encoded];
+				}
+				if (path) popValidationPath(path);
+				continue;
+			}
 			const childShape: DirectHydrationShape =
 				shape === 1 && key === 'resumptions' && item === state.directResumptions ? 2 : 0;
 			if (!validateValue(item, depth + 1, state, childShape)) return false;
@@ -143,6 +168,66 @@ function validateContainer(
 	}
 	if (array) state.onValidatedArray?.(source as unknown[]);
 	return true;
+}
+
+const positionalMismatch = Symbol('positional-mismatch');
+const positionalUnsafe = Symbol('positional-unsafe');
+
+/** Validates authored values while constructing their compiler-proven positional cells. */
+function validatePositionalValue(
+	value: unknown,
+	schema: ExactValueSerializationSchema,
+	depth: number,
+	state: ValidationState
+): unknown | typeof positionalMismatch | typeof positionalUnsafe {
+	if (schema === 0) return validateValue(value, depth, state) ? value : positionalUnsafe;
+	if (++state.nodes > state.maxNodes || depth > state.maxDepth) return positionalUnsafe;
+	if (!value || typeof value !== 'object' || state.active.has(value)) return positionalMismatch;
+	state.active.add(value);
+	try {
+		if (schema[0] === 2) {
+			if (
+				!Array.isArray(value) ||
+				Object.getPrototypeOf(value) !== Array.prototype ||
+				Object.keys(value).length !== value.length
+			)
+				return positionalMismatch;
+			const output = new Array<unknown>(value.length);
+			for (let index = 0; index < value.length; index++) {
+				const descriptor = Object.getOwnPropertyDescriptor(value, index);
+				if (!descriptor || !('value' in descriptor)) return positionalMismatch;
+				if (state.path) pushValidationPath(state.path, String(index), true);
+				const encoded = validatePositionalValue(descriptor.value, schema[1], depth + 1, state);
+				if (encoded === positionalMismatch || encoded === positionalUnsafe) return encoded;
+				output[index] = encoded;
+				if (state.path) popValidationPath(state.path);
+			}
+			return output;
+		}
+		if (Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype)
+			return positionalMismatch;
+		const fieldCount = (schema.length - 1) / 2;
+		if (Object.keys(value).length !== fieldCount) return positionalMismatch;
+		const output = new Array<unknown>(fieldCount);
+		for (let schemaIndex = 1, outputIndex = 0; schemaIndex < schema.length; schemaIndex += 2) {
+			const field = schema[schemaIndex] as string;
+			const descriptor = Object.getOwnPropertyDescriptor(value, field);
+			if (!descriptor || !('value' in descriptor)) return positionalMismatch;
+			if (state.path) pushValidationPath(state.path, field, false);
+			const encoded = validatePositionalValue(
+				descriptor.value,
+				schema[schemaIndex + 1] as ExactValueSerializationSchema,
+				depth + 1,
+				state
+			);
+			if (encoded === positionalMismatch || encoded === positionalUnsafe) return encoded;
+			output[outputIndex++] = encoded;
+			if (state.path) popValidationPath(state.path);
+		}
+		return output;
+	} finally {
+		state.active.delete(value);
+	}
 }
 
 function pushValidationPath(path: ValidationPath, key: string, array: boolean): void {

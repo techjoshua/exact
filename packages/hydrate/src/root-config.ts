@@ -2,6 +2,11 @@ import {
 	isExactComponentAuthorizationIdentity,
 	sameExactComponentAuthorization
 } from '@exactjs/core';
+import {
+	decodeExactValueWithSchema,
+	readPreparedExactClientExecutableComponentContract,
+	type AnyExactComponentCallable
+} from '@exactjs/core/framework/component-contracts';
 import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom/framework/component-root';
 import {
 	isRecord,
@@ -134,8 +139,36 @@ export function readPublishedRootProps<Props extends Record<string, unknown>>(
 	container: Element,
 	limits?: ExactHydrationConfigLimits,
 	maxDomNodes?: number
+): Props;
+export function readPublishedRootProps<Props extends Record<string, unknown>>(
+	component: AnyExactComponentCallable,
+	container: Element,
+	limits?: ExactHydrationConfigLimits,
+	maxDomNodes?: number
+): Props;
+export function readPublishedRootProps<Props extends Record<string, unknown>>(
+	componentOrContainer: AnyExactComponentCallable | Element,
+	containerOrLimits?: Element | ExactHydrationConfigLimits,
+	limitsOrMaxDomNodes?: ExactHydrationConfigLimits | number,
+	maxDomNodes?: number
 ): Props {
-	const value = readRootConfig(container, limits, maxDomNodes).state;
+	const component = typeof componentOrContainer === 'function' ? componentOrContainer : undefined;
+	const container = (component ? containerOrLimits : componentOrContainer) as Element;
+	const limits = (component ? limitsOrMaxDomNodes : containerOrLimits) as
+		| ExactHydrationConfigLimits
+		| undefined;
+	const domLimit = (component ? maxDomNodes : limitsOrMaxDomNodes) as number | undefined;
+	const config = readRootConfig(container, limits, domLimit);
+	let value = config.state;
+	if (component && Array.isArray(value)) {
+		const artifact = readPreparedExactClientExecutableComponentContract(component).artifact;
+		if (value.length !== 2 || value[0] !== artifact.id || !artifact.serialization)
+			throw new TypeError('Missing or malformed eXact published root props');
+		value = decodeExactValueWithSchema(value[1], artifact.serialization);
+		// The parsed request-owned config becomes the single named graph shared by root creation and
+		// hydration. The immutable artifact retains only schema strings and tuple kinds.
+		(config as { state?: unknown }).state = value;
+	}
 	if (!isRecord(value)) throw new TypeError('Missing or malformed eXact published root props');
 	return value as Props;
 }

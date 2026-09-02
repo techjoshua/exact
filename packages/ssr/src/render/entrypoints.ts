@@ -40,7 +40,7 @@ import { renderSignal } from './signals.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderChildren } from './sync-children.js';
 import { renderChildChunks } from './sync-child-chunks.js';
-import { rootComponentIdentity, rootPropsOptions } from './root-props.js';
+import { rootComponentIdentity, rootPropsForCapture, rootPropsOptions } from './root-props.js';
 import { SsrOutputBuffer } from './output-buffer.js';
 import {
 	createChunkedHydratableResult,
@@ -131,7 +131,7 @@ export function renderToHydratableString(
 	const prepared = rootPropsOptions(operation, options);
 	const capture = createSsrResumptionCapture(
 		prepared,
-		prepared.publishRootProps ? (prepared.state as Record<string, unknown>) : undefined,
+		rootPropsForCapture(operation, prepared),
 		rootComponentIdentity(operation)
 	);
 	const result = renderToString(operation, capture.options);

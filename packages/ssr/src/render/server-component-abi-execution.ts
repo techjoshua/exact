@@ -41,7 +41,8 @@ type IssuedScheduledServerComponent = ExactServerFrame & {
 	readonly checkpoint: unknown;
 	readonly parent: AnyComponentInstance | undefined;
 	readonly props: Record<string, unknown>;
-	readonly resumptionToken: number | undefined;
+	resumptionCheckpoint?: number;
+	resumptionToken?: number;
 	readonly scheduled: DirectScheduledSsrComponent;
 	readonly reference: ServerComponentReference;
 	disposed: boolean;
@@ -123,6 +124,8 @@ export async function renderServerComponentArtifactOutput<Publication>(
 		return output.read();
 	} catch (error) {
 		primary = error;
+		if (frame.resumptionCheckpoint !== undefined)
+			context.resumptionCapture?.rollback(frame.resumptionCheckpoint);
 		context.onComponentAttemptRollback?.(frame.checkpoint);
 		throw error;
 	} finally {
@@ -163,17 +166,12 @@ function createRequestExecution<Publication>(
 			if (!scheduled)
 				throw new TypeError('Scheduled server artifact did not issue a request-local frame');
 			const checkpoint = execution.context.onComponentAttemptCheckpoint?.();
-			const resumptionToken = execution.context.resumptionCapture?.reserveDirect(
-				blueprint.componentId,
-				blueprint.contract
-			);
 			execution.context.onDirectComponentCreated?.(scheduled.snapshot);
 			return createIssuedFrame({
 				artifact,
 				checkpoint,
 				parent: owner,
 				props: scheduled.props,
-				resumptionToken,
 				scheduled,
 				reference
 			});
@@ -227,9 +225,15 @@ async function writeScheduledFrame<Publication>(
 	execution: ServerArtifactExecution<Publication>,
 	frame: IssuedScheduledServerComponent
 ): Promise<string> {
+	frame.resumptionCheckpoint = execution.context.resumptionCapture?.checkpoint();
+	frame.resumptionToken = execution.context.resumptionCapture?.reserveDirect(
+		frame.scheduled.snapshot.componentId,
+		frame.scheduled.snapshot.contract
+	);
 	const scheduled = frame.scheduled;
 	for (let pass = 0; pass < execution.context.maxTaskPasses; pass++) {
 		const renderCheckpoint = execution.context.onComponentAttemptCheckpoint?.();
+		const resumptionCheckpoint = execution.context.resumptionCapture?.checkpoint();
 		const targetCheckpoint = checkpointTargetReceiptLayers(execution.context);
 		const issued = await scheduled.render();
 		frame.preparation = issued.preparation;
@@ -256,6 +260,8 @@ async function writeScheduledFrame<Publication>(
 				return publishFrame(execution, frame, html, scheduled.snapshot);
 			}
 			if (await scheduled.drain()) {
+				if (resumptionCheckpoint !== undefined)
+					execution.context.resumptionCapture?.rollback(resumptionCheckpoint);
 				execution.context.onComponentAttemptRollback?.(renderCheckpoint);
 				restoreTargetReceiptLayers(execution.context, targetCheckpoint);
 				continue;
@@ -263,6 +269,8 @@ async function writeScheduledFrame<Publication>(
 			return publishFrame(execution, frame, html, scheduled.snapshot);
 		} catch (error) {
 			primary = error;
+			if (resumptionCheckpoint !== undefined)
+				execution.context.resumptionCapture?.rollback(resumptionCheckpoint);
 			execution.context.onComponentAttemptRollback?.(renderCheckpoint);
 			restoreTargetReceiptLayers(execution.context, targetCheckpoint);
 			throw error;

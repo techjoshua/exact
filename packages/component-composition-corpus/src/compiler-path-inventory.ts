@@ -95,6 +95,12 @@ export const compilerPathInventory = [
 		['ssr-sync', 'hydrate-match']
 	),
 	path(
+		'component-positional-root-publication',
+		'specialized',
+		'Finite nested root props publish positionally against the target-local component schema.',
+		['ssr-sync', 'hydrate-match']
+	),
+	path(
 		'conditional-structural-range',
 		'supported-general',
 		'Conditional children retain a bounded structural range.',

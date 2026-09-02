@@ -62,19 +62,19 @@ describe('@exactjs/hydrate component resumption', () => {
 		);
 	});
 
-	it('matches SSR activations by component type while preserving per-type order and rollback', () => {
+	it('claims SSR activations in component tree order and restores the cursor on rollback', () => {
 		const firstId = exactComponentIdentity(ResumableFirst);
 		const secondId = exactComponentIdentity(ResumableSecond);
 		const records = [
 			{
-				componentId: secondId,
-				values: { label: 'second-server' },
+				componentId: firstId,
+				values: { label: 'first-server' },
 				contexts: {},
 				settledContinuations: []
 			},
 			{
-				componentId: firstId,
-				values: { label: 'first-server' },
+				componentId: secondId,
+				values: { label: 'second-server' },
 				contexts: {},
 				settledContinuations: []
 			},
@@ -93,6 +93,23 @@ describe('@exactjs/hydrate component resumption', () => {
 		resolve.rollback(checkpoint);
 		expect(resolve(ResumableSecond)?.values.label).toBe('second-server');
 		expect(resolve(ResumableFirst)?.values.label).toBe('first-server-2');
+	});
+
+	it('rejects a component that attempts to skip the next tree-ordered activation', () => {
+		const firstId = exactComponentIdentity(ResumableFirst);
+		const records = [
+			{
+				componentId: firstId,
+				values: { label: 'first-server' },
+				contexts: {},
+				settledContinuations: []
+			}
+		];
+		const resolve = createComponentResumptionResolver(() => records);
+
+		expect(() => resolve(ResumableSecond)).toThrow(
+			`expected component ${firstId} before ${exactComponentIdentity(ResumableSecond)}`
+		);
 	});
 
 	it('limits SSR activation records to adoption so later client navigation mounts fresh state', async () => {

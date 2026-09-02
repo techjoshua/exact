@@ -412,6 +412,7 @@ func (s *Session) Execute(request Request) Response {
 	// client islands. Assign them before copying components into island records.
 	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
 	attachComponentPropsSlots(components, sourceFile, generation.checker)
+	attachComponentPropsSerialization(components, sourceFile, generation.checker)
 	clientIslands := indexClientElementIslands(
 		sourceFile,
 		components,

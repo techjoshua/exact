@@ -305,6 +305,7 @@ func componentArtifactMetadata(
 	deferredTaskProps []string,
 	stateSlots []string,
 	propsSlots []string,
+	propsSerialization *ComponentValueSchema,
 	continuations []Continuation,
 	hasResumption bool,
 	serverPublicationName string,
@@ -377,6 +378,11 @@ func componentArtifactMetadata(
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		contractProperty(factory, "state", stringMetadata(factory, state)),
 		contractProperty(factory, "props", stringMetadata(factory, props)),
+	}
+	if propsSerialization != nil {
+		properties = append(properties,
+			contractProperty(factory, "serialization", componentValueSchemaMetadata(factory, propsSerialization)),
+		)
 	}
 	if target == TargetClient {
 		properties = append(properties,

@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
+import {
+	exactComponentContract,
+	type AnyExactComponentCallable
+} from '@exactjs/core/framework/component-contracts';
 import { readPublishedRootProps, resolveRootHydrateOptions } from './root-config.js';
 
 describe('hydration-only config projection', () => {
@@ -27,6 +31,35 @@ describe('hydration-only config projection', () => {
 		expect(() => readPublishedRootProps(configContainer({ state: 'invalid' }))).toThrow(
 			'Missing or malformed eXact published root props'
 		);
+	});
+
+	it('decodes component-bound positional root props into authored objects', () => {
+		const component = Object.assign(() => undefined, {
+			[exactComponentContract]: {
+				artifact: {
+					target: 'client',
+					id: 'component:Root',
+					serialization: [1, 'rows', [2, [1, 'id', 0]], 'label', 0]
+				}
+			}
+		}) as unknown as AnyExactComponentCallable;
+		const container = configContainer({
+			state: ['component:Root', [[['first'], ['second']], 'queue']]
+		});
+		expect(readPublishedRootProps(component, container)).toEqual({
+			rows: [{ id: 'first' }, { id: 'second' }],
+			label: 'queue'
+		});
+		expect(resolveRootHydrateOptions(container, {}).state).toEqual({
+			rows: [{ id: 'first' }, { id: 'second' }],
+			label: 'queue'
+		});
+		expect(() =>
+			readPublishedRootProps(
+				component,
+				configContainer({ state: ['component:Other', [[['first']], 'queue']] })
+			)
+		).toThrow('Missing or malformed eXact published root props');
 	});
 
 	it('accepts only the compiler-published markerless-root proof', () => {

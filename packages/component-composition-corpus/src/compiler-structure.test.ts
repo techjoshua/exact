@@ -132,6 +132,19 @@ describe('normative compiled structure', () => {
 		expect(clientSnapshot).not.toContain('resumption:');
 	});
 
+	it('emits the same finite positional prop schema into both target artifacts', async () => {
+		const client = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+		const server = await compileFixture('state.fixtures.tsx', 'server');
+		const schema = /serialization:\s*(\[\s*1,[\s\S]*?\]),\s*(?:attach|issue):/;
+		const clientMatch = client.code.match(schema)?.[1];
+		const serverMatch = server.code.match(schema)?.[1];
+
+		expect(clientMatch).toBeTruthy();
+		expect(serverMatch).toBe(clientMatch);
+		expect(clientMatch).toContain('"payload"');
+		expect(clientMatch).toContain('"label"');
+	});
+
 	it('records unconditional primitive state defaults only in the server omission schema', async () => {
 		const server = await compileFixture('state.fixtures.tsx', 'server');
 		const hydrated = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
