@@ -99,54 +99,69 @@ try {
 		profiles[`${rate}x`] = rateResults;
 		sampleOrders[`${rate}x`] = orders;
 	}
+	const output = outputPath();
+	const timedCheckpoint = `${output}.timed.json`;
+	await mkdir(resolve(output, '..'), { recursive: true });
+	await writeFile(timedCheckpoint, `${JSON.stringify(createResult({}, false), null, 2)}\n`);
+	console.log(`Timed startup checkpoint written to ${relative(repositoryRoot, timedCheckpoint)}`);
 	const diagnostics = {};
 	for (const participant of participants) {
 		console.log(`Capturing untimed CPU and allocation profiles for ${participant.id}`);
 		diagnostics[participant.id] = await captureClientProfile(browser, participant, resetService);
 	}
+	let attributionWarning;
 	if (attributionEnabled) {
-		diagnostics['exact-controlled'].startup.modules = await readExactModuleAttribution(
-			diagnostics['exact-controlled'].startup.coverage,
-			profiles['1x']['exact-controlled'].samples[0].trace.functionSites ?? []
-		);
+		try {
+			diagnostics['exact-controlled'].startup.modules = await readExactModuleAttribution(
+				diagnostics['exact-controlled'].startup.coverage,
+				profiles['1x']['exact-controlled'].samples[0].trace.functionSites ?? []
+			);
+		} catch (error) {
+			attributionWarning = `Exact module attribution unavailable: ${error instanceof Error ? error.message : String(error)}`;
+			console.warn(attributionWarning);
+		}
 	}
 
-	const result = {
-		schemaVersion: 1,
-		kind: 'framework-comparison-startup-cpu-profile',
-		createdAt: new Date().toISOString(),
-		correctness: { status: 'passed', command: 'npm run test:e2e' },
-		publishable: publication.publishable,
-		environment: environmentMetadata(),
-		harness: {
-			commit: git('rev-parse', 'HEAD'),
-			workingTreeDirty: git('status', '--porcelain').length > 0,
-			sampleCount,
-			cpuThrottleRates: throttleRates,
-			measurementRound,
-			sampleOrders,
-			measurementTopology: 'balanced-round-interleaved',
-			cache: 'disabled',
-			network: 'local-loopback-unthrottled'
-		},
-		artifacts,
-		profiles,
-		diagnostics,
-		limitations: [
-			'Chrome tracing adds observer overhead and trace categories may contain nested durations.',
-			'Parse, compile, and evaluation totals must be interpreted independently rather than summed.',
-			'CPU throttling is Chromium emulation on the recorded desktop CPU, not physical mobile hardware.',
-			'Untimed CPU and heap top sites retain emitted locations; attribution-enabled Exact runs additionally join precise coverage and trace function sites to the emitted source map.',
-			'Best-effort coverage preserves normal V8 optimization but can omit functions collected before capture.',
-			'Sampling heap profiles estimate allocation sites and do not represent exact byte accounting.',
-			'Every sample uses a fresh browser context with the HTTP cache disabled.',
-			'Every timed round measures one cold sample from each participant in balanced rotating order.'
-		]
-	};
-	const output = outputPath();
-	await mkdir(resolve(output, '..'), { recursive: true });
+	const result = createResult(diagnostics, true, attributionWarning);
 	await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
 	console.log(`Startup CPU profile written to ${relative(repositoryRoot, output)}`);
+
+	function createResult(diagnosticProfiles, complete, warning) {
+		return {
+			schemaVersion: 1,
+			kind: 'framework-comparison-startup-cpu-profile',
+			createdAt: new Date().toISOString(),
+			correctness: { status: 'passed', command: 'npm run test:e2e' },
+			publishable: publication.publishable,
+			complete,
+			environment: environmentMetadata(),
+			harness: {
+				commit: git('rev-parse', 'HEAD'),
+				workingTreeDirty: git('status', '--porcelain').length > 0,
+				sampleCount,
+				cpuThrottleRates: throttleRates,
+				measurementRound,
+				sampleOrders,
+				measurementTopology: 'balanced-round-interleaved',
+				cache: 'disabled',
+				network: 'local-loopback-unthrottled'
+			},
+			artifacts,
+			profiles,
+			diagnostics: diagnosticProfiles,
+			limitations: [
+				'Chrome tracing adds observer overhead and trace categories may contain nested durations.',
+				'Parse, compile, and evaluation totals must be interpreted independently rather than summed.',
+				'CPU throttling is Chromium emulation on the recorded desktop CPU, not physical mobile hardware.',
+				'Untimed CPU and heap top sites retain emitted locations; attribution-enabled Exact runs additionally join precise coverage and trace function sites to the emitted source map.',
+				'Best-effort coverage preserves normal V8 optimization but can omit functions collected before capture.',
+				'Sampling heap profiles estimate allocation sites and do not represent exact byte accounting.',
+				'Every sample uses a fresh browser context with the HTTP cache disabled.',
+				'Every timed round measures one cold sample from each participant in balanced rotating order.',
+				...(warning ? [warning] : [])
+			]
+		};
+	}
 } finally {
 	await browser.close();
 	await harness.close();
