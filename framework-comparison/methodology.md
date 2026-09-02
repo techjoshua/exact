@@ -121,8 +121,10 @@ counts speculatively across modules.
 
 The SSR track starts one production participant per child process so framework heap, RSS, external
 memory, and CPU ownership remain attributable to that framework rather than the controlled fixture service.
-Comparable workers remain warm simultaneously, but requests and fixed-duration windows are issued to only one
-participant at a time in balanced round-interleaved order. Participant
+Comparable workers start concurrently and remain warm simultaneously, but requests and fixed-duration windows
+are issued to only one participant at a time in balanced round-interleaved order. Concurrent startup prevents
+the admitted historical artifact or a framework from inheriting a fixed process-age, listener-port, or scheduler
+slot before request-order balancing begins. Participant
 metadata declares the production transport used for each runtime. The worker imports that target-local
 server artifact directly and owns its listener; it does not start a shell, package manager, or descendant
 application process. Shutdown first uses the worker's control endpoint, then terminates only that exact
@@ -150,7 +152,7 @@ admitted historical eXact server artifact is available, it may run as another in
 transport. That direct paired population is preferred for estimating a small before/current change; unchanged
 React, SvelteKit, and Nuxt controls remain useful for relating a current run to older unpaired checkpoints.
 
-The bounded concurrent lane remains a fixed request population. Saturation levels instead use several
+The bounded concurrent lane remains a fixed request population. Saturation levels instead use 50
 fixed-duration, closed-loop windows; each client immediately replaces a completed request until the window
 closes, then outstanding requests settle. Throughput therefore has the same window population for every
 participant, while request-latency observation counts legitimately differ. Those distributions retain every

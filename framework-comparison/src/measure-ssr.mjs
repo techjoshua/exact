@@ -24,6 +24,7 @@ import {
 	ssrEnvironmentMetadata
 } from './ssr-run-environment.mjs';
 import { controlSsrWorker, startSsrWorker, stopSsrWorker } from './ssr-worker-controller.mjs';
+import { settleSsrWorkerInventoryStartup } from './ssr-worker-inventory.mjs';
 import { measurementPublication } from './measurement-publication.mjs';
 import { measureInterleavedSsrParticipants } from './ssr-interleaved-measurement.mjs';
 
@@ -46,8 +47,8 @@ const capacityPrimeMs = positiveInteger(process.env.COMPARISON_SSR_CAPACITY_PRIM
 const saturationConcurrency = parseSsrConcurrencyLevels(
 	process.env.COMPARISON_SSR_SATURATION_CONCURRENCY
 );
-const saturationWindows = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WINDOWS, 5);
-const saturationWindowMs = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WINDOW_MS, 500);
+const saturationWindows = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WINDOWS, 50);
+const saturationWindowMs = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WINDOW_MS, 100);
 const serviceProbeRequests = positiveInteger(
 	process.env.COMPARISON_SSR_SERVICE_PROBE_REQUESTS,
 	100
@@ -58,8 +59,8 @@ const attributionConcurrency = parseSsrConcurrencyLevels(
 	process.env.COMPARISON_SSR_ATTRIBUTION_CONCURRENCY,
 	[8, 32, 64]
 );
-const attributionWindows = positiveInteger(process.env.COMPARISON_SSR_ATTRIBUTION_WINDOWS, 3);
-const attributionWindowMs = positiveInteger(process.env.COMPARISON_SSR_ATTRIBUTION_WINDOW_MS, 300);
+const attributionWindows = positiveInteger(process.env.COMPARISON_SSR_ATTRIBUTION_WINDOWS, 50);
+const attributionWindowMs = positiveInteger(process.env.COMPARISON_SSR_ATTRIBUTION_WINDOW_MS, 100);
 const payloadSweepBytes = [2_048, 3_072, 3_384, 4_096, 5_120, 6_046, 8_192];
 const exactBeforeArtifacts = {
 	node: optionalPath(process.env.COMPARISON_EXACT_BEFORE_NODE_ARTIFACT),
@@ -207,7 +208,7 @@ try {
 			'Render-only and equal-payload lanes are attribution diagnostics and do not replace end-to-end framework results.',
 			'Post-GC slopes are leak signals across a bounded run, not proof of unbounded retention.',
 			'Each participant declares its production transport per runtime; transport identity is recorded with every result.',
-			'Comparable SSR timing windows use simultaneously warm isolated workers in balanced round-interleaved order; startup, retention, and intrusive profiles remain isolated diagnostics.',
+			'Comparable SSR timing windows use concurrently started, simultaneously warm isolated workers in balanced round-interleaved order; startup, retention, and intrusive profiles remain isolated diagnostics.',
 			"Frameworks without native Bun hosting remain on Bun's node:http compatibility layer."
 		]
 	};
@@ -239,18 +240,21 @@ async function measureRuntimeInterleaved(runtime, runtimeParticipants, runtimeIn
 		});
 	const started = [];
 	try {
-		for (const entry of balancedParticipantOrder(entries, measurementRound, runtimeIndex + 1)) {
-			entry.worker = await startSsrWorker({
-				runtime,
-				participantId: entry.participantId,
-				transport: entry.transport,
-				workerPath,
-				workingDirectory: suiteRoot,
-				serviceUrl: service.url,
-				environment: entry.serverEntry ? { COMPARISON_EXACT_SERVER_ENTRY: entry.serverEntry } : {}
-			});
-			started.push(entry.worker);
-		}
+		const startup = await settleSsrWorkerInventoryStartup(
+			balancedParticipantOrder(entries, measurementRound, runtimeIndex + 1),
+			(entry) =>
+				startSsrWorker({
+					runtime,
+					participantId: entry.participantId,
+					transport: entry.transport,
+					workerPath,
+					workingDirectory: suiteRoot,
+					serviceUrl: service.url,
+					environment: entry.serverEntry ? { COMPARISON_EXACT_SERVER_ENTRY: entry.serverEntry } : {}
+				})
+		);
+		started.push(...startup.workers);
+		if (startup.failure) throw startup.failure;
 		return await measureInterleavedSsrParticipants(entries, {
 			warmupCount,
 			sampleCount,

@@ -50,9 +50,11 @@ Chromium's JavaScript parse, compile, evaluation, and total script-duration sign
 readiness. It runs at 1x, 4x, and 6x CPU rates by default. `COMPARISON_STARTUP_SAMPLES` selects the sample
 count and `COMPARISON_CPU_RATES` accepts a comma-separated rate list.
 
-The SSR profile gives every participant an independently owned worker. Comparable latency and throughput
-samples are collected one participant at a time in balanced round-interleaved order while all workers remain
-warm; cold startup, retention, response decomposition, and intrusive CPU/allocation profiles remain isolated.
+The SSR profile gives every participant an independently owned worker. Comparable workers start concurrently,
+then latency and throughput samples are collected one participant at a time in balanced round-interleaved order
+while all workers remain warm; cold startup, retention, response decomposition, and intrusive CPU/allocation
+profiles remain isolated. Sustained throughput lanes use 50 windows by default so their published percentiles
+describe a real population rather than repeating the maximum of a few samples.
 Each participant declares its production transport for each runtime: native integrations such as eXact's
 `Bun.serve` lane are measured directly, while compatibility-only paths remain explicitly labeled. The report
 includes cold startup, warm sequential and concurrent request phases, CPU per request, post-GC memory trends,
