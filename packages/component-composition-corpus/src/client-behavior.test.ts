@@ -82,6 +82,14 @@ describe('composition corpus client behavior', () => {
 		expect(container.querySelector('output')).toBe(output);
 		expect(inputProjectionOwner()).toBe(owner);
 		expect(output.textContent).toBe('ready:accepted:idle');
+		const nested = container.querySelector('[data-role="nested-prop-label"]');
+		expect(nested?.textContent).toBe('accepted');
+
+		render(inputProjectionRoot({ label: 'replaced' }), container);
+		flushSync();
+
+		expect(container.querySelector('[data-role="nested-prop-label"]')).toBe(nested);
+		expect(nested?.textContent).toBe('replaced');
 	});
 
 	it('updates a conditional range without replacing adjacent siblings', () => {

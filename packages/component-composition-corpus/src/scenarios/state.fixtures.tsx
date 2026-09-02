@@ -55,6 +55,10 @@ export function stateOwner(): Component<StateModel> {
 type InputProjectionState = { loading: boolean; label: string; status: string };
 let mountedInputProjection: Component<InputProjectionState> | undefined;
 
+function NestedPropLabel(props: { label: string }) {
+	return () => <span data-role="nested-prop-label">{props.label}</span>;
+}
+
 function IndexedInputProjection(
 	this: Component<InputProjectionState>,
 	props: { payload?: { label: string } }
@@ -64,9 +68,12 @@ function IndexedInputProjection(
 	this.state.label = props.payload?.label ?? 'missing';
 	this.state.status = 'idle';
 	return () => (
-		<output data-scenario="input-projection">
-			{this.state.loading ? 'loading' : 'ready'}:{this.state.label}:{this.state.status}
-		</output>
+		<>
+			<output data-scenario="input-projection">
+				{this.state.loading ? 'loading' : 'ready'}:{this.state.label}:{this.state.status}
+			</output>
+			{props.payload ? <NestedPropLabel label={props.payload.label} /> : null}
+		</>
 	);
 }
 

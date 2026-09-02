@@ -2934,3 +2934,62 @@ the lowest post-GC used heap at 12.54 MB, followed by React at 13.17 MB, SvelteK
 Nuxt at 18.02 MB. Cross-run server controls moved too differently for ordinary c16 normalization;
 eligible saturation comparisons are mixed even though the server bytes are identical, so none of
 that movement is attributed to the client change.
+
+### Nested prop property operands and retained computation ownership
+
+Heap snapshots of the comparison application exposed a replacement-lifetime leak that the ordinary
+single-state retained-heap point could not show. The mounted detail component's indexed
+`incident` prop retained every obsolete computed owner created for the direct
+`props.incident.severity` child-prop read. The population contained 8 computed nodes after hydration,
+107 after 100 selection replacements, and 1,007 after 1,000 replacements, while component, scope,
+DOM-node, and listener counts remained flat. The retained path was the current indexed prop source,
+through its computed sinks, to each obsolete forwarded expression.
+
+The compiler now extends the existing focused property operand to a direct property of an
+object-valued indexed prop. The immutable operand remains part of the module artifact; the receiving
+component's existing indexed prop store resolves the receiver and owns dependency rebinding. The
+specialization requires every distributed receiver type to be an object and preserves executable
+expression ownership for primitive, nullable, unknown, derived, and arbitrary expressions. It does
+not add a runtime cache, bound function, general interpreter, server lowering, or per-instance
+descriptor array.
+
+After the change, the same 100- and 1,000-replacement profiles remain at 6 computed nodes. Repeated
+history and filtering interactions also keep the framework object populations flat, and navigating
+to `about:blank` releases the component graph and listeners. The remaining used-heap growth between
+100 and 1,000 replacements occurs with flat framework object counts and is attributed to V8 code
+and instruction warmup rather than retained component state.
+
+The production comparison artifact falls by 47 raw bytes, 16 gzip bytes, and 29 Brotli bytes. At 1x
+startup, decoded code falls from 196,468 to 196,421 bytes, executed code from 100,279 to 100,229
+bytes, and parsed, compiled, profiled, and invoked function populations each fall by two. Warm used
+heap falls from 2,526,348 to 2,520,520 bytes; the 1x cold used-heap point falls by the same 5,828
+bytes to 2,379,440 bytes. Evaluation p50 is 17.533 ms versus 18.009 ms control-normalized history;
+the upper percentiles are mixed under control dispersion, so only the deterministic topology and
+retention changes are attributed to the compiler specialization. Optimistic feedback is 1.6 / 1.7 /
+1.8 / 2.3 ms versus 1.566 / 1.700 / 2.142 / 4.3 ms normalized before; the p50 remains in the same
+timer bucket while the current upper tail is favorable.
+
+A broader direct-top-level-prop experiment was removed after the release gate reproduced a Sudoku
+sibling-update failure: it introduced a second subscription path for the same parent prop slot and
+changed scheduling so the structural menu updated while its sibling `aria-expanded` binding did not.
+The narrow nested-property operand does not duplicate that ownership and passes the complete Sudoku
+and composition suites. The composition corpus now records 53 compiler paths, 11 scenarios, and 53
+normative tests, including client replacement, matching hydration, post-adoption replacement, and
+arbitrary-expression fallback.
+
+`npm run performance:check` passed after the full release prerequisite. The accepted comparison then
+used 50 balanced round-interleaved browser samples, 50 samples at each 1x, 4x, and 6x startup rate,
+and 50 Node and Bun SSR windows. The server artifacts and Exact's 3,794-byte response are unchanged.
+Fresh Node ordinary concurrent p50 is 2,134 RPS for Exact versus 2,113 for React; saturation remains
+within 2.1% of React from c1 through c64, while preloaded c32 remains 9.1% behind. Cross-run controls
+move beyond the normalization dispersion limit in several server lanes, and the sampled render-only
+allocation point moves from 3.303 to 3.330 MB while React moves from 7.006 to 6.985 MB. Because this
+client-only change emits identical server code, those server movements are retained as environmental
+counter-metrics and are not attributed to the candidate.
+
+The [complete grouped-percentile report](component-local-target-abi/nested-property-operands.md)
+contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
+Bun diagnostic table. Raw evidence and normalization output are preserved under
+`.tmp/nested-property-operands-checkpoint`; focused heap evidence and the written expected metrics are
+under `.tmp/client-heap-analysis`.
