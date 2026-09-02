@@ -192,11 +192,19 @@ async function measureSustainedPopulation(entries, options) {
 		const order = balancedRoundOrder(entries, round, options.orderOffset);
 		recordOrder(options, order);
 		for (const entry of order) {
-			const measured = await runSustainedSsrWindow(
-				options.url(entry),
-				options.level,
-				options.durationMs
-			);
+			let measured;
+			try {
+				measured = await runSustainedSsrWindow(
+					options.url(entry),
+					options.level,
+					options.durationMs
+				);
+			} catch (error) {
+				throw new Error(
+					`${entry.key} ${options.orderKey} failed during round ${round + 1}/${options.count}`,
+					{ cause: error }
+				);
+			}
 			const participant = state.get(entry.key);
 			participant.samples.push(...measured.samples);
 			participant.throughput.push(measured.requestsPerSecond);

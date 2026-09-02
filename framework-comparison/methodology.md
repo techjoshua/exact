@@ -206,6 +206,8 @@ Node and Bun results are separate runtime rows over target-local production arti
 native runtime integration is part of the comparison rather than normalized away. Frameworks without a
 native Bun host may use Bun's explicitly reported `node-http-compat` transport; that diagnostic must not
 be described as native Bun support.
+The collector writes an immutable timed checkpoint after each runtime. A later runtime or optional diagnostic
+may mark the complete run unsuccessful, but it cannot erase a completed Node or Bun population.
 
 ## Complexity dimensions
 
