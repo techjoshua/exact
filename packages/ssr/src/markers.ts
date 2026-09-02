@@ -48,7 +48,7 @@ export function markerPair(
 
 /** Allocates a marker id from render context, kind, optional name, and optional key. */
 export function markerId(context: SsrContext, kind: string, name?: string, key?: string): string {
-	return `${kind}:${context.nextId++}${name ? `:${encodeExactMarkerPart(name)}` : ''}${key ? `:${encodeExactMarkerPart(key)}` : ''}`;
+	return `${kind}:${context.nextId++}${name ? `:${encodeMarkerKey(name)}` : ''}${key ? `:${encodeMarkerKey(key)}` : ''}`;
 }
 
 /** Adds rendered Suspense status to a previously allocated stable boundary identity. */
@@ -65,12 +65,38 @@ export function exactMarkerId(id: string): string {
 
 /** Creates the marker id used for one keyed list item. */
 export function keyedItemMarkerId(key: string): string {
-	return `item:${encodeExactMarkerPart(key)}`;
+	return `item:${encodeMarkerKey(key)}`;
 }
 
 /** Encodes arbitrary UTF-8 marker data without lossy HTML-comment sanitizing. */
 export function encodeMarkerKey(value: string): string {
+	if (isDirectMarkerPart(value)) return value;
 	return encodeExactMarkerPart(value);
+}
+
+/** Proves the canonical unescaped marker grammar without allocating a regular-expression match. */
+function isDirectMarkerPart(value: string): boolean {
+	if (!value.length) return false;
+	let hyphen = false;
+	for (let index = 0; index < value.length; index++) {
+		const code = value.charCodeAt(index);
+		if (code === 45) {
+			if (hyphen) return false;
+			hyphen = true;
+			continue;
+		}
+		hyphen = false;
+		if (
+			(code >= 48 && code <= 57) ||
+			(code >= 65 && code <= 90) ||
+			(code >= 97 && code <= 122) ||
+			code === 46 ||
+			code === 95
+		)
+			continue;
+		return false;
+	}
+	return true;
 }
 
 /** Decodes marker data emitted by encodeMarkerKey; directly encoded safe keys pass through. */

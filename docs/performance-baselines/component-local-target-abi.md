@@ -2546,3 +2546,24 @@ intentionally remove the smaller response's transport benefit. Render-only is ef
 at 0.0340 ms p50 versus 0.0338 before and remains slower than React's 0.0232 ms. Exact retains the
 lowest Node post-GC heap at 12.52 MB p50 and the lowest used-heap slope at 2,432 bytes/request,
 versus React at 13.18 MB and 3,012 bytes/request.
+
+### Allocation-free safe marker-key proof
+
+Common keyed-list identities satisfy the marker protocol's direct ASCII grammar. The server now
+proves that grammar with a character scan and calls the canonical UTF-8 encoder only for empty,
+Unicode, comment-terminating, or otherwise unsafe values. Safe and fallback encodings are
+byte-identical; hydration ownership, snapshot parsing, patch identity, nesting, and recovery are
+unchanged. The proof caches no request or component values and adds no client code.
+
+One hundred alternating render pairs improve collected rendering by 3.0% on paired means with 65
+wins and direct-sink rendering by 1.36% with 61 wins. Direct p50/p75/p95/p99 move from
+0.0303/0.0473/0.0698/0.0931 ms to 0.0297/0.0461/0.0688/0.0920 ms. The former
+`encodeExactMarkerPart` site appears in baseline allocation profiles at about 48 KiB sampled per
+100 renders and disappears from the candidate. Whole-render sampled allocation improves 0.63% on
+paired means; its 11/20 win split remains too coarse for a stronger total-allocation claim.
+
+Fifty directly alternating preloaded rounds improve paired mean RPS by 2.35% at c16, 1.46% at c32,
+and 0.71% at c64, with 41, 36, and 30 wins. The 3,941-byte response and production client artifact
+are exactly unchanged. The Node server entry grows from 238,910 to 239,653 raw bytes; that
+server-only cost is accepted for deleting repeated render work. Focused evidence and the written
+gate are under `.tmp/keyed-marker-encoding`.
