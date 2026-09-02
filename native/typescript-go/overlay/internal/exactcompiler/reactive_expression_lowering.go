@@ -32,6 +32,11 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 	if forwardLiveSlot && lowering.directServerFrameComponent(source) {
 		return expression
 	}
+	if forwardLiveSlot {
+		if value := lowering.declarativeParameterPropertyOperand(source, expression); value != nil {
+			return value
+		}
+	}
 	// A module-owned collection is stable, so values derived only from its callback
 	// parameters do not need subscriptions. Captures from the component are different:
 	// suppressing their wrappers freezes child props at the collection's first render.
@@ -83,6 +88,52 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		})
 	}
 	return value
+}
+
+// declarativeParameterPropertyOperand encodes one exact keyed-row member read without allocating
+// a computation owner or reader closure. Other captures retain their executable expression owner.
+func (lowering *jsxLowering) declarativeParameterPropertyOperand(
+	source *ast.Node,
+	expression *ast.Node,
+) *ast.Node {
+	if lowering.target == TargetServer ||
+		!ast.IsPropertyAccessExpression(source) || !ast.IsPropertyAccessExpression(expression) ||
+		lowering.checker == nil {
+		return nil
+	}
+	access := source.AsPropertyAccessExpression()
+	transformed := expression.AsPropertyAccessExpression()
+	if transformed.Name() == nil || access.Name() == nil ||
+		transformed.Name().Text() != access.Name().Text() {
+		return nil
+	}
+	root := access.Expression
+	if !ast.IsIdentifier(root) {
+		return nil
+	}
+	symbol := lowering.checker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return nil
+	}
+	component, componentOwned := lowering.componentContaining(source)
+	if !componentOwned {
+		return nil
+	}
+	for _, declaration := range symbol.Declarations {
+		callable := enclosingCallableNode(declaration)
+		if ast.IsParameterDeclaration(declaration) && callable != nil &&
+			callable.Pos() > component.Start && callable.End() <= component.Start+component.Length {
+			return lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.factory.NewIdentifier(lowering.names.propertyOperand),
+					lowering.visitor.VisitNode(root),
+					lowering.factory.NewStringLiteral(access.Name().Text(), ast.TokenFlagsNone),
+				}),
+				false,
+			)
+		}
+	}
+	return nil
 }
 
 // indexedReactiveExpression replaces a one-use read closure and general computed node with the

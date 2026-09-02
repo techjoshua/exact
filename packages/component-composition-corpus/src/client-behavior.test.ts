@@ -100,6 +100,12 @@ describe('composition corpus client behavior', () => {
 	it('preserves keyed identity, provides context, and fulfills refs', () => {
 		const container = mount(capabilitiesRoot);
 		const alpha = container.querySelector('[data-id="a"]');
+		const betaLabel = container.querySelector('[data-id="b"] [data-role="item-label"]');
+
+		capabilitiesOwner().state.items[1]!.label = 'Beta nested';
+		flushSync();
+		expect(container.querySelector('[data-id="b"] [data-role="item-label"]')).toBe(betaLabel);
+		expect(betaLabel?.textContent).toBe('Beta nested');
 
 		capabilitiesOwner().state.items = [
 			{ id: 'b', label: 'Beta updated' },
@@ -109,6 +115,9 @@ describe('composition corpus client behavior', () => {
 
 		expect(container.querySelector('[data-role="context"]')?.textContent).toBe('provided');
 		expect(container.querySelector('[data-id="a"]')).toBe(alpha);
+		expect(container.querySelector('[data-id="b"] [data-role="item-label"]')?.textContent).toBe(
+			'Beta updated'
+		);
 		expect(capabilitiesOwner().refs.get(corpusButtonRef)).toBe(container.querySelector('button'));
 	});
 

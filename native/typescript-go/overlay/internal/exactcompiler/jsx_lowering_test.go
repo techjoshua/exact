@@ -440,3 +440,27 @@ func TestModuleDeclarativeCollectionRetainsReactiveComponentProps(t *testing.T) 
 		t.Fatalf("module collection value gained a redundant subscription:\n%s", response.Code)
 	}
 }
+
+func TestKeyedRowComponentPropUsesDirectReactivePropertyOperand(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "C:/tmp/keyed-row-property-operand.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			declare function Badge(props: { severity: string; label: string }): unknown;
+			export function Queue(this: Component<{ items: { id: string; severity: string }[] }>) {
+				return () => <section>{this.state.items.map(item => (
+					<Badge severity={item.severity} label={item.severity + "!"} />
+				))}</section>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `severity: [__exactPropertyOperand, item, "severity"]`) {
+		t.Fatalf("direct keyed-row prop omitted its property operand:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `label: __exactExpression(() => item.severity + "!")`) {
+		t.Fatalf("derived keyed-row prop lost its executable expression fallback:\n%s", response.Code)
+	}
+}

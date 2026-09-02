@@ -1,9 +1,6 @@
 import { batch, hasActiveReactiveTransaction } from './internal/deps.js';
 
-import {
-	releaseKeyedCollectionMetadata,
-	seedKeyedCollectionMetadata
-} from './internal/keyed-collections.js';
+import { releaseKeyedCollectionMetadata } from './internal/keyed-collections.js';
 
 import { unwrap } from './internal/values.js';
 import {
@@ -246,7 +243,6 @@ export function registerReactiveListKey(
 	} else {
 		listKeyExtractors.set(raw, { key, signature, site, references: 1 });
 	}
-	seedKeyedCollectionMetadata(raw, key);
 	let active = true;
 	return () => {
 		if (!active) return;

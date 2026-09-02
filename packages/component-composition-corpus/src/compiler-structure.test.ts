@@ -90,6 +90,13 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/\[12, \d+, \d+, \[\["value", 0, \d+\]\], true\]/);
 	});
 
+	it('encodes a keyed item property as a direct child prop operand', async () => {
+		const { code } = await compileFixture('capabilities.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toContain('label: [__exactPropertyOperand, item, "label"]');
+		expect(code).not.toContain('__exactExpression(() => item.label)');
+	});
+
 	it('keeps only arbitrary expressions in mixed intrinsic property writers', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
 

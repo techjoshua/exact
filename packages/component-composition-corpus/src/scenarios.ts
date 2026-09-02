@@ -60,6 +60,7 @@ export const corpusScenarios = [
 		compilerPaths: [
 			'artifact-local-instance-construction',
 			'keyed-list-reconciliation',
+			'direct-property-prop-operand',
 			'context-capability',
 			'ref-capability',
 			'lifecycle-capability',

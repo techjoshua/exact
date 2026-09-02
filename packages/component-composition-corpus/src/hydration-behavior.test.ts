@@ -3,8 +3,9 @@ import { exactEnhancementPassThrough } from '@exactjs/core';
 import { flushSync } from '@exactjs/reactive';
 import { renderToHydratableString, renderToHydratableStringAsync } from '@exactjs/ssr/enhanced';
 import { describe, expect, it } from 'vitest';
-import { capabilitiesRoot } from './scenarios/capabilities.fixtures.js';
 import {
+	capabilitiesOwner,
+	capabilitiesRoot,
 	contextOnlyRoot,
 	keyedOnlyRoot,
 	refLifecycleOnlyRoot
@@ -129,6 +130,15 @@ describe('composition corpus hydration behavior', () => {
 		expect(capability.container.querySelector('[data-role="context"]')?.textContent).toBe(
 			'provided'
 		);
+		const adoptedLabel = capability.container.querySelector(
+			'[data-id="b"] [data-role="item-label"]'
+		);
+		capabilitiesOwner().state.items[1]!.label = 'Beta hydrated';
+		flushSync();
+		expect(capability.container.querySelector('[data-id="b"] [data-role="item-label"]')).toBe(
+			adoptedLabel
+		);
+		expect(adoptedLabel?.textContent).toBe('Beta hydrated');
 
 		const enhanced = serverContainer(serverEnhancementsRoot, {
 			enhancementCatalog: new Map([

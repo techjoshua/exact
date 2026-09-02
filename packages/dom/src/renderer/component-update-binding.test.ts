@@ -6,6 +6,7 @@ import {
 } from '@exactjs/core/framework/component-contracts';
 import {
 	batch,
+	compiledReactivePropertyOperand,
 	computed,
 	createEffectScope,
 	flushSync,
@@ -163,6 +164,34 @@ describe('compiler-generated component updates', () => {
 		flushSync();
 		expect(updates.apply).not.toHaveBeenCalled();
 		second.label = 'current';
+		flushSync();
+		expect(updates.apply).toHaveBeenLastCalledWith([target], 1, 0);
+		scope.stop();
+	});
+
+	it('subscribes a compact compiler property operand without a computed owner', () => {
+		const source = indexedReactiveObjects<{ label: string }>(['label']);
+		source.label = 'first';
+		const props = indexedReactiveObjects<{ label: string }>(
+			['label'],
+			{},
+			{
+				label: [compiledReactivePropertyOperand, source, 'label']
+			} as unknown as { label: string },
+			true
+		);
+		const updates = {
+			bindings: [[0, 1, 0]] as const,
+			props: 1,
+			apply: vi.fn()
+		};
+		const scope = createEffectScope();
+		const owner = { state: {}, props, scope } as unknown as AnyComponentInstance;
+		const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
+		const target = { mounted, stopBindings: [], valid: true };
+		bindCompiledComponentUpdate(target, 0, updates);
+
+		source.label = 'second';
 		flushSync();
 		expect(updates.apply).toHaveBeenLastCalledWith([target], 1, 0);
 		scope.stop();
