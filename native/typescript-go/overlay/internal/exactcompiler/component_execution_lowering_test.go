@@ -1453,7 +1453,32 @@ func TestComponentExecutionForwardsReactivePropIdentity(t *testing.T) {
 		t.Fatalf("prop forwarding allocated a redundant reactive value:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, "__exactExpression(() => props.open)") {
-		t.Fatalf("host attribute incorrectly retained replaceable forwarded identity:\n%s", response.Code)
+		t.Fatalf("host attribute lost its focused expression owner:\n%s", response.Code)
+	}
+}
+
+func TestComponentExecutionUsesNestedPropPropertyOperand(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "nested-forward.tsx",
+		Kind: "compile",
+		Source: `
+			declare function Badge(props: { severity: string }): unknown;
+			export function Detail(props: { incident?: { severity: string } }) {
+				return () => props.incident
+					? <Badge severity={props.incident.severity} />
+					: null;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `severity: [__exactPropertyOperand,`) ||
+		!strings.Contains(response.Code, `"severity"]`) {
+		t.Fatalf("nested prop member omitted its exact property operand:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactForwardedExpression(() =>`) {
+		t.Fatalf("nested prop member retained a replaceable forwarded computation:\n%s", response.Code)
 	}
 }
 

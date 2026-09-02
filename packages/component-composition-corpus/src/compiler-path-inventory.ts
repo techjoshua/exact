@@ -77,6 +77,12 @@ export const compilerPathInventory = [
 		['client-mount', 'client-update', 'hydrate-match']
 	),
 	path(
+		'nested-property-prop-operand',
+		'specialized',
+		'A direct property of an object-valued indexed prop crosses a native boundary without a computation owner.',
+		['client-mount', 'client-update', 'hydrate-match']
+	),
+	path(
 		'mixed-prop-state-update',
 		'specialized',
 		'Prop and state dependencies remain distinct in one component.',

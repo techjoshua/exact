@@ -33,7 +33,7 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 		return expression
 	}
 	if forwardLiveSlot {
-		if value := lowering.declarativeParameterPropertyOperand(source, expression); value != nil {
+		if value := lowering.directPropertyOperand(source, expression); value != nil {
 			return value
 		}
 	}
@@ -90,9 +90,12 @@ func (lowering *jsxLowering) reactiveExpressionMode(
 	return value
 }
 
-// declarativeParameterPropertyOperand encodes one exact keyed-row member read without allocating
-// a computation owner or reader closure. Other captures retain their executable expression owner.
-func (lowering *jsxLowering) declarativeParameterPropertyOperand(
+// directPropertyOperand encodes one exact member read whose receiver identity is
+// already owned by a declarative callback or indexed component prop. The child dependency router
+// subscribes to that receiver/key pair and rebinds it when a replacement prop receipt supplies a
+// different receiver, avoiding a new computation owner for every repeated component operation.
+// Other captures retain their executable expression owner.
+func (lowering *jsxLowering) directPropertyOperand(
 	source *ast.Node,
 	expression *ast.Node,
 ) *ast.Node {
@@ -107,33 +110,51 @@ func (lowering *jsxLowering) declarativeParameterPropertyOperand(
 		transformed.Name().Text() != access.Name().Text() {
 		return nil
 	}
-	root := access.Expression
-	if !ast.IsIdentifier(root) {
-		return nil
-	}
-	symbol := lowering.checker.GetSymbolAtLocation(root)
-	if symbol == nil {
-		return nil
-	}
+	receiver := access.Expression
 	component, componentOwned := lowering.componentContaining(source)
 	if !componentOwned {
 		return nil
 	}
-	for _, declaration := range symbol.Declarations {
-		callable := enclosingCallableNode(declaration)
-		if ast.IsParameterDeclaration(declaration) && callable != nil &&
-			callable.Pos() > component.Start && callable.End() <= component.Start+component.Length {
-			return lowering.factory.NewArrayLiteralExpression(
-				lowering.factory.NewNodeList([]*ast.Node{
-					lowering.factory.NewIdentifier(lowering.names.propertyOperand),
-					lowering.visitor.VisitNode(root),
-					lowering.factory.NewStringLiteral(access.Name().Text(), ast.TokenFlagsNone),
-				}),
-				false,
-			)
+	if !lowering.declarativePropertyOperandReceiver(receiver, component) {
+		return nil
+	}
+	return lowering.factory.NewArrayLiteralExpression(
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewIdentifier(lowering.names.propertyOperand),
+			transformed.Expression,
+			lowering.factory.NewStringLiteral(access.Name().Text(), ast.TokenFlagsNone),
+		}),
+		false,
+	)
+}
+
+func (lowering *jsxLowering) declarativePropertyOperandReceiver(
+	receiver *ast.Node,
+	component Component,
+) bool {
+	for _, member := range lowering.checker.GetTypeAtLocation(receiver).Distributed() {
+		if member.Flags()&checker.TypeFlagsObject == 0 {
+			return false
 		}
 	}
-	return nil
+	if ast.IsIdentifier(receiver) {
+		symbol := lowering.checker.GetSymbolAtLocation(receiver)
+		if symbol == nil {
+			return false
+		}
+		for _, declaration := range symbol.Declarations {
+			callable := enclosingCallableNode(declaration)
+			if ast.IsParameterDeclaration(declaration) && callable != nil &&
+				callable.Pos() > component.Start && callable.End() <= component.Start+component.Length {
+				return true
+			}
+		}
+		return false
+	}
+	if _, indexedProp := lowering.propsReadSlots[nodeSpanKey(receiver)]; !indexedProp {
+		return false
+	}
+	return true
 }
 
 // indexedReactiveExpression replaces a one-use read closure and general computed node with the

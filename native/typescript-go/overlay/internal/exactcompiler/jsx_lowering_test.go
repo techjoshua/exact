@@ -464,3 +464,27 @@ func TestKeyedRowComponentPropUsesDirectReactivePropertyOperand(t *testing.T) {
 		t.Fatalf("derived keyed-row prop lost its executable expression fallback:\n%s", response.Code)
 	}
 }
+
+func TestPropertyOperandRetainsPrimitiveAndArbitraryFallbacks(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "C:/tmp/property-operand-fallback.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			declare function Badge(props: { length: number; label: string }): unknown;
+			export function Queue(this: Component<{ items: string[] }>) {
+				return () => <section>{this.state.items.map(item => (
+					<Badge length={item.length} label={item + "!"} />
+				))}</section>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if strings.Contains(response.Code, `length: [__exactPropertyOperand, item, "length"]`) {
+		t.Fatalf("primitive receiver incorrectly selected an object property operand:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `label: __exactExpression(() => item + "!")`) {
+		t.Fatalf("arbitrary expression lost its executable fallback:\n%s", response.Code)
+	}
+}

@@ -97,6 +97,17 @@ describe('normative compiled structure', () => {
 		expect(code).not.toContain('__exactExpression(() => item.label)');
 	});
 
+	it('encodes an object-valued indexed prop property as a direct child prop operand', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toMatch(
+			/label: \[__exactPropertyOperand, __exactReadState\(props, \d+\) as \{\s*label: string;\s*\}, "label"\]/
+		);
+		expect(code).not.toMatch(
+			/label: __exactForwardedExpression\(\(\) => \(__exactReadState\(props, \d+\)/
+		);
+	});
+
 	it('keeps only arbitrary expressions in mixed intrinsic property writers', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
 

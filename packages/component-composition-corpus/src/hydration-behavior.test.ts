@@ -1,5 +1,6 @@
 import { hydrate } from '@exactjs/hydrate/enhanced';
 import { exactEnhancementPassThrough } from '@exactjs/core';
+import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { renderToHydratableString, renderToHydratableStringAsync } from '@exactjs/ssr/enhanced';
 import { describe, expect, it } from 'vitest';
@@ -87,12 +88,25 @@ describe('composition corpus hydration behavior', () => {
 		expect(button?.hasAttribute('disabled')).toBe(true);
 	});
 
-	it('applies indexed input state while adopting the server range', () => {
-		const { container, resumptions } = serverContainer(serverInputProjectionRoot());
+	it('applies indexed input state and nested prop operands while adopting the server range', () => {
+		const { container, resumptions } = serverContainer(
+			serverInputProjectionRoot({ label: 'hydrated' })
+		);
 		const output = container.querySelector('[data-scenario="input-projection"]');
-		hydrate(inputProjectionRoot(), container, { onMismatch: 'throw', resumptions });
+		const nested = container.querySelector('[data-role="nested-prop-label"]');
+		hydrate(inputProjectionRoot({ label: 'hydrated' }), container, {
+			onMismatch: 'throw',
+			resumptions
+		});
 		expect(container.querySelector('[data-scenario="input-projection"]')).toBe(output);
-		expect(output?.textContent).toBe('loading:missing:idle');
+		expect(output?.textContent).toBe('ready:hydrated:idle');
+		expect(container.querySelector('[data-role="nested-prop-label"]')).toBe(nested);
+		expect(nested?.textContent).toBe('hydrated');
+
+		render(inputProjectionRoot({ label: 'adopted update' }), container);
+		flushSync();
+		expect(container.querySelector('[data-role="nested-prop-label"]')).toBe(nested);
+		expect(nested?.textContent).toBe('adopted update');
 
 		const snapshot = serverContainer(serverSnapshotProjectionRoot('retained'));
 		const snapshotOutput = snapshot.container.querySelector(

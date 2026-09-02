@@ -5,10 +5,11 @@ authored component semantics, compiler specializations, supported general paths,
 legacy paths across client rendering, updates, disposal, server rendering, streaming, and
 hydration.
 
-The current inventory covers 52 compiler paths across 11 scenarios and 52 normative tests,
+The current inventory covers 53 compiler paths across 11 scenarios and 53 normative tests,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration.
-It also covers compact direct-property operands forwarded from keyed rows to native children.
+It also covers compact direct-property operands forwarded from keyed rows and object-valued indexed
+props to native children, including replacement and hydration.
 It also verifies matching target-local schemas for compact positional publication of finite nested
 root props.
 It also protects compiler-proven static native numeric and boolean attributes across client, server,
