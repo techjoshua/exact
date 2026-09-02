@@ -2448,3 +2448,42 @@ browser behavior passed. The correct flat decoder nevertheless added about 630 m
 to save only a few dozen small immutable arrays, so that refinement was removed. This confirms that
 future client work should reduce which schema/code is reachable for a selected root rather than
 adding a general cursor parser for already-small module metadata.
+
+### Client schema reachability and reactive ownership follow-ups
+
+Two representations tested whether the client could retain only the selected root's positional
+schema. An inert JSON source added 505 raw client bytes, two parsed/compiled/invoked functions, 509
+executed bytes, and about 1.95 KiB of retained heap in balanced 50-sample populations. Replacing the
+source with compiler-emitted zero-argument materializers avoided JSON parsing but retained three
+closures; it added 402 transferred bytes and about 2.08 KiB of normalized retained heap. V8's small
+literal arrays are cheaper in this fixture than either retained strings plus parsing or closure
+backed factories. Both forms were removed. A meaningful reachability reduction would require the
+bundler's root closure to omit non-root schemas, not another component-local encoding.
+
+Heap retainers then identified 21 scope-child Sets, 20 scope-reaction Sets, and 28 eagerly allocated
+computed-edge Sets. Replacing all scope ownership Sets with dense arrays did delete 48 live Sets,
+but growable-array storage and two ownership helpers added two profiled/invoked functions and 96
+executed bytes. Across 50 alternating profiles, retained heap rose by exactly 1,664 bytes at each
+population boundary. A singleton-or-Set refinement removed the common Set tables and improved
+sampled startup and interaction allocation by about 0.7% and 0.9%, but added 747 raw client bytes;
+its retained bytecode outweighed the data saving and raised paired retained heap by 396 bytes. Both
+scope representations were removed rather than crediting allocation moved into code topology.
+
+Computed edges have a narrower lifecycle: most computed nodes have no computed source or sink at
+all. The retained refinement allocates each Set only when its first computed-to-computed edge is
+linked and releases it with the last edge. Set semantics, graph deduplication, settlement order,
+cycle detection, failure recovery, observation, and disposal are unchanged. Fifty alternating
+profiles keep profiled and invoked functions fixed at 1,172 and 631. Retained heap improves in 37
+pairs, with a mean reduction of 1,178 bytes; paired differences cluster at -1,352 and -3,524 bytes,
+with thirteen +820-byte samples. Startup allocation and CPU are neutral, and interaction CPU is
+neutral-to-positive. The 4-KiB-sampled interaction allocation population is mixed: native/V8 sample
+buckets increase while the Set allocation bucket falls, despite unchanged function inventory and
+lower retained heap, so no interaction-allocation movement is attributed.
+
+The balanced four-framework browser population reports 2,580,208 bytes of Exact retained heap,
+1,520 bytes below the preceding accepted artifact's raw and normalized 2,581,728 bytes. Optimistic
+feedback remains 1.5/1.6/1.8/1.9 ms at p50/p75/p95/p99. The client transfers 195,774 script bytes,
+129 more than before; Brotli grows 41 bytes and gzip 18 bytes. The server artifact and 4,033-byte
+response are unchanged. Focused evidence and written gates are under
+`.tmp/inert-client-schema`, `.tmp/client-scope-arrays`, `.tmp/client-lazy-computed-edges`, and
+`.tmp/client-scope-singletons`.
