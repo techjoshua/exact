@@ -597,6 +597,12 @@ the target-independent marker topology rather than from the complete client or s
 target projection may omit unrelated slots without changing hydration identity. The enclosing
 program root scopes repeated ordinals, so they do not become application-global protocol IDs.
 
+An ordered synchronous compiler-direct structural range that needs nesting ownership but no
+addressable identity uses the compact paired comments `<!--x-->` and `<!--/x-->`. The receiving
+operation and current component-local adoption position select the range; stable dynamic, keyed,
+recovery-addressable, asynchronous, and capability-specific boundaries retain their explicit
+identities.
+
 A compiler-closed hydratable application root omits its outer component comment pair and publishes
 the compact hydration proof `m: 1`. That proof selects markerless root attachment even when nested
 structural markers remain. The hydration JSON script is root-owned transport metadata, not component

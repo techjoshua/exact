@@ -221,7 +221,7 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 	renderDirectServerChildRange(data: ExactPreparedServerChildRange): string {
 		// The receiving component claims this range by its compiled operation and ordered cursor.
 		// Keep explicit nesting ownership without serializing the unrelated stable operation id.
-		return this.renderChildRange(data, false, 'dynamic:');
+		return this.renderChildRange(data, false, '');
 	}
 
 	private renderChildRange(

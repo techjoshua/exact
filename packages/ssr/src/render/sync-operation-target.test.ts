@@ -20,7 +20,7 @@ describe('synchronous SSR operation target', () => {
 				markerId: 'x-stable-operation-identity',
 				mayReplaceSubtree: true
 			} as ExactPreparedServerChildRange)
-		).toBe('<!--exact:dynamic:-->ready<!--/exact:dynamic:-->');
+		).toBe('<!--x-->ready<!--/x-->');
 	});
 
 	it('uses the stable key without a request-global id for compiler-prepared rows', () => {

@@ -11,7 +11,12 @@ import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
 import { installAdoptedChildRangeReceipt, rangeChildren } from '../child-range-receipt.js';
 import { refreshTargetBoundary } from '../target-capability.js';
-import { authoredChildNodes, closingMarkerIndex, frameworkChildRange } from './boundaries.js';
+import {
+	authoredChildNodes,
+	closingMarkerIndex,
+	frameworkChildRange,
+	isChildRangeOpening
+} from './boundaries.js';
 
 /** Adopts compiler-issued child operations within one bounded SSR-owned node range. */
 export type AdoptReceiptChildren = (
@@ -128,7 +133,7 @@ export function adoptChildRangeReceipt(
 ): { mounted: Mounted; next: number } | undefined {
 	const scope = createEffectScope(parentScope);
 	const start = nodes[cursor];
-	if (!(start instanceof Comment) || !start.data.startsWith('exact:dynamic:')) {
+	if (!(start instanceof Comment) || !isChildRangeOpening(start.data)) {
 		scope.stop();
 		return undefined;
 	}

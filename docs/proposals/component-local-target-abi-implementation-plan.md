@@ -510,6 +510,9 @@ client- or server-specific general slot index. A compiler-proven markerless root
 explicit hydration-payload proof, continue to recognize nested markers as nested ownership, and
 exclude its hydration metadata script from the component output range without removing that script
 from the document.
+Ordered synchronous compiler-direct ranges that require only nesting ownership may use the
+anonymous `<!--x-->` / `<!--/x-->` pair. Addressable dynamic, keyed, recovery, asynchronous, and
+capability boundaries must retain stable identities.
 
 **Checkpoint trigger:** matching hydration has no generic native traversal, recovery enters the
 specialized mount method, and client-only roots use the same ABI.
