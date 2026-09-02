@@ -72,6 +72,26 @@ describe('hydration-only config projection', () => {
 		).toBeUndefined();
 	});
 
+	it('decodes only a complete versioned direct envelope tuple', () => {
+		const resumptions = [['component:Counter', [[0, 7]]]];
+		expect(
+			resolveRootHydrateOptions(configContainer([1, 88, { ready: true }, resumptions]), {})
+		).toMatchObject({
+			state: { ready: true },
+			markerlessRoot: true,
+			allowMarkerless: true,
+			resumptions
+		});
+
+		for (const malformed of [
+			[2, 0],
+			[1, 16_384],
+			[1, 8],
+			[1, 0, 'trailing']
+		])
+			expect(resolveRootHydrateOptions(configContainer(malformed), {})).toEqual({});
+	});
+
 	it('reuses the bounded root decode when root props are read before hydration', () => {
 		const container = configContainer({ state: { ready: true } });
 		const parse = vi.spyOn(JSON, 'parse');
@@ -144,7 +164,7 @@ describe('hydration-only config projection', () => {
 	});
 });
 
-function configContainer(config: Record<string, unknown>): HTMLElement {
+function configContainer(config: unknown): HTMLElement {
 	const container = document.createElement('main');
 	const script = document.createElement('script');
 	script.id = '__exact_hydration';

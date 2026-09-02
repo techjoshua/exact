@@ -92,7 +92,7 @@ describe('@exactjs/ssr hydration', () => {
 
 		for (const output of [sync, async, progressive]) {
 			expect(output).toContain('authorization-one');
-			expect(output).toContain('componentAuthorization');
+			expect(output).toContain('[1,12288');
 		}
 	});
 
@@ -159,21 +159,22 @@ describe('@exactjs/ssr hydration', () => {
 		const results = [renderPublishedRoot('sync'), await renderPublishedRootAsync('async')];
 
 		for (const [index, result] of results.entries()) {
-			const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as any;
-			expect(payload.state).toEqual({ label: index === 0 ? 'sync' : 'async' });
+			const payload = directHydrationField(result.hydrationScript, 8);
+			expect(payload).toEqual({ label: index === 0 ? 'sync' : 'async' });
 		}
 	});
 
 	it('publishes compiler-proven nested root props positionally', () => {
 		const result = renderPositionalPublishedRoot();
-		const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as any;
-		expect(payload.state).toEqual([expect.any(String), [[['first', [true]]], 'queue']]);
+		expect(directHydrationField(result.hydrationScript, 8)).toEqual([
+			expect.any(String),
+			[[['first', [true]]], 'queue']
+		]);
 	});
 
 	it('retains named root props when runtime values exceed the finite schema', () => {
 		const result = renderMismatchedPositionalPublishedRoot();
-		const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as any;
-		expect(payload.state).toEqual({
+		expect(directHydrationField(result.hydrationScript, 8)).toEqual({
 			rows: [{ id: 'first', detail: { ready: true, source: 'runtime' } }],
 			label: 'queue'
 		});
@@ -202,12 +203,10 @@ describe('@exactjs/ssr hydration', () => {
 	it('captures indexed resumptions while preserving lazy public activations', () => {
 		const result = renderToHydratableString(createOperation(HydrationPanel, {}));
 		const descriptor = Object.getOwnPropertyDescriptor(result, 'resumptions');
-		const payload = JSON.parse(result.hydrationScript.match(/>(.*)<\/script>/s)![1]) as {
-			resumptions?: unknown[];
-		};
+		const resumptions = directHydrationField(result.hydrationScript, 64) as unknown[];
 
 		expect(descriptor?.get).toBeTypeOf('function');
-		expect(payload.resumptions).toContainEqual([expect.any(String), [[0, true]]]);
+		expect(resumptions).toContainEqual([expect.any(String), [[0, true]]]);
 		expect(result.resumptions).toContainEqual(expect.objectContaining({ values: { show: true } }));
 	});
 
@@ -329,10 +328,28 @@ describe('@exactjs/ssr hydration', () => {
 
 		expect(result.html).toBe('<p>ready</p>');
 		expect(result.htmlWithHydration).toContain('<p>ready</p><script');
-		expect(result.htmlWithHydration).toContain('"endpoint":"/__exact"');
-		expect(result.htmlWithHydration).toContain('"endpoints"');
+		expect(directHydrationField(result.hydrationScript, 2)).toBe('/__exact');
+		expect(directHydrationField(result.hydrationScript, 4)).toEqual({
+			boundaries: { panel: 'https://remote.example/__exact' }
+		});
 		expect(result.htmlWithHydration).toContain('"panel":"https://remote.example/__exact"');
 		expect(result.htmlWithHydration).toContain('"ready":true');
-		expect(result.htmlWithHydration).toContain('"continuations"');
+		expect(directHydrationField(result.hydrationScript, 32)).toHaveProperty('save');
 	});
 });
+
+function directHydrationField(script: string, expectedBit: number): unknown {
+	const tuple = JSON.parse(script.match(/>(.*)<\/script>/s)![1]) as unknown[];
+	const mask = tuple[1] as number;
+	let index = 2;
+	for (let bit = 1; bit <= 8192; bit *= 2) {
+		if ((mask & bit) === 0) continue;
+		if (bit === 16) {
+			if (bit === expectedBit) return 1;
+			continue;
+		}
+		if (bit === expectedBit) return tuple[index];
+		index++;
+	}
+	return undefined;
+}

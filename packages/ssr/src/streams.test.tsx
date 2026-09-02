@@ -176,7 +176,7 @@ describe('@exactjs/ssr streams', () => {
 
 		expect(html).toContain('<div id="app"><p>ready</p></div>');
 		expect(html).toContain('<script type="application/json" id="__exact_hydration">');
-		expect(html).toContain('"endpoint":"/__exact"');
+		expect(html).toContain('[1,2,"/__exact"]');
 	});
 
 	it('streams progressive html shell before async task replacement', async () => {

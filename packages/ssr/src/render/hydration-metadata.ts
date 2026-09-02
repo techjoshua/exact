@@ -7,26 +7,66 @@ import type { HydrationScriptOptions } from '../types.js';
 export function createDirectHydrationMetadata(
 	options: HydrationScriptOptions,
 	resumptions: readonly SsrSerializedResumption[]
-): Record<string, unknown> {
-	const output: Record<string, unknown> = {};
-	assignDefined(output, 'pluginRegistryFingerprint', options.pluginRegistryFingerprint);
-	assignDefined(output, 'endpoint', options.endpoint);
+): unknown[] {
+	const output: unknown[] = [1, 0];
+	let mask = 0;
+	if (options.pluginRegistryFingerprint !== undefined) {
+		mask |= 1;
+		output.push(options.pluginRegistryFingerprint);
+	}
+	if (options.endpoint !== undefined) {
+		mask |= 2;
+		output.push(options.endpoint);
+	}
 	if (options.endpoints) {
 		const endpoints = compactEndpointRoutes(options.endpoints);
-		if (Object.keys(endpoints).length) output.endpoints = endpoints;
+		if (Object.keys(endpoints).length) {
+			mask |= 4;
+			output.push(endpoints);
+		}
 	}
-	assignDefined(output, 'state', options.state);
-	if (options.markerlessRoot) output.m = 1;
-	if (options.continuations) output.continuations = compactContinuations(options.continuations);
-	if (resumptions.length) output.resumptions = resumptions;
-	if (options.publicContexts && !isEmptyRecord(options.publicContexts))
-		output.publicContexts = options.publicContexts;
-	assignDefined(output, 'wallClockSnapshot', options.wallClockSnapshot);
-	assignDefined(output, 'h', options.hydrationTable);
-	assignDefined(output, 'executionRoot', options.executionRoot);
-	assignDefined(output, 'binding', options.binding);
-	assignDefined(output, 'buildKey', options.buildKey);
-	assignDefined(output, 'componentAuthorization', options.componentAuthorization);
+	if (options.state !== undefined) {
+		mask |= 8;
+		output.push(options.state);
+	}
+	if (options.markerlessRoot) mask |= 16;
+	if (options.continuations) {
+		mask |= 32;
+		output.push(compactContinuations(options.continuations));
+	}
+	if (resumptions.length) {
+		mask |= 64;
+		output.push(resumptions);
+	}
+	if (options.publicContexts && !isEmptyRecord(options.publicContexts)) {
+		mask |= 128;
+		output.push(options.publicContexts);
+	}
+	if (options.wallClockSnapshot !== undefined) {
+		mask |= 256;
+		output.push(options.wallClockSnapshot);
+	}
+	if (options.hydrationTable !== undefined) {
+		mask |= 512;
+		output.push(options.hydrationTable);
+	}
+	if (options.executionRoot !== undefined) {
+		mask |= 1024;
+		output.push(options.executionRoot);
+	}
+	if (options.binding !== undefined) {
+		mask |= 2048;
+		output.push(options.binding);
+	}
+	if (options.buildKey !== undefined) {
+		mask |= 4096;
+		output.push(options.buildKey);
+	}
+	if (options.componentAuthorization !== undefined) {
+		mask |= 8192;
+		output.push(options.componentAuthorization);
+	}
+	output[1] = mask;
 	return output;
 }
 
@@ -193,8 +233,4 @@ function omitUndefinedProperties(value: Record<string, unknown>): Record<string,
 		if (item !== undefined) output[key] = item;
 	}
 	return output;
-}
-
-function assignDefined(owner: Record<string, unknown>, field: string, value: unknown): void {
-	if (value !== undefined) owner[field] = value;
 }

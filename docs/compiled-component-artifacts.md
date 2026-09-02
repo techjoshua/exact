@@ -487,11 +487,13 @@ client-style durable component instance.
 
 Hydratable compiler-closed renders reserve request-local resumption tokens and publish their
 compiler-indexed state directly into final compact tuples. Hydration publication places those
-tuples into one request-owned envelope without reconstructing named records or passing through the
-optional output-extension host. Framework-created envelope and tuple containers are structurally
-known to the validator, while every authored value nested inside them still receives descriptor-
-safe traversal before native JSON serialization. Selecting an output extension retains the
-explicit generic transformation boundary and its named public resumption view.
+tuples into one request-owned, versioned positional envelope without reconstructing named records
+or passing through the optional output-extension host. A presence mask fixes the order of optional
+framework fields; unknown bits, missing values, and trailing values fail closed. Framework-created
+envelope and tuple containers are structurally known to the validator, while every authored value
+nested inside them still receives descriptor-safe traversal before native JSON serialization.
+Selecting an output extension retains the explicit generic transformation boundary, keyed envelope,
+and named public resumption view.
 
 ## Runtime inventory
 

@@ -2631,3 +2631,43 @@ an attributed gain or regression.
 
 Core, hydration, DOM, and SSR suites pass with 231, 217, 266, and 205 tests. Focused evidence and
 the written gate are under `.tmp/direct-resumption-cursor-tuples`.
+
+### Direct positional hydration envelope
+
+The compiler-direct document path now publishes its optional framework metadata as a versioned
+presence-mask tuple. Values occur once in canonical field order, while authored state, props,
+contexts, endpoint tables, and other nested containers retain descriptor-safe validation and their
+existing representations. Unknown bits, missing values, and trailing values fail closed. The
+hydration-only entry additionally rejects fields owned by the complete runtime. Output extensions
+retain the keyed generic envelope.
+
+Two misleading results were resolved before judging the representation. First, pairing the new
+server protocol with the accepted old client necessarily failed hydration; browser comparisons use
+protocol-matched artifacts. Second, an exploratory five-field root-prop schema matched a raw fixture
+but not the normative three-field SSR service input. That mismatch forced the named fallback,
+increased the real response from 3,923 to 4,204 bytes, and reduced concurrency by about 4%; the
+schema change was removed. The accepted envelope changes the normative response from 3,923 to
+3,900 bytes and its hydration payload from 518 to 495 bytes.
+
+An initial shared decoder projected the tuple into a keyed intermediate object. It added 579 raw
+client bytes, one profiled and invoked function, and 281 executed bytes, so that mechanism was
+removed. The retained decoders consume the tuple directly in the existing full-runtime and
+hydration-only parsers. Relative to the positional-cursor artifact, the production client grows 290
+raw bytes while profiled functions fall from 1,170 to 1,169, invoked functions fall from 629 to 627,
+and executed code falls from 82,651 to 82,409 bytes. Both retained-heap population boundaries fall
+by exactly 76 bytes. The apparent p50 increase from 1,900,184 to 1,902,280 bytes is solely a
+population-boundary crossing between the same two clusters, not retained growth. Non-interleaved
+startup and interaction timing samples are retained as diagnostics and receive no attribution.
+
+One hundred mode-interleaved server pairs improve collected rendering by 1.44% on paired means with
+64 wins and direct-sink rendering by 4.57% with 84 wins. Direct p50/p75/p95/p99 move from
+0.0307/0.0477/0.0700/0.0924 ms to 0.0291/0.0454/0.0671/0.0895 ms. Sampled transient allocation is
+neutral in 20 pairs: the paired mean ratio is 1.0006, the median ratio is 0.9950, and 11 pairs favor
+the candidate.
+
+Sixty preloaded rounds rotate all c16/c32/c64 lane orders evenly and alternate artifact order.
+Paired mean RPS improves 1.06% at c16 and 0.84% at c32, with 37 and 38 wins. The c64 paired mean is
+0.21% lower with an effectively neutral 0.999 median ratio and a 30/30 split. The Node server entry
+grows 2,083 raw bytes, from 239,767 to 241,850; this server-only reachability cost is accepted for
+the smaller response and reduced executed render work. Focused evidence is under
+`.tmp/direct-hydration-envelope-tuple`.

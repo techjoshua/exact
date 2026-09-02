@@ -186,10 +186,20 @@ uses its parent and the end of the child list as its complete retained boundary,
 does not emit an otherwise redundant comment pair.
 
 Compiler-closed hydratable component roots likewise omit the outer component boundary. Their
-hydration payload carries `m: 1`, which is a compiler proof for markerless root attachment rather
-than a request to ignore marker validation. Nested range comments keep their ordinary ownership.
+direct hydration envelope carries a markerless-root presence bit, which is a compiler proof for
+markerless root attachment rather than a request to ignore marker validation. Nested range comments
+keep their ordinary ownership.
 When the hydration JSON script is emitted beside the root markup, attachment keeps the script in the
 DOM but excludes it from the component's adopted output range.
+
+The ordinary compiler-direct document path publishes that envelope as a versioned tuple. A bitmask
+identifies which canonical fields follow, and the values appear once in fixed protocol order. This
+keeps optional metadata compact without turning authored values into a new encoding: root props,
+state, contexts, endpoint tables, and other authored containers still cross the descriptor-safe
+validation boundary in their existing representation. The validator rejects unknown mask bits,
+missing values, and trailing values. The hydration-only client entry also rejects complete-runtime
+fields such as endpoints and continuations. Output extensions retain the keyed envelope because
+they are an explicit generic transformation boundary rather than a compiler-direct document.
 
 Schema-defined empty hydration metadata is omitted from compiler registrations and document
 payloads. Hydration restores omitted continuation arrays and resumption arrays or objects with
