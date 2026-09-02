@@ -61,7 +61,14 @@ export class TaskComponentInstance<
 					: instantiate.call(this, this.props as Props);
 			});
 			if (capability && this.componentResumption)
-				capability.resume(this.taskState, new Set(this.componentResumption.settledContinuations));
+				capability.resume(
+					this.taskState,
+					new Set(
+						'componentId' in this.componentResumption
+							? this.componentResumption.settledContinuations
+							: (this.componentResumption[3] ?? [])
+					)
+				);
 			capability?.retain(this.taskState, this);
 		} catch (error) {
 			cleanupFailedComponentConstruction(this, error);

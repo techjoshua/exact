@@ -9,11 +9,12 @@ import {
 	readPreparedExactClientExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
+import type { ComponentResumptionSource } from '@exactjs/core/framework/component-domains';
 
 /** Ordered resolver with checkpoints for fallible DOM adoption. */
 export type ComponentResumptionResolver = ((
 	type: AnyComponentFunction
-) => ComponentResumptionActivation | undefined) & {
+) => ComponentResumptionSource | undefined) & {
 	checkpoint(): number;
 	rollback(checkpoint: number): void;
 };
@@ -29,32 +30,47 @@ export function createComponentResumptionResolver(
 		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
-		const record = available[cursor];
+		const record = available[cursor] as ComponentResumptionSource | undefined;
 		if (!record) throw new Error(`eXact SSR resumption is missing component ${componentId}`);
-		if (record.componentId !== componentId)
+		const indexedRecord = !('componentId' in record);
+		const recordComponentId = indexedRecord ? record[0] : record.componentId;
+		if (recordComponentId !== componentId)
 			throw new Error(
-				`eXact SSR resumption expected component ${record.componentId} before ${componentId}`
+				`eXact SSR resumption expected component ${recordComponentId} before ${componentId}`
 			);
-		const indexed = Array.isArray(record.values) && Array.isArray(record.contexts);
+		const values = indexedRecord ? (record[1] ?? []) : record.values;
+		const contexts = indexedRecord ? (record[2] ?? []) : record.contexts;
+		const settledContinuations = indexedRecord ? (record[3] ?? []) : record.settledContinuations;
+		const indexed = Array.isArray(values) && Array.isArray(contexts);
 		if (indexed) {
 			prepareIndexedFields(
-				record.values as unknown as readonly IndexedResumptionField[],
+				values as unknown as readonly IndexedResumptionField[],
 				contract.resumption.statePaths,
 				componentId,
 				'state path'
 			);
 			prepareIndexedFields(
-				record.contexts as unknown as readonly IndexedResumptionField[],
+				contexts as unknown as readonly IndexedResumptionField[],
 				contract.resumption.contexts,
 				componentId,
 				'context'
 			);
 		}
 		if (!indexed) {
-			validateNamedFields(record.values, contract.resumption.statePaths, componentId, 'state path');
-			validateNamedFields(record.contexts, contract.resumption.contexts, componentId, 'context');
+			validateNamedFields(
+				values as Readonly<Record<string, unknown>>,
+				contract.resumption.statePaths,
+				componentId,
+				'state path'
+			);
+			validateNamedFields(
+				contexts as Readonly<Record<string, unknown>>,
+				contract.resumption.contexts,
+				componentId,
+				'context'
+			);
 		}
-		for (const id of record.settledContinuations) {
+		for (const id of settledContinuations) {
 			if (!contract.continuations?.some((continuation) => continuation.id === id))
 				throw new Error(
 					`eXact SSR resumption contains undeclared continuation ${componentId}:${id}`

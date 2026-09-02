@@ -5,7 +5,7 @@ import type {
 	ComponentContinuationDispatcher,
 	ComponentDomain,
 	ComponentDomainIdentity,
-	ComponentResumptionActivation
+	ComponentResumptionSource
 } from './contracts.js';
 import type { ExactRuntimeInspectionOwner } from './inspection.js';
 import type { Logger } from '../logging.js';
@@ -18,7 +18,7 @@ export type ComponentDomainOptions = ComponentDomainIdentity;
 export type ComponentDomainCapabilities = Readonly<{
 	target?: 'client' | 'server';
 	dispatchContinuation?: ComponentContinuationDispatcher;
-	resumeComponent?: (type: AnyComponentFunction) => ComponentResumptionActivation | undefined;
+	resumeComponent?: (type: AnyComponentFunction) => ComponentResumptionSource | undefined;
 	inspection?: ExactRuntimeInspectionOwner;
 	inspectionActivation?: 'hydration';
 	/** Immutable wall-clock sample shared by one framework-owned render transaction. */
@@ -243,7 +243,7 @@ export function withComponentResumption<T>(domain: ComponentDomain, work: () => 
 export function resolveComponentResumption(
 	domain: ComponentDomain,
 	type: AnyComponentFunction
-): ComponentResumptionActivation | undefined {
+): ComponentResumptionSource | undefined {
 	return resumingDomains.has(domain)
 		? domainCapabilities.get(domain)?.resumeComponent?.(type)
 		: undefined;

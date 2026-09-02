@@ -17,3 +17,7 @@ export {
 	type ComponentDomainLogging,
 	type FrameworkComponentDomainOptions
 } from '../component/domain.js';
+export type {
+	ComponentResumptionSource,
+	IndexedComponentResumptionActivation
+} from '../component/contracts.js';
