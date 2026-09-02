@@ -67,6 +67,10 @@ samples; the `COMPARISON_SSR_STARTUP_SAMPLES`, `COMPARISON_SSR_CONCURRENCY`,
 `COMPARISON_SSR_RUNTIMES=node` when only Node is installed. A checkpoint may set
 `COMPARISON_EXACT_BEFORE_NODE_ARTIFACT` or `COMPARISON_EXACT_BEFORE_BUN_ARTIFACT` to measure an admitted
 historical eXact server entry in the same rounds instead of relying only on control-normalized history.
+On Windows, Bun workers default `BUN_CONFIG_MAX_HTTP_REQUESTS` to 64, the observed reusable per-origin
+connection capacity in Bun 1.3.5. This queues excess controlled-service fetches instead of consuming the
+bounded Windows ephemeral-port range with one-shot sockets. An explicitly configured value remains
+authoritative and the effective worker environment is recorded in the raw report.
 
 The SSR report is written under `results/raw/`. Treat its Node and Bun rows as separate runtime
 profiles, compare framework results only within the same row and benchmark run, and retain the

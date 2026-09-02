@@ -189,6 +189,10 @@ hydration data, comparison data, and the document envelope without adding work t
 An attribution-only lane that encounters a transport failure is recorded as unsupported with its participant,
 concurrency, and round context. Its partial timings are discarded, while completed primary and independent
 diagnostic populations remain valid and continue to the per-runtime checkpoint.
+On Windows, Bun workers default their maximum concurrent HTTP requests to 64, matching Bun 1.3.5's observed
+reusable per-origin connection population. Higher simultaneous upstream populations otherwise create one-shot
+sockets and can exhaust Windows' bounded ephemeral-port range during the long diagnostic population. Explicit
+operator configuration overrides the default, and the report records the effective worker environment.
 
 Memory checkpoints force collection outside the measured latency lanes, then record `heapUsed`,
 `heapTotal`, RSS, external memory, and array buffers after equal request batches. A least-squares

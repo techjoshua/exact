@@ -42,6 +42,19 @@ export function availableSsrRuntimes(requestedValue = process.env.COMPARISON_SSR
 	return result;
 }
 
+/**
+ * Keeps Bun's Windows upstream population within its reusable per-origin connection capacity.
+ * Explicit operator configuration remains authoritative for controlled experiments.
+ */
+export function ssrWorkerNetworkEnvironment(
+	runtimeId,
+	hostPlatform = process.platform,
+	configuredLimit = process.env.BUN_CONFIG_MAX_HTTP_REQUESTS
+) {
+	if (runtimeId !== 'bun' || hostPlatform !== 'win32') return {};
+	return { BUN_CONFIG_MAX_HTTP_REQUESTS: configuredLimit ?? '64' };
+}
+
 /** Measures the complete non-source-map server artifact without mutating its output directory. */
 export async function measureSsrArtifact(directory) {
 	const files = await allFiles(directory);
@@ -70,7 +83,10 @@ export function ssrEnvironmentMetadata(runtimeList) {
 		platformRelease: release(),
 		cpu: cpu ? { model: cpu.model, logicalCount: cpus().length } : null,
 		totalMemoryBytes: totalmem(),
-		runtimes: Object.fromEntries(runtimeList.map((runtime) => [runtime.id, runtime.version]))
+		runtimes: Object.fromEntries(runtimeList.map((runtime) => [runtime.id, runtime.version])),
+		workerNetworkEnvironment: Object.fromEntries(
+			runtimeList.map((runtime) => [runtime.id, ssrWorkerNetworkEnvironment(runtime.id)])
+		)
 	};
 }
 

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
+import { ssrWorkerNetworkEnvironment } from './ssr-run-environment.mjs';
 
 /** Starts one owned SSR runtime process and resolves after its production transport is listening. */
 export async function startSsrWorker({
@@ -17,6 +18,7 @@ export async function startSsrWorker({
 		cwd: workingDirectory,
 		env: {
 			...process.env,
+			...ssrWorkerNetworkEnvironment(runtime.id),
 			NODE_ENV: 'production',
 			COMPARISON_SERVICE_URL: serviceUrl,
 			NITRO_SHUTDOWN_DISABLED: 'true',
