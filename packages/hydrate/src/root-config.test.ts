@@ -83,8 +83,11 @@ describe('hydration-only config projection', () => {
 		expect(resolveRootHydrateOptions(valid, {}).resumptions).toEqual([
 			{
 				componentId: 'component:Counter',
-				values: { '@0': 7, label: 'ready' },
-				contexts: {},
+				values: [
+					[0, 7],
+					['label', 'ready']
+				],
+				contexts: [],
 				settledContinuations: ['task:ready']
 			}
 		]);

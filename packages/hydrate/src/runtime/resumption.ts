@@ -39,18 +39,25 @@ export function createComponentResumptionResolver(
 		if (recordIndex === available.length)
 			throw new Error(`eXact SSR resumption is missing component ${componentId}`);
 		const record = available[recordIndex]!;
-		const values = expandIndexedFields(
-			record.values,
-			contract.resumption.statePaths,
-			componentId,
-			'state path'
-		);
-		const contexts = expandIndexedFields(
-			record.contexts,
-			contract.resumption.contexts,
-			componentId,
-			'context'
-		);
+		const indexed = Array.isArray(record.values) && Array.isArray(record.contexts);
+		if (indexed) {
+			prepareIndexedFields(
+				record.values as unknown as readonly IndexedResumptionField[],
+				contract.resumption.statePaths,
+				componentId,
+				'state path'
+			);
+			prepareIndexedFields(
+				record.contexts as unknown as readonly IndexedResumptionField[],
+				contract.resumption.contexts,
+				componentId,
+				'context'
+			);
+		}
+		if (!indexed) {
+			validateNamedFields(record.values, contract.resumption.statePaths, componentId, 'state path');
+			validateNamedFields(record.contexts, contract.resumption.contexts, componentId, 'context');
+		}
 		for (const id of record.settledContinuations) {
 			if (!contract.continuations?.some((continuation) => continuation.id === id))
 				throw new Error(
@@ -59,7 +66,7 @@ export function createComponentResumptionResolver(
 		}
 		consumed[recordIndex] = true;
 		history.push(recordIndex);
-		return { ...record, values, contexts };
+		return record;
 	}) as ComponentResumptionResolver;
 	resolve.checkpoint = () => history.length;
 	resolve.rollback = (checkpoint) => {
@@ -70,45 +77,44 @@ export function createComponentResumptionResolver(
 	return resolve;
 }
 
-/** Expands compiler indexes only after the receiving component contract supplies their names. */
-function expandIndexedFields(
+type IndexedResumptionField = readonly [field: number | string, value: unknown];
+
+/** Resolves compact field cells in place only after the receiving artifact supplies its schema. */
+function prepareIndexedFields(
+	entries: readonly IndexedResumptionField[],
+	fields: readonly string[],
+	componentId: string,
+	fieldKind: 'state path' | 'context'
+): void {
+	for (let index = 0; index < entries.length; index++) {
+		const rawField = entries[index]![0];
+		const field = typeof rawField === 'number' ? fields[rawField] : rawField;
+		if (field === undefined)
+			throw new Error(`eXact SSR resumption index is outside component ${componentId}`);
+		if (typeof rawField === 'string' && !fields.includes(rawField))
+			throw new Error(
+				`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${rawField}`
+			);
+		for (let previous = 0; previous < index; previous++)
+			if (entries[previous]![0] === field)
+				throw new Error(`Duplicate eXact resumption field ${componentId}:${field}`);
+		(entries[index] as [field: number | string, value: unknown])[0] = field;
+	}
+}
+
+/** Validates the explicit registration lane against its receiving component contract. */
+function validateNamedFields(
 	values: Readonly<Record<string, unknown>>,
 	fields: readonly string[],
 	componentId: string,
 	fieldKind: 'state path' | 'context'
-): Readonly<Record<string, unknown>> {
+): void {
 	const keys = Object.keys(values);
-	if (!keys.some((key) => key.startsWith('@'))) {
-		for (const key of keys)
-			if (!fields.includes(key))
-				throw new Error(
-					`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${key}`
-				);
-		return values;
-	}
-	const output: Record<string, unknown> = {};
-	for (const key of keys) {
-		if (!key.startsWith('@')) {
-			if (!fields.includes(key))
-				throw new Error(
-					`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${key}`
-				);
-			if (Object.prototype.hasOwnProperty.call(output, key))
-				throw new Error(`Duplicate eXact resumption field ${componentId}:${key}`);
-			output[key] = values[key];
-			continue;
-		}
-		if (!/^@(?:0|[1-9]\d*)$/.test(key))
-			throw new Error(`Malformed eXact indexed resumption ${componentId}`);
-		const index = Number(key.slice(1));
-		const field = fields[index];
-		if (field === undefined)
-			throw new Error(`eXact SSR resumption index is outside component ${componentId}`);
-		if (Object.prototype.hasOwnProperty.call(output, field))
-			throw new Error(`Duplicate eXact resumption field ${componentId}:${field}`);
-		output[field] = values[key];
-	}
-	return output;
+	for (const key of keys)
+		if (!fields.includes(key))
+			throw new Error(
+				`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${key}`
+			);
 }
 
 /** Captures the current activation cursor before a fallible adoption attempt. */

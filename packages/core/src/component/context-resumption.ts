@@ -6,6 +6,8 @@ import type {
 	ComponentResumptionActivation
 } from './contracts.js';
 
+type IndexedContextField = readonly [field: string, value: unknown];
+
 const bindingsByInstance = new WeakMap<AnyComponentInstance, Map<string, AnyContextToken>>();
 const resumptionsByInstance = new WeakMap<AnyComponentInstance, ComponentResumptionActivation>();
 const appliedByInstance = new WeakMap<AnyComponentInstance, Set<string>>();
@@ -50,12 +52,22 @@ export function registerComponentContinuationContexts(
 			throw new Error(`Conflicting eXact continuation context binding ${binding.name}`);
 		}
 		registered.set(binding.name, binding.token);
-		if (
-			resumption &&
-			!applied.has(binding.name) &&
-			Object.prototype.hasOwnProperty.call(resumption.contexts, binding.name)
-		) {
-			instance.setContext(binding.token, resumption.contexts[binding.name]);
+		if (!resumption || applied.has(binding.name)) continue;
+		let found = false;
+		let resumed: unknown;
+		if (Array.isArray(resumption.contexts)) {
+			for (const [field, value] of resumption.contexts as unknown as readonly IndexedContextField[])
+				if (field === binding.name) {
+					found = true;
+					resumed = value;
+					break;
+				}
+		} else if (Object.prototype.hasOwnProperty.call(resumption.contexts, binding.name)) {
+			found = true;
+			resumed = resumption.contexts[binding.name];
+		}
+		if (found) {
+			instance.setContext(binding.token, resumed);
 			applied.add(binding.name);
 		}
 	}

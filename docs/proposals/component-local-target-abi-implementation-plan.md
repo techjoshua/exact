@@ -667,6 +667,13 @@ record. The compiler omits both target artifacts' resumption surface for that co
 with continuations, server lifecycle, contexts, arbitrary setup values, or an uncovered state path
 retain indexed request-owned capture and ordinary hydration validation.
 
+The document hydration lane preserves those indexed capture pairs through bounded decoding. Once
+the receiving client artifact is known, its resolver validates and replaces each request-owned
+numeric field cell with the matching immutable schema name. State and context activation iterate
+the same pair arrays, removing the transitional `@index` record and the subsequent named-record
+projection. Public application-supplied registrations remain named records, and both lanes retain
+the same undeclared-field, duplicate-alias, continuation, ordering, and rollback checks.
+
 A later focused specialization may also issue a statically selected child directly from that
 program when its invocation consists only of finalized plain props. Store the callable in the
 immutable generated writer, keep props request-owned, and reuse the existing child artifact ABI.

@@ -2342,3 +2342,63 @@ would require trustworthy provenance established at an earlier server-data bound
 immutable value or already-validated serialized bytes. A completed-object cache alone is
 insufficient because it would weaken occurrence-based depth/node limits for shared subgraphs.
 Evidence is under `.tmp/unsafe-hydration-validation`.
+
+### Direct indexed client resumption activation
+
+The compact document lane previously converted each indexed resumption tuple into `@index` state
+and context records, then allocated a second activation with named records after the receiving
+component contract became known. The retained candidate keeps the decoded field-pair arrays
+request-owned, validates them against that component's immutable schema, resolves their field cells
+in place, and applies state and contexts from the same arrays. Explicit application registrations
+retain named records. Numeric/name aliases, undeclared fields, continuation authorization, ordered
+consumption, rollback, replacement, and recovery remain fail-closed.
+
+The first implementation hid pairs behind per-activation symbol metadata. Although correctness
+passed, the framework-comparison artifact grew by 146 raw bytes and the controlled population added
+three profiled and two invoked functions. That wrapper was removed before acceptance. The focused
+representation instead removes 34 raw client bytes, 187 precise executed bytes, two profiled
+functions, and three invoked functions. Across 50 alternating cold-browser pairs, retained heap
+falls by exactly 2,952 bytes in every pair. Startup CPU is neutral at a 0.995 paired mean ratio;
+sampled startup allocation is inconclusive at a 1.016 paired mean ratio with 20 wins.
+
+The interaction code does not enter resumption parsing or activation after startup. Its sampled
+allocation moved upward with only 22 of 50 candidate wins while retained heap, executed code, and
+function counts changed deterministically in the intended direction. Allocation-site identities
+also shifted with minified offsets while corresponding before/current sites exchanged similar
+sample totals. The interaction allocation movement is therefore recorded as sampling/code-layout
+noise rather than attributed to moved runtime work; interaction CPU is neutral at a 1.013 paired
+mean ratio with 31 wins. The complete focused evidence and written counter-metrics are under
+`.tmp/client-indexed-resumption-direct`.
+
+### Direct indexed resumption complete comparison checkpoint
+
+The accepted artifact was measured with 50 balanced, round-interleaved samples in every browser
+and controlled-startup population, plus the complete fresh Node SSR and Bun diagnostic suite. The
+four admitted participants were built once and reused. The
+[complete grouped-percentile report](component-local-target-abi/direct-indexed-resumption.md) keeps
+frameworks in Exact, React, SvelteKit, Nuxt order and includes raw current values, eligible
+control-normalized Exact-before values with raw history in parentheses, every browser and startup
+population, function and artifact inventories, Node SSR, render-only and allocation evidence,
+response decomposition, equal-payload, preloaded and saturation lanes, and Bun separately. The
+immutable SSR evidence is
+`framework-comparison/results/raw/ssr-2026-09-02T05-11-08-579Z.json`; browser and startup captures
+are under `.tmp/direct-indexed-resumption-checkpoint`.
+
+The current browser transfers 194,340 script bytes, 34 fewer than the preceding accepted artifact.
+The complete controlled-startup population executes 101,531 bytes and invokes 560 functions,
+deterministic reductions of 166 bytes and two functions from that preceding checkpoint. Warm used
+heap is 2,576,364 bytes at p50, compared with 2,577,544 bytes raw and normalized before. Cold used
+heap is 2,431,404 bytes, compared with 2,432,584 bytes raw and 2,429,726 bytes after eligible
+control normalization; the 0.07% normalized difference is below the focused paired experiment's
+resolution. Evaluation is 18.448 ms p50 versus 18.587 ms normalized before. Optimistic feedback is
+1.5/1.6/1.8/2.3 ms; its p50 is neutral and the isolated p99 movement is contradicted by stable lower
+percentiles and moving controls.
+
+The server artifact is byte-identical to the preceding checkpoint. Fresh Node ordinary c16 is
+2,084.8 RPS p50, sustained c32 is 2,353.6 RPS, and c64 is 2,342.6 RPS. React moved from 2,135.0 to
+2,228.6 RPS in ordinary c16 while the other controls moved by different ratios, making that lane
+ineligible for normalization. Eligible normalized comparisons put c32 and c64 1.5% and 2.4% below
+the preceding run even though no server byte changed. Those values quantify between-run machine and
+process variance; they are not attributed to the client-only implementation. This is why the next
+server candidate will use directly alternating before/current artifacts in addition to the four
+framework controls.

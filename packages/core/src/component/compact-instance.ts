@@ -211,7 +211,12 @@ export abstract class CompactComponentInstance<
 				this.inspection?.publish({ kind: 'hydration.activate', component: this });
 			if (!this.parent && !this.ambientContexts?.has(ErrorContext.id))
 				this.contexts.set(ErrorContext.id, createErrorContext());
-			if (resumption && Object.keys(resumption.contexts).length !== 0) {
+			if (
+				resumption &&
+				(Array.isArray(resumption.contexts)
+					? resumption.contexts.length !== 0
+					: Object.keys(resumption.contexts).length !== 0)
+			) {
 				const contextCapability = optionalComponentContextCapability();
 				if (!contextCapability)
 					throw new Error(
