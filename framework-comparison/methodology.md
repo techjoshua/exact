@@ -186,6 +186,9 @@ renderer and response path with one cached immutable service snapshot. A separat
 fetch and JSON-decode clocks; those clocks never run in primary requests. Finally, a response-decomposition
 control operation accounts for semantic markup, marker categories, framework identity attributes,
 hydration data, comparison data, and the document envelope without adding work to a measured response.
+An attribution-only lane that encounters a transport failure is recorded as unsupported with its participant,
+concurrency, and round context. Its partial timings are discarded, while completed primary and independent
+diagnostic populations remain valid and continue to the per-runtime checkpoint.
 
 Memory checkpoints force collection outside the measured latency lanes, then record `heapUsed`,
 `heapTotal`, RSS, external memory, and array buffers after equal request batches. A least-squares
