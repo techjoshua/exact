@@ -97,8 +97,8 @@ class ComputedNode<T> implements Reaction {
 	private validatedGeneration = 0;
 	private restorationVersion = readReactiveRestorationVersion();
 	private dependencies: ComputedDependency[] = [];
-	private readonly computedSources = new Set<ComputedNode<unknown>>();
-	private readonly computedSinks = new Set<ComputedNode<unknown>>();
+	private computedSources?: Set<ComputedNode<unknown>>;
+	private computedSinks?: Set<ComputedNode<unknown>>;
 	private readonly target = {};
 	private readonly key = 'value';
 	private readonly releaseObservationHooks: () => void;
@@ -184,7 +184,7 @@ class ComputedNode<T> implements Reaction {
 			observed: this.isRetained(),
 			initialized: this.initialized,
 			sources: this.dependencies.length,
-			sinks: this.computedSinks.size
+			sinks: this.computedSinks?.size ?? 0
 		});
 	}
 
@@ -307,7 +307,7 @@ class ComputedNode<T> implements Reaction {
 	}
 
 	private markSinksChecked(): void {
-		const pending = [...this.computedSinks];
+		const pending = this.computedSinks ? [...this.computedSinks] : [];
 		const visited = new Set<ComputedNode<unknown>>();
 		while (pending.length) {
 			const sink = pending.pop()!;
@@ -315,7 +315,7 @@ class ComputedNode<T> implements Reaction {
 			if (sink.state === 'clean') sink.state = 'checked';
 			if (sink.state === 'computing') sink.invalidatedWhileComputing = true;
 			if (sink.isRetained()) sink.queue();
-			for (const descendant of sink.computedSinks) pending.push(descendant);
+			if (sink.computedSinks) for (const descendant of sink.computedSinks) pending.push(descendant);
 		}
 	}
 
@@ -348,15 +348,18 @@ class ComputedNode<T> implements Reaction {
 		if (!this.isRetained()) return;
 		for (const dependency of this.dependencies) {
 			if (!dependency.computed) continue;
-			this.computedSources.add(dependency.computed);
-			dependency.computed.computedSinks.add(this as ComputedNode<unknown>);
+			(this.computedSources ??= new Set()).add(dependency.computed);
+			(dependency.computed.computedSinks ??= new Set()).add(this as ComputedNode<unknown>);
 		}
 	}
 
 	private detachComputedSources(): void {
-		for (const source of this.computedSources)
-			source.computedSinks.delete(this as ComputedNode<unknown>);
-		this.computedSources.clear();
+		if (!this.computedSources) return;
+		for (const source of this.computedSources) {
+			source.computedSinks?.delete(this as ComputedNode<unknown>);
+			if (source.computedSinks?.size === 0) source.computedSinks = undefined;
+		}
+		this.computedSources = undefined;
 	}
 
 	computedDependencies(): readonly ComputedDependency[] {
