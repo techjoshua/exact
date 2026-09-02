@@ -1,4 +1,5 @@
 import type { ComponentResumptionActivation } from '@exactjs/core';
+import type { IndexedComponentResumptionActivation } from '@exactjs/core/framework/component-domains';
 import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import {
 	isExactContinuationDependency,
@@ -59,7 +60,7 @@ export function normalizeComponentResumptionRegistrations(
 /** Validates the single compact representation accepted across the document boundary. */
 export function normalizeSerializedComponentResumptions(
 	value: unknown
-): readonly ComponentResumptionActivation[] | undefined {
+): readonly IndexedComponentResumptionActivation[] | undefined {
 	if (value === undefined) return undefined;
 	if (!Array.isArray(value)) throw new TypeError('Malformed eXact component resumptions');
 	if (!value.length) return emptyList;
@@ -69,7 +70,7 @@ export function normalizeSerializedComponentResumptions(
 			throw new TypeError(`Malformed eXact component resumption ${index}`);
 	}
 	// Compiler-issued tuples remain positional until the ordered component cursor claims them.
-	return value as unknown as readonly ComponentResumptionActivation[];
+	return value as readonly IndexedComponentResumptionActivation[];
 }
 
 type IndexedComponentResumption = readonly [
