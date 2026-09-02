@@ -194,39 +194,90 @@ function parseRootConfig(
 			{ maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes },
 			() => new TypeError('Malformed eXact hydration config')
 		);
-		if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-		const record = value as Record<string, unknown>;
-		// This decoder is narrow, not permissive: fields owned by the complete runtime fail closed.
-		if (!hasOnlyKeys(record, rootConfigKeys)) return {};
+		if (!value || typeof value !== 'object') return {};
+		let pluginRegistryFingerprint: unknown;
+		let state: unknown;
+		let hasState = false;
+		let markerlessRoot = false;
+		let serializedResumptions: unknown;
+		let publicContexts: unknown;
+		let wallClockSnapshot: unknown;
+		let hydrationTableValue: unknown;
+		let executionRoot: unknown;
+		let binding: unknown;
+		let buildKeyValue: unknown;
+		let componentAuthorizationValue: unknown;
+		if (Array.isArray(value)) {
+			const mask = value[1];
+			if (
+				value[0] !== 1 ||
+				typeof mask !== 'number' ||
+				!Number.isSafeInteger(mask) ||
+				mask < 0 ||
+				(mask & ~16_383) !== 0 ||
+				(mask & 38) !== 0
+			)
+				return {};
+			let index = 2;
+			if (mask & 1) pluginRegistryFingerprint = value[index++];
+			if (mask & 8) {
+				hasState = true;
+				state = value[index++];
+			}
+			markerlessRoot = Boolean(mask & 16);
+			if (mask & 64) serializedResumptions = value[index++];
+			if (mask & 128) publicContexts = value[index++];
+			if (mask & 256) wallClockSnapshot = value[index++];
+			if (mask & 512) hydrationTableValue = value[index++];
+			if (mask & 1024) executionRoot = value[index++];
+			if (mask & 2048) binding = value[index++];
+			if (mask & 4096) buildKeyValue = value[index++];
+			if (mask & 8192) componentAuthorizationValue = value[index++];
+			if (index !== value.length) return {};
+		} else {
+			const record = value as Record<string, unknown>;
+			// This decoder is narrow, not permissive: fields owned by the complete runtime fail closed.
+			if (!hasOnlyKeys(record, rootConfigKeys)) return {};
+			pluginRegistryFingerprint = record.pluginRegistryFingerprint;
+			hasState = 'state' in record;
+			state = record.state;
+			markerlessRoot = record.m === 1;
+			serializedResumptions = record.resumptions;
+			publicContexts = record.publicContexts;
+			wallClockSnapshot = record.wallClockSnapshot;
+			hydrationTableValue = record.h;
+			executionRoot = record.executionRoot;
+			binding = record.binding;
+			buildKeyValue = record.buildKey;
+			componentAuthorizationValue = record.componentAuthorization;
+		}
 		const componentAuthorization = isExactComponentAuthorizationIdentity(
-			record.componentAuthorization
+			componentAuthorizationValue
 		)
-			? record.componentAuthorization
+			? componentAuthorizationValue
 			: undefined;
-		const buildKey = typeof record.buildKey === 'string' ? record.buildKey : undefined;
+		const buildKey = typeof buildKeyValue === 'string' ? buildKeyValue : undefined;
 		if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
 			return {};
 		let resumptions: HydrateOptions['resumptions'];
 		try {
-			resumptions = normalizeSerializedComponentResumptions(record.resumptions);
+			resumptions = normalizeSerializedComponentResumptions(serializedResumptions);
 		} catch {
 			resumptions = undefined;
 		}
-		const hydrationTable = normalizeRootHydrationTable(record.h);
+		const hydrationTable = normalizeRootHydrationTable(hydrationTableValue);
 		const config: ExactHydrationConfig = {
-			...(typeof record.pluginRegistryFingerprint === 'string'
-				? { pluginRegistryFingerprint: record.pluginRegistryFingerprint }
-				: {}),
-			...('state' in record ? { state: record.state } : {}),
-			...(record.m === 1 ? { markerlessRoot: true as const } : {}),
+			...(typeof pluginRegistryFingerprint === 'string' ? { pluginRegistryFingerprint } : {}),
+			...(hasState ? { state } : {}),
+			...(markerlessRoot ? { markerlessRoot: true as const } : {}),
 			...(resumptions ? { resumptions } : {}),
-			...(isRecord(record.publicContexts) ? { publicContexts: record.publicContexts } : {}),
-			...(typeof record.wallClockSnapshot === 'number' && Number.isFinite(record.wallClockSnapshot)
-				? { wallClockSnapshot: record.wallClockSnapshot }
+			...(isRecord(publicContexts) ? { publicContexts } : {}),
+			...(typeof wallClockSnapshot === 'number' && Number.isFinite(wallClockSnapshot)
+				? { wallClockSnapshot }
 				: {}),
 			...(hydrationTable ? { hydrationTable } : {}),
-			...(typeof record.executionRoot === 'string' ? { executionRoot: record.executionRoot } : {}),
-			...(typeof record.binding === 'string' ? { binding: record.binding } : {}),
+			...(typeof executionRoot === 'string' ? { executionRoot } : {}),
+			...(typeof binding === 'string' ? { binding } : {}),
 			...(buildKey ? { buildKey } : {}),
 			...(componentAuthorization ? { componentAuthorization } : {})
 		};

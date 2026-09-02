@@ -242,7 +242,7 @@ describe('@exactjs/ssr documents-security', () => {
 			{
 				event: 'hydration',
 				version: 1,
-				html: expect.stringContaining('"endpoint":"/__exact"')
+				html: '<script type="application/json" id="__exact_hydration">[1,10,"/__exact",{"ready":true}]</script>'
 			},
 			{ event: 'complete', version: 1 }
 		]);
@@ -281,7 +281,7 @@ describe('@exactjs/ssr documents-security', () => {
 			{
 				event: 'hydration',
 				version: 1,
-				html: '<script type="application/json" id="__exact_hydration">{}</script>'
+				html: '<script type="application/json" id="__exact_hydration">[1,0]</script>'
 			},
 			{ event: 'complete', version: 1 }
 		]);

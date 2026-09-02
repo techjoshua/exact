@@ -7,11 +7,11 @@ import {
 	type DomWorkBudget
 } from '@exactjs/dom/root';
 import {
-	cloneEndpointRoutes,
 	mergeClientIslands,
 	mergeHydrationRegistration,
 	resolveHydrateOptions
 } from '../config.js';
+import { cloneEndpointRoutes } from '../endpoint-routes.js';
 import { hydrateClientIslands } from '../islands.js';
 import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';

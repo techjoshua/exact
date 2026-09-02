@@ -7,6 +7,26 @@ import { invokeExact, invokeExactBatch } from './invocations.js';
 import { ndjsonResponse } from './test-support/responses.js';
 
 describe('@exactjs/hydrate response-validation', () => {
+	it('restores the complete-runtime fields from a direct envelope tuple', () => {
+		const root = document.createElement('main');
+		root.innerHTML =
+			'<script type="application/json" id="__exact_hydration">[1,46,"/__exact",{"boundaries":{"panel":"/panel"}},{"ready":true},{"save":{"id":"save","componentId":"test:save","kind":"task","readiness":"nonblocking"}}]</script>';
+
+		expect(readExactHydrationConfig(root)).toMatchObject({
+			endpoint: '/__exact',
+			endpoints: { boundaries: { panel: '/panel' } },
+			state: { ready: true },
+			continuations: {
+				save: {
+					id: 'save',
+					componentId: 'test:save',
+					kind: 'task',
+					readiness: 'nonblocking'
+				}
+			}
+		});
+	});
+
 	it('ignores malformed endpoint routes in the hydration bootstrap script', () => {
 		const root = document.createElement('main');
 		root.innerHTML =

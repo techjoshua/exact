@@ -112,6 +112,7 @@ function validateContainer(
 	const structurallyKnown = shape !== 0 || (state.structurallyKnown?.has(source) ?? false);
 	const path = state.path;
 	if (shape >= 2 && !array) return false;
+	if (shape === 1 && array) return validateDirectEnvelope(source as unknown[], depth, state);
 	if (array && structurallyKnown) {
 		for (let index = 0; index < source.length; index++) {
 			if (path) pushValidationPath(path, String(index), true);
@@ -168,6 +169,58 @@ function validateContainer(
 	}
 	if (array) state.onValidatedArray?.(source as unknown[]);
 	return true;
+}
+
+/**
+ * Validates the versioned compiler-direct envelope and rewrites only compiler-proven positional
+ * values. The field mask is protocol data rather than application input: unknown bits, missing
+ * values, and trailing values all fail closed before publication.
+ */
+function validateDirectEnvelope(source: unknown[], depth: number, state: ValidationState): boolean {
+	const version = source[0];
+	const mask = source[1];
+	if (
+		version !== 1 ||
+		typeof mask !== 'number' ||
+		!Number.isSafeInteger(mask) ||
+		mask < 0 ||
+		(mask & ~16_383) !== 0
+	)
+		return false;
+	if (state.nodes + 2 > state.maxNodes || depth + 1 > state.maxDepth) return false;
+	state.nodes += 2;
+	let index = 2;
+	for (let bit = 1; bit <= 8192; bit *= 2) {
+		if ((mask & bit) === 0 || bit === 16) continue;
+		if (index >= source.length) return false;
+		if (state.path) pushValidationPath(state.path, String(index), true);
+		const item = source[index];
+		if (bit === 8 && state.positionalRoot) {
+			const publication = state.positionalRoot;
+			const encoded = validatePositionalValue(
+				publication.props,
+				publication.schema,
+				depth + 2,
+				state
+			);
+			if (encoded === positionalUnsafe) return false;
+			if (encoded === positionalMismatch) {
+				source[index] = publication.props;
+				if (!validateValue(publication.props, depth + 1, state)) return false;
+			} else {
+				if (depth + 1 > state.maxDepth || state.nodes + 2 > state.maxNodes) return false;
+				state.nodes += 2;
+				source[index] = [publication.componentId, encoded];
+			}
+		} else {
+			const childShape: DirectHydrationShape =
+				bit === 64 && item === state.directResumptions ? 2 : 0;
+			if (!validateValue(item, depth + 1, state, childShape)) return false;
+		}
+		if (state.path) popValidationPath(state.path);
+		index++;
+	}
+	return index === source.length;
 }
 
 const positionalMismatch = Symbol('positional-mismatch');
