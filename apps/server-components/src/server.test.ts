@@ -49,7 +49,9 @@ describe('@exactjs/sample-server-components', () => {
 		expect(html).toContain('<div id="app">');
 		expect(html).toContain('Ada');
 		expect(html).toContain('<script type="application/json" id="__exact_hydration">');
-		expect(html).toContain('"endpoint":"/__exact"');
+		const container = document.createElement('div');
+		container.innerHTML = html;
+		expect(readExactHydrationConfig(container).endpoint).toBe('/__exact');
 	});
 
 	it('hydrates a generated client island and applies a server action refresh', async () => {
