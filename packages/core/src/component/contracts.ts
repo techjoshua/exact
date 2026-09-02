@@ -28,6 +28,19 @@ export type ComponentResumptionActivation = Readonly<{
 	settledContinuations: readonly string[];
 }>;
 
+/** Framework-private positional activation claimed directly from the hydration cursor. */
+export type IndexedComponentResumptionActivation = readonly [
+	componentId: string,
+	values?: readonly (readonly [field: number | string, value: unknown])[],
+	contexts?: readonly (readonly [field: number | string, value: unknown])[],
+	settledContinuations?: readonly string[]
+];
+
+/** Named application registration or compiler-indexed document activation. */
+export type ComponentResumptionSource =
+	| ComponentResumptionActivation
+	| IndexedComponentResumptionActivation;
+
 /** Client-local token identity paired with a compiler-stable context contract name. */
 export type ComponentContinuationContextBinding = Readonly<{
 	name: string;

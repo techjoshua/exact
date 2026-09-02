@@ -12,7 +12,7 @@ import type {
 	ComponentContextValues,
 	ComponentFunction,
 	ComponentInstance,
-	ComponentResumptionActivation,
+	ComponentResumptionSource,
 	RenderFunction
 } from './contracts.js';
 import { ErrorContext } from './contexts.js';
@@ -63,7 +63,7 @@ export abstract class CompactComponentInstance<
 	private disposedValue = false;
 	private activityBlockers?: Set<symbol>;
 	private renderFunctionValue: RenderFunction = () => null;
-	protected readonly componentResumption: ComponentResumptionActivation | undefined;
+	protected readonly componentResumption: ComponentResumptionSource | undefined;
 	private readonly inputUpdates: ExactCompiledComponentInputUpdateContract | undefined;
 
 	protected constructor(
@@ -205,6 +205,11 @@ export abstract class CompactComponentInstance<
 	/** Runs one compiler-selected setup lane around shared construction and resumption semantics. */
 	protected initializeComponent(invoke: () => RenderFunction): void {
 		const resumption = this.componentResumption;
+		const resumedContexts = resumption
+			? 'componentId' in resumption
+				? resumption.contexts
+				: (resumption[2] ?? [])
+			: undefined;
 		try {
 			this.inspection?.publish({ kind: 'component.construct', component: this });
 			if (!this.parent && isHydrationComponentDomain(this.domain))
@@ -213,9 +218,10 @@ export abstract class CompactComponentInstance<
 				this.contexts.set(ErrorContext.id, createErrorContext());
 			if (
 				resumption &&
-				(Array.isArray(resumption.contexts)
-					? resumption.contexts.length !== 0
-					: Object.keys(resumption.contexts).length !== 0)
+				resumedContexts &&
+				(Array.isArray(resumedContexts)
+					? resumedContexts.length !== 0
+					: Object.keys(resumedContexts).length !== 0)
 			) {
 				const contextCapability = optionalComponentContextCapability();
 				if (!contextCapability)

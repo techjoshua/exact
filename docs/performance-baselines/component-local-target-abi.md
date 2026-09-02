@@ -2599,3 +2599,35 @@ benchmark-method evidence: concurrency order must be balanced when sub-percent c
 
 Focused SSR, DOM hydration, and composition-corpus suites pass with 205, 266, and 51 tests.
 Expected metrics and immutable focused evidence are under `.tmp/keyed-program-marker-identity`.
+
+### Direct positional resumption cursor
+
+The document protocol already publishes compiler-indexed resumption tuples in component-tree order.
+The client previously validated those tuples, eagerly projected every tuple into a keyed activation
+object, copied the resulting list, and then advanced a rollback-capable component cursor over those
+objects. The retained implementation keeps validated document resumptions as tuples. The receiving
+component's contract resolves numeric state and context fields in place when the existing cursor
+claims the record. Explicit application registrations remain named objects, and component order,
+contract authorization, duplicate rejection, settled tasks, contexts, checkpoints, rollback,
+replacement, and recovery retain the same behavior.
+
+The production client artifact grows by 100 raw bytes, from 195,520 to 195,620, while the server
+artifact remains byte-identical at 239,767 bytes and the 3,923-byte response is unchanged. In 50
+balanced browser pairs, profiled functions fall from 1,172 to 1,170, invoked functions fall from 631
+to 629, and precise executed code falls from 82,661 to 82,651 bytes. Retained heap moves from
+1,900,612 to 1,900,184 bytes at p50 and by the same 428 bytes at every population boundary; 34/50
+paired samples favor the tuple cursor. Startup allocation improves 1.19% on paired means with 27
+wins. Startup CPU is neutral-to-positive at a 0.994 paired mean ratio and 27 wins.
+
+The broad interaction CPU population initially contradicted the startup-only mechanism: its paired
+mean moved 3.15% upward with 20 wins, while interaction allocation had a neutral median but a 7.6%
+outlier-driven mean. Site attribution found no cursor or resumption work after startup; native and
+general JavaScript samples moved together, allocation direction reversed between run halves and
+artifact orders, and a 10%-trimmed interaction CPU population narrowed to 2.07%. Two independent
+100-pair optimistic-feedback populations then pointed in opposite directions. Combined, current
+p50 is one 0.1 ms timer bucket lower, p75/p95 are identical, paired median is exactly 1.0, and paired
+mean is 1.008. Interaction is therefore recorded as neutral within host and timer resolution, not as
+an attributed gain or regression.
+
+Core, hydration, DOM, and SSR suites pass with 231, 217, 266, and 205 tests. Focused evidence and
+the written gate are under `.tmp/direct-resumption-cursor-tuples`.

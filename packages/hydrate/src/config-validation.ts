@@ -63,11 +63,13 @@ export function normalizeSerializedComponentResumptions(
 	if (value === undefined) return undefined;
 	if (!Array.isArray(value)) throw new TypeError('Malformed eXact component resumptions');
 	if (!value.length) return emptyList;
-	return value.map((item, index) => {
+	for (let index = 0; index < value.length; index++) {
+		const item = value[index];
 		if (!isIndexedComponentResumption(item))
 			throw new TypeError(`Malformed eXact component resumption ${index}`);
-		return normalizeIndexedResumption(item);
-	});
+	}
+	// Compiler-issued tuples remain positional until the ordered component cursor claims them.
+	return value as unknown as readonly ComponentResumptionActivation[];
 }
 
 type IndexedComponentResumption = readonly [
@@ -76,18 +78,6 @@ type IndexedComponentResumption = readonly [
 	contexts?: readonly (readonly [field: number | string, value: unknown])[],
 	settledContinuations?: readonly string[]
 ];
-
-/** Restores an indexed wire tuple while deferring contract-index expansion to component adoption. */
-function normalizeIndexedResumption(
-	item: IndexedComponentResumption
-): ComponentResumptionActivation {
-	return {
-		componentId: item[0],
-		values: item[1] ?? emptyList,
-		contexts: item[2] ?? emptyList,
-		settledContinuations: item[3] ?? emptyList
-	} as unknown as ComponentResumptionActivation;
-}
 
 /** Narrows an unknown protocol value to a plain record shape. */
 export function isRecord(value: unknown): value is Record<string, unknown> {

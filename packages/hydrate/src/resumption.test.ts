@@ -34,6 +34,7 @@ describe('@exactjs/hydrate component resumption', () => {
 		const resolver = createComponentResumptionResolver(() => records);
 
 		expect(resolver(ResumableCounter)).toBe(records[0]);
+		expect(records[0]).toEqual([componentId, [['label', 'ready']]]);
 	});
 
 	it('rejects a compact wire index outside the receiving component contract', () => {
