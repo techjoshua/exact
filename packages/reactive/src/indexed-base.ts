@@ -15,6 +15,7 @@ import {
 } from './internal/deps.js';
 import { hasChanged, isReactiveContainer } from './change-detection.js';
 import { isReactiveValue, rejectReadonlyReactiveValueWrite, unwrap } from './internal/values.js';
+import { indexedLayout, type IndexedLayout } from './indexed-layout.js';
 
 type IndexedRecord = {
 	readonly layout: IndexedLayout;
@@ -29,19 +30,23 @@ type IndexedRecord = {
 	values?: ReactiveValue[];
 };
 
-type IndexedLayout = Readonly<{
-	indexes: ReadonlyMap<PropertyKey, number>;
-	keys: readonly PropertyKey[];
-}>;
-
 /** Stable dependency keys for compiler-known fields on one indexed reactive target. */
 export type ReactiveOwnDependencies = Readonly<{
 	target: object;
 	keys: readonly PropertyKey[];
 }>;
 
+/** Private compiler operand for one direct property read owned by a component prop slot. */
+export const compiledReactivePropertyOperand = Symbol.for('exact.reactive.property-operand');
+
+/** Identifies a compiler-proven direct property read without allocating a reader function. */
+export type CompiledReactivePropertyOperand = readonly [
+	marker: typeof compiledReactivePropertyOperand,
+	owner: object,
+	key: PropertyKey
+];
+
 const indexedRecords = new WeakMap<object, IndexedRecord>();
-const indexedLayouts = new WeakMap<object, IndexedLayout>();
 
 /**
  * Creates an inspectable object facade whose compiler-known top-level fields are
@@ -246,6 +251,7 @@ function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown
 	const raw = retainedIndexedValue(indexed, key, next);
 	const value =
 		!indexed.options.passthroughKeys?.includes(key) &&
+		!(Array.isArray(raw) && raw[0] === compiledReactivePropertyOperand) &&
 		!isReactiveValue(raw) &&
 		raw &&
 		typeof raw === 'object' &&
@@ -288,6 +294,7 @@ function seedIndexedRecord(indexed: IndexedRecord, initial: object): void {
 		const raw = retainedIndexedValue(indexed, key, Reflect.get(initial, key));
 		indexed.target[key] =
 			!indexed.options.passthroughKeys?.includes(key) &&
+			!(Array.isArray(raw) && raw[0] === compiledReactivePropertyOperand) &&
 			!isReactiveValue(raw) &&
 			raw &&
 			typeof raw === 'object' &&
@@ -315,8 +322,17 @@ function readIndexedValue(
 		if (mode !== 'peek') track(indexed.target, index);
 		return current;
 	}
-	const value =
-		indexed.preserveReactiveValues && isReactiveValue(current) ? current.get() : current;
+	const propertyOperand =
+		indexed.preserveReactiveValues &&
+		Array.isArray(current) &&
+		current[0] === compiledReactivePropertyOperand
+			? (current as unknown as CompiledReactivePropertyOperand)
+			: undefined;
+	const value = propertyOperand
+		? Reflect.get(propertyOperand[1], propertyOperand[2])
+		: indexed.preserveReactiveValues && isReactiveValue(current)
+			? current.get()
+			: current;
 	const raw = unwrap(value);
 	if (raw && typeof raw === 'object' && isReactiveContainer(raw)) {
 		if (mode === 'direct') track(indexed.target, index);
@@ -417,22 +433,6 @@ export function readIndexedReactiveSource(
 	)
 		return { present: false };
 	return { present: true, value: indexed.target[indexedRecordKey(indexed, index)] };
-}
-
-function indexedLayout(keys: readonly PropertyKey[]): IndexedLayout {
-	const identity = keys as object;
-	const cached = indexedLayouts.get(identity);
-	if (cached) return cached;
-	const indexes = new Map<PropertyKey, number>();
-	const uniqueKeys: PropertyKey[] = [];
-	for (const key of keys) {
-		if (indexes.has(key)) continue;
-		indexes.set(key, indexes.size);
-		uniqueKeys.push(key);
-	}
-	const layout = { indexes, keys: uniqueKeys };
-	indexedLayouts.set(identity, layout);
-	return layout;
 }
 
 function indexedRecordIndex(indexed: IndexedRecord, key: PropertyKey): number | undefined {

@@ -1,10 +1,14 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import {
+	compiledReactivePropertyOperand,
 	isReactiveValue,
 	readIndexedReactiveSource,
+	reactiveOwnDependencies,
 	ref,
 	subscribe,
 	subscribeKeys,
+	unwrap,
+	type CompiledReactivePropertyOperand,
 	type StopHandle
 } from '@exactjs/reactive/framework/runtime';
 import {
@@ -81,21 +85,33 @@ function refreshForwardedProp(dependencies: CompiledComponentDependencies, index
 	const binding = dependencies.bindings[index];
 	if (!binding || index >= dependencies.props) return;
 	const read = readIndexedReactiveSource(dependencies.owner.props, binding[0]);
+	const operand =
+		read.present && Array.isArray(read.value) && read.value[0] === compiledReactivePropertyOperand
+			? (read.value as unknown as CompiledReactivePropertyOperand)
+			: undefined;
 	const value = read.present && isReactiveValue(read.value) ? read.value : undefined;
+	const sourceValue = operand ?? value;
 	const current = dependencies.f[index];
-	if (current?.value === value) return;
+	if (current?.value === sourceValue) return;
 	current?.stop();
 	dependencies.f[index] = undefined;
-	if (!value) return;
-	const source = ref(value);
-	if (!source) return;
-	const stop = subscribe(
-		source,
-		() => {
-			value.get();
-			dependencies.publish(index);
-		},
-		{ scope: dependencies.scope }
-	);
-	dependencies.f[index] = { value, stop };
+	if (!sourceValue) return;
+	const notify = () => {
+		value?.get();
+		dependencies.publish(index);
+	};
+	const propertyDependencies = operand
+		? reactiveOwnDependencies(operand[1], [operand[2]])
+		: undefined;
+	const stop = operand
+		? subscribeKeys(
+				propertyDependencies?.target ?? (unwrap(operand[1]) as object),
+				propertyDependencies?.keys ?? [operand[2]],
+				notify,
+				{
+					scope: dependencies.scope
+				}
+			)
+		: subscribe(ref(value!)!, notify, { scope: dependencies.scope });
+	dependencies.f[index] = { value: sourceValue, stop };
 }

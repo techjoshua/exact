@@ -14,6 +14,10 @@ function ContextConsumer(this: Component<{}>) {
 	return () => <output data-role="context">{value}</output>;
 }
 
+function ItemLabel(props: { label: string }) {
+	return () => <span data-role="item-label">{props.label}</span>;
+}
+
 function CapabilityComposition(this: Component<CapabilityState>) {
 	mountedCapabilities = this;
 	this.state.items = [
@@ -29,7 +33,7 @@ function CapabilityComposition(this: Component<CapabilityState>) {
 			<ul>
 				{this.state.items.map((item) => (
 					<li key={item.id} data-id={item.id}>
-						{item.label}
+						<ItemLabel label={item.label} />
 					</li>
 				))}
 			</ul>

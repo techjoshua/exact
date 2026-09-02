@@ -56,6 +56,7 @@ export {
 	watchStructural
 } from '../observation.js';
 export {
+	compiledReactivePropertyOperand,
 	createIndexedReactiveValue,
 	deleteIndexedReactiveSlot,
 	deleteIndexedReactiveSlotWithResult,
@@ -68,6 +69,7 @@ export {
 	setIndexedReactiveSlot,
 	setIndexedReactiveSlotWithResult
 } from '../indexed-base.js';
+export type { CompiledReactivePropertyOperand } from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
 export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';

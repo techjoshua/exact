@@ -53,6 +53,7 @@ type jsxRuntimeNames struct {
 	expression                 string
 	forwardedExpression        string
 	indexedExpression          string
+	propertyOperand            string
 	componentOutput            string
 	serverComponentOutput      string
 	issueServerComponent       string
@@ -316,6 +317,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createExpression", lowering.names.expression, runtimeRender},
 		{"createForwardedExpression", lowering.names.forwardedExpression, runtimeRender},
 		{"createIndexedReactiveValue", lowering.names.indexedExpression, runtimeReactivity},
+		{"compiledReactivePropertyOperand", lowering.names.propertyOperand, runtimeReactivity},
 		{"componentExecutionValueForHost", lowering.names.componentOutput, runtimeComponentExecution},
 		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, runtimeServerComponentExecution},
 		{"issueServerComponentReceipt", lowering.names.issueServerComponent, runtimeServerComponentExecution},
@@ -931,6 +933,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		expression:                 allocate("__exactExpression"),
 		forwardedExpression:        allocate("__exactForwardedExpression"),
 		indexedExpression:          allocate("__exactIndexedExpression"),
+		propertyOperand:            allocate("__exactPropertyOperand"),
 		componentOutput:            allocate("__exactComponentOutput"),
 		serverComponentOutput:      allocate("__exactServerComponentOutput"),
 		issueServerComponent:       allocate("__exactIssueServerComponent"),

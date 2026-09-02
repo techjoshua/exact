@@ -234,7 +234,7 @@ function subscribeToDependencies(
 		active: true,
 		scheduled: false,
 		pendingPriority: undefined,
-		deps: [...dependencies],
+		deps: [],
 		run() {
 			reaction.scheduled = false;
 			reaction.pendingPriority = undefined;

@@ -2853,3 +2853,53 @@ all browser, startup, function-inventory, artifact, Node SSR, allocation, respon
 equal-payload, preloaded, saturation, retention, same-run Exact-before, adjacent paired verification,
 and separate Bun diagnostic tables. Written gates and immutable raw evidence are under
 `.tmp/compact-keyed-range-markers`.
+
+### Client dependency storage and keyed property operands
+
+Three focused client allocation sites were evaluated against the compact-keyed-range checkpoint.
+Fixed subscriptions first retained their selected dependency set twice: once when constructing the
+reaction and again while linking it. Removing the duplicate initial copy reduces executed code by
+4 bytes and retained heap by about 2.4 KiB at p50 in 50 alternating profiles. Function inventory is
+unchanged, startup allocation is neutral at a 1.001 paired mean ratio, and interaction timing is
+mixed within the fixture's timer resolution. The change is retained because it deletes redundant
+ownership and makes cleanup visit each dependency exactly once.
+
+Compiler-keyed list registration also eagerly built canonical keyed metadata even though the
+comparison's client list never requests structured replacement or protocol serialization metadata.
+Metadata construction is now lazy at the existing reconciliation/serialization request sites.
+Against the dependency-storage artifact, 50 alternating profiles reduce retained heap from
+1,900,072 to 1,855,408 bytes in every pair, precise executed code from 82,397 to 79,695 bytes,
+profiled functions from 1,170 to 1,165, and invoked functions from 628 to 610. Paired startup CPU
+improves 4.1% and interaction CPU improves 7.5% by mean. Three independently alternating
+100-pair timing populations leave optimistic feedback and settlement neutral; the initially
+unfavorable settlement population reverses in the third run. The production client falls 8 raw
+bytes, and required metadata remains constructed before its first actual consumer.
+
+The remaining keyed-row child prop initially used `createExpression(() => incident.severity)`,
+allocating one full computed owner and reader closure per retained row. A first direct-property
+helper saved 8,944 retained bytes but added one profiled and invoked function and 123 executed bytes;
+that mechanism was removed. The retained compiler form instead emits a marked three-field operand
+tuple. The receiving indexed prop store resolves the value, while the existing focused component
+dependency binder subscribes through the operand's exact indexed or ordinary target/key identity.
+There is no runtime operand cache, bound function, general interpreter, or change to arbitrary
+expression ownership.
+
+Relative to the lazy-metadata artifact, 50 alternating profiles reduce retained heap from
+1,855,408 to 1,841,524 bytes in every pair, profiled functions from 1,165 to 1,164, and invoked
+functions from 610 to 609. Startup CPU is neutral at a 1.002 paired mean ratio; interaction CPU is
+also neutral-to-positive at 0.993. The client artifact and precise executed code grow by 202 bytes.
+Sampled startup allocation moves upward 1.3% by paired mean with only 22 wins, while deterministic
+post-GC retention falls 13,884 bytes. This is recorded as the cost of the additional focused tuple
+branches rather than claimed as an allocation win. Across 300 alternating interaction pairs,
+optimistic feedback remains 1.9 ms at p50 with a -0.002 ms paired mean, and settlement remains
+13.6 ms at p50 with a +0.066 ms paired mean and nearly even wins. The change is retained for the
+deterministic heap and function-topology improvements; it does not claim a timing win.
+
+The composition corpus now protects direct mutation, same-key replacement, movement, matching
+hydration, and arbitrary-expression fallback. Focused evidence is under
+`.tmp/client-subscription-duplicate-deps`, `.tmp/client-lazy-keyed-metadata`,
+`.tmp/client-property-operands`, and `.tmp/client-property-operand-tuples`.
+
+The combined slice passed `npm run performance:check` on September 2, 2026. That command's internal
+framework benchmark is an acceptance gate, not the four-framework comparison suite, so its timings
+are not substituted for an interleaved Exact, React, SvelteKit, and Nuxt checkpoint.

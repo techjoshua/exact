@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { computed } from './computation.js';
 import { batch, captureReactiveMutations } from './internal/deps.js';
 import { flushSync } from './internal/scheduler.js';
+import { createEffectScope } from './internal/scopes.js';
 import { collectionRef, ref } from './observation.js';
 import { indexedReactive, readReactiveOwnProperty } from './indexed.js';
 import {
+	compiledReactivePropertyOperand,
 	reactiveIndexedDependencies,
 	reactiveOwnDependencies,
 	createIndexedReactiveValue,
@@ -19,6 +21,26 @@ import { indexedReactiveObjects } from './framework/indexed-objects.js';
 import { updateReactive } from './reconciliation.js';
 
 describe('indexed reactive state', () => {
+	it('reads a compiler property operand through one indexed prop slot', () => {
+		const source = indexedReactive<{ value: number }>(['value']);
+		source.value = 1;
+		const props = indexedReactiveObjects<{ value: number }>(
+			['value'],
+			{},
+			{
+				value: [compiledReactivePropertyOperand, source, 'value']
+			} as unknown as { value: number },
+			true
+		);
+		const observed: number[] = [];
+		const stop = watch(() => observed.push(props.value));
+
+		source.value = 2;
+		flushSync();
+		expect(observed).toEqual([1, 2]);
+		stop();
+	});
+
 	it('shares a readonly direct value for each compiler-proven slot', () => {
 		const state = indexedReactive<{ count: number }>(['count']);
 		state.count = 1;
@@ -209,6 +231,18 @@ describe('indexed reactive state', () => {
 		flushSync();
 
 		expect(seen).toEqual([[1, 'second']]);
+	});
+
+	it('retains each compiler-selected dependency exactly once', () => {
+		const state = indexedReactive<{ count: number; label: string }>(['count', 'label']);
+		const dependencies = reactiveOwnDependencies(state, ['count', 'label'])!;
+		const scope = createEffectScope();
+		subscribeKeys(dependencies.target, dependencies.keys, () => undefined, { scope });
+
+		const [reaction] = (scope as unknown as { reactions: Set<{ deps: unknown[] }> }).reactions;
+		expect(reaction!.deps).toHaveLength(2);
+		expect(new Set(reaction!.deps).size).toBe(2);
+		scope.stop();
 	});
 
 	it('seeds readonly indexed props and updates numeric dependencies through reconciliation', () => {

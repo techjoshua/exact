@@ -235,11 +235,14 @@ describe('@exactjs/reactive writes', () => {
 		replacement();
 	});
 
-	it('releases keyed metadata after the final list registration stops', () => {
+	it('creates keyed metadata lazily and releases it after the final registration stops', () => {
 		const records = [{ id: 'one' }];
-		const first = registerReactiveListKey(records, (item) => (item as { id: string }).id);
-		const second = registerReactiveListKey(records, (item) => (item as { id: string }).id);
+		const byId = (item: unknown) => (item as { id: string }).id;
+		const first = registerReactiveListKey(records, byId);
+		const second = registerReactiveListKey(records, byId);
 
+		expect(keyedCollectionMetadata(records)).toBeUndefined();
+		expect(keyedCollectionMetadata(records, byId)).toBeDefined();
 		expect(keyedCollectionMetadata(records)).toBeDefined();
 		first();
 		expect(keyedCollectionMetadata(records)).toBeDefined();

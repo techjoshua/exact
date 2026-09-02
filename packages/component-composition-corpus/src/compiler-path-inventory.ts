@@ -71,6 +71,12 @@ export const compilerPathInventory = [
 		['client-mount', 'ssr-sync', 'hydrate-match']
 	),
 	path(
+		'direct-property-prop-operand',
+		'specialized',
+		'A direct property of a keyed item crosses a native component boundary as an indexed operand.',
+		['client-mount', 'client-update', 'hydrate-match']
+	),
+	path(
 		'mixed-prop-state-update',
 		'specialized',
 		'Prop and state dependencies remain distinct in one component.',
