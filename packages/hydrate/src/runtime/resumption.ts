@@ -1,8 +1,7 @@
 import {
 	type AnyComponentFunction,
 	withComponentResumption,
-	type ComponentDomain,
-	type ComponentResumptionActivation
+	type ComponentDomain
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
@@ -12,17 +11,17 @@ import { componentDomainResumption } from '@exactjs/core/framework/component-dom
 import type { ComponentResumptionSource } from '@exactjs/core/framework/component-domains';
 
 /** Ordered resolver with checkpoints for fallible DOM adoption. */
-export type ComponentResumptionResolver = ((
-	type: AnyComponentFunction
-) => ComponentResumptionSource | undefined) & {
+export type ComponentResumptionResolver<
+	Source extends ComponentResumptionSource = ComponentResumptionSource
+> = ((type: AnyComponentFunction) => Source | undefined) & {
 	checkpoint(): number;
 	rollback(checkpoint: number): void;
 };
 
 /** Creates the ordered, contract-checked source of SSR component activations. */
-export function createComponentResumptionResolver(
-	records: () => readonly ComponentResumptionActivation[] | undefined
-): ComponentResumptionResolver {
+export function createComponentResumptionResolver<Source extends ComponentResumptionSource>(
+	records: () => readonly Source[] | undefined
+): ComponentResumptionResolver<Source> {
 	let cursor = 0;
 	const resolve = ((type: AnyComponentFunction) => {
 		const contract = readPreparedExactClientExecutableComponentContract(type);
@@ -78,7 +77,7 @@ export function createComponentResumptionResolver(
 		}
 		cursor++;
 		return record;
-	}) as ComponentResumptionResolver;
+	}) as ComponentResumptionResolver<Source>;
 	resolve.checkpoint = () => cursor;
 	resolve.rollback = (checkpoint) => {
 		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > cursor)
