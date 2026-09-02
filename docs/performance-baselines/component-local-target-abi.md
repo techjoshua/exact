@@ -2283,3 +2283,62 @@ retained as removed render work with neutral capacity evidence. Descriptor-safe 
 authored hydration values remains necessary: its accessor, prototype, cycle, depth, and node checks
 cannot be removed merely because the surrounding envelope is compiler-created. Evidence is under
 `.tmp/compiled-primitive-attribute-fastpath`.
+
+### Accounted-attribute complete comparison checkpoint
+
+The accepted artifact was measured with 50 balanced, round-interleaved samples in each browser,
+startup, Node SSR, and Bun diagnostic population. The admitted participants were built once and
+reused. The [complete grouped-percentile report](component-local-target-abi/accounted-attributes.md)
+keeps frameworks in Exact, React, SvelteKit, Nuxt order and includes raw current values, eligible
+control-normalized Exact-before values with their raw historical values, every browser and startup
+population, function and artifact inventories, Node SSR lanes, allocation and response
+decomposition, equal-payload and saturation lanes, and Bun separately. The immutable SSR evidence
+is `framework-comparison/results/raw/ssr-2026-09-02T02-55-43-715Z.json`. Browser and startup source
+captures remain under `.tmp/final-accounted-checkpoint`.
+
+The current browser transfers 194,374 script bytes, down from the deterministic 194,840-byte
+history. Precise executed code is 101,697 bytes in the balanced browser population and 101,636
+bytes in the controlled startup populations, versus 102,128 bytes before. The corresponding
+invoked-function populations are 562 and 560 versus 561 before, so the client work removed in this
+checkpoint is code and retained data rather than a broad function-topology reduction. Warm used
+heap is 2,577,544 bytes at p50 versus a 2,599,848-byte normalized and raw before value. Cold-start
+used heap is 2,432,584 bytes versus 2,454,120 before. Optimistic feedback is
+1.5/1.7/1.8/2.0 ms at p50/p75/p95/p99; its normalized historical p50/p75 are 1.4605/1.6232 ms, while
+the historical upper tail is ineligible because the controls dispersed. The checkpoint therefore
+records a real heap and deterministic-code improvement, but no optimistic-feedback win.
+
+Node startup favors Exact at 236.5 ms p50 versus React at 253.0 ms. Ordinary c16 concurrent SSR is
+2,081.7 RPS at p50 versus React at 2,135.0 RPS, a 2.5% gap. At the sustained capacity target, c32
+is effectively tied at 2,420.3 versus 2,422.9 RPS and c64 favors Exact at 2,378.1 versus 2,302.9
+RPS. Equal-8-KiB c32 favors Exact by 0.7% at p50, while c64 trails React by 0.9%. Direct
+interleaved before/current preloaded lanes improve by 7.7% at c32 and 3.2% at c64 at p50; their
+p75-through-p99 gains are 8.9% and 4.6%. Exact retains the lowest post-GC heap of the four
+participants at 12.48 MB p50, versus React at 13.15 MB, SvelteKit at 14.16 MB, and Nuxt at 17.99
+MB. Render-only work remains weaker at 0.0342 ms p50 versus React at 0.0231 ms.
+
+The response is 4,314 bytes versus React's 3,384, SvelteKit's 4,062, and Nuxt's 4,462. Exact and
+React semantic markup are nearly equal at 2,392 and 2,383 bytes. Exact's remaining response gap is
+principally 685 marker-comment bytes, 160 identity-attribute bytes, and an 863-byte hydration
+script containing a 799-byte payload. Those protocol bytes, not application markup, are the next
+payload question.
+
+### Authored hydration validation ceiling experiment
+
+Validation was temporarily removed from an otherwise identical server artifact to measure the
+maximum available benefit; the candidate was explicitly unsafe and was restored after measurement.
+With the switch itself removed from the hot path, 100 alternating render pairs improved
+p50/p75/p95/p99 from 0.0310/0.0479/0.0702/0.0962 ms to
+0.0277/0.0422/0.0618/0.0871 ms. The paired median ratio was 0.903 with 91 wins. Fifty balanced
+concurrent pairs improved mean c32 from 7,381 to 7,759 RPS and c64 from 7,336 to 7,686 RPS,
+increases of 5.1% and 4.8%; paired median changes were 6.2% and 6.3%.
+
+The experiment establishes a material ceiling but does not justify deleting the boundary. The
+direct envelope and compiler-created resumption tuples already avoid descriptor inspection. In the
+comparison fixture, reconstructible prop inputs are also omitted from child capture, so the large
+authored `initialData` graph is not redundantly traversed through resumptions. The remaining work
+rejects accessors and hostile prototypes, detects cycles, and enforces depth and node limits before
+native `JSON.stringify` can invoke authored behavior or perform unbounded traversal. A safe follow-up
+would require trustworthy provenance established at an earlier server-data boundary and tied to an
+immutable value or already-validated serialized bytes. A completed-object cache alone is
+insufficient because it would weaken occurrence-based depth/node limits for shared subgraphs.
+Evidence is under `.tmp/unsafe-hydration-validation`.
