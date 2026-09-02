@@ -127,7 +127,7 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 				runtimeReaders[index] = nil
 			}
 		}
-		if propertyWriter != nil &&
+		if len(build.propertyBindings()) != 0 &&
 			lowering.contractProjection != ComponentContractProjectionComplete {
 			for index, slot := range build.slots {
 				if slot.kind != "text" && slot.kind != "child" && slot.kind != "component" {
@@ -304,6 +304,11 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 		}
 		for _, slotIndex := range binding.slots {
 			slot := build.slots[slotIndex]
+			if slot.kind != "spread" {
+				if _, exact := lowering.directRenderProgramOperand(slot.reader); exact {
+					continue
+				}
+			}
 			name := slot.name
 			if slot.kind == "spread" {
 				name = ""
@@ -321,6 +326,9 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 				),
 			))
 		}
+		if len(assignments) == 0 {
+			continue
+		}
 		condition := lowering.binary(
 			group,
 			ast.KindEqualsEqualsEqualsToken,
@@ -331,6 +339,9 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 			lowering.factory.NewBlock(lowering.factory.NewNodeList(assignments), true),
 			nil,
 		))
+	}
+	if len(statements) == 0 {
+		return nil
 	}
 	parameters := lowering.factory.NewNodeList([]*ast.Node{
 		lowering.factory.NewParameterDeclaration(nil, nil, group, nil, nil, nil),

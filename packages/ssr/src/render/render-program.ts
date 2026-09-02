@@ -4,14 +4,9 @@ import {
 	createPreparedServerComponentReference,
 	type ExactPreparedServerRenderProgram
 } from '@exactjs/core/framework/server-render-structure';
-import type { ExactRenderProgramInvocation } from '@exactjs/core/framework/render-structure';
+import type { ExactRenderProgramSsrInvocation } from '@exactjs/core/framework/render-structure';
 import { escapeText } from '../html.js';
-import {
-	exactMarkerId,
-	renderAttrs,
-	renderCompiledNativeAttribute,
-	renderNativeAttribute
-} from '../markup.js';
+import { renderAttrs, renderCompiledNativeAttribute, renderNativeAttribute } from '../markup.js';
 import { SsrOutputLimitError } from './limits.js';
 import type { Child, SsrContext } from '../types.js';
 import type { ServerComponentReference } from './server-component-reference.js';
@@ -39,7 +34,7 @@ export function renderPreparedSsrProgram(
 
 function executeSsrProgram(
 	context: SsrContext,
-	invocation: ExactRenderProgramInvocation,
+	invocation: ExactRenderProgramSsrInvocation,
 	_owner?: AnyComponentInstance
 ): { readonly segments: readonly DeferredSsrSegment[] } {
 	const { program } = invocation;
@@ -82,9 +77,7 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 				? ''
 				: escapeText(String(value));
 		const dynamic =
-			context.markers && !markerless
-				? `<!--x:${exactMarkerId(id)}-->${rendered}<!--/x:${exactMarkerId(id)}-->`
-				: rendered;
+			context.markers && !markerless ? `<!--x:${id}-->${rendered}<!--/x:${id}-->` : rendered;
 		const html = `${prefix}${dynamic}${suffix}`;
 		const nextCharacters = characters + dynamic.length;
 		if (nextCharacters > context.maxOutputBytes)
@@ -95,8 +88,8 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	child(opaqueContext, output, value, id, characters) {
 		const context = opaqueContext as SsrContext;
 		const children = normalizeRenderResult(value as Child | Child[]);
-		const opening = context.markers ? `<!--x:${exactMarkerId(id)}-->` : '';
-		const closing = context.markers ? `<!--/x:${exactMarkerId(id)}-->` : '';
+		const opening = context.markers ? `<!--x:${id}-->` : '';
+		const closing = context.markers ? `<!--/x:${id}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
@@ -110,8 +103,8 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	},
 	component(opaqueContext, output, value, id, characters, markerless) {
 		const context = opaqueContext as SsrContext;
-		const opening = context.markers && !markerless ? `<!--x:${exactMarkerId(id)}-->` : '';
-		const closing = context.markers && !markerless ? `<!--/x:${exactMarkerId(id)}-->` : '';
+		const opening = context.markers && !markerless ? `<!--x:${id}-->` : '';
+		const closing = context.markers && !markerless ? `<!--/x:${id}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);

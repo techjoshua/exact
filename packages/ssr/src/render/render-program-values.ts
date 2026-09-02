@@ -1,8 +1,5 @@
 import { unwrap } from '@exactjs/reactive/framework/values';
-import {
-	readRenderProgramSlot,
-	type ExactRenderProgramInvocation
-} from '@exactjs/core/framework/render-structure';
+import type { ExactRenderProgramSsrInvocation } from '@exactjs/core/framework/render-structure';
 import { readServerSlotReceipt } from '@exactjs/core/runtime/component-abi';
 import type { SsrContext } from '../types.js';
 import { countSsrNodes, SsrOutputLimitError } from './limits.js';
@@ -12,25 +9,31 @@ import { readServerComponentReference } from './server-component-reference.js';
 export const unpreparedSsrValue = Symbol('exact.ssr.unprepared');
 
 /** Prepares one scalar text slot without admitting structural or pending values. */
-export function prepareSsrText(invocation: ExactRenderProgramInvocation, index: number): unknown {
-	const value = unwrap(readRenderProgramSlot(invocation, index));
+export function prepareSsrText(
+	invocation: ExactRenderProgramSsrInvocation,
+	index: number
+): unknown {
+	const value = unwrap(invocation.eagerValues[index]);
 	return value instanceof Promise || (typeof value === 'object' && value !== null)
 		? unpreparedSsrValue
 		: value;
 }
 
 /** Prepares one arbitrary child slot after its request-local source settles. */
-export function prepareSsrChild(invocation: ExactRenderProgramInvocation, index: number): unknown {
-	const value = unwrap(readRenderProgramSlot(invocation, index));
+export function prepareSsrChild(
+	invocation: ExactRenderProgramSsrInvocation,
+	index: number
+): unknown {
+	const value = unwrap(invocation.eagerValues[index]);
 	return value instanceof Promise ? unpreparedSsrValue : value;
 }
 
 /** Prepares one general component slot while preserving its existing reference representation. */
 export function prepareSsrComponent(
-	invocation: ExactRenderProgramInvocation,
+	invocation: ExactRenderProgramSsrInvocation,
 	index: number
 ): unknown {
-	const value = unwrap(readRenderProgramSlot(invocation, index));
+	const value = unwrap(invocation.eagerValues[index]);
 	if (value instanceof Promise) return unpreparedSsrValue;
 	const component = readServerComponentReference(value);
 	return component ?? (readServerSlotReceipt(value) ? [value] : undefined) ?? unpreparedSsrValue;
@@ -38,10 +41,10 @@ export function prepareSsrComponent(
 
 /** Prepares finalized props for a compiler-selected component callable. */
 export function prepareSsrComponentProps(
-	invocation: ExactRenderProgramInvocation,
+	invocation: ExactRenderProgramSsrInvocation,
 	index: number
 ): unknown {
-	const value = unwrap(readRenderProgramSlot(invocation, index));
+	const value = unwrap(invocation.eagerValues[index]);
 	return value instanceof Promise || (value !== null && typeof value !== 'object')
 		? unpreparedSsrValue
 		: value;
@@ -49,10 +52,10 @@ export function prepareSsrComponentProps(
 
 /** Prepares one host attribute slot without awaiting work during ordered publication. */
 export function prepareSsrAttribute(
-	invocation: ExactRenderProgramInvocation,
+	invocation: ExactRenderProgramSsrInvocation,
 	index: number
 ): unknown {
-	const value = unwrap(readRenderProgramSlot(invocation, index));
+	const value = unwrap(invocation.eagerValues[index]);
 	return value instanceof Promise ? unpreparedSsrValue : value;
 }
 

@@ -74,12 +74,9 @@ describe('compiled render programs', () => {
 		expect(prepared).not.toBe(values);
 		expect(prepared).not.toHaveProperty('type');
 		expect(invocation.eagerValues).toBe(values);
-		expect(invocation.readers).toBe(
-			readPreparedServerRenderProgram(createPreparedServerRenderProgram(descriptor, ['third']))
-				?.readers
-		);
-		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
-		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
+		expect(invocation).not.toHaveProperty('readers');
+		expect(invocation.eagerValues[0]).toBe('first');
+		expect(invocation.eagerValues[1]).toBe('second');
 	});
 
 	it('rejects precompiled render programs from an incompatible ABI', () => {

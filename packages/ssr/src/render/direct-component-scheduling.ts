@@ -127,7 +127,7 @@ function constructDirectScheduledSsrComponent(
 		...(context.asyncFrame
 			? {}
 			: {
-					runTask: <T>(work: () => Promise<T>) => context.asyncScheduler.run(work, options.signal)
+					runTask: <T>(work: () => Promise<T>) => context.asyncScheduler!.run(work, options.signal)
 				})
 	});
 	let render: unknown;

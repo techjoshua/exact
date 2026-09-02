@@ -24,7 +24,8 @@ export function renderChildren(
 	let html = '';
 	let previousWasText = false;
 	const target = new SyncSsrOperationTarget(context, parent, hasComponentAncestor, renderChildren);
-	for (const child of children) {
+	for (let childIndex = 0; childIndex < children.length; childIndex++) {
+		const child = children[childIndex]!;
 		countSsrNode(context);
 		let rendered: string;
 		let isText = false;

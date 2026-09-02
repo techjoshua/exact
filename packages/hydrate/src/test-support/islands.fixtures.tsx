@@ -33,7 +33,8 @@ export function EagerCounter() {
 
 /** Stateful island whose compiler resumption contract restores the SSR count. */
 export function ResumableIslandCounter(this: Component<{ count: number }>) {
-	this.state.count = 0;
+	// Keep this fixture non-reconstructible so the test can supply a divergent server activation.
+	this.state.count = Number('0');
 	return () => <output>{this.state.count}</output>;
 }
 

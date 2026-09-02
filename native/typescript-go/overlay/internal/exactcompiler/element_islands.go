@@ -1065,6 +1065,11 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 				continue
 			}
 			value = lowering.visitor.VisitNode(expression)
+			if name == "className" {
+				if closed := lowering.lowerCompilerClosedServerClassName(expression); closed != nil {
+					value = closed
+				}
+			}
 		default:
 			value = lowering.visitor.VisitNode(attribute.Initializer)
 		}

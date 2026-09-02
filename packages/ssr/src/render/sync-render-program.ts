@@ -1,17 +1,12 @@
 import { type AnyComponentInstance, normalizeRenderResult } from '@exactjs/core';
 import type {
-	ExactRenderProgramInvocation,
+	ExactRenderProgramSsrInvocation,
 	ExactRenderProgramSsrOperations,
 	ExactRenderProgramSsrOutput
 } from '@exactjs/core/framework/render-structure';
 import type { ExactPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import type { AnyExactComponentCallable } from '@exactjs/core/framework/component-contracts';
-import {
-	exactMarkerId,
-	renderAttrs,
-	renderCompiledNativeAttribute,
-	renderNativeAttribute
-} from '../markup.js';
+import { renderAttrs, renderCompiledNativeAttribute, renderNativeAttribute } from '../markup.js';
 import type { Child, SsrContext } from '../types.js';
 import { appendBoundedHtml, SsrOutputLimitError } from './limits.js';
 import { captureNestedEnhancementStringPrefix } from './operation-enhancements.js';
@@ -50,23 +45,23 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		return this as unknown as ExactRenderProgramSsrOutput;
 	}
 
-	prepareText(invocation: ExactRenderProgramInvocation, index: number): unknown {
+	prepareText(invocation: ExactRenderProgramSsrInvocation, index: number): unknown {
 		return prepareSsrText(invocation, index);
 	}
 
-	prepareChild(invocation: ExactRenderProgramInvocation, index: number): unknown {
+	prepareChild(invocation: ExactRenderProgramSsrInvocation, index: number): unknown {
 		return prepareSsrChild(invocation, index);
 	}
 
-	prepareComponent(invocation: ExactRenderProgramInvocation, index: number): unknown {
+	prepareComponent(invocation: ExactRenderProgramSsrInvocation, index: number): unknown {
 		return prepareSsrComponent(invocation, index);
 	}
 
-	prepareComponentProps(invocation: ExactRenderProgramInvocation, index: number): unknown {
+	prepareComponentProps(invocation: ExactRenderProgramSsrInvocation, index: number): unknown {
 		return prepareSsrComponentProps(invocation, index);
 	}
 
-	prepareAttribute(invocation: ExactRenderProgramInvocation, index: number): unknown {
+	prepareAttribute(invocation: ExactRenderProgramSsrInvocation, index: number): unknown {
 		return prepareSsrAttribute(invocation, index);
 	}
 
@@ -99,8 +94,8 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		prefix = '',
 		suffix = ''
 	): number {
-		const opening = this.context.markers && !markerless ? `<!--x:${exactMarkerId(id)}-->` : '';
-		const closing = this.context.markers && !markerless ? `<!--/x:${exactMarkerId(id)}-->` : '';
+		const opening = this.context.markers && !markerless ? `<!--x:${id}-->` : '';
+		const closing = this.context.markers && !markerless ? `<!--/x:${id}-->` : '';
 		this.accountAscii(opening);
 		const rendered =
 			value === null || value === undefined || value === false || value === true
@@ -114,8 +109,8 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 	}
 
 	child(_context: object, _output: object, value: unknown, id: string, characters: number): number {
-		const opening = this.context.markers ? `<!--x:${exactMarkerId(id)}-->` : '';
-		const closing = this.context.markers ? `<!--/x:${exactMarkerId(id)}-->` : '';
+		const opening = this.context.markers ? `<!--x:${id}-->` : '';
+		const closing = this.context.markers ? `<!--/x:${id}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
 		this.accountAscii(opening);
@@ -152,8 +147,8 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		characters: number,
 		markerless?: true
 	): number {
-		const opening = this.context.markers && !markerless ? `<!--x:${exactMarkerId(id)}-->` : '';
-		const closing = this.context.markers && !markerless ? `<!--/x:${exactMarkerId(id)}-->` : '';
+		const opening = this.context.markers && !markerless ? `<!--x:${id}-->` : '';
+		const closing = this.context.markers && !markerless ? `<!--/x:${id}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
 		this.accountAscii(opening);
@@ -181,8 +176,8 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		characters: number,
 		markerless?: true
 	): number {
-		const opening = this.context.markers && !markerless ? `<!--x:${exactMarkerId(id)}-->` : '';
-		const closing = this.context.markers && !markerless ? `<!--/x:${exactMarkerId(id)}-->` : '';
+		const opening = this.context.markers && !markerless ? `<!--x:${id}-->` : '';
+		const closing = this.context.markers && !markerless ? `<!--/x:${id}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
 		this.accountAscii(opening);
@@ -224,8 +219,9 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		characters: number
 	): number {
 		return this.appendAttribute(
-			renderCompiledNativeAttribute(value, kind, name, attributeName, tag, this.context),
-			characters
+			renderCompiledNativeAttribute(value, kind, name, attributeName, tag, this.context, true),
+			characters,
+			true
 		);
 	}
 
@@ -253,10 +249,9 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		characters: number,
 		staticAttributes?: import('@exactjs/core/framework/render-structure').ExactRenderProgram['ssrRootStatic']
 	): number {
-		const attributes = renderSsrRootAttributes(this.context, value, tag, staticAttributes);
+		const attributes = renderSsrRootAttributes(this.context, value, tag, staticAttributes, true);
 		const nextCharacters = characters + attributes.length;
 		this.assertCharacters(nextCharacters);
-		this.context.outputSink?.account(attributes);
 		this.append(`${prefix}${attributes}${suffix}`);
 		return nextCharacters;
 	}
@@ -266,10 +261,10 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		return this.html;
 	}
 
-	private appendAttribute(html: string, characters: number): number {
+	private appendAttribute(html: string, characters: number, accounted = false): number {
 		const nextCharacters = characters + html.length;
 		this.assertCharacters(nextCharacters);
-		this.context.outputSink?.account(html);
+		if (!accounted) this.context.outputSink?.account(html);
 		this.append(html);
 		return nextCharacters;
 	}

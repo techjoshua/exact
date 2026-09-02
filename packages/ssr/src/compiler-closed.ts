@@ -262,7 +262,7 @@ function renderCompilerClosedOutputSync(
 	if (!component)
 		throw new TypeError('Compiler-closed synchronous SSR root requires a component operation');
 	const renderOptions = withTaskDeadline(options);
-	const context = createSsrContext(renderOptions);
+	const context = createSsrContext(renderOptions, false);
 	const output = new SsrOutputBuffer(context.maxOutputBytes, publish, encodedByteLength);
 	context.outputSink = output;
 	attachSsrRootExecutionBlueprint(context, operation);

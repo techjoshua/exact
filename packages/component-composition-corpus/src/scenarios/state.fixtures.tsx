@@ -12,13 +12,23 @@ function IndexedState(
 	this.state.count = 1;
 	this.state.enabled = true;
 	return () => (
-		<section data-scenario="state">
+		<section
+			data-scenario="state"
+			className="state-root"
+			className:enabled={this.state.enabled === true}
+		>
 			<output>
 				{props.prefix}:{this.state.count}
 			</output>
 			<data data-role="adjacent-text">Count &amp; {this.state.count}</data>
 			<small hidden>{props.prefix.toUpperCase()}</small>
-			<textarea data-role="static-native-attributes" maxLength={2000} required />
+			<textarea
+				data-role="static-native-attributes"
+				aria-label={props.prefix}
+				maxLength={2000}
+				required
+			/>
+			<progress data-role="direct-state-property" value={this.state.count} max="10" />
 			<button
 				disabled={!this.state.enabled}
 				data-count={this.state.count}
@@ -42,7 +52,7 @@ export function stateOwner(): Component<StateModel> {
 	return mountedState;
 }
 
-type InputProjectionState = { loading: boolean; label: string };
+type InputProjectionState = { loading: boolean; label: string; status: string };
 let mountedInputProjection: Component<InputProjectionState> | undefined;
 
 function IndexedInputProjection(
@@ -52,9 +62,10 @@ function IndexedInputProjection(
 	mountedInputProjection = this;
 	this.state.loading = !props.payload;
 	this.state.label = props.payload?.label ?? 'missing';
+	this.state.status = 'idle';
 	return () => (
 		<output data-scenario="input-projection">
-			{this.state.loading ? 'loading' : 'ready'}:{this.state.label}
+			{this.state.loading ? 'loading' : 'ready'}:{this.state.label}:{this.state.status}
 		</output>
 	);
 }

@@ -8,6 +8,7 @@ import { unwrap } from '@exactjs/reactive/framework/values';
 import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-abi';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
+import { renderAccountedAttribute } from './render/output-attribute.js';
 import type { RefBinding } from '@exactjs/core';
 import type { ExactRenderProgramSsrAttribute } from '@exactjs/core/framework/render-structure';
 import {
@@ -235,9 +236,18 @@ export function renderCompiledNativeAttribute(
 	name: string,
 	attributeName: string,
 	tag: string,
-	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml' | 'outputSink'>,
+	accounted = false
 ): string {
-	if (kind === 6) return renderNativeAttribute(value, name, tag, context);
+	if (kind === 6) {
+		const rendered = renderNativeAttribute(value, name, tag, context);
+		if (accounted) context?.outputSink?.account(rendered);
+		return rendered;
+	}
+	if ((kind === 0 || kind === 1) && typeof value === 'string')
+		return accounted && context
+			? renderAccountedAttribute(context, attributeName, value)
+			: ` ${attributeName}="${escapeAttr(value)}"`;
 	const unwrapped = kind === 4 ? unsafeHtmlAttribute(value, context) : unwrap(value);
 	const normalized =
 		kind === 1
@@ -251,10 +261,20 @@ export function renderCompiledNativeAttribute(
 	if (sanitized === null || sanitized === undefined || sanitized === false) return '';
 	if (kind === 2) {
 		const style = renderStyle(sanitized, false);
-		return style ? ` style="${escapeAttr(style)}"` : '';
+		return style
+			? accounted && context
+				? renderAccountedAttribute(context, 'style', style)
+				: ` style="${escapeAttr(style)}"`
+			: '';
 	}
-	if (sanitized === true) return ` ${attributeName}`;
-	return ` ${attributeName}="${escapeAttr(String(sanitized))}"`;
+	if (sanitized === true) {
+		const rendered = ` ${attributeName}`;
+		if (accounted) context?.outputSink?.accountKnown(rendered, rendered.length);
+		return rendered;
+	}
+	return accounted && context
+		? renderAccountedAttribute(context, attributeName, String(sanitized))
+		: ` ${attributeName}="${escapeAttr(String(sanitized))}"`;
 }
 
 /** Serializes a compiler-owned root plan from its request-local prop values. */
@@ -262,18 +282,23 @@ export function renderCompiledNativeAttributes(
 	props: Readonly<Record<string, unknown>>,
 	plan: readonly ExactRenderProgramSsrAttribute[],
 	tag: string,
-	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml' | 'outputSink'>,
+	accounted = false
 ): string {
 	let attributes = '';
 	for (let index = 0; index < plan.length; index++) {
-		const [kind, property, attributeName] = plan[index]!;
+		const attribute = plan[index]!;
+		const kind = attribute[0];
+		const property = attribute[1];
+		const attributeName = attribute[2];
 		attributes += renderCompiledNativeAttribute(
 			props[property],
 			kind,
 			property,
 			attributeName,
 			tag,
-			context
+			context,
+			accounted
 		);
 	}
 	return attributes;

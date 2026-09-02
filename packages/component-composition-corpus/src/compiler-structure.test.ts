@@ -83,6 +83,21 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/__exactSlot =>/);
 	});
 
+	it('encodes exact intrinsic prop reads without a generated value writer', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toMatch(/\[12, \d+, \d+, \[\["aria-label", 1, \d+\]\], true\]/);
+		expect(code).toMatch(/\[12, \d+, \d+, \[\["value", 0, \d+\]\], true\]/);
+	});
+
+	it('keeps only arbitrary expressions in mixed intrinsic property writers', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(code).toMatch(/\[12, \d+, \d+, \[\["data-count", 0, \d+\]\], true\]/);
+		expect(code).toMatch(/__exactApply\("disabled", !__exactReadState\(this\.state, \d+\)\)/);
+		expect(code).not.toMatch(/__exactApply\("data-count", __exactReadState\(this\.state, \d+\)\)/);
+	});
+
 	it('moves exact top-level prop relationships into the receiver input plan', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
 
@@ -101,13 +116,37 @@ describe('normative compiled structure', () => {
 		);
 	});
 
-	it('records exact prop snapshots as resumable state inputs', async () => {
+	it('omits resumption metadata for fully reconstructible prop snapshots', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'server');
 		const hydrated = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+		const serverSnapshot = code.slice(
+			code.indexOf('const SnapshotProjection ='),
+			code.indexOf('const __exactImplementation_SnapshotProjectionParent')
+		);
+		const clientSnapshot = hydrated.code.slice(
+			hydrated.code.indexOf('const SnapshotProjection ='),
+			hydrated.code.indexOf('const __exactImplementation_SnapshotProjectionParent')
+		);
 
-		expect(code).toMatch(/stateInputs:\s*\[\s*\[\s*"label",\s*"label"\s*\]/);
-		expect(hydrated.code).not.toContain('"detail.label"');
-		expect(hydrated.code).not.toMatch(/stateInputs:\s*\[\s*\[\s*"label"/);
+		expect(serverSnapshot).not.toContain('resumption:');
+		expect(clientSnapshot).not.toContain('resumption:');
+	});
+
+	it('records unconditional primitive state defaults only in the server omission schema', async () => {
+		const server = await compileFixture('state.fixtures.tsx', 'server');
+		const hydrated = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+
+		expect(server.code).toMatch(/stateDefaults:\s*\[\s*\[\s*"status",\s*"idle"\s*\]/);
+		expect(hydrated.code).not.toContain('stateDefaults:');
+	});
+
+	it('closes compiler-known server conditional classes without request-local collections', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+
+		expect(code).toMatch(
+			/className:\s*"state-root"\s*\+\s*\(this\.state\.enabled\s*===\s*true\s*\?/
+		);
+		expect(code).not.toMatch(/className:\s*\[\s*["']state-root/);
 	});
 
 	it('selects capability-specific client constructors without generated wrappers', async () => {

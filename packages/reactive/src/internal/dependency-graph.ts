@@ -54,7 +54,7 @@ export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
 	if (dep.has(reaction)) return;
 	const wasEmpty = dep.size === 0;
 	dep.add(reaction);
-	reaction.deps.add(dep);
+	reaction.deps.push(dep);
 	const owner = depOwners.get(dep);
 	if (wasEmpty && owner)
 		publishObservationTransition(depObservationHooks.get(owner.target)?.get(owner.key)?.onObserved);
@@ -88,7 +88,7 @@ export function cleanupReaction(reaction: Reaction): void {
 		if (!dep.delete(reaction)) continue;
 		if (!dep.size) releaseEmptyDependency(dep);
 	}
-	reaction.deps.clear();
+	reaction.deps.length = 0;
 }
 
 /** Schedules one stable snapshot of the reactions subscribed to a dependency. */

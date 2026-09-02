@@ -3,7 +3,8 @@ import { renderToHydratableString, renderToHydratableStringAsync } from './index
 
 /** Compiler-backed conditional child used to verify emitted hydration range identity. */
 export function HydrationPanel(this: Component<{ show: boolean }>) {
-	this.state.show = true;
+	// Retain capture so hydration publication tests exercise a non-reconstructible state value.
+	this.state.show = Boolean(1);
 	return () => (
 		<section>{this.state.show ? <strong>Visible</strong> : <span>Hidden</span>}</section>
 	);

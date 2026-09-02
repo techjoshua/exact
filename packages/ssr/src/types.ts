@@ -382,7 +382,7 @@ export type SsrContext = {
 	/** Request-owned direct indexed resumption capture. */
 	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
 	/** Request-local scheduler shared by every eligible sibling group. */
-	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
+	asyncScheduler?: import('./render/async-scheduler.js').AsyncSsrScheduler;
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
 	asyncFrame: boolean;
 	/** Response-local compiler-finite boundary table. */

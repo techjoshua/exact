@@ -1,5 +1,6 @@
 import {
 	renderToProgressiveHtmlStream,
+	renderToHydratableString,
 	renderToStream,
 	renderToString,
 	renderToStringAsync
@@ -19,6 +20,7 @@ import {
 	registryRoot
 } from './scenarios/registry.fixtures.js?exact-target=server';
 import {
+	inputProjectionRoot,
 	serverSetupProjectionRoot,
 	stateRoot
 } from './scenarios/state.fixtures.js?exact-target=server';
@@ -38,10 +40,20 @@ describe('composition corpus server behavior', () => {
 
 	it('serializes compiler-known state attributes with native semantics', () => {
 		const html = renderToString(stateRoot('count'), { markers: false }).html;
-		expect(html).toMatch(/^<section data-exact-id="[^"]+" data-scenario="state">/);
-		expect(html.replace(/ data-exact-id="[^"]+"/, '')).toBe(
-			'<section data-scenario="state"><output>count:1</output><data data-role="adjacent-text">Count &amp; 1</data><small hidden>COUNT</small><textarea data-role="static-native-attributes" maxLength="2000" required></textarea><button data-count="1">increment</button></section>'
+		expect(html).toMatch(
+			/^<section data-exact-id="[^"]+" data-scenario="state" class="state-root enabled">/
 		);
+		expect(html.replace(/ data-exact-id="[^"]+"/, '')).toBe(
+			'<section data-scenario="state" class="state-root enabled"><output>count:1</output><data data-role="adjacent-text">Count &amp; 1</data><small hidden>COUNT</small><textarea data-role="static-native-attributes" aria-label="count" maxLength="2000" required></textarea><progress data-role="direct-state-property" value="1" max="10"></progress><button data-count="1">increment</button></section>'
+		);
+	});
+
+	it('omits state that hydration reconstructs from unconditional primitive setup', () => {
+		const rendered = renderToHydratableString(inputProjectionRoot(), { markers: false });
+		const resumptions = rendered.resumptions ?? [];
+		expect(resumptions).toHaveLength(1);
+		expect(resumptions[0]?.values).not.toHaveProperty('status');
+		expect(rendered.html).toContain('loading:missing:idle');
 	});
 
 	it('preserves direct and authored synchronous server setup semantics', () => {

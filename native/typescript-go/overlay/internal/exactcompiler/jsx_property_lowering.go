@@ -173,6 +173,11 @@ func (lowering *jsxLowering) propsWithProjection(
 					name,
 				)
 				initializer = lowering.visitor.VisitNode(expression)
+				if serverOnly && name == "className" {
+					if closed := lowering.lowerCompilerClosedServerClassName(expression); closed != nil {
+						initializer = closed
+					}
+				}
 				if reactive && !jsxCallbackExpression(expression) &&
 					!jsxEventAttribute(name) &&
 					name != "key" && name != "ref" {
@@ -208,6 +213,101 @@ func (lowering *jsxLowering) propsWithProjection(
 		lowering.factory.NewNodeList(properties),
 		false,
 	)
+}
+
+// lowerCompilerClosedServerClassName removes request-local arrays and truthy-map objects only when
+// their class-token order and Boolean conditions are statically closed. Other authored class value
+// shapes retain the recursive runtime normalizer.
+func (lowering *jsxLowering) lowerCompilerClosedServerClassName(expression *ast.Node) *ast.Node {
+	if !ast.IsArrayLiteralExpression(expression) {
+		return nil
+	}
+	elements := expression.AsArrayLiteralExpression().Elements.Nodes
+	if len(elements) == 0 || !ast.IsStringLiteral(elements[0]) || elements[0].Text() == "" {
+		return nil
+	}
+	output := lowering.factory.NewStringLiteral(elements[0].Text(), ast.TokenFlagsNone)
+	for _, element := range elements[1:] {
+		switch {
+		case ast.IsStringLiteral(element):
+			if element.Text() == "" {
+				return nil
+			}
+			output = lowering.binary(
+				output,
+				ast.KindPlusToken,
+				lowering.factory.NewStringLiteral(" "+element.Text(), ast.TokenFlagsNone),
+			)
+		case ast.IsObjectLiteralExpression(element):
+			for _, property := range element.AsObjectLiteralExpression().Properties.Nodes {
+				if !ast.IsPropertyAssignment(property) {
+					return nil
+				}
+				assignment := property.AsPropertyAssignment()
+				name := assignment.Name()
+				if name == nil || (!ast.IsIdentifier(name) && !ast.IsStringLiteral(name)) || name.Text() == "" {
+					return nil
+				}
+				condition := assignment.Initializer
+				if condition == nil ||
+					!compilerClosedBooleanExpression(condition, lowering.checker) {
+					return nil
+				}
+				output = lowering.binary(
+					output,
+					ast.KindPlusToken,
+					lowering.conditional(
+						lowering.visitor.VisitNode(condition),
+						lowering.factory.NewStringLiteral(" "+name.Text(), ast.TokenFlagsNone),
+						lowering.factory.NewStringLiteral("", ast.TokenFlagsNone),
+					),
+				)
+			}
+		default:
+			return nil
+		}
+	}
+	return output
+}
+
+func compilerClosedBooleanExpression(expression *ast.Node, typeChecker *checker.Checker) bool {
+	expression = unwrapRenderExpression(expression)
+	if expression == nil {
+		return false
+	}
+	if expression.Kind == ast.KindTrueKeyword || expression.Kind == ast.KindFalseKeyword {
+		return true
+	}
+	if ast.IsPrefixUnaryExpression(expression) &&
+		expression.AsPrefixUnaryExpression().Operator == ast.KindExclamationToken {
+		return true
+	}
+	if ast.IsBinaryExpression(expression) {
+		switch expression.AsBinaryExpression().OperatorToken.Kind {
+		case ast.KindEqualsEqualsToken,
+			ast.KindEqualsEqualsEqualsToken,
+			ast.KindExclamationEqualsToken,
+			ast.KindExclamationEqualsEqualsToken:
+			return true
+		}
+	}
+	return typeChecker != nil && compilerClosedBooleanType(typeChecker.GetTypeAtLocation(expression))
+}
+
+func compilerClosedBooleanType(value *checker.Type) bool {
+	if value == nil {
+		return false
+	}
+	members := value.Distributed()
+	if len(members) == 0 {
+		return false
+	}
+	for _, member := range members {
+		if member.Flags()&checker.TypeFlagsBooleanLike == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func newEnhancementPropertyAccumulator(application enhancementApplication) enhancementPropertyAccumulator {
@@ -393,6 +493,11 @@ func (lowering *jsxLowering) lowerClassNameValue(
 	reactive bool,
 	materialize bool,
 ) *ast.Node {
+	if lowering.target == TargetServer && !reactive {
+		if closed := lowering.lowerCompilerClosedServerConditionalClasses(attributes); closed != nil {
+			return closed
+		}
+	}
 	contributions := []*ast.Node{}
 	allStatic := true
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
@@ -449,6 +554,68 @@ func (lowering *jsxLowering) lowerClassNameValue(
 		lowering.factory.NewNodeList(contributions),
 		false,
 	)
+}
+
+// lowerCompilerClosedServerConditionalClasses writes the compiler-created conditional-class
+// collection as an ordered string when every contribution is a static token or Boolean condition.
+func (lowering *jsxLowering) lowerCompilerClosedServerConditionalClasses(
+	attributes *ast.Node,
+) *ast.Node {
+	var output *ast.Node
+	appendStatic := func(token string) {
+		literal := token
+		if output != nil {
+			literal = " " + token
+		}
+		if output == nil {
+			output = lowering.factory.NewStringLiteral(literal, ast.TokenFlagsNone)
+		} else {
+			output = lowering.binary(
+				output,
+				ast.KindPlusToken,
+				lowering.factory.NewStringLiteral(literal, ast.TokenFlagsNone),
+			)
+		}
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if !jsxClassNameContribution(property) {
+			continue
+		}
+		attribute := property.AsJsxAttribute()
+		name := attribute.Name()
+		if !ast.IsJsxNamespacedName(name) {
+			if !ast.IsStringLiteral(attribute.Initializer) || attribute.Initializer.Text() == "" {
+				return nil
+			}
+			appendStatic(attribute.Initializer.Text())
+			continue
+		}
+		token := name.AsJsxNamespacedName().Name().Text()
+		if token == "" {
+			return nil
+		}
+		if attribute.Initializer == nil {
+			appendStatic(token)
+			continue
+		}
+		if output == nil || !ast.IsJsxExpression(attribute.Initializer) {
+			return nil
+		}
+		condition := attribute.Initializer.AsJsxExpression().Expression
+		if condition == nil || !compilerClosedBooleanExpression(condition, lowering.checker) {
+			return nil
+		}
+		output = lowering.binary(
+			output,
+			ast.KindPlusToken,
+			lowering.conditional(
+				lowering.visitor.VisitNode(condition),
+				lowering.factory.NewStringLiteral(" "+token, ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral("", ast.TokenFlagsNone),
+			),
+		)
+	}
+	return output
 }
 
 func (lowering *jsxLowering) lowerOrdinaryClassName(

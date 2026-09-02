@@ -2124,3 +2124,162 @@ attributed to it. The specialization is retained for the deterministic response/
 small retained-heap improvement, positive c8/c32 capacity evidence, and neutral c64 result. Written
 gates, immediately preceding artifacts, allocation profiles, concurrent cohorts, and browser pairs
 are under `.tmp/resumption-empty-capabilities` and `.tmp/nested-resumption-input-omission`.
+
+### Indexed intrinsic operands and reconstructible resumption omission
+
+The focused client property operation now consumes compiler-proven direct state and prop operands
+from the existing component-local wire. Mixed groups retain executable functions only for their
+arbitrary expressions and callbacks; there is no application-wide interpreter, bound-function
+substitute, or per-instance operand array. The mounted property group retains no operand-plan
+reference and reads its immutable tuple from the selected wire only when the indexed dependency is
+dirty. The composition corpus records 49 compiler paths and 50 normative tests, including direct
+state, direct prop, forwarding, keyed rows, form projection, replacement, hydration, and
+arbitrary-expression fallback.
+
+The same compiler checkpoint proves when a transition-free synchronous component's complete
+hydration state is reconstructed by exact finalized prop inputs and unconditional primitive setup
+defaults. Such a component emits no resumption contract, reserves no server capture record, and
+requires no synthetic hydration activation. Components with uncovered state, authored
+calculations, continuations, lifecycle work, contexts, or scheduled work retain the existing
+request-owned capture path. The current comparison response is 4,314 bytes: 4,100 rendered bytes
+and a 214-byte document envelope. Its hydration payload is 799 bytes, including 69 resumption
+bytes. This is 144 response bytes below the preceding 4,458-byte accepted snapshot-input
+checkpoint.
+
+Against the saved pre-operand/pre-omission client, precise executed code falls from 82,155 to
+81,652 bytes while profiled and invoked functions remain 1,173 and 633. The production client is
+194,057 raw bytes and the Node server entry is 231,831 raw bytes. Fifty alternating cold-browser
+pairs put retained heap at 1,898,276 bytes versus 1,897,452 before, an 824-byte increase; startup
+allocation falls from 1,212,200 to 1,188,528 bytes at the median. That small retained counter-cost
+was investigated through heap dominators and by removing the per-instance operand reference. The
+remaining movement is code/module metadata rather than retained component data. A 100-pair actual
+interaction population keeps optimistic feedback at 1.4/1.5 ms through p25/p50 while p75/p95/p99
+improve from 1.6/1.9/2.1 to 1.5/1.7/1.8 ms. Settlement is effectively neutral.
+
+Focused server evidence isolates the resumption omission from broader machine movement. Twenty
+alternating allocation pairs have a 0.964 mean candidate/before ratio and a 0.956 median ratio,
+with 14 pairs improving. One hundred alternating render pairs have a 0.989 mean and 0.983 median
+ratio, with 67 pairs improving. Ten restarted three-window cohorts are neutral to modestly positive
+at the capacity target: mean RPS ratios are 1.002 at c32 and 1.005 at c64. These results support the
+allocation and payload deletion without claiming a throughput breakthrough. The complete release
+prerequisite and `npm run performance:check` pass from the rebuilt source state.
+
+### Shared value-free stateless server receiver
+
+Compiler-proven stateless components no longer allocate a `{ state: {}, map }` request frame when
+inspection callbacks are absent. An earlier `undefined`-receiver experiment was rejected after it
+made the hot component callsite polymorphic and regressed render work. The retained refinement uses
+one frozen, value-free receiver with the same object shape at the existing callsite. It contains no
+request, component, prop, state, capture, or output value and cannot be mutated. Observed,
+stateful, context, lifecycle, and scheduled artifacts remain on request-owned frames.
+
+Twenty alternating allocation pairs move from a 4,584,680-byte median to 4,527,704 bytes; the
+paired mean ratio is 0.988, the median ratio is 0.990, and 13 pairs improve. One hundred alternating
+render pairs have a 0.990 mean and 0.979 median ratio, with 53 pairs improving. Ten balanced
+three-window concurrent cohorts are mixed rather than coherently regressive: mean RPS ratios are
+0.991 at c8, 1.009 at c32, and 1.023 at c64. A separate identical-artifact population confirms
+large worker-position effects, so no throughput gain is credited. The change is retained as an
+approximately 1.2% sampled-allocation deletion with neutral capacity evidence at the primary
+c32/c64 lanes. Its focused gate and immutable evidence are under `.tmp/stateless-split-callsite`.
+
+### Indexed hydration resumption lookup
+
+Hydration's ordered resumption resolver now searches its dense request-derived activation array
+with one inline index rather than allocating and invoking a `findIndex` callback for every
+resumable component. First matching component identity, consumed records, duplicate identities,
+checkpoint rollback, replacement, and missing-record diagnostics retain their existing behavior.
+
+The initial `for` form was not retained: although it removed the callback, 50 alternating profiles
+showed a 3.3% startup sampled-allocation increase attributed primarily to V8 compile/evaluation
+buckets. A tighter `while` form removes the extra live loop local. In its independent 50-pair run,
+profiled functions fall from 1,173 to 1,172 and invoked functions from 633 to 632 in every sample.
+Retained heap falls from 1,898,276 to 1,898,008 bytes at the stable median, with 46 of 50 pairs
+improving. Startup sampled allocation is neutral at a 1.005 paired mean ratio with 27 pairs
+improving, and interaction CPU is neutral. The client artifact grows by 18 raw bytes and precise
+executed code by 14 bytes. The change is retained for the deterministic function and retained-heap
+deletion; its two implementation-shape populations are under
+`.tmp/hydration-resumption-index-search`.
+
+### Reaction dependency ownership arrays
+
+Reactive dependency subscriber sets remain the authoritative deduplication boundary. The reverse
+collection owned by each watcher or computed node now uses a dense array because it only supports
+append after a successful subscriber-set insertion, ordered cleanup iteration, emptiness checks,
+and reset. Direct multi-key subscriptions convert their already-deduplicated setup set once. This
+does not change invalidation, batching, computed settlement, rollback, observation hooks, or scope
+disposal.
+
+All 148 reactive tests pass. Fifty alternating cold-browser pairs keep startup allocation neutral
+at a 1.002 paired mean ratio and reduce retained heap from 1,898,008 to 1,897,612 bytes at the stable
+median, with 37 pairs improving. The production client and precise executed code each fall by one
+byte; function inventory is unchanged. One hundred alternating user-visible interaction pairs keep
+optimistic feedback at 1.4/1.5/1.6 ms through p25/p50/p75 and improve p95/p99 from 1.9/2.1 to
+1.7/1.9 ms. Settlement remains 14.0 ms at p50 and is noise-scale at the paired mean. The change is
+retained for its container simplification and retained-heap reduction; evidence is under
+`.tmp/client-reaction-dependency-array`.
+
+### Remaining synchronous server-site cleanup
+
+Fresh site-specific experiments retained five narrow server changes already represented in the
+current executor: server invocations no longer retain the unused client reader table; dense
+compiler-owned attribute plans, synchronous child arrays, and resumption schemas use indexed
+traversal; and compiler-proven synchronous roots do not construct an async scheduler. Async and
+generic iterable paths remain unchanged, and all mutable scheduler, frame, capture, and output
+state stays request-owned.
+
+The strongest isolated result is indexed child traversal: twenty alternating pairs have a 0.966
+sampled-allocation mean ratio with 17 wins and a 0.968 render mean ratio; fifty balanced windows
+record RPS mean ratios of 1.008 at c32 and 1.011 at c64. Indexed resumption traversal has a 0.970
+allocation mean ratio and neutral-to-positive capacity (1.003/1.007 at c32/c64). Attribute-plan
+indexing is allocation-neutral overall but reduces its median by 73,476 bytes and records
+1.008/1.001 capacity ratios. Eager invocation and scheduler omission are smaller neutral-to-positive
+cleanups. Server code growth is modest and is not treated as client payload.
+
+Final-object SSR context construction was also tried and removed. It produced faster isolated
+render samples but increased median sampled allocation by 56,864 bytes and was slightly negative at
+c64, failing the mechanism's stated purpose. Written gates and immutable populations are under the
+corresponding `.tmp/server-*`, `.tmp/sync-context-scheduler-omission`, and
+`.tmp/ssr-context-final-construction` directories.
+
+### Environment-accounted compiler attributes
+
+The synchronous component-local writer no longer escapes a compiler-classified attribute and then
+asks the byte ledger to reread the completed string. Its focused attribute operation first checks
+whether the finalized value contains an HTML attribute delimiter. Already-safe values remain raw;
+values containing `&`, `<`, `>`, or `"` retain canonical escaping. The environment-owned exact byte
+operation accounts the finalized span, and the response adapter still performs final UTF-8 encoding.
+Generic attributes, URL sanitization, class/style normalization, unsafe-HTML policy, character and
+byte limits, rollback, and output order retain their existing paths.
+
+The first candidate counted UTF-8 in a JavaScript loop and was refined after considering the native
+response boundary. Ten alternating profiles show the environment-assisted version at a 0.938
+sampled-allocation mean ratio with all ten pairs improving; profiled render work has a 0.947 mean
+ratio with nine wins. The former `escapeAttr` allocation site disappears for safe values, and the
+replacement attribute site is about 30% smaller than the JavaScript-loop candidate. One hundred
+alternating render pairs improve p50/p75/p95/p99 from 0.0329/0.0498/0.0728/0.1016 ms to
+0.0319/0.0473/0.0700/0.0952 ms. The paired median ratio is 0.969 with 68 wins.
+
+Thirty interleaved preloaded throughput pairs improve mean c32 from 7,150 to 7,325 RPS and mean c64
+from 7,090 to 7,250 RPS. Paired mean ratios are 1.025 and 1.024, with 27 and 28 wins. Every response
+remains 4,314 bytes. The client artifact remains 194,074 raw bytes; the Node server entry grows from
+231,831 to 233,036 raw bytes, which is recorded but not treated as a client payload cost. The written
+gate and immutable profiles are under `.tmp/accounted-compiled-attributes`.
+
+### Guarded primitive attribute serialization
+
+Compiler-selected ordinary and class attributes now bypass reactive unwrapping, recursive class
+normalization, null/object handling, and general coercion only when the runtime value is already a
+primitive string. This is a runtime proof rather than trust in an erased TypeScript annotation.
+Every non-string value and every style, URL, unsafe-HTML, date, or generic kind retains the complete
+serializer and its security policy.
+
+The first ten profiled pairs appeared 4.1% slower, so the candidate was not judged from that small
+population. One hundred alternating render pairs instead improve p50/p75/p95/p99 from
+0.0319/0.0480/0.0698/0.0947 ms to 0.0302/0.0468/0.0688/0.0933 ms. The paired mean ratio is 0.964,
+the median ratio is 0.953, and 80 pairs improve. Allocation is neutral at a 0.994 paired mean ratio.
+Across separate 30- and 50-round interleaved populations, combined paired RPS movement is about
++0.25% at c32 and +0.21% at c64; no independent concurrency gain is claimed. The specialization is
+retained as removed render work with neutral capacity evidence. Descriptor-safe traversal of
+authored hydration values remains necessary: its accessor, prototype, cycle, depth, and node checks
+cannot be removed merely because the surrounding envelope is compiler-created. Evidence is under
+`.tmp/compiled-primitive-attribute-fastpath`.

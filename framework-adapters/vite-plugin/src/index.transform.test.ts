@@ -109,7 +109,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 
 	it('projects component contracts for the configured browser render mode', () => {
 		const source = `export function Counter() {
-			this.state.count = 0;
+			this.state.count = Number("0");
 			return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
 		}`;
 		const hydrated = exact({ reactCompatibility: false, renderMode: 'hydrate' }).transform(

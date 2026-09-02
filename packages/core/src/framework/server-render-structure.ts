@@ -29,6 +29,7 @@ export {
 	type ExactRenderProgramSlot,
 	type ExactRenderProgramSsrOperations,
 	type ExactRenderProgramSsrOutput,
+	type ExactRenderProgramSsrInvocation,
 	type ExactRenderProgramSsrWriter,
 	type ExactSsrRenderProgram,
 	type ExactTableRenderProgram

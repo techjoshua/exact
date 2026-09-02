@@ -252,7 +252,8 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).toContain('artifact:');
 		expect(server).toContain('instantiate: __exactImplementation_Panel_1');
 		expect(server).toContain('export { Panel as Panel_ExactServer_1 }');
-		expect(server).toContain('statePaths: [');
+		expect(server).not.toContain('statePaths: [');
+		expect(server).toContain('state: [');
 		expect(server).toContain('"count"');
 		expect(server).toContain(
 			'__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "section", "<section", "><button class=\\"primary\\""'

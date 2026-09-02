@@ -111,7 +111,7 @@ class RetainedReaction implements Reaction {
 	active = true;
 	scheduled = false;
 	pendingPriority: Reaction['pendingPriority'];
-	readonly deps = new Set<Dep>();
+	readonly deps: Dep[] = [];
 	readonly order: number;
 
 	constructor(
@@ -140,7 +140,7 @@ class RetainedReaction implements Reaction {
 		this.pendingPriority = undefined;
 		try {
 			withEffectScope(this.scope, () => runTracked(this, this.fn));
-			if (this.deps.size === 0) this.stop();
+			if (this.deps.length === 0) this.stop();
 		} catch (error) {
 			this.handleError(error);
 		}
@@ -234,7 +234,7 @@ function subscribeToDependencies(
 		active: true,
 		scheduled: false,
 		pendingPriority: undefined,
-		deps: dependencies,
+		deps: [...dependencies],
 		run() {
 			reaction.scheduled = false;
 			reaction.pendingPriority = undefined;
