@@ -2668,6 +2668,68 @@ the candidate.
 Sixty preloaded rounds rotate all c16/c32/c64 lane orders evenly and alternate artifact order.
 Paired mean RPS improves 1.06% at c16 and 0.84% at c32, with 37 and 38 wins. The c64 paired mean is
 0.21% lower with an effectively neutral 0.999 median ratio and a 30/30 split. The Node server entry
-grows 2,083 raw bytes, from 239,767 to 241,850; this server-only reachability cost is accepted for
+grows 1,849 raw bytes, from 239,767 to 241,616; this server-only reachability cost is accepted for
 the smaller response and reduced executed render work. Focused evidence is under
 `.tmp/direct-hydration-envelope-tuple`.
+
+### Completed positional hydration publication checkpoint
+
+The complete production checkpoint confirms the focused positional-envelope result. Relative to
+the anonymous-direct-range checkpoint, Exact's response falls from 3,941 to 3,900 bytes and its
+hydration payload falls from 518 to 495 bytes. Relative to the immediately preceding keyed-range
+response, the envelope itself accounts for 23 bytes of that reduction. The accepted server entry is
+241,616 raw bytes and the complete three-file Node artifact is 242,096 bytes. The production client
+artifact is 200,413 raw bytes, 390 bytes above the earlier complete checkpoint; decoded script grows
+by the same amount and executed code grows 437 bytes. Countervailing topology improvements reduce
+parsed functions from 762 to 758, compiled functions from 777 to 773, and invoked functions from
+561 to 559.
+
+The 50-sample browser population reports 2,579,376 bytes of warm Exact heap at p50, 864 bytes below
+eligible normalized and raw history. Optimistic feedback is 1.5/1.6/2.0/2.2 ms and remains neutral
+within the fixture's 0.1 ms timer buckets. Startup evaluation is likewise neutral: 1x p50 is 18.377
+ms versus 18.361 ms raw and 18.301 ms control-normalized history. The representation therefore
+earns its client cost through a smaller protocol and fewer reachable functions rather than a claimed
+timing improvement.
+
+Node render-only p50 improves from 0.0340 to 0.0323 ms. Sampled transient allocation falls from
+3,365,728 to 3,296,632 bytes per 100 renders, while React samples 6,910,920 bytes. Directly
+interleaved current-versus-Exact-before p50 RPS improves in every ordinary, preloaded, and
+equal-payload lane: ordinary c16 is +27.3%; saturation c32 and c64 are +4.7% and +4.0%; preloaded c32
+and c64 are +2.0% and +1.9%; and equal-8-KiB c32 and c64 are +1.4% and +2.3%. These same-run results
+are the causal comparison for the artifact change. The separate-run control-normalized ordinary
+c16 history moves in the opposite direction because the checkpoint also changes worker-startup
+topology and removes the old fixed process-position bias; both views remain in the report rather
+than selecting the favorable one.
+
+Against current React on Node, Exact ordinary c16 remains 5.2% behind at p50. Exact leads at
+saturation c4, c8, and c16 by 0.7%, 2.1%, and 0.7%, then trails at c32 and c64 by 1.1% and 3.2%.
+Equal-8-KiB c32 and c64 trail by 3.9% and 3.8%. The renderer-isolated gap is larger: preloaded c32
+and c64 trail by about 16%, and render-only p50 remains about 40% slower. Exact nevertheless retains
+the lowest Node post-GC heap at 12.53 MB and samples 52% fewer render-only allocation bytes than
+React. The 3,195-byte/request used-heap slope is worse than both the 2,432-byte historical Exact
+population and React's 3,038 bytes/request; because absolute post-GC heap remains lowest and the
+slope uses only five bounded checkpoints, it is retained as a counter-signal requiring another
+focused population rather than described as a leak or dismissed as noise.
+
+The first complete Bun attempt exposed a benchmark defect instead of a renderer defect. Bun 1.3.5
+on Windows reuses 64 connections per origin. The controlled fixture performs two parallel fetches
+per SSR request, so c64 creates 128 simultaneous upstream fetches. A direct threshold probe opened
+64 sockets and reused them at c32, but opened 1,344 sockets over 20 rounds at c64: 64 reusable
+sockets plus 64 one-shot sockets per round. The long population exhausted Windows' 16,384-port
+ephemeral range and caused unrelated participants to return data-load failures. Bounding Bun
+workers with `BUN_CONFIG_MAX_HTTP_REQUESTS=64` queues the excess work while preserving the same
+two-endpoint fixture. The complete three-renderer lifecycle then used 672 service connections
+instead of 26,708 and finished without failure. The effective worker environment is recorded in
+raw evidence and explicit operator configuration remains authoritative.
+
+The corrected Bun diagnostic has Exact and React effectively tied in ordinary concurrent p50 at
+3,093 and 3,112 RPS. It remains a diagnostic rather than the cross-framework decision lane because
+Exact uses native `Bun.serve` while the other participants use Bun's `node:http` compatibility path.
+Its historical column is therefore raw-only and marked `environment-changed`.
+
+The [complete grouped-percentile report](component-local-target-abi/positional-hydration-publication.md)
+contains all 49 browser, startup, function-inventory, artifact, Node SSR, allocation, response,
+equal-payload, preloaded, saturation, retention, and Bun diagnostic suites. Immutable raw evidence
+is retained under `.tmp/final-positional-envelope-checkpoint`; Node and Bun source files remain
+separate, and the composed report input records their independent measurement rounds and runtime
+environments.
