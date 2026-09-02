@@ -603,6 +603,13 @@ structural markers remain. The hydration JSON script is root-owned transport met
 output, and stays outside the adopted component range. Unproven public or universal SSR calls retain
 their marked-root behavior.
 
+Compact component resumptions remain indexed field-pair arrays from document decoding through
+component adoption. The ordered resolver validates each index against the receiving artifact's
+immutable resumption schema and resolves the request-owned field cell in place. Component state and
+context activation consume those pairs directly; they do not construct `@index` protocol records or
+replacement named records. Explicit application registrations retain the public named-record
+contract, and numeric/name aliases remain invalid.
+
 ## Server execution and scheduling
 
 Server artifacts are immutable and safe to share across simultaneous requests. `issue` allocates a

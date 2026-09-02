@@ -3,6 +3,7 @@ import { exactComponentIdentity } from '@exactjs/core/framework/component-contra
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
+import { normalizeSerializedComponentResumptions } from './config-validation.js';
 import { createComponentResumptionResolver } from './runtime/resumption.js';
 import {
 	initialPageRoot as serverInitialPageRoot,
@@ -29,30 +30,36 @@ import {
 describe('@exactjs/hydrate component resumption', () => {
 	it('expands compiler-indexed wire values against the receiving component contract', () => {
 		const componentId = exactComponentIdentity(ResumableCounter);
-		const resolver = createComponentResumptionResolver(() => [
-			{
-				componentId,
-				values: { '@0': 'ready' },
-				contexts: {},
-				settledContinuations: []
-			}
-		]);
+		const records = normalizeSerializedComponentResumptions([[componentId, [[0, 'ready']]]])!;
+		const resolver = createComponentResumptionResolver(() => records);
 
-		expect(resolver(ResumableCounter)?.values).toEqual({ label: 'ready' });
+		expect(resolver(ResumableCounter)).toBe(records[0]);
 	});
 
 	it('rejects a compact wire index outside the receiving component contract', () => {
 		const componentId = exactComponentIdentity(ResumableCounter);
-		const resolver = createComponentResumptionResolver(() => [
-			{
-				componentId,
-				values: { '@1': 'undeclared' },
-				contexts: {},
-				settledContinuations: []
-			}
-		]);
+		const records = normalizeSerializedComponentResumptions([[componentId, [[1, 'undeclared']]]])!;
+		const resolver = createComponentResumptionResolver(() => records);
 
 		expect(() => resolver(ResumableCounter)).toThrow(`index is outside component ${componentId}`);
+	});
+
+	it('rejects numeric and named aliases for the same receiving field', () => {
+		const componentId = exactComponentIdentity(ResumableCounter);
+		const records = normalizeSerializedComponentResumptions([
+			[
+				componentId,
+				[
+					[0, 'first'],
+					['label', 'second']
+				]
+			]
+		])!;
+		const resolver = createComponentResumptionResolver(() => records);
+
+		expect(() => resolver(ResumableCounter)).toThrow(
+			`Duplicate eXact resumption field ${componentId}:label`
+		);
 	});
 
 	it('matches SSR activations by component type while preserving per-type order and rollback', () => {

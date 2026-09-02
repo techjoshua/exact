@@ -83,20 +83,10 @@ function normalizeIndexedResumption(
 ): ComponentResumptionActivation {
 	return {
 		componentId: item[0],
-		values: indexedRecord(item[1]),
-		contexts: indexedRecord(item[2]),
+		values: item[1] ?? emptyList,
+		contexts: item[2] ?? emptyList,
 		settledContinuations: item[3] ?? emptyList
-	};
-}
-
-function indexedRecord(
-	entries: readonly (readonly [field: number | string, value: unknown])[] | undefined
-): Readonly<Record<string, unknown>> {
-	if (!entries?.length) return emptyRecord;
-	const output = createProtocolRecord<unknown>();
-	for (const [field, value] of entries)
-		output[typeof field === 'number' ? `@${field}` : field] = value;
-	return output;
+	} as unknown as ComponentResumptionActivation;
 }
 
 /** Narrows an unknown protocol value to a plain record shape. */
