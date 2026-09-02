@@ -44,7 +44,7 @@ import {
 } from '@exactjs/core/framework/server-render-structure';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { Child, RenderToStringOptions, SsrContext } from '../types.js';
-import { exactMarkerId, markerId, markerPair } from '../markup.js';
+import { exactMarkerId, keyedItemMarkerId, markerId, markerPair } from '../markup.js';
 import { renderComponentReferenceAsync } from './component-async.js';
 import { renderUnsafeHtmlValue } from './host.js';
 import { renderIntrinsicReceiptAsync } from './intrinsic-receipt.js';
@@ -145,20 +145,16 @@ export class AsyncSsrOperationTarget {
 	): Promise<string> {
 		const program = readPreparedServerRenderProgram(data.value);
 		if (program)
-			return markerPair(
-				this.context,
-				markerId(this.context, 'item', undefined, data.key),
-				async () => {
-					const planned = renderPreparedSsrProgram(this.context, program, this.parent);
-					const output: string[] = [];
-					for (const segment of planned.segments) {
-						const rendered = await this.renderProgramSegment(segment);
-						captureNestedEnhancementPrefix(this.context, output);
-						if (rendered !== '') output.push(rendered);
-					}
-					return boundedJoin(this.context, output);
+			return markerPair(this.context, keyedItemMarkerId(data.key), async () => {
+				const planned = renderPreparedSsrProgram(this.context, program, this.parent);
+				const output: string[] = [];
+				for (const segment of planned.segments) {
+					const rendered = await this.renderProgramSegment(segment);
+					captureNestedEnhancementPrefix(this.context, output);
+					if (rendered !== '') output.push(rendered);
 				}
-			);
+				return boundedJoin(this.context, output);
+			});
 		return renderKeyedChildReceiptAsync(
 			this.context,
 			data as ExactKeyedChildReceiptData,

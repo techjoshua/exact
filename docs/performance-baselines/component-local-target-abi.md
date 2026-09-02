@@ -2567,3 +2567,35 @@ and 0.71% at c64, with 41, 36, and 30 wins. The 3,941-byte response and producti
 are exactly unchanged. The Node server entry grows from 238,910 to 239,653 raw bytes; that
 server-only cost is accepted for deleting repeated render work. Focused evidence and the written
 gate are under `.tmp/keyed-marker-encoding`.
+
+### Compiler-prepared keyed range identity
+
+Compiler-prepared keyed child programs no longer combine their authored key with an unrelated
+request-global numeric marker id. The key already supplies the stable range identity required by
+hydration, keyed replacement, and recovery, so synchronous and asynchronous prepared-program
+operations now emit the same key-only item marker used by the existing server-handler path.
+Generic keyed receipts retain allocated marker ids because their ownership is not proven by the
+prepared-program contract. Unsafe keys continue through the canonical marker encoder, and no
+request or component values are retained outside the request.
+
+The framework-comparison fixture falls from 4,036 to 4,018 bytes, and the diagnostic response falls
+from 3,941 to 3,923 bytes. The production client artifact is byte-identical. The Node server entry
+grows by 114 raw bytes, from 239,653 to 239,767, as the focused operation targets reach the shared
+key-only helper.
+
+One hundred mode-interleaved render pairs improve collected rendering by 1.75% on paired means with
+67 wins and direct-sink rendering by 2.22% with 69 wins. Direct p50 moves from 0.0306 to 0.0300 ms.
+Sampled transient allocation improves 1.33% on paired means and 1.63% at the paired median in a
+20-pair population, with 12 wins.
+
+The first two throughput populations kept the concurrency lanes in fixed c16, c32, c64 order. They
+showed neutral c16/c32 behavior after reversing worker startup order but an apparent 0.9% c64 loss.
+That result conflicted with the render and allocation evidence, so it was diagnosed rather than
+used to reject the representation. Because c64 was always last, it absorbed the accumulated
+heat-and-queue position in every round. A 60-round follow-up rotated all three concurrency orders
+evenly while continuing to alternate artifact order. Paired mean RPS then improves 1.03% at c16,
+0.46% at c32, and 0.11% at c64, with 45, 31, and 36 wins. The fixed-lane result is retained as
+benchmark-method evidence: concurrency order must be balanced when sub-percent changes matter.
+
+Focused SSR, DOM hydration, and composition-corpus suites pass with 205, 266, and 51 tests.
+Expected metrics and immutable focused evidence are under `.tmp/keyed-program-marker-identity`.

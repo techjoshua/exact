@@ -1,4 +1,8 @@
-import type { ExactPreparedServerChildRange } from '@exactjs/core/framework/server-render-structure';
+import {
+	createPreparedServerRenderProgram,
+	prepareCompiledRenderProgram,
+	type ExactPreparedServerChildRange
+} from '@exactjs/core/framework/server-render-structure';
 import { describe, expect, it } from 'vitest';
 import { createSsrContext } from './context.js';
 import { SyncSsrOperationTarget } from './sync-operation-target.js';
@@ -17,5 +21,30 @@ describe('synchronous SSR operation target', () => {
 				mayReplaceSubtree: true
 			} as ExactPreparedServerChildRange)
 		).toBe('<!--exact:dynamic:-->ready<!--/exact:dynamic:-->');
+	});
+
+	it('uses the stable key without a request-global id for compiler-prepared rows', () => {
+		const context = createSsrContext({ markers: true });
+		const target = new SyncSsrOperationTarget(context, undefined, false, (_context, children) =>
+			children.join('')
+		);
+		const program = createPreparedServerRenderProgram(
+			prepareCompiledRenderProgram({
+				version: 7,
+				id: 'row',
+				namespace: 'html',
+				ssr(operations, ssrContext) {
+					const output = operations.output();
+					operations.begin(ssrContext, 1, 0, 16, 16);
+					operations.static(output, '<span>row</span>');
+					return output;
+				}
+			}),
+			[]
+		);
+
+		expect(target.renderDirectServerKeyedChild({ key: 'incident-101', value: program })).toBe(
+			'<!--exact:item:incident-101--><span>row</span><!--/exact:item:incident-101-->'
+		);
 	});
 });
