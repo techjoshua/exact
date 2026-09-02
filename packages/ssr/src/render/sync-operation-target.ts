@@ -219,17 +219,22 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 
 	/** Serializes one direct compiler-closed server child range. */
 	renderDirectServerChildRange(data: ExactPreparedServerChildRange): string {
-		return this.renderChildRange(data, false);
+		// The receiving component claims this range by its compiled operation and ordered cursor.
+		// Keep explicit nesting ownership without serializing the unrelated stable operation id.
+		return this.renderChildRange(data, false, 'dynamic:');
 	}
 
 	private renderChildRange(
 		data: ExactPreparedServerChildRange | ExactChildRangeReceiptData,
-		dynamicComponent: boolean
+		dynamicComponent: boolean,
+		identity?: string
 	): string {
-		const identity = data.markerId
-			? `dynamic:${exactMarkerId(data.markerId)}`
-			: markerId(this.context, 'dynamic');
-		return markerPair(this.context, identity, () =>
+		const rangeIdentity =
+			identity ??
+			(data.markerId
+				? `dynamic:${exactMarkerId(data.markerId)}`
+				: markerId(this.context, 'dynamic'));
+		return markerPair(this.context, rangeIdentity, () =>
 			dynamicComponent
 				? ''
 				: this.renderChildList(
