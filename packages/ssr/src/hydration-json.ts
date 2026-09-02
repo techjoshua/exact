@@ -176,6 +176,7 @@ function validateContainer(
  * values. The field mask is protocol data rather than application input: unknown bits, missing
  * values, and trailing values all fail closed before publication.
  */
+function validateDirectEnvelope(source: unknown[], depth: number, state: ValidationState): boolean;
 function validateDirectEnvelope(source: unknown[], depth: number, state: ValidationState): boolean {
 	const version = source[0];
 	const mask = source[1];
@@ -190,8 +191,10 @@ function validateDirectEnvelope(source: unknown[], depth: number, state: Validat
 	if (state.nodes + 2 > state.maxNodes || depth + 1 > state.maxDepth) return false;
 	state.nodes += 2;
 	let index = 2;
-	for (let bit = 1; bit <= 8192; bit *= 2) {
-		if ((mask & bit) === 0 || bit === 16) continue;
+	let remaining = mask & ~16;
+	while (remaining !== 0) {
+		const bit = remaining & -remaining;
+		remaining &= remaining - 1;
 		if (index >= source.length) return false;
 		if (state.path) pushValidationPath(state.path, String(index), true);
 		const item = source[index];
