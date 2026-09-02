@@ -55,6 +55,8 @@ then latency and throughput samples are collected one participant at a time in b
 while all workers remain warm; cold startup, retention, response decomposition, and intrusive CPU/allocation
 profiles remain isolated. Sustained throughput lanes use 50 windows by default so their published percentiles
 describe a real population rather than repeating the maximum of a few samples.
+The runner writes a `.timed.json` checkpoint after each completed runtime before later diagnostics can fail,
+so a valid Node population is not discarded by a subsequent Bun transport error.
 Each participant declares its production transport for each runtime: native integrations such as eXact's
 `Bun.serve` lane are measured directly, while compatibility-only paths remain explicitly labeled. The report
 includes cold startup, warm sequential and concurrent request phases, CPU per request, post-GC memory trends,

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 import { startComparisonServer } from './server.mjs';
 import {
@@ -27,6 +27,7 @@ import { controlSsrWorker, startSsrWorker, stopSsrWorker } from './ssr-worker-co
 import { settleSsrWorkerInventoryStartup } from './ssr-worker-inventory.mjs';
 import { measurementPublication } from './measurement-publication.mjs';
 import { measureInterleavedSsrParticipants } from './ssr-interleaved-measurement.mjs';
+import { ssrTimedCheckpointPath, writeSsrEvidence } from './ssr-run-evidence.mjs';
 
 if (!process.argv.includes('--correctness-passed'))
 	throw new Error('Run `npm run measure:ssr` so correctness gates the SSR benchmark.');
@@ -86,6 +87,9 @@ const participantMetadataById = Object.fromEntries(
 	participants.map((participant, index) => [participant.id, participantMetadata[index]])
 );
 const publication = measurementPublication(participantMetadata, 'SSR');
+const output = outputPath();
+const timedCheckpoint = ssrTimedCheckpointPath(output);
+const createdAt = new Date().toISOString();
 const service = await startComparisonServer();
 
 try {
@@ -125,50 +129,11 @@ try {
 	const executionOrder = {};
 	const interleaved = {};
 	const serviceProbes = {};
-	for (const [runtimeIndex, runtime] of runtimes.entries()) {
-		results[runtime.id] = {};
-		serviceProbes[runtime.id] = {};
-		const runtimeParticipants = balancedParticipantOrder(
-			participants,
-			measurementRound,
-			runtimeIndex + 1
-		);
-		executionOrder[runtime.id] = runtimeParticipants.map((participant) => participant.id);
-		for (const participant of runtimeParticipants)
-			serviceProbes[runtime.id][participant.id] = await probeControlledService(
-				service.url,
-				serviceProbeRequests
-			);
-		const interleavedRuntime = await measureRuntimeInterleaved(
-			runtime,
-			runtimeParticipants,
-			runtimeIndex
-		);
-		for (const participant of runtimeParticipants) {
-			const transport = ssrTransportFor(participantMetadataById[participant.id], runtime.id);
-			process.stdout.write(
-				`Profiling ${participant.id} isolated SSR diagnostics on ${runtime.id} through ${transport}...\n`
-			);
-			results[runtime.id][participant.id] = await measureParticipant(
-				runtime,
-				participant.id,
-				transport
-			);
-		}
-		applyInterleavedResults(results[runtime.id], interleavedRuntime.participants);
-		interleaved[runtime.id] = {
-			measurementTopology: interleavedRuntime.measurementTopology,
-			participantOrder: interleavedRuntime.participantOrder,
-			orders: interleavedRuntime.orders,
-			...(interleavedRuntime.participants.exactBefore
-				? { exactBefore: interleavedRuntime.participants.exactBefore }
-				: {})
-		};
-	}
-	const report = {
+	const createReport = (complete) => ({
 		schemaVersion: 6,
 		kind: 'framework-comparison-ssr-run',
-		createdAt: new Date().toISOString(),
+		createdAt,
+		complete,
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
 		publishable: publication.publishable,
 		environment: ssrEnvironmentMetadata(runtimes),
@@ -211,10 +176,53 @@ try {
 			'Comparable SSR timing windows use concurrently started, simultaneously warm isolated workers in balanced round-interleaved order; startup, retention, and intrusive profiles remain isolated diagnostics.',
 			"Frameworks without native Bun hosting remain on Bun's node:http compatibility layer."
 		]
-	};
-	const output = outputPath();
-	await mkdir(resolve(output, '..'), { recursive: true });
-	await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
+	});
+	for (const [runtimeIndex, runtime] of runtimes.entries()) {
+		results[runtime.id] = {};
+		serviceProbes[runtime.id] = {};
+		const runtimeParticipants = balancedParticipantOrder(
+			participants,
+			measurementRound,
+			runtimeIndex + 1
+		);
+		executionOrder[runtime.id] = runtimeParticipants.map((participant) => participant.id);
+		for (const participant of runtimeParticipants)
+			serviceProbes[runtime.id][participant.id] = await probeControlledService(
+				service.url,
+				serviceProbeRequests
+			);
+		const interleavedRuntime = await measureRuntimeInterleaved(
+			runtime,
+			runtimeParticipants,
+			runtimeIndex
+		);
+		for (const participant of runtimeParticipants) {
+			const transport = ssrTransportFor(participantMetadataById[participant.id], runtime.id);
+			process.stdout.write(
+				`Profiling ${participant.id} isolated SSR diagnostics on ${runtime.id} through ${transport}...\n`
+			);
+			results[runtime.id][participant.id] = await measureParticipant(
+				runtime,
+				participant.id,
+				transport
+			);
+		}
+		applyInterleavedResults(results[runtime.id], interleavedRuntime.participants);
+		interleaved[runtime.id] = {
+			measurementTopology: interleavedRuntime.measurementTopology,
+			participantOrder: interleavedRuntime.participantOrder,
+			orders: interleavedRuntime.orders,
+			...(interleavedRuntime.participants.exactBefore
+				? { exactBefore: interleavedRuntime.participants.exactBefore }
+				: {})
+		};
+		await writeSsrEvidence(timedCheckpoint, createReport(false));
+		process.stdout.write(
+			`Timed SSR checkpoint written after ${runtime.id} to ${relative(repositoryRoot, timedCheckpoint)}\n`
+		);
+	}
+	const report = createReport(true);
+	await writeSsrEvidence(output, report);
 	printSummary(report);
 	process.stdout.write(`SSR comparison written to ${relative(repositoryRoot, output)}\n`);
 } finally {
