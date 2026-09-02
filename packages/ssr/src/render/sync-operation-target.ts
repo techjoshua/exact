@@ -43,7 +43,7 @@ import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-
 import type { ExactPreparedServerChildRange } from '@exactjs/core/framework/server-render-structure';
 import type { ExactPreparedServerKeyedChild } from '@exactjs/core/framework/server-render-structure';
 import type { Child, SsrContext } from '../types.js';
-import { exactMarkerId, markerId, markerPair } from '../markup.js';
+import { exactMarkerId, keyedItemMarkerId, markerId, markerPair } from '../markup.js';
 import { renderIntrinsicReceipt } from './intrinsic-receipt.js';
 import { renderPreparedSsrProgramString } from './sync-render-program.js';
 import { registerDynamicComponentPreload } from './resource-hints.js';
@@ -133,7 +133,7 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 	): string {
 		const program = readPreparedServerRenderProgram(data.value);
 		if (program)
-			return markerPair(this.context, markerId(this.context, 'item', undefined, data.key), () =>
+			return markerPair(this.context, keyedItemMarkerId(data.key), () =>
 				renderPreparedSsrProgramString(this.context, program, this.parent, this)
 			);
 		this.context.outputSink?.invalidateAccounting();
