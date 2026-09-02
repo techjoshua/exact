@@ -2783,3 +2783,73 @@ the browser, startup, function-inventory, artifact, Node SSR, allocation, respon
 preloaded, saturation, retention, and separate Bun diagnostic tables. Focused and complete raw
 evidence is under `.tmp/compact-anonymous-ranges`; the rejected generalized result remains beside
 the refined result so the implementation-shape finding is reproducible.
+
+### Compact keyed item ranges
+
+Compiler-prepared keyed ranges already use the canonically encoded authored key as their stable
+identity. Their opening and closing comments nevertheless repeated the `exact:item:` namespace and
+kind. The retained protocol serializes those ranges as `<!--i:key-->` and `<!--/i:key-->`. Keyed
+scope ownership, replacement identity, nesting, snapshot parsing, server diff publication,
+hydration recovery, and unsafe-key encoding remain unchanged. Non-item marker grammars are
+unchanged, and the client does not retain a transitional item grammar.
+
+The comparison response falls from 3,848 to 3,794 bytes. Keyed item comments fall from 153 to 99
+bytes; semantic markup remains 2,392 bytes, hydration payload remains 495 bytes, identity attributes
+remain 160 bytes, and the DOM comment count is unchanged. The production client script is
+195,913 bytes, 9 bytes smaller because keyed adoption consumes the shorter grammar; the complete
+client artifact is 200,416 bytes, 3 bytes larger after its surrounding artifact files are included.
+The retained Node server entry is 241,800 bytes, 155 bytes above the immediately preceding entry.
+
+Two apparently simpler writer shapes were measured and removed. Adding an explicit fourth
+`compactItem` argument changed the hot generic writer ABI and made direct rendering 3.4% slower over
+100 alternating pairs, with both artifact positions worse. A separate Promise-capable keyed writer
+split three row calls away from the already-hot generic writer, grew the server entry to 242,352
+bytes, and made direct rendering 10.5% slower over 100 pairs, again in both positions. The retained
+single-writer implementation recognizes the internal `item:` marker identity and changes only the
+serialized literals.
+
+One hundred mode-interleaved pairs put collected render work at a 0.975 paired mean ratio with 69
+wins and direct rendering at a 0.972 paired mean ratio with 61 wins. Candidate-first and
+candidate-second direct ratios are both 0.973, excluding process position as the explanation.
+Twenty alternating allocation profiles are neutral at a 0.998 paired mean ratio with 9 wins.
+
+The first 50-round throughput population reversed lane order but did not rotate every lane through
+every position. It reported paired means of 0.993 at c16, 1.002 at c32, and 0.991 at c64. Because
+that conflicted with the larger render population, a 60-round follow-up cycled all three lane orders
+while alternating artifact order. Paired mean RPS then improves 0.87% at c16, 0.17% at c32, and
+2.76% at c64, with 31, 30, and 36 wins. The compact keyed grammar is retained for its deterministic
+54-byte response reduction, smaller decoded and executed client code, improved direct render work,
+and neutral-to-positive balanced capacity.
+
+The complete 50-sample checkpoint initially appeared to contradict the focused result: the
+five-participant fixed-wave c16 population put current Exact about 4% below the same-run prior Exact
+artifact. Its pair decomposition identified a measurement-order defect. When current preceded the
+prior artifact, the geometric paired ratio was 0.997; when the prior artifact preceded current,
+three unrelated framework lanes ran between them and the ratio was 0.894. The rotating order
+balanced absolute positions but not the distance between the two Exact artifacts, assigning
+within-round workstation drift to current in half the rounds. A separate 100-pair HTTP population
+ran the artifacts adjacently and reversed their order every round. Fixed-wave c16 then improved
+2.64% by geometric mean and 1.63% at the paired median; sustained c16 improved 1.18% and 2.31%, with
+the sustained result positive in both orders. The unfavorable five-lane result remains in the full
+report rather than being erased.
+
+The complete counter-metrics are consistent with a server protocol improvement rather than shifted
+work. Sampled Node render allocation falls from 3,448,216 to 3,341,920 bytes per 100 profiled
+renders. Post-GC Node heap is 12,534,888 bytes versus 12,558,087 control-normalized history. The
+separate non-interleaved render-only p50 moves from 0.0357 to 0.0386 ms, contradicting the 100-pair
+direct-render improvement; its topology cannot normalize with two renderer-owning controls and the
+allocation plus adjacent HTTP populations do not reproduce a regression. Against current React,
+Exact is 0.4% behind at sustained c32 and 0.8% ahead at c64. At equal 8 KiB it leads by 0.1% at c32
+and trails by 1.0% at c64. Preloaded rendering trails by 5.3% at c32 but leads by 3.1% at c64.
+
+Client retained heap is effectively unchanged at 2,579,500 bytes versus 2,579,409 normalized
+history, and invoked functions remain 560. Startup 1x evaluation improves from 21.261 ms normalized
+history to 20.648 ms, while optimistic feedback remains in the same 1.6 ms timer bucket as raw
+history. No client performance gain beyond the deterministic 9-byte parser reduction is attributed
+to the server marker change.
+
+The [complete grouped-percentile report](component-local-target-abi/compact-keyed-ranges.md) includes
+all browser, startup, function-inventory, artifact, Node SSR, allocation, response decomposition,
+equal-payload, preloaded, saturation, retention, same-run Exact-before, adjacent paired verification,
+and separate Bun diagnostic tables. Written gates and immutable raw evidence are under
+`.tmp/compact-keyed-range-markers`.

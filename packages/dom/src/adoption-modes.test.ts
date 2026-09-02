@@ -194,7 +194,7 @@ describe('DOM adoption modes', () => {
 	it('adopts keyed SSR ranges and preserves their DOM identity during reorder', () => {
 		const container = document.createElement('div');
 		const vnode = createTestComponentReceipt(KeyedAdoptionList, {});
-		container.innerHTML = `<!--exact:dynamic:list--><!--exact:dynamic:tasks--><!--exact:item:a--><li>A</li><!--/exact:item:a--><!--exact:item:b--><li>B</li><!--/exact:item:b--><!--/exact:dynamic:tasks--><!--/exact:dynamic:list-->`;
+		container.innerHTML = `<!--exact:dynamic:list--><!--exact:dynamic:tasks--><!--i:a--><li>A</li><!--/i:a--><!--i:b--><li>B</li><!--/i:b--><!--/exact:dynamic:tasks--><!--/exact:dynamic:list-->`;
 		const originalB = container.querySelectorAll('li')[1];
 
 		expect(adoptMarkerlessComponentRoot(vnode, container)).toBe(true);

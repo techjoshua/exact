@@ -44,7 +44,7 @@ describe('synchronous SSR operation target', () => {
 		);
 
 		expect(target.renderDirectServerKeyedChild({ key: 'incident-101', value: program })).toBe(
-			'<!--exact:item:incident-101--><span>row</span><!--/exact:item:incident-101-->'
+			'<!--i:incident-101--><span>row</span><!--/i:incident-101-->'
 		);
 	});
 });

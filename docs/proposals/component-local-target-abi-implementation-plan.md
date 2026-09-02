@@ -513,6 +513,8 @@ from the document.
 Ordered synchronous compiler-direct ranges that require only nesting ownership may use the
 anonymous `<!--x-->` / `<!--/x-->` pair. Addressable dynamic, keyed, recovery, asynchronous, and
 capability boundaries must retain stable identities.
+Keyed items use `<!--i:key-->` / `<!--/i:key-->`, preserving the canonically encoded authored key
+without repeating the general marker namespace and item-kind prefixes.
 
 **Checkpoint trigger:** matching hydration has no generic native traversal, recovery enters the
 specialized mount method, and client-only roots use the same ABI.

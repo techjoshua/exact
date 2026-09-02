@@ -13,7 +13,7 @@ describe('@exactjs/ssr keyed-lists', () => {
 	it('renders keyed list fragments with item markers', () => {
 		const result = renderToString(createOperation('ul', null, createOperation(KeyedList, {})));
 
-		expect(result.html).toContain('exact:item');
+		expect(result.html).toContain('<!--i:');
 		expect(result.html).toContain(':a');
 		expect(result.html).toContain(':b');
 		expect(result.html).toContain('<li>A</li>');
@@ -25,7 +25,7 @@ describe('@exactjs/ssr keyed-lists', () => {
 
 		expect(result.html).toMatch(/<!--exact:fragment:\d+:tasks-->/);
 		expect(result.html).toMatch(/<!--\/exact:fragment:\d+:tasks-->/);
-		expect(result.html).toContain('<!--exact:item:');
+		expect(result.html).toContain('<!--i:');
 	});
 
 	it('uses an LIS so a keyed rotation emits only one move', () => {
@@ -84,8 +84,8 @@ describe('@exactjs/ssr keyed-lists', () => {
 		expect(snapshot.html).toContain('<!--exact:tasks-->');
 		expect(snapshot.html).toContain('<!--/exact:tasks-->');
 		expect(snapshot.items).toEqual([
-			{ key: 'a', html: '<!--exact:item:a--><li>A</li><!--/exact:item:a-->' },
-			{ key: 'b', html: '<!--exact:item:b--><li>B</li><!--/exact:item:b-->' }
+			{ key: 'a', html: '<!--i:a--><li>A</li><!--/i:a-->' },
+			{ key: 'b', html: '<!--i:b--><li>B</li><!--/i:b-->' }
 		]);
 		expect(snapshot.innerHtml).toBe(snapshot.items.map((item) => item.html).join(''));
 	});
@@ -102,11 +102,9 @@ describe('@exactjs/ssr keyed-lists', () => {
 	});
 
 	it('fails closed for duplicate, malformed, or oversized keyed snapshot markup', () => {
-		const item = '<!--exact:item:a--><li>A</li><!--/exact:item:a-->';
+		const item = '<!--i:a--><li>A</li><!--/i:a-->';
 		expect(parseKeyedListSnapshotHtml('tasks', `${item}${item}`)).toBeUndefined();
-		expect(
-			parseKeyedListSnapshotHtml('tasks', '<!--exact:item:a--><li>A</li><!--/exact:item:b-->')
-		).toBeUndefined();
+		expect(parseKeyedListSnapshotHtml('tasks', '<!--i:a--><li>A</li><!--/i:b-->')).toBeUndefined();
 		expect(parseKeyedListSnapshotHtml('tasks', item, { maxBytes: 16 })).toBeUndefined();
 		expect(parseKeyedListSnapshotHtml('tasks', item, { maxBytes: item.length })).toBeUndefined();
 		expect(parseKeyedListSnapshotHtml('tasks', item, { maxMarkers: 1 })).toBeUndefined();
@@ -115,8 +113,8 @@ describe('@exactjs/ssr keyed-lists', () => {
 	it('parses nested item markers in linear stack time without treating them as sibling keys', () => {
 		const depth = 2_000;
 		const html =
-			`${Array.from({ length: depth }, (_, index) => `<!--exact:item:${index}-->`).join('')}` +
-			`${Array.from({ length: depth }, (_, index) => `<!--/exact:item:${depth - index - 1}-->`).join('')}`;
+			`${Array.from({ length: depth }, (_, index) => `<!--i:${index}-->`).join('')}` +
+			`${Array.from({ length: depth }, (_, index) => `<!--/i:${depth - index - 1}-->`).join('')}`;
 		const snapshot = parseKeyedListSnapshotHtml('tasks', html, { maxMarkers: depth * 2 + 1 });
 
 		expect(snapshot?.items).toHaveLength(1);

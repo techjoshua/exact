@@ -603,6 +603,10 @@ operation and current component-local adoption position select the range; stable
 recovery-addressable, asynchronous, and capability-specific boundaries retain their explicit
 identities.
 
+A keyed item retains its encoded authored key as stable range identity while using the compact
+paired comments `<!--i:key-->` and `<!--/i:key-->`. The keyed operation selects this grammar; the
+marker writer does not classify arbitrary output or infer keyed ownership at runtime.
+
 A compiler-closed hydratable application root omits its outer component comment pair and publishes
 the compact hydration proof `m: 1`. That proof selects markerless root attachment even when nested
 structural markers remain. The hydration JSON script is root-owned transport metadata, not component

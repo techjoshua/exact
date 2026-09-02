@@ -24,8 +24,11 @@ export function markerPair(
 	render: () => string | Promise<string>
 ): string | Promise<string> {
 	if (!context.markers) return render();
-	const opening = id ? `<!--exact:${id}-->` : '<!--x-->';
-	const closing = id ? `<!--/exact:${id}-->` : '<!--/x-->';
+	const itemKey = id.startsWith('item:') ? id.slice('item:'.length) : undefined;
+	const opening =
+		itemKey === undefined ? (id ? `<!--exact:${id}-->` : '<!--x-->') : `<!--i:${itemKey}-->`;
+	const closing =
+		itemKey === undefined ? (id ? `<!--/exact:${id}-->` : '<!--/x-->') : `<!--/i:${itemKey}-->`;
 	if (context.outputSink?.publishesDirectly()) {
 		return context.outputSink.bufferRange(() => {
 			const rendered = render();
