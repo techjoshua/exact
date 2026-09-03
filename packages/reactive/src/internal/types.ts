@@ -31,8 +31,12 @@ export type ComputedInspection = Readonly<{
 	sinks: number;
 }>;
 
-/** Defines the dep type contract. */
-export type Dep = Set<Reaction>;
+/** Owns one target/key identity and its compact scalar-or-set subscriber population. */
+export type Dep = {
+	readonly target: object;
+	readonly key: PropertyKey;
+	subscribers?: Reaction | Set<Reaction>;
+};
 
 /** Defines the reaction type contract. */
 export type Reaction = {
