@@ -3131,3 +3131,47 @@ diagnostic populations. The
 [complete grouped-percentile report](component-local-target-abi/single-peek-indexed-writes.md)
 contains every required framework table. Raw evidence and normalization output are under
 `.tmp/indexed-write-single-peek`.
+
+### Computed owner/source fusion
+
+Each `computed()` value previously allocated a `ComputedNode`, a separate reactive-source object,
+and a source-reader closure even though the node already owned the same dependency target, key, and
+read operation. The node now implements the internal reactive-reference contract directly. The
+public value keeps its bound `get` callback for extracted callback-style reads, while the ordinary
+conversion methods share module-level functions. Dependency identity, readonly writes, observation
+hooks, inspection, and computation ownership are unchanged.
+
+The focused work deliberately separated three candidates. Sharing four individually named
+conversion functions removed 280 retained bytes but added 89 raw client bytes. Consolidating the
+semantically identical conversions improved that to a 656-byte reduction with negligible code
+growth. Fusing the source object into its owner produced the useful result: every one of 50
+alternating 1,000-sample pairs measured exactly 1,184 fewer retained bytes, independent of execution
+order. The update and optimistic-feedback timings split by order and are therefore neutral rather
+than accepted as speed improvements.
+
+The complete 50-round comparison reproduces the 1,184-byte reduction in both the warm browser heap
+and 1x startup heap, to 2,510,600 and 2,368,832 bytes. The client artifact falls by 46 raw bytes, 17
+gzip bytes, and 115 Brotli bytes; decoded and executed code fall by 46 and 60 bytes, and profiled
+functions fall from 1,138 to 1,136. Parsed, compiled, and invoked functions remain 733, 748, and 537.
+Startup evaluation is effectively flat at 17.748 ms versus a control-normalized 17.726 ms before,
+and optimistic feedback remains in the same 1.6 ms p50 timer bucket.
+
+The candidate and accepted-before Node server entries are byte-for-byte identical at 241,967 bytes
+with SHA-256
+`1BA875C6DD3F2E38EF48F6792909FCD6D9B602A44C3145BC3B498B665062C2D6`; the Exact response remains
+3,794 bytes. Current ordinary Node c16 p50 is 2,061 requests/second for Exact versus 2,243 for React.
+Current saturation c32 is 2,415 versus 2,471 requests/second and c64 is 2,404 versus 2,462. Those
+movements are environmental rather than attributable to this client-only change. Preloaded c32 is
+7,474 versus React's 8,285 requests/second; formal normalization is unavailable because only Exact
+and React implement that diagnostic lane.
+
+`npm run performance:check` passed after its full release prerequisite. While assembling the full
+report, the SSR comparison adapter was found to omit preloaded saturation data already present in
+the raw evidence. It now emits the c8, c32, and c64 preloaded suites for supporting participants;
+unsupported SvelteKit and Nuxt cells remain explicit em dashes. The
+[complete grouped-percentile report](component-local-target-abi/computed-owner-source-fusion.md)
+contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
+Bun diagnostic table. Raw full-run and normalization evidence is under
+`.tmp/computed-owner-fusion`; focused alternating evidence is under
+`.tmp/computed-value-shared-methods`.

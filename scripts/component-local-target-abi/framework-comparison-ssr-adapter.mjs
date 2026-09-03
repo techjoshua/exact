@@ -1,7 +1,6 @@
 import {
 	capitalize,
 	createDeterministicSuite,
-	createSuite,
 	repeated,
 	samplePopulation,
 	validateRaw,
@@ -11,6 +10,7 @@ import {
 import { batchedCpuPerRequest } from '../../framework-comparison/src/ssr-benchmark-statistics.mjs';
 import { createSsrDiagnosticSuites } from './framework-comparison-ssr-diagnostic-adapter.mjs';
 import { createSsrRetentionSuite } from './framework-comparison-ssr-retention-adapter.mjs';
+import { createSsrStartupSuite } from './framework-comparison-ssr-startup-adapter.mjs';
 import { requestDistributionPopulation } from './framework-comparison-reported-population.mjs';
 
 /** Adapts SSR startup and every request lane while preserving distinct raw populations. */
@@ -67,6 +67,24 @@ export function adaptFrameworkComparisonSsr(raw) {
 				)
 			);
 		}
+		const preloadedEntries = Object.fromEntries(
+			Object.entries(entries).filter(
+				([, entry]) => entry.diagnostics?.preloadedSaturation?.supported === true
+			)
+		);
+		const preloadedLevels = Object.keys(
+			Object.values(preloadedEntries)[0]?.diagnostics.preloadedSaturation.saturation ?? {}
+		).sort((left, right) => Number(left) - Number(right));
+		for (const level of preloadedLevels)
+			suites.push(
+				createSsrRequestSuite(
+					raw,
+					runtime,
+					`preloaded-${level}`,
+					preloadedEntries,
+					(entry) => entry.diagnostics.preloadedSaturation.saturation[level]
+				)
+			);
 		const attributionLevels = Object.keys(
 			Object.values(entries)[0]?.diagnostics?.equalPayload?.saturation ?? {}
 		).sort((left, right) => Number(left) - Number(right));
@@ -94,29 +112,6 @@ function orderSsrEntries(entries) {
 				(rank.get(left) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right) ?? Number.MAX_SAFE_INTEGER)
 		)
 	);
-}
-
-function createSsrStartupSuite(raw, runtime, entries) {
-	const adapted = Object.fromEntries(
-		Object.entries(entries).map(([name, entry]) => [
-			name,
-			{
-				samples: entry.startupSamplesMs.map((startupMs) => ({ startupMs })),
-				summary: { startupMs: entry.startupMs },
-				response: entry.response
-			}
-		])
-	);
-	return createSuite({
-		name: `framework-comparison-ssr-${runtime}-startup`,
-		entries: adapted,
-		metrics: { startupMs: (sample) => sample.startupMs },
-		sampleCount: raw.harness?.startupSampleCount,
-		warmupCount: 0,
-		artifactHash: (name) => raw.artifacts?.[runtime]?.[name]?.hash,
-		responseHash: (_name, entry) => entry.response?.hash,
-		requireEquivalentResponses: false
-	});
 }
 
 function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {

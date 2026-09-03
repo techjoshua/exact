@@ -281,6 +281,7 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 		sequential: lane(),
 		concurrent: lane(true),
 		saturation: { 1: lane(true) },
+		diagnostics: { preloadedSaturation: { supported: true, saturation: { 1: lane(true) } } },
 		retention: {
 			checkpoints: [
 				{ requests: 0, memory: { rss: 1, heapTotal: 2, heapUsed: 3, external: 4, arrayBuffers: 5 } }
@@ -304,10 +305,20 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 		artifacts: {
 			node: {
 				exact: { hash: 'a', rawBytes: 1, gzipBytes: 2, brotliBytes: 3, files: 4 },
-				react: { hash: 'b', rawBytes: 1, gzipBytes: 2, brotliBytes: 3, files: 4 }
+				react: { hash: 'b', rawBytes: 1, gzipBytes: 2, brotliBytes: 3, files: 4 },
+				sveltekit: { hash: 'c', rawBytes: 1, gzipBytes: 2, brotliBytes: 3, files: 4 }
 			}
 		},
-		runtimes: { node: { exact: entry, react: entry } },
+		runtimes: {
+			node: {
+				exact: entry,
+				react: entry,
+				sveltekit: {
+					...entry,
+					diagnostics: { preloadedSaturation: { supported: false } }
+				}
+			}
+		},
 		limitations: ['bounded local run']
 	});
 	assert.deepEqual(
@@ -318,8 +329,13 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 			'framework-comparison-ssr-node-sequential',
 			'framework-comparison-ssr-node-concurrent',
 			'framework-comparison-ssr-node-saturation-1',
+			'framework-comparison-ssr-node-preloaded-1',
 			'framework-comparison-ssr-node-retention'
 		]
+	);
+	assert.deepEqual(
+		result[5].table.participants.map((participant) => participant.name),
+		['exact', 'react']
 	);
 	assert.equal(
 		result[2].populations.find((population) => population.kind === 'reported').rawSummaries[0]

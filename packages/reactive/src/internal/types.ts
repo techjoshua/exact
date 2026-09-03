@@ -21,6 +21,16 @@ export type ReactiveValue<T = unknown> = {
 	[Symbol.toPrimitive](): T;
 };
 
+/** Immutable, value-free diagnostic projection for one computed value. */
+export type ComputedInspection = Readonly<{
+	state: 'clean' | 'checked' | 'dirty' | 'computing' | 'stopped' | 'failed' | 'paused';
+	priority: WorkPriority;
+	observed: boolean;
+	initialized: boolean;
+	sources: number;
+	sinks: number;
+}>;
+
 /** Defines the dep type contract. */
 export type Dep = Set<Reaction>;
 
