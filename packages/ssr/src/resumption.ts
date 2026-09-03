@@ -17,6 +17,7 @@ import { type ReactiveOwnPropertyReadCell } from '@exactjs/reactive/framework/in
 import type { RenderToStringOptions } from './types.js';
 import {
 	captureContextEntries,
+	captureDirectStateEntries,
 	captureStateEntries,
 	emptyContextValues,
 	emptyContinuationIds,
@@ -132,7 +133,7 @@ class DirectSsrResumptionCapture implements CreatedSsrResumptionCapture, SsrResu
 		const record = this.records[token];
 		const schema = this.schemas[token];
 		if (!record || !schema) return;
-		const values = captureStateEntries(
+		const values = captureDirectStateEntries(
 			token === this.rootInputToken,
 			state,
 			props,

@@ -48,7 +48,7 @@ export function renderMismatchedPositionalPublishedRoot() {
 	);
 }
 
-/** Exercises descriptor-safe rejection without invoking an authored accessor. */
+/** Exercises one normal read of a compiler-declared positional field. */
 export function renderAccessorPositionalPublishedRoot(onRead: () => void) {
 	const detail = {} as { ready: boolean };
 	Object.defineProperty(detail, 'ready', {
@@ -58,6 +58,15 @@ export function renderAccessorPositionalPublishedRoot(onRead: () => void) {
 			return true;
 		}
 	});
+	return renderToHydratableString(
+		<PositionalPublishedRoot rows={[{ id: 'first', detail }]} label="queue" />,
+		{ publishRootProps: true }
+	);
+}
+
+/** Exercises the named fallback when a runtime object substitutes another own field. */
+export function renderMissingPositionalPublishedRoot() {
+	const detail = { source: true } as unknown as { ready: boolean };
 	return renderToHydratableString(
 		<PositionalPublishedRoot rows={[{ id: 'first', detail }]} label="queue" />,
 		{ publishRootProps: true }

@@ -14,6 +14,7 @@ import {
 	HydrationPanel,
 	PositionalPublishedRoot,
 	renderAccessorPositionalPublishedRoot,
+	renderMissingPositionalPublishedRoot,
 	renderMismatchedPositionalPublishedRoot,
 	renderPositionalPublishedRoot,
 	renderPublishedRoot,
@@ -180,12 +181,24 @@ describe('@exactjs/ssr hydration', () => {
 		});
 	});
 
-	it('rejects positional root accessors without invoking them', () => {
+	it('reads compiler-declared positional root fields once into getter-free output', () => {
 		const onRead = vi.fn();
-		expect(() => renderAccessorPositionalPublishedRoot(onRead)).toThrow(
-			'Hydration payload must be JSON-serializable'
-		);
-		expect(onRead).not.toHaveBeenCalled();
+		const result = renderAccessorPositionalPublishedRoot(onRead);
+
+		expect(directHydrationField(result.hydrationScript, 8)).toEqual([
+			expect.any(String),
+			[[['first', [true]]], 'queue']
+		]);
+		expect(onRead).toHaveBeenCalledTimes(1);
+	});
+
+	it('retains named root props when a runtime object substitutes another own field', () => {
+		const result = renderMissingPositionalPublishedRoot();
+
+		expect(directHydrationField(result.hydrationScript, 8)).toEqual({
+			rows: [{ id: 'first', detail: { source: true } }],
+			label: 'queue'
+		});
 	});
 
 	it('applies hydration graph limits during positional root traversal', () => {
