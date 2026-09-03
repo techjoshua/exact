@@ -346,7 +346,7 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 
 test('adapts variable-count SSR attribution lanes without discarding faster participants', () => {
 	const percentile = (value) => ({ p50: value, p75: value, p95: value, p99: value });
-	const names = ['exact', 'react', 'sveltekit', 'nuxt'];
+	const names = ['exact', 'react', 'sveltekit', 'nuxt', 'tanstack-start'];
 	const entries = Object.fromEntries(
 		names.map((name, index) => {
 			const samples = Array.from({ length: index + 1 }, () => ({
@@ -402,7 +402,7 @@ test('adapts variable-count SSR attribution lanes without discarding faster part
 	assert.equal(requests.kind, 'reported');
 	assert.deepEqual(
 		requests.rawSummaries.map((entry) => entry.observationCount),
-		[1, 2, 3, 4]
+		[1, 2, 3, 4, 5]
 	);
 	assert.deepEqual(
 		suites[1].table.participants.map((participant) => participant.name),

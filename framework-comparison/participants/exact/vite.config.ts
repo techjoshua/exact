@@ -38,7 +38,7 @@ function enableDetailedClientProfiling(): Plugin {
 	};
 }
 
-/** Emits Rollup's exact per-module shipped-byte accounting for diagnostic builds only. */
+/** Emits the bundler's exact per-module shipped-byte accounting for diagnostic builds only. */
 function emitModuleAttribution(): Plugin {
 	return {
 		name: 'exact-comparison-module-attribution',
@@ -50,7 +50,6 @@ function emitModuleAttribution(): Plugin {
 					modules: Object.entries(output.modules)
 						.map(([id, details]) => ({
 							id,
-							originalBytes: details.originalLength,
 							shippedBytes: details.renderedLength
 						}))
 						.sort((left, right) => right.shippedBytes - left.shippedBytes)

@@ -6,8 +6,8 @@ experience, receives the same deterministic data, and passes the same observable
 Presentation code, routing, state ownership, and client/server integration remain participant-owned.
 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
-harness, four controlled-service participants, and two native-full-stack participants are implemented. All
-six applications use production SSR and hydration and pass their track's black-box acceptance suite. They
+harness, five controlled-service participants, and two native-full-stack participants are implemented. All
+seven applications use production SSR and hydration and pass their track's black-box acceptance suite. They
 remain `scaffolded`—and measurements remain non-publishable—until framework specialists approve the review
 records. The suite does not publish framework rankings or treat an unreviewed result as evidence.
 
@@ -79,7 +79,7 @@ reported transport identity when interpreting a framework's runtime support.
 ### Bun-native comparison follow-up
 
 The current Bun profile exercises eXact through its native `Bun.serve` adapter while React,
-SvelteKit, and Nuxt retain their Node-oriented production artifacts under Bun's `node:http`
+SvelteKit, Nuxt, and TanStack Start retain their Node-oriented production artifacts under Bun's `node:http`
 compatibility layer. Preserve that transport identity when reporting the current results.
 
 A future comparison update should add a separately labeled best-native-Bun lane rather than

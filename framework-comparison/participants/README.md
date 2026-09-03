@@ -12,8 +12,9 @@ The controlled-service participants are:
 
 - [`exact`](exact), using durable component state and compiler-observed DOM expressions;
 - [`react`](react), using React 19 state, effects, and memoized callbacks;
-- [`sveltekit`](sveltekit), using Svelte 5 and SvelteKit SSR; and
-- [`nuxt`](nuxt), using Vue 3 and Nuxt SSR.
+- [`sveltekit`](sveltekit), using Svelte 5 and SvelteKit SSR;
+- [`nuxt`](nuxt), using Vue 3 and Nuxt SSR; and
+- [`tanstack-start`](tanstack-start), using TanStack Router loaders and TanStack Start SSR.
 
 The native-full-stack participants are:
 

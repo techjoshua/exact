@@ -4,6 +4,7 @@ coverage/
 **/dist/
 **/*.tsbuildinfo
 package-lock.json
+framework-comparison/participants/tanstack-start/src/routeTree.gen.ts
 
 # Generated compatibility reports and exact-text reference corpora.
 docs/performance-baselines/*.json

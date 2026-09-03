@@ -50,6 +50,13 @@ const participants = [
 		source: 'app',
 		artifact: '.output/public',
 		url: 'http://127.0.0.1:4404'
+	},
+	{
+		id: 'tanstack-start-controlled',
+		directory: 'tanstack-start',
+		source: 'src',
+		artifact: '.output/public',
+		url: 'http://127.0.0.1:4405'
 	}
 ];
 
@@ -388,8 +395,10 @@ async function artifactSizes(directory) {
 }
 
 async function sourceFiles(directory) {
-	return (await allFiles(directory)).filter((path) =>
-		['.ts', '.tsx', '.js', '.jsx', '.vue', '.svelte'].includes(extname(path))
+	return (await allFiles(directory)).filter(
+		(path) =>
+			['.ts', '.tsx', '.js', '.jsx', '.vue', '.svelte'].includes(extname(path)) &&
+			!/[\\/]routeTree\.gen\.ts$/u.test(path)
 	);
 }
 

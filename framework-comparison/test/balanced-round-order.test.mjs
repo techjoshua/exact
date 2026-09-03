@@ -22,3 +22,14 @@ test('names object participants and rejects invalid rounds', () => {
 	assert.throws(() => balancedRoundOrder([], 0), /at least one participant/);
 	assert.throws(() => balancedRoundOrder(['exact'], -1), /non-negative integer/);
 });
+
+test('distributes five participants across every order position', () => {
+	const participants = ['exact', 'react', 'sveltekit', 'nuxt', 'tanstack-start'];
+	const rounds = Array.from({ length: 10 }, (_, round) => balancedRoundOrder(participants, round));
+	for (const participant of participants) {
+		const positions = rounds
+			.map((order) => order.indexOf(participant))
+			.sort((left, right) => left - right);
+		assert.deepEqual(positions, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+	}
+});
