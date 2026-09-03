@@ -8,12 +8,31 @@ import {
 	inspectComputed,
 	peek,
 	publishBatch,
+	ref,
 	reactive,
 	watch,
 	withEffectScope
 } from './index.js';
 
 describe('@exactjs/reactive computation graph', () => {
+	it('retains bound reads and ordinary value conversions', () => {
+		const value = computed(() => 7);
+		const read = value.get;
+
+		expect(read()).toBe(7);
+		expect(value.toJSON()).toBe(7);
+		expect(value.toString()).toBe('7');
+		expect(value.valueOf()).toBe(7);
+		expect(`${value}`).toBe('7');
+		expect(Object.hasOwn(value, 'toJSON')).toBe(true);
+		expect(Object.hasOwn(value, 'toString')).toBe(true);
+		expect(Object.hasOwn(value, 'valueOf')).toBe(true);
+		expect(Object.hasOwn(value, Symbol.toPrimitive)).toBe(true);
+		const source = ref(value);
+		expect(source.get()).toBe(7);
+		expect(() => source.set(8)).toThrow('Cannot write to readonly reactive value');
+	});
+
 	it('returns a current value through a transitive chain before scheduler settlement', () => {
 		const state = reactive({ value: 1 });
 		const calculateDoubled = vi.fn(() => state.value * 2);

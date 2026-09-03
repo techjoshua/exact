@@ -26,6 +26,7 @@ import {
 } from './internal/scheduler.js';
 import { reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
 import type {
+	ComputedInspection,
 	Dep,
 	EffectScopeImpl,
 	Reaction,
@@ -43,15 +44,7 @@ type ComputedDependency = ReactiveDependency & {
 	computed?: ComputedNode<unknown>;
 };
 
-/** Immutable, value-free diagnostic projection for one computed value. */
-export type ComputedInspection = Readonly<{
-	state: ComputationState | 'failed' | 'paused';
-	priority: WorkPriority;
-	observed: boolean;
-	initialized: boolean;
-	sources: number;
-	sinks: number;
-}>;
+export type { ComputedInspection } from './internal/types.js';
 
 const computedTargets = new WeakMap<object, ComputedNode<unknown>>();
 const computedValues = new WeakMap<object, ComputedNode<unknown>>();
@@ -65,15 +58,23 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
 	const node = new ComputedNode(compute, currentEffectScope());
 	const value = {
 		[reactiveValueMarker]: true,
-		[reactiveValueRef]: node.source,
+		[reactiveValueRef]: node,
 		get: () => node.get(),
-		toJSON: () => node.get(),
-		toString: () => String(node.get()),
-		valueOf: () => node.get(),
-		[Symbol.toPrimitive]: () => node.get()
+		toJSON: readComputedValue,
+		toString: computedValueToString,
+		valueOf: readComputedValue,
+		[Symbol.toPrimitive]: readComputedValue
 	} as ReactiveValue<T> & object;
 	computedValues.set(value, node as ComputedNode<unknown>);
 	return value;
+}
+
+function readComputedValue<T>(this: ReactiveValue<T>): T {
+	return this.get();
+}
+
+function computedValueToString(this: ReactiveValue): string {
+	return String(this.get());
 }
 
 /** Returns bounded graph state for tooling without exposing computed values or source text. */
@@ -81,12 +82,13 @@ export function inspectComputed(value: ReactiveValue): ComputedInspection | unde
 	return computedValues.get(value as object)?.inspect();
 }
 
-class ComputedNode<T> implements Reaction {
+class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 	active = true;
 	scheduled = false;
 	pendingPriority: WorkPriority | undefined;
 	deps: Dep[] = [];
-	readonly source: ReactiveRef<T>;
+	readonly target = {};
+	readonly key = 'value';
 
 	private state: ComputationState = 'dirty';
 	private initialized = false;
@@ -99,8 +101,6 @@ class ComputedNode<T> implements Reaction {
 	private dependencies: ComputedDependency[] = [];
 	private computedSources?: Set<ComputedNode<unknown>>;
 	private computedSinks?: Set<ComputedNode<unknown>>;
-	private readonly target = {};
-	private readonly key = 'value';
 	private readonly releaseObservationHooks: () => void;
 	private readonly settleScheduled = (): void => this.settle();
 
@@ -108,18 +108,16 @@ class ComputedNode<T> implements Reaction {
 		private readonly compute: () => T,
 		readonly scope: EffectScopeImpl | undefined
 	) {
-		this.source = {
-			target: this.target,
-			key: this.key,
-			get: () => this.get(),
-			set: rejectReadonlyReactiveValueWrite
-		};
 		computedTargets.set(this.target, this as ComputedNode<unknown>);
 		this.releaseObservationHooks = registerDependencyObservationHooks(this.target, this.key, {
 			onObserved: () => this.becomeObserved(),
 			onUnobserved: () => this.becomeUnobserved()
 		});
 		if (scope) registerEffectScopeReaction(scope, this);
+	}
+
+	set(_value: T): void {
+		rejectReadonlyReactiveValueWrite();
 	}
 
 	get(): T {
