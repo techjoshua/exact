@@ -3295,3 +3295,72 @@ are complete. The
 [complete grouped-percentile report](component-local-target-abi/compiler-owned-hydration-reads.md)
 contains every required framework table and the direct interleaved prior/current capacity tables.
 Immutable raw evidence and normalization output are under `.tmp/hydration-generated-trust`.
+
+### Explicit synchronous ranges and fixed subscription reactions
+
+The synchronous direct component path no longer expresses request-owned rollback as a callback
+passed through `SsrOutputBuffer.bufferRange`. The already-selected executor now opens, commits, or
+rolls back its own buffered range, and finalized component markers use a direct pair operation.
+Boundary requirements are carried as a compact bit mask rather than a per-component object, and
+components without enhancements bypass the enhancement dispatcher. These changes preserve the
+same request-owned sink, bounded byte ledger, component boundary behavior, and transactional error
+semantics while deleting wrapper closures and short-lived boundary objects.
+
+On the client, atomic dependency publication now schedules its already-deduplicated reactions
+directly instead of allocating a second temporary `Set`. Fixed `subscribe` and `subscribeKeys`
+observers reuse the existing retained-reaction owner rather than allocating per-subscription
+runner, scheduler, error, and temporary-dependency closures. Dynamic observations still use tracked
+dependency discovery. Two broader ownership encodings were measured and removed: compact scope
+ownership reduced the number of `Set` objects but increased reachable code and retained heap, while
+a separate owned-fixed-subscription lane saved no heap after its additional handle machinery was
+counted.
+
+Focused alternating evidence established the causal effects before the full checkpoint. Explicit
+sink ranges reduced sampled server allocation by 6.12% and improved focused c32/c64 capacity by
+0.69%/1.62%; finalized marker pairs added approximately 0.9% capacity. Direct atomic scheduling
+removed 48 client bytes and eight executed bytes without a median interaction regression. Reusing
+the retained reaction reduced deterministic retained heap by 5,984 bytes, decoded client output by
+450 bytes, profiled functions by three, and invoked functions by two across 50 interleaved pairs.
+
+The complete 50-round five-framework checkpoint reproduces the client structural wins. Exact's
+client artifact moves from 201,289 to 200,796 raw bytes, 61,469 to 61,361 gzip bytes, and 53,593 to
+53,498 Brotli bytes. Transferred script bytes fall from 197,086 to 196,593; decoded bytes fall from
+196,743 to 196,293; invoked functions fall from 534 to 532; warm retained heap falls from 2,508,200
+to 2,502,660 bytes; and 1x startup heap falls from 2,366,668 to 2,361,624 bytes. Executed coverage
+moves from 100,605 to 100,687 bytes despite the smaller artifact, so the change is not described as
+an executed-code win. Control-normalized evaluation is effectively neutral through p95
+(+0.96%, +0.62%, and -0.64%). Optimistic feedback moves from a normalized 1.715/2.416/3.310/3.757
+ms to 1.8/2.2/2.6/2.6 ms: the p50 boundary is 0.085 ms slower, while p75 through p99 improve by
+8.9% to 30.8%. Navigation improves by 3.0% to 4.8% after control normalization; startup readiness
+is 4.8% to 6.7% slower through p95, so the client result is accepted for deterministic heap and
+topology reduction rather than a universal timing claim.
+
+Exact's Node response remains exactly 3,794 bytes. The server artifact grows by 1,136 raw, 196 gzip,
+and 116 Brotli bytes, which is immaterial for the server-only closure and was not used as an
+acceptance limit. Sampled render allocation falls from 2,957,224 to 2,784,200 bytes per 100-render
+profile, a 5.85% reduction. Absolute render-only p50 moves from 0.0323 to 0.0352 ms, but React moves
+from 0.0231 to 0.0252 ms in the same interleaved environment; both slow by approximately 9%, leaving
+their ratio unchanged. This reconciles the apparent full-run regression with the focused paired
+render and allocation wins.
+
+Control-normalized Node saturation RPS is effectively flat at c32 (p50 +0.35%, p75 -1.08%, p95
++0.29%) and improves at c64 (p50 +2.54%, p75 +1.45%, p95 +2.30%). Equal-8-KiB c32 p50 improves
+1.12%. Raw preloaded c32 falls from 7,134 to 6,609 requests/second while React falls from 8,045 to
+7,283; because only Exact and React implement that specialized lane, formal three-control
+normalization is unavailable, but Exact improves approximately 2.3% relative to React. General
+concurrent p50 is 1,808 requests/second for Exact versus 1,728 for React. Post-GC used heap remains
+lower for Exact than React (12,551,624 versus 13,180,032 bytes at p50); the fitted per-request used
+heap slope is slightly higher (3,232 versus 3,036 bytes) and is retained as a counter-metric.
+
+`npm run performance:check` passed after its complete release prerequisite. A newly published
+moderate advisory discovered by that gate was resolved by constraining `three-stdlib` to patched
+`fflate` 0.6.11; comparison framework versions were unchanged. All 35 five-framework browser
+correctness scenarios passed. The
+[complete grouped-percentile report](component-local-target-abi/explicit-sync-ranges-fixed-reactions.md)
+contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and
+separate Bun diagnostic table. Raw evidence and normalization output are under
+`.tmp/sync-ranges-fixed-reactions-checkpoint`; focused accepted and rejected experiments remain
+under `.tmp/explicit-sink-ranges`, `.tmp/finalized-component-markers`,
+`.tmp/atomic-trigger-direct-scheduling`, `.tmp/fixed-subscription-reactions`,
+`.tmp/owned-fixed-subscriptions`, and `.tmp/compact-scope-ownership`.

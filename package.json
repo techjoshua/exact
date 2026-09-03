@@ -133,6 +133,9 @@
 		"vitest": "^4.1.10"
 	},
 	"overrides": {
-		"qs": "6.16.0"
+		"qs": "6.16.0",
+		"three-stdlib": {
+			"fflate": "0.6.11"
+		}
 	}
 }

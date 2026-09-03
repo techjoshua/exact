@@ -26,6 +26,7 @@ export class SsrOutputBuffer {
 	private accountingValid = true;
 
 	private directPublicationDepth = 0;
+	private bufferedValuesLength = 0;
 
 	constructor(
 		private readonly maxBytes: number,
@@ -47,31 +48,29 @@ export class SsrOutputBuffer {
 		else this.values.push(value);
 	}
 
-	/** Temporarily retains one recoverable range while its complete subtree is attempted. */
-	bufferRange(render: () => string): string {
-		if (!this.publishesDirectly()) return render();
-		const bytes = this.bytes;
-		const pendingHighSurrogate = this.pendingHighSurrogate;
-		const accountingValid = this.accountingValid;
-		const retainedValues = this.values.length;
+	/** Suspends direct publication before one recoverable synchronous range is rendered. */
+	beginBufferedRange(): SsrOutputCheckpoint {
+		const checkpoint = this.checkpoint();
+		this.bufferedValuesLength = this.values.length;
 		this.directPublicationDepth--;
+		return checkpoint;
+	}
+
+	/** Restores the outer ledger and charges one successfully completed buffered range. */
+	commitBufferedRange(checkpoint: SsrOutputCheckpoint, value: string): string {
+		this.restoreBufferedRange(checkpoint);
 		try {
-			const value = render();
-			this.bytes = bytes;
-			this.pendingHighSurrogate = pendingHighSurrogate;
-			this.accountingValid = accountingValid;
-			this.values.length = retainedValues;
 			this.account(value);
 			return value;
 		} catch (error) {
-			this.bytes = bytes;
-			this.pendingHighSurrogate = pendingHighSurrogate;
-			this.accountingValid = accountingValid;
-			this.values.length = retainedValues;
+			this.rollback(checkpoint);
 			throw error;
-		} finally {
-			this.directPublicationDepth++;
 		}
+	}
+
+	/** Restores direct publication and discards one failed buffered range. */
+	rollbackBufferedRange(checkpoint: SsrOutputCheckpoint): void {
+		this.restoreBufferedRange(checkpoint);
 	}
 
 	/** Appends a renderer chunk without flattening previously rendered descendants. */
@@ -174,6 +173,12 @@ export class SsrOutputBuffer {
 		this.pendingHighSurrogate = false;
 		this.accountingValid = true;
 		for (const value of this.values) this.charge(value);
+	}
+
+	private restoreBufferedRange(checkpoint: SsrOutputCheckpoint): void {
+		this.rollback(checkpoint);
+		this.values.length = this.bufferedValuesLength;
+		this.directPublicationDepth++;
 	}
 
 	private charge(value: string): void {

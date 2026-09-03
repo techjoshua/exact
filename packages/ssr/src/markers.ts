@@ -30,12 +30,18 @@ export function markerPair(
 	const closing =
 		itemKey === undefined ? (id ? `<!--/exact:${id}-->` : '<!--/x-->') : `<!--/i:${itemKey}-->`;
 	if (context.outputSink?.publishesDirectly()) {
-		return context.outputSink.bufferRange(() => {
-			const rendered = render();
+		const output = context.outputSink;
+		const checkpoint = output.beginBufferedRange();
+		let rendered: string | Promise<string>;
+		try {
+			rendered = render();
 			if (rendered instanceof Promise)
 				throw new TypeError('Synchronous direct SSR range selected asynchronous content');
-			return `${opening}${rendered}${closing}`;
-		});
+		} catch (error) {
+			output.rollbackBufferedRange(checkpoint);
+			throw error;
+		}
+		return output.commitBufferedRange(checkpoint, `${opening}${rendered}${closing}`);
 	}
 	context.outputSink?.accountKnown(opening, opening.length);
 	const rendered = render();
@@ -45,6 +51,16 @@ export function markerPair(
 			return `${opening}${html}${closing}`;
 		});
 	}
+	context.outputSink?.accountKnown(closing, closing.length);
+	return `${opening}${rendered}${closing}`;
+}
+
+/** Wraps output that already completed inside its component-local rollback boundary. */
+export function finalizedMarkerPair(context: SsrContext, id: string, rendered: string): string {
+	if (!context.markers) return rendered;
+	const opening = id ? `<!--exact:${id}-->` : '<!--x-->';
+	const closing = id ? `<!--/exact:${id}-->` : '<!--/x-->';
+	context.outputSink?.accountKnown(opening, opening.length);
 	context.outputSink?.accountKnown(closing, closing.length);
 	return `${opening}${rendered}${closing}`;
 }

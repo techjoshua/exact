@@ -118,7 +118,8 @@ class RetainedReaction implements Reaction {
 		private readonly fn: () => void,
 		private readonly scheduler: (() => void) | undefined,
 		options: RetainedWatchOptions,
-		readonly scope: EffectScopeImpl | undefined
+		readonly scope: EffectScopeImpl | undefined,
+		private readonly fixed = false
 	) {
 		this.order = options.structural ? 0 : 1;
 		this.onSchedule = options.onSchedule;
@@ -139,8 +140,11 @@ class RetainedReaction implements Reaction {
 		this.scheduled = false;
 		this.pendingPriority = undefined;
 		try {
-			withEffectScope(this.scope, () => runTracked(this, this.fn));
-			if (this.deps.length === 0) this.stop();
+			if (this.fixed) withEffectScope(this.scope, this.fn);
+			else {
+				withEffectScope(this.scope, () => runTracked(this, this.fn));
+				if (this.deps.length === 0) this.stop();
+			}
 		} catch (error) {
 			this.handleError(error);
 		}
@@ -202,7 +206,11 @@ export function subscribe<T>(
 	callback: () => void,
 	options: WatchOptions = {}
 ): StopHandle {
-	return subscribeToDependencies(new Set([getDep(source.target, source.key)]), callback, options);
+	const scope = resolveObservationScope(options);
+	const reaction = new RetainedReaction(callback, undefined, options, scope, true);
+	linkReactionToDependency(reaction, getDep(source.target, source.key));
+	if (scope) registerEffectScopeReaction(scope, reaction);
+	return () => reaction.stop();
 }
 
 /** Subscribes one coalesced reaction to compiler-selected keys on a shared target. */
@@ -212,74 +220,12 @@ export function subscribeKeys(
 	callback: () => void,
 	options: WatchOptions = {}
 ): StopHandle {
-	const dependencies = new Set<Dep>();
-	for (const key of keys) dependencies.add(getDep(target, key));
-	if (dependencies.size === 0) return inactiveWatch;
-	return subscribeToDependencies(dependencies, callback, options);
-}
-
-// One reaction belongs to every selected dep so a transaction schedules the callback exactly once.
-function subscribeToDependencies(
-	dependencies: Set<Dep>,
-	callback: () => void,
-	options: WatchOptions
-): StopHandle {
+	if (keys.length === 0) return inactiveWatch;
 	const scope = resolveObservationScope(options);
-	const handleError = (error: unknown): void => {
-		const onError = options.onError ?? scope?.onError;
-		if (!onError) throw error;
-		onError(error);
-	};
-	const reaction: Reaction = {
-		active: true,
-		scheduled: false,
-		pendingPriority: undefined,
-		deps: [],
-		run() {
-			reaction.scheduled = false;
-			reaction.pendingPriority = undefined;
-			if (!reaction.active || (scope && !scope.active)) {
-				reaction.stop();
-				return;
-			}
-			try {
-				withEffectScope(scope, callback);
-			} catch (error) {
-				handleError(error);
-			}
-		},
-		schedule() {
-			if (!reaction.active || (scope && !scope.active)) {
-				reaction.stop();
-				return;
-			}
-			const priority = effectScopeWorkPriority(scope, currentWorkPriority());
-			if (reaction.scheduled) {
-				if (
-					reaction.pendingPriority !== undefined &&
-					isHigherWorkPriority(priority, reaction.pendingPriority)
-				) {
-					reaction.pendingPriority = priority;
-					queueReaction(reaction, priority);
-				}
-				return;
-			}
-			reaction.scheduled = true;
-			reaction.pendingPriority = priority;
-			queueReaction(reaction, priority);
-		},
-		stop() {
-			reaction.active = false;
-			reaction.scheduled = false;
-			reaction.pendingPriority = undefined;
-			cleanupReaction(reaction);
-			if (scope) releaseEffectScopeReaction(scope, reaction);
-		}
-	};
-
-	for (const dependency of dependencies) linkReactionToDependency(reaction, dependency);
+	const reaction = new RetainedReaction(callback, undefined, options, scope, true);
+	for (const key of keys) linkReactionToDependency(reaction, getDep(target, key));
 	if (scope) registerEffectScopeReaction(scope, reaction);
-	return reaction.stop;
+	return () => reaction.stop();
 }
 
 /** Inherits ownership only when the caller did not explicitly capture an unowned scope. */

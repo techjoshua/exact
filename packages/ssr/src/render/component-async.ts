@@ -31,7 +31,11 @@ const publishComponent: DirectSsrComponentPublisher<ComponentPublication> = (
 		html,
 		props,
 		snapshot.contract.artifact.execution.publication,
-		{ enhancement: false, ...publication }
+		false,
+		publication.documentProbe,
+		publication.hasComponentAncestor,
+		publication.omitCompilerOwnedBoundary,
+		publication.omitRootBoundary
 	);
 
 /** Renders one opaque component operation through its server artifact. */
