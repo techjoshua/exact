@@ -82,13 +82,12 @@ export function adoptProgramChildSlots(
 					: undefined
 				: adoptChildren(value, nodes, parentInstance, mounted.scope, cursor, endIndex, false);
 			if (!children) return false;
-			(state.childSlots ??= []).push({
-				slot: index,
+			(state.childSlots ??= [])[index] = {
 				parent,
 				before: anchor ? null : end!,
 				children,
 				...(componentReceipt ? { componentValue: componentReceipt } : { value })
-			});
+			};
 		}
 	} finally {
 		if (ownsLists) parentInstance?.endRender();

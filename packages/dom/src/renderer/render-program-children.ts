@@ -98,20 +98,23 @@ function prepareProgramChildBinding(
 	read: typeof readProgramChildren = readProgramChildren
 ): (() => void) | undefined {
 	const state = mounted.renderProgram!;
+	let childState = state.childSlots?.[index];
 	const start = state.slotNodes[index];
 	const slot = structuralProgramSlot(state, index);
 	const identity = slot?.[0] === 'child' || slot?.[0] === 'component' ? slot[1] : undefined;
 	const anchor = isKeyedChildAnchor(start) ? start : undefined;
 	const marker = start instanceof Node ? start : undefined;
-	const end = anchor ? undefined : findProgramChildEnd(marker, identity);
-	const parent = anchor?.[0] ?? marker?.parentNode;
-	const before = anchor ? null : end;
+	const end = childState
+		? childState.before
+		: anchor
+			? undefined
+			: findProgramChildEnd(marker, identity);
+	const parent = childState?.parent ?? anchor?.[0] ?? marker?.parentNode;
+	const before = childState ? childState.before : anchor ? null : end;
 	if (!parent || (!anchor && (!(marker instanceof Comment) || !end))) return undefined;
-	const childSlots = (state.childSlots ??= []);
-	let childState = childSlots.find((candidate) => candidate.slot === index);
 	if (!childState) {
-		childState = { slot: index, parent, before: before ?? null, children: [] };
-		childSlots.push(childState);
+		childState = { parent, before: before ?? null, children: [] };
+		(state.childSlots ??= [])[index] = childState;
 	}
 	let skipAdoptedInitialPatch = initialBinding && childState.children.length !== 0;
 	return () => {
@@ -240,6 +243,7 @@ function sameProgramChildren(
 /** Rebuilds the flattened mounted-child view after one render-program slot changes. */
 export function refreshProgramMountedChildren(mounted: Mounted): void {
 	mounted.children.length = 0;
-	for (const slot of mounted.renderProgram!.childSlots ?? [])
-		mounted.children.push(...slot.children);
+	for (const slot of mounted.renderProgram!.childSlots ?? []) {
+		if (slot) mounted.children.push(...slot.children);
+	}
 }

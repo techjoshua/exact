@@ -108,15 +108,17 @@ export type Mounted = {
 			| undefined
 		>;
 		/** Mounted structural ranges keyed by their compiler slot index. */
-		childSlots?: Array<{
-			readonly slot: number;
-			readonly parent: Node;
-			readonly before: Node | null;
-			children: Mounted[];
-			value?: readonly Child[];
-			/** Last opaque receipt for a compiler-proven fixed-cardinality component slot. */
-			componentValue?: ExactComponentReceiptData;
-		}>;
+		childSlots?: Array<
+			| {
+					readonly parent: Node;
+					readonly before: Node | null;
+					children: Mounted[];
+					value?: readonly Child[];
+					/** Last opaque receipt for a compiler-proven fixed-cardinality component slot. */
+					componentValue?: ExactComponentReceiptData;
+			  }
+			| undefined
+		>;
 		/** Compiler-selected structural slot operations invoked by the component dirty program. */
 		directChildUpdates?: Array<(() => void) | undefined>;
 		/** Receiver-owned prop receipts for compiler-proven component slots. */
