@@ -47,20 +47,23 @@ function prepareProgramComponentBinding(
 	initialBinding: boolean
 ): (() => void) | undefined {
 	const state = mounted.renderProgram!;
+	let childState = state.childSlots?.[index];
 	const start = state.slotNodes[index];
 	const anchor = isKeyedChildAnchor(start) ? start : undefined;
 	const marker = start instanceof Node ? start : undefined;
 	const identity = componentSlotIdentity(state, index, marker, anchor);
 	if (identity === undefined) return undefined;
-	const end = anchor ? undefined : findProgramChildEnd(marker, identity);
-	const parent = anchor?.[0] ?? marker?.parentNode;
-	const before = anchor ? null : end;
+	const end = childState
+		? childState.before
+		: anchor
+			? undefined
+			: findProgramChildEnd(marker, identity);
+	const parent = childState?.parent ?? anchor?.[0] ?? marker?.parentNode;
+	const before = childState ? childState.before : anchor ? null : end;
 	if (!parent || (!anchor && (!(marker instanceof Comment) || !end))) return undefined;
-	const childSlots = (state.childSlots ??= []);
-	let childState = childSlots.find((candidate) => candidate.slot === index);
 	if (!childState) {
-		childState = { slot: index, parent, before: before ?? null, children: [] };
-		childSlots.push(childState);
+		childState = { parent, before: before ?? null, children: [] };
+		(state.childSlots ??= [])[index] = childState;
 	}
 	let skipAdoptedInitialReceipt = initialBinding && childState.children.length !== 0;
 	return () => {

@@ -3068,3 +3068,35 @@ Bun diagnostic table. Raw evidence and normalization output are preserved under
 `.tmp/mixed-reader-dispatch-checkpoint`; focused heap, 100-pair timing, and alternating CPU evidence
 are under `.tmp/client-heap-analysis`, `.tmp/property-operands-combined`, and
 `.tmp/mixed-reader-dispatch`.
+
+### Direct compiler-slot-indexed child range storage
+
+Hydration adoption previously appended structural and component range records to a compact array.
+Binding preparation then searched that array with `find` and rediscovered an already-claimed closing
+marker. The DOM runtime now stores each range record directly at its compiler slot index and reuses
+its adoption-owned parent and closing boundary. Sparse non-structural slots are skipped when the
+runtime rebuilds the flattened mounted-child view; range ownership and component receipt behavior
+are unchanged.
+
+The complete 50-round comparison reduces warm and 1x cold used heap by 684 bytes, to 2,511,800 and
+2,370,876 bytes. A dedicated 100-sample alternating A/B reproduces a 784-byte post-hydration
+reduction in both orders. Parsed and compiled functions fall from 735 and 750 to 733 and 748 at 1x,
+and profiled functions fall from 1,140 to 1,138; invoked functions remain 537. The client cost is 19
+raw, transferred, decoded, and profiled bytes, 5 gzip bytes, and 45 executed bytes, while Brotli
+falls by 61 bytes. Startup evaluation is mixed and the alternating paired mean is neutral. The full
+optimistic-feedback population fails the control-dispersion gate; a separate alternating interaction
+A/B favors the candidate by 0.064 ms on mean but does not justify a timing claim.
+
+The Node and Bun server artifacts and Exact's 3,794-byte response are unchanged. Node ordinary
+concurrent p50 is 2,047 requests/second for Exact versus 2,254 for React, 1.88% below normalized
+history. Saturation moves in both directions, including +5.14% at c8 and +2.58% at c32, while
+equal-payload runs move much more sharply. Those unchanged-artifact server movements are retained as
+environmental counter-evidence rather than attributed to this client-only slice.
+
+`npm run performance:check` passed after its full release prerequisite. The
+[complete grouped-percentile report](component-local-target-abi/direct-child-slot-storage.md)
+contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
+Bun diagnostic table. Raw evidence and normalization output are preserved under
+`.tmp/direct-child-slots`; focused heap, lifecycle, interaction, and alternating CPU evidence are in
+the same directory and `.tmp/client-heap-analysis`.
