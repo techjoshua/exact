@@ -92,6 +92,18 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/__exactSlot =>/);
 	});
 
+	it('bounds an opaque component range with the following compiler-known intrinsic', async () => {
+		const client = await compileFixture('fundamentals.fixtures.tsx', 'client', 'hydrate');
+		const server = await compileFixture('fundamentals.fixtures.tsx', 'server');
+
+		expect(client.code).toMatch(/\[6, \d+, \d+, "span"\], \[4, \d+, \d+, true, \d+\]/);
+		expect(client.code).not.toMatch(/<!--x:\d+--><!--\/x:\d+--><span data-role=\\"after-label\\"/);
+		expect(client.code).toMatch(
+			/<!--x:\d+--><!--\/x:\d+--><span data-role=\\"nested-after-label\\"/
+		);
+		expect(server.code).toMatch(/__exactSsr\.directComponent\([^;]+, true\);/);
+	});
+
 	it('shares one dispatcher across statement-bodied readers', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
 		const start = code.indexOf('function MixedReaderDispatch');
@@ -217,8 +229,8 @@ describe('normative compiled structure', () => {
 	it('executes compiler-closed synchronous server programs without returned render closures', async () => {
 		const { code } = await compileFixture('fundamentals.fixtures.tsx', 'server');
 
-		expect(code.match(/mode: "stateless"/g)).toHaveLength(2);
-		expect(code).toMatch(/return __exactPreparedServerRenderProgram\(/);
+		expect(code.match(/mode: "stateless"/g)).toHaveLength(3);
+		expect(code).toMatch(/return \(__exactPreparedServerRenderProgram\(/);
 		expect(code).not.toMatch(/return \(\) => __exactPreparedServerRenderProgram\(/);
 		expect(code).toMatch(
 			/__exactSsr\.directComponent\(__exactContext, __exactOutput, Label, __exactValue_\d+/

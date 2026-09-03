@@ -34,9 +34,15 @@ afterEach(() => {
 
 describe('composition corpus client behavior', () => {
 	it('mounts static, nested, and registry components from compiled artifacts', () => {
-		expect(mount(fundamentalsRoot('ready')).innerHTML).toContain(
-			'<strong data-role="label">ready</strong>'
-		);
+		const fundamentals = mount(fundamentalsRoot('ready'));
+		const following = fundamentals.querySelector('[data-role="after-label"]');
+		expect(fundamentals.innerHTML).toContain('<strong data-role="label">ready</strong>');
+		expect(following?.previousElementSibling?.getAttribute('data-role')).toBe('label-suffix');
+		render(fundamentalsRoot('updated'), fundamentals);
+		expect(fundamentals.querySelector('[data-role="label"]')?.textContent).toBe('updated');
+		expect(fundamentals.querySelector('[data-role="label-suffix"]')?.textContent).toBe('!');
+		expect(fundamentals.querySelector('[data-role="after-label"]')).toBe(following);
+		expect(following?.previousElementSibling?.getAttribute('data-role')).toBe('label-suffix');
 		expect(mount(registryRoot('second')).querySelector('[data-view]')?.textContent).toBe('second');
 		expect(mount(dynamicRoot()).querySelector('[data-dynamic]')?.textContent).toBe('first');
 	});

@@ -25,6 +25,21 @@ export function MarkerlessGreeting(props: { text: string }) {
 	return () => <span>{props.text}</span>;
 }
 
+/** Compiler-backed empty component bounded by its following intrinsic sibling. */
+function EmptyAdoptionChild() {
+	return () => null;
+}
+
+/** Compiler-backed empty component bounded by its following intrinsic sibling. */
+export function BoundedEmptyGreeting() {
+	return () => (
+		<main>
+			<EmptyAdoptionChild />
+			<span>After</span>
+		</main>
+	);
+}
+
 /** Compiler-backed markerless fragment adoption fixture. */
 export function FragmentAdoptionRoot() {
 	return () => (

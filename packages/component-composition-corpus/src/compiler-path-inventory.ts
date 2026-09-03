@@ -188,6 +188,12 @@ export const compilerPathInventory = [
 		universalRenderModes
 	),
 	path(
+		'bounded-component-range-claim',
+		'specialized',
+		'A compiler-known following intrinsic bounds an opaque native child range without serialized delimiters.',
+		['client-mount', 'client-update', 'ssr-sync', 'hydrate-match']
+	),
+	path(
 		'direct-server-child-issuance',
 		'specialized',
 		'Compiler-proven server child slots issue the selected artifact without a prepared reference.',

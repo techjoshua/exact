@@ -4,7 +4,13 @@ import type {
 	ExactRenderProgramWiring
 } from '@exactjs/core/runtime/render-operations';
 import type { RenderProgramChildAnchor } from '../types.js';
-import { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from '../namespace.js';
+import { MATHML_NAMESPACE, SVG_NAMESPACE } from '../namespace.js';
+import {
+	claimCompiledProgramElementPath,
+	matchesProgramElement
+} from './render-program-claim-path.js';
+
+export { claimCompiledProgramElementPath } from './render-program-claim-path.js';
 
 type ConcreteNamespace = 'html' | 'svg' | 'mathml';
 
@@ -41,7 +47,7 @@ export function claimCompiledRenderProgram(
 	if (!program.directClaims) return undefined;
 	const fixtureBinder = (program as unknown as { bind?: (target: object) => void }).bind;
 	if (!program.wire && !fixtureBinder) {
-		if (!matchesElement(root, program.root[0], program.root[1] ?? program.namespace))
+		if (!matchesProgramElement(root, program.root[0], program.root[1] ?? program.namespace))
 			return undefined;
 		return { elements: [root], slotNodes: [], componentSlots: 0, work: program.work };
 	}
@@ -109,7 +115,8 @@ function claimCompiledProgramWiring(
 					target,
 					operation[1] as number,
 					operation[2] as number,
-					operation[3] === true
+					operation[3] === true,
+					operation[4] as number | undefined
 				);
 				break;
 			case 5:
@@ -167,7 +174,7 @@ export function beginCompiledProgramClaims(
 	target.began = true;
 	target.namespace = concreteElementNamespace(target.root);
 	target.work = [nodes, slots];
-	if (!matchesElement(target.root, tag, namespace)) {
+	if (!matchesProgramElement(target.root, tag, namespace)) {
 		target.valid = false;
 		return true;
 	}
@@ -186,45 +193,15 @@ export function claimCompiledProgramElement(
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
 	const node = advance(target.current, skip);
-	if (!(node instanceof Element) || !matchesElement(node, tag, namespace ?? target.namespace)) {
+	if (
+		!(node instanceof Element) ||
+		!matchesProgramElement(node, tag, namespace ?? target.namespace)
+	) {
 		target.valid = false;
 		return;
 	}
 	target.elements[index] = node;
 	target.current = node.nextSibling;
-}
-
-/** Claims one required intrinsic through its compiler-encoded element-child path. */
-export function claimCompiledProgramElementPath(
-	target: ExactRenderProgramBindingTarget,
-	index: number,
-	path: number,
-	tag: string,
-	namespace?: ExactRenderProgram['namespace']
-): void {
-	if (!isClaimTarget(target) || !target.valid) return;
-	let remaining = Math.floor(path);
-	let depth = remaining % 16;
-	remaining = Math.floor(remaining / 16);
-	let element: Element = target.root;
-	while (depth-- > 0) {
-		const step = remaining % 128;
-		const ordinal = step % 64;
-		const child = element.children.item(
-			step < 64 ? ordinal : element.children.length - ordinal - 1
-		);
-		if (!child) {
-			target.valid = false;
-			return;
-		}
-		element = child;
-		remaining = Math.floor(remaining / 128);
-	}
-	if (!matchesElement(element, tag, namespace ?? target.namespace)) {
-		target.valid = false;
-		return;
-	}
-	target.elements[index] = element;
 }
 
 /** Enters the children of the last compiler-claimed intrinsic. */
@@ -350,14 +327,27 @@ export function claimCompiledProgramChild(
 	target.current = closing.nextSibling;
 }
 
-/** Claims a compiler-proven final child range without requiring serialized delimiters. */
+/** Claims a compiler-proven final or next-intrinsic-bounded range without SSR delimiters. */
 export function claimCompiledProgramKeyedChild(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
 	skip: number,
-	component = false
+	component = false,
+	endIndex?: number
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
+	if (endIndex !== undefined) {
+		const start = advance(target.current, skip);
+		const end = target.elements[endIndex];
+		if (!end || end.parentNode !== target.container) {
+			target.valid = false;
+			return;
+		}
+		target.slotNodes[index] = [target.container, start, end];
+		if (component) markComponentSlot(target, index);
+		target.current = end;
+		return;
+	}
 	let start = target.current;
 	for (let offset = 0; offset < skip; offset++) {
 		if (!start) {
@@ -378,24 +368,6 @@ function isClaimTarget(target: ExactRenderProgramBindingTarget): target is Progr
 function advance(node: Node | null, count: number): Node | null {
 	for (let index = 0; node && index < count; index++) node = node.nextSibling;
 	return node;
-}
-
-function matchesElement(
-	element: Element,
-	tag: string,
-	namespace: ExactRenderProgram['namespace']
-): boolean {
-	const uri =
-		namespace === 'contextual'
-			? element.parentElement
-				? (namespaceForTag(tag, element.parentElement) ?? HTML_NAMESPACE)
-				: element.namespaceURI
-			: namespace === 'svg'
-				? SVG_NAMESPACE
-				: namespace === 'mathml'
-					? MATHML_NAMESPACE
-					: HTML_NAMESPACE;
-	return element.localName.toLowerCase() === tag.toLowerCase() && element.namespaceURI === uri;
 }
 
 function concreteElementNamespace(element: Element): ConcreteNamespace {

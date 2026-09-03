@@ -30,7 +30,7 @@ describe('synchronous SSR operation target', () => {
 		);
 		const program = createPreparedServerRenderProgram(
 			prepareCompiledRenderProgram({
-				version: 7,
+				version: 8,
 				id: 'row',
 				namespace: 'html',
 				ssr(operations, ssrContext) {

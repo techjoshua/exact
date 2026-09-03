@@ -48,8 +48,13 @@ describe('composition corpus hydration behavior', () => {
 		] as const) {
 			const { container, resumptions } = serverContainer(serverOperation);
 			const serverNode = container.querySelector(selector);
+			const following = container.querySelector('[data-role="after-label"]');
 			hydrate(clientOperation, container, { onMismatch: 'throw', resumptions });
 			expect(container.querySelector(selector)).toBe(serverNode);
+			if (following) {
+				expect(container.querySelector('[data-role="label-suffix"]')?.textContent).toBe('!');
+				expect(container.querySelector('[data-role="after-label"]')).toBe(following);
+			}
 		}
 	});
 

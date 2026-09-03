@@ -3364,3 +3364,70 @@ separate Bun diagnostic table. Raw evidence and normalization output are under
 under `.tmp/explicit-sink-ranges`, `.tmp/finalized-component-markers`,
 `.tmp/atomic-trigger-direct-scheduling`, `.tmp/fixed-subscription-reactions`,
 `.tmp/owned-fixed-subscriptions`, and `.tmp/compact-scope-ownership`.
+
+### Bounded native child ranges and shared marker pairs
+
+A compiler-proven native child directly followed by a plain static intrinsic now uses that
+intrinsic as the exclusive end of its owned range when the child belongs to the program root or a
+direct intrinsic parent with a stable forward claim path and its later siblings have fixed width.
+The compiler emits the existing focused claim wire with a direct path claim for the following
+intrinsic and a boundary reference on the child operation. The server writer omits the child's
+marker pair. This remains an opaque component boundary: the parent neither classifies the child's
+output nor assumes a node count, and adoption is protected for multi-node and empty child output.
+Imported and lazy components keep the same artifact ABI. Render-program ABI version 8 prevents an
+older runtime from misreading the added boundary operand.
+
+The proof was narrowed after a broader syntax-only candidate failed all 11 Sudoku runtime tests.
+That candidate omitted template markers before the later claim-path pass rejected its unstable
+nested path, leaving the template and claim program inconsistent. The accepted predicate therefore
+requires the parent path to be known stable at template construction time and retains explicit
+markers for deeper or unstable paths. The composition corpus independently protects root, stable
+nested, multi-node, empty, replacement, hydration, and explicit-marker fallback behavior.
+
+Synchronous render-program marker strings also use one shared module-level `Map` of immutable
+opening/closing pairs keyed by compiler-local marker ID. It retains no request or component data.
+After direct indexing replaced array destructuring, the marker cache alone reduced paired render
+work by 2.99%, sampled allocation by 4.45%, and mean c32/c64 capacity by 0.87%/0.53%. The combined
+candidate's focused evidence was stronger: 30 paired render samples reduced mean work by 8.04%, 20
+paired allocation samples reduced sampled allocation by 6.33%, and a cohort-balanced 50-pair run
+improved mean c32/c64 throughput by 3.88%/1.22%.
+
+The complete 50-round checkpoint removes 84 response bytes, from 3,794 to 3,710, and eight DOM
+comment nodes. Warm browser used heap falls from a control-normalized 2,502,663 to 2,500,036 bytes.
+The 1x/4x/6x startup evaluation p50 values improve by 1.5%, 7.9%, and 8.6% after control
+normalization. Optimistic feedback improves at p50/p75 but worsens at p95/p99; paint remains in
+coarse, mixed four-millisecond buckets, so neither is claimed as a universal interaction win.
+The immutable client artifact grows by 399 raw bytes, 122 gzip bytes, and 143 Brotli bytes;
+executed code grows by 409 bytes, while profiled and invoked function counts remain unchanged at
+1,130 and 532. The retained-heap and evaluation improvements therefore accompany a small, explicit
+client-code tradeoff rather than a size win.
+
+Node render-only p50 falls from 0.0352 to 0.0312 ms, with improvements through every reported
+percentile. Sampled render allocation falls from 2,784,200 to 2,675,344 bytes per 100-render batch,
+a 3.91% reduction. Direct same-run before/current paired means improve preloaded c8/c32/c64 by
+9.06%/7.59%/9.72%, saturation c16/c32/c64 by 4.59%/3.90%/3.47%, and equal-8-KiB c8/c32 by
+3.94%/2.81%. Low-load ordinary c16 and saturation c1 decline by 2.24% and 0.93%, saturation c8 by
+0.58%, and service-phase c64 by 1.11%. Those regressions are retained as counter-metrics, but the
+renderer-isolating and sustained-concurrency gains establish a net server-capacity improvement.
+The Node server artifact grows by 537 raw bytes; server bundle size was not used as an acceptance
+limit.
+
+Three superficially simpler cache shapes were measured and rejected after explaining their
+counter-results. Array destructuring allocated iterator work at each marker. A null-prototype
+object looked faster in render-only measurement but lost 8.74% at c32 and 7.07% at c64. A sparse
+numeric array fast path reduced isolated render work but added JavaScript ID classification at
+every marker; its lazy form lost 8.18%/8.27% at c32/c64 across 50 pairs, and an immutable split
+variant still lost 4.36%/5.62% across 30 pairs. The shared string-keyed `Map` therefore remains the
+smallest implementation that improves allocation and concurrent capacity together. Focused raw
+evidence is under `.tmp/bounded-markerless-components`, `.tmp/marker-pair-cache`,
+`.tmp/marker-pair-cache-object`, and `.tmp/marker-pair-sparse`.
+
+`npm run performance:check` passed after its complete release prerequisite, including 1,970
+package tests, the 335-file native compiler corpus, every application build, and all focused
+architecture and security checks. All 35 five-framework browser correctness scenarios passed.
+The
+[complete grouped-percentile report](component-local-target-abi/bounded-native-ranges-shared-marker-pairs.md)
+contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and
+separate Bun diagnostic table. Immutable raw evidence and normalization output are under
+`.tmp/bounded-marker-pairs-checkpoint`.

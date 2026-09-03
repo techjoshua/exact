@@ -49,7 +49,12 @@ export function adoptProgramChildSlots(
 					? nodes.indexOf(anchor[1])
 					: nodes.length
 				: nodes.indexOf(marker!) + 1;
-			const endIndex = anchor ? nodes.length : nodes.indexOf(end!);
+			const anchorEnd = anchor?.[2] ?? null;
+			const endIndex = anchorEnd
+				? nodes.indexOf(anchorEnd)
+				: anchor
+					? nodes.length
+					: nodes.indexOf(end!);
 			if (cursor < 0 || endIndex < cursor) return false;
 			const componentReceipt =
 				slot[0] === 'component'
@@ -84,7 +89,7 @@ export function adoptProgramChildSlots(
 			if (!children) return false;
 			(state.childSlots ??= [])[index] = {
 				parent,
-				before: anchor ? null : end!,
+				before: anchor ? anchorEnd : end!,
 				children,
 				...(componentReceipt ? { componentValue: componentReceipt } : { value })
 			};

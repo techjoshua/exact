@@ -182,7 +182,7 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 				method = "directComponent"
 				arguments = []*ast.Node{context, output, slot.serverComponent, value, stringLiteral(slot.id), characters}
 			}
-			if slot.markerlessTail {
+			if _, bounded := boundedComponentEndPath(build, slotIndex); slot.markerlessTail || bounded {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
 			assignCall(method, arguments...)

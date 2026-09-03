@@ -21,6 +21,7 @@ func (lowering *jsxLowering) directRenderProgramClaimsAll(
 			lowering.names.claimProgramText:       3,
 			lowering.names.claimProgramKeyedChild: 4,
 			lowering.names.claimProgramChild:      5,
+			lowering.names.claimElementPath:       6,
 			lowering.names.claimProgramProperty:   7,
 		}[helper]
 		operations = append(operations, lowering.renderProgramOperation(opcode, arguments...))
@@ -59,6 +60,26 @@ func (lowering *jsxLowering) directRenderProgramClaimsAll(
 					arguments = append(arguments, lowering.factory.NewTrueExpression())
 				}
 				emitCall(lowering.names.claimProgramKeyedChild, arguments...)
+			case "bounded-component":
+				endNodeIndex, endPath, _ := boundedComponentEnd(build, claim.index)
+				endNode := build.nodes[endNodeIndex]
+				endIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(endNodeIndex), ast.TokenFlagsNone)
+				endArguments := []*ast.Node{
+					endIndex,
+					lowering.factory.NewNumericLiteral(strconv.FormatUint(endPath, 10), ast.TokenFlagsNone),
+					lowering.factory.NewStringLiteral(endNode.tag, ast.TokenFlagsNone),
+				}
+				if endNode.namespace != build.namespace || build.namespace == "contextual" {
+					endArguments = append(endArguments, lowering.factory.NewStringLiteral(endNode.namespace, ast.TokenFlagsNone))
+				}
+				emitCall(lowering.names.claimElementPath, endArguments...)
+				emitCall(
+					lowering.names.claimProgramKeyedChild,
+					claimIndex,
+					skip,
+					lowering.factory.NewTrueExpression(),
+					endIndex,
+				)
 			default:
 				arguments := []*ast.Node{claimIndex, skip, lowering.factory.NewStringLiteral(claim.id, ast.TokenFlagsNone)}
 				if claim.kind == "component" {
@@ -103,6 +124,9 @@ func (lowering *jsxLowering) directProgramChildClaims(
 		if slot.markerlessTail {
 			kind = "keyed"
 			width = 0
+		} else if _, bounded := boundedComponentEndPath(build, index); bounded {
+			kind = "bounded-component"
+			width = 0
 		}
 		if slot.kind == "text" {
 			path[len(path)-1]--
@@ -115,7 +139,12 @@ func (lowering *jsxLowering) directProgramChildClaims(
 		}
 	}
 	sort.SliceStable(claims, func(left int, right int) bool {
-		return claims[left].path[len(claims[left].path)-1] < claims[right].path[len(claims[right].path)-1]
+		leftPosition := claims[left].path[len(claims[left].path)-1]
+		rightPosition := claims[right].path[len(claims[right].path)-1]
+		if leftPosition == rightPosition {
+			return claims[left].kind == "bounded-component" && claims[right].kind != "bounded-component"
+		}
+		return leftPosition < rightPosition
 	})
 	return claims
 }
@@ -157,7 +186,7 @@ func directProgramElementPathStep(
 			continue
 		}
 		candidate := slot.path[len(slot.path)-1]
-		if candidate < childNodeIndex {
+		if candidate < childNodeIndex || (slot.boundedMarkerless && candidate == childNodeIndex) {
 			variableBefore = true
 		} else if candidate > childNodeIndex {
 			variableAfter = true
@@ -194,6 +223,29 @@ func directProgramElementPathStep(
 		return uint64(after + 64), true
 	}
 	return 0, false
+}
+
+// boundedComponentEndPath returns the first static intrinsic immediately following a candidate
+// component slot when that intrinsic remains addressable from a stable edge of every ancestor.
+func boundedComponentEnd(build *renderProgramBuild, slotIndex int) (int, uint64, bool) {
+	slot := build.slots[slotIndex]
+	if slot.kind != "component" || !slot.boundedMarkerless {
+		return 0, 0, false
+	}
+	parent := slot.path[:len(slot.path)-1]
+	position := slot.path[len(slot.path)-1]
+	for index, node := range build.nodes {
+		if directChildPath(node.path, parent) && node.path[len(node.path)-1] == position {
+			encoded, exists := directProgramElementPath(build, node.path)
+			return index, encoded, exists
+		}
+	}
+	return 0, 0, false
+}
+
+func boundedComponentEndPath(build *renderProgramBuild, slotIndex int) (uint64, bool) {
+	_, path, exists := boundedComponentEnd(build, slotIndex)
+	return path, exists
 }
 
 func pathPrefix(prefix []int, path []int) bool {
@@ -267,6 +319,91 @@ func noRenderedProgramChildrenAfter(children []*ast.Node, index int) bool {
 			continue
 		}
 		if ast.IsJsxExpression(child) && child.AsJsxExpression().Expression == nil {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// boundedComponentParentIsStable limits the local range optimization to the render root or a
+// direct intrinsic child reachable by a forward element path. A forward path cannot be shifted by
+// variable-width siblings that the compiler encounters later.
+func (build *renderProgramBuild) boundedComponentParentIsStable(path []int) bool {
+	if len(path) == 0 {
+		return true
+	}
+	if len(path) != 1 {
+		return false
+	}
+	encoded, stable := directProgramElementPath(build, path)
+	return stable && (encoded/16)%128 < 64
+}
+
+// nextRenderedProgramChildIsPlainIntrinsic limits bounded marker elision to a directly adjacent
+// intrinsic whose root DOM element is guaranteed to exist in both the client template and SSR.
+// Later fixed-width text and intrinsic siblings do not affect its element-child path.
+func (lowering *jsxLowering) nextRenderedProgramChildIsPlainIntrinsic(children []*ast.Node, index int) bool {
+	for childIndex := index + 1; childIndex < len(children); childIndex++ {
+		child := children[childIndex]
+		if ast.IsJsxText(child) && normalizeJSXChildText(
+			child.AsJsxText().Text,
+			childIndex,
+			len(children),
+		) == "" {
+			continue
+		}
+		if ast.IsJsxExpression(child) && child.AsJsxExpression().Expression == nil {
+			continue
+		}
+		if ast.IsJsxElement(child) {
+			element := child.AsJsxElement()
+			if _, island := lowering.clientIslands[child]; island {
+				return false
+			}
+			return jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(element.OpeningElement))) &&
+				!lowering.renderProgramIntrinsicHasEnhancements(element.OpeningElement.Attributes()) &&
+				lowering.remainingProgramSiblingsHaveFixedWidth(children, childIndex)
+		}
+		if ast.IsJsxSelfClosingElement(child) {
+			if _, island := lowering.clientIslands[child]; island {
+				return false
+			}
+			return jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(child))) &&
+				!lowering.renderProgramIntrinsicHasEnhancements(child.Attributes()) &&
+				lowering.remainingProgramSiblingsHaveFixedWidth(children, childIndex)
+		}
+		return false
+	}
+	return false
+}
+
+func (lowering *jsxLowering) remainingProgramSiblingsHaveFixedWidth(children []*ast.Node, index int) bool {
+	for childIndex := index + 1; childIndex < len(children); childIndex++ {
+		child := children[childIndex]
+		if ast.IsJsxText(child) {
+			continue
+		}
+		if ast.IsJsxExpression(child) && child.AsJsxExpression().Expression == nil {
+			continue
+		}
+		if ast.IsJsxElement(child) {
+			element := child.AsJsxElement()
+			if _, island := lowering.clientIslands[child]; island {
+				return false
+			}
+			if !jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(element.OpeningElement))) {
+				return false
+			}
+			continue
+		}
+		if ast.IsJsxSelfClosingElement(child) {
+			if _, island := lowering.clientIslands[child]; island {
+				return false
+			}
+			if !jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(child))) {
+				return false
+			}
 			continue
 		}
 		return false

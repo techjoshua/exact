@@ -59,7 +59,7 @@ function prepareProgramComponentBinding(
 			? undefined
 			: findProgramChildEnd(marker, identity);
 	const parent = childState?.parent ?? anchor?.[0] ?? marker?.parentNode;
-	const before = childState ? childState.before : anchor ? null : end;
+	const before = childState ? childState.before : anchor ? (anchor[2] ?? null) : end;
 	if (!parent || (!anchor && (!(marker instanceof Comment) || !end))) return undefined;
 	if (!childState) {
 		childState = { parent, before: before ?? null, children: [] };
