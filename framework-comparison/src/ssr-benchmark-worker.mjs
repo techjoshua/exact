@@ -221,6 +221,23 @@ async function createParticipantHandler(id) {
 			}
 		};
 	}
+	if (id === 'tanstack-start') {
+		const entry = resolve(
+			suiteRoot,
+			'participants',
+			'tanstack-start',
+			'.output',
+			'server',
+			'index.mjs'
+		);
+		const { middleware } = await import(pathToFileURL(entry).href);
+		return {
+			handle(request, response) {
+				return middleware(request, response);
+			},
+			async close() {}
+		};
+	}
 	throw new Error(`Unknown SSR benchmark participant ${id}`);
 }
 

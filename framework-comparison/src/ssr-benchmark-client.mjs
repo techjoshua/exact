@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 import { Agent, request } from 'node:http';
 import { performance } from 'node:perf_hooks';
+import { hashStableSsrResponse } from './artifact-integrity.mjs';
 
 let clientAgent = createClientAgent();
 
@@ -15,7 +15,7 @@ export async function measureSsrRequest(url) {
 		ttfbMs,
 		totalMs,
 		bytes: bytes.length,
-		hash: createHash('sha256').update(bytes).digest('hex'),
+		hash: hashStableSsrResponse(bytes),
 		meaningful: bytes.includes(Buffer.from('Delayed fulfillment events'))
 	};
 }

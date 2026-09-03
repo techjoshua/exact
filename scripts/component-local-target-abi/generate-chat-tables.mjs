@@ -14,9 +14,11 @@ const labels = new Map([
 	['sveltekit', 'SvelteKit'],
 	['sveltekit-controlled', 'SvelteKit'],
 	['nuxt', 'Nuxt'],
-	['nuxt-controlled', 'Nuxt']
+	['nuxt-controlled', 'Nuxt'],
+	['tanstack-start', 'TanStack Start'],
+	['tanstack-start-controlled', 'TanStack Start']
 ]);
-const frameworkOrder = ['eXact', 'React', 'SvelteKit', 'Nuxt'];
+const frameworkOrder = ['eXact', 'React', 'SvelteKit', 'Nuxt', 'TanStack Start'];
 const frameworkSuites = report.suites.filter(({ table }) =>
 	table.suite.startsWith('framework-comparison-')
 );
@@ -33,7 +35,7 @@ const formatNumber = (value) => {
 const sections = [
 	`# Phase ${report.phase} complete framework metrics`,
 	'',
-	'Frameworks are columns in the fixed order eXact, React, SvelteKit, and Nuxt. Every value cell is p50 / p75 / p95 / p99.'
+	'Frameworks are columns in the fixed order eXact, React, SvelteKit, Nuxt, and TanStack Start. Every value cell is p50 / p75 / p95 / p99.'
 ];
 
 for (const { table } of frameworkSuites) {

@@ -73,7 +73,8 @@ const participants = [
 	{ id: 'exact', artifacts: { node: 'dist-server', bun: 'dist-bun-server' } },
 	{ id: 'react', artifacts: { node: 'dist-server', bun: 'dist-server' } },
 	{ id: 'sveltekit', artifacts: { node: 'build/server', bun: 'build/server' } },
-	{ id: 'nuxt', artifacts: { node: '.output/server', bun: '.output/server' } }
+	{ id: 'nuxt', artifacts: { node: '.output/server', bun: '.output/server' } },
+	{ id: 'tanstack-start', artifacts: { node: '.output/server', bun: '.output/server' } }
 ];
 const runtimes = availableSsrRuntimes();
 const participantMetadata = await Promise.all(

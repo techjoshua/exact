@@ -74,10 +74,11 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 
 			<Callout title="Current status">
 				<p>
-					The controlled track has production SSR implementations for eXact, React, SvelteKit, and
-					Nuxt. A separate native track exercises eXact compiler server tasks and React Router
-					loaders and actions. Both acceptance suites and the controlled measurement harness are
-					implemented. Specialist reviews remain pending, so no results or rankings are published.
+					The controlled track has production SSR implementations for eXact, React, SvelteKit, Nuxt,
+					and TanStack Start. A separate native track exercises eXact compiler server tasks and
+					React Router loaders and actions. Both acceptance suites and the controlled measurement
+					harness are implemented. Specialist reviews remain pending, so no results or rankings are
+					published.
 				</p>
 			</Callout>
 

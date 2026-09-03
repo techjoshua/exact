@@ -29,7 +29,8 @@ test('renders every participant, percentile, comparison, and structural counter'
 					metrics: ['ready'],
 					participants: [
 						{ name: 'exact', metrics: { ready: metric } },
-						{ name: 'control', metrics: { ready: { ...metric, p50: 5 } } }
+						{ name: 'control', metrics: { ready: { ...metric, p50: 5 } } },
+						{ name: 'tanstack-start-controlled', metrics: { ready: { ...metric, p50: 6 } } }
 					]
 				},
 				populations: [
@@ -91,6 +92,7 @@ test('renders every participant, percentile, comparison, and structural counter'
 	]);
 	assert.match(markdown, /\| eXact \| 1 \/ 2 \/ 3 \/ 4 \|/);
 	assert.match(markdown, /\| control \| 5 \/ 2 \/ 3 \/ 4 \|/);
+	assert.match(markdown, /\| TanStack Start \| 6 \/ 2 \/ 3 \/ 4 \|/);
 	assert.match(markdown, /browser vs P0/);
 	assert.match(markdown, /Raw delta %/);
 	assert.match(markdown, /-50%/);

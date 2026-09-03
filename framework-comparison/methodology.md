@@ -37,6 +37,11 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
     Browser and startup samples also hash a participant-neutral semantic DOM record after their correctness
     boundary. Every sample for one participant and every participant in the controlled track must produce the
     same response identity; a mismatch invalidates the run rather than becoming a timing sample.
+12. Complete SSR response identity retains exact byte-length stability. TanStack Router's serialized
+    request-time match timestamps are canonicalized only for the content hash because they govern cache
+    staleness rather than application output; all other markup and serialized data remain identity-bearing.
+13. Framework-generated source such as TanStack Router's route-tree manifest is excluded from authored-line
+    complexity, but its emitted client and server code remains included in production artifact measurements.
 
 ## Performance dimensions
 
@@ -151,6 +156,8 @@ remain isolated because simultaneous processes or profiling changes would contam
 admitted historical eXact server artifact is available, it may run as another interleaved worker under the same
 transport. That direct paired population is preferred for estimating a small before/current change; unchanged
 React, SvelteKit, and Nuxt controls remain useful for relating a current run to older unpaired checkpoints.
+TanStack Start is reported as a fifth participant but is not a normalization control because it shares
+React's renderer and would otherwise give correlated React behavior double weight.
 
 The bounded concurrent lane remains a fixed request population. Saturation levels instead use 50
 fixed-duration, closed-loop windows; each client immediately replaces a completed request until the window

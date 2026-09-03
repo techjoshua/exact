@@ -40,6 +40,12 @@ const participants = [
 		directory: 'nuxt',
 		artifact: '.output/public',
 		url: 'http://127.0.0.1:4404'
+	},
+	{
+		id: 'tanstack-start-controlled',
+		directory: 'tanstack-start',
+		artifact: '.output/public',
+		url: 'http://127.0.0.1:4405'
 	}
 ];
 

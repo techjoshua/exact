@@ -105,7 +105,9 @@ export function adaptFrameworkComparisonSsr(raw) {
 }
 
 function orderSsrEntries(entries) {
-	const rank = new Map(['exact', 'react', 'sveltekit', 'nuxt'].map((name, index) => [name, index]));
+	const rank = new Map(
+		['exact', 'react', 'sveltekit', 'nuxt', 'tanstack-start'].map((name, index) => [name, index])
+	);
 	return Object.fromEntries(
 		Object.entries(entries).sort(
 			([left], [right]) =>

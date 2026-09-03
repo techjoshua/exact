@@ -4,11 +4,12 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "npm run build:exact && npm run build:react && npm run build:sveltekit && npm run build:nuxt",
+		"build": "npm run build:exact && npm run build:react && npm run build:sveltekit && npm run build:nuxt && npm run build:tanstack-start",
 		"build:exact": "node src/build-exact.mjs",
 		"build:react": "vite build --config participants/react/vite.config.ts && vite build --config participants/react/vite.server.config.ts",
 		"build:sveltekit": "cd participants/sveltekit && vite build",
 		"build:nuxt": "nuxt build --cwd participants/nuxt",
+		"build:tanstack-start": "vite build --config participants/tanstack-start/vite.config.ts",
 		"build:exact-native": "cd participants/exact-native && npm run build",
 		"build:react-native": "cd participants/react-native && npm run build",
 		"check": "node src/check-suite.mjs",
@@ -16,6 +17,7 @@
 		"dev:react": "node ../scripts/start-owned-vite-dev-server.mjs --config participants/react/vite.config.ts --port 4402",
 		"dev:sveltekit": "node ../scripts/start-owned-vite-dev-server.mjs --root participants/sveltekit --port 4403",
 		"dev:nuxt": "node ../scripts/start-owned-development-command.mjs --label \"Nuxt framework comparison\" -- node node_modules/nuxt/bin/nuxt.mjs dev participants/nuxt --port 4404",
+		"dev:tanstack-start": "node ../scripts/start-owned-vite-dev-server.mjs --config participants/tanstack-start/vite.config.ts --port 4405",
 		"start:exact-native": "node participants/exact-native/dist/server/start.js",
 		"start:react-native": "cd participants/react-native && npm run start",
 		"measure": "npm run test:e2e && node src/measure.mjs --correctness-passed",
@@ -30,7 +32,7 @@
 		"test": "node --test test/*.test.mjs",
 		"test:e2e": "npm run build && playwright test -c playwright.config.ts",
 		"test:native": "npm run build:exact-native && npm run build:react-native && playwright test -c playwright.native.config.ts",
-		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck"
+		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/tanstack-start/tsconfig.json --noEmit && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck"
 	},
 	"dependencies": {
 		"@exactjs/bun-adapter": "^0.1.0",
@@ -49,6 +51,9 @@
 		"@sveltejs/adapter-node": "^5.5.7",
 		"@sveltejs/kit": "^2.70.2",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
+		"@tanstack/react-router": "1.170.32",
+		"@tanstack/react-start": "1.168.49",
+		"nitro": "3.0.260610-beta",
 		"nuxt": "^4.5.2",
 		"react": "19.2.0",
 		"react-dom": "19.2.0",
@@ -60,6 +65,7 @@
 		"@playwright/test": "^1.52.0",
 		"@types/react": "^19.2.17",
 		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "6.1.1",
 		"prettier-plugin-svelte": "^4.1.1",
 		"source-map-js": "^1.2.1",
 		"svelte-check": "^4.7.5",

@@ -121,6 +121,7 @@ function frameworkLabel(name) {
 	if (normalized === 'react') return 'React';
 	if (normalized === 'sveltekit') return 'SvelteKit';
 	if (normalized === 'nuxt') return 'Nuxt';
+	if (normalized === 'tanstack-start') return 'TanStack Start';
 	return escapeCell(name);
 }
 

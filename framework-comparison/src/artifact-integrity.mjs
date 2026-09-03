@@ -21,6 +21,19 @@ export function hashSemanticResponse(value) {
 	return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+/**
+ * Hashes complete SSR bytes after removing only TanStack Router's request-time match timestamps.
+ * The timestamps govern client staleness but do not describe application output; response length and
+ * every other byte remain independently checked by the SSR harness.
+ */
+export function hashStableSsrResponse(bytes) {
+	const source = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+	if (!source.includes(Buffer.from('name="framework-participant" content="tanstack-start"')))
+		return createHash('sha256').update(source).digest('hex');
+	const normalized = source.toString('utf8').replace(/\bu:\d+(?=,s:)/gu, 'u:<request-time>');
+	return createHash('sha256').update(normalized).digest('hex');
+}
+
 async function allFiles(directory) {
 	const result = [];
 	for (const entry of await readdir(directory, { withFileTypes: true })) {
