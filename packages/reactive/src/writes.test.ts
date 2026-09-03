@@ -8,6 +8,7 @@ import {
 	registerReactiveListKey,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
+	unwrap,
 	watch,
 	writeReactive,
 	writeReactiveLazy
@@ -178,6 +179,27 @@ describe('@exactjs/reactive writes', () => {
 		expect(writeIndexedReactiveValue(state, 1, 3)).toBe(3);
 		expect(state.count).toBe(3);
 		expect(() => writeIndexedReactiveValue(state, 2, 1)).toThrow('invalid indexed slot');
+	});
+
+	it('does not peek before the indexed storage commit', () => {
+		const state = indexedReactive<{ count: number }>(['count']);
+		state.count = 2;
+		const target = unwrap(state);
+		let reads = 0;
+		Object.defineProperty(target, 'count', {
+			configurable: true,
+			enumerable: true,
+			get() {
+				reads++;
+				return 2;
+			}
+		});
+
+		expect(writeIndexedReactiveValue(state, 0, 3)).toBe(3);
+		// The commit reads once for comparison and indexed storage reads once for mutation bookkeeping.
+		// A preliminary compiler-hook peek would make this three reads without changing semantics.
+		expect(reads).toBe(2);
+		expect(state.count).toBe(3);
 	});
 
 	it('delegates array mutations while rejecting non-array compiler targets', () => {

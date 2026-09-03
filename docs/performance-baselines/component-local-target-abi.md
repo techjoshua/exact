@@ -3100,3 +3100,34 @@ response-decomposition, equal-payload, preloaded, service-phase, retention, satu
 Bun diagnostic table. Raw evidence and normalization output are preserved under
 `.tmp/direct-child-slots`; focused heap, lifecycle, interaction, and alternating CPU evidence are in
 the same directory and `.tmp/client-heap-analysis`.
+
+### Single-peek indexed writes
+
+The compiler's indexed assignment hook previously performed a preliminary state-slot peek before
+calling the commit helper. Because JavaScript evaluates call arguments before entering the hook,
+that peek could not provide pre-right-hand-side validation or ordering. The commit already reads for
+comparison, and indexed storage reads for mutation bookkeeping; deleting the preliminary peek
+reduces the complete write from three stored-slot reads to two without changing dependency identity,
+dirty-operation routing, or the reactive write transaction.
+
+The complete comparison reduces 1x startup used heap from 2,370,876 to 2,370,016 bytes, an exact
+860-byte reduction across all percentiles. Decoded and executed client code each fall by 8 bytes;
+gzip falls by 2 bytes while Brotli grows by 76 bytes. Parsed, compiled, profiled, and invoked
+function counts are unchanged. The ordinary post-interaction heap point falls only 16 bytes, but two
+100-pair focused populations reproduce the 860-byte startup reduction in both orders. Fifty rounds
+of 1,000 filter updates improve the paired mean by 0.72 ms, with both execution orders favorable.
+Single optimistic-feedback measurements reverse direction between repeats, and the full comparison
+fails control dispersion, so no general timing claim is attached to the change.
+
+The current and directly interleaved Exact-before Node server entries are byte-identical and have
+the same SHA-256 hash. Their ordinary concurrent p50 differs by -1.32%, and their saturation p50
+differences range from -2.14% to +1.02%, directly quantifying environmental movement rather than a
+server regression. Current ordinary Node c16 p50 is 2,111 requests/second for Exact versus 2,138 for
+React. Exact's 3,794-byte response and server implementation are unchanged.
+
+`npm run performance:check` passed after its full release prerequisite, followed by all 28 shared
+browser correctness scenarios and 50 balanced round-interleaved browser, startup, Node SSR, and Bun
+diagnostic populations. The
+[complete grouped-percentile report](component-local-target-abi/single-peek-indexed-writes.md)
+contains every required framework table. Raw evidence and normalization output are under
+`.tmp/indexed-write-single-peek`.

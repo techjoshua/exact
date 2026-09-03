@@ -99,8 +99,7 @@ export function deleteReactiveValue(target: object, path: readonly PropertyKey[]
 /** Compiler hook that assigns a value to one proven top-level state slot. */
 export function writeIndexedReactiveValue(target: object, index: number, next: unknown): unknown {
 	// The target expression is evaluated before `next` at the generated call site. The numeric slot
-	// is compiler-proven, so a separate RHS thunk is unnecessary for assignment ordering.
-	peekIndexedReactiveSlot(target, index);
+	// is compiler-proven, and the commit owns previous-value comparison and validation.
 	commitIndexedReactiveWrite(target, index, next);
 	return next;
 }
