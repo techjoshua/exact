@@ -91,6 +91,7 @@ const publication = measurementPublication(participantMetadata, 'SSR');
 const output = outputPath();
 const timedCheckpoint = ssrTimedCheckpointPath(output);
 const createdAt = new Date().toISOString();
+const workingTreeDirtyAtStart = gitStatusDirty();
 const service = await startComparisonServer();
 
 try {
@@ -160,7 +161,7 @@ try {
 			retentionBatches,
 			retentionBatchSize,
 			percentiles: ['p50', 'p75', 'p95', 'p99'],
-			workingTreeDirty: gitStatusDirty()
+			workingTreeDirty: workingTreeDirtyAtStart
 		},
 		artifacts,
 		historicalArtifacts,
