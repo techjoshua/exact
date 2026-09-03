@@ -229,7 +229,13 @@ function validateDirectEnvelope(source: unknown[], depth: number, state: Validat
 const positionalMismatch = Symbol('positional-mismatch');
 const positionalUnsafe = Symbol('positional-unsafe');
 
-/** Validates authored values while constructing their compiler-proven positional cells. */
+/**
+ * Reads compiler-declared fields once while constructing their final positional cells.
+ *
+ * The schema fixes every visited key and the output contains only newly created arrays, so normal
+ * property access is sufficient here. Generic values outside this compiler-owned conversion keep
+ * the descriptor-safe validation path.
+ */
 function validatePositionalValue(
 	value: unknown,
 	schema: ExactValueSerializationSchema,
@@ -250,10 +256,9 @@ function validatePositionalValue(
 				return positionalMismatch;
 			const output = new Array<unknown>(value.length);
 			for (let index = 0; index < value.length; index++) {
-				const descriptor = Object.getOwnPropertyDescriptor(value, index);
-				if (!descriptor || !('value' in descriptor)) return positionalMismatch;
+				if (!Object.hasOwn(value, index)) return positionalMismatch;
 				if (state.path) pushValidationPath(state.path, String(index), true);
-				const encoded = validatePositionalValue(descriptor.value, schema[1], depth + 1, state);
+				const encoded = validatePositionalValue(value[index], schema[1], depth + 1, state);
 				if (encoded === positionalMismatch || encoded === positionalUnsafe) return encoded;
 				output[index] = encoded;
 				if (state.path) popValidationPath(state.path);
@@ -267,11 +272,10 @@ function validatePositionalValue(
 		const output = new Array<unknown>(fieldCount);
 		for (let schemaIndex = 1, outputIndex = 0; schemaIndex < schema.length; schemaIndex += 2) {
 			const field = schema[schemaIndex] as string;
-			const descriptor = Object.getOwnPropertyDescriptor(value, field);
-			if (!descriptor || !('value' in descriptor)) return positionalMismatch;
+			if (!Object.hasOwn(value, field)) return positionalMismatch;
 			if (state.path) pushValidationPath(state.path, field, false);
 			const encoded = validatePositionalValue(
-				descriptor.value,
+				(value as Record<string, unknown>)[field],
 				schema[schemaIndex + 1] as ExactValueSerializationSchema,
 				depth + 1,
 				state

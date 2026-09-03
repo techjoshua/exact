@@ -86,4 +86,30 @@ describe('SSR resumption capture construction', () => {
 
 		expect(records).toEqual([['component'], ['component', [[0, 'ready']]]]);
 	});
+
+	it('reads direct storage normally while leaving nested authored accessors unobserved', () => {
+		const capture = createDirectSsrResumptionCapture({});
+		const contract = {
+			resumption: {
+				statePaths: ['status', 'profile.name'],
+				stateInputs: [],
+				contexts: []
+			},
+			continuations: []
+		} as never;
+		const rootRead = vi.fn(() => 'ready');
+		const nestedRead = vi.fn(() => 'Ada');
+		const profile = {} as { name: string };
+		Object.defineProperty(profile, 'name', { enumerable: true, get: nestedRead });
+		const state = { profile } as { status: string; profile: { name: string } };
+		Object.defineProperty(state, 'status', { enumerable: true, get: rootRead });
+		const resumptionCapture = capture.options.resumptionCapture!;
+
+		const token = resumptionCapture.reserveDirect('component', contract)!;
+		resumptionCapture.publishDirect(token, {}, state, {});
+
+		expect(capture.serializedRecords()).toEqual([['component', [[0, 'ready']]]]);
+		expect(rootRead).toHaveBeenCalledTimes(1);
+		expect(nestedRead).not.toHaveBeenCalled();
+	});
 });

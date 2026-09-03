@@ -490,10 +490,11 @@ compiler-indexed state directly into final compact tuples. Hydration publication
 tuples into one request-owned, versioned positional envelope without reconstructing named records
 or passing through the optional output-extension host. A presence mask fixes the order of optional
 framework fields; unknown bits, missing values, and trailing values fail closed. Framework-created
-envelope and tuple containers are structurally known to the validator, while every authored value
-nested inside them still receives descriptor-safe traversal before native JSON serialization.
-Selecting an output extension retains the explicit generic transformation boundary, keyed envelope,
-and named public resumption view.
+envelope and tuple containers are structurally known to the validator. Compiler-declared positional
+fields are read once with ordinary property semantics while their getter-free tuple representation
+is constructed; nested open values retain descriptor-safe traversal. Selecting an output extension
+retains the explicit generic transformation boundary, keyed envelope, and named public resumption
+view.
 
 ## Runtime inventory
 

@@ -3248,3 +3248,50 @@ balanced 50-round browser, startup, Node SSR, and Bun diagnostic populations. Th
 [complete grouped-percentile report](component-local-target-abi/compact-dependency-ownership.md)
 contains every required framework table. Raw full-run and normalization evidence is under
 `.tmp/compact-dependency-owner`; focused alternating evidence is preserved alongside it.
+
+### Compiler-owned hydration reads
+
+The direct SSR executor previously used the generic descriptor-safe reader for compiler-owned
+top-level state, prop, and published-root fields, and positional hydration construction repeated
+that descriptor inspection for every compiler-declared array slot and object field. The direct path
+now reads each declared field once with ordinary JavaScript property semantics while constructing
+new getter-free positional arrays. Nested authored resumption values, generic hydration values, and
+extension values retain descriptor-safe validation. Generic resumption capture is unchanged.
+
+Instrumented comparison renders reduce `Object.getOwnPropertyDescriptor` calls from 57 to 6. The
+six remaining calls are all nested authored fields and deliberately remain defensive. After an
+allocation-free own-property guard was restored, all 20 focused alternating pairs still favored the
+candidate: median sampled allocation fell from 3,762,904 to 3,336,568 bytes per 100-render batch,
+with a 12.32% geometric paired reduction. The descriptor site fell from a 535,784-byte median to
+57,736 bytes. A separate 50-pair render population favored the candidate in 33 pairs and in both
+execution orders, with a 2.66% geometric reduction. The complete profile records 3,105,832 bytes
+versus the preceding checkpoint's 3,297,832 bytes. React also moves from 7,208,376 to 6,903,704
+bytes in that cross-run sample, so the 5.8% raw full-profile reduction is supporting evidence rather
+than the causal estimate. Complete-run render-only p50 moves from 0.0326 to 0.0340 ms while React
+also slows; the direct alternating population resolves that contradictory cross-run movement.
+
+The same-run interleaved prior Exact artifact shows no material Node capacity tradeoff. Ordinary c16
+p50 improves 0.44%. Saturation p50 changes by -1.44%, -0.70%, +0.11%, +0.64%, -0.25%, and -0.81%
+at c1/c4/c8/c16/c32/c64. The renderer-isolating preloaded lane changes +0.66%, +1.93%, and -1.29%
+at c8/c32/c64; equal-8-KiB changes -0.66%, -1.84%, and -1.18%. Current Exact exceeds React at Node
+saturation c32 and c64, 2,470 versus 2,427 and 2,407 versus 2,351 requests/second, while ordinary
+c16 is effectively tied at 2,116 versus 2,121 requests/second. Bun remains diagnostic: its direct
+prior/current p50 comparisons range from +0.80% to -1.54%, with no consistent improvement.
+
+This server-only change leaves client output, executed code, invoked functions, warm retained heap,
+and 1x startup heap unchanged at 197,086 transferred bytes, 100,605 executed bytes, 534 invoked
+functions, 2,508,200 warm heap bytes, and 2,366,668 startup heap bytes. Control-normalized 1x
+evaluation is 17.663 ms versus 18.037 ms before, while 4x is flat and 6x improves; those timing
+movements are environmental evidence rather than an attributed client effect. Optimistic feedback
+remains 1.6 ms p50. The response remains exactly 3,794 bytes. The Node server artifact grows by 959
+raw, 240 gzip, and 246 Brotli bytes, which is acceptable for the measured allocation reduction and
+effectively neutral Node capacity.
+
+`npm run performance:check` passed after its complete release prerequisite, followed by all 28
+shared browser correctness scenarios and balanced 50-round browser, startup, Node SSR, and Bun
+diagnostic populations. The untimed startup source-attribution pass could not load the omitted
+production source map; timed startup, precise coverage, function inventory, heap, and all SSR lanes
+are complete. The
+[complete grouped-percentile report](component-local-target-abi/compiler-owned-hydration-reads.md)
+contains every required framework table and the direct interleaved prior/current capacity tables.
+Immutable raw evidence and normalization output are under `.tmp/hydration-generated-trust`.

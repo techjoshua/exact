@@ -32,7 +32,8 @@ the client root, passing the compiled root component as the first argument. Fini
 shapes may use a component-bound positional payload; structurally open or mismatched values retain
 the named-object format. Compiler-proven state initialized directly from those props is then
 published only once; derived or subsequently changed state remains in its component resumption
-record.
+record. Positional publication reads each compiler-declared field once with ordinary JavaScript
+property semantics, so serializable input getters must be deterministic and free of side effects.
 
 Generated server entries pass their bundle-local enhancement catalog through render
 options. Available declarations run as ordinary server components; absent optional capabilities

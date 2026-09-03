@@ -61,14 +61,54 @@ export function captureStateEntries(
 	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
 	cell: ReactiveOwnPropertyReadCell
 ): IndexedResumptionEntry[] {
+	return captureStateEntriesWithRootReads(
+		rootInput,
+		state,
+		props,
+		schema,
+		publishedRootProps,
+		cell,
+		false
+	);
+}
+
+/** Captures state from compiler-owned direct-executor storage without generic top-level reads. */
+export function captureDirectStateEntries(
+	rootInput: boolean,
+	state: Record<string, unknown>,
+	props: Record<string, unknown>,
+	schema: SsrResumptionSchema,
+	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
+	cell: ReactiveOwnPropertyReadCell
+): IndexedResumptionEntry[] {
+	return captureStateEntriesWithRootReads(
+		rootInput,
+		state,
+		props,
+		schema,
+		publishedRootProps,
+		cell,
+		true
+	);
+}
+
+function captureStateEntriesWithRootReads(
+	rootInput: boolean,
+	state: unknown,
+	props: unknown,
+	schema: SsrResumptionSchema,
+	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
+	cell: ReactiveOwnPropertyReadCell,
+	directRoots: boolean
+): IndexedResumptionEntry[] {
 	const entries: IndexedResumptionEntry[] = [];
 	try {
 		for (const field of schema.state) {
-			if (!readPath(state, field.segments, cell) || cell.value === undefined) continue;
+			if (!readPath(state, field.segments, cell, directRoots) || cell.value === undefined) continue;
 			const stateValue = cell.value;
 			if (field.hasDefault && Object.is(stateValue, field.defaultValue)) continue;
 			if (field.propSegments) {
-				if (!readPath(props, field.propSegments, cell)) {
+				if (!readPath(props, field.propSegments, cell, directRoots)) {
 					entries.push([field.index, stateValue]);
 					continue;
 				}
@@ -77,7 +117,7 @@ export function captureStateEntries(
 					if (!rootInput) continue;
 					if (
 						publishedRootProps &&
-						readPath(publishedRootProps, field.propSegments, cell) &&
+						readPath(publishedRootProps, field.propSegments, cell, directRoots) &&
 						Object.is(localValue, cell.value)
 					)
 						continue;
@@ -143,17 +183,22 @@ function projectEntries(
 function readPath(
 	value: unknown,
 	segments: readonly string[],
-	cell: ReactiveOwnPropertyReadCell
+	cell: ReactiveOwnPropertyReadCell,
+	directRoot = false
 ): boolean {
 	let cursor = value;
-	for (const segment of segments) {
-		if (
-			!safeSegment(segment) ||
-			!cursor ||
-			typeof cursor !== 'object' ||
-			!readReactiveOwnPropertyInto(cursor, segment, cell)
-		)
-			return false;
+	let index = 0;
+	if (directRoot) {
+		const segment = segments[0];
+		if (!segment || !safeSegment(segment) || !cursor || typeof cursor !== 'object') return false;
+		cell.value = (cursor as Record<string, unknown>)[segment];
+		cursor = cell.value;
+		index = 1;
+	}
+	for (; index < segments.length; index++) {
+		const segment = segments[index]!;
+		if (!safeSegment(segment) || !cursor || typeof cursor !== 'object') return false;
+		if (!readReactiveOwnPropertyInto(cursor, segment, cell)) return false;
 		cursor = cell.value;
 	}
 	cell.value = cursor;

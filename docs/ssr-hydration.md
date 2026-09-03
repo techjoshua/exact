@@ -135,11 +135,14 @@ component. This preserves nearest-provider and ambient-request lookup while allo
 children or explicit foreign compatibility values to retain their owning serializer when their
 output topology is not compiler-closed.
 
-Hydration publication validates the original payload graph before compaction or encoding, including
-depth, node-count, prototype, descriptor, cycle, and accessor restrictions. Serialization then
-encodes validated reactive collections through the JSON replacer instead of first constructing a
-second encoded object graph. The byte limit is computed over the exact escaped UTF-8 payload without
-allocating an intermediate byte array.
+Compiler-closed hydration publication reads each compiler-declared positional field once while it
+constructs the final getter-free tuple arrays. That pass enforces the schema, cycle, depth, and node
+limits without allocating property descriptors; a getter on a declared authored field therefore
+uses ordinary JavaScript semantics and runs once. Structurally open values and output-extension
+results retain descriptor-safe prototype and accessor validation. Serialization encodes validated
+reactive collections through the JSON replacer instead of first constructing a second encoded
+object graph. The byte limit is computed over the exact escaped UTF-8 payload without allocating an
+intermediate byte array.
 
 After output extensions choose the rendered root, SSR reuses a root-keyed immutable contract
 blueprint for components reached beneath that root, including dynamic components on first use. It
