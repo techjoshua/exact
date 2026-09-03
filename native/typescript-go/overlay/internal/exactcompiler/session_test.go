@@ -5466,7 +5466,7 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 		"activateTaskForHost as __exactActivateTask",
 		"defineTask as __exactDefineTask",
 		"__exactActivateTask(this, __exactDefineTask(",
-		"__exactActivationDependency(() => this.state.revision)",
+		"__exactIndexedActivationDependency(this.state, 0)",
 		"async (revision: number, task: TaskContext)",
 		"__exactTaskAwait(task.signal, delay(task.signal))",
 	} {

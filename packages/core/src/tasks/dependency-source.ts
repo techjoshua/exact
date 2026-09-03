@@ -1,7 +1,10 @@
 import {
 	isReactiveValue,
+	peekIndexedReactiveSlot,
+	reactiveIndexedDependencies,
 	ref as reactiveRef,
 	subscribe,
+	subscribeKeys,
 	unwrap,
 	watch,
 	type ReactiveRef,
@@ -62,7 +65,7 @@ export function constantContinuationDependency<T>(value: T): ContinuationDepende
 export function activationInputDependency<T>(
 	input: T | ReactiveValue<T> | ContinuationDependencySource<T>
 ): ContinuationDependencySource<T> {
-	if (trackedContinuationDependencies.has(input as object))
+	if (compilerContinuationDependencies.has(input as object))
 		return input as ContinuationDependencySource<T>;
 	const value = input as T | ReactiveValue<T>;
 	const planned = continuationDependencyForValue(value);
@@ -84,7 +87,17 @@ export function createTrackedContinuationDependency<T>(
 	compute: () => T
 ): ContinuationDependencySource<T> {
 	const dependency = new TrackedContinuationDependency(compute);
-	trackedContinuationDependencies.add(dependency);
+	compilerContinuationDependencies.add(dependency);
+	return dependency;
+}
+
+/** Creates a compiler-owned dependency source for one exact indexed state or prop slot. */
+export function createIndexedContinuationDependency<T = never>(
+	input: object,
+	index: number
+): ContinuationDependencySource<T> {
+	const dependency = new IndexedContinuationDependency<T>(input, index);
+	compilerContinuationDependencies.add(dependency);
 	return dependency;
 }
 
@@ -169,7 +182,7 @@ function reactiveContinuationDependency<T>(
 
 const inertDisposable: Disposable = { [Symbol.dispose]() {} };
 
-const trackedContinuationDependencies = new WeakSet<object>();
+const compilerContinuationDependencies = new WeakSet<object>();
 
 class TrackedContinuationDependency<T> implements ContinuationDependencySource<T> {
 	private initialized = false;
@@ -214,6 +227,41 @@ class TrackedContinuationDependency<T> implements ContinuationDependencySource<T
 			this.stop = undefined;
 			this.notify = undefined;
 		});
+	}
+}
+
+class IndexedContinuationDependency<T> implements ContinuationDependencySource<T> {
+	private readonly target: object;
+	private readonly key: PropertyKey;
+	private version = 0;
+
+	constructor(
+		private readonly input: object,
+		private readonly index: number
+	) {
+		const dependency = reactiveIndexedDependencies(input, [index]);
+		if (!dependency)
+			throw new TypeError('Indexed continuation dependency referenced an invalid reactive slot');
+		this.target = dependency.target;
+		this.key = dependency.keys[0]!;
+	}
+
+	read(): ContinuationDependencySnapshot<T> {
+		return {
+			status: 'available',
+			generation: 0,
+			version: this.version,
+			value: peekIndexedReactiveSlot(this.input, this.index) as T
+		};
+	}
+
+	subscribe(notify: () => void): Disposable {
+		return disposable(
+			subscribeKeys(this.target, [this.key], () => {
+				this.version++;
+				notify();
+			})
+		);
 	}
 }
 

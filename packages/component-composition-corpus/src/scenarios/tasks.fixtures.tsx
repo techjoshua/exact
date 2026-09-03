@@ -46,3 +46,36 @@ export function taskOwner(): Component<TaskState> {
 	if (!mountedTaskOwner) throw new Error('Task scenario is not mounted');
 	return mountedTaskOwner;
 }
+
+type IndexedTaskState = { direct: number; derived: number };
+
+function IndexedTaskDependencies(this: Component<IndexedTaskState>, props: { revision: number }) {
+	this.state.direct = 0;
+	this.state.derived = 0;
+	const observeDirect = async (
+		revision: number,
+		_task: TaskContext = TaskContext.client().blocking()
+	) => {
+		void _task;
+		this.state.direct = revision;
+	};
+	const observeDerived = async (
+		revision: number,
+		_task: TaskContext = TaskContext.client().blocking()
+	) => {
+		void _task;
+		this.state.derived = revision;
+	};
+	void observeDirect(props.revision);
+	void observeDerived(props.revision + 1);
+	return () => (
+		<output data-scenario="indexed-task-dependencies">
+			{this.state.direct}:{this.state.derived}
+		</output>
+	);
+}
+
+/** Creates a root covering exact and arbitrary compiler-owned task dependency sources. */
+export const indexedTaskDependenciesRoot = (revision: number) => (
+	<IndexedTaskDependencies revision={revision} />
+);

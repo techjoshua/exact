@@ -69,6 +69,7 @@ type jsxRuntimeNames struct {
 	clientProps                string
 	derived                    string
 	activationDependency       string
+	indexedDependency          string
 	peek                       string
 	readState                  string
 	writeState                 string
@@ -332,6 +333,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"createKeyedServerSlot", lowering.names.keyedServerSlot, runtimeRender},
 		{"createDerived", lowering.names.derived, runtimeReactivity},
 		{"createTrackedContinuationDependency", lowering.names.activationDependency, runtimeTasks},
+		{"createIndexedContinuationDependency", lowering.names.indexedDependency, runtimeTasks},
 		{"peek", lowering.names.peek, runtimeReactivity},
 		{"readIndexedReactiveSlot", lowering.names.readState, runtimeReactivity},
 		{"writeIndexedReactiveValue", lowering.names.writeState, runtimeReactivity},
@@ -949,6 +951,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		clientProps:                allocate("__exactElementProps"),
 		derived:                    allocate("__exactDerived"),
 		activationDependency:       allocate("__exactActivationDependency"),
+		indexedDependency:          allocate("__exactIndexedActivationDependency"),
 		peek:                       allocate("__exactPeek"),
 		readState:                  allocate("__exactReadState"),
 		writeState:                 allocate("__exactWriteState"),

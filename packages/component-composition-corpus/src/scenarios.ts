@@ -100,7 +100,12 @@ export const corpusScenarios = [
 		description:
 			'A compiler-defined task updates client state and settles during server rendering.',
 		fixture: 'tasks.fixtures.tsx',
-		compilerPaths: ['task-capability', 'defined-function-task-reuse', 'async-task-ssr'],
+		compilerPaths: [
+			'task-capability',
+			'defined-function-task-reuse',
+			'indexed-task-dependency-source',
+			'async-task-ssr'
+		],
 		modes: ['client-mount', 'client-update', 'ssr-async', 'ssr-progressive']
 	},
 	{

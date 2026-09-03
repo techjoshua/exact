@@ -24,7 +24,7 @@ import {
 	stateRoot
 } from './scenarios/state.fixtures.js';
 import { structureOwner, structureRoot } from './scenarios/structure.fixtures.js';
-import { taskRoot } from './scenarios/tasks.fixtures.js';
+import { indexedTaskDependenciesRoot, taskRoot } from './scenarios/tasks.fixtures.js';
 
 const containers: Element[] = [];
 
@@ -159,6 +159,16 @@ describe('composition corpus client behavior', () => {
 				};
 			})
 			.toEqual({ status: 'ready', runs: '2' });
+	});
+
+	it('reactivates exact and arbitrary task inputs after a prop replacement', async () => {
+		const container = mount(indexedTaskDependenciesRoot(2));
+		const output = container.querySelector('output')!;
+		await expect.poll(() => output.textContent).toBe('2:3');
+
+		render(indexedTaskDependenciesRoot(4), container);
+		await expect.poll(() => output.textContent).toBe('4:5');
+		expect(container.querySelector('output')).toBe(output);
 	});
 
 	it('routes intrinsic and component enhancements to their semantic targets', () => {

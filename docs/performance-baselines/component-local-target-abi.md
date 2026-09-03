@@ -3175,3 +3175,43 @@ response-decomposition, equal-payload, preloaded, service-phase, retention, satu
 Bun diagnostic table. Raw full-run and normalization evidence is under
 `.tmp/computed-owner-fusion`; focused alternating evidence is under
 `.tmp/computed-value-shared-methods`.
+
+### Compiler-proven indexed task dependency sources
+
+Task activation inputs that are exactly one compiler-proven indexed state or prop read previously
+created a reader closure and a tracked reactive computation. The compiler now emits a focused
+indexed continuation dependency for those reads. It reuses the receiving component's indexed
+dependency identity and subscribes directly to that slot; derived and arbitrary expressions retain
+their executable readers and tracked computation owners. The immutable helper selection remains in
+compiled component code, while the dependency source retains only request- or instance-owned values
+for its own lifetime.
+
+The candidate was refined through two rejected variants. A public reactive-value facade increased
+retained heap by 824 bytes, so it was removed. A lower-level subscription API intended to eliminate
+temporary setup arrays added reachable code and reduced the heap benefit to 432 bytes; allocation
+profiles showed that the short-lived arrays were not the retained cost, so that variant was also
+removed. The focused final comparison alternated the accepted and candidate artifacts for 50 pairs:
+all 50 measured exactly 1,204 fewer retained bytes, with three fewer profiled and invoked functions
+and 141 fewer executed bytes. CPU ratios split by order and do not support a timing claim.
+
+The complete 50-round framework comparison measures 2,509,664 bytes of warm used heap and 2,367,896
+bytes at 1x startup, reductions of 936 bytes from the raw accepted-before values. Decoded client code
+falls from 196,855 to 196,549 bytes, executed code from 100,593 to 100,328 bytes, profiled functions
+from 1,136 to 1,133, and invoked functions from 537 to 534. Raw, gzip, and Brotli client artifacts
+all fall. Optimistic feedback remains in the same 1.6 ms p50 bucket and has a worse p95, while
+control-normalized startup evaluation changes direction by throttle and percentile; neither is
+attributed to this specialization.
+
+The current and accepted-before Node server entries are byte-identical, as are the Bun entries, and
+Exact's response remains 3,794 bytes. Current ordinary Node concurrent p50 is 2,084 requests/second
+for Exact versus 2,170 for React, approximately 4.0% behind. Because this slice emits no server-code
+change, its server timing and RPS movements quantify environmental variation rather than an
+implementation effect.
+
+`npm run performance:check` passed after its complete release prerequisite, including 1,967 package
+tests, the 335-file native compiler corpus, every application build, all 28 shared browser scenarios,
+and the balanced 50-round browser, startup, Node SSR, and Bun diagnostic populations. The
+[complete grouped-percentile report](component-local-target-abi/indexed-task-dependency-sources.md)
+contains every required framework table. Raw full-run and normalization evidence is under
+`.tmp/indexed-task-dependency-accepted`; focused alternating evidence is under
+`.tmp/property-operands-combined/indexed-task-direct-source-browser-50`.

@@ -158,6 +158,12 @@ export const compilerPathInventory = [
 		['client-mount', 'client-update']
 	),
 	path(
+		'indexed-task-dependency-source',
+		'specialized',
+		'Compiler-proven task inputs subscribe to their exact indexed state or prop slot.',
+		['client-mount', 'client-update']
+	),
+	path(
 		'compact-render-abi',
 		'specialized',
 		'Components without durable capabilities use the compact ABI.',
