@@ -3215,3 +3215,36 @@ and the balanced 50-round browser, startup, Node SSR, and Bun diagnostic populat
 contains every required framework table. Raw full-run and normalization evidence is under
 `.tmp/indexed-task-dependency-accepted`; focused alternating evidence is under
 `.tmp/property-operands-combined/indexed-task-direct-source-browser-50`.
+
+### Compact dependency ownership
+
+Each reactive dependency previously allocated a `Set` for its first subscriber and kept a separate
+WeakMap from dependency identity to its target and key. The dependency now owns that immutable
+identity directly and stores either no subscriber, one scalar subscriber, or a `Set` only after a
+second subscriber arrives. Removing a subscriber demotes the population back to its compact scalar
+form. Observation transitions, dependency cleanup, atomic-trigger deduplication, and stable
+scheduling snapshots retain their existing semantics.
+
+The focused 50-pair alternating comparison measured exactly 1,088 fewer retained bytes in every
+pair and in both execution orders. The complete 50-round comparison reproduces the reduction with
+2,508,200 bytes of warm used heap and 2,366,668 bytes at 1x startup, respectively 1,464 and 1,228
+bytes below the raw accepted-before values. Function inventories are unchanged at 1,133 profiled
+and 534 invoked functions. The implementation costs 237 raw client bytes, 65 gzip bytes, 23 Brotli
+bytes, and 277 executed bytes. Startup and interaction timings vary by execution order and do not
+support a speed claim; the change is accepted for its deterministic retained-heap reduction.
+
+The Exact Node and Bun server artifacts are byte-identical to the accepted-before artifacts, and
+the response remains 3,794 bytes. Current Node render-only p50 is 0.0326 ms versus React's 0.0236
+ms. Exact saturation p50 is 2,354 requests/second at c8, 2,292 at c32, and 2,291 at c64, versus
+React's 2,458, 2,439, and 2,409. An anomalously low ordinary c16 population is contradicted by the
+byte-identical interleaved Exact-before worker, so it is retained as environmental evidence rather
+than attributed to this client-only change. Sampled Exact render allocation falls from 3,373,328
+to 3,297,832 bytes per 100-render profiling batch, but unchanged server artifacts likewise prevent
+an implementation claim.
+
+`npm run performance:check` passed after its complete release prerequisite, including 1,968 package
+tests, the native compiler corpus, every application build, all shared browser scenarios, and the
+balanced 50-round browser, startup, Node SSR, and Bun diagnostic populations. The
+[complete grouped-percentile report](component-local-target-abi/compact-dependency-ownership.md)
+contains every required framework table. Raw full-run and normalization evidence is under
+`.tmp/compact-dependency-owner`; focused alternating evidence is preserved alongside it.

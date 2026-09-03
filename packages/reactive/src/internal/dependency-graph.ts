@@ -1,7 +1,6 @@
 import type { Dep, Reaction } from './types.js';
 
 const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
-const depOwners = new WeakMap<Dep, ReactiveDependency>();
 const depObservationHooks = new WeakMap<object, Map<PropertyKey, DependencyObservationHooks>>();
 const reactionStack: Reaction[] = [];
 const trackingPauseFloors: number[] = [];
@@ -51,23 +50,23 @@ export function linkReaction(reaction: Reaction, target: object, key: PropertyKe
 
 /** Adds a reaction to an existing dependency set while preserving observer-count transitions. */
 export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
-	if (dep.has(reaction)) return;
-	const wasEmpty = dep.size === 0;
-	dep.add(reaction);
+	const subscribers = dep.subscribers;
+	if (subscribers === reaction || (subscribers instanceof Set && subscribers.has(reaction))) return;
+	const wasEmpty = subscribers === undefined;
+	dep.subscribers =
+		subscribers === undefined
+			? reaction
+			: subscribers instanceof Set
+				? subscribers.add(reaction)
+				: new Set([subscribers, reaction]);
 	reaction.deps.push(dep);
-	const owner = depOwners.get(dep);
-	if (wasEmpty && owner)
-		publishObservationTransition(depObservationHooks.get(owner.target)?.get(owner.key)?.onObserved);
+	if (wasEmpty)
+		publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onObserved);
 }
 
 /** Returns immutable target/key descriptors for a reaction's current dependencies. */
 export function reactionDependencies(reaction: Reaction): ReactiveDependency[] {
-	const result: ReactiveDependency[] = [];
-	for (const dep of reaction.deps) {
-		const owner = depOwners.get(dep);
-		if (owner) result.push(owner);
-	}
-	return result;
+	return reaction.deps;
 }
 
 /** Returns the dependency set for a target/key pair, creating it on first use. */
@@ -76,8 +75,8 @@ export function getDep(target: object, key: PropertyKey): Dep {
 	if (!targetDeps) deps.set(target, (targetDeps = new Map()));
 	let dep = targetDeps.get(key);
 	if (!dep) {
-		targetDeps.set(key, (dep = new Set()));
-		depOwners.set(dep, { target, key });
+		dep = { target, key };
+		targetDeps.set(key, dep);
 	}
 	return dep;
 }
@@ -85,8 +84,13 @@ export function getDep(target: object, key: PropertyKey): Dep {
 /** Removes a reaction from all dependency sets it currently belongs to. */
 export function cleanupReaction(reaction: Reaction): void {
 	for (const dep of reaction.deps) {
-		if (!dep.delete(reaction)) continue;
-		if (!dep.size) releaseEmptyDependency(dep);
+		const subscribers = dep.subscribers;
+		if (subscribers === reaction) dep.subscribers = undefined;
+		else if (subscribers instanceof Set && subscribers.delete(reaction)) {
+			if (subscribers.size === 1) dep.subscribers = subscribers.values().next().value;
+			else if (subscribers.size === 0) dep.subscribers = undefined;
+		} else continue;
+		if (dep.subscribers === undefined) releaseEmptyDependency(dep);
 	}
 	reaction.deps.length = 0;
 }
@@ -94,7 +98,10 @@ export function cleanupReaction(reaction: Reaction): void {
 /** Schedules one stable snapshot of the reactions subscribed to a dependency. */
 export function scheduleDependencyReactions(target: object, key: PropertyKey): void {
 	const dep = deps.get(target)?.get(key);
-	if (dep) for (const reaction of [...dep]) reaction.schedule();
+	const subscribers = dep?.subscribers;
+	if (subscribers instanceof Set) {
+		for (const reaction of [...subscribers]) reaction.schedule();
+	} else subscribers?.schedule();
 }
 
 /** Schedules one deduplicated subscriber snapshot for an atomic trigger collection. */
@@ -106,7 +113,10 @@ export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey
 		if (!targetDeps) continue;
 		for (const key of keys) {
 			const dep = targetDeps.get(key);
-			if (dep) for (const reaction of dep) reactions.add(reaction);
+			const subscribers = dep?.subscribers;
+			if (subscribers instanceof Set) {
+				for (const reaction of subscribers) reactions.add(reaction);
+			} else if (subscribers) reactions.add(subscribers);
 		}
 	}
 	for (const reaction of reactions) reaction.schedule();
@@ -134,13 +144,10 @@ export function peek<T>(fn: () => T): T {
 }
 
 function releaseEmptyDependency(dep: Dep): void {
-	const owner = depOwners.get(dep);
-	if (!owner) return;
-	publishObservationTransition(depObservationHooks.get(owner.target)?.get(owner.key)?.onUnobserved);
-	const targetDeps = deps.get(owner.target);
-	if (targetDeps?.get(owner.key) === dep) targetDeps.delete(owner.key);
-	if (targetDeps && !targetDeps.size) deps.delete(owner.target);
-	depOwners.delete(dep);
+	publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onUnobserved);
+	const targetDeps = deps.get(dep.target);
+	if (targetDeps?.get(dep.key) === dep) targetDeps.delete(dep.key);
+	if (targetDeps && !targetDeps.size) deps.delete(dep.target);
 }
 
 function publishObservationTransition(transition: (() => void) | undefined): void {
