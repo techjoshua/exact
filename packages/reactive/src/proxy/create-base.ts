@@ -34,6 +34,205 @@ export type ReactiveCollectionMember = (
 	wrap: (value: unknown, dependency?: PropertyKey) => unknown
 ) => unknown;
 
+type ReactiveProxyRecord = {
+	readonly options: ReactiveOptions;
+	readonly collectionMember?: ReactiveCollectionMember;
+	forwardingSet: boolean;
+	proxy?: object;
+};
+
+type ReactiveProxyHandler = ProxyHandler<object> & {
+	record: ReactiveProxyRecord;
+};
+
+/**
+ * Retains alias-specific proxy ownership while sharing the trap code across every nested proxy.
+ * A per-proxy record is required because one raw value may have several simultaneous parent paths.
+ */
+const reactiveProxyHandler: ProxyHandler<object> = {
+	get(this: ReactiveProxyHandler, target: object, key: PropertyKey, receiver: object): unknown {
+		if (key === proxyMarker) return true;
+		if (key === rawTarget) return target;
+
+		const { collectionMember, options, proxy } = this.record;
+		trackProxySources(proxy!);
+		if (target instanceof Map || target instanceof Set) {
+			if (!collectionMember)
+				throw new TypeError('Compiled object/array state received a Map or Set value');
+			return collectionMember(target, key, proxy!, options, (current, dependency) => {
+				if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
+					return current;
+				return sourcedReactive(
+					unwrap(current) as object,
+					options,
+					dependency === undefined
+						? undefined
+						: createParentSource(target, dependency, options, collectionMember),
+					collectionMember
+				);
+			});
+		}
+		const current = Reflect.get(target, key, receiver);
+		if (current && typeof current === 'object' && requiresExactProxyValue(target, key))
+			return current;
+		if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
+			return (...args: unknown[]) =>
+				mutateArray(target, String(key), current, args, receiver, options);
+		}
+		if (options.passthroughKeys?.includes(key)) {
+			track(target, key);
+			return current;
+		}
+
+		if (isReactiveValue(current)) {
+			track(target, key);
+			const currentValue = current.get();
+			const currentTarget = unwrap(currentValue);
+			return isReactiveContainer(currentTarget)
+				? sourcedReactive(
+						currentTarget,
+						options,
+						createParentSource(target, key, options, collectionMember),
+						collectionMember
+					)
+				: currentTarget;
+		}
+
+		if (current && typeof current === 'object' && isReactiveContainer(unwrap(current))) {
+			const currentTarget = unwrap(current) as object;
+			if (currentTarget === target) {
+				track(target, key);
+				return receiver;
+			}
+			const source = createParentSource(target, key, options, collectionMember);
+			return sourcedReactive(currentTarget, options, source, collectionMember);
+		}
+
+		track(target, key);
+		return current;
+	},
+
+	set(
+		this: ReactiveProxyHandler,
+		target: object,
+		key: PropertyKey,
+		next: unknown,
+		receiver: object
+	): boolean {
+		const { options } = this.record;
+		if (options.readonly) {
+			options.onReadonlyWrite?.(key);
+			return false;
+		}
+
+		const previousLength = Array.isArray(target) ? target.length : undefined;
+		const removedIndexes =
+			Array.isArray(target) && key === 'length' && typeof next === 'number' && next < target.length
+				? Array.from({ length: target.length - next }, (_, offset) => next + offset).filter(
+						(index) => Reflect.has(target, index)
+					)
+				: [];
+		const previous = Reflect.get(target, key, receiver);
+		const unwrapped = unwrap(next);
+		const hadKey = Object.prototype.hasOwnProperty.call(target, key);
+		const changed = hasChanged(previous, unwrapped);
+		const ownDescriptor = Reflect.getOwnPropertyDescriptor(target, key);
+		if (!changed && ownDescriptor && 'value' in ownDescriptor) return true;
+		const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
+		this.record.forwardingSet = true;
+		let ok: boolean;
+		try {
+			ok = Reflect.set(target, key, unwrapped, receiver);
+		} finally {
+			this.record.forwardingSet = false;
+		}
+		if (ok && undo && (!hadKey || !Object.is(previous, Reflect.get(target, key, receiver))))
+			recordTransactionUndo(undo, target, key);
+		if (ok && changed) {
+			markReactiveHashDirty(target);
+			trigger(target, key);
+			for (const index of removedIndexes) trigger(target, String(index));
+			if (
+				previousLength !== undefined &&
+				Array.isArray(target) &&
+				target.length !== previousLength &&
+				key !== 'length'
+			)
+				trigger(target, 'length');
+			if (!hadKey || isArrayStructureKey(target, key)) trigger(target, iterateKey);
+			notifyMutation(options, key, 'set');
+		}
+		return ok;
+	},
+
+	defineProperty(
+		this: ReactiveProxyHandler,
+		target: object,
+		key: PropertyKey,
+		descriptor: PropertyDescriptor
+	): boolean {
+		const { options } = this.record;
+		if (this.record.forwardingSet) return Reflect.defineProperty(target, key, descriptor);
+		if (options.readonly) {
+			options.onReadonlyWrite?.(key);
+			return false;
+		}
+		const previous = Reflect.getOwnPropertyDescriptor(target, key);
+		if (samePropertyDescriptor(previous, descriptor)) return true;
+		const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
+		const oldLength = Array.isArray(target) ? target.length : undefined;
+		const ok = Reflect.defineProperty(target, key, normalizeDescriptor(descriptor));
+		if (!ok) return false;
+		if (undo) recordTransactionUndo(undo, target, key);
+		markReactiveHashDirty(target);
+		trigger(target, key);
+		if (!previous || isArrayStructureKey(target, key)) trigger(target, iterateKey);
+		if (oldLength !== undefined && (target as unknown[]).length !== oldLength && key !== 'length')
+			trigger(target, 'length');
+		notifyMutation(options, key, 'define');
+		return true;
+	},
+
+	deleteProperty(this: ReactiveProxyHandler, target: object, key: PropertyKey): boolean {
+		const { options } = this.record;
+		if (options.readonly) {
+			options.onReadonlyWrite?.(key);
+			return false;
+		}
+
+		const hadKey = Object.prototype.hasOwnProperty.call(target, key);
+		const descriptor =
+			hadKey && hasActiveTransaction() ? Reflect.getOwnPropertyDescriptor(target, key) : undefined;
+		const ok = Reflect.deleteProperty(target, key);
+		if (ok && hadKey) {
+			if (descriptor)
+				recordTransactionUndo(
+					() => {
+						Reflect.defineProperty(target, key, descriptor);
+					},
+					target,
+					key
+				);
+			markReactiveHashDirty(target);
+			trigger(target, key);
+			trigger(target, iterateKey);
+			notifyMutation(options, key, 'delete');
+		}
+		return ok;
+	},
+
+	ownKeys(this: ReactiveProxyHandler, target: object): ArrayLike<string | symbol> {
+		trackProxySources(this.record.proxy!);
+		track(target, iterateKey);
+		return Reflect.ownKeys(target);
+	},
+
+	has(this: ReactiveProxyHandler, target: object, key: PropertyKey): boolean {
+		track(target, key);
+		return Reflect.has(target, key);
+	}
+};
+
 /** Creates a reactive with an explicitly selected collection capability. */
 export function createReactiveBase(
 	value: object,
@@ -48,180 +247,11 @@ export function createReactiveBase(
 		return cached;
 	}
 
-	let forwardingSet = false;
-
-	const proxy = new Proxy(reactiveTarget, {
-		get(target, key, receiver) {
-			if (key === proxyMarker) return true;
-			if (key === rawTarget) return target;
-
-			trackProxySources(proxy);
-			if (target instanceof Map || target instanceof Set) {
-				if (!collectionMember)
-					throw new TypeError('Compiled object/array state received a Map or Set value');
-				return collectionMember(target, key, proxy, options, (current, dependency) => {
-					if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
-						return current;
-					return sourcedReactive(
-						unwrap(current) as object,
-						options,
-						dependency === undefined
-							? undefined
-							: createParentSource(target, dependency, options, collectionMember),
-						collectionMember
-					);
-				});
-			}
-			const current = Reflect.get(target, key, receiver);
-			if (current && typeof current === 'object' && requiresExactProxyValue(target, key))
-				return current;
-			if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
-				return (...args: unknown[]) =>
-					mutateArray(target, String(key), current, args, receiver, options);
-			}
-			if (options.passthroughKeys?.includes(key)) {
-				track(target, key);
-				return current;
-			}
-
-			if (isReactiveValue(current)) {
-				track(target, key);
-				const currentValue = current.get();
-				const currentTarget = unwrap(currentValue);
-				return isReactiveContainer(currentTarget)
-					? sourcedReactive(
-							currentTarget,
-							options,
-							createParentSource(target, key, options, collectionMember),
-							collectionMember
-						)
-					: currentTarget;
-			}
-
-			if (current && typeof current === 'object' && isReactiveContainer(unwrap(current))) {
-				const currentTarget = unwrap(current) as object;
-				if (currentTarget === target) {
-					track(target, key);
-					return receiver;
-				}
-				const source = createParentSource(target, key, options, collectionMember);
-				const proxy = sourcedReactive(currentTarget, options, source, collectionMember);
-				return proxy;
-			}
-
-			track(target, key);
-			return current;
-		},
-		set(target, key, next, receiver) {
-			if (options.readonly) {
-				options.onReadonlyWrite?.(key);
-				return false;
-			}
-
-			const previousLength = Array.isArray(target) ? target.length : undefined;
-			const removedIndexes =
-				Array.isArray(target) &&
-				key === 'length' &&
-				typeof next === 'number' &&
-				next < target.length
-					? Array.from({ length: target.length - next }, (_, offset) => next + offset).filter(
-							(index) => Reflect.has(target, index)
-						)
-					: [];
-			const previous = Reflect.get(target, key, receiver);
-			const unwrapped = unwrap(next);
-			const hadKey = Object.prototype.hasOwnProperty.call(target, key);
-			const changed = hasChanged(previous, unwrapped);
-			// If structural equality suppresses notification it must also suppress
-			// replacement. Otherwise direct reads observe a new identity while
-			// existing computed values legitimately retain the old one.
-			const ownDescriptor = Reflect.getOwnPropertyDescriptor(target, key);
-			if (!changed && ownDescriptor && 'value' in ownDescriptor) return true;
-			const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
-			forwardingSet = true;
-			let ok: boolean;
-			try {
-				ok = Reflect.set(target, key, unwrapped, receiver);
-			} finally {
-				forwardingSet = false;
-			}
-			if (ok && undo && (!hadKey || !Object.is(previous, Reflect.get(target, key, receiver))))
-				recordTransactionUndo(undo, target, key);
-			if (ok && changed) {
-				markReactiveHashDirty(target);
-				trigger(target, key);
-				for (const index of removedIndexes) trigger(target, String(index));
-				if (
-					previousLength !== undefined &&
-					Array.isArray(target) &&
-					target.length !== previousLength &&
-					key !== 'length'
-				)
-					trigger(target, 'length');
-				if (!hadKey || isArrayStructureKey(target, key)) trigger(target, iterateKey);
-				notifyMutation(options, key, 'set');
-			}
-			return ok;
-		},
-		defineProperty(target, key, descriptor) {
-			if (forwardingSet) return Reflect.defineProperty(target, key, descriptor);
-			if (options.readonly) {
-				options.onReadonlyWrite?.(key);
-				return false;
-			}
-			const previous = Reflect.getOwnPropertyDescriptor(target, key);
-			if (samePropertyDescriptor(previous, descriptor)) return true;
-			const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
-			const oldLength = Array.isArray(target) ? target.length : undefined;
-			const ok = Reflect.defineProperty(target, key, normalizeDescriptor(descriptor));
-			if (!ok) return false;
-			if (undo) recordTransactionUndo(undo, target, key);
-			markReactiveHashDirty(target);
-			trigger(target, key);
-			if (!previous || isArrayStructureKey(target, key)) trigger(target, iterateKey);
-			if (oldLength !== undefined && (target as unknown[]).length !== oldLength && key !== 'length')
-				trigger(target, 'length');
-			notifyMutation(options, key, 'define');
-			return true;
-		},
-		deleteProperty(target, key) {
-			if (options.readonly) {
-				options.onReadonlyWrite?.(key);
-				return false;
-			}
-
-			const hadKey = Object.prototype.hasOwnProperty.call(target, key);
-			const descriptor =
-				hadKey && hasActiveTransaction()
-					? Reflect.getOwnPropertyDescriptor(target, key)
-					: undefined;
-			const ok = Reflect.deleteProperty(target, key);
-			if (ok && hadKey) {
-				if (descriptor)
-					recordTransactionUndo(
-						() => {
-							Reflect.defineProperty(target, key, descriptor);
-						},
-						target,
-						key
-					);
-				markReactiveHashDirty(target);
-				trigger(target, key);
-				trigger(target, iterateKey);
-				notifyMutation(options, key, 'delete');
-			}
-			return ok;
-		},
-		ownKeys(target) {
-			trackProxySources(proxy);
-			track(target, iterateKey);
-			return Reflect.ownKeys(target);
-		},
-		has(target, key) {
-			track(target, key);
-			return Reflect.has(target, key);
-		}
-	});
+	const record: ReactiveProxyRecord = { options, collectionMember, forwardingSet: false };
+	const handler = Object.create(reactiveProxyHandler) as ReactiveProxyHandler;
+	handler.record = record;
+	const proxy = new Proxy(reactiveTarget, handler);
+	record.proxy = proxy;
 
 	cacheProxy(reactiveTarget, options, parentSource, proxy);
 	if (parentSource) {

@@ -2993,3 +2993,39 @@ response-decomposition, equal-payload, preloaded, service-phase, retention, satu
 Bun diagnostic table. Raw evidence and normalization output are preserved under
 `.tmp/nested-property-operands-checkpoint`; focused heap evidence and the written expected metrics are
 under `.tmp/client-heap-analysis`.
+
+### Shared reactive proxy traps
+
+Heap dominator analysis after nested property operands showed that the remaining comparison gap was
+primarily V8 code and repeated proxy trap closures rather than an uncollected component graph. Each
+indexed state or prop facade created four equivalent closures, and each nested reactive proxy
+created six. The runtime now gives each proxy its required instance-owned record while sharing the
+trap methods through module-local prototypes. Nested records remain alias-specific because the same
+raw object can simultaneously participate in different parent paths and reactive policies; no
+target-only cache or module-retained component value was introduced.
+
+Focused heap snapshots reduce used heap by 6,836 bytes after hydration, 9,788 bytes after 1,000
+component replacements, and 8,204 bytes after filtering 500 keyed rows. The complete 50-round
+comparison reduces warm used heap from 2,520,520 to 2,513,624 bytes and 1x cold used heap from
+2,379,440 to 2,372,700 bytes. Profiled and invoked functions remain 1,144 and 541. The client cost is
+434 raw, transferred, and decoded bytes, 116 gzip bytes, 86 Brotli bytes, and 352 executed bytes.
+Optimistic feedback is flat at p50 / p75 and modestly favorable at p95 / p99. Startup evaluation
+changes direction across percentiles and CPU rates, so no timing improvement or regression is
+attributed to the closure-retention change.
+
+The full SSR population initially appeared unfavorable: ordinary concurrent throughput was lower
+than control-normalized history toward the tail, and render-only p75 / p95 increased. Artifact
+isolation showed that nested proxy sharing is absent from the server bundle while indexed handler
+sharing adds 167 raw bytes. A simultaneous-worker follow-up alternated the baseline and current
+artifacts for 50 render pairs and 50 throughput rounds. Render-batch medians were 0.0352 and 0.0350
+ms; geometric-mean current / before RPS ratios were 1.0016 at c16, 0.9978 at c32, and 1.0032 at c64.
+The full-run tail did not reproduce under adjacent pairing and is retained as environmental
+counter-evidence, not attributed to the implementation.
+
+`npm run performance:check` passed after its full release prerequisite. The
+[complete grouped-percentile report](component-local-target-abi/shared-reactive-proxy-traps.md)
+contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and Bun
+diagnostic table. Raw evidence and normalization output are preserved under
+`.tmp/shared-reactive-proxy-traps-checkpoint`; focused heap and simultaneous-worker evidence are
+under `.tmp/client-heap-analysis` and `.tmp/reactive-proxy-server-isolation`.
