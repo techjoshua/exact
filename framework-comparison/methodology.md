@@ -159,6 +159,9 @@ React, SvelteKit, and Nuxt controls remain useful for relating a current run to 
 TanStack Start is reported as a fifth participant but is not a normalization control because it shares
 React's renderer and would otherwise give correlated React behavior double weight.
 
+SSR evidence captures the repository-dirty flag once before starting services or creating raw output. The
+evidence files produced by the run therefore cannot cause the run to mark itself dirty.
+
 The bounded concurrent lane remains a fixed request population. Saturation levels instead use 50
 fixed-duration, closed-loop windows; each client immediately replaces a completed request until the window
 closes, then outstanding requests settle. Throughput therefore has the same window population for every
