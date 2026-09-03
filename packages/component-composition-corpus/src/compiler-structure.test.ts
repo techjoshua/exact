@@ -83,6 +83,16 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/__exactSlot =>/);
 	});
 
+	it('shares one dispatcher across statement-bodied readers', async () => {
+		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+		const start = code.indexOf('function MixedReaderDispatch');
+		const end = code.indexOf('export const mixedReaderDispatchRoot', start);
+		const component = code.slice(start, end);
+
+		expect(component).toMatch(/__exactSlot => \{/);
+		expect(component.match(/if \(__exactSlot === \d+\) \{/g)).toHaveLength(2);
+	});
+
 	it('encodes exact intrinsic prop reads without a generated value writer', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
 

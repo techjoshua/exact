@@ -47,6 +47,12 @@ export const compilerPathInventory = [
 		['client-mount', 'hydrate-match']
 	),
 	path(
+		'mixed-reader-dispatch',
+		'specialized',
+		'Statement-bodied slots share one component-local reader dispatcher.',
+		['client-mount', 'client-update', 'hydrate-match']
+	),
+	path(
 		'direct-property-binding',
 		'specialized',
 		'Reactive DOM properties update at their owning intrinsic.',

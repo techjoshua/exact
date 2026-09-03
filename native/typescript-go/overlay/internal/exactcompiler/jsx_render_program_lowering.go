@@ -407,8 +407,9 @@ func (lowering *jsxLowering) renderProgramReaders(readers []*ast.Node) *ast.Node
 		return lowering.factory.NewArrayLiteralExpression(nil, false)
 	}
 	if omitted {
+		mixedBodies := false
 		for _, reader := range readers {
-			if reader != nil && (!ast.IsArrowFunction(reader) || ast.IsBlock(reader.AsArrowFunction().Body)) {
+			if reader != nil && !ast.IsArrowFunction(reader) {
 				members := make([]*ast.Node, len(readers))
 				for index, candidate := range readers {
 					if candidate == nil {
@@ -419,6 +420,12 @@ func (lowering *jsxLowering) renderProgramReaders(readers []*ast.Node) *ast.Node
 				}
 				return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(members), false)
 			}
+			if reader != nil && ast.IsBlock(reader.AsArrowFunction().Body) {
+				mixedBodies = true
+			}
+		}
+		if mixedBodies {
+			return lowering.renderProgramReaderBlockDispatcher(readers)
 		}
 		index := lowering.factory.NewIdentifier("__exactSlot")
 		value := lowering.factory.NewIdentifier("undefined")
@@ -452,8 +459,13 @@ func (lowering *jsxLowering) renderProgramReaders(readers []*ast.Node) *ast.Node
 		return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false)
 	}
 	for _, reader := range readers {
-		if !ast.IsArrowFunction(reader) || ast.IsBlock(reader.AsArrowFunction().Body) {
+		if !ast.IsArrowFunction(reader) {
 			return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(readers), false)
+		}
+	}
+	for _, reader := range readers {
+		if ast.IsBlock(reader.AsArrowFunction().Body) {
+			return lowering.renderProgramReaderBlockDispatcher(readers)
 		}
 	}
 	index := lowering.factory.NewIdentifier("__exactSlot")

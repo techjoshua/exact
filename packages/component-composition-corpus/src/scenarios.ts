@@ -30,6 +30,7 @@ export const corpusScenarios = [
 			'adjacent-text-projection',
 			'static-native-attribute',
 			'arbitrary-expression-fallback',
+			'mixed-reader-dispatch',
 			'direct-property-binding',
 			'indexed-property-operand',
 			'state-only-update-mask',

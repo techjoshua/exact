@@ -120,3 +120,20 @@ function ServerSetupProjection(this: Component<ServerProjectionState>, props: { 
 
 /** Compiler-issued root covering direct and authored synchronous server setup. */
 export const serverSetupProjectionRoot = (label: string) => <ServerSetupProjection label={label} />;
+
+function MixedReaderDispatch(props: { pending: boolean; items: readonly string[] }) {
+	const visible = props.items.filter((item) => item !== '');
+	return () => (
+		<div data-scenario="mixed-reader-dispatch">
+			{props.pending ? <span>pending</span> : null}
+			{visible.map((item) => (
+				<strong key={item}>{item}</strong>
+			))}
+		</div>
+	);
+}
+
+/** Creates a root mixing expression and statement-bodied compiler readers. */
+export const mixedReaderDispatchRoot = () => (
+	<MixedReaderDispatch pending={false} items={['first', '', 'second']} />
+);
