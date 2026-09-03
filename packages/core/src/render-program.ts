@@ -208,7 +208,8 @@ export type ExactRenderProgramClaimOperation = readonly [
 	first?: number | string | boolean,
 	second?: number | string | boolean,
 	third?: number | string | boolean,
-	fourth?: string | boolean
+	fourth?: number | string | boolean,
+	fifth?: number | string | boolean
 ];
 
 /** One compiler-proven indexed value consumed inside a focused intrinsic property operation. */
@@ -247,7 +248,7 @@ export type ExactRenderProgramWiring = readonly [
 ];
 
 type ExactRenderProgramBase = Readonly<{
-	version: 7;
+	version: 8;
 	id: string;
 	namespace: ExactRenderProgramNamespace;
 	/** Root intrinsic used to resolve a contextual namespace at physical attachment time. */
@@ -403,8 +404,8 @@ export type ExactPreparedServerRenderProgram = ExactRenderProgramSsrInvocation &
  * can reach this compiler-only operation.
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
-	if ((program as { version: number }).version !== 7)
-		throw new TypeError('Unsupported eXact render-program ABI; expected version 7');
+	if ((program as { version: number }).version !== 8)
+		throw new TypeError('Unsupported eXact render-program ABI; expected version 8');
 	return program as BrandedRenderProgram;
 }
 

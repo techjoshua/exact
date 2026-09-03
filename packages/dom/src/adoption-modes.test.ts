@@ -32,6 +32,7 @@ import {
 import { unmount } from './index.js';
 import { renderTestTree as render } from './testing.js';
 import {
+	BoundedEmptyGreeting,
 	DocumentAdoptionRoot,
 	FragmentAdoptionRoot,
 	HydratedGreeting,
@@ -91,6 +92,19 @@ describe('DOM adoption modes', () => {
 
 		expect(adoptMarkerlessComponentReceiptRoot(operation, receipt, container)).toBe(true);
 		expect(container.querySelector('span')?.textContent).toBe('server');
+		expect(unmount(container)).toBe(true);
+	});
+
+	it('adopts an empty component range bounded by its following intrinsic', () => {
+		const container = document.createElement('div');
+		container.innerHTML = '<main><span>After</span></main>';
+		const following = container.querySelector('span');
+
+		expect(
+			adoptMarkerlessComponentRoot(createTestComponentReceipt(BoundedEmptyGreeting, {}), container)
+		).toBe(true);
+		expect(container.querySelector('span')).toBe(following);
+		expect(container.textContent).toBe('After');
 		expect(unmount(container)).toBe(true);
 	});
 

@@ -11,6 +11,7 @@ export const corpusScenarios = [
 			'static-render-program',
 			'compact-render-abi',
 			'direct-child-artifact',
+			'bounded-component-range-claim',
 			'direct-server-child-issuance',
 			'props-only-forwarding',
 			'sync-direct-ssr',
@@ -19,7 +20,7 @@ export const corpusScenarios = [
 			'compiler-proven-output-bytes',
 			'hydration-static-claims'
 		],
-		modes: ['client-mount', 'ssr-sync', 'ssr-async', 'ssr-stream', 'hydrate-match']
+		modes: ['client-mount', 'client-update', 'ssr-sync', 'ssr-async', 'ssr-stream', 'hydrate-match']
 	},
 	{
 		id: 'indexed-state-and-properties',

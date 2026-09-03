@@ -135,8 +135,17 @@ function adoptMarkerlessReceipt(
 			return undefined;
 		const first = mounted.children[0]?.dom;
 		const last = mounted.children.at(-1);
+		if (!first || !last) {
+			const boundary = nodes[rangeEnd] ?? nodes[cursor];
+			const parent = boundary?.parentNode;
+			if (!parent) return undefined;
+			parent.insertBefore(mounted.dom, boundary);
+			mounted.end = document.createTextNode('');
+			parent.insertBefore(mounted.end, boundary);
+			return { mounted, next: adoptedNext };
+		}
 		const parent = first?.parentNode;
-		if (!first || !last || !parent) return undefined;
+		if (!parent) return undefined;
 		const endNode = last.end ?? last.dom;
 		parent.insertBefore(mounted.dom, first);
 		mounted.end = document.createTextNode('');

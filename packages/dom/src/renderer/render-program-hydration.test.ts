@@ -50,7 +50,7 @@ describe('compiled render-program hydration index', () => {
 
 describe('compiler-wired render-program claims', () => {
 	const scalarProgram = {
-		version: 7,
+		version: 8,
 		id: 'direct-scalar',
 		namespace: 'html',
 		template: '<p><!---->\ue000exact:0\ue001<!----></p>',
@@ -103,7 +103,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<section><!--variable--><span>Static</span><button>Save</button></section>';
 		const program: ExactRenderProgram = {
-			version: 7,
+			version: 8,
 			id: 'direct-element-path',
 			namespace: 'html',
 			template: '<main><section><span>Static</span><button>Save</button></section></main>',
@@ -123,7 +123,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('section');
 		root.innerHTML = '<article>Variable</article><form><textarea></textarea></form>';
 		const program: ExactRenderProgram = {
-			version: 7,
+			version: 8,
 			id: 'direct-element-reverse-path',
 			namespace: 'html',
 			template: '<section><form><textarea></textarea></form></section>',
@@ -167,7 +167,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<!--x:detail--><!--/x:detail-->';
 		const program: ExactRenderProgram = {
-			version: 7,
+			version: 8,
 			id: 'direct-high-component-slot',
 			namespace: 'html',
 			template: '<main><!--x:detail--><!--/x:detail--></main>',
@@ -185,7 +185,7 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<article>detail</article>';
 		const program: ExactRenderProgram = {
-			version: 7,
+			version: 8,
 			id: 'direct-marker-free-component-tail',
 			namespace: 'html',
 			template: '<main></main>',
@@ -196,6 +196,31 @@ describe('compiler-wired render-program claims', () => {
 		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
 
 		expect(claimed?.slotNodes[0]).toEqual([root, root.firstChild]);
+		expect(claimed?.componentSlots).toBe(1);
+	});
+
+	it('claims a component range bounded by the following intrinsic', () => {
+		const root = document.createElement('main');
+		root.innerHTML = '<strong>detail</strong><footer>After</footer>';
+		const program: ExactRenderProgram = {
+			version: 8,
+			id: 'direct-bounded-component',
+			namespace: 'html',
+			template: '<main><footer>After</footer></main>',
+			directClaims: true,
+			wire: [
+				['main', 'html', 2, 1],
+				[
+					[6, 1, 1 + 64 * 16, 'footer'],
+					[4, 0, 0, true, 1]
+				],
+				[]
+			]
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect(claimed?.slotNodes[0]).toEqual([root, root.firstChild, root.lastChild]);
 		expect(claimed?.componentSlots).toBe(1);
 	});
 });

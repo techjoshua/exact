@@ -62,6 +62,9 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 			if slot.markerlessTail {
 				kind = "keyed"
 				width = 0
+			} else if _, bounded := boundedComponentEndPath(build, index); bounded {
+				kind = "bounded-component"
+				width = 0
 			}
 			if slot.kind == "text" {
 				path[len(path)-1]--
@@ -75,7 +78,12 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 			})
 		}
 		sort.SliceStable(claims, func(left int, right int) bool {
-			return claims[left].path[len(claims[left].path)-1] < claims[right].path[len(claims[right].path)-1]
+			leftPosition := claims[left].path[len(claims[left].path)-1]
+			rightPosition := claims[right].path[len(claims[right].path)-1]
+			if leftPosition == rightPosition {
+				return claims[left].kind == "bounded-component" && claims[right].kind != "bounded-component"
+			}
+			return leftPosition < rightPosition
 		})
 		position := 0
 		for _, claim := range claims {
@@ -119,6 +127,26 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 					arguments = append(arguments, lowering.factory.NewTrueExpression())
 				}
 				emitCall(lowering.names.claimProgramKeyedChild, arguments...)
+			case "bounded-component":
+				endNodeIndex, endPath, _ := boundedComponentEnd(build, claim.index)
+				endNode := build.nodes[endNodeIndex]
+				endIndex := lowering.factory.NewNumericLiteral(strconv.Itoa(endNodeIndex), ast.TokenFlagsNone)
+				endArguments := []*ast.Node{
+					endIndex,
+					lowering.factory.NewNumericLiteral(strconv.FormatUint(endPath, 10), ast.TokenFlagsNone),
+					lowering.factory.NewStringLiteral(endNode.tag, ast.TokenFlagsNone),
+				}
+				if endNode.namespace != build.namespace || build.namespace == "contextual" {
+					endArguments = append(endArguments, lowering.factory.NewStringLiteral(endNode.namespace, ast.TokenFlagsNone))
+				}
+				emitCall(lowering.names.claimElementPath, endArguments...)
+				emitCall(
+					lowering.names.claimProgramKeyedChild,
+					claimIndex,
+					skip,
+					lowering.factory.NewTrueExpression(),
+					endIndex,
+				)
 			default:
 				arguments := []*ast.Node{
 					claimIndex,

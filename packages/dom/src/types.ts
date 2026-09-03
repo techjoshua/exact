@@ -34,7 +34,11 @@ import type {
 } from '@exactjs/core/runtime/component-operations';
 
 /** Parent and first node of a marker-free final-child range proven by a generated program. */
-export type RenderProgramChildAnchor = readonly [parent: Node, start: Node | null];
+export type RenderProgramChildAnchor = readonly [
+	parent: Node,
+	start: Node | null,
+	end?: Node | null
+];
 import type { ReadinessCoordinator } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';

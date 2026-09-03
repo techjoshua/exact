@@ -30,7 +30,7 @@ import { serverTaskRoot } from './scenarios/tasks.fixtures.js?exact-target=serve
 describe('composition corpus server behavior', () => {
 	it('renders the normative sync compositions directly', () => {
 		expect(renderToString(fundamentalsRoot('server'), { markers: false }).html).toBe(
-			'<main data-scenario="fundamentals"><h1>Composition corpus</h1><strong data-role="label">server</strong></main>'
+			'<main data-scenario="fundamentals"><h1>Composition corpus</h1><strong data-role="label">server</strong><small data-role="label-suffix">!</small><span data-role="after-label">After</span></main>'
 		);
 		expect(renderToString(stateRoot('count'), { markers: false }).html).toContain('count:1');
 		expect(renderToString(structureRoot, { markers: false }).html).toContain('visible');

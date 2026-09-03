@@ -171,7 +171,7 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedServerRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 7",
+		"version: 8",
 		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
 		`__exactSsr.begin(__exactContext, 2, 2, 30, 30)`,
 		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "span", "<span", "><strong>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
@@ -756,9 +756,9 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`[5, 0, 0,`,
-		`[5, 0, 0,`,
-		`true]], [[2, 0, [[0]], 1]]`,
+		`template: "<main><footer>After</footer></main>"`,
+		`[6, 1, 1025, "footer"]`,
+		`[4, 0, 0, true, 1]`,
 		`[2, 0, [[0]], 1]`,
 		`[7, 0, __exact_component_updates_1]`,
 		`__exactComponentReceipt(Detail`,
@@ -812,7 +812,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if complete.Error != "" {
 		t.Fatal(complete.Error)
 	}
-	if !strings.Contains(complete.Code, `[5, 0, 0,`) ||
+	if !strings.Contains(complete.Code, `[4, 0, 0, true, 1]`) ||
 		!strings.Contains(complete.Code, `__exactComponentReceipt(Detail`) ||
 		strings.Contains(complete.Code, `__exactVNode("main"`) ||
 		strings.Contains(complete.Code, `__exactDynamic(() => __exactComponentReceipt(Detail`) {
@@ -836,8 +836,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if stateful.Error != "" {
 		t.Fatal(stateful.Error)
 	}
-	if !strings.Contains(stateful.Code, `[5, 0, 0,`) ||
-		!strings.Contains(stateful.Code, `true]], [[2, 0, [], 0]]`) ||
+	if !strings.Contains(stateful.Code, `[4, 0, 0, true, 1]`) ||
 		!strings.Contains(stateful.Code, `[2, 0, [], 0]`) ||
 		strings.Contains(stateful.Code, `__exactVNode("main"`) {
 		t.Fatalf("stateful component child did not enter its compiler-owned lifecycle slot:\n%s", stateful.Code)

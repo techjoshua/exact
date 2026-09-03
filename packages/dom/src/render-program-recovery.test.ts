@@ -18,7 +18,7 @@ const renderProgramOwner = createFrameworkFixtureComponentInstance(RenderProgram
 it('rejects a marked SSR program when its generated hydration claims do not match the DOM', () => {
 	const program = prepareCoreRenderProgram(
 		withGenericRenderProgramBindings({
-			version: 7,
+			version: 8,
 			id: 'render-program:invalid-hydration-plan',
 			namespace: 'html',
 			template:

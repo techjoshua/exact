@@ -24,6 +24,21 @@ import {
 import type { ServerComponentReference } from './server-component-reference.js';
 import type { SyncComponentOperations } from './sync-component.js';
 
+type RenderProgramMarkerPair = readonly [opening: string, closing: string];
+
+const renderProgramMarkerPairs = new Map<string, RenderProgramMarkerPair>();
+const emptyRenderProgramMarkerPair = ['', ''] as const;
+
+/** Reuses immutable compiler-local marker strings across requests and component artifacts. */
+function renderProgramMarkerPair(id: string): RenderProgramMarkerPair {
+	let pair = renderProgramMarkerPairs.get(id);
+	if (!pair) {
+		pair = [`<!--x:${id}-->`, `<!--/x:${id}-->`];
+		renderProgramMarkerPairs.set(id, pair);
+	}
+	return pair;
+}
+
 /**
  * Request-local target that lets a compiler-closed synchronous writer publish directly.
  *
@@ -94,8 +109,12 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		prefix = '',
 		suffix = ''
 	): number {
-		const opening = this.context.markers && !markerless ? `<!--x:${id}-->` : '';
-		const closing = this.context.markers && !markerless ? `<!--/x:${id}-->` : '';
+		const markerPair =
+			this.context.markers && !markerless
+				? renderProgramMarkerPair(id)
+				: emptyRenderProgramMarkerPair;
+		const opening = markerPair[0];
+		const closing = markerPair[1];
 		this.accountAscii(opening);
 		const rendered =
 			value === null || value === undefined || value === false || value === true
@@ -109,8 +128,11 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 	}
 
 	child(_context: object, _output: object, value: unknown, id: string, characters: number): number {
-		const opening = this.context.markers ? `<!--x:${id}-->` : '';
-		const closing = this.context.markers ? `<!--/x:${id}-->` : '';
+		const markerPair = this.context.markers
+			? renderProgramMarkerPair(id)
+			: emptyRenderProgramMarkerPair;
+		const opening = markerPair[0];
+		const closing = markerPair[1];
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
 		this.accountAscii(opening);
@@ -147,8 +169,12 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		characters: number,
 		markerless?: true
 	): number {
-		const opening = this.context.markers && !markerless ? `<!--x:${id}-->` : '';
-		const closing = this.context.markers && !markerless ? `<!--/x:${id}-->` : '';
+		const markerPair =
+			this.context.markers && !markerless
+				? renderProgramMarkerPair(id)
+				: emptyRenderProgramMarkerPair;
+		const opening = markerPair[0];
+		const closing = markerPair[1];
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
 		this.accountAscii(opening);
@@ -176,8 +202,12 @@ class SyncSsrProgramTarget implements ExactRenderProgramSsrOperations {
 		characters: number,
 		markerless?: true
 	): number {
-		const opening = this.context.markers && !markerless ? `<!--x:${id}-->` : '';
-		const closing = this.context.markers && !markerless ? `<!--/x:${id}-->` : '';
+		const markerPair =
+			this.context.markers && !markerless
+				? renderProgramMarkerPair(id)
+				: emptyRenderProgramMarkerPair;
+		const opening = markerPair[0];
+		const closing = markerPair[1];
 		const nextCharacters = characters + opening.length + closing.length;
 		this.assertCharacters(nextCharacters);
 		this.accountAscii(opening);

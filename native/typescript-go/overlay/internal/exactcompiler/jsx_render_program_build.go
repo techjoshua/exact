@@ -14,18 +14,19 @@ type renderProgramContext struct {
 }
 
 type renderProgramSlot struct {
-	id              string
-	kind            string
-	textPrefix      string
-	textSuffix      string
-	path            []int
-	node            int
-	name            string
-	list            bool
-	directList      bool
-	markerlessTail  bool
-	reader          *ast.Node
-	serverComponent *ast.Node
+	id                string
+	kind              string
+	textPrefix        string
+	textSuffix        string
+	path              []int
+	node              int
+	name              string
+	list              bool
+	directList        bool
+	markerlessTail    bool
+	boundedMarkerless bool
+	reader            *ast.Node
+	serverComponent   *ast.Node
 }
 
 type renderProgramNode struct {
@@ -159,15 +160,15 @@ func (build *renderProgramBuild) childSlot(id string, path []int, reader *ast.No
 	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "child", path: append([]int(nil), path...), list: list, directList: directList, markerlessTail: markerlessTail, reader: reader})
 }
 
-func (build *renderProgramBuild) componentSlot(id string, path []int, reader *ast.Node, markerlessTail bool, serverComponent *ast.Node) {
+func (build *renderProgramBuild) componentSlot(id string, path []int, reader *ast.Node, markerlessTail bool, boundedMarkerless bool, serverComponent *ast.Node) {
 	index := len(build.slots)
 	id = strconv.FormatInt(int64(build.nextMarker), 36)
 	build.nextMarker++
-	if !markerlessTail {
+	if !markerlessTail && !boundedMarkerless {
 		build.template.WriteString(fmt.Sprintf("<!--x:%s--><!--/x:%s-->", id, id))
 	}
 	build.serverSlot(index)
-	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "component", path: append([]int(nil), path...), markerlessTail: markerlessTail, reader: reader, serverComponent: serverComponent})
+	build.slots = append(build.slots, renderProgramSlot{id: id, kind: "component", path: append([]int(nil), path...), markerlessTail: markerlessTail, boundedMarkerless: boundedMarkerless, reader: reader, serverComponent: serverComponent})
 }
 
 func (build *renderProgramBuild) propertySlot(id string, path []int, node int, name string, reader *ast.Node) {

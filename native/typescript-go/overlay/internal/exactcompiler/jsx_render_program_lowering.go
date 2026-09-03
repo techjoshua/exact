@@ -611,15 +611,19 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 					return build.decline("untargeted-component-child")
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
+				boundedMarkerless := false
 				if lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(element.OpeningElement.Attributes()) {
+					boundedMarkerless = !markerlessTail &&
+						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
+						build.boundedComponentParentIsStable(path)
 					reader := lowering.visitRenderProgramComponent(child)
 					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
 					if serverComponent != nil {
 						reader = serverProps
 					}
 					build.componentSlot(
-						lowering.dynamicID(child), childPath, reader, markerlessTail, serverComponent,
+						lowering.dynamicID(child), childPath, reader, markerlessTail, boundedMarkerless, serverComponent,
 					)
 				} else {
 					// The focused range owns the value as an opaque child. Its ordinary lowering
@@ -629,7 +633,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), false, false, markerlessTail,
 					)
 				}
-				if !markerlessTail {
+				if !markerlessTail && !boundedMarkerless {
 					domIndex += 2
 				}
 				continue
@@ -678,22 +682,26 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 					return build.decline("untargeted-component-child")
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
+				boundedMarkerless := false
 				if lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(child.Attributes()) {
+					boundedMarkerless = !markerlessTail &&
+						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
+						build.boundedComponentParentIsStable(path)
 					reader := lowering.visitRenderProgramComponent(child)
 					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
 					if serverComponent != nil {
 						reader = serverProps
 					}
 					build.componentSlot(
-						lowering.dynamicID(child), childPath, reader, markerlessTail, serverComponent,
+						lowering.dynamicID(child), childPath, reader, markerlessTail, boundedMarkerless, serverComponent,
 					)
 				} else {
 					build.childSlot(
 						lowering.dynamicID(child), childPath, lowering.visitRenderProgramComponent(child), false, false, markerlessTail,
 					)
 				}
-				if !markerlessTail {
+				if !markerlessTail && !boundedMarkerless {
 					domIndex += 2
 				}
 				continue
@@ -1079,7 +1087,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		nodes[index] = array(members)
 	}
 	members := []*ast.Node{
-		property("version", lowering.factory.NewNumericLiteral("7", ast.TokenFlagsNone)),
+		property("version", lowering.factory.NewNumericLiteral("8", ast.TokenFlagsNone)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}

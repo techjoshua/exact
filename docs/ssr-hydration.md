@@ -183,10 +183,14 @@ Finite render-program roots do not receive a generic cell envelope in compiler-g
 program's root element and generated dense claims provide its fixed ownership and hydration
 identity. Authored or protocol-facing
 `data-exact-id` attributes are not consulted as a fallback render-program identity map.
-Variable-width component, cell, fragment, list, and structural ranges keep their markers when a
-later sibling requires a concrete boundary. A compiler-proven final structural or component child
-uses its parent and the end of the child list as its complete retained boundary, so its server markup
-does not emit an otherwise redundant comment pair.
+Variable-width component, cell, fragment, list, and structural ranges keep their markers when no
+compiler-known boundary is available. A compiler-proven final structural or component child uses
+its parent and the end of the child list as its complete retained boundary. A native child followed
+by a plain compiler-known intrinsic can instead use that intrinsic as its exclusive end boundary
+when the child belongs to the program root or to a direct intrinsic parent with a stable forward
+path, and all later siblings have fixed width. Both forms omit an otherwise redundant comment pair
+while preserving the child's explicit range ownership; the parent still does not inspect whether
+the child produced multiple nodes or no nodes.
 
 Compiler-closed hydratable component roots likewise omit the outer component boundary. Their
 direct hydration envelope carries a markerless-root presence bit, which is a compiler proof for
