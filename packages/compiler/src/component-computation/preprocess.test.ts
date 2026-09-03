@@ -33,9 +33,8 @@ describe('@exactjs/compiler component computations', () => {
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/tasks"');
 		expect(taskOutput).toContain('from "@exactjs/core/runtime/reactivity"');
 		expect(taskOutput).not.toContain('@exactjs/core/runtime/component-reactivity');
-		expect(taskOutput).toContain(
-			'__exactActivationDependency(() => __exactReadState(this.state, 0) as any)'
-		);
+		expect(taskOutput).toContain('__exactIndexedActivationDependency(this.state, 0)');
+		expect(taskOutput).not.toContain('createTrackedContinuationDependency');
 	});
 
 	it('imports optional component surface capabilities only when authored', () => {

@@ -4,13 +4,15 @@ The component composition corpus is the normative acceptance suite for native eX
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 
-The current inventory covers 54 compiler paths across 11 scenarios and 54 normative tests,
+The current inventory covers 55 compiler paths across 11 scenarios and 56 normative tests,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration. Compiler-created
 intrinsic identity is also protected as immutable server data outside the request-local dynamic
 attribute plan, and compiler-known root openings publish through one focused server operation.
 Exact synchronous server value propagation also emits direct assignments while authored
 calculations retain their executable setup boundary.
+Compiler-proven single-slot task inputs subscribe directly to the receiving component's indexed
+state or prop dependency; arbitrary task expressions retain their executable tracked source.
 Finite nested root props also carry the same immutable positional publication schema in client and
 server artifacts; behavioral tests independently protect round-trip decoding and named fallback.
 Compiler-proven indexed state and prop reads used by intrinsic properties are encoded in the

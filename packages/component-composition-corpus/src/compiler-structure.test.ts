@@ -74,6 +74,15 @@ describe('normative compiled structure', () => {
 		expect(code).toContain('void load();');
 	});
 
+	it('uses indexed task sources only for exact slot reads', async () => {
+		const { code } = await compileFixture('tasks.fixtures.tsx', 'client');
+
+		expect(code).toMatch(/__exactIndexedActivationDependency\(props, \d+\)/);
+		expect(code).toMatch(
+			/__exactActivationDependency\(\(\) => \(__exactReadState\(props, \d+\) as number\) \+ 1\)/
+		);
+	});
+
 	it('encodes exact text operands while retaining arbitrary expression readers', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
 

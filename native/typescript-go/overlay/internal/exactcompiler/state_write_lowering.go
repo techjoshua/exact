@@ -8,11 +8,62 @@ import (
 	"github.com/microsoft/typescript-go/internal/scanner"
 )
 
-func (lowering *jsxLowering) componentReactive(expression *ast.Node) *ast.Node {
+func (lowering *jsxLowering) componentReactive(source *ast.Node, expression *ast.Node) *ast.Node {
+	if indexed := lowering.indexedReactiveDependency(source, expression); indexed != nil {
+		return indexed
+	}
 	return lowering.call(
 		lowering.names.activationDependency,
 		[]*ast.Node{lowering.arrow(expression)},
 	)
+}
+
+// indexedReactiveDependency reuses the receiving component's stable slot source when a task or
+// setup computation depends on exactly one compiler-proven state or prop read. Derived and
+// arbitrary expressions retain their tracked dependency owner and executable reader.
+func (lowering *jsxLowering) indexedReactiveDependency(source *ast.Node, expression *ast.Node) *ast.Node {
+	if read, exists := lowering.stateReadSlots[nodeSpanKey(source)]; exists {
+		if receiver := directStateReadReceiver(source); receiver != nil {
+			return lowering.call(lowering.names.indexedDependency, []*ast.Node{
+				lowering.visitor.VisitNode(receiver),
+				lowering.factory.NewNumericLiteral(fmt.Sprint(read.slot), ast.TokenFlagsNone),
+			})
+		}
+	}
+	if read, exists := lowering.propsReadSlots[nodeSpanKey(source)]; exists {
+		if _, receiver, direct := directPropsRead(source); direct {
+			return lowering.call(lowering.names.indexedDependency, []*ast.Node{
+				lowering.visitor.VisitNode(receiver),
+				lowering.factory.NewNumericLiteral(fmt.Sprint(read.slot), ast.TokenFlagsNone),
+			})
+		}
+	}
+	current := expression
+	for current != nil {
+		switch {
+		case ast.IsParenthesizedExpression(current):
+			current = current.AsParenthesizedExpression().Expression
+		case ast.IsAsExpression(current):
+			current = current.AsAsExpression().Expression
+		case ast.IsSatisfiesExpression(current):
+			current = current.AsSatisfiesExpression().Expression
+		case ast.IsNonNullExpression(current):
+			current = current.AsNonNullExpression().Expression
+		default:
+			if !ast.IsCallExpression(current) {
+				return nil
+			}
+			call := current.AsCallExpression()
+			if !ast.IsIdentifier(call.Expression) ||
+				call.Expression.Text() != lowering.names.readState ||
+				call.Arguments == nil || len(call.Arguments.Nodes) != 2 ||
+				!ast.IsNumericLiteral(call.Arguments.Nodes[1]) {
+				return nil
+			}
+			return lowering.call(lowering.names.indexedDependency, call.Arguments.Nodes)
+		}
+	}
+	return nil
 }
 
 func (lowering *jsxLowering) stateValue(path []string) *ast.Node {

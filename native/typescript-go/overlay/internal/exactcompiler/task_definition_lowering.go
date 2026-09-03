@@ -108,7 +108,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			} else {
 				nextArguments = append(
 					nextArguments,
-					lowering.componentReactive(visited),
+					lowering.componentReactive(dependency, visited),
 				)
 			}
 		}
@@ -124,7 +124,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			} else {
 				nextArguments = append(
 					nextArguments,
-					lowering.componentReactive(dependency.expression),
+					lowering.componentReactive(dependency.expression, dependency.expression),
 				)
 			}
 		}

@@ -65,6 +65,7 @@ export {
 	reactiveOwnDependencies,
 	readIndexedReactiveSource,
 	readIndexedReactiveSlot,
+	peekIndexedReactiveSlot,
 	readReactiveOwnProperty,
 	setIndexedReactiveSlot,
 	setIndexedReactiveSlotWithResult
