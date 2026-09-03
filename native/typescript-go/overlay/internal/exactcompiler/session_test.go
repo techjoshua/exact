@@ -480,6 +480,32 @@ func TestSessionCompilesMultiSlotScalarExpressionsIntoComponentUpdates(t *testin
 	}
 }
 
+func TestSessionCombinesMixedRenderProgramReaderBodies(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "mixed-reader-dispatch.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type Item = { id: string; label: string };
+			export function Mixed(props: { pending: boolean; items: Item[] }) {
+				const visible = props.items.filter(item => item.label !== '');
+				return () => <section>
+					{props.pending ? <p>Pending</p> : null}
+					{visible.map(item => (
+						<strong key={item.id}>{item.label}</strong>
+					))}
+				</section>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `__exactSlot => {`) ||
+		strings.Count(response.Code, `if (__exactSlot ===`) < 2 {
+		t.Fatalf("mixed reader bodies did not share one dispatcher:\n%s", response.Code)
+	}
+}
+
 func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *testing.T) {
 	var fields strings.Builder
 	var initializers strings.Builder

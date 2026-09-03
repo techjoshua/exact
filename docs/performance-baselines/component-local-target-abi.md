@@ -3029,3 +3029,42 @@ response-decomposition, equal-payload, preloaded, service-phase, retention, satu
 diagnostic table. Raw evidence and normalization output are preserved under
 `.tmp/shared-reactive-proxy-traps-checkpoint`; focused heap and simultaneous-worker evidence are
 under `.tmp/client-heap-analysis` and `.tmp/reactive-proxy-server-isolation`.
+
+### Mixed statement-bodied render-program reader dispatch
+
+The compiler previously combined expression-bodied render-program readers into one component-local
+slot dispatcher, but one statement-bodied reader forced the complete program back to a sparse array
+of individual functions. The comparison queue hit that fallback because its filtered keyed-row
+reader owns compiler-derived local statements. Mixed programs now use one statement-bodied
+dispatcher: expression branches return directly and block branches retain their original statement
+body. Arbitrary expressions remain functions, derived expressions retain computation ownership, and
+the selected focused render operation remains the only consumer.
+
+The complete 50-round comparison reduces profiled and invoked functions from 1,144 and 541 to 1,140
+and 537. Warm and 1x cold used heap both fall by 1,140 bytes, to 2,512,484 and 2,371,560 bytes.
+Fresh focused captures reproduce a 1,140-byte hydration reduction and a 1,432-byte reduction after
+1,000 component replacements; the 500-row filtering point is flat within 208 bytes. The client cost
+is 35 raw, transferred, decoded, and executed bytes, 17 gzip bytes, and 59 Brotli bytes.
+
+Timing does not support a general speed claim. Control-normalized startup evaluation changes
+direction across rates and percentiles, while 50 alternating CPU profiles are neutral at a -0.23%
+paired mean. Browser optimistic feedback remains 1.6 / 1.7 ms at p50 / p75 but has an unfavorable
+full-run p95. A separate 100-pair alternating population narrows that tail to 2.0 versus 1.9 ms and
+shows a strong order split, so the full tail remains a counter-metric rather than being attributed to
+one dispatcher branch.
+
+The Node and Bun server artifacts and Exact's 3,794-byte response are unchanged. Node ordinary
+concurrent p50 is 2,131 requests/second for Exact versus 2,192 for React. Exact is 2.2% below
+control-normalized history at p50 and within 0.3% at p75. Preloaded raw p50 moves -1.2%, +1.1%, and
++4.5% at c8/c32/c64 while the sole React control moves +0.1%, +0.2%, and +3.7%; formal
+normalization is not available for that two-participant diagnostic. Larger service-phase and Bun
+movements track React and are environmental because the server bytes are identical.
+
+`npm run performance:check` passed after the full release prerequisite. The
+[complete grouped-percentile report](component-local-target-abi/mixed-reader-dispatch.md) contains
+every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
+Bun diagnostic table. Raw evidence and normalization output are preserved under
+`.tmp/mixed-reader-dispatch-checkpoint`; focused heap, 100-pair timing, and alternating CPU evidence
+are under `.tmp/client-heap-analysis`, `.tmp/property-operands-combined`, and
+`.tmp/mixed-reader-dispatch`.
