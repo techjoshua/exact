@@ -15,12 +15,15 @@ import {
 } from './internal/deps.js';
 import { hasChanged, isReactiveContainer } from './change-detection.js';
 import { isReactiveValue, rejectReadonlyReactiveValueWrite, unwrap } from './internal/values.js';
-import { indexedLayout, type IndexedLayout } from './indexed-layout.js';
+import { indexedLayout } from './indexed-layout.js';
+import {
+	ensureIndexedRecordIndex,
+	indexedRecordIndex,
+	indexedRecordKey,
+	type IndexedRecordLayout
+} from './reactive-record-slots.js';
 
-type IndexedRecord = {
-	readonly layout: IndexedLayout;
-	dynamicIndexes?: Map<PropertyKey, number>;
-	dynamicKeys?: PropertyKey[];
+type IndexedRecord = IndexedRecordLayout & {
 	readonly initialized: boolean[];
 	readonly target: Record<PropertyKey, unknown>;
 	readonly options: ReactiveOptions;
@@ -48,6 +51,47 @@ export type CompiledReactivePropertyOperand = readonly [
 
 const indexedRecords = new WeakMap<object, IndexedRecord>();
 
+type IndexedProxyHandler = ProxyHandler<Record<PropertyKey, unknown>> & {
+	record: IndexedRecord;
+};
+
+/**
+ * Shared traps resolve instance-owned storage through each handler's record. Keeping the trap
+ * methods module-local avoids retaining equivalent closures for every indexed state or props facade.
+ */
+const indexedProxyHandler: ProxyHandler<Record<PropertyKey, unknown>> = {
+	get(this: IndexedProxyHandler, target, key, receiver) {
+		if (key === proxyMarker) return true;
+		if (key === rawTarget) return target;
+		const { record } = this;
+		const index = indexedRecordIndex(record, key);
+		return index === undefined
+			? Reflect.get(target, key, receiver)
+			: readIndexedValue(record, key, index, 'facade');
+	},
+	set(this: IndexedProxyHandler, _target, key, next) {
+		const { record } = this;
+		if (record.options.readonly) {
+			record.options.onReadonlyWrite?.(key);
+			return false;
+		}
+		const index = ensureIndexedRecordIndex(record, key);
+		return writeIndexedRecord(record, index, next);
+	},
+	deleteProperty(this: IndexedProxyHandler, target, key) {
+		const { record } = this;
+		const index = indexedRecordIndex(record, key);
+		return index === undefined
+			? Reflect.deleteProperty(target, key)
+			: deleteIndexedRecord(record, index);
+	},
+	has(this: IndexedProxyHandler, target, key) {
+		const { record } = this;
+		const index = indexedRecordIndex(record, key);
+		return (index !== undefined && record.initialized[index] === true) || Reflect.has(target, key);
+	}
+};
+
 /**
  * Creates an inspectable object facade whose compiler-known top-level fields are
  * stored in stable numeric slots. Nested containers retain the general reactive
@@ -73,34 +117,9 @@ export function createIndexedReactive<T extends object>(
 	};
 	if (initial) seedIndexedRecord(record, initial);
 
-	const facade = new Proxy(target, {
-		get(target, key, receiver) {
-			if (key === proxyMarker) return true;
-			if (key === rawTarget) return target;
-			const index = indexedRecordIndex(record, key);
-			return index === undefined
-				? Reflect.get(target, key, receiver)
-				: readIndexedValue(record, key, index, 'facade');
-		},
-		set(_target, key, next) {
-			if (options.readonly) {
-				options.onReadonlyWrite?.(key);
-				return false;
-			}
-			const index = ensureIndexedRecordIndex(record, key);
-			return writeIndexedRecord(record, index, next);
-		},
-		deleteProperty(_target, key) {
-			const index = indexedRecordIndex(record, key);
-			return index === undefined
-				? Reflect.deleteProperty(target, key)
-				: deleteIndexedRecord(record, index);
-		},
-		has(target, key) {
-			const index = indexedRecordIndex(record, key);
-			return (index !== undefined && initialized[index] === true) || Reflect.has(target, key);
-		}
-	});
+	const handler = Object.create(indexedProxyHandler) as IndexedProxyHandler;
+	handler.record = record;
+	const facade = new Proxy(target, handler);
 	indexedRecords.set(facade, record);
 	return facade as Reactive<T>;
 }
@@ -433,25 +452,4 @@ export function readIndexedReactiveSource(
 	)
 		return { present: false };
 	return { present: true, value: indexed.target[indexedRecordKey(indexed, index)] };
-}
-
-function indexedRecordIndex(indexed: IndexedRecord, key: PropertyKey): number | undefined {
-	return indexed.layout.indexes.get(key) ?? indexed.dynamicIndexes?.get(key);
-}
-
-function ensureIndexedRecordIndex(indexed: IndexedRecord, key: PropertyKey): number {
-	const existing = indexedRecordIndex(indexed, key);
-	if (existing !== undefined) return existing;
-	const dynamicIndexes = (indexed.dynamicIndexes ??= new Map());
-	const dynamicKeys = (indexed.dynamicKeys ??= []);
-	const index = indexed.layout.keys.length + dynamicIndexes.size;
-	dynamicIndexes.set(key, index);
-	dynamicKeys.push(key);
-	indexed.initialized.push(false);
-	return index;
-}
-
-function indexedRecordKey(indexed: IndexedRecord, index: number): PropertyKey {
-	if (index < indexed.layout.keys.length) return indexed.layout.keys[index]!;
-	return indexed.dynamicKeys![index - indexed.layout.keys.length]!;
 }
