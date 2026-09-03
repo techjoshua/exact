@@ -299,6 +299,11 @@ the producer to continue. Fetch-compatible adapters receive a demand-driven UTF-
 encoding remains at that environment boundary. Request handlers that must settle status, headers,
 or preload metadata before publication continue to buffer that decision; the produced body is not
 a second component execution path or a promise that every server response can commit immediately.
+When a synchronous component still requires a recoverable boundary, the executor checkpoints the
+request-owned sink and temporarily suspends direct publication while that component completes. It
+then commits the finalized range or restores the byte ledger and buffered-span length on failure.
+The sink does not allocate a callback wrapper for that transaction, and adding compiler-owned
+markers to already-finalized output does not re-enter the renderer through another closure.
 
 Hydratable execution reserves each compiler-selected resumption as its final request-owned indexed
 tuple. The synchronous executor carries an opaque numeric capture token, publishes state and

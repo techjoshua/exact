@@ -77,4 +77,32 @@ describe('SSR output buffering', () => {
 			'eXact SSR output exceeds the configured maximum of 4 bytes'
 		);
 	});
+
+	it('commits a recoverable range against its outer byte checkpoint', () => {
+		const published: string[] = [];
+		const output = new SsrOutputBuffer(20, (value) => published.push(value));
+		const checkpoint = output.beginBufferedRange();
+		output.accountKnown('discarded', 9);
+		output.publishAccounted('discarded');
+
+		const rendered = output.commitBufferedRange(checkpoint, 'okay');
+		output.publishAccounted(rendered);
+
+		expect(output.encodedBytes()).toBe(4);
+		expect(published).toEqual(['okay']);
+	});
+
+	it('restores direct publication after a recoverable range fails', () => {
+		const published: string[] = [];
+		const output = new SsrOutputBuffer(20, (value) => published.push(value));
+		const checkpoint = output.beginBufferedRange();
+		output.accountKnown('discarded', 9);
+		output.publishAccounted('discarded');
+		output.rollbackBufferedRange(checkpoint);
+		output.accountKnown('ok', 2);
+		output.publishAccounted('ok');
+
+		expect(output.encodedBytes()).toBe(2);
+		expect(published).toEqual(['ok']);
+	});
 });

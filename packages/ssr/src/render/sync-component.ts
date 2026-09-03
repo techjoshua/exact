@@ -1,5 +1,6 @@
 import {
 	attachSuppressedCleanupFailure,
+	normalizeRenderResult,
 	type AnyComponentInstance,
 	type Child
 } from '@exactjs/core';
@@ -9,10 +10,13 @@ import {
 	type ExactServerExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-abi';
+import {
+	readPreparedServerRenderProgram,
+	type ExactPreparedServerRenderProgram
+} from '@exactjs/core/framework/server-render-structure';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
 import { markerId } from '../markup.js';
 import { directComponentHtml } from './direct-component-output.js';
-import { readDirectSsrContent } from './direct-component-content.js';
 import { disposeDirectSsrLifetimeSync } from './direct-component-scheduling.js';
 import {
 	callInComponentDomain,
@@ -132,39 +136,53 @@ function renderSyncComponent(
 	const requiresBufferedBoundary =
 		!!enhancement || (documentProbe && context.documentRootSeen) || delimited;
 	if (!context.outputSink?.publishesDirectly() || requiresBufferedBoundary) {
-		const buffered = context.outputSink?.publishesDirectly()
-			? context.outputSink.bufferRange(() => {
-					return executeSyncComponentOutput(context, contract, props, parent, operations, {
-						enhancement,
-						key,
-						documentProbe,
-						hasComponentAncestor,
-						omitCompilerOwnedBoundary,
-						omitRootBoundary
-					});
-				})
-			: executeSyncComponentOutput(context, contract, props, parent, operations, {
+		const boundaryFlags =
+			bufferedBoundary |
+			(documentProbe ? documentBoundary : 0) |
+			(hasComponentAncestor ? componentAncestorBoundary : 0) |
+			(omitCompilerOwnedBoundary ? omitCompilerBoundary : 0) |
+			(omitRootBoundary ? omitRootBoundaryFlag : 0);
+		const output = context.outputSink;
+		if (output?.publishesDirectly()) {
+			const checkpoint = output.beginBufferedRange();
+			let rendered: string;
+			try {
+				rendered = executeSyncComponentOutput(
+					context,
+					contract,
+					props,
+					parent,
+					operations,
+					boundaryFlags,
 					enhancement,
-					key,
-					documentProbe,
-					hasComponentAncestor,
-					omitCompilerOwnedBoundary,
-					omitRootBoundary
-				});
-		return buffered;
+					key
+				);
+			} catch (error) {
+				output.rollbackBufferedRange(checkpoint);
+				throw error;
+			}
+			return output.commitBufferedRange(checkpoint, rendered);
+		}
+		return executeSyncComponentOutput(
+			context,
+			contract,
+			props,
+			parent,
+			operations,
+			boundaryFlags,
+			enhancement,
+			key
+		);
 	}
 
 	return executeSyncComponentOutput(context, contract, props, parent, operations);
 }
 
-type SyncComponentBoundary = Readonly<{
-	enhancement: ExactComponentReceiptData['enhancement'];
-	key: string | undefined;
-	documentProbe: boolean;
-	hasComponentAncestor: boolean;
-	omitCompilerOwnedBoundary: boolean;
-	omitRootBoundary: boolean;
-}>;
+const bufferedBoundary = 1;
+const documentBoundary = 2;
+const componentAncestorBoundary = 4;
+const omitCompilerBoundary = 8;
+const omitRootBoundaryFlag = 16;
 
 /** Executes the synchronous artifact and publishes its component-local output in one owner. */
 function executeSyncComponentOutput(
@@ -173,7 +191,9 @@ function executeSyncComponentOutput(
 	props: Record<string, unknown>,
 	parent: AnyComponentInstance | undefined,
 	operations: SyncComponentOperations,
-	boundary?: SyncComponentBoundary
+	boundaryFlags = 0,
+	enhancement?: ExactComponentReceiptData['enhancement'],
+	key?: string
 ): string {
 	const artifact = contract.artifact;
 	const server = artifact.execution;
@@ -219,7 +239,7 @@ function executeSyncComponentOutput(
 						undefined,
 						undefined
 					);
-		const content = readDirectSsrContent(rendered);
+		const program = readPreparedServerRenderProgram(rendered);
 		lifecycle?.rendered(frame, performanceNow() - started);
 		const checkpoint = context.onComponentAttemptCheckpoint?.();
 		const resumptionCheckpoint = stateless ? undefined : context.resumptionCapture?.checkpoint();
@@ -232,22 +252,31 @@ function executeSyncComponentOutput(
 			: createObservedSnapshot(context, artifact.id, contract, frame, props);
 		if (snapshot) context.onDirectComponentCreated?.(snapshot);
 		try {
-			const output = boundary
-				? renderBufferedComponentOutput(
-						context,
-						contract,
-						props,
-						owner,
-						operations,
-						content,
-						boundary
-					)
-				: content.program
-					? renderPreparedSsrProgramString(context, content.program, owner, operations)
-					: operations.renderChildren(context, content.children, owner, true);
+			const output =
+				boundaryFlags & bufferedBoundary
+					? renderBufferedComponentOutput(
+							context,
+							contract,
+							props,
+							owner,
+							operations,
+							program,
+							rendered,
+							boundaryFlags,
+							enhancement,
+							key
+						)
+					: program
+						? renderPreparedSsrProgramString(context, program, owner, operations)
+						: operations.renderChildren(
+								context,
+								normalizeRenderResult(rendered as Child | Child[]),
+								owner,
+								true
+							);
 			// Preserve request-local marker ordering without constructing an identity that this
 			// compiler-proven unmarked component never publishes.
-			if (!boundary) context.nextId++;
+			if (!(boundaryFlags & bufferedBoundary)) context.nextId++;
 			if (resumptionToken !== undefined)
 				context.resumptionCapture?.publishDirect(resumptionToken, frame, frame.state, props);
 			if (snapshot) context.onDirectComponentRendered?.(snapshot);
@@ -277,32 +306,47 @@ function renderBufferedComponentOutput(
 	props: Record<string, unknown>,
 	owner: AnyComponentInstance | undefined,
 	operations: SyncComponentOperations,
-	content: ReturnType<typeof readDirectSsrContent>,
-	boundary: SyncComponentBoundary
+	program: ExactPreparedServerRenderProgram | undefined,
+	rendered: unknown,
+	boundaryFlags: number,
+	enhancement: ExactComponentReceiptData['enhancement'],
+	key: string | undefined
 ): string {
-	const html = renderOperationEnhancements(
-		context,
-		boundary.enhancement,
-		() =>
-			content.program
-				? renderPreparedSsrProgramString(context, content.program, owner, operations)
-				: operations.renderChildren(context, content.children, owner, true),
-		owner,
-		operations.renderChildren
-	);
+	const html = enhancement
+		? renderOperationEnhancements(
+				context,
+				enhancement,
+				() =>
+					program
+						? renderPreparedSsrProgramString(context, program, owner, operations)
+						: operations.renderChildren(
+								context,
+								normalizeRenderResult(rendered as Child | Child[]),
+								owner,
+								true
+							),
+				owner,
+				operations.renderChildren
+			)
+		: program
+			? renderPreparedSsrProgramString(context, program, owner, operations)
+			: operations.renderChildren(
+					context,
+					normalizeRenderResult(rendered as Child | Child[]),
+					owner,
+					true
+				);
 	return directComponentHtml(
 		context,
-		markerId(context, 'component', contract.artifact.id, boundary.key),
+		markerId(context, 'component', contract.artifact.id, key),
 		html,
 		props,
 		contract.artifact.execution.publication,
-		{
-			enhancement: false,
-			documentProbe: boundary.documentProbe,
-			hasComponentAncestor: boundary.hasComponentAncestor,
-			omitCompilerOwnedBoundary: boundary.omitCompilerOwnedBoundary,
-			omitRootBoundary: boundary.omitRootBoundary
-		}
+		false,
+		!!(boundaryFlags & documentBoundary),
+		!!(boundaryFlags & componentAncestorBoundary),
+		!!(boundaryFlags & omitCompilerBoundary),
+		!!(boundaryFlags & omitRootBoundaryFlag)
 	);
 }
 
