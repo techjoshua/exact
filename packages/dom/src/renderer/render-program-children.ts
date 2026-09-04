@@ -1,14 +1,11 @@
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-import {
-	readRenderProgramSlot,
-	type ExactRenderProgramInvocation
-} from '@exactjs/core/runtime/render-operations';
+import type { ExactRenderProgramInvocation } from '@exactjs/core/runtime/render-operations';
 import { type OwnedRetainedWatch, watchRetained } from '@exactjs/reactive/framework/watch';
 import { peek, withEffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, RenderProgramChildAnchor } from '../types.js';
 import { patchChildren } from './patching/children.js';
-import { readDynamicChildren } from './dynamic-children.js';
+import { readCompiledDynamicChildren } from './dynamic-children.js';
 import { findProgramChildEnd } from './render-program-markers.js';
 import { prepareForeignProgramChildren } from './foreign-child-capability.js';
 
@@ -100,8 +97,9 @@ function prepareProgramChildBinding(
 	const state = mounted.renderProgram!;
 	let childState = state.childSlots?.[index];
 	const start = state.slotNodes[index];
-	const slot = structuralProgramSlot(state, index);
-	const identity = slot?.[0] === 'child' || slot?.[0] === 'component' ? slot[1] : undefined;
+	const identity = structuralProgramSlotIdentity(state, index);
+	const componentSlot =
+		identity !== undefined && programComponentSlotIncludes(state.componentSlots, index);
 	const anchor = isKeyedChildAnchor(start) ? start : undefined;
 	const marker = start instanceof Node ? start : undefined;
 	const end = childState
@@ -126,7 +124,7 @@ function prepareProgramChildBinding(
 			return;
 		}
 		peek(() => {
-			const component = slot?.[0] === 'component' ? soleComponentReceipt(next) : undefined;
+			const component = componentSlot ? soleComponentReceipt(next) : undefined;
 			if (
 				component
 					? Object.is(childState.componentValue, component)
@@ -157,19 +155,15 @@ function prepareProgramChildBinding(
 	};
 }
 
-/** Resolves one compiler-indexed structural slot and its bounded marker identity. */
-export function structuralProgramSlot(
+/** Resolves one compiler-indexed structural slot's bounded marker identity without allocating. */
+export function structuralProgramSlotIdentity(
 	state: NonNullable<Mounted['renderProgram']>,
 	index: number
-): readonly ['child' | 'component', string] | undefined {
+): string | undefined {
 	const marker = state.slotNodes[index];
-	if (isKeyedChildAnchor(marker)) {
-		const kind = componentSlotIncludes(state.componentSlots, index) ? 'component' : 'child';
-		return [kind, ''];
-	}
+	if (isKeyedChildAnchor(marker)) return '';
 	if (!(marker instanceof Comment) || !marker.data.startsWith('x:')) return undefined;
-	const kind = componentSlotIncludes(state.componentSlots, index) ? 'component' : 'child';
-	return [kind, marker.data.slice('x:'.length)];
+	return marker.data.slice('x:'.length);
 }
 
 /** Narrows the renderer's tuple anchor used by compiler-keyed child slots. */
@@ -179,7 +173,8 @@ export function isKeyedChildAnchor(
 	return Array.isArray(value);
 }
 
-function componentSlotIncludes(
+/** Tests whether a compiler-indexed structural slot owns a component operation. */
+export function programComponentSlotIncludes(
 	slots: number | ReadonlySet<number> | undefined,
 	index: number
 ): boolean {
@@ -201,11 +196,7 @@ export function readProgramChildren(
 	parentInstance: AnyComponentInstance | undefined
 ): Child[] {
 	return prepareForeignProgramChildren(
-		readDynamicChildren(
-			() => readRenderProgramSlot(invocation, index),
-			parentInstance,
-			'compiled-child-slot'
-		)
+		readCompiledDynamicChildren(invocation, index, parentInstance, 'compiled-child-slot')
 	);
 }
 
@@ -215,8 +206,9 @@ export function readDirectProgramChildren(
 	index: number,
 	parentInstance: AnyComponentInstance | undefined
 ): Child[] {
-	return readDynamicChildren(
-		() => readRenderProgramSlot(invocation, index),
+	return readCompiledDynamicChildren(
+		invocation,
+		index,
 		parentInstance,
 		'compiled-keyed-child-slot'
 	);

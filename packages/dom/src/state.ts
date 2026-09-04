@@ -6,9 +6,16 @@ type ExactDomInspectionOwnerFactory = (
 	options: Readonly<{ buildKey?: string; executionRoot?: string; binding?: string }>
 ) => ExactRuntimeInspectionOwner | undefined;
 
+/** Delegated callback and compiler-selected interaction policy bits. */
+export type DelegatedEventBinding = readonly [
+	handler: EventListener,
+	/** Bit 0 selects direct interaction; bit 1 selects the closed argument-free call. */
+	flags: number
+];
+
 type ExactDomRuntimeState = {
 	roots: WeakMap<Element, Root>;
-	eventHandlers: WeakMap<Element, Map<string, EventListener>>;
+	eventHandlers: WeakMap<Element, Map<string, DelegatedEventBinding>>;
 	directEventHandlers: WeakMap<
 		Element,
 		Map<string, { type: string; listener: EventListener; capture: boolean }>

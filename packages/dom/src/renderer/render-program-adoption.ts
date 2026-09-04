@@ -6,11 +6,12 @@ import type { Mounted } from '../types.js';
 import { adoptComponentReceipt } from './adoption/component-receipt.js';
 import {
 	isKeyedChildAnchor,
+	programComponentSlotIncludes,
 	programKeyedChildIncludes,
 	readDirectProgramChildren,
 	readProgramChildren,
 	refreshProgramMountedChildren,
-	structuralProgramSlot
+	structuralProgramSlotIdentity
 } from './render-program-children.js';
 import { findProgramChildEnd } from './render-program-markers.js';
 
@@ -35,12 +36,13 @@ export function adoptProgramChildSlots(
 	if (ownsLists) parentInstance?.beginRender();
 	try {
 		for (let index = 0; index < state.slotNodes.length; index++) {
-			const slot = structuralProgramSlot(state, index);
-			if (!slot || (slot[0] !== 'child' && slot[0] !== 'component')) continue;
+			const identity = structuralProgramSlotIdentity(state, index);
+			if (identity === undefined) continue;
+			const componentSlot = programComponentSlotIncludes(state.componentSlots, index);
 			const start = state.slotNodes[index];
 			const anchor = isKeyedChildAnchor(start) ? start : undefined;
 			const marker = start instanceof Node ? start : undefined;
-			const end = anchor ? undefined : findProgramChildEnd(marker, slot[1]);
+			const end = anchor ? undefined : findProgramChildEnd(marker, identity);
 			const parent = anchor?.[0] ?? marker?.parentNode;
 			if (!parent || (!anchor && (!(marker instanceof Comment) || !end))) return false;
 			const nodes = Array.from(parent.childNodes, (node): Node => node);
@@ -56,12 +58,11 @@ export function adoptProgramChildSlots(
 					? nodes.length
 					: nodes.indexOf(end!);
 			if (cursor < 0 || endIndex < cursor) return false;
-			const componentReceipt =
-				slot[0] === 'component'
-					? readCompiledComponentReceipt(
-							withEffectScope(mounted.scope, () => readRenderProgramSlot(state.invocation, index))
-						)
-					: undefined;
+			const componentReceipt = componentSlot
+				? readCompiledComponentReceipt(
+						withEffectScope(mounted.scope, () => readRenderProgramSlot(state.invocation, index))
+					)
+				: undefined;
 			const value = componentReceipt
 				? []
 				: withEffectScope(mounted.scope, () =>

@@ -3431,3 +3431,77 @@ contains every browser, startup, function-inventory, artifact, Node SSR, allocat
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and
 separate Bun diagnostic table. Immutable raw evidence and normalization output are under
 `.tmp/bounded-marker-pairs-checkpoint`.
+
+### Compact client slot and event dispatch
+
+The DOM renderer no longer allocates a `[kind, identity]` tuple while resolving each structural
+program slot. It reads the immutable marker identity directly and tests the compiler-emitted
+component-slot fact only where the operation needs it. Compiled dynamic child slots likewise read
+their indexed invocation value directly instead of allocating a reader closure for the shared
+suspension and error boundary.
+
+Delegated event storage now keeps one compact `[handler, flags]` binding instead of colocating
+synthetic map entries for interaction policy. Compiler-proven argument-free intrinsic handlers use
+a direct target listener, avoiding delegated path discovery while entering the same interactive
+publication operation. Event-observing callbacks, opaque callbacks, capture handlers, and platform
+events that require direct listeners retain their existing behavior. The accepted implementation
+preserves interactive priority, synchronous feedback publication, task and error ownership, focus
+handling, async observation, and deterministic listener cleanup.
+
+The direct-listener candidate was refined rather than accepted from its first favorable profile.
+The initial generic direct-listener route appeared faster and reduced retained heap, but inspection
+showed that it bypassed the explicit interactive publication boundary. After restoring that
+boundary, 100 interleaved timing pairs still favored the candidate in both execution orders:
+optimistic-feedback means fell from 1.726 to 1.591 ms, a 7.8% reduction, and settlement means fell
+from 13.927 to 13.760 ms. The refined implementation costs 43 raw client bytes, 37 executed bytes,
+and 152 retained bytes in isolation. Five handlers in the complete fixture move from shared
+delegation to direct target listeners, increasing the measured listener count from 27 to 32; Exact
+still remains below SvelteKit's 37, Nuxt's 35, React's 169, and TanStack Start's 171 listeners.
+
+Two tempting follow-ups were measured and removed. Bounded hydration node collection made a
+JavaScript sibling loop replace the engine's native `Array.from(parent.childNodes)` path and was
+slower. Combining form-control capture with the claim walk also lost to the native operations for
+this fixture's three controls. Central indexed computed-dependency validation added 84 raw bytes
+and 600 retained bytes without removing an invoked or executed function because V8 already inlined
+the non-escaping `every` and `some` callbacks; interaction CPU rose 1.4%, so the method and its
+additional call sites were reverted.
+
+The complete 50-round five-framework checkpoint reproduces the structural client improvements.
+Exact's raw client artifact falls from 201,195 to 200,903 bytes, gzip from 61,483 to 61,440 bytes,
+and Brotli from 53,641 to 53,611 bytes. Transferred and decoded script fall by 292 bytes, executed
+code falls by 237 bytes, profiled functions fall from 1,130 to 1,125, and invoked functions fall
+from 532 to 530. Warm used heap falls from 2,500,036 to 2,496,516 bytes. Raw 1x startup heap falls
+from 2,359,208 to 2,356,636 bytes; the eligible control-normalized comparison is 2,361,984 before.
+
+User-visible timing is mixed in the broad run but consistent with the focused causal test. Exact's
+optimistic feedback is 1.5/1.9/3.1/3.3 ms at p50/p75/p95/p99 versus a control-normalized
+1.542/1.664/3.3/3.5 ms before: p50, p95, and p99 improve, while p75 crosses a sample boundary in
+the unfavorable direction. The 100-pair direct comparison resolves that ambiguity in favor of the
+implementation. Settlement is effectively flat in the complete run. Navigation improves through
+p95 after normalization. At 1x, readiness improves at every percentile and evaluation improves at
+p50/p75, while evaluation and script-duration p95/p99 worsen. The deterministic reductions in
+reachable code and function inventory, plus the balanced focused interaction result, show that the
+tail movement is not work moved into retained topology; it remains an explicit environmental tail
+counter-metric rather than evidence of a universal startup speedup.
+
+This phase changes no server source. The current and before Node server entries are byte-for-byte
+identical 244,599-byte files with SHA-256
+`069a77cb5a63aaa325dafc2779e114fa4dc4be411a93334557c41a4318663a2d`; the Bun entries are likewise
+identical. The 3,710-byte response and all response-decomposition values are unchanged. Therefore
+the complete run's render-only movement from 0.0312 to 0.0326 ms, sampled allocation movement from
+2,675,344 to 2,511,336 bytes, and direct interleaved RPS differences are environment measurements,
+not implementation effects. Current Node ordinary concurrent p50 is 1,903 requests/second versus
+React's 1,918, a 0.77% gap. Exact leads React at equal-8-KiB c32 and c64 p50, while React leads the
+specialized preloaded lanes. Exact's post-GC used heap remains lower at 12.56 MB versus React's
+13.18 MB, although its fitted heap-used slope remains higher at 3,217 versus 2,945 bytes/request.
+
+`npm run performance:check` passed after its complete release prerequisite, including 1,971
+package tests, the 335-file native compiler corpus, all application builds, shared browser
+correctness, architecture, security, formatting, and maintainability gates. All 35 five-framework
+browser correctness scenarios passed, followed by balanced 50-round browser, 750-startup, Node SSR,
+and separate Bun diagnostic populations. The
+[complete grouped-percentile report](component-local-target-abi/compact-client-slot-event-dispatch.md)
+contains every required table. Raw full-run and normalization evidence is under
+`.tmp/compact-client-dispatch-checkpoint`; focused accepted and rejected experiments are under
+`.tmp/property-operands-combined`, `.tmp/direct-closed-dom-listeners`, and
+`.tmp/indexed-computed-dependency-validation`.
