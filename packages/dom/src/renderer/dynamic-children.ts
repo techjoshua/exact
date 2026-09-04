@@ -7,15 +7,22 @@ import {
 	type AnyComponentInstance,
 	type Child
 } from '@exactjs/core';
+import {
+	readRenderProgramSlot,
+	type ExactRenderProgramInvocation
+} from '@exactjs/core/runtime/render-operations';
 
-/** Normalizes one compiled dynamic reader through shared suspension and error ownership. */
-export function readDynamicChildren(
-	read: () => unknown,
+/** Reads one compiler-selected structural slot without allocating a reader closure. */
+export function readCompiledDynamicChildren(
+	invocation: ExactRenderProgramInvocation,
+	index: number,
 	parentInstance: AnyComponentInstance | undefined,
 	label: string
 ): Child[] {
 	try {
-		return normalizeRenderResult(unwrap(read()) as Child | Child[]);
+		return normalizeRenderResult(
+			unwrap(readRenderProgramSlot(invocation, index)) as Child | Child[]
+		);
 	} catch (error) {
 		if (isPromiseLike(error)) {
 			handleComponentSuspension(parentInstance, error);

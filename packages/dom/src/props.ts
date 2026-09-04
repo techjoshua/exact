@@ -15,11 +15,10 @@ import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
 	ensureDelegated,
-	closedInteractionKey,
-	directInteractionKey,
 	eventTypeForProp,
 	requiresDirectListener,
-	runEventInteraction
+	runEventInteraction,
+	runInteractiveEvent
 } from './events.js';
 import { preserveFocus } from './focus.js';
 import { getModalBindingCapability } from './modal/capability.js';
@@ -149,8 +148,17 @@ export function setElementProp(
 	const eventKey = authoredEventKey(key);
 	if (/^on[A-Z]/.test(eventKey)) {
 		const { type, capture } = eventTypeForProp(eventKey);
-		if (capture || requiresDirectListener(type)) {
-			setDirectEventHandler(root, element, key, type, value, capture, directInteraction);
+		if (closedInteraction || capture || requiresDirectListener(type)) {
+			setDirectEventHandler(
+				root,
+				element,
+				key,
+				type,
+				value,
+				capture,
+				directInteraction,
+				closedInteraction
+			);
 			return;
 		}
 		let handlers = eventHandlers.get(element);
@@ -161,17 +169,13 @@ export function setElementProp(
 
 		if (typeof value === 'function') {
 			const handler = value as EventListener;
-			handlers.set(type, handler);
-			if (closedInteraction) handlers.set(closedInteractionKey(type), handler);
-			else handlers.delete(closedInteractionKey(type));
-			if (directInteraction && !closedInteraction)
-				handlers.set(directInteractionKey(type), handler);
-			else handlers.delete(directInteractionKey(type));
+			const flags = (directInteraction ? 1 : 0) | (closedInteraction ? 2 : 0);
+			const current = handlers.get(type);
+			if (!current || current[0] !== handler || current[1] !== flags)
+				handlers.set(type, [handler, flags]);
 			ensureDelegated(root, type, eventContainerFor(root, element));
 		} else {
 			handlers.delete(type);
-			handlers.delete(directInteractionKey(type));
-			handlers.delete(closedInteractionKey(type));
 		}
 		return;
 	}
@@ -254,7 +258,8 @@ function setDirectEventHandler(
 	type: string,
 	value: unknown,
 	capture: boolean,
-	directInteraction = false
+	directInteraction = false,
+	closedInteraction = false
 ): void {
 	const previous = directEventHandlers.get(element)?.get(key);
 	if (previous) {
@@ -270,10 +275,12 @@ function setDirectEventHandler(
 			try {
 				const owner = findOwnerInstance(element);
 				const invoke = () =>
-					(handler as (this: Element, event: Event) => unknown).call(element, event);
-				const result = batch(() =>
-					runEventInteraction(root, owner, invoke, undefined, directInteraction)
-				);
+					closedInteraction
+						? (handler as (this: Element) => unknown).call(element)
+						: (handler as (this: Element, event: Event) => unknown).call(element, event);
+				const result = closedInteraction
+					? runInteractiveEvent(root, owner, invoke, true)
+					: batch(() => runEventInteraction(root, owner, invoke, undefined, directInteraction));
 				observeComponentAsync(owner, result, 'event', type);
 			} catch (error) {
 				const owner = findOwnerInstance(element);

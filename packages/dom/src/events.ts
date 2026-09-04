@@ -78,11 +78,12 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 
 	const listener = (event: Event) => {
 		dispatchEventPath(event, container, (cursor) => {
-			const handlers = eventHandlers.get(cursor);
-			const handler = handlers?.get(type);
-			if (handler) {
+			const binding = eventHandlers.get(cursor)?.get(type);
+			if (binding) {
+				const handler = binding[0];
+				const flags = binding[1];
 				const current = cursor;
-				const closed = handlers!.has(closedInteractionKey(type));
+				const closed = (flags & 2) !== 0;
 				preserveFocus(root, () => {
 					try {
 						const owner = findOwnerInstance(current);
@@ -91,9 +92,9 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 							owner,
 							() =>
 								closed
-									? callClosedDelegatedHandler(handler, current, event)
+									? (handler as (this: Element) => unknown).call(current)
 									: callDelegatedHandler(handler, current, event),
-							closed || handlers!.has(directInteractionKey(type))
+							(flags & 1) !== 0
 						);
 						observeComponentAsync(owner, result, 'event', type);
 					} catch (error) {
@@ -108,16 +109,6 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 
 	container.addEventListener(type, listener);
 	listeners.set(type, listener);
-}
-
-/** Returns the colocated map key that marks one compiler-owned event binding. */
-export function directInteractionKey(type: string): string {
-	return `__exactDirect:${type}`;
-}
-
-/** Returns the colocated marker for a compiler-proven event-argument-free binding. */
-export function closedInteractionKey(type: string): string {
-	return `__exactClosed:${type}`;
 }
 
 /**
@@ -157,7 +148,7 @@ export function runEventInteraction<Result>(
 }
 
 /** Publishes one event transaction and applies its interactive consequences before returning. */
-function runInteractiveEvent<Result>(
+export function runInteractiveEvent<Result>(
 	root: Root,
 	owner: AnyComponentInstance | undefined,
 	work: () => Result | PromiseLike<Result>,
@@ -327,14 +318,6 @@ function callDelegatedHandler(handler: EventListener, current: Element, event: E
 			delete (event as { currentTarget?: EventTarget | null }).currentTarget;
 		}
 	}
-}
-
-function callClosedDelegatedHandler(
-	handler: EventListener,
-	current: Element,
-	event: Event
-): unknown {
-	return (handler as (this: Element, event: Event) => unknown).call(current, event);
 }
 
 function eventTargetElement(target: EventTarget | null): Element | null {

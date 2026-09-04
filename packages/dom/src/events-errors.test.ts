@@ -33,8 +33,7 @@ import {
 	resetEventErrorFixtures,
 	retryConstructionCount
 } from './events-errors.fixtures.js';
-import { directInteractionKey } from './events.js';
-import { eventHandlers } from './state.js';
+import { directEventHandlers, eventHandlers } from './state.js';
 
 describe('@exactjs/dom events-errors', () => {
 	it('runs compiler-owned event handlers without materializing an interaction frame', () => {
@@ -102,6 +101,31 @@ describe('@exactjs/dom events-errors', () => {
 		expect(
 			defineProperty.mock.calls.some(([target, key]) => target === event && key === 'currentTarget')
 		).toBe(false);
+		expect(eventHandlers.get(container.querySelector('button')!)?.has('click')).not.toBe(true);
+		expect(
+			directEventHandlers
+				.get(container.querySelector('button')!)
+				?.has('__exactClosedInteraction:onClick')
+		).toBe(true);
+	});
+
+	it('removes compiler-proven direct handlers with their mounted element', () => {
+		const container = document.createElement('div');
+		const calls = vi.fn();
+		render(
+			jsx('button', {
+				'__exactClosedInteraction:onClick': calls,
+				children: 'Click'
+			}),
+			container
+		);
+		const button = container.querySelector('button')!;
+
+		button.click();
+		expect(calls).toHaveBeenCalledOnce();
+		expect(unmount(container)).toBe(true);
+		button.click();
+		expect(calls).toHaveBeenCalledOnce();
 	});
 
 	it('keeps compiled interaction selection local to one event binding', () => {
@@ -121,8 +145,8 @@ describe('@exactjs/dom events-errors', () => {
 		}
 		render(jsx(Buttons, {}), container);
 		const buttons = container.querySelectorAll('button');
-		expect(eventHandlers.get(buttons[0]!)?.has(directInteractionKey('click'))).toBe(true);
-		expect(eventHandlers.get(buttons[1]!)?.has(directInteractionKey('click'))).toBe(false);
+		expect(eventHandlers.get(buttons[0]!)?.get('click')?.[1]).toBe(1);
+		expect(eventHandlers.get(buttons[1]!)?.get('click')?.[1]).toBe(0);
 	});
 
 	it('runs binding listeners before delegated user handlers and removes them on unmount', () => {
