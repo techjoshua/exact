@@ -815,14 +815,16 @@ func containsInteractionRuntimeUse(root *ast.Node) bool {
 	return found
 }
 
-func (lowering *jsxLowering) interopImport(root *ast.Node) *ast.Node {
+// interopImports links the host-selected adapter and its browser renderer only when lowering
+// actually emitted a foreign component boundary. Native-only modules retain neither dependency.
+func (lowering *jsxLowering) interopImports(root *ast.Node) []*ast.Node {
 	if lowering.interop == nil ||
 		lowering.interop.AdapterModule == "" ||
 		lowering.interop.AdapterExport == "" ||
 		!containsIdentifier(root, lowering.names.interop) {
 		return nil
 	}
-	result := lowering.factory.NewImportDeclaration(
+	adapter := lowering.factory.NewImportDeclaration(
 		nil,
 		lowering.factory.NewImportClause(
 			ast.KindUnknown,
@@ -842,7 +844,21 @@ func (lowering *jsxLowering) interopImport(root *ast.Node) *ast.Node {
 		),
 		nil,
 	)
-	ast.SetParentInChildren(result)
+	ast.SetParentInChildren(adapter)
+	result := []*ast.Node{adapter}
+	if lowering.target != TargetServer && lowering.interop.ClientRendererModule != "" {
+		renderer := lowering.factory.NewImportDeclaration(
+			nil,
+			nil,
+			lowering.factory.NewStringLiteral(
+				lowering.interop.ClientRendererModule,
+				ast.TokenFlagsNone,
+			),
+			nil,
+		)
+		ast.SetParentInChildren(renderer)
+		result = append(result, renderer)
+	}
 	return result
 }
 

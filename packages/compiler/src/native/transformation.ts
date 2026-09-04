@@ -74,6 +74,7 @@ export function transformSourceWithNativeCompiler(
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
 							adapterExport: options.jsxInterop.adapterExport,
+							clientRendererModule: options.jsxInterop.clientRendererModule,
 							exactComponents: classifyExactJsxInteropImports(
 								session,
 								prepared.source,
@@ -195,6 +196,7 @@ export function checkSourceWithNativeCompiler(
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
 							adapterExport: options.jsxInterop.adapterExport,
+							clientRendererModule: options.jsxInterop.clientRendererModule,
 							exactComponents: classifyExactJsxInteropImports(
 								session,
 								prepared.source,
@@ -266,6 +268,7 @@ export function analyzeSourceWithNativeCompiler(
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
 							adapterExport: options.jsxInterop.adapterExport,
+							clientRendererModule: options.jsxInterop.clientRendererModule,
 							exactComponents: classifyExactJsxInteropImports(
 								session,
 								prepared.source,

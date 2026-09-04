@@ -75,6 +75,8 @@ Compiled eXact component functions carry an opaque identity string under
 a foreign component imported into native JSX, the compiler calls one precompiled React-island
 artifact and passes the React component value as an opaque prop. It does not brand that value,
 create an adapter component for it, or choose a component execution lane at runtime.
+The client artifact also imports the selected React DOM renderer capability when that foreign
+boundary is emitted. Native-only client modules and server artifacts omit that browser integration.
 
 Reactive props remain eXact expression cells. Updating `this.state.date`
 therefore updates the hosted component without rerunning `BookingForm`.

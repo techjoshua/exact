@@ -38,15 +38,17 @@ export function CompilerTourPage(this: Component<{}>) {
 			<section>
 				<h2>What the compiler generates</h2>
 				<p>
-					These are annotated pseudocode views of the current compiler contracts, not stable output
-					for applications to import. Private helper names and opaque operation identities are
-					shortened so the ownership and data flow are visible.
+					These are annotated pseudocode views of the current compiler contracts, not generated
+					output for applications to copy or import. Private helper names, numeric operation codes,
+					and opaque identities are shortened so the ownership and data flow are visible.
 				</p>
 				<h3>Browser artifact: state machine, DOM boundaries, and a transport stub</h3>
 				<p>
-					The browser keeps state defaults, precise reactive dependencies, bindings, event handlers,
-					and the generated view. The server task becomes a continuation that sends only the query
-					dependency selected by the compiler; the repository itself is absent.
+					The browser artifact keeps one immutable DOM program and indexed operand plan at module
+					scope. Each durable instance supplies only its state, arbitrary expression functions, and
+					unavoidable captures. Exact state and prop reads therefore do not allocate reader
+					closures. The server task becomes a continuation that sends only the query dependency
+					selected by the compiler; the repository itself is absent.
 				</p>
 				<p>
 					Conditional regions and <code>this.map()</code> remain focused compiler-owned operations.
@@ -60,9 +62,11 @@ export function CompilerTourPage(this: Component<{}>) {
 				/>
 				<h3>Server artifact: an allowlisted request executor</h3>
 				<p>
-					The server retains the executable task and resolves trusted context inside the current
-					request. It injects cancellation, validates the shared result, and returns only the state
-					projection that the browser applies to the same durable component instance.
+					The server artifact issues a request-owned frame, starts work whose dependencies are
+					ready, and writes its compiler-closed program through the request sink in authored order.
+					The allowlisted task executor resolves trusted context inside that request, injects
+					cancellation, validates the shared result, and returns only the state projection that the
+					browser applies to the same durable component instance.
 				</p>
 				<CodeBlock
 					source={compilerTourGeneratedServerSource}
@@ -75,8 +79,9 @@ export function CompilerTourPage(this: Component<{}>) {
 					<code>@exactjs/core</code> root.
 				</p>
 				<p>
-					The exact representation is private, but the semantic contract is not: state consumers
-					keep narrow update boundaries, server resources remain server-side, transport inputs are
+					The exact representation is private, but the semantic contract is not: exact indexed reads
+					stay data while arbitrary expressions retain executable owners, state consumers keep
+					narrow update boundaries, server resources remain server-side, transport inputs are
 					compiler-selected, and every task stays owned and cancelable.
 				</p>
 				<p>

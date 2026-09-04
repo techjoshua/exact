@@ -2042,8 +2042,9 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 			}
 		`,
 		JSXInterop: &JSXInterop{
-			AdapterModule: "@exactjs/react-compat",
-			AdapterExport: "adaptComponent",
+			AdapterModule:        "@exactjs/react-compat",
+			AdapterExport:        "adaptComponent",
+			ClientRendererModule: "@exactjs/react-dom-compat/client19",
 		},
 	})
 	if response.Error != "" {
@@ -2051,6 +2052,7 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`import { adaptComponent as __exactInteropComponent } from "@exactjs/react-compat"`,
+		`import "@exactjs/react-dom-compat/client19"`,
 		`import { createCompatibilityContribution as __exactCompatibilityContribution } from "@exactjs/core/framework/compatibility-contributions"`,
 		`__exactComponentReceipt(Local,`,
 		`__exactComponentReceipt(__exactInteropComponent, { component: Foreign, ...{} }, __exactCompatibilityContribution(__exactContributionTarget => __exactContributionTarget.place(`,
@@ -2062,6 +2064,39 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 	if strings.Contains(response.Code, `contribution: __exactVNode`) ||
 		strings.Contains(response.Code, `materialize`) {
 		t.Fatalf("foreign owner received native topology instead of an opaque supplier operation:\n%s", response.Code)
+	}
+}
+
+func TestSessionOmitsClientInteropRendererWithoutForeignClientOutput(t *testing.T) {
+	interop := &JSXInterop{
+		AdapterModule:        "@exactjs/react-compat",
+		AdapterExport:        "adaptComponent",
+		ClientRendererModule: "@exactjs/react-dom-compat/client19",
+	}
+	local := NewSession().Execute(Request{
+		ID: "local.tsx", Kind: "compile", Target: TargetClient,
+		Source: `function Local() { return () => <span />; }
+			export function Panel() { return () => <main><Local /></main>; }`,
+		JSXInterop: interop,
+	})
+	if local.Error != "" || len(local.Diagnostics) != 0 {
+		t.Fatalf("local compile failed: %s %#v", local.Error, local.Diagnostics)
+	}
+	if strings.Contains(local.Code, interop.ClientRendererModule) {
+		t.Fatalf("native-only client output retained the foreign renderer:\n%s", local.Code)
+	}
+
+	server := NewSession().Execute(Request{
+		ID: "server.tsx", Kind: "compile", Target: TargetServer,
+		Source: `import { Foreign } from "foreign-ui";
+			export function Panel() { return () => <main><Foreign /></main>; }`,
+		JSXInterop: interop,
+	})
+	if server.Error != "" || len(server.Diagnostics) != 0 {
+		t.Fatalf("server compile failed: %s %#v", server.Error, server.Diagnostics)
+	}
+	if strings.Contains(server.Code, interop.ClientRendererModule) {
+		t.Fatalf("server output retained the browser renderer:\n%s", server.Code)
 	}
 }
 

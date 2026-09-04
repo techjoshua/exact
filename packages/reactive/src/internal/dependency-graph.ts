@@ -107,6 +107,7 @@ export function scheduleDependencyReactions(target: object, key: PropertyKey): v
 /** Schedules subscribers for an atomic trigger collection through the coalescing scheduler. */
 export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey>>): void {
 	if (!triggers.size) return;
+	const reactions = new Set<Reaction>();
 	for (const [target, keys] of triggers) {
 		const targetDeps = deps.get(target);
 		if (!targetDeps) continue;
@@ -114,13 +115,14 @@ export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey
 			const dep = targetDeps.get(key);
 			const subscribers = dep?.subscribers;
 			if (subscribers instanceof Set) {
-				// Scheduling is deferred, so iterating the current dependency set cannot be
-				// invalidated by a reaction running. Reaction.schedule() and queueReaction()
-				// already coalesce repeated subscriptions across changed keys.
-				for (const reaction of subscribers) reaction.schedule();
-			} else subscribers?.schedule();
+				for (const reaction of subscribers) reactions.add(reaction);
+			} else if (subscribers) reactions.add(subscribers);
 		}
 	}
+	// A custom scheduler may run synchronously and replace its own watcher. Snapshotting every
+	// affected reaction before scheduling prevents the replacement from joining this publication;
+	// deduplication also preserves one atomic notification when several changed keys share it.
+	for (const reaction of reactions) reaction.schedule();
 }
 
 /** Runs a function while collecting all reactive reads into the supplied reaction. */

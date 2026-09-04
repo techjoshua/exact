@@ -249,8 +249,8 @@ func (lowering *jsxLowering) assembleModule(
 ) *ast.SourceFile {
 	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
 	runtimeImports := lowering.runtimeImports(transformed.AsNode())
-	interopImport := lowering.interopImport(transformed.AsNode())
-	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+1)
+	interopImports := lowering.interopImports(transformed.AsNode())
+	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+len(interopImports))
 	insertion := 0
 	for insertion < sourceStatementCount &&
 		isDirectiveStatement(transformed.Statements.Nodes[insertion]) {
@@ -258,9 +258,7 @@ func (lowering *jsxLowering) assembleModule(
 		insertion++
 	}
 	statements = append(statements, runtimeImports...)
-	if interopImport != nil {
-		statements = append(statements, interopImport)
-	}
+	statements = append(statements, interopImports...)
 	definitionInsertion := insertion
 	for definitionInsertion < sourceStatementCount {
 		statement := transformed.Statements.Nodes[definitionInsertion]

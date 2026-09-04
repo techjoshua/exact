@@ -88,6 +88,7 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 		)?.code;
 
 		expect(transformed).toContain('adaptReactComponent as __exactInteropComponent');
+		expect(transformed).toContain('import "@exactjs/react-dom-compat/client18"');
 		expect(transformed).toContain(
 			'__exactComponentReceipt(__exactInteropComponent, { component: QueryClientProvider'
 		);
@@ -95,6 +96,13 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 		expect(transformed).not.toContain('createCompiledVNode');
 		expect(transformed).toContain('client: __exactIndexedExpression(this.state, 0)');
 		expect(transformed).not.toContain('jsx-runtime18');
+		expect(
+			plugin.transform(
+				`/** @jsxImportSource @exactjs/jsx */
+				function Native() { return () => <p>native</p>; }`,
+				path.join(cwd, 'src', 'native-only.tsx')
+			)?.code
+		).not.toContain('@exactjs/react-dom-compat/client18');
 	});
 
 	it('matches the shared engine for prepackaged modules', () => {

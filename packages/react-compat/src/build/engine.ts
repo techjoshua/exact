@@ -117,6 +117,7 @@ export function createReactCompatibilityBuildEngine(
 			return Object.freeze({
 				adapterModule: '@exactjs/react-compat/exact' as const,
 				adapterExport: 'adaptReactComponent' as const,
+				clientRendererModule: `@exactjs/react-dom-compat/client${resolved.target}` as const,
 				cacheKey: `${resolved.target}:${current.hash}`,
 				classify(candidate: Parameters<ReactCompatibilityJsxInterop['classify']>[0]) {
 					for (const source of candidate.declarationSources)

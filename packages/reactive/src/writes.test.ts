@@ -23,6 +23,30 @@ import {
 } from './writes.js';
 
 describe('@exactjs/reactive writes', () => {
+	it('does not reschedule a watcher installed by a synchronous replacement scheduler', () => {
+		const state = reactive({ count: 0 });
+		const stable = watch(() => void state.count);
+		let replacement: () => void = () => undefined;
+		let schedules = 0;
+		const install = () => {
+			replacement = watch(
+				() => void state.count,
+				() => {
+					schedules++;
+					replacement();
+					install();
+				}
+			);
+		};
+		install();
+
+		batch(() => state.count++);
+
+		expect(schedules).toBe(1);
+		stable();
+		replacement();
+	});
+
 	it('retains keyed record identity when an API response reorders records', () => {
 		const state = reactive({
 			records: [
