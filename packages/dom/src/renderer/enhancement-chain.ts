@@ -39,10 +39,12 @@ export function createEnhancementChain(
 	return chain;
 }
 
-function orderEnhancementEntries(
+/** Orders one target's entries, bypassing dependency-graph work for a singleton chain. */
+export function orderEnhancementEntries(
 	root: Root,
 	entries: readonly EnhancementEntry[]
 ): EnhancementEntry[] {
+	if (entries.length < 2) return [...entries];
 	const byIdentity = new Map(entries.map((entry) => [entry.identity, entry] as const));
 	const providers = new Map<symbol, string[]>();
 	const outgoing = new Map<string, Set<string>>();

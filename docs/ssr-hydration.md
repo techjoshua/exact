@@ -289,6 +289,13 @@ component identity. Structurally open values, runtime shape
 mismatches, output extensions, and unsupported types retain the named-object format. Descriptor-safe
 validation and hydration limits apply in either form.
 
+Compiler-finite client boundaries group their props in the response hydration table by component
+and canonical prop order. Within one immutable server build, the boundary's compiler-generated ID
+also reuses that schema across requests, so publication does not repeatedly discover, sort, and
+hash the same prop names. A conditional server child range has separate present and absent schema
+variants. The shared cache contains only component names and prop-name arrays; boundary values,
+component state, request tables, and coordinates remain request-owned.
+
 The `@exactjs/hydrate/root` entry uses a bounded hydration-only field projection. Operation
 endpoints, continuations, islands, and transports belong to the complete runtime; their presence in
 a root-only document configuration fails closed. Build identity, component authorization,
