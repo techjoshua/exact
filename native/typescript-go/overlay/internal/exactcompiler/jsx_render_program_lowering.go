@@ -1110,13 +1110,18 @@ func (lowering *jsxLowering) renderProgramLiteral(
 			componentUpdates = updates
 			componentUpdate = update
 			for _, directUpdate := range directUpdates {
-				if directUpdate.operand == nil {
-					continue
+				if directUpdate.operand != nil {
+					if build.directOperands == nil {
+						build.directOperands = make(map[int]componentUpdateDependency)
+					}
+					build.directOperands[directUpdate.index] = *directUpdate.operand
 				}
-				if build.directOperands == nil {
-					build.directOperands = make(map[int]componentUpdateDependency)
+				for _, operand := range directUpdate.propertyOperands {
+					if build.directOperands == nil {
+						build.directOperands = make(map[int]componentUpdateDependency)
+					}
+					build.directOperands[operand.index] = operand.dependency
 				}
-				build.directOperands[directUpdate.index] = *directUpdate.operand
 			}
 		} else {
 			// Direct state operations are component-owned. JSX outside a compiled component retains

@@ -34,6 +34,7 @@ export const corpusScenarios = [
 			'mixed-reader-dispatch',
 			'direct-property-binding',
 			'indexed-property-operand',
+			'indexed-state-alias-read',
 			'state-only-update-mask',
 			'mixed-prop-state-update',
 			'indexed-input-update-plan',

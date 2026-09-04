@@ -3190,8 +3190,8 @@ __fixtureTask2();
 		`export const Panel =`,
 		`placement: "isomorphic"`,
 		`instantiate: __exactImplementation_Panel_1`,
-		`__exactSlot === 0 ? __exactReadState(this.state, 1) as string`,
 		`__exactSlot === 1 ? () => __exactUpdateStateResult(this.state, 0`,
+		`[["title", 0, 1]]`,
 		`[11, 2, ["Save ", "", true, 0, 0]]`,
 		`__exactApplyProgramText(__exactTarget0, 2, 0, 0, "Save ", "")`,
 	} {
@@ -3202,6 +3202,9 @@ __fixtureTask2();
 				response.Code,
 			)
 		}
+	}
+	if strings.Contains(response.Code, `__exactSlot === 0 ? __exactReadState(this.state, 1)`) {
+		t.Fatalf("direct property operand retained its obsolete reader:\n%s", response.Code)
 	}
 	for _, forbidden := range []string{"loadPrivate"} {
 		if strings.Contains(response.Code, forbidden) {
