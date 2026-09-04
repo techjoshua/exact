@@ -115,6 +115,8 @@ export type ExactJsxInteropCandidate = {
 export type ExactJsxInterop = {
 	readonly adapterModule: string;
 	readonly adapterExport: string;
+	/** Browser renderer capability loaded only when this module emits a foreign component boundary. */
+	readonly clientRendererModule?: string;
 	readonly cacheKey: string;
 	/**
 	 * Retained for host diagnostics and compatibility analysis. Lowering does not

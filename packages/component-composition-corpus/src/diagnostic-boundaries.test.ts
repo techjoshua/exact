@@ -19,6 +19,7 @@ describe('composition corpus diagnostics and compatibility boundary', () => {
 			jsxInterop: {
 				adapterModule: '@exactjs/react-compat/exact',
 				adapterExport: 'adaptReactComponent',
+				clientRendererModule: '@exactjs/react-dom-compat/client19',
 				cacheKey: 'corpus:react-boundary',
 				classify: ({ sourceModule }) => (sourceModule === 'react-widget' ? 'component' : 'unknown')
 			}
@@ -26,6 +27,7 @@ describe('composition corpus diagnostics and compatibility boundary', () => {
 
 		expect(result.code).toContain('component: Widget');
 		expect(result.code).toContain('@exactjs/react-compat/exact');
+		expect(result.code).toContain('import "@exactjs/react-dom-compat/client19"');
 		expect(result.code).not.toContain('createCompiledVNode');
 	});
 });

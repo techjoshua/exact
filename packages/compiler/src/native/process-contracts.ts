@@ -102,6 +102,7 @@ export type NativeCompilerProjectSource = Readonly<{
 export type NativeCompilerJSXInterop = Readonly<{
 	adapterModule: string;
 	adapterExport: string;
+	clientRendererModule?: string;
 	exactComponents?: readonly Readonly<{
 		moduleSpecifier: string;
 		exportName: string;

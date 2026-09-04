@@ -310,7 +310,7 @@ export const compilerPathInventory = [
 	path(
 		'react-owned-component',
 		'explicit-compatibility',
-		'React-owned values cross only the explicit compatibility boundary.',
+		'React-owned values cross only the explicit compatibility boundary, which installs its selected client renderer.',
 		[]
 	),
 	path(
