@@ -3560,3 +3560,49 @@ interleaved Exact-before, and separate Bun diagnostic table. Raw full-run and no
 is under `.tmp/final-specialization-checkpoint`; focused evidence is under
 `.tmp/indexed-state-alias-reads`, `.tmp/indexed-form-binding-operands`,
 `.tmp/nested-indexed-state-root-reads`, and `.tmp/authored-hydration-direct-reads`.
+
+### Conditional React renderer integration and synchronous reaction safety
+
+The compiler now imports the selected React compatibility renderer only in client modules that
+actually cross a foreign-component boundary. Native-only client modules and every server artifact
+continue to omit that optional surface. The React compatibility example exposed a separate reactive
+correctness defect: a synchronous custom scheduler could replace its watcher while an atomic
+publication was iterating the live subscriber set, allowing the replacement to join the same
+publication indefinitely. Atomic publication now snapshots and deduplicates its affected reactions
+before scheduling them. A focused regression test and the live documentation example protect the
+behavior.
+
+The native-only comparison fixture therefore measures only the reaction-snapshot change. Its raw,
+transferred, decoded, profiled, and executed client code each grow by 43 bytes; invoked and profiled
+function counts remain 530 and 1,125. Warm used heap rises by 200 bytes, from 2,496,528 to 2,496,728,
+and the 1x startup heap moves by the same amount. The untimed startup allocation sample falls from
+1,077,828 to 1,035,280 bytes. The interaction allocation sample contains one 4,100-byte native
+`Set` sample, an explicit transient-allocation cost of protecting synchronous scheduler replacement.
+
+User-visible browser results are favorable through most of the distribution but not universal.
+Optimistic feedback is 1.8/2.1/2.7/3.3 ms at p50/p75/p95/p99 versus a control-normalized
+2.0/2.201/2.836/3.038 ms before: p50 through p95 improve while p99 worsens. Settlement p50 improves
+from a normalized 13.208 to 12.7 ms and is mixed in the tail. Startup evaluation p50 moves from
+18.972/111.170/200.456 ms to 20.059/119.796/213.988 ms at 1x/4x/6x. That movement is retained as a
+counter-metric, but it is not attributed solely to the 43-byte change: the untimed CPU increase is
+mostly native program and idle samples, no new JavaScript hotspot appears, retained topology is
+unchanged, and sampled startup allocation decreases.
+
+The Node Exact server entry remains byte-identical to the preceding accepted checkpoint: 244,599
+bytes with SHA-256 `069a77cb5a63aaa325dafc2779e114fa4dc4be411a93334557c41a4318663a2d`.
+The response remains 3,710 bytes. Direct same-run before/current workers therefore execute identical
+code; their large ordinary-c16 split and smaller sustained-capacity split demonstrate worker
+assignment variance, not a server change. In the current worker assignment, Exact records 2,320.5
+requests/second at saturation c32 versus React's 2,258.3, and 2,281.0 versus 2,238.3 at c64. Exact
+also retains less post-GC Node heap than React, 12.56 versus 13.18 MB at p50, while its fitted
+heap-used slope is slightly higher, 3,505 versus 3,466 bytes/request. Render-only p50 is 0.0332 ms
+for Exact and 0.0236 ms for React; sampled allocation is 2,605,704 versus React's 6,862,720 bytes
+per 100-render profile batch.
+
+`npm run performance:check` passed after its complete release prerequisite. The five admitted
+production artifacts then passed all 35 browser equivalence scenarios and were reused for 50
+balanced browser rounds, 750 startup captures, and the complete Node and separate Bun SSR matrices.
+The
+[complete grouped-percentile report](component-local-target-abi/conditional-react-renderer-integration.md)
+contains every required table. Raw evidence and normalization output are under
+`.tmp/react-renderer-final-checkpoint`.
