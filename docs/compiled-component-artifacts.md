@@ -222,9 +222,11 @@ additional dynamic marker is required around the application.
 Compiler-proven top-level state reads use the artifact's deterministic numeric state slots rather
 than re-entering the inspectable state's property proxy. That numeric lane tracks the same
 target/key dependency graph as ordinary property reads, so computed freshness, transactions,
-rollback, scheduling, and teardown retain one set of reactive semantics. Authored aliases, dynamic
-keys, external consumers, and DevTools continue through the ordinary state facade. Direct server
-frames use their plain request-local state records and do not import this client-only access lane.
+rollback, scheduling, and teardown retain one set of reactive semantics. A checker-proven,
+non-invalidated alias of the complete state facade uses the same indexed lane; nested aliases,
+dynamic keys, external consumers, and DevTools continue through ordinary property semantics.
+Direct server frames use their plain request-local state records and do not import this client-only
+access lane.
 Compiler-proven top-level props reads use a separate deterministic layout on the readonly props
 facade. Initial construction seeds that layout without publishing false changes, and later parent
 updates reconcile through the same numeric dependency identities. Every compiled definition emits

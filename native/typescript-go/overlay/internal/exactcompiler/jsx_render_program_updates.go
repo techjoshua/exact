@@ -21,6 +21,7 @@ type renderProgramDirectUpdate struct {
 }
 
 type renderProgramPropertyOperand struct {
+	index      int
 	name       string
 	dependency componentUpdateDependency
 }
@@ -266,7 +267,7 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 			if slot.kind != "spread" {
 				if operand, exact := lowering.directRenderProgramOperand(slot.reader); exact {
 					propertyOperands = append(propertyOperands, renderProgramPropertyOperand{
-						name: slot.name, dependency: operand,
+						index: index, name: slot.name, dependency: operand,
 					})
 				}
 			}

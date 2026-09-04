@@ -44,7 +44,7 @@ describe('composition corpus server behavior', () => {
 			/^<section data-exact-id="[^"]+" data-scenario="state" class="state-root enabled">/
 		);
 		expect(html.replace(/ data-exact-id="[^"]+"/, '')).toBe(
-			'<section data-scenario="state" class="state-root enabled"><output>count:1</output><data data-role="adjacent-text">Count &amp; 1</data><small hidden>COUNT</small><textarea data-role="static-native-attributes" aria-label="count" maxLength="2000" required></textarea><progress data-role="direct-state-property" value="1" max="10"></progress><button data-count="1">increment</button></section>'
+			'<section data-scenario="state" class="state-root enabled"><output>count:1</output><data data-role="adjacent-text">Count &amp; 1</data><var data-role="state-alias-derived">11</var><small hidden>COUNT</small><textarea data-role="static-native-attributes" aria-label="count" maxLength="2000" required></textarea><progress data-role="direct-state-property" value="1" max="10"></progress><button data-count="1">increment</button></section>'
 		);
 	});
 

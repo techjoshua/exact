@@ -65,6 +65,12 @@ export const compilerPathInventory = [
 		['client-mount', 'client-update', 'hydrate-match']
 	),
 	path(
+		'indexed-state-alias-read',
+		'specialized',
+		'Checker-proven whole-state aliases retain indexed dependency identity inside authored expressions.',
+		['client-mount', 'client-update', 'hydrate-match']
+	),
+	path(
 		'state-only-update-mask',
 		'specialized',
 		'State dependencies select only affected update operations.',

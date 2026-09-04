@@ -3505,3 +3505,58 @@ contains every required table. Raw full-run and normalization evidence is under
 `.tmp/compact-client-dispatch-checkpoint`; focused accepted and rejected experiments are under
 `.tmp/property-operands-combined`, `.tmp/direct-closed-dom-listeners`, and
 `.tmp/indexed-computed-dependency-validation`.
+
+### Indexed state alias reads
+
+The compiler now preserves exact indexed state identity through checker-proven aliases of the
+component's whole state object. A binding such as `const current = this.state` may therefore lower
+`current.value` through the existing component-local state operand instead of retaining a reader
+function. The proof deliberately excludes destructured values, arbitrary aliases, computed keys,
+and nested roots whose semantics would require repeated runtime traversal. Complete render-program
+artifacts also omit a superseded reader when the same expression already has an exact property
+operand. Arbitrary and derived expressions retain their function owners.
+
+The focused comparison fixture removes 28 raw and decoded bytes and 56 executed bytes. Fifty
+balanced startup pairs reduce mean sampled CPU by 1.03%, sampled allocation by 1.94%, interaction
+allocation by 5.08%, and sampled post-GC heap by 6.81%. Deterministic retained heap moves by only
+12 bytes. A separate 100-pair optimistic-feedback population, excluding one cold baseline outlier,
+reduces the mean by 4.22%; p50 remains 1.7 ms while p75/p95/p99 improve from 1.9/2.5/3.9 to
+1.8/2.2/3.7 ms. Both execution-order cohorts favor the candidate.
+
+The complete five-framework run confirms the deterministic change: Exact's raw client artifact
+falls from 200,903 to 200,875 bytes and transferred, decoded, and profiled script each fall by 28
+bytes. Executed code remains 100,859 bytes, profiled functions remain 1,125, invoked functions
+remain 530, and warm used heap is effectively unchanged at 2,496,528 bytes. At 1x, startup
+evaluation is 19.136/20.510/21.264/21.657 ms at p50/p75/p95/p99. The broad optimistic population
+is mixed across its coarse timing boundaries, so the balanced 100-pair direct result is the causal
+acceptance evidence rather than a claim that every independently sampled percentile improved.
+
+Three broader operand candidates were rejected after profiling explained their counter-results.
+Numeric form operands added 402 client bytes and made direct form interaction slower because the
+existing closure path was already monomorphic. Replacing a nested state root with repeated indexed
+helper calls removed one invoked function and 113 executed bytes but increased interaction CPU and
+allocation; the shared root closure was cheaper than repeated reactive access. Removing the final
+authored hydration readers reduced isolated allocation but lowered fresh-process c32 and c64
+capacity by 2.53% and 3.03% because those reads entered getter and reactive-proxy machinery. All
+three candidates were removed rather than retained as alternative runtime paths.
+
+A server-side accounted component-range commit candidate was also removed. Its isolated renderer
+profile and first paired capacity sample looked favorable, but the complete run assigned the
+candidate and historical labels to unequal fixed workers. A clean accepted rerun proves that the
+current and before Node server entries are byte-identical 244,599-byte files with SHA-256
+`069a77cb5a63aaa325dafc2779e114fa4dc4be411a93334557c41a4318663a2d`. Saturation and equal-payload
+lanes remain close, while the nominal preloaded split persists between the two identical artifacts.
+Those direct differences measure worker placement and host variance, not an implementation gain or
+regression. No server source change is accepted in this phase; the response remains 3,710 bytes.
+
+`npm run performance:check` passed after the complete release prerequisite, including 1,971
+package tests, the 335-file native compiler corpus, all application builds, correctness,
+architecture, security, formatting, and maintainability gates. The composition corpus now covers
+57 compiler paths, 11 scenarios, and 57 normative tests. The
+[complete grouped-percentile report](component-local-target-abi/indexed-state-alias-reads.md)
+contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
+response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, direct
+interleaved Exact-before, and separate Bun diagnostic table. Raw full-run and normalization evidence
+is under `.tmp/final-specialization-checkpoint`; focused evidence is under
+`.tmp/indexed-state-alias-reads`, `.tmp/indexed-form-binding-operands`,
+`.tmp/nested-indexed-state-root-reads`, and `.tmp/authored-hydration-direct-reads`.

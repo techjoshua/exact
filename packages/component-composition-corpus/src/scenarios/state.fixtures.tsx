@@ -11,6 +11,7 @@ function IndexedState(
 	props.capture?.(this);
 	this.state.count = 1;
 	this.state.enabled = true;
+	const state = this.state;
 	return () => (
 		<section
 			data-scenario="state"
@@ -21,6 +22,7 @@ function IndexedState(
 				{props.prefix}:{this.state.count}
 			</output>
 			<data data-role="adjacent-text">Count &amp; {this.state.count}</data>
+			<var data-role="state-alias-derived">{state.count + 10}</var>
 			<small hidden>{props.prefix.toUpperCase()}</small>
 			<textarea
 				data-role="static-native-attributes"

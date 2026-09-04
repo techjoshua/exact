@@ -215,6 +215,50 @@ func TestClientNestedCallbackWritesThroughIndexedStateFacadeAlias(t *testing.T) 
 	}
 }
 
+func TestClientReadsThroughIndexedStateFacadeAlias(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "indexed-state-alias-read.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Counter(this: Component<{ count: number }>) {
+				const state = this.state;
+				function current() { return state.count; }
+				return () => <button>{current()}</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "return __exactReadState(state, 0) as number") {
+		t.Fatalf("state facade alias did not use its indexed read slot:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "return state.count") {
+		t.Fatalf("state facade alias retained a string-key proxy read:\n%s", response.Code)
+	}
+}
+
+func TestClientRetainsPropertyReadAfterStateFacadeAliasInvalidation(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "invalidated-state-alias-read.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Counter(this: Component<{ count: number }>) {
+				let state = this.state;
+				state = { count: 1 };
+				function current() { return state.count; }
+				return () => <button>{current()}</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("client compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "return state.count") {
+		t.Fatalf("invalidated state facade alias did not retain property semantics:\n%s", response.Code)
+	}
+}
+
 func TestHydrateProjectionUsesIndexedSynchronousComponentInputUpdates(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "hydrate-computation.tsx", Kind: "compile", Target: TargetClient,

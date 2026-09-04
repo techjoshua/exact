@@ -110,8 +110,8 @@ func (lowering *jsxLowering) lowerIndexedStateRead(node *ast.Node) *ast.Node {
 	return result
 }
 
-// directStateReadReceiver accepts only the canonical this.state facade. Alias and dynamic reads
-// retain normal property semantics until their storage identity is equally proven.
+// directStateReadReceiver accepts the canonical facade and a checker-proven whole-state alias.
+// The indexed read table already excludes nested, dynamic, broad, and invalidated alias paths.
 func directStateReadReceiver(node *ast.Node) *ast.Node {
 	var receiver *ast.Node
 	switch {
@@ -121,6 +121,9 @@ func directStateReadReceiver(node *ast.Node) *ast.Node {
 		receiver = node.AsElementAccessExpression().Expression
 	default:
 		return nil
+	}
+	if ast.IsIdentifier(receiver) {
+		return receiver
 	}
 	if !ast.IsPropertyAccessExpression(receiver) {
 		return nil

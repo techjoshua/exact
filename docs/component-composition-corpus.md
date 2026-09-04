@@ -4,7 +4,7 @@ The component composition corpus is the normative acceptance suite for native eX
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 
-The current inventory covers 56 compiler paths across 11 scenarios and 57 normative tests,
+The current inventory covers 57 compiler paths across 11 scenarios and 57 normative tests,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration. Compiler-created
 intrinsic identity is also protected as immutable server data outside the request-local dynamic
@@ -19,6 +19,8 @@ Compiler-proven indexed state and prop reads used by intrinsic properties are en
 component-local `wire`; mixed property groups retain executable writers only for their arbitrary
 expressions and callbacks. Fully reconstructible transition-free components omit their resumption
 contract and value record rather than shipping an empty activation protocol.
+Checker-proven whole-state aliases also retain indexed reads inside derived authored expressions;
+invalidated, nested, dynamic, and broad alias paths keep their general property semantics.
 Direct properties of keyed items and object-valued indexed props forwarded across native component
 boundaries use compact component-local operands. Replacing the outer prop rebinds the child-owned
 property dependency without accumulating computation owners; arbitrary and derived expressions
