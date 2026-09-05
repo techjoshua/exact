@@ -39,6 +39,7 @@ export const corpusScenarios = [
 			'mixed-prop-state-update',
 			'indexed-input-update-plan',
 			'nested-indexed-input-update-plan',
+			'rendered-map-derived-local',
 			'nested-property-prop-operand',
 			'snapshot-resumption-input',
 			'component-positional-root-publication',

@@ -139,3 +139,43 @@ function MixedReaderDispatch(props: { pending: boolean; items: readonly string[]
 export const mixedReaderDispatchRoot = () => (
 	<MixedReaderDispatch pending={false} items={['first', '', 'second']} />
 );
+
+type GroupedItem = { id: string; group: string };
+type GroupedCollectionState = { items: GroupedItem[] };
+let mountedGroupedCollection: Component<GroupedCollectionState> | undefined;
+
+function GroupedColumns(props: { groups: readonly string[]; items: GroupedItem[] }) {
+	return () => (
+		<section data-scenario="grouped-derived-collection">
+			{props.groups.map((group) => {
+				const items = props.items.filter((item) => item.group === group);
+				return (
+					<article key={group} data-group={group}>
+						<span>{items.length}</span>
+						{items.map((item) => (
+							<strong key={item.id}>{item.id}</strong>
+						))}
+					</article>
+				);
+			})}
+		</section>
+	);
+}
+
+function GroupedCollection(this: Component<GroupedCollectionState>) {
+	mountedGroupedCollection = this;
+	this.state.items = [
+		{ id: 'a', group: 'open' },
+		{ id: 'b', group: 'done' }
+	];
+	return () => <GroupedColumns groups={['open', 'done']} items={this.state.items} />;
+}
+
+/** Creates a root with a derived collection local owned by each rendered group. */
+export const groupedDerivedCollectionRoot = <GroupedCollection />;
+
+/** Reads the durable owner of the grouped derived-collection scenario. */
+export function groupedDerivedCollectionOwner(): Component<GroupedCollectionState> {
+	if (!mountedGroupedCollection) throw new Error('Grouped collection scenario is not mounted');
+	return mountedGroupedCollection;
+}

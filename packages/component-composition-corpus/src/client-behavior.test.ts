@@ -18,6 +18,8 @@ import { dynamicRoot } from './scenarios/dynamic.fixtures.js';
 import { fundamentalsRoot } from './scenarios/fundamentals.fixtures.js';
 import { registryRoot } from './scenarios/registry.fixtures.js';
 import {
+	groupedDerivedCollectionOwner,
+	groupedDerivedCollectionRoot,
 	inputProjectionOwner,
 	inputProjectionRoot,
 	stateOwner,
@@ -98,6 +100,21 @@ describe('composition corpus client behavior', () => {
 
 		expect(container.querySelector('[data-role="nested-prop-label"]')).toBe(nested);
 		expect(nested?.textContent).toBe('replaced');
+	});
+
+	it('updates derived collection membership inside a rendered map callback', () => {
+		const container = mount(groupedDerivedCollectionRoot);
+		const groups = () =>
+			Array.from(container.querySelectorAll('[data-group]'), (group) => group.textContent);
+		expect(groups()).toEqual(['1a', '1b']);
+
+		groupedDerivedCollectionOwner().state.items = [
+			{ id: 'a', group: 'open' },
+			{ id: 'b', group: 'open' }
+		];
+		flushSync();
+
+		expect(groups()).toEqual(['2ab', '0']);
 	});
 
 	it('updates a conditional range without replacing adjacent siblings', () => {

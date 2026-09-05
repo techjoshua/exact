@@ -32,6 +32,13 @@ const applications = [
 		workspace: '@exactjs/sample-intl-testbed',
 		journey: checkIntl,
 		production: true
+	},
+	{
+		key: 'workbench',
+		name: 'Workbench status movement',
+		workspace: '@exactjs/sample-workbench',
+		journey: checkWorkbench,
+		production: true
 	}
 ];
 const selectedApplications = requestedApplication
@@ -157,6 +164,26 @@ async function checkIntl(page, origin) {
 	await french.getByText('Bonjour, Jordan.', { exact: false }).waitFor();
 }
 
+async function checkWorkbench(page, origin) {
+	await page.goto(origin, { waitUntil: 'networkidle' });
+	await page.getByRole('heading', { name: 'Project Workbench' }).waitFor();
+	const backlog = page.locator('.column').filter({
+		has: page.getByRole('heading', { name: 'Backlog', exact: true })
+	});
+	const active = page.locator('.column').filter({
+		has: page.getByRole('heading', { name: 'Active', exact: true })
+	});
+	const title = 'Build command palette actions';
+	const backlogCard = backlog.locator('.task-card').filter({ hasText: title });
+	await backlogCard.getByRole('button', { name: 'Active', exact: true }).click();
+	await expectEventually(
+		async () =>
+			(await backlog.locator('.task-card').filter({ hasText: title }).count()) === 0 &&
+			(await active.locator('.task-card').filter({ hasText: title }).count()) === 1,
+		'Workbench card did not move to its updated status column'
+	);
+}
+
 async function navigateToDocs(page, origin) {
 	// Vite keeps development connections and dependency discovery active beyond initial page
 	// readiness. The visible journey below is the acceptance signal, not network quiescence.
@@ -168,7 +195,8 @@ async function startServer(workspace, port, production) {
 		'@exactjs/sample-sudoku': path.join(root, 'apps', 'sudoku'),
 		'@exactjs/docs': path.join(root, 'apps', 'docs'),
 		'@exactjs/sample-shipping-calculator': path.join(root, 'apps', 'shipping-calculator'),
-		'@exactjs/sample-intl-testbed': path.join(root, 'apps', 'intl-testbed')
+		'@exactjs/sample-intl-testbed': path.join(root, 'apps', 'intl-testbed'),
+		'@exactjs/sample-workbench': path.join(root, 'apps', 'workbench')
 	}[workspace];
 	const shipping = workspace === '@exactjs/sample-shipping-calculator';
 	const hmrPort = shipping ? await availablePort() : undefined;
