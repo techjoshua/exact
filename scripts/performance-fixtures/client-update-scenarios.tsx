@@ -1,5 +1,4 @@
 import { render, unmount } from '@exactjs/dom';
-import { createCompiledComponentVNode } from '@exactjs/core/runtime/render';
 import {
 	batch,
 	createEffectScope,
@@ -13,9 +12,7 @@ import {
 	CommitBurst,
 	KeyedList,
 	commitInstance,
-	listInstance,
 	releaseCommitInstance,
-	releaseListInstance,
 	type Item
 } from './client-scenario-components.js';
 
@@ -34,13 +31,11 @@ export function keyedListMutations(count: number): ScenarioResult {
 	const units: Record<string, 'count' | 'ms'> = {};
 	const measure = (name: string, mutate: (items: Item[]) => void) => {
 		const container = document.createElement('div');
-		releaseListInstance();
-		// Keep the benchmark on the native ownership path regardless of the bundler's
-		// cross-module transform order; compatibility adaptation is measured separately.
-		render(createCompiledComponentVNode(KeyedList, { items: [...base] }), container);
-		assert(listInstance, 'keyed mutation fixture did not expose its instance');
+		render(<KeyedList items={[...base]} />, container);
+		const next = [...base];
+		mutate(next);
 		const started = performance.now();
-		mutate(listInstance.state.items);
+		render(<KeyedList items={next} />, container);
 		flushSync();
 		metrics[`${name}Ms`] = performance.now() - started;
 		units[`${name}Ms`] = 'ms';
@@ -117,8 +112,7 @@ export function domCommitBurst(): ScenarioResult {
 	const container = document.createElement('div');
 	document.body.append(container);
 	releaseCommitInstance();
-	// See keyedListMutations: this fixture measures native DOM publication, not interop selection.
-	render(createCompiledComponentVNode(CommitBurst, {}), container);
+	render(<CommitBurst />, container);
 	assert(commitInstance, 'DOM commit fixture did not expose its instance');
 	const input = container.querySelector('input');
 	assert(input, 'DOM commit fixture did not mount its input');

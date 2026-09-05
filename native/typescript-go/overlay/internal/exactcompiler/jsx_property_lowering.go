@@ -10,6 +10,11 @@ import (
 	"github.com/microsoft/typescript-go/internal/printer"
 )
 
+type enhancementPropertyAccumulator struct {
+	entries map[string][]*ast.Node
+	order   []string
+}
+
 func (lowering *jsxLowering) props(
 	attributes *ast.Node,
 	elementID string,
@@ -32,20 +37,32 @@ func (lowering *jsxLowering) propsWithReactivity(
 	tag string,
 	reactive bool,
 ) *ast.Node {
+	return lowering.propsWithProjection(attributes, elementID, intrinsic, tag, reactive, false)
+}
+
+// serverRenderProgramProps preserves target/enhancement contributions while excluding authored
+// client-only callbacks before their expressions are evaluated for a compiler-closed SSR writer.
+func (lowering *jsxLowering) serverRenderProgramProps(
+	attributes *ast.Node,
+	tag string,
+) *ast.Node {
+	return lowering.propsWithProjection(attributes, "", false, tag, false, true)
+}
+
+func (lowering *jsxLowering) propsWithProjection(
+	attributes *ast.Node,
+	elementID string,
+	intrinsic bool,
+	tag string,
+	reactive bool,
+	serverOnly bool,
+) *ast.Node {
 	properties := []*ast.Node{}
-	enhancementEntries := make(map[string][]*ast.Node)
-	enhancementOrder := []string{}
 	application := enhancementApplication{}
 	if attributes != nil {
 		application = lowering.enhancementImports.applications[attributes.Pos()]
 	}
-	for _, component := range application.components {
-		if _, grouped := enhancementEntries[component.identity]; grouped {
-			continue
-		}
-		enhancementOrder = append(enhancementOrder, component.identity)
-		enhancementEntries[component.identity] = []*ast.Node{}
-	}
+	enhancements := newEnhancementPropertyAccumulator(application)
 	if intrinsic {
 		properties = append(
 			properties,
@@ -65,7 +82,7 @@ func (lowering *jsxLowering) propsWithReactivity(
 						properties,
 						lowering.property(
 							lowering.factory.NewIdentifier("className"),
-							lowering.lowerClassNameValue(attributes, reactive),
+							lowering.lowerClassNameValue(attributes, reactive, false),
 						),
 					)
 					classNameEmitted = true
@@ -86,23 +103,7 @@ func (lowering *jsxLowering) propsWithReactivity(
 							lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(keys), false),
 						}),
 					))
-					for _, member := range plan.members {
-						if _, grouped := enhancementEntries[member.identity]; !grouped {
-							enhancementOrder = append(enhancementOrder, member.identity)
-							enhancementEntries[member.identity] = []*ast.Node{}
-						}
-						value := lowering.factory.NewElementAccessExpression(
-							lowering.visitor.VisitNode(expression),
-							nil,
-							lowering.factory.NewStringLiteral(member.source, ast.TokenFlagsNone),
-							ast.NodeFlagsNone,
-						)
-						value = lowering.reactiveExpression(expression, value)
-						enhancementEntries[member.identity] = append(
-							enhancementEntries[member.identity],
-							lowering.property(lowering.factory.NewIdentifier(member.prop), value),
-						)
-					}
+					lowering.appendEnhancementSpread(&enhancements, expression, plan, reactive)
 					continue
 				}
 				properties = append(
@@ -119,22 +120,27 @@ func (lowering *jsxLowering) propsWithReactivity(
 				properties = append(properties, lowering.componentBindingProperties(binding)...)
 				continue
 			}
-			if ast.IsJsxNamespacedName(attribute.Name()) {
-				namespaced := attribute.Name().AsJsxNamespacedName()
-				prefix := namespaced.Namespace.Text()
-				if _, exists := lowering.enhancementImports.bindings[prefix]; exists {
-					value := lowering.jsxAttributeInitializer(attribute, tag, name, reactive)
-					if lowering.timeActivation != "" && timeUpdateMembers(application.attributes[property.Pos()], timeUpdateIdentity(application)) {
-						value = lowering.timeActivationExpression(property)
-					}
-					if value != nil {
-						for _, member := range application.attributes[property.Pos()] {
-							enhancementEntries[member.identity] = append(
-								enhancementEntries[member.identity],
-								lowering.property(jsxPropertyName(lowering.factory, member.prop), value),
-							)
+			if lowering.appendEnhancementAttribute(&enhancements, application, property, attribute, tag, name, reactive) {
+				continue
+			}
+			if serverOnly {
+				if bindingProperty := lowering.serverFormBindingProperty(name, attribute.Initializer); bindingProperty != nil {
+					properties = append(properties, bindingProperty)
+					continue
+				}
+				if name == "ref" {
+					if lowering.serverObservableRefAttribute(attribute) && ast.IsJsxExpression(attribute.Initializer) {
+						expression := attribute.Initializer.AsJsxExpression().Expression
+						if expression != nil {
+							properties = append(properties, lowering.property(
+								jsxPropertyName(lowering.factory, name),
+								lowering.visitor.VisitNode(expression),
+							))
 						}
 					}
+					continue
+				}
+				if interactiveJSXAttribute(name) {
 					continue
 				}
 			}
@@ -167,6 +173,11 @@ func (lowering *jsxLowering) propsWithReactivity(
 					name,
 				)
 				initializer = lowering.visitor.VisitNode(expression)
+				if serverOnly && name == "className" {
+					if closed := lowering.lowerCompilerClosedServerClassName(expression); closed != nil {
+						initializer = closed
+					}
+				}
 				if reactive && !jsxCallbackExpression(expression) &&
 					!jsxEventAttribute(name) &&
 					name != "key" && name != "ref" {
@@ -192,45 +203,230 @@ func (lowering *jsxLowering) propsWithReactivity(
 			)
 		}
 	}
-	if len(enhancementOrder) != 0 {
-		entries := make([]*ast.Node, 0, len(enhancementOrder))
-		for _, identity := range enhancementOrder {
-			members := enhancementEntries[identity]
-			props := []*ast.Node{}
-			var root *ast.Node
-			for _, member := range members {
-				if ast.IsPropertyAssignment(member) && member.AsPropertyAssignment().Name().Text() == "__exactRoot" {
-					root = member.AsPropertyAssignment().Initializer
-					continue
-				}
-				props = append(props, member)
-			}
-			entry := []*ast.Node{
-				lowering.property(
-					lowering.factory.NewIdentifier("identity"),
-					lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone),
-				),
-				lowering.property(
-					lowering.factory.NewIdentifier("props"),
-					lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(props), false),
-				),
-			}
-			if root != nil {
-				entry = append(entry, lowering.property(lowering.factory.NewIdentifier("root"), root))
-			}
-			entries = append(entries, lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(entry), false))
-		}
+	if marker := lowering.enhancementMarker(enhancements); marker != nil {
 		properties = append(properties, lowering.property(
 			lowering.factory.NewIdentifier("__exactEnhancements"),
-			lowering.call(lowering.names.enhancements, []*ast.Node{
-				lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(entries), false),
-			}),
+			marker,
 		))
 	}
 	return lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList(properties),
 		false,
 	)
+}
+
+// lowerCompilerClosedServerClassName removes request-local arrays and truthy-map objects only when
+// their class-token order and Boolean conditions are statically closed. Other authored class value
+// shapes retain the recursive runtime normalizer.
+func (lowering *jsxLowering) lowerCompilerClosedServerClassName(expression *ast.Node) *ast.Node {
+	if !ast.IsArrayLiteralExpression(expression) {
+		return nil
+	}
+	elements := expression.AsArrayLiteralExpression().Elements.Nodes
+	if len(elements) == 0 || !ast.IsStringLiteral(elements[0]) || elements[0].Text() == "" {
+		return nil
+	}
+	output := lowering.factory.NewStringLiteral(elements[0].Text(), ast.TokenFlagsNone)
+	for _, element := range elements[1:] {
+		switch {
+		case ast.IsStringLiteral(element):
+			if element.Text() == "" {
+				return nil
+			}
+			output = lowering.binary(
+				output,
+				ast.KindPlusToken,
+				lowering.factory.NewStringLiteral(" "+element.Text(), ast.TokenFlagsNone),
+			)
+		case ast.IsObjectLiteralExpression(element):
+			for _, property := range element.AsObjectLiteralExpression().Properties.Nodes {
+				if !ast.IsPropertyAssignment(property) {
+					return nil
+				}
+				assignment := property.AsPropertyAssignment()
+				name := assignment.Name()
+				if name == nil || (!ast.IsIdentifier(name) && !ast.IsStringLiteral(name)) || name.Text() == "" {
+					return nil
+				}
+				condition := assignment.Initializer
+				if condition == nil ||
+					!compilerClosedBooleanExpression(condition, lowering.checker) {
+					return nil
+				}
+				output = lowering.binary(
+					output,
+					ast.KindPlusToken,
+					lowering.conditional(
+						lowering.visitor.VisitNode(condition),
+						lowering.factory.NewStringLiteral(" "+name.Text(), ast.TokenFlagsNone),
+						lowering.factory.NewStringLiteral("", ast.TokenFlagsNone),
+					),
+				)
+			}
+		default:
+			return nil
+		}
+	}
+	return output
+}
+
+func compilerClosedBooleanExpression(expression *ast.Node, typeChecker *checker.Checker) bool {
+	expression = unwrapRenderExpression(expression)
+	if expression == nil {
+		return false
+	}
+	if expression.Kind == ast.KindTrueKeyword || expression.Kind == ast.KindFalseKeyword {
+		return true
+	}
+	if ast.IsPrefixUnaryExpression(expression) &&
+		expression.AsPrefixUnaryExpression().Operator == ast.KindExclamationToken {
+		return true
+	}
+	if ast.IsBinaryExpression(expression) {
+		switch expression.AsBinaryExpression().OperatorToken.Kind {
+		case ast.KindEqualsEqualsToken,
+			ast.KindEqualsEqualsEqualsToken,
+			ast.KindExclamationEqualsToken,
+			ast.KindExclamationEqualsEqualsToken:
+			return true
+		}
+	}
+	return typeChecker != nil && compilerClosedBooleanType(typeChecker.GetTypeAtLocation(expression))
+}
+
+func compilerClosedBooleanType(value *checker.Type) bool {
+	if value == nil {
+		return false
+	}
+	members := value.Distributed()
+	if len(members) == 0 {
+		return false
+	}
+	for _, member := range members {
+		if member.Flags()&checker.TypeFlagsBooleanLike == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func newEnhancementPropertyAccumulator(application enhancementApplication) enhancementPropertyAccumulator {
+	result := enhancementPropertyAccumulator{entries: make(map[string][]*ast.Node)}
+	for _, component := range application.components {
+		if _, grouped := result.entries[component.identity]; grouped {
+			continue
+		}
+		result.order = append(result.order, component.identity)
+		result.entries[component.identity] = []*ast.Node{}
+	}
+	return result
+}
+
+func (lowering *jsxLowering) appendEnhancementSpread(
+	result *enhancementPropertyAccumulator,
+	expression *ast.Node,
+	plan enhancementSpread,
+	reactive bool,
+) {
+	for _, member := range plan.members {
+		if _, grouped := result.entries[member.identity]; !grouped {
+			result.order = append(result.order, member.identity)
+			result.entries[member.identity] = []*ast.Node{}
+		}
+		value := lowering.factory.NewElementAccessExpression(
+			lowering.visitor.VisitNode(expression),
+			nil,
+			lowering.factory.NewStringLiteral(member.source, ast.TokenFlagsNone),
+			ast.NodeFlagsNone,
+		)
+		if reactive {
+			value = lowering.reactiveExpression(expression, value)
+		}
+		result.entries[member.identity] = append(
+			result.entries[member.identity],
+			lowering.property(lowering.factory.NewIdentifier(member.prop), value),
+		)
+	}
+}
+
+func (lowering *jsxLowering) appendEnhancementAttribute(
+	result *enhancementPropertyAccumulator,
+	application enhancementApplication,
+	property *ast.Node,
+	attribute *ast.JsxAttribute,
+	tag string,
+	name string,
+	reactive bool,
+) bool {
+	if !ast.IsJsxNamespacedName(attribute.Name()) {
+		return false
+	}
+	prefix := attribute.Name().AsJsxNamespacedName().Namespace.Text()
+	if _, exists := lowering.enhancementImports.bindings[prefix]; !exists {
+		return false
+	}
+	value := lowering.jsxAttributeInitializer(attribute, tag, name, reactive)
+	if lowering.timeActivation != "" && timeUpdateMembers(application.attributes[property.Pos()], timeUpdateIdentity(application)) {
+		value = lowering.timeActivationExpression(property)
+	}
+	if value != nil {
+		for _, member := range application.attributes[property.Pos()] {
+			result.entries[member.identity] = append(
+				result.entries[member.identity],
+				lowering.property(jsxPropertyName(lowering.factory, member.prop), value),
+			)
+		}
+	}
+	return true
+}
+
+func (lowering *jsxLowering) enhancementMarker(result enhancementPropertyAccumulator) *ast.Node {
+	if len(result.order) == 0 {
+		return nil
+	}
+	entries := make([]*ast.Node, 0, len(result.order))
+	for _, identity := range result.order {
+		members := result.entries[identity]
+		props := []*ast.Node{}
+		var root *ast.Node
+		for _, member := range members {
+			if ast.IsPropertyAssignment(member) && member.AsPropertyAssignment().Name().Text() == "__exactRoot" {
+				root = member.AsPropertyAssignment().Initializer
+				continue
+			}
+			props = append(props, member)
+		}
+		entry := []*ast.Node{
+			lowering.property(lowering.factory.NewIdentifier("identity"), lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone)),
+			lowering.property(lowering.factory.NewIdentifier("props"), lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(props), false)),
+		}
+		if root != nil {
+			entry = append(entry, lowering.property(lowering.factory.NewIdentifier("root"), root))
+		}
+		entries = append(entries, lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(entry), false))
+	}
+	return lowering.call(lowering.names.enhancements, []*ast.Node{
+		lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(entries), false),
+	})
+}
+
+func (lowering *jsxLowering) renderProgramEnhancement(attributes *ast.Node, tag string) *ast.Node {
+	if attributes == nil {
+		return nil
+	}
+	application := lowering.enhancementImports.applications[attributes.Pos()]
+	result := newEnhancementPropertyAccumulator(application)
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(property) {
+			if plan, exists := lowering.enhancementImports.spreads[property.Pos()]; exists {
+				lowering.appendEnhancementSpread(&result, property.AsJsxSpreadAttribute().Expression, plan, true)
+			}
+			continue
+		}
+		attribute := property.AsJsxAttribute()
+		lowering.appendEnhancementAttribute(&result, application, property, attribute, tag, jsxAttributeText(attribute.Name()), true)
+	}
+	return lowering.enhancementMarker(result)
 }
 
 func (lowering *jsxLowering) jsxAttributeInitializer(
@@ -295,7 +491,13 @@ func jsxClassNameContribution(property *ast.Node) bool {
 func (lowering *jsxLowering) lowerClassNameValue(
 	attributes *ast.Node,
 	reactive bool,
+	materialize bool,
 ) *ast.Node {
+	if lowering.target == TargetServer && !reactive {
+		if closed := lowering.lowerCompilerClosedServerConditionalClasses(attributes); closed != nil {
+			return closed
+		}
+	}
 	contributions := []*ast.Node{}
 	allStatic := true
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
@@ -305,7 +507,7 @@ func (lowering *jsxLowering) lowerClassNameValue(
 		attribute := property.AsJsxAttribute()
 		name := attribute.Name()
 		if !ast.IsJsxNamespacedName(name) {
-			value, static := lowering.lowerOrdinaryClassName(attribute, reactive)
+			value, static := lowering.lowerOrdinaryClassName(attribute, reactive, materialize)
 			if value != nil {
 				contributions = append(contributions, value)
 				allStatic = allStatic && static
@@ -320,7 +522,7 @@ func (lowering *jsxLowering) lowerClassNameValue(
 			)
 			continue
 		}
-		condition := lowering.lowerClassNameCondition(attribute, reactive)
+		condition := lowering.lowerClassNameCondition(attribute, reactive, materialize)
 		if condition == nil {
 			continue
 		}
@@ -354,9 +556,72 @@ func (lowering *jsxLowering) lowerClassNameValue(
 	)
 }
 
+// lowerCompilerClosedServerConditionalClasses writes the compiler-created conditional-class
+// collection as an ordered string when every contribution is a static token or Boolean condition.
+func (lowering *jsxLowering) lowerCompilerClosedServerConditionalClasses(
+	attributes *ast.Node,
+) *ast.Node {
+	var output *ast.Node
+	appendStatic := func(token string) {
+		literal := token
+		if output != nil {
+			literal = " " + token
+		}
+		if output == nil {
+			output = lowering.factory.NewStringLiteral(literal, ast.TokenFlagsNone)
+		} else {
+			output = lowering.binary(
+				output,
+				ast.KindPlusToken,
+				lowering.factory.NewStringLiteral(literal, ast.TokenFlagsNone),
+			)
+		}
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if !jsxClassNameContribution(property) {
+			continue
+		}
+		attribute := property.AsJsxAttribute()
+		name := attribute.Name()
+		if !ast.IsJsxNamespacedName(name) {
+			if !ast.IsStringLiteral(attribute.Initializer) || attribute.Initializer.Text() == "" {
+				return nil
+			}
+			appendStatic(attribute.Initializer.Text())
+			continue
+		}
+		token := name.AsJsxNamespacedName().Name().Text()
+		if token == "" {
+			return nil
+		}
+		if attribute.Initializer == nil {
+			appendStatic(token)
+			continue
+		}
+		if output == nil || !ast.IsJsxExpression(attribute.Initializer) {
+			return nil
+		}
+		condition := attribute.Initializer.AsJsxExpression().Expression
+		if condition == nil || !compilerClosedBooleanExpression(condition, lowering.checker) {
+			return nil
+		}
+		output = lowering.binary(
+			output,
+			ast.KindPlusToken,
+			lowering.conditional(
+				lowering.visitor.VisitNode(condition),
+				lowering.factory.NewStringLiteral(" "+token, ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral("", ast.TokenFlagsNone),
+			),
+		)
+	}
+	return output
+}
+
 func (lowering *jsxLowering) lowerOrdinaryClassName(
 	attribute *ast.JsxAttribute,
 	reactive bool,
+	materialize bool,
 ) (*ast.Node, bool) {
 	switch {
 	case attribute.Initializer == nil:
@@ -371,7 +636,7 @@ func (lowering *jsxLowering) lowerOrdinaryClassName(
 		if expression == nil {
 			return nil, false
 		}
-		value := lowering.visitor.VisitNode(expression)
+		value := lowering.lowerPlannedClassNameExpression(expression, materialize)
 		if reactive && !jsxCallbackExpression(expression) {
 			value = lowering.reactiveExpression(expression, value)
 		}
@@ -384,6 +649,7 @@ func (lowering *jsxLowering) lowerOrdinaryClassName(
 func (lowering *jsxLowering) lowerClassNameCondition(
 	attribute *ast.JsxAttribute,
 	reactive bool,
+	materialize bool,
 ) *ast.Node {
 	if ast.IsStringLiteral(attribute.Initializer) {
 		return lowering.factory.NewStringLiteral(
@@ -398,11 +664,31 @@ func (lowering *jsxLowering) lowerClassNameCondition(
 	if expression == nil {
 		return nil
 	}
-	value := lowering.visitor.VisitNode(expression)
+	value := lowering.lowerPlannedClassNameExpression(expression, materialize)
 	if reactive && !jsxCallbackExpression(expression) {
 		value = lowering.reactiveExpression(expression, value)
 	}
 	return value
+}
+
+// lowerPlannedClassNameExpression keeps render-program property writers closed
+// over derived values whose setup declaration the compiler intentionally elided.
+func (lowering *jsxLowering) lowerPlannedClassNameExpression(
+	expression *ast.Node,
+	materialize bool,
+) *ast.Node {
+	if materialize {
+		if closure := lowering.reactiveClosure(expression); closure != nil {
+			return lowering.factory.NewCallExpression(
+				closure,
+				nil,
+				nil,
+				lowering.factory.NewNodeList(nil),
+				ast.NodeFlagsNone,
+			)
+		}
+	}
+	return lowering.visitor.VisitNode(expression)
 }
 
 func jsxEventAttribute(name string) bool {
@@ -636,12 +922,22 @@ func (lowering *jsxLowering) componentBindingProperties(
 ) []*ast.Node {
 	target := lowering.visitor.VisitNode(binding.target)
 	next := lowering.factory.NewIdentifier("__exactBindingValue")
-	write := lowering.call(
+	name, reference := lowering.stateWriteReference(
+		binding.target,
+		binding.write,
 		lowering.names.write,
+		lowering.names.writeState,
+	)
+	argument := lowering.arrow(next)
+	if name == lowering.names.writeState {
+		argument = next
+	}
+	write := lowering.call(
+		name,
 		[]*ast.Node{
 			lowering.stateWriteRoot(binding.write),
-			lowering.stateWritePathNode(binding.write),
-			lowering.arrow(next),
+			reference,
+			argument,
 		},
 	)
 	body := lowering.factory.NewBlock(

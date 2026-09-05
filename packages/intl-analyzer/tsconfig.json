@@ -8,5 +8,5 @@
 	},
 	"references": [{ "path": "../compiler" }, { "path": "../intl" }],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+	"exclude": ["src/**/*.fixtures.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }

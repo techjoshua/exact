@@ -1,0 +1,190 @@
+package exactcompiler
+
+import (
+	"sort"
+	"strconv"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/typescript-go/internal/nodebuilder"
+)
+
+type indexedPropsRead struct {
+	key  string
+	slot int
+}
+
+// attachComponentPropsSlots assigns deterministic storage indexes to statically named reads from
+// each component's canonical props parameter. Dynamic access remains on the general facade.
+func attachComponentPropsSlots(
+	components []Component,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) {
+	if sourceFile == nil || typeChecker == nil {
+		return
+	}
+	nodes := componentNodesBySpan(components, sourceFile)
+	for index := range components {
+		componentNode := nodes[componentSpanKey(components[index])]
+		if componentNode == nil {
+			continue
+		}
+		propsSymbol := componentPropsSymbol(componentNode, typeChecker)
+		if propsSymbol == nil {
+			continue
+		}
+		keys := make(map[string]struct{})
+		propsName := componentPropsParameterIdentifier(componentNode)
+		propsEscapes := false
+		walkNode(componentNode, func(node *ast.Node) bool {
+			key, receiver, ok := directPropsRead(node)
+			if ok && !identifierIsWriteTarget(node) &&
+				typeChecker.GetSymbolAtLocation(receiver) == propsSymbol {
+				keys[key] = struct{}{}
+				return true
+			}
+			if propsName != nil && node != propsName && ast.IsIdentifier(node) &&
+				typeChecker.GetSymbolAtLocation(node) == propsSymbol &&
+				!directPropsReceiver(node) {
+				propsEscapes = true
+			}
+			return true
+		})
+		// Passing the complete props facade to a helper hides its member reads from this component's
+		// syntax tree. Keep the finite declared surface in the receiver layout so later final-value
+		// receipts can still update every property that the helper may observe.
+		if propsEscapes && propsName != nil {
+			for _, property := range typeChecker.GetPropertiesOfType(typeChecker.GetTypeAtLocation(propsName)) {
+				keys[ast.SymbolName(property)] = struct{}{}
+			}
+		}
+		components[index].PropsSlots = make([]string, 0, len(keys))
+		for key := range keys {
+			components[index].PropsSlots = append(components[index].PropsSlots, key)
+		}
+		sort.Strings(components[index].PropsSlots)
+	}
+}
+
+func componentPropsParameterIdentifier(component *ast.Node) *ast.Node {
+	for _, parameter := range component.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() != "this" {
+			return name
+		}
+	}
+	return nil
+}
+
+func directPropsReceiver(node *ast.Node) bool {
+	if node == nil || node.Parent == nil {
+		return false
+	}
+	_, receiver, ok := directPropsRead(node.Parent)
+	return ok && receiver == node
+}
+
+// indexPropsReadSlots joins each proven direct read to its component-local numeric layout.
+func indexPropsReadSlots(
+	components []Component,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) map[string]indexedPropsRead {
+	result := make(map[string]indexedPropsRead)
+	if sourceFile == nil || typeChecker == nil {
+		return result
+	}
+	nodes := componentNodesBySpan(components, sourceFile)
+	for _, component := range components {
+		componentNode := nodes[componentSpanKey(component)]
+		if componentNode == nil {
+			continue
+		}
+		propsSymbol := componentPropsSymbol(componentNode, typeChecker)
+		if propsSymbol == nil || len(component.PropsSlots) == 0 {
+			continue
+		}
+		slots := make(map[string]int, len(component.PropsSlots))
+		for slot, key := range component.PropsSlots {
+			slots[key] = slot
+		}
+		walkNode(componentNode, func(node *ast.Node) bool {
+			key, receiver, ok := directPropsRead(node)
+			if !ok || identifierIsWriteTarget(node) ||
+				typeChecker.GetSymbolAtLocation(receiver) != propsSymbol {
+				return true
+			}
+			if slot, exists := slots[key]; exists {
+				result[nodeSpanKey(node)] = indexedPropsRead{key: key, slot: slot}
+			}
+			return true
+		})
+	}
+	return result
+}
+
+// lowerIndexedPropsRead bypasses property-key proxy lookup for one compiler-proven top-level prop.
+func (lowering *jsxLowering) lowerIndexedPropsRead(node *ast.Node) *ast.Node {
+	read, exists := lowering.propsReadSlots[nodeSpanKey(node)]
+	if !exists {
+		return nil
+	}
+	_, receiver, ok := directPropsRead(node)
+	if !ok {
+		return nil
+	}
+	call := lowering.call(lowering.names.readState, []*ast.Node{
+		lowering.visitor.VisitNode(receiver),
+		lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
+	})
+	valueType := lowering.checker.GetTypeAtLocation(node)
+	result := call
+	if typeNode := lowering.checker.TypeToTypeNode(
+		valueType,
+		node,
+		nodebuilder.FlagsNoTruncation,
+		nil,
+	); typeNode != nil {
+		result = lowering.factory.NewAsExpression(call, typeNode)
+	}
+	lowering.indexedPropsReads[result] = read
+	return result
+}
+
+func directPropsRead(node *ast.Node) (string, *ast.Node, bool) {
+	switch {
+	case ast.IsPropertyAccessExpression(node):
+		member := node.AsPropertyAccessExpression()
+		if ast.IsIdentifier(member.Expression) && member.Name() != nil {
+			return member.Name().Text(), member.Expression, true
+		}
+	case ast.IsElementAccessExpression(node):
+		member := node.AsElementAccessExpression()
+		if ast.IsIdentifier(member.Expression) && member.ArgumentExpression != nil &&
+			ast.IsStringLiteral(member.ArgumentExpression) {
+			return member.ArgumentExpression.Text(), member.Expression, true
+		}
+	}
+	return "", nil, false
+}
+
+func componentNodesBySpan(components []Component, sourceFile *ast.SourceFile) map[string]*ast.Node {
+	wanted := make(map[string]struct{}, len(components))
+	for _, component := range components {
+		wanted[componentSpanKey(component)] = struct{}{}
+	}
+	result := make(map[string]*ast.Node, len(components))
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		key := strconv.Itoa(node.Pos()) + ":" + strconv.Itoa(node.End()-node.Pos())
+		if _, exists := wanted[key]; exists {
+			result[key] = node
+		}
+		return true
+	})
+	return result
+}
+
+func componentSpanKey(component Component) string {
+	return strconv.Itoa(component.Start) + ":" + strconv.Itoa(component.Length)
+}

@@ -28,6 +28,23 @@ describe('component-library build facts', () => {
 					subpath: '.',
 					condition: 'default',
 					module: './dist/index.js',
+					componentModule: './dist/index.js',
+					exportName: 'describedBy',
+					componentId: '@acme/cards:Card'
+				},
+				{
+					subpath: '.',
+					condition: 'default',
+					module: './dist/index.js',
+					componentModule: './dist/index.js',
+					exportName: 'default',
+					componentId: '@acme/cards:Card'
+				},
+				{
+					subpath: '.',
+					condition: 'default',
+					module: './dist/index.js',
+					componentModule: './dist/index.js',
 					exportName: 'Card',
 					componentId: '@acme/cards:Card'
 				}
@@ -37,6 +54,12 @@ describe('component-library build facts', () => {
 		expect(facts.modules[0]?.path).toBe('dist/index.js');
 		expect(facts.modules[0]?.facts).not.toHaveProperty('filename');
 		expect(facts.exports[0]?.module).toBe('dist/index.js');
+		expect(facts.exports[0]?.componentModule).toBe('dist/index.js');
+		expect(facts.exports.map((record) => record.exportName)).toEqual([
+			'Card',
+			'default',
+			'describedBy'
+		]);
 	});
 
 	it('rejects exports without matching module component facts', () => {
@@ -59,6 +82,7 @@ describe('component-library build facts', () => {
 						subpath: '.',
 						condition: 'default',
 						module: 'dist/index.js',
+						componentModule: 'dist/index.js',
 						exportName: 'Card',
 						componentId: '@acme/cards:Card'
 					}
@@ -88,6 +112,7 @@ describe('component-library build facts', () => {
 						subpath: '.',
 						condition: 'default',
 						module: 'dist/a.js',
+						componentModule: 'dist/a.js',
 						exportName: 'Card',
 						componentId: '@acme/cards:A'
 					},
@@ -95,6 +120,7 @@ describe('component-library build facts', () => {
 						subpath: '.',
 						condition: 'default',
 						module: 'dist/b.js',
+						componentModule: 'dist/b.js',
 						exportName: 'Card',
 						componentId: '@acme/cards:B'
 					}

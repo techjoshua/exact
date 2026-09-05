@@ -1,32 +1,34 @@
-import {
-	type AnyComponentInstance,
-	normalizeRenderResult,
-	unwrap,
-	type Child,
-	type VNode
-} from '@exactjs/core';
-import { renderInstance, ServerSlot } from '@exactjs/core/runtime/render';
-import { watchRetained } from '@exactjs/reactive/framework/watch';
-import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
-import { childToVNode, childrenToVNodes, planChildReconciliation } from '../../children.js';
-import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
+import { type AnyComponentInstance, type Child } from '@exactjs/core';
+import { type EffectScope } from '@exactjs/reactive/framework/runtime';
+import { describeNode, domDebug } from '../../debug.js';
 import { preserveFocus } from '../../focus.js';
-import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
-import { adoptServerSlot } from '../../server-slots.js';
+import { placeMountedBefore } from '../../placement.js';
 import type { Mounted, Root } from '../../types.js';
-import { countDomWork, withDomWork } from '../limits.js';
+import { withDomWork } from '../limits.js';
 import { longestIncreasingSubsequencePositions } from '../reconciliation.js';
 import {
 	attemptTeardown,
+	disposeMounted,
 	removeMountedNodes,
 	teardownFailure,
 	throwTeardownFailure,
 	unmountMounted
 } from '../teardown.js';
-import { patch } from './root.js';
-import { refreshComponentRoot } from '../component-roots.js';
 import { releaseMountedRange } from '../retained-release.js';
-import { refreshTargetDependents } from '../target-capability.js';
+import { takeReversedRelease } from '../retained-release.js';
+import { mountDetachedChildren, mountDetachedOperation } from '../mounting/children.js';
+import { requireDomEnhancementCapability } from '../enhancement-capability.js';
+import {
+	mixedChildOperations,
+	mountedChildKey,
+	type MixedChildOperation
+} from './mixed-child-operations.js';
+import { completeChildReconciliation } from './reconciliation-completion.js';
+import { bindText } from './text-binding.js';
+import { canPatchOpaqueOperation, patchOpaqueOperation } from './native-operation-target.js';
+import { createForeignReplacementParking } from './replacement-parking.js';
+
+export { bindText } from './text-binding.js';
 
 /** Performs the patch children domain operation. */
 export function patchChildren(
@@ -50,27 +52,12 @@ export function patchChildren(
 	// focus-preservation helper so reorders and reactive updates stay ergonomic.
 	return withDomWork(root, () =>
 		preserveFocus(root, () => {
-			if (oldChildren.length === 1 && nextChildren.length === 1) {
-				const next = childToVNode(nextChildren[0]!);
-				if (next)
-					return [
-						patchSingleChildInner(
-							root,
-							parent,
-							oldChildren[0]!,
-							next,
-							parentInstance,
-							parentScope,
-							structuralOwner
-						)
-					];
-			}
-			for (const child of nextChildren) if (!childToVNode(child)) countDomWork(root);
-			return patchChildrenInner(
+			const operations = mixedChildOperations(nextChildren);
+			return patchMixedNativeChildren(
 				root,
 				parent,
 				oldChildren,
-				nextChildren,
+				operations,
 				parentInstance,
 				parentScope,
 				before,
@@ -80,110 +67,102 @@ export function patchChildren(
 	);
 }
 
-/** Patches one compiler-proven child without entering collection reconciliation. */
-export function patchSingleChild(
-	root: Root,
-	parent: Node,
-	oldChild: Mounted,
-	next: VNode,
-	parentInstance?: AnyComponentInstance,
-	parentScope?: EffectScope,
-	structuralOwner?: Mounted
-): Mounted {
-	if (root.interactionWork) root.interactionWork.reconciliations++;
-	const patched = withDomWork(root, () =>
-		preserveFocus(root, () =>
-			patchSingleChildInner(
-				root,
-				parent,
-				oldChild,
-				next,
-				parentInstance,
-				parentScope,
-				structuralOwner
-			)
-		)
-	);
-	return patched;
-}
-
-function patchSingleChildInner(
-	root: Root,
-	parent: Node,
-	oldChild: Mounted,
-	next: VNode,
-	parentInstance?: AnyComponentInstance,
-	parentScope?: EffectScope,
-	structuralOwner?: Mounted
-): Mounted {
-	const patched = patch(root, parent, oldChild, next, parentInstance, parentScope);
-	completeChildReconciliation(root, parentInstance, structuralOwner);
-	return patched;
-}
-
-/** Performs the patch children inner domain operation. */
-export function patchChildrenInner(
+/** Reconciles scalar, explicit foreign, and native-operation siblings without conversion. */
+function patchMixedNativeChildren(
 	root: Root,
 	parent: Node,
 	oldChildren: Mounted[],
-	nextChildren: Child[],
-	parentInstance?: AnyComponentInstance,
-	parentScope?: EffectScope,
-	before?: Node | null,
-	structuralOwner?: Mounted
+	next: readonly MixedChildOperation[],
+	parentInstance: AnyComponentInstance | undefined,
+	parentScope: EffectScope | undefined,
+	before: Node | null | undefined,
+	structuralOwner: Mounted | undefined
 ): Mounted[] {
-	const nextVNodes = childrenToVNodes(nextChildren);
-	const plan = planChildReconciliation(oldChildren, nextVNodes);
-	let keyedOldOrder: number[] | undefined;
-	let keyedOrderChanged = false;
-	let lastOldKeyIndex = -1;
-	for (let index = 0; index < nextVNodes.length; index++) {
-		const vnode = nextVNodes[index]!;
-		if (vnode.key === undefined) continue;
-		keyedOldOrder ??= new Array<number>(nextVNodes.length).fill(-1);
-		const previous = plan.matches[index];
-		const oldIndex =
-			previous && previous.vnode.type === vnode.type ? plan.oldKeyIndices.get(vnode.key)! : -1;
-		keyedOldOrder[index] = oldIndex;
-		if (oldIndex >= 0) {
-			if (oldIndex < lastOldKeyIndex) keyedOrderChanged = true;
-			lastOldKeyIndex = oldIndex;
+	const oldKeys = new Map<string, { mounted: Mounted; index: number }>();
+	const oldUnkeyed: Array<{ mounted: Mounted; index: number }> = [];
+	for (let index = 0; index < oldChildren.length; index++) {
+		const mounted = oldChildren[index]!;
+		const key = mountedChildKey(mounted);
+		if (key === undefined) oldUnkeyed.push({ mounted, index });
+		else {
+			if (oldKeys.has(key)) throw new Error(`Duplicate key "${key}" in mounted children`);
+			oldKeys.set(key, { mounted, index });
 		}
 	}
-	const stableKeyedPositions =
-		keyedOldOrder && keyedOrderChanged
-			? longestIncreasingSubsequencePositions(keyedOldOrder)
-			: undefined;
-	const nextMounted = new Array<Mounted>(nextVNodes.length);
+	const seenKeys = new Set<string>();
+	const matches = new Array<{ mounted: Mounted; index: number } | undefined>(next.length);
+	let unkeyedIndex = 0;
+	for (let index = 0; index < next.length; index++) {
+		const operation = next[index]!;
+		if (operation.key === undefined) matches[index] = oldUnkeyed[unkeyedIndex++];
+		else {
+			if (seenKeys.has(operation.key))
+				throw new Error(`Duplicate key "${operation.key}" in rendered children`);
+			seenKeys.add(operation.key);
+			matches[index] = oldKeys.get(operation.key);
+		}
+	}
+	const matched = new Set(matches.flatMap((entry) => (entry ? [entry.mounted] : [])));
+	const oldOrder = matches.map((entry) => entry?.index ?? -1);
+	const stable = longestIncreasingSubsequencePositions(oldOrder);
+	const mounted = new Array<Mounted>(next.length);
 	let cursor = before ?? null;
-
-	// Walk from the end so each placed node can use the already-positioned next
-	// sibling as its insertion anchor. This keeps keyed moves deterministic.
-	for (let index = nextVNodes.length - 1; index >= 0; index--) {
-		const vnode = nextVNodes[index]!;
-		const old = plan.matches[index];
-		const patched = patch(root, parent, old, vnode, parentInstance, parentScope);
-		if (vnode.type === ServerSlot) adoptServerSlot(parent, patched);
-		nextMounted[index] = patched;
-		// Unkeyed children are reconciled positionally. A matching unkeyed mount
-		// is already in the correct relative position; moving it merely because a
-		// sibling was inserted can reorder it around fragment anchors. Apart from
-		// producing visibly unstable lists, that detaches pointer-captured nodes
-		// in browsers and ends active drags. Keyed children retain the LIS move
-		// pass, while only genuinely new unkeyed children need placement here.
-		if (
-			vnode.key !== undefined
-				? keyedOldOrder![index] === -1 ||
-					(stableKeyedPositions !== undefined && !stableKeyedPositions.has(index))
-				: !old
-		) {
-			placeMountedBefore(root, parent, patched, cursor);
-		}
-		cursor = patched.dom;
+	for (let index = next.length - 1; index >= 0; index--) {
+		const operation = next[index]!;
+		const previous = matches[index];
+		const current = operation.native
+			? previous
+				? Object.is(previous.mounted.operation, operation.value)
+					? previous.mounted
+					: patchCompilerChildReceipt(
+							root,
+							parent,
+							previous.mounted,
+							operation.value,
+							parentInstance,
+							parentScope,
+							undefined
+						)
+				: (() => {
+						const reversed = takeReversedRelease(root, parent, operation.value);
+						return reversed
+							? patchCompilerChildReceipt(
+									root,
+									parent,
+									reversed,
+									operation.value,
+									parentInstance,
+									parentScope,
+									undefined
+								)
+							: mountDetachedChildren(
+									root,
+									[operation.value],
+									parentInstance,
+									parentScope,
+									parent
+								)[0]!;
+					})()
+			: operation.scalar !== undefined
+				? patchScalarChild(
+						root,
+						parent,
+						previous?.mounted,
+						operation.value,
+						operation.scalar,
+						parentInstance,
+						parentScope
+					)
+				: (() => {
+						throw new TypeError('Unsupported native child operation');
+					})();
+		mounted[index] = current;
+		if (!previous || !stable.has(index)) placeMountedBefore(root, parent, current, cursor);
+		cursor = current.dom;
 	}
-
 	const teardown = teardownFailure();
-	for (const old of plan.unmatched) {
+	for (const old of oldChildren) {
+		if (matched.has(old)) continue;
 		if (!releaseMountedRange(root, parent, old, 'reconcile-removed')) {
 			attemptTeardown(teardown, () => unmountMounted(old));
 			attemptTeardown(teardown, () => removeMountedNodes(parent, old));
@@ -191,70 +170,97 @@ export function patchChildrenInner(
 	}
 	throwTeardownFailure(teardown);
 	completeChildReconciliation(root, parentInstance, structuralOwner);
-
-	return nextMounted;
+	return mounted;
 }
 
-/** Publishes the ownership-dependent work shared by general and scalar reconciliation. */
-function completeChildReconciliation(
+/** Patches one compiler-issued operation without normalizing it into renderer topology. */
+function patchCompilerChildReceipt(
 	root: Root,
+	parent: Node,
+	oldChild: Mounted,
+	next: Child,
 	parentInstance: AnyComponentInstance | undefined,
+	parentScope: EffectScope | undefined,
 	structuralOwner: Mounted | undefined
-): void {
-	if (structuralOwner) refreshTargetDependents(root, structuralOwner);
-	if (parentInstance) refreshComponentRoot(parentInstance);
-	if (!root.enhancementReconciliationDepth) root.reconcileEnhancements?.();
-}
-
-/** Performs the rerender component domain operation. */
-export function rerenderComponent(root: Root, mounted: Mounted): void {
-	if (!mounted.instance) return;
-	if (!mounted.scope.active) return;
-	if (mounted.rendering) {
-		mounted.rerenderPending = true;
-		return;
-	}
-	mounted.rendering = true;
-	try {
-		do {
-			mounted.rerenderPending = false;
-			domDebug(root, 'rerender component', () => ({
-				type: describeVNodeType(mounted.vnode.type),
-				key: mounted.vnode.key ?? 'none'
-			}));
-			const nextChildren = withEffectScope(mounted.scope, () =>
-				normalizeRenderResult(
-					renderInstance(mounted.instance!, () => rerenderComponent(root, mounted))
-				)
-			);
-			mounted.children = patchChildren(
-				root,
-				mounted.dom.parentNode ?? root.container,
-				mounted.children,
-				nextChildren,
-				mounted.instance,
-				mounted.scope,
-				afterMountedChildren(mounted),
-				mounted
-			);
-		} while (mounted.rerenderPending && mounted.scope.active);
-	} finally {
-		mounted.rendering = false;
-	}
-}
-
-/** Performs the bind text domain operation. */
-export function bindText(mounted: Mounted, value: unknown): void {
-	mounted.stop?.();
-	const node = mounted.dom as CharacterData;
-	mounted.stop = watchRetained(
-		() => {
-			const text = String(unwrap(value) ?? '');
-			if (node.data !== text) {
-				node.data = text;
-			}
-		},
-		undefined,
-		{ scope: mounted.scope, onRelease: () => (mounted.stop = undefined) }
+): Mounted {
+	if (oldChild.enhancement && canPatchOpaqueOperation(oldChild.enhancement.target, next))
+		return requireDomEnhancementCapability().patch(
+			root,
+			oldChild,
+			next,
+			parent,
+			parentInstance,
+			parentScope,
+			(current, value, instance, scope) =>
+				current
+					? patchCompilerChildReceipt(
+							root,
+							parent,
+							current,
+							value,
+							instance,
+							scope,
+							structuralOwner
+						)
+					: mountDetachedOperation(root, value, instance, scope, parent)
+		);
+	const patched = patchOpaqueOperation(
+		root,
+		parent,
+		oldChild,
+		next,
+		parentInstance,
+		parentScope,
+		structuralOwner
 	);
+	if (patched) {
+		completeChildReconciliation(root, parentInstance, structuralOwner);
+		return patched;
+	}
+	const previousParking = root.replacementParking;
+	const parking = createForeignReplacementParking(oldChild, parent);
+	root.replacementParking = parking;
+	let replacement: Mounted | undefined;
+	try {
+		replacement = mountDetachedChildren(root, [next], parentInstance, parentScope, parent)[0];
+	} finally {
+		root.replacementParking = previousParking;
+	}
+	if (!replacement) throw new Error('Compiler-issued child operation did not mount a range');
+	for (const commit of parking.commits) commit();
+	placeMountedBefore(root, parent, replacement, oldChild.dom);
+	if (!releaseMountedRange(root, parent, oldChild, 'reconcile-replaced')) {
+		unmountMounted(oldChild);
+		removeMountedNodes(parent, oldChild);
+	}
+	for (const remaining of parking.mounts.values())
+		for (const parked of remaining) disposeMounted(parked.parent, parked.mounted);
+	completeChildReconciliation(root, parentInstance, structuralOwner);
+	return replacement;
+}
+
+/** Updates native scalar text or replaces a differently owned range as one operation. */
+function patchScalarChild(
+	root: Root,
+	parent: Node,
+	mounted: Mounted | undefined,
+	value: Child,
+	scalar: string,
+	parentInstance: AnyComponentInstance | undefined,
+	parentScope: EffectScope | undefined
+): Mounted {
+	if (mounted?.scalar && mounted.dom.nodeType === 3) {
+		if (mounted.scalarValue !== scalar) (mounted.dom as CharacterData).data = scalar;
+		mounted.scalarValue = scalar;
+		bindText(mounted, value);
+		return mounted;
+	}
+	const replacement = mountDetachedOperation(root, value, parentInstance, parentScope, parent);
+	if (!mounted) return replacement;
+	placeMountedBefore(root, parent, replacement, mounted.dom);
+	if (!releaseMountedRange(root, parent, mounted, 'reconcile-replaced')) {
+		unmountMounted(mounted);
+		removeMountedNodes(parent, mounted);
+	}
+	return replacement;
 }

@@ -1,51 +1,51 @@
 import {
 	createErrorContext,
-	ErrorContext,
-	type AnyComponentInstance,
-	type Component,
-	type ComponentFunction,
+	type Child,
 	type ErrorContextValue,
-	type ErrorReport,
-	type VNode
+	type ErrorReport
 } from '@exactjs/core';
-import { createExactDynamicBoundaryArtifact } from '@exactjs/core/framework/component-contracts';
-import { createDefaultErrorView } from '@exactjs/core/framework/error-view';
+import { formatError } from '@exactjs/core/framework/error-format';
+import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-operations';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';
 
-/** Creates a root boundary. */
-export function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
-	return createExactDynamicBoundaryArtifact(
-		function RootBoundary(this: Component<{}>, props: { version: number }) {
-			(this as AnyComponentInstance).contexts.set(ErrorContext.id, root.errors);
-
-			return () => {
-				void props.version;
-				return root.errors.errors.length ? createRootErrorView(root.errors.errors) : root.current;
-			};
-		},
-		'@exactjs/dom:RootBoundary',
-		'client'
-	);
-}
-
 /** Creates a dom error context. */
-export function createDomErrorContext(options: RenderOptions): ErrorContextValue {
+export function createDomErrorContext(
+	options: RenderOptions,
+	onReport?: (errors: readonly ErrorReport[]) => void
+): ErrorContextValue {
 	const base = createErrorContext();
-	if (!options.onErrorReport) return base;
 	return {
 		...base,
 		report(error, reportOptions) {
 			const report = base.report(error, reportOptions);
 			options.onErrorReport?.(report);
+			onReport?.(base.errors);
 			return report;
 		}
 	};
 }
 
 /** Creates a root error view. */
-export function createRootErrorView(errors: ErrorReport[]): VNode {
-	return createDefaultErrorView(errors, { componentFallback: 'Application' });
+export function createRootErrorView(errors: ErrorReport[]): Child {
+	return createCompiledIntrinsicReceipt(
+		'section',
+		{ role: 'alert', className: 'exact-error-boundary' },
+		createCompiledIntrinsicReceipt('h1', null, 'Application error'),
+		...errors.map((error) =>
+			createCompiledIntrinsicReceipt(
+				'article',
+				{ key: error.id, className: 'exact-error' },
+				createCompiledIntrinsicReceipt('h2', null, error.component?.name ?? 'Application'),
+				createCompiledIntrinsicReceipt(
+					'p',
+					null,
+					`${error.source}${error.phase ? `:${error.phase}` : ''}`
+				),
+				createCompiledIntrinsicReceipt('pre', null, formatError(error.error))
+			)
+		)
+	);
 }
 
 /** Creates a marker. */
@@ -56,11 +56,13 @@ export function createMarker(
 		| 'activity-end'
 		| 'cell'
 		| 'component'
+		| 'compatibility-contribution'
 		| 'dynamic'
 		| 'enhancement'
 		| 'enhancement-end'
 		| 'fragment'
 		| 'portal'
+		| 'root'
 		| 'suspense'
 		| 'suspense-end'
 		| 'target'

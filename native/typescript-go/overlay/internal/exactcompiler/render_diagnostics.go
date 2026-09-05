@@ -61,7 +61,9 @@ func renderDiagnostics(
 	stateWrites []StateWrite,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
-	microTargets := lexicalMicroComponentTargets(rawComponentCandidates(sourceFile), sourceFile)
+	candidates := rawComponentCandidates(sourceFile)
+	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
+	callables := callableCandidatesByName(candidates)
 	writeStarts := make(map[int]struct{}, len(stateWrites))
 	for _, write := range stateWrites {
 		if write.Interaction {
@@ -130,18 +132,19 @@ func renderDiagnostics(
 		}
 		if ast.IsArrowFunction(candidate.node) {
 			body := unwrapRenderExpression(candidate.node.Body())
-			if body != nil && !ast.IsBlock(body) && !ast.IsArrowFunction(body) {
+			if body != nil && !ast.IsBlock(body) &&
+				len(resolveReturnedRenderCallables(body, callables, make(map[string]struct{}))) == 0 {
 				diagnostics = append(diagnostics, renderDiagnostic(
 					body,
-					"the outer component definition must return a component-local render arrow; compose reusable view structure with lexical micro-components declared there",
+					"the outer component definition must return a component-local render arrow or invoke a local setup helper that returns one; compose reusable view structure with lexical micro-components declared there",
 				))
 			}
 		}
 		for _, returned := range directCallableReturns(candidate.node) {
-			if !ast.IsArrowFunction(unwrapRenderExpression(returned)) {
+			if len(resolveReturnedRenderCallables(returned, callables, make(map[string]struct{}))) == 0 {
 				diagnostics = append(diagnostics, renderDiagnostic(
 					returned,
-					"the outer component definition must return a component-local render arrow; compose reusable view structure with lexical micro-components declared there",
+					"the outer component definition must return a component-local render arrow or invoke a local setup helper that returns one; compose reusable view structure with lexical micro-components declared there",
 				))
 			}
 		}
@@ -152,6 +155,7 @@ func renderDiagnostics(
 func resolveComponentRenders(sourceFile *ast.SourceFile) []componentRender {
 	var result []componentRender
 	candidates := rawComponentCandidates(sourceFile)
+	callables := callableCandidatesByName(candidates)
 	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
 	for _, candidate := range componentCandidates(sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
@@ -159,24 +163,30 @@ func resolveComponentRenders(sourceFile *ast.SourceFile) []componentRender {
 		}
 		if ast.IsArrowFunction(candidate.node) {
 			body := unwrapRenderExpression(candidate.node.Body())
-			if ast.IsArrowFunction(body) {
+			for _, callable := range resolveReturnedRenderCallables(
+				body,
+				callables,
+				make(map[string]struct{}),
+			) {
 				result = append(result, componentRender{
 					component: candidate,
-					callable:  body,
+					callable:  callable,
 					returned:  body,
 				})
 			}
 		}
 		for _, returned := range directCallableReturns(candidate.node) {
-			callable := unwrapRenderExpression(returned)
-			if !ast.IsArrowFunction(callable) {
-				continue
+			for _, callable := range resolveReturnedRenderCallables(
+				returned,
+				callables,
+				make(map[string]struct{}),
+			) {
+				result = append(result, componentRender{
+					component: candidate,
+					callable:  callable,
+					returned:  returned,
+				})
 			}
-			result = append(result, componentRender{
-				component: candidate,
-				callable:  callable,
-				returned:  returned,
-			})
 		}
 	}
 	for _, candidate := range candidates {
@@ -189,6 +199,65 @@ func resolveComponentRenders(sourceFile *ast.SourceFile) []componentRender {
 			callable:  candidate.node,
 			returned:  candidate.node,
 		})
+	}
+	return result
+}
+
+func callableCandidatesByName(candidates []componentCandidate) map[string]*ast.Node {
+	result := make(map[string]*ast.Node, len(candidates))
+	for _, candidate := range candidates {
+		result[candidate.name] = candidate.node
+	}
+	return result
+}
+
+// resolveReturnedRenderCallables follows statically local setup helpers to the
+// lexical arrows they create. The returned arrows remain owned by each calling
+// component instance even when their source factory is shared.
+func resolveReturnedRenderCallables(
+	expression *ast.Node,
+	callables map[string]*ast.Node,
+	seen map[string]struct{},
+) []*ast.Node {
+	expression = unwrapRenderExpression(expression)
+	if expression == nil {
+		return nil
+	}
+	if ast.IsArrowFunction(expression) {
+		return []*ast.Node{expression}
+	}
+	if !ast.IsCallExpression(expression) {
+		return nil
+	}
+	call := expression.AsCallExpression()
+	calleeName := ""
+	if ast.IsIdentifier(call.Expression) {
+		calleeName = call.Expression.Text()
+	} else if ast.IsPropertyAccessExpression(call.Expression) {
+		member := call.Expression.AsPropertyAccessExpression()
+		if member.Name() != nil && member.Name().Text() == "call" &&
+			ast.IsIdentifier(member.Expression) &&
+			call.Arguments != nil && len(call.Arguments.Nodes) != 0 &&
+			call.Arguments.Nodes[0].Kind == ast.KindThisKeyword {
+			calleeName = member.Expression.Text()
+		}
+	}
+	callable := callables[calleeName]
+	if callable == nil {
+		return nil
+	}
+	if _, exists := seen[calleeName]; exists {
+		return nil
+	}
+	seen[calleeName] = struct{}{}
+	defer delete(seen, calleeName)
+	result := []*ast.Node{}
+	for _, returned := range directCallableReturns(callable) {
+		resolved := resolveReturnedRenderCallables(returned, callables, seen)
+		if len(resolved) == 0 {
+			return nil
+		}
+		result = append(result, resolved...)
 	}
 	return result
 }

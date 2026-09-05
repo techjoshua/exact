@@ -1,0 +1,57 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 5,
+	"recordedAt": "2026-08-27T02:14:00.0000000-07:00",
+	"mechanisms": [
+		"Execute every supported native server component through request-local artifact issue, write, and dispose methods instead of the generic component SSR runtime.",
+		"Compose imported native children through their own server artifacts without requiring recursive whole-tree compiler closure.",
+		"Preserve scheduled task dependencies, lazy aggregate projection, resumptions, request contexts, executor dispatch, cancellation, and authored publication order while avoiding client-style durable instances."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "native Node and Bun server execution",
+			"classification": "improve",
+			"metrics": [
+				"Node and Bun SSR latency, throughput, CPU, allocation, retention, first chunk, and completion",
+				"server artifact raw, gzip, and Brotli bytes",
+				"server decoded and executed JavaScript, function inventory, and invocation counts"
+			],
+			"structuralEvidence": [
+				"generic native SSR imports reach zero",
+				"native artifacts enter issue, write, and dispose in authored ownership order",
+				"cross-module and cross-package children enter their own server artifact ABI",
+				"server request frames do not construct client-style durable component instances"
+			],
+			"counterMetrics": [
+				"SSR response identity and response byte counts",
+				"request isolation, task scheduling, cancellation, and disposal assertions",
+				"Node and Bun saturation and retained-heap distributions"
+			]
+		},
+		{
+			"name": "client execution and remaining transition reachability",
+			"classification": "stable",
+			"metrics": [
+				"browser startup, mount, hydration, and steady-state interaction latency",
+				"client artifact size and browser memory",
+				"clean build and compiler workflow latency"
+			],
+			"structuralEvidence": [
+				"Phase 5 changes the server artifact execution path rather than client attachment or update operations",
+				"generic native renderer imports remain explicitly assigned to Phase 8",
+				"dynamic selection and compatibility ownership remain assigned to Phases 6 and 7"
+			],
+			"counterMetrics": [
+				"browser response identity, DOM counts, and interaction correctness",
+				"generic native renderer import count",
+				"native component and target artifact counts"
+			]
+		}
+	]
+}

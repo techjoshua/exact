@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createExactNodeHandler } from '@exactjs/node-adapter';
 import { exact } from '@exactjs/vite-plugin';
 import { createServer as createViteServer } from 'vite';
+import { installDevelopmentProcessLifecycle } from '../../../scripts/development-process-lifecycle.mjs';
 
 const sampleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.env.EXACT_BUILD_KEY = execFileSync('git', ['rev-parse', 'HEAD'], {
@@ -17,11 +18,12 @@ const runtimeLoader = await createViteServer({
 	configFile: false,
 	appType: 'custom',
 	logLevel: 'error',
+	plugins: [exact({ applicationRoot: sampleRoot, target: 'server', renderMode: 'server-render' })],
 	server: { middlewareMode: true, hmr: false }
 });
 let runtimeModule;
 try {
-	runtimeModule = await runtimeLoader.ssrLoadModule('/server/runtime.ts');
+	runtimeModule = await runtimeLoader.ssrLoadModule('/server/runtime.tsx');
 } finally {
 	await runtimeLoader.close();
 }
@@ -70,8 +72,10 @@ const close = async () => {
 		brandingAssets.close()
 	]);
 };
-process.once('SIGINT', () => void close().then(() => process.exit(0)));
-process.once('SIGTERM', () => void close().then(() => process.exit(0)));
+installDevelopmentProcessLifecycle({
+	label: 'microfrontend portal development server',
+	close
+});
 
 async function remoteAssets(name, port) {
 	const applicationRoot = path.join(sampleRoot, name);

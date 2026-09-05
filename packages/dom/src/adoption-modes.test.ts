@@ -3,50 +3,56 @@
  */
 import '@exactjs/core/runtime/lists';
 import '@exactjs/core/runtime/refs';
+import './runtime/root-release.js';
 import {
 	Activity,
 	activateTaskForHost,
 	defineTask,
 	encodeExactMarkerPart,
-	Fragment,
 	Suspense,
 	type Component,
-	type RootLifecycle,
 	type TaskContext,
 	unsafeHtml
 } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
+import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
 import { createDynamicChild, createServerSlot } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
 import './structural-boundaries.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createTestComponentReceipt, createOperation } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	adoptComponentRoot,
 	adoptDocumentRoot,
+	adoptMarkerlessComponentReceiptRoot,
 	adoptMarkerlessComponentRoot,
-	adoptStatic,
-	render,
-	unmount
-} from './index.js';
+	adoptStatic
+} from './test-support/adoption.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	BoundedEmptyGreeting,
+	DocumentAdoptionRoot,
+	FragmentAdoptionRoot,
+	HydratedGreeting,
+	KeyedAdoptionList,
+	MarkerlessGreeting,
+	hydratedGreetingLifecycle,
+	keyedAdoptionListInstance
+} from './adoption-modes.fixtures.js';
 
 describe('DOM adoption modes', () => {
 	it('adopts a component boundary and keeps it live for later renders', () => {
-		let lifecycle!: RootLifecycle<Element>;
-		function Greeting(this: Component<Record<string, never>>) {
-			lifecycle = this.refs.root();
-			return () => createVNode('span', null, 'server');
-		}
 		const container = document.createElement('div');
-		const vnode = createVNode(Greeting, {});
-		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(Greeting))}`;
+		const vnode = createTestComponentReceipt(HydratedGreeting, {});
+		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(HydratedGreeting))}`;
 		container.innerHTML = `<!--${marker}--><span>server</span><!--/${marker}-->`;
 		const serverSpan = container.querySelector('span');
 
 		expect(adoptComponentRoot(vnode, container)).toBe(true);
 		expect(container.querySelector('span')).toBe(serverSpan);
-		expect(lifecycle.introduction).toBe('hydration');
+		expect(hydratedGreetingLifecycle().introduction).toBe('hydration');
 		expect(adoptComponentRoot(vnode, container)).toBe(false);
 		render(vnode, container);
 		expect(container.textContent).toBe('server');
@@ -54,39 +60,62 @@ describe('DOM adoption modes', () => {
 	});
 
 	it('adopts markerless component output and removes temporary anchors on failure', () => {
-		function Greeting(this: Component<{ text: string }>, props: { text: string }) {
-			return () => createVNode('span', null, props.text);
-		}
 		const container = document.createElement('div');
 		container.innerHTML = '<span>server</span>';
 
-		expect(adoptMarkerlessComponentRoot(createVNode(Greeting, { text: 'server' }), container)).toBe(
-			true
-		);
+		expect(
+			adoptMarkerlessComponentRoot(
+				createTestComponentReceipt(MarkerlessGreeting, { text: 'server' }),
+				container
+			)
+		).toBe(true);
 		expect(container.querySelector('span')?.textContent).toBe('server');
 		expect(unmount(container)).toBe(true);
 
 		const mismatch = document.createElement('div');
 		mismatch.innerHTML = '<b>wrong</b>';
 		expect(
-			adoptMarkerlessComponentRoot(createVNode(Greeting, { text: 'expected' }), mismatch)
+			adoptMarkerlessComponentRoot(
+				createTestComponentReceipt(MarkerlessGreeting, { text: 'expected' }),
+				mismatch
+			)
 		).toBe(false);
 		expect(mismatch.childNodes).toHaveLength(1);
 		expect(mismatch.firstChild).toBeInstanceOf(HTMLElement);
 	});
 
-	it('adopts unmarked fragments inside a root boundary', () => {
+	it('adopts an opaque markerless component operation without a component VNode', () => {
+		const operation = createTestComponentReceipt(MarkerlessGreeting, { text: 'server' });
+		const receipt = readCompiledComponentReceipt(operation)!;
 		const container = document.createElement('div');
-		container.innerHTML = '<!--exact:root--><i>first</i><b>second</b><!--/exact:root-->';
-		const first = container.querySelector('i');
-		const vnode = createVNode(
-			Fragment,
-			null,
-			createVNode('i', null, 'first'),
-			createVNode('b', null, 'second')
-		);
+		container.innerHTML = '<span>server</span>';
 
-		expect(adoptStatic(vnode, container)).toBe(true);
+		expect(adoptMarkerlessComponentReceiptRoot(operation, receipt, container)).toBe(true);
+		expect(container.querySelector('span')?.textContent).toBe('server');
+		expect(unmount(container)).toBe(true);
+	});
+
+	it('adopts an empty component range bounded by its following intrinsic', () => {
+		const container = document.createElement('div');
+		container.innerHTML = '<main><span>After</span></main>';
+		const following = container.querySelector('span');
+
+		expect(
+			adoptMarkerlessComponentRoot(createTestComponentReceipt(BoundedEmptyGreeting, {}), container)
+		).toBe(true);
+		expect(container.querySelector('span')).toBe(following);
+		expect(container.textContent).toBe('After');
+		expect(unmount(container)).toBe(true);
+	});
+
+	it('adopts a compiler-owned fragment range inside a markerless component root', () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<!--exact:fragment:0--><i>first</i><b>second</b><!--/exact:fragment:0-->';
+		const first = container.querySelector('i');
+		const vnode = createTestComponentReceipt(FragmentAdoptionRoot, {});
+
+		expect(adoptMarkerlessComponentRoot(vnode, container)).toBe(true);
 		expect(container.querySelector('i')).toBe(first);
 		expect(unmount(container)).toBe(true);
 	});
@@ -94,11 +123,11 @@ describe('DOM adoption modes', () => {
 	it('adopts active and parked Activity ranges without recreating server nodes', () => {
 		const active = document.createElement('div');
 		active.innerHTML =
-			'<!--exact:root--><!--exact:activity:0--><p>ready</p><!--/exact:activity:0--><!--/exact:root-->';
+			'<!--exact:dynamic:test-root--><!--exact:activity:0--><p>ready</p><!--/exact:activity:0--><!--/exact:dynamic:test-root-->';
 		const paragraph = active.querySelector('p');
 		expect(
 			adoptStatic(
-				createVNode(Activity, { mode: 'active' }, createVNode('p', null, 'ready')),
+				createOperation(Activity, { mode: 'active' }, createOperation('p', null, 'ready')),
 				active
 			)
 		).toBe(true);
@@ -107,15 +136,18 @@ describe('DOM adoption modes', () => {
 
 		const parked = document.createElement('div');
 		parked.innerHTML =
-			'<!--exact:root--><!--exact:activity:0--><!--/exact:activity:0--><!--/exact:root-->';
+			'<!--exact:dynamic:test-root--><!--exact:activity:0--><!--/exact:activity:0--><!--/exact:dynamic:test-root-->';
 		expect(
 			adoptStatic(
-				createVNode(Activity, { mode: 'parked' }, createVNode('p', null, 'prepared')),
+				createOperation(Activity, { mode: 'parked' }, createOperation('p', null, 'prepared')),
 				parked
 			)
 		).toBe(true);
 		expect(parked.querySelector('p')).toBeNull();
-		render(createVNode(Activity, { mode: 'active' }, createVNode('p', null, 'prepared')), parked);
+		render(
+			createOperation(Activity, { mode: 'active' }, createOperation('p', null, 'prepared')),
+			parked
+		);
 		expect(parked.querySelector('p')?.textContent).toBe('prepared');
 		unmount(parked);
 	});
@@ -123,11 +155,11 @@ describe('DOM adoption modes', () => {
 	it('adopts explicit Suspense content and fallback protocol states', async () => {
 		const content = document.createElement('div');
 		content.innerHTML =
-			'<!--exact:root--><!--exact:suspense-content:0--><p>ready</p><!--/exact:suspense-content:0--><!--/exact:root-->';
+			'<!--exact:dynamic:test-root--><!--exact:suspense-content:0--><p>ready</p><!--/exact:suspense-content:0--><!--/exact:dynamic:test-root-->';
 		const paragraph = content.querySelector('p');
 		expect(
 			adoptStatic(
-				createVNode(Suspense, { fallback: 'loading' }, createVNode('p', null, 'ready')),
+				createOperation(Suspense, { fallback: 'loading' }, createOperation('p', null, 'ready')),
 				content
 			)
 		).toBe(true);
@@ -145,18 +177,18 @@ describe('DOM adoption modes', () => {
 					await pending;
 				})
 			);
-			return () => createVNode('p', null, 'ready');
+			return () => createOperation('p', null, 'ready');
 		}
 		const fallback = document.createElement('div');
 		fallback.innerHTML =
-			'<!--exact:root--><!--exact:suspense-fallback:0--><i>loading</i><!--/exact:suspense-fallback:0--><!--/exact:root-->';
+			'<!--exact:dynamic:test-root--><!--exact:suspense-fallback:0--><i>loading</i><!--/exact:suspense-fallback:0--><!--/exact:dynamic:test-root-->';
 		const indicator = fallback.querySelector('i');
 		expect(
 			adoptStatic(
-				createVNode(
+				createOperation(
 					Suspense,
-					{ fallback: createVNode('i', null, 'loading') },
-					createVNode(Pending, {})
+					{ fallback: createOperation('i', null, 'loading') },
+					createOperation(Pending, {})
 				),
 				fallback
 			)
@@ -174,28 +206,13 @@ describe('DOM adoption modes', () => {
 	});
 
 	it('adopts keyed SSR ranges and preserves their DOM identity during reorder', () => {
-		let list!: Component<{ items: { id: string; label: string }[] }>;
-		function List(this: Component<{ items: { id: string; label: string }[] }>) {
-			list = this;
-			this.state.items = [
-				{ id: 'a', label: 'A' },
-				{ id: 'b', label: 'B' }
-			];
-			return () =>
-				this.map(
-					this.state.items,
-					(item) => item.id,
-					(item) => createVNode('li', null, item.label),
-					'tasks'
-				);
-		}
 		const container = document.createElement('div');
-		const vnode = createVNode(List, null);
-		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(List))}`;
-		container.innerHTML = `<!--exact:root--><!--${marker}--><!--exact:tasks--><!--exact:item:a--><li>A</li><!--/exact:item:a--><!--exact:item:b--><li>B</li><!--/exact:item:b--><!--/exact:tasks--><!--/${marker}--><!--/exact:root-->`;
+		const vnode = createTestComponentReceipt(KeyedAdoptionList, {});
+		container.innerHTML = `<!--exact:dynamic:list--><!--exact:dynamic:tasks--><!--i:a--><li>A</li><!--/i:a--><!--i:b--><li>B</li><!--/i:b--><!--/exact:dynamic:tasks--><!--/exact:dynamic:list-->`;
 		const originalB = container.querySelectorAll('li')[1];
 
-		expect(adoptStatic(vnode, container)).toBe(true);
+		expect(adoptMarkerlessComponentRoot(vnode, container)).toBe(true);
+		const list = keyedAdoptionListInstance();
 		list.state.items.reverse();
 		flushSync();
 		expect(container.querySelectorAll('li')[0]).toBe(originalB);
@@ -210,7 +227,7 @@ describe('DOM adoption modes', () => {
 		const slot = container.querySelector('[data-exact-server-slot="shell:children"]');
 		const child = container.querySelector('strong');
 
-		render(createVNode('main', null, createServerSlot('shell:children')), container);
+		render(createOperation('main', null, createServerSlot('shell:children')), container);
 
 		expect(container.querySelector('[data-exact-server-slot="shell:children"]')).toBe(slot);
 		expect(container.querySelector('strong')).toBe(child);
@@ -221,7 +238,7 @@ describe('DOM adoption modes', () => {
 	it('adopts dynamic and unsafe HTML ranges with their ownership policies', () => {
 		const dynamicContainer = document.createElement('div');
 		dynamicContainer.innerHTML =
-			'<!--exact:root--><!--exact:dynamic:value-->current<!--/exact:dynamic:value--><!--/exact:root-->';
+			'<!--exact:dynamic:test-root--><!--exact:dynamic:value-->current<!--/exact:dynamic:value--><!--/exact:dynamic:test-root-->';
 		expect(
 			adoptStatic(
 				createDynamicChild(() => 'current'),
@@ -233,7 +250,7 @@ describe('DOM adoption modes', () => {
 
 		const unsafeContainer = document.createElement('div');
 		unsafeContainer.innerHTML =
-			'<!--exact:root--><!--exact:unsafe-html:value--><strong>trusted</strong><!--/exact:unsafe-html:value--><!--/exact:root-->';
+			'<!--exact:dynamic:test-root--><!--exact:unsafe-html:value--><strong>trusted</strong><!--/exact:unsafe-html:value--><!--/exact:dynamic:test-root-->';
 		const observed = vi.fn();
 		expect(
 			adoptStatic(unsafeHtml('<strong>trusted</strong>'), unsafeContainer, {
@@ -251,30 +268,28 @@ describe('DOM adoption modes', () => {
 		unmount(unsafeContainer);
 	});
 
-	it('rejects missing, incomplete, and mismatched adoption boundaries', () => {
+	it('rejects missing, incomplete, and mismatched compiled component boundaries', () => {
+		const operation = createTestComponentReceipt(HydratedGreeting, {});
+		const marker = `exact:component:0:${encodeExactMarkerPart(exactComponentIdentity(HydratedGreeting))}`;
 		const missing = document.createElement('div');
 		missing.innerHTML = '<span>server</span>';
-		expect(adoptStatic(createVNode('span', null, 'server'), missing)).toBe(false);
+		expect(adoptComponentRoot(operation, missing)).toBe(false);
 
 		const incomplete = document.createElement('div');
-		incomplete.innerHTML = '<!--exact:root--><span>server</span>';
-		expect(adoptStatic(createVNode('span', null, 'server'), incomplete)).toBe(false);
+		incomplete.innerHTML = `<!--${marker}--><span>server</span>`;
+		expect(adoptComponentRoot(operation, incomplete)).toBe(false);
 
 		const mismatch = document.createElement('div');
-		mismatch.innerHTML = '<!--exact:root--><span>actual</span><!--/exact:root-->';
-		expect(adoptStatic(createVNode('span', null, 'expected'), mismatch)).toBe(false);
+		mismatch.innerHTML =
+			'<!--exact:component:0:wrong--><span>server</span><!--/exact:component:0:wrong-->';
+		expect(adoptComponentRoot(operation, mismatch)).toBe(false);
 	});
 
 	it('adopts a complete HTML document without replacing its host nodes', () => {
 		const documentNode = document.implementation.createHTMLDocument('Fixture');
 		documentNode.body.innerHTML = '<main>server</main>';
 		const html = documentNode.documentElement;
-		const vnode = createVNode(
-			'html',
-			null,
-			createVNode('head', null, createVNode('title', null, 'Fixture')),
-			createVNode('body', null, createVNode('main', null, 'server'))
-		);
+		const vnode = createTestComponentReceipt(DocumentAdoptionRoot, {});
 
 		expect(adoptDocumentRoot(vnode, documentNode)).toBe(true);
 		expect(documentNode.documentElement).toBe(html);

@@ -1,7 +1,7 @@
 import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createBoundaryRefreshHandler, diffBoundaryHtml, diffKeyedListItems } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr element-diffing', () => {
 	it('falls back to replacement patches when text strategy renders html', async () => {
@@ -17,7 +17,7 @@ describe('@exactjs/ssr element-diffing', () => {
 					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
-					profile: createBoundaryRefreshHandler(() => createVNode('p', null, 'Ada'), {
+					profile: createBoundaryRefreshHandler(() => createOperation('p', null, 'Ada'), {
 						boundaryId: 'profile',
 						markers: false,
 						patchStrategy: 'text'
@@ -207,7 +207,7 @@ describe('@exactjs/ssr element-diffing', () => {
 					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
-					profile: createBoundaryRefreshHandler(() => createVNode('section', null, 'Ready'), {
+					profile: createBoundaryRefreshHandler(() => createOperation('section', null, 'Ready'), {
 						boundaryId: 'profile',
 						markers: false,
 						patchStrategy: 'element',

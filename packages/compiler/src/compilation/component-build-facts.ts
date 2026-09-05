@@ -20,7 +20,7 @@ export function createExactComponentBuildFacts(
 	analysis: ExactModuleAnalysis
 ): ExactComponentBuildFacts {
 	const imports = importedBindings(analysis);
-	const componentImports = analysis.components.flatMap((component) => {
+	const renderImports = analysis.components.flatMap((component) => {
 		const targets = Object.freeze([...(component.artifactTargets ?? [])]);
 		return component.renderEdges.flatMap((edge) => {
 			const binding = edge.moduleSpecifier
@@ -34,6 +34,25 @@ export function createExactComponentBuildFacts(
 				: [];
 		});
 	});
+	const registryImports = (analysis.registries ?? []).flatMap((registry) =>
+		registry.entries.flatMap((entry) =>
+			entry.moduleSpecifier
+				? [
+						componentImport(
+							registry.id,
+							{
+								moduleSpecifier: entry.moduleSpecifier,
+								exportName: entry.exportName ?? 'default'
+							},
+							Object.freeze([...entry.artifactTargets]),
+							'registry',
+							entry.componentId
+						)
+					]
+				: []
+		)
+	);
+	const componentImports = [...renderImports, ...registryImports];
 
 	return Object.freeze({
 		protocol: 1 as const,

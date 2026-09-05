@@ -1,6 +1,59 @@
 import { unwrap } from '@exactjs/core';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import type { Mounted, Root } from '../types.js';
+import type { ExactUnsafeHtmlReceiptData } from '@exactjs/core/runtime/component-operations';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
+
+/** Mounts one compiler-authorized raw-HTML range. */
+export function mountUnsafeHtmlReceipt(
+	root: Root,
+	receipt: ExactUnsafeHtmlReceiptData,
+	parentScope?: EffectScope
+): Mounted {
+	assertUnsafeHtmlAllowed(root);
+	const id = 'exact:unsafe-html:client';
+	const mounted: Mounted = {
+		unsafeHtmlReceipt: receipt,
+		dom: document.createComment(id),
+		end: document.createComment(`/${id}`),
+		scope: createEffectScope(parentScope),
+		children: [],
+		rawNodes: []
+	};
+	bindUnsafeHtml(root, mounted, receipt.value);
+	return mounted;
+}
+
+/** Adopts one compiler-authorized raw-HTML marker range. */
+export function adoptUnsafeHtmlReceipt(
+	root: Root,
+	receipt: ExactUnsafeHtmlReceiptData,
+	nodes: readonly Node[],
+	cursor: number,
+	parentScope: EffectScope,
+	rangeEnd: number
+): { mounted: Mounted; next: number } | undefined {
+	assertUnsafeHtmlAllowed(root);
+	const start = nodes[cursor];
+	if (!(start instanceof Comment) || !start.data.startsWith('exact:unsafe-html:')) return undefined;
+	let endIndex = -1;
+	for (let index = cursor + 1; index < rangeEnd; index++)
+		if (nodes[index] instanceof Comment && (nodes[index] as Comment).data === `/${start.data}`) {
+			endIndex = index;
+			break;
+		}
+	if (endIndex < 0) return undefined;
+	const mounted: Mounted = {
+		unsafeHtmlReceipt: receipt,
+		dom: start,
+		end: nodes[endIndex]!,
+		scope: createEffectScope(parentScope),
+		children: [],
+		rawNodes: nodes.slice(cursor + 1, endIndex)
+	};
+	bindUnsafeHtml(root, mounted, receipt.value, true);
+	return { mounted, next: endIndex + 1 };
+}
 
 /** Validates unsafe html allowed and throws when the contract is violated. */
 export function assertUnsafeHtmlAllowed(root: Root): void {

@@ -19,9 +19,33 @@ readiness, and request-cleanup regressions.
 The cross-framework `npm run measure:ssr` lane additionally records a concurrency saturation curve
 at 1, 4, 8, 16, 32, and 64 simultaneous requests. Worker timing separates time through first-byte
 publication from response composition and delivery, while event-loop-delay and garbage-collection
-telemetry expose stalls that aggregate CPU counters cannot attribute. These finite local-loopback
-waves compare identical framework routes; they are not a substitute for externally generated
-capacity testing on deployment hardware.
+telemetry expose stalls that aggregate CPU counters cannot attribute. Saturation uses fixed-duration,
+closed-loop windows, so throughput has an equal window population while faster participants retain their
+larger observation counts for latency analysis; high-volume per-request arrays are released after exact
+percentile summarization instead of remaining live for the multi-runtime run. The harness warms and times the controlled fixture service
+before every participant, rotates participant order between runtimes, and records that order.
+Its bounded, participant-owned `node:http` keep-alive agent is closed between participants, preventing
+client ephemeral-port churn from contaminating the capacity curve.
+A discarded two-second c32 capacity prime runs before concurrent measurement, followed by a telemetry reset,
+so engine tier-up does not appear as a framework throughput discontinuity in the recorded curve.
+The ordinary concurrent lane uses 50 waves. Its reports always place the raw before/current movement
+beside any control-normalized movement. Control normalization answers whether a movement can be
+attributed across environments; it neither excuses a large raw regression nor erases a reproducible
+raw improvement. A primary metric with an adverse raw movement of 10% or more blocks checkpoint
+acceptance until a repeated capture with the same artifacts either reproduces the movement or
+demonstrates that the original population was unstable. A reproducible favorable movement remains
+an accepted measured improvement even when dispersed controls prevent assigning its exact magnitude
+to one change. Repeated captures rotate participant order, retain every raw window, and never select
+only the most favorable run.
+
+Attribution counter-metrics include total participant work for every framework and, where the integration
+owns the complete renderer call, controlled-data loading, rendering, response-envelope construction, and
+rendered/response byte counts. Equal-payload runs hold complete body size at 8 KiB by default, transport-only
+payload sweeps isolate response-size sensitivity, and preloaded render-only runs separate renderer cost from
+service and socket work. Node render-only diagnostics also retain separate statistical CPU and allocation
+profiles with their top source locations. These local-loopback diagnostics explain the comparison; they are not substitutes for
+externally generated capacity testing on deployment hardware, and unsupported internal phase boundaries are
+reported as unavailable rather than zero.
 
 Server render-program selection must preserve readiness at every nested host, not only at a
 component's returned root. If a planned intrinsic subtree contains compiler-proven independent
@@ -61,7 +85,14 @@ Compiled logging and framework diagnostics call one shared logging operation wit
 component instance, so ordinary logging does not require a facade per component. A facade is
 materialized only when dynamic code explicitly reads the public `instance.log` surface. Disabled
 default trace and debug checks also avoid constructing component scope records. Default logger and
-error contexts remain available through the same context resolution contract.
+error contexts remain available through the same context resolution contract. Server artifacts
+with canonical logging use a focused request-local logging frame, or reuse their context-bearing
+direct frame, so logging alone does not select durable generic SSR ownership.
+
+Canonical `this.intl` access is likewise compiler-linked to the component owner. On the server,
+localized components reuse the request-local context frame and its nearest-provider lookup instead
+of selecting durable generic SSR construction. The stable localized facade remains cached per
+component owner, including direct request frames, without widening context-free artifacts.
 
 Compiler-owned DOM interactions enter through a compiler-marked native event lane. With trace
 logging disabled, an ordinary callback executes and publishes its synchronous reactive feedback
@@ -83,9 +114,12 @@ at entry so every phase remains observable. Public and runtime-authored event ho
 general interaction contract.
 
 When the compiler proves a local intrinsic handler has no parameter and does not read implicit
-`arguments`, delegated dispatch calls it without redefining `Event.currentTarget`. Handlers with a
-parameter, implicit argument access, opaque identity, or runtime provenance retain the complete
-event adaptation path.
+`arguments`, the DOM target owns a direct listener that enters the same interactive publication
+operation without constructing or adapting an event argument. This avoids delegated path discovery
+while preserving interactive priority, synchronous feedback publication, task ownership, error
+routing, and listener cleanup. Handlers with a parameter, implicit argument access, opaque identity,
+or runtime provenance retain delegated dispatch and the complete `Event.currentTarget` adaptation
+path.
 
 Focus preservation is transaction state on the renderer root rather than a process-wide side table.
 Nested DOM work reuses the outer transaction, and an event releases its captured focus and selection
@@ -120,12 +154,21 @@ every application. Compiled-component packages declare import-time purity so an 
 re-export does not activate its capability; retaining the provider export still retains the emitted
 capability import.
 
+Target-local capability projection happens before constructor and import selection. Server
+artifacts omit capability expressions erased with client lifecycle callbacks, client tasks, event
+handlers, and ref attributes, while retaining server-observable use and requirements propagated
+through external receiver-forwarding helpers. This prevents client-only authoring surfaces from
+widening SSR without treating unresolved helper flow as safe.
+
 Closed client and hydrate artifacts give compiler-proven call-only
 `TaskContext.client().latest()` functions with the default normal, nonblocking policy a compact task
 lane. The lane retains durable owner cancellation, structural interaction settlement, task frames,
 cleanup, inspection events, component performance logging, and reactive setup activation, but it
 does not allocate general status objects, keyed lane maps, queues, option validators, or generic
-generation records. A task that escapes as a value, uses optimism, captures authored parameter
+generation records. When the same authored function task is called during setup and retained by an
+interaction, its declaration owns the single durable definition and both sites invoke that binding.
+The setup call does not emit a second task body, dependency plan, identity, or status owner. A task
+that escapes as a value, uses optimism, captures authored parameter
 defaults, changes readiness or priority, selects another concurrency policy, belongs to a
 rendering-mode-neutral artifact, or crosses the server boundary retains the universal task ABI.
 Synchronous compiler-owned computations and resumption deferral also live in focused modules so
@@ -139,19 +182,42 @@ end. If variable structure makes neither edge stable, the component retains its 
 claims. Inert static intrinsics are never claimed or assigned individual ownership. The successful
 path does not walk descriptor tables, build an identity map, or rediscover slots. Every claimed tag,
 namespace, scalar sentinel, and structural marker pair is still checked. A stale or malformed plan
-therefore fails closed into the existing hydration recovery path. Complete rendering-mode-neutral
-artifacts combine the same direct client claim lane with a generated SSR writer and a generated
-recovery factory; manually constructed and older compatibility programs alone retain the
-table-driven adopter.
+therefore fails closed into the existing hydration recovery path. Paired client and server
+artifacts combine the same direct client claim lane with a generated SSR writer. The production DOM
+executor accepts only that compiler-specialized client ABI; manually constructed table fixtures are
+converted to the direct ABI by the testing entry point and are not a browser compatibility lane.
 
-Render-program descriptors are emitted once as immutable module tables. Component instances join
-only their local expression readers and optional recovery function to that shared table; they do
-not allocate a descriptor factory or repeat cache lookup and freezing. For compiler-proven direct
-top-level state reads, closed client output assigns dirty bits to the affected text and property
-operations. Each finite region registers its generated operation function with the durable
+Render-program descriptors are emitted once as immutable module records. Component instances join
+only their local expression readers to that shared record; closed client output does not retain a
+second generic VNode topology for region-local recovery. It does not allocate a descriptor factory
+or repeat cache lookup and freezing. For compiler-proven direct top-level state and props reads,
+closed client output assigns dirty bits to the affected text, property, and conditional
+structural-child operations. Forwarded reactive props retain their source subscription while
+publishing through the same compiler-indexed dirty table, so a branch does not need a retained slot
+watcher. Each finite region registers its generated operation function with the durable
 component definition. The artifact carries one fixed dependency/mask table and one generated
 component updater; each mounted region contributes only its compiler-assigned target index. Every
 region in that component therefore shares one dependency subscription and mutation-version table.
+When every generated dependency is component state, the artifact imports a state-only binder and
+omits forwarded-prop inspection, subscription, and refresh storage. Mixed state/prop artifacts use
+a counted prop-slot prefix followed by state slots, so their runtime does not rediscover sources,
+map authored field names, or allocate binding-index arrays. This keeps the richer prop semantics
+available without making them part of the state-only startup and retained-heap floor.
+One generated operation may depend on several top-level slots. The compiler merges those inputs
+into the operation's dirty mask for scalar arithmetic, comparisons, logical composition, and
+conditionals, avoiding a retained watcher merely because a text or property value has more than
+one input. It deliberately leaves nested object reads and arbitrary calls tracked until their full
+mutation and dependency behavior is proven.
+The binder likewise mounts inert statically resolved native-component slots directly. When a static
+component has compiler-indexed live props, its parent update artifact publishes those props through
+the retained child instance without a generic structural watcher. Runtime-selected identities and
+authored dependency surfaces the compiler cannot close remain structural ranges.
+The ordinary case keeps two inline 32-bit mask words. When a component contains more than 64 direct
+operations, the compiler extends that same artifact with the exact number of additional words; only
+instances of that component allocate the corresponding typed mask storage. Capacity never selects
+the removed runtime `WeakMap`/lane graph or a set of per-region reactions. The compiler also links
+the wide binder only into those artifacts; ordinary components retain the two-word binder without a
+wide-capacity branch or import.
 Numeric mutation versions identify the fields that actually changed, and the generated updater
 calls only operations whose region target is currently mounted. Region replacement clears its
 indexed target, while final component teardown releases the shared reaction. This avoids both
@@ -166,22 +232,29 @@ a general update plan. Closed client output emits each property group as one dir
 operation: one
 invocation applies its known keys in browser-safe order without allocating and enumerating a
 temporary props record or redispatching through the generic slot reader for every property. Those
-properties are omitted from the client slot dispatcher. Their previous values occupy a compact
+properties are omitted from the client slot dispatcher. Conditional intrinsic roots created inside
+a compiler-owned structural range use marker-free intrinsic VNodes; native components retain their
+separate marker-free component constructor, so the two identities cannot be confused. Previous
+property values occupy a compact
 group-indexed array; programs with only text or structural work allocate no property map at all.
 Closed hydrate and client artifacts emit their complete claim and binding topology in one direct
 executor. Its claim lane wires intrinsic and slot identities; its binding lane calls text,
 structural-child, compiler-keyed-child, grouped compatibility-list, and property operations. The DOM
 executor invokes those compiler-authored calls without walking or branching over general node,
-slot, or binding tables. Complete rendering-mode-neutral artifacts retain direct client execution,
-a component-specific server function, and a region recovery factory because the same physical
-artifact may execute through either renderer. They do not make contract-metadata completeness
-select generic successful execution. Closed server artifacts emit only that component-specific SSR
-function: a
+slot, or binding tables. Published packages retain paired direct client execution and
+component-specific server functions; one physical executable artifact is never asked to select
+between render targets. They do not make contract-metadata completeness select generic successful
+execution. Closed server artifacts emit only that component-specific SSR function: a
 generated preparation prefix reads the known slots, then generated calls write static markup,
 text, children, and attributes in source order. The SSR runtime supplies escaping, markers,
 limits, and recursive child rendering without interpreting node, slot, part, binding, or operation
-tables. The direct server facet carries only its compact execution classification, the setup prop
-names read before construction, and its generated render function. Scheduled calls reference
+tables. The direct server facet carries only its compact execution classification and the setup
+prop names read before construction. For a compiler-proven synchronous JSX root, the compiler
+folds the returned render arrow into the setup implementation and marks that closed form. The
+request-local executor writes the resulting prepared program into its sink without allocating a
+returned render closure, synchronous issued-result object, or snapshot projection. Forwarded and
+arbitrary output retains its callable contract, and scheduled components retain their issued
+protocol; there is no parallel fast path for one artifact. Scheduled calls reference
 module-level input/output slices emitted from the canonical component dataflow graph; request
 execution consumes those constants rather than serializing or rebuilding a generic plan. Synchronous,
 scheduled, and dynamic components therefore have an explicit bundle boundary for progressively
@@ -194,10 +267,12 @@ If any server-reachable component in the module requires generic ownership, the 
 the reactive server entry for that module rather than weakening its behavior. Hydrated applications
 therefore receive a closed server facet and the corresponding durable client facet; the server
 optimization is not a compilerless or server-only component model.
-When the compiler proves that a synchronous server component needs only its generated render
-artifact, it selects the direct lane. SSR invokes that artifact against a small request-local state
+When the compiler proves that a synchronous server component needs no durable ownership, it selects
+the direct lane. SSR invokes that artifact against a small request-local state
 frame and never constructs a durable component instance, reactive scope, task owner, or lifecycle
-registry. Compiler-selected state paths are published from that frame for hydration resumption only
+registry. A context-bearing frame adds only a logical parent, ambient-context reference, and local
+map; descendant serialization uses that frame so nearest-provider lookup remains exact across
+direct and durable components. Compiler-selected state paths are published from that frame for hydration resumption only
 after descendant output succeeds. Expression props are read once into the direct frame instead of
 creating the general readonly props proxy. A compiler-keyed list normally writes its item VNodes
 through the generated SSR function; its lazy compatibility fallback calls one shared request-local
@@ -207,6 +282,27 @@ server slice remain on the generic lane; classification alone never weakens thei
 semantics. The renderer carries component ancestry separately from durable instance ownership, so
 a resumable descendant still publishes its client activation boundary when every server ancestor
 uses a request-local direct frame.
+
+Canonical ref calls do not by themselves select the generic server lane. Generated server output
+links `ref()`, `readRef()`, `refs.get()`, and `refs.root()` directly to a lazy request-local binding
+record. SSR never publishes a DOM value, but stable binding identity, authored fulfillment, root
+ownership validation, and the empty server root lifecycle remain observable. The focused lane does
+not import reactive ref objects or install the universal ref surface. Extracted or dynamic ref
+operations stay generic because their eventual semantics are not statically known.
+
+Canonical setup-time `this.reactive()` calls likewise select a focused direct-server value. Its
+reader evaluates against the current request-frame state on each observation, preserving freshness
+after compiler-scheduled task writes without allocating computed nodes, dependency links, scheduler
+registrations, or effect-scope ownership. It remains a framework-branded readonly reactive value
+for unwrapping and serialization. Extracted and dynamic factory access stays on the generic lane.
+
+Canonical `onRender()`, `onUnmount()`, and `own()` calls no longer require a durable SSR component
+instance. The server artifact links a lifecycle capability only for components that use those
+operations, and registration allocates one request-local sidecar on first use. The renderer calls
+the linked render hook once per render attempt and releases the sidecar after descendant output is
+finished; synchronous and asynchronous cleanup share the same primary-error preservation boundary.
+This lifecycle facet composes with context, logging, task, ref, and reactive facets without a
+per-request capability mask or combined-constructor dispatch.
 
 Compiler-closed scheduled server components use the same request-local frame plus only their
 generated transition slices and disposable port storage. They do not construct a durable
@@ -218,8 +314,8 @@ durable task frame. For a compiler-closed direct component, the generated server
 all known child slots synchronously while its request-local issuance scope is active. Each known
 scheduled child therefore issues its frame before authored-order HTML publication begins, without
 constructing the surrounding intrinsic VNode tree or asking the renderer to rediscover task-bearing
-components. Generic or context-owning components retain lazy slot reads and their stabilization
-semantics. The request scheduler starts ready child tasks up to its bound before awaiting the first
+components. Generic components retain lazy slot reads and their stabilization semantics. The
+request scheduler starts ready child tasks up to its bound before awaiting the first
 settlement.
 Framework-owned resumption observers are buffered and replayed in authored order; user
 component-instance observers retain the serial lane because their timing is observable.
@@ -284,7 +380,7 @@ Literal host attributes with identical template, DOM, and SSR semantics are writ
 the compiler-owned template. They do not become reader branches, binding records, reactions, or
 initial `updateProps` work. Values that require URL policy, form binding, event installation,
 object normalization, or custom-element property assignment remain explicit runtime operations.
-Programs whose binding table is empty bypass reactive binding setup entirely: they allocate no
+Programs whose component-local binding tuple is empty bypass reactive binding setup entirely: they allocate no
 props map, retained watcher, refresh closure, or binding teardown state.
 
 Compiler-emitted descriptors are trusted module-local executable artifacts. The client does not
@@ -298,6 +394,16 @@ readers and framework-fixture entry points retain full validation for manually s
 Hydration entry points likewise pass their owned configuration resolver explicitly. The shared DOM
 adoption engine has no complete-runtime default import, so a hydration-only client does not retain
 endpoint, continuation, island, or patch configuration merely because the full client supports it.
+Build adapters can emit a focused client bootstrap from the aggregate artifact graph. It imports
+the server-operation/island client surface only when those capabilities are reachable, composes
+the complete continuation table without a separate generated-module normalization pass, and does not ship the
+descriptive graph inventory used to make that decision.
+
+Native component functions carry their prepared target artifact. Client mounting and hydration
+read that definition once and invoke its linked constructor directly, avoiding a separate native
+identity classification and a second contract lookup for every instance. Dynamic component
+selection still resolves at execution time, but every selectable native value must carry the same
+complete target artifact; foreign functions enter through compiled compatibility boundaries.
 
 Scalar text slots may sit beside static text or other scalar slots in one planned host. When static
 markup bounds a slot on both sides, hydratable SSR writes the escaped value directly and the
@@ -372,11 +478,19 @@ npm run benchmark:framework
 ```
 
 The release performance profile builds the repository first and then runs the framework, reactive,
-compiler, DevTools, and React-compatibility benchmarks without competing correctness work:
+compiler, DevTools, and React-compatibility benchmarks after the complete correctness admission
+sequence:
 
 ```sh
 npm run performance:check
 ```
+
+The npm prerequisite runs `release:check`, the isolated Router v6.3 check, Theme Lab browser
+acceptance, and the native compiler corpus first. Correctness and structural failures stop before
+measurement. A machine-local native compiler timing excess is recorded as non-publishable timing
+evidence and warns without discarding the admitted build. Once those checks exit, the performance
+profile runs benchmarks against their existing build; it does not repeat the repository build or
+TypeScript 7 compatibility pass.
 
 Update the tracked framework baseline only from a complete Node and Chromium run:
 
@@ -395,6 +509,10 @@ The focused reactive command includes the repaired compiled keyed-list DOM gate:
 ```sh
 npm run benchmark:reactive
 ```
+
+The reactive benchmark also measures scope-owned deep-chain settlement and an equal-result diamond.
+The chain guards affected-graph traversal cost; the diamond verifies that equality prevents
+downstream execution while reporting settlement timing alongside the collection scenarios.
 
 The shipping fixture also has a manually invoked retained-heap regression test. It warms the
 compiler-generated hydratable SSR root with production marker behavior, forces full collections,
@@ -420,14 +538,19 @@ npm run test:allocation -w @exactjs/sample-shipping-calculator
 Dependent-foundation candidates are measured one at a time in isolated Node processes:
 
 ```sh
-npm run benchmark:performance-foundations -- --scenario=render-plan
+npm run benchmark:performance-foundations -- --scenario=transport
 ```
 
-The supported scenario names are `render-plan`, `async-ssr`, `hydration-publication`, `transport`,
-and `build-host`. `EXACT_PERFORMANCE_FOUNDATION_SAMPLES` controls outer process samples;
+The supported scenario names are `transport` and `build-host`.
+`EXACT_PERFORMANCE_FOUNDATION_SAMPLES` controls outer process samples;
 `EXACT_PERFORMANCE_INNER_SAMPLES` controls observations inside each process. These exploratory
 measurements become tracked release evidence only when their proposal records an accepted result
 and the production implementation retains the same workload as a before/after guard.
+
+The completed render-program, bounded-async-SSR, and hydration-publication experiments remain in
+the historical evidence, but their handwritten generic-tree comparators were removed with the
+native VNode architecture. Current SSR and hydration coverage uses compiler-produced TSX in the
+framework benchmark instead.
 
 The completed dependent-foundation evidence is tracked in
 [`dependent-foundations.json`](performance-baselines/dependent-foundations.json) and can be
@@ -437,11 +560,11 @@ reproduced after a repository build with:
 node scripts/benchmark-performance-foundations.mjs --output=docs/performance-baselines/dependent-foundations.json
 ```
 
-Remaining stage-16 candidates use the focused production and representation fixtures in
-`scripts/performance/remaining-optimizations.mjs`. Their five-process measurements, counter-metrics,
-environment, and accept/reject decisions are tracked in
-[`remaining-optimizations.json`](performance-baselines/remaining-optimizations.json). A measured
-rejection is final for the recorded profile; it leaves no production implementation behind.
+The completed stage-16 candidate measurements, counter-metrics, environment, and accept/reject
+decisions remain recorded in
+[`remaining-optimizations.json`](performance-baselines/remaining-optimizations.json). Their obsolete
+handwritten VNode fixture was removed with that architecture; current production workloads are
+compiler-produced TSX.
 
 ## Measurement contract
 
@@ -483,11 +606,22 @@ measuring two unrelated CLI startups would obscure compiler and emission work.
 | Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.                                                         |
 
 The framework comparison additionally records FCP, LCP, long-task count and duration, total
-blocking time, element/total/comment/text DOM size at semantic readiness, per-script decoded and
-executed bytes, function inventory and invocation counts, and parse/compile/evaluation trace
-attribution. Executed bytes use the most-specific V8 coverage range for each source interval, so an
-uncalled function body is not hidden by its executed top-level script range and nested ranges are
-not counted twice.
+blocking time, element/total/comment/text DOM size at semantic readiness, post-GC JavaScript and
+embedder heap, backing storage, retained DOM and listener counts, per-script decoded and executed
+bytes, function inventory and invocation counts, and parse/compile/evaluation trace attribution.
+Executed bytes use the most-specific V8 coverage range for each source interval, so an uncalled
+function body is not hidden by its executed top-level script range and nested ranges are not counted
+twice. Coverage is best-effort so V8 optimization remains enabled during percentile timing.
+
+One separate diagnostic pass per framework records sampling CPU profiles for cold startup and the
+first optimistic interaction plus sampled allocation sites before and after post-interaction
+collection. Those profiles preserve raw V8 nodes and ranked URL/function locations for attribution;
+the pass uses a 100-microsecond CPU interval, a 4 KiB heap interval, and 6x CPU emulation for the
+interaction capture. Attribution-enabled eXact diagnostics join precise executed coverage to source maps and
+retain the bundler's actual per-module rendered lengths. Parsed and compiled function counts remain bundle-level
+when Chromium omits source locations. An optional post-GC strong-edge dominator snapshot supports retained-heap
+investigation without embedding its large raw snapshot. Profiler overhead is intentionally excluded from latency populations, and
+sampled heap bytes are not treated as exact retained-heap accounting.
 
 The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
 size and generation cost have their own scenarios, which keeps the two costs attributable.
@@ -533,12 +667,22 @@ activity blockers, lifecycle registrations, controllers, task state, refs, lists
 remain allocation-on-demand sidecars.
 
 Compiled component definitions also carry a compact runtime ABI describing whether their generated
-execution uses a compiled render, authored lifecycle work, the general list capability, or task
-ownership. A compiler-owned render constructs its direct bindings and structural readers once;
-state and prop changes are then routed by those generated operations rather than by a second generic
-component-render watcher. Construction and disposal use the same ABI to avoid task lookups,
-lifecycle-map probes, and list-controller calls that the component cannot exercise. Framework test
-fixtures and compatibility artifacts retain the conservative general path.
+execution uses a compiled render, authored lifecycle work, the general list capability, collection
+interception, or task ownership. A compiler-owned render constructs its direct bindings and
+structural readers once. A transparent render that has no JSX host receives one explicit dynamic
+range for its returned expression instead of retaining a component-wide watcher. State and prop
+changes are then routed by those generated operations. Construction and disposal use the same ABI
+to avoid capability-name scans, task lookups, lifecycle-map probes, and list-controller calls that
+the component cannot exercise. Framework test fixtures and compatibility artifacts retain the
+conservative general path.
+
+The same ABI selects instance storage. Components without lifecycle, runtime-list, or task bits use
+a compact render record and therefore have no lifecycle controllers, task capability/state, or
+list-disposal branches. A task- or interaction-owning component without lifecycle/list behavior uses
+the task record, adding only task ownership and teardown. Components that declare lifecycle or list
+ownership use the durable record. This selection happens before setup, so each narrower path reduces
+construction and retained shape rather than merely leaving universal fields undefined after
+allocation.
 
 The compiler also selects the authored component surface itself. The base durable instance owns only
 the state machine and its always-valid context operations. Canonical lifecycle registration and
@@ -551,20 +695,77 @@ universal prototype implementation. This keeps an unused feature's imports unrea
 relying on a lazy field to disguise a bundle-level dependency.
 
 Compiler-indexed component state uses one proxy handler and numeric dependency identities per
-state object. Initialized fields are ordinary data properties on the inspectable backing record;
+state object. Instances of the same compiled definition share its immutable key-to-slot layout;
+only a component that introduces a dynamic field allocates an instance-local extension map.
+Initialized fields are ordinary data properties on the inspectable backing record;
 they do not allocate getter and setter closures for every declared field. A compact indexed bitmap
 tracks field presence for deletion, snapshots, and optimistic rollback, while fields introduced
 dynamically retain the same reactive fallback semantics and receive stable indexes on first write.
+Generated client expressions read compiler-proven top-level fields by numeric slot, bypassing the
+facade's property trap and string-to-index lookup. The direct read still records the backing
+target's numeric dependency in the shared reactive graph; it is therefore not a parallel signal
+implementation and preserves synchronously current transitive computed reads. The inspectable
+facade remains the boundary for authored aliases, dynamic access, external code, snapshots, and
+DevTools. Plain request-local SSR state does not pay for the client indexed-read helper.
+Canonical top-level client writes also address the proven numeric slot directly while retaining
+replacement reconciliation, mutation journals, batching, and dependency notification. A
+checker-proven alias of the complete state facade keeps this indexed identity; nested-state aliases
+and dynamic writes keep the generic path lane rather than accepting an unsafe slot proof.
+The generated indexed-write call carries its right-hand value directly. It does not allocate a
+one-use value-returning thunk, and a function-valued state assignment therefore remains ordinary
+data rather than an overloaded callback convention. Primitive and first-value writes commit
+without an inner transaction callback; an enclosing interaction or optimistic journal still owns
+their notification and rollback semantics. Object-to-object replacements retain the reconciled
+transaction lane because one authored assignment may update several observed nested keys.
+Generated form and component-binding callbacks carry the authored slot identity through island and
+callback synthesis instead of recovering component ownership from the generated syntax tree.
+Managed client computations and task callbacks use the same analyzed slot identity, including when
+their work closes over a checker-proven alias of the complete state facade.
+
+A compiler-proven direct state operand passed through a component operation uses the indexed slot
+itself as its reactive source. The instance's indexed record retains at most one small readonly
+descriptor per used slot, shared by every operand for that slot. These descriptors allocate no read
+closure, computed reaction, dependency set, or scheduler entry. Derived expressions and structural
+ranges keep the general computed path because they own evaluation, caching, and invalidation rather
+than merely forwarding one slot. Generated descriptor calls retain their slot identity in component
+update tables; finalizing a prop or `children` value therefore cannot detach its parent update.
+Compiler-proven scalar text reads use the same storage identity in component-local render-program
+wiring. The immutable operation carries a compact state-or-props source and slot tuple; its focused
+DOM operation reads the durable owner directly. Other text expressions keep their generated reader,
+so this specialization does not introduce a general expression interpreter or transfer computation
+ownership into the renderer.
+
+Every compiled component definition carries immutable state and props layouts, including explicit
+empty layouts. Client construction therefore has one compiler-indexed storage contract rather than
+selecting a generic facade at runtime. Proven top-level props reads bypass the facade's property
+trap; dynamic keys extend the same readonly facade with stable instance-local indexes. Parent
+updates reconcile through those numeric dependency identities. Generated client islands preserve
+the parent component's complete state layout so reads and form bindings retain their original slot
+numbers even when the request serializes only the island's required state paths. Island-specific
+transport props receive a separate generated layout and direct numeric reads. Server artifacts
+carry the same layouts for contract consistency, while compiler-closed direct SSR continues to use
+plain request-local records and never constructs the reactive facade.
 
 Render-program hydration stores only directly claimed compiler-numbered elements in a sparse
 ephemeral array. Inert static intrinsics remain covered by their enclosing component or structural
 range and receive no element-owner records. The closed client path allocates neither string keys nor
 marker maps. Table-backed generic regions use the same dense numeric node identity and bounded
 indexing path; authored string identities are not an alternate render-program representation.
+Browser artifacts also omit the generic VNode fallback formerly retained beside complete render
+programs. Their specialized template handles construction, while hydration failure escalates to the
+root recovery path instead of retaining and invoking a second region topology.
+The DOM renderer's framework-owned root boundary follows the same rule. Its render operation runs
+once at construction and is invoked explicitly by the root update path; it does not retain a
+component-wide reactive watcher. This preserves the existing marker-free root topology and error
+ownership while avoiding an extra dependency subscription on every client navigation.
 
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
-the text boundary. Ambiguous adjacent text releases its fallback sentinels after transferring
-ownership to the claimed `Text` node. Structural child markers remain when a later sibling requires
+the text boundary. When one scalar is adjacent only to authored static text, the compiler projects
+that text into the same focused operation: the immutable wire retains the prefix and suffix while
+the expression keeps its existing reader or indexed operand. Runs containing several expressions
+retain their independent operations and fallback sentinels rather than transferring computation
+ownership to a shared interpreter. Ambiguous adjacent text releases its fallback sentinels after
+transferring ownership to the claimed `Text` node. Structural child markers remain when a later sibling requires
 an explicit variable-width boundary. A native component emitted directly by a generated component
 slot uses that slot's structural delimiters, or the parent end for a final keyed slot, instead of
 emitting a second component-marker pair. If the same slot executes through a generic list lane, its
@@ -593,8 +794,9 @@ Structural child and component calls delegate only their owned value to the ordi
 renderer. Asynchronous and streaming renderers execute the same generated calls and defer only each
 prepared child value to their ordinary async or chunk renderer; they do not reconstruct the host
 through the generic fallback. Hydrate-only client artifacts omit server markup and execution.
-Complete rendering-mode-neutral artifacts retain the table representation as an explicit
-compatibility boundary. When one module contains both direct and generic server components, its
+Paired package outputs keep client and server execution in separate target-local modules rather
+than retaining a neutral table as a compatibility boundary. When one module contains both direct
+and generic server components, its
 generated imports preserve those lanes independently: generic components retain reactive render
 helpers while direct components obtain the server-only prepared-program constructor.
 
@@ -611,22 +813,34 @@ hydratable lane retains resumption capture and the hydration publication while a
 universal async VNode dispatcher. Its serializer consumes the generated
 program segments directly and coordinates only the direct component slots named by the graph. The
 selection is transitive and conservative: imported or generic descendants, client boundaries,
-general child slots, dynamic render options, and React-markup mode keep the universal async VNode
-dispatcher. Production bundle checks reject that dispatcher when the server load fixture qualifies
+general child slots, root-replacing output options, and React-markup mode keep the universal async
+VNode dispatcher. A dynamic marker flag remains on the closed marked entrypoint because marker
+publication is already a request-context decision and cannot change the rendered graph. Production
+bundle checks reject that dispatcher when the server load fixture qualifies
 for the closed lane. When a private graph is rendered only by a local call with literal
 `markers: false`, the selected publisher returns the generated HTML directly and the bundle check
 also rejects component-marker, hydration-payload, and resumption-envelope formatters. Exported
 components and calls with non-empty output extensions retain the corresponding general capability.
-Because that selected root is compiler-produced and has no output extension, its hot path also
-omits plugin-host output processing; unproven and externally transformed values continue through
-the general validation boundary.
+Because every selected closed root is compiler-produced and cannot have a root-replacing output
+extension, its hot path omits plugin-host output processing in marked, unmarked, and hydratable
+modes. Unproven and externally transformed values continue through the general validation boundary.
+
+When a closed marked graph contains an isomorphic continuation, its server definition carries the
+prepared resumption publication kind and authored component name. The direct publisher feeds those
+facts to the serialization operation instead of rescanning implementations and continuations after
+every component render. A server-only task never selects client-resumption formatting merely
+because its component is exported.
 
 Compiler-created synchronous setup computations are also target-specialized. On the server their
 already-known dependency expressions feed the generated computation directly in authored order;
 the artifact does not construct a task definition, reactive dependency wrapper, readiness watcher,
 continuation executor, or transition port for that work. Authored tasks retain their declared
-scheduling, cancellation, readiness, and inspection semantics. Client artifacts continue to use
-durable reactive activation because those dependencies can change after hydration.
+scheduling, cancellation, readiness, and inspection semantics. On the client, an exact top-level
+prop-slot read that performs one direct indexed state write becomes an immutable receiver-owned
+input-update plan. The initial write stays in authored setup order; later finalized prop batches
+route one dirty mask through the receiving instance. Nested reactive reads, authored calls, and
+arbitrary expressions continue to use durable computation ownership because a top-level prop slot
+cannot represent their complete dependency semantics.
 
 Target projection also closes over deferred client work before runtime imports are selected. A
 client-placed function task that remains referenced by server-rendered component props becomes an

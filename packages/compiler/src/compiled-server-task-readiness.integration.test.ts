@@ -3,7 +3,10 @@ import * as exactRenderStructure from '@exactjs/core/framework/render-structure'
 import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
 import * as exactServerComponentExecution from '@exactjs/core/framework/server-component-execution';
 import * as exactServerTaskHelpers from '@exactjs/core/framework/server-task-helpers';
-import { createVNode } from '@exactjs/core';
+import * as exactDirectServerConstructionRuntime from '@exactjs/core/runtime/component-construction/direct-server';
+import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
+import * as exactComponentOperations from '@exactjs/core/runtime/component-operations';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToStringAsync } from '@exactjs/ssr';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
@@ -55,12 +58,15 @@ it('issues nested independent server tasks before authored-order serialization',
 	};
 	const modules: Record<string, unknown> = {
 		'@exactjs/core': exactCore,
+		'@exactjs/core/runtime/component-construction/direct-server':
+			exactDirectServerConstructionRuntime,
+		'@exactjs/core/runtime/component-abi': exactComponentAbiRuntime,
+		'@exactjs/core/runtime/component-operations': exactComponentOperations,
 		'@exactjs/core/framework/render-structure': exactRenderStructure,
 		'@exactjs/core/framework/server-render-structure': exactServerRenderStructure,
 		'@exactjs/core/framework/server-component-execution': exactServerComponentExecution,
 		'@exactjs/core/framework/server-task-helpers': exactServerTaskHelpers,
 		'@exactjs/core/runtime/reactivity': exactCore,
-		'@exactjs/ssr/runtime/generic-components': {},
 		'@exactjs/ssr/runtime/structural-boundaries': {}
 	};
 	const requireModule = (specifier: string): unknown => {
@@ -72,7 +78,7 @@ it('issues nested independent server tasks before authored-order serialization',
 	if (!Page || !releaseTasks || !startedTasks)
 		throw new Error('Compiled server readiness fixture omitted a test export');
 
-	const rendering = renderToStringAsync(createVNode(Page, { title: 'Ready' }), {
+	const rendering = renderToStringAsync(createCompiledComponentReceipt(Page, { title: 'Ready' }), {
 		markers: false,
 		maxAsyncSsrConcurrency: 2
 	});

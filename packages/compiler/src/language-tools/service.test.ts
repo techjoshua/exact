@@ -233,10 +233,21 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 	}));
 	return {
 		id: filename,
-		protocolVersion: '1.36.0',
+		protocolVersion: '1.38.0',
 		typescriptVersion: '7.0.0',
-		backendVersion: '1.36.0',
+		backendVersion: '1.38.0',
 		diagnostics: [],
+		structure: {
+			nativeComponents: 1,
+			targetArtifacts: 2,
+			declinedNativeJsxRegions: 0,
+			fallbackBearingArtifacts: 0,
+			genericNativeBindingGroups: 0,
+			genericNativeRendererImports: 0,
+			genericNativeSsrImports: 0,
+			runtimeCreatedNativeArtifacts: 0,
+			parentOwnedChildDirtyRouting: 0
+		},
 		analysis: {
 			imports: [],
 			components: [

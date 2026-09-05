@@ -3,10 +3,11 @@
  */
 import { type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
-import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
+import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import { CompiledStatusSelect, compiledStatusSelectInstance } from './form-controls.fixtures.js';
 
 describe('@exactjs/dom form-controls', () => {
 	it('publishes details openness before an authored toggle handler without feedback writes', () => {
@@ -16,7 +17,7 @@ describe('@exactjs/dom form-controls', () => {
 			instance = this;
 			this.state.open = false;
 			return () =>
-				createCompiledVNode('details', {
+				createCompiledOperation('details', {
 					open: createExpression(() => this.state.open),
 					__exactBindToggle: (event: Event) => {
 						this.state.open = (event.currentTarget as HTMLDetailsElement).open;
@@ -55,14 +56,14 @@ describe('@exactjs/dom form-controls', () => {
 			this.state.first = true;
 			this.state.second = false;
 			const disclosure = (key: 'first' | 'second') =>
-				createCompiledVNode('details', {
+				createCompiledOperation('details', {
 					name: 'choices',
 					open: createExpression(() => this.state[key]),
 					__exactBindToggle: (event: Event) => {
 						this.state[key] = (event.currentTarget as HTMLDetailsElement).open;
 					}
 				});
-			return () => createCompiledVNode('div', null, disclosure('first'), disclosure('second'));
+			return () => createCompiledOperation('div', null, disclosure('first'), disclosure('second'));
 		}
 		const container = document.createElement('div');
 		render(jsx(DisclosureGroup, {}), container);
@@ -86,7 +87,7 @@ describe('@exactjs/dom form-controls', () => {
 		function BoundInput(this: Component<{ name: string }>) {
 			this.state.name = 'before';
 			return () =>
-				createCompiledVNode('input', {
+				createCompiledOperation('input', {
 					value: createExpression(() => this.state.name),
 					__exactBindInput: (event: Event) => {
 						this.state.name = (event.currentTarget as HTMLInputElement).value;
@@ -151,25 +152,9 @@ describe('@exactjs/dom form-controls', () => {
 	});
 
 	it('applies select value after options are mounted and can return to the first option', () => {
-		let instance!: Component<{ status: 'todo' | 'doing' | 'done' }>;
-
-		function StatusSelect(this: Component<{ status: 'todo' | 'doing' | 'done' }>) {
-			instance = this;
-			this.state.status = 'done';
-
-			return () =>
-				jsx('select', {
-					value: this.state.status,
-					children: [
-						jsx('option', { value: 'todo', children: 'To do' }),
-						jsx('option', { value: 'doing', children: 'Doing' }),
-						jsx('option', { value: 'done', children: 'Done' })
-					]
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(StatusSelect, {}), container);
+		render(jsx(CompiledStatusSelect, {}), container);
+		const instance = compiledStatusSelectInstance();
 		const select = container.querySelector('select')!;
 
 		expect(select.value).toBe('done');
@@ -350,7 +335,7 @@ describe('@exactjs/dom form-controls', () => {
 		) {
 			return () => {
 				const task = props.task;
-				return createCompiledVNode('textarea', {
+				return createCompiledOperation('textarea', {
 					value: createExpression(() => task.notes),
 					onInput: (event: Event) => {
 						props.update(task.id, (event.target as HTMLTextAreaElement).value);
@@ -363,7 +348,7 @@ describe('@exactjs/dom form-controls', () => {
 			parent = this;
 			this.state.task = { id: 'a', notes: 'Initial' };
 			return () =>
-				createCompiledVNode(Editor, {
+				createCompiledOperation(Editor, {
 					task: createExpression(() => this.state.task),
 					update: (id: string, notes: string) => {
 						this.state.task = { id, notes };
@@ -372,7 +357,7 @@ describe('@exactjs/dom form-controls', () => {
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container);
+		render(createCompiledOperation(Parent, {}), container);
 		const textarea = container.querySelector('textarea')!;
 		const insertBefore = vi.spyOn(Node.prototype, 'insertBefore');
 		const valueWrites: string[] = [];

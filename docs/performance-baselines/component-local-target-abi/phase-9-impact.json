@@ -1,0 +1,37 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 9,
+	"recordedAt": "2026-08-29T05:27:00.0000000-07:00",
+	"mechanisms": [
+		"Make no intentional implementation change after the accepted Phase 8 architecture.",
+		"Repeat the complete comparison matrix with 50 independent samples wherever the proposal requires them.",
+		"Re-run the repository acceptance surface and adversarial native reachability audit against the final compiler and runtime graph."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "final architecture and behavior",
+			"classification": "stable",
+			"metrics": [
+				"client and server artifact raw, gzip, Brotli, decoded, profiled, and executed bytes",
+				"browser startup, interaction, settlement, allocation, and retained heap",
+				"Node and Bun SSR latency, throughput, CPU, event-loop delay, allocation, and retention"
+			],
+			"structuralEvidence": [
+				"all seven native fallback counters remain zero across the compiler corpus",
+				"native DOM and SSR reachability exclude generic rendering, VNode, and compatibility modules",
+				"the complete compiler, package, application, publishing, platform, hydration, SSR, continuation, React, browser, Node, and Bun acceptance surface passes"
+			],
+			"counterMetrics": [
+				"framework-comparison correctness assertions and deterministic response identity",
+				"50-sample framework browser and startup populations",
+				"50-sample Node and Bun SSR request populations and retained-memory checkpoints"
+			]
+		}
+	]
+}

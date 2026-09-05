@@ -7,11 +7,9 @@ import {
 	unwrap,
 	watch,
 	type ActivityMode,
-	type Component,
 	type ReadinessContextValue
 } from '@exactjs/core';
-import { createComponentInstance } from '@exactjs/core/runtime/render';
-import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
+import { createFrameworkLogicalOwner } from '@exactjs/core/runtime/render-operations';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { registerComponentLifecycleHandler } from '@exactjs/core/framework/component-lifecycle';
 import {
@@ -22,7 +20,7 @@ import {
 } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { detachMountedRanges, restoreMountedRanges } from './retained-range.js';
-import { ownMountedInstance } from './root-lifecycle.js';
+import { ownMountedInstance } from './component-mount-ownership.js';
 import { setMountedRootPresentation } from './component-roots.js';
 
 /** Installs the private readiness gate and logical owner inherited by Activity descendants. */
@@ -65,12 +63,11 @@ export function prepareActivity(
 		}
 	};
 	const owner = withEffectScope(contentScope, () =>
-		createComponentInstance(
-			ActivityReadinessOwner,
-			{ context: routedContext },
+		createFrameworkLogicalOwner(
 			parentInstance,
-			undefined,
-			mounted.vnode.domain ?? parentInstance?.domain
+			parentInstance?.ambientContexts ?? root.ambientContexts,
+			activityInput(mounted).domain ?? parentInstance?.domain ?? root.domain!,
+			(owner) => owner.contexts.set(ReadinessContext.id, routedContext)
 		)
 	);
 	mounted.activity = {
@@ -96,14 +93,18 @@ export function installActivity(root: Root, mounted: Mounted): void {
 	if (!activity) throw new Error('Cannot install an Activity controller without Activity state');
 	mounted.stop = watch(
 		() => {
-			applyActivityMode(root, mounted, normalizeActivityMode(unwrap(mounted.vnode.props.mode)));
+			applyActivityMode(
+				root,
+				mounted,
+				normalizeActivityMode(unwrap(activityInput(mounted).props.mode))
+			);
 		},
 		undefined,
 		{ scope: mounted.scope }
 	);
 }
 
-/** Reconciles a native Activity boundary after its vnode or authored mode changes. */
+/** Reconciles a native Activity boundary after its operation or authored mode changes. */
 export function applyActivityMode(root: Root, mounted: Mounted, mode: ActivityMode): void {
 	const activity = mounted.activity;
 	if (!activity) throw new Error('Cannot update an Activity boundary without Activity state');
@@ -187,6 +188,7 @@ function retainWhenPlaced(mounted: Mounted): void {
 	if (activity.retained?.detached) return;
 	if (!mounted.dom.parentNode || mounted.end?.parentNode !== mounted.dom.parentNode) {
 		mounted.afterPlacement = () => retainWhenPlaced(mounted);
+		mounted.afterPlacementPhase = 'retention';
 		return;
 	}
 	activity.retained = detachMountedRanges(mounted.children);
@@ -204,14 +206,9 @@ function setDescendantActivity(mounted: Mounted, active: boolean): void {
 	}
 }
 
-const ActivityReadinessOwner = createExactInternalOwnerArtifact(
-	function ActivityReadinessOwner(
-		this: Component<Record<string, never>>,
-		props: { context: ReadinessContextValue }
-	) {
-		(this as AnyComponentInstance).contexts.set(ReadinessContext.id, props.context);
-		return () => null;
-	},
-	'@exactjs/dom:ActivityReadinessOwner',
-	'client'
-);
+/** Reads retained-boundary inputs directly from a compiler-issued operation. */
+function activityInput(mounted: Mounted) {
+	const input = mounted.activityReceipt;
+	if (!input) throw new Error('Mounted Activity boundary has no retained-boundary inputs');
+	return input;
+}

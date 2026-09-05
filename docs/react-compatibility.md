@@ -50,7 +50,11 @@ The compatibility runtime supports the certified React-shaped surface for:
 
 React-owned components still rerender according to React semantics. Hook order,
 effect timing, class lifecycle, Suspense retries, and error propagation are not
-translated into native eXact component semantics.
+translated into native eXact component semantics. The compatibility renderer may
+retain its own React-private element and renderer state, but no native eXact
+component—including the precompiled island boundary—produces eXact VNodes. Island
+attachment enters the React renderer directly rather than returning a tree to the
+native renderer.
 
 ## Native interop
 
@@ -66,12 +70,13 @@ function BookingForm(this: Component<{ date: Date | null }>) {
 ```
 
 Compiled eXact component functions carry an opaque identity string under
-`Symbol.for('@exactjs/component')`. Optional executable metadata lives separately under
-`Symbol.for('@exactjs/component-contract')` and does not duplicate the top-level component ID. For a component imported into
-native JSX, the compiler emits the active compatibility adapter. At runtime the
-adapter returns a branded eXact component unchanged; an unbranded component is
-handled by the one enabled compatibility layer. This avoids guessing ownership
-from a package name, dependency list, or incomplete declaration.
+`Symbol.for('@exactjs/component')`. Executable metadata lives separately under
+`Symbol.for('@exactjs/component-contract')` and does not duplicate the top-level component ID. For
+a foreign component imported into native JSX, the compiler calls one precompiled React-island
+artifact and passes the React component value as an opaque prop. It does not brand that value,
+create an adapter component for it, or choose a component execution lane at runtime.
+The client artifact also imports the selected React DOM renderer capability when that foreign
+boundary is emitted. Native-only client modules and server artifacts omit that browser integration.
 
 Reactive props remain eXact expression cells. Updating `this.state.date`
 therefore updates the hosted component without rerunning `BookingForm`.
@@ -84,10 +89,10 @@ Applications should reference `@exactjs/react-compat/types18` or
 `@exactjs/react-compat/types19` from `compilerOptions.types`, matching the
 configured runtime target.
 
-Runtime-selected component values can also be used directly in native eXact
-JSX when React compatibility is enabled; the same brand check happens after
-selection. `ReactHost` and `adaptReactComponent()` remain explicit tools for
-imperative hosts and code outside compiler-owned native JSX.
+Runtime-selected foreign values can also be passed to that fixed island when React compatibility
+is enabled. `ReactHost` and `adaptReactComponent()` remain explicit names for the same precompiled
+client island in imperative code outside compiler-owned native JSX; calling them does not create a
+new artifact.
 When the matching React type facade is active, React-owned source compiled by
 an eXact integration can also render a compiled native component directly. The
 compatible React element pipeline recognizes its native identity brand and
@@ -110,6 +115,18 @@ descendant value.
 Interop boundaries preserve component ownership, context, refs, cleanup, and
 tree shaking. Native application code should not import React Hooks merely to
 communicate with a hosted React package.
+
+When native children pass through a React-owned wrapper, the compiler gives React an ordinary
+private React element whose payload is an opaque compiled contribution handle. React may retain,
+key, and clone that carrier. Neither React nor the island can inspect whether the contribution
+places text, an intrinsic, another native component, a collection, or no output, and the handle has
+no VNode materialization operation. Placement invokes the supplier-owned operation, which retains
+range identity, updates, Activity state, and disposal. This carrier is an ownership protocol, not
+a public child API or a second native rendering model.
+
+The ReactDOM client and server entry points likewise use fixed precompiled root-host artifacts.
+React compatibility is installed through separate package entry points, so a native-only bundle
+does not reach the React runtime or the optional contribution integrations.
 
 ## Scheduling, Suspense, and Activity
 

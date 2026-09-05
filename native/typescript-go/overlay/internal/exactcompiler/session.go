@@ -58,7 +58,7 @@ func (s *Session) Execute(request Request) Response {
 	if request.Kind == "synchronize" {
 		return s.synchronizeProject(request, response, requestStarted)
 	}
-	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
+	if request.Kind != "compile" && request.Kind != "check" && request.Kind != "analyze" && request.Kind != "diagnose" && request.Kind != "extension" {
 		response.Error = fmt.Sprintf("unsupported native compiler request kind %q", request.Kind)
 		return response
 	}
@@ -71,6 +71,10 @@ func (s *Session) Execute(request Request) Response {
 	}
 	if request.Target != TargetDefault && request.Target != TargetClient && request.Target != TargetServer {
 		response.Error = fmt.Sprintf("unsupported eXact compilation target %q", request.Target)
+		return response
+	}
+	if request.Kind == "check" && request.Target != TargetDefault {
+		response.Error = "native check requests require the target-neutral analysis projection"
 		return response
 	}
 	if request.ComponentContractProjection == "" {
@@ -208,7 +212,7 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	if usesForeignJSXRuntime(sourceFile) {
-		if request.Kind == "compile" {
+		if request.Kind == "compile" || request.Kind == "check" {
 			response.Code = authoredSource
 			if request.Diagnostics == "semantic" {
 				validationStarted := time.Now()
@@ -222,6 +226,9 @@ func (s *Session) Execute(request Request) Response {
 					return response
 				}
 				response.Diagnostics = append(response.Diagnostics, validated...)
+			}
+			if request.Kind == "check" {
+				response.Code = ""
 			}
 		}
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
@@ -323,6 +330,7 @@ func (s *Session) Execute(request Request) Response {
 		stateWrites,
 		componentBindings,
 	)
+	propagateComponentSurfacePlans(sourceFile, components, callables)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
 	policy := collectPolicyAnalysis(
@@ -400,6 +408,11 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		request.ID,
 	)
+	// Storage layouts are part of the component identity inherited by generated
+	// client islands. Assign them before copying components into island records.
+	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
+	attachComponentPropsSlots(components, sourceFile, generation.checker)
+	attachComponentPropsSerialization(components, sourceFile, generation.checker)
 	clientIslands := indexClientElementIslands(
 		sourceFile,
 		components,
@@ -446,8 +459,8 @@ func (s *Session) Execute(request Request) Response {
 	boundaries = append(boundaries, partitionBoundaries...)
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
-	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
-	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop != nil)
+	attachFormBindingStateSlots(formBindings, stateReads, components)
+	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop)
 	if request.ServerComponents {
 		// Partition planning needs setup-task flow, but same-build SSR executes that setup
 		// directly and hydrates its published state. Only authored invocation paths retain
@@ -542,7 +555,7 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, assets.diagnostics...)
-	if request.Kind == "compile" && request.JSXInterop == nil {
+	if (request.Kind == "compile" || request.Kind == "check") && request.JSXInterop == nil {
 		for _, component := range components {
 			for _, message := range component.Diagnostics {
 				if !strings.HasPrefix(message, "error: JSX tag ") {
@@ -598,9 +611,9 @@ func (s *Session) Execute(request Request) Response {
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
 	intlPlan := planIntlOperations(sourceFile, generation.checker)
-	transformed, componentUpdates := lowerExactJSX(
+	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
-		emitContext.Factory,
+		emitContext,
 		jsxLoweringPlan{
 			stateWrites:           stateWrites,
 			stateReads:            stateReads,
@@ -624,6 +637,19 @@ func (s *Session) Execute(request Request) Response {
 			componentLocalization: intlPlan.componentLocalization,
 		},
 	)
+	if request.Target == TargetClient && len(componentInputTaskIDs) != 0 {
+		components, continuations = omitComponentInputTaskTransitions(
+			components,
+			continuations,
+			componentInputTaskIDs,
+		)
+	}
+	for index := range components {
+		_, components[index].ClientRangeOutput = componentRangeOutputs[components[index].Name]
+		if request.Target == TargetClient {
+			_, components[index].Lists = componentListOwners[components[index].Name]
+		}
+	}
 	transformed = lowerIntlOperations(
 		transformed,
 		emitContext.Factory,
@@ -633,7 +659,7 @@ func (s *Session) Execute(request Request) Response {
 	// target-local import uses observed after task lowering so wrapping
 	// cannot make an authored render-helper reference invisible to import
 	// pruning.
-	targetImportUses := artifactIdentifierUses(transformed)
+	targetImportUses := artifactRuntimeIdentifierUses(transformed)
 	transformed = lowerComponentContracts(
 		transformed,
 		emitContext,
@@ -647,6 +673,7 @@ func (s *Session) Execute(request Request) Response {
 		request.JSXInterop != nil,
 		request.ComponentContractProjection,
 		componentUpdates,
+		componentInputUpdates,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,
@@ -690,6 +717,13 @@ func (s *Session) Execute(request Request) Response {
 		}
 	}
 	response.RuntimeDependencies = emittedRuntimeDependencies(transformed)
+	response.Structure = artifactStructure
+	for _, dependency := range response.RuntimeDependencies {
+		switch dependency {
+		case "@exactjs/ssr/runtime/generic-components":
+			response.Structure.GenericNativeSSRImports++
+		}
+	}
 
 	printStarted := time.Now()
 	emitter := printer.NewPrinter(
@@ -725,6 +759,11 @@ func (s *Session) Execute(request Request) Response {
 	} else {
 		response.Code = emitter.EmitSourceFile(transformed)
 	}
+	response.Structure.RuntimeCreatedNativeArtifacts = strings.Count(
+		response.Code,
+		"createExactCompatibilityArtifact(",
+	) + strings.Count(response.Code, "createExactFrameworkFixtureArtifact(")
+	response.Structure.RecordEmittedGenericNativeExecution(response.Code)
 	response.Timings.PrintMicroseconds = time.Since(printStarted).Microseconds()
 	validationStarted := time.Now()
 	generatedDiagnostics, validationErr := validateGeneratedCode(
@@ -744,6 +783,11 @@ func (s *Session) Execute(request Request) Response {
 	}
 	sourceDiagnosticCount := len(response.Diagnostics)
 	response.Diagnostics = append(response.Diagnostics, generatedDiagnostics...)
+	if request.Kind == "check" {
+		// Check lowering exists only to validate the compiler-aware TypeScript projection.
+		// Never expose its target-neutral executable representation to build hosts.
+		response.Code = ""
+	}
 	remapAuthoredLocations(&response, normalization, sourceDiagnosticCount)
 	applySetupAssignmentExecutions(
 		response.Analysis.StateWrites,

@@ -1,5 +1,9 @@
 import { hashCanonicalJson, hashStringSequence } from './hash.js';
-import { decodeKeyedProtocolValue, encodeKeyedProtocolValue } from './keyed/protocol.js';
+import {
+	createKeyedCollectionEnvelope,
+	decodeKeyedProtocolValue,
+	encodeKeyedProtocolValue
+} from './keyed/protocol.js';
 export type { KeyedCollectionEnvelope, MapEnvelope, SetEnvelope } from './keyed/protocol.js';
 
 /** Defines the keyed collection metadata interface contract. */
@@ -134,6 +138,16 @@ export function encodeReactiveProtocolValueInternal(
 	extractorFor: (collection: unknown[]) => KeyExtractor | undefined
 ): unknown {
 	return encodeKeyedProtocolValue(value, extractorFor, keyedCollectionMetadata);
+}
+
+/** Adds keyed-list metadata to array items serialized by a validated outer protocol traversal. */
+export function encodeValidatedReactiveCollectionInternal(
+	collection: unknown[],
+	items: unknown[],
+	extractor: KeyExtractor | undefined
+): unknown[] | import('./keyed/protocol.js').KeyedCollectionEnvelope {
+	const metadata = keyedCollectionMetadata(collection, extractor);
+	return metadata ? createKeyedCollectionEnvelope(metadata, items) : items;
 }
 
 /** Reads a reactive protocol value internal from its source representation. */

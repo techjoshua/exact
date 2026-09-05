@@ -15,7 +15,13 @@ const participantServers = await Promise.all(
 	participants.map((participant) => startParticipantServer(participant, service.service.store))
 );
 const { handler: svelteKitHandler } = await import('../participants/sveltekit/build/handler.js');
-const frameworkServers = await Promise.all([startFrameworkServer(4403, svelteKitHandler)]);
+const { middleware: tanStackStartHandler } = await import(
+	'../participants/tanstack-start/.output/server/index.mjs'
+);
+const frameworkServers = await Promise.all([
+	startFrameworkServer(4403, svelteKitHandler),
+	startFrameworkServer(4405, tanStackStartHandler)
+]);
 const nuxtServer = await startNuxtServer();
 let closing = false;
 

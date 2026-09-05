@@ -1,9 +1,8 @@
 import {
 	type AnyComponentInstance,
-	isExactEnhancementPassThrough,
+	type Child,
 	unwrap,
-	type EnhancementEntry,
-	type VNode
+	type EnhancementEntry
 } from '@exactjs/core';
 import {
 	createEffectScope,
@@ -17,17 +16,29 @@ import type { Mounted, Root } from '../types.js';
 import { createMarker } from './root-support.js';
 import { disposeMounted } from './teardown.js';
 import { releaseMountedRange } from './retained-release.js';
-import { createEnhancementChain, withoutEnhancements } from './enhancement-chain.js';
+import {
+	childEnhancementEntries,
+	createEnhancementChain,
+	mountedAuthoredOperation,
+	mountedEnhancementKey,
+	mountedEnhancementEntries,
+	restoreMountedAuthoredOperation,
+	withoutEnhancements
+} from './enhancement-chain.js';
+import {
+	hasActiveEnhancement,
+	reportUnavailableEnhancement,
+	reportUnavailableEnhancementDeclarations
+} from './enhancement-availability.js';
 import {
 	collectTargetEnhancements,
 	resolveEnhancementTarget,
 	walkLogicalMounted,
-	walkMounted,
 	type EnhancementTarget
 } from './enhancement-targets.js';
 
 type MountOperation = (
-	vnode: VNode,
+	value: Child,
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	parentNode: Node | undefined
@@ -47,7 +58,7 @@ export function installEnhancementReconciliation(root: Root, mount: MountOperati
 
 type PatchOperation = (
 	mounted: Mounted | undefined,
-	vnode: VNode,
+	value: Child,
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined
 ) => Mounted;
@@ -61,7 +72,7 @@ export function activateEnhancementSubtree(
 	mount: MountOperation
 ): Mounted {
 	if (!root.enhancementCatalog?.size) {
-		reportUnavailableDeclarations(root, mounted);
+		reportUnavailableEnhancementDeclarations(root, mounted);
 		return mounted;
 	}
 	const targets = collectTargetEnhancements(mounted, parentInstance);
@@ -72,8 +83,8 @@ export function activateEnhancementSubtree(
 		(left, right) => right.target.depth - left.target.depth
 	)) {
 		const active = group.entries.filter((entry) => {
-			if (activeEnhancement(root, entry.identity)) return true;
-			reportUnavailable(root, entry.identity);
+			if (hasActiveEnhancement(root, entry.identity)) return true;
+			reportUnavailableEnhancement(root, entry.identity);
 			return false;
 		});
 		if (!active.length) continue;
@@ -100,7 +111,7 @@ export function activateEnhancementSubtree(
 export function patchEnhancementBoundary(
 	root: Root,
 	mounted: Mounted,
-	next: VNode,
+	next: Child,
 	parent: Node,
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
@@ -108,7 +119,7 @@ export function patchEnhancementBoundary(
 ): Mounted {
 	const state = mounted.enhancement!;
 	const local = new Map(
-		(next.enhancement?.entries ?? []).map((entry) => [entry.identity, entry] as const)
+		childEnhancementEntries(next).map((entry) => [entry.identity, entry] as const)
 	);
 	const entries = state.entries
 		.filter((entry) => state.inheritedIdentities.has(entry.identity) || local.has(entry.identity))
@@ -122,7 +133,7 @@ export function patchEnhancementBoundary(
 					})
 				: entry;
 		});
-	const active = entries.filter((entry) => activeEnhancement(root, entry.identity));
+	const active = entries.filter((entry) => hasActiveEnhancement(root, entry.identity));
 	if (!active.length)
 		return deactivateEnhancementBoundary(
 			root,
@@ -135,9 +146,9 @@ export function patchEnhancementBoundary(
 		);
 	const chain = createEnhancementChain(root, active, withoutEnhancements(next));
 	mounted.children = [patch(mounted.children[0], chain, parentInstance, mounted.scope)];
-	mounted.vnode = next;
-	state.target.vnode = next;
+	state.operation = next;
 	mounted.enhancement = {
+		operation: next,
 		entries: active,
 		inheritedIdentities: state.inheritedIdentities,
 		target: state.target,
@@ -239,7 +250,7 @@ function findMountedLocation(
 	const childInstance = mounted.instance ?? parentInstance;
 	const childParent =
 		mounted.portalTarget ??
-		(typeof mounted.vnode.type === 'string' ? mounted.dom : (mounted.dom.parentNode ?? parentNode));
+		(mounted.intrinsicReceipt ? mounted.dom : (mounted.dom.parentNode ?? parentNode));
 	for (const child of mounted.children) {
 		const location = findMountedLocation(
 			child,
@@ -262,6 +273,7 @@ function unwrapEnhancementSubtree(
 	if (mounted.enhancement) {
 		const target = mounted.enhancement.target;
 		if (!target.scope.active || !detachMounted(mounted.children[0], target)) return mounted;
+		restoreMountedAuthoredOperation(target, mounted.enhancement.operation);
 		const parent = mounted.dom.parentNode ?? root.container;
 		transferEffectScope(target.scope, parentScope);
 		placeMountedBefore(root, parent, target, mounted.dom);
@@ -291,16 +303,24 @@ function wrapTarget(
 	const scope = createEffectScope(target.owner?.scope ?? parentScope);
 	const start = createMarker(root, 'enhancement');
 	const end = createMarker(root, 'enhancement-end');
+	const targetKey = mountedEnhancementKey(target.mounted);
 	const wrapper: Mounted = {
-		vnode: target.mounted.vnode,
+		...(targetKey === undefined ? {} : { operationKey: targetKey }),
 		dom: start,
 		end,
 		scope,
 		children: [],
-		enhancement: { entries, inheritedIdentities, target: target.mounted, boundaries }
+		enhancement: {
+			operation: mountedAuthoredOperation(target.mounted),
+			entries,
+			inheritedIdentities,
+			target: target.mounted,
+			boundaries
+		}
 	};
 	installEnhancementRouteWatch(root, boundaries, scope);
-	const leaf = withoutEnhancements(target.mounted.vnode);
+	const authored = mountedAuthoredOperation(target.mounted);
+	const leaf = withoutEnhancements(authored);
 	const chain = createEnhancementChain(root, entries, leaf);
 
 	const physicalParent = target.mounted.dom.parentNode ?? document.createDocumentFragment();
@@ -311,7 +331,7 @@ function wrapTarget(
 	physicalParent.insertBefore(end, afterTarget);
 	const previousParking = root.replacementParking;
 	const parking = {
-		mounts: new Map<VNode, Array<{ mounted: Mounted; parent: Node }>>([
+		mounts: new Map<Child, Array<{ mounted: Mounted; parent: Node }>>([
 			[leaf, [{ mounted: target.mounted, parent: physicalParent }]]
 		]),
 		commits: [] as Array<() => void>
@@ -324,10 +344,6 @@ function wrapTarget(
 		root.replacementParking = previousParking;
 	}
 	for (const commit of parking.commits) commit();
-	// Parking patches the authored target with the marker-free enhancement child.
-	// Retain the authored vnode on the logical target so reactive root routing
-	// remains discoverable without exposing the marker to component props or DOM.
-	target.mounted.vnode = wrapper.vnode;
 	placeMountedBefore(root, physicalParent, enhancement, end);
 	for (const remaining of parking.mounts.values())
 		for (const parked of remaining) disposeMounted(parked.parent, parked.mounted);
@@ -347,7 +363,7 @@ function installEnhancementRouteWatch(
 			for (const [identity, values] of boundaries) {
 				for (const boundary of values) {
 					walkLogicalMounted(boundary, undefined, undefined, 0, (current) => {
-						for (const entry of current.vnode.enhancement?.entries ?? []) {
+						for (const entry of mountedEnhancementEntries(current)) {
 							if (entry.identity === identity && entry.root !== undefined) unwrap(entry.root);
 						}
 					});
@@ -365,7 +381,7 @@ function deactivateEnhancementBoundary(
 	root: Root,
 	parent: Node,
 	mounted: Mounted,
-	next: VNode,
+	next: Child,
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	patch: PatchOperation
@@ -392,28 +408,4 @@ function detachMounted(owner: Mounted | undefined, target: Mounted): boolean {
 	}
 	for (const child of owner.children) if (detachMounted(child, target)) return true;
 	return false;
-}
-
-function reportUnavailableDeclarations(root: Root, mounted: Mounted): void {
-	walkMounted(mounted, undefined, undefined, 0, (current) => {
-		for (const entry of current.vnode.enhancement?.entries ?? [])
-			reportUnavailable(root, entry.identity);
-	});
-}
-
-function reportUnavailable(root: Root, identity: string): void {
-	if (isExactEnhancementPassThrough(root.enhancementCatalog?.get(identity))) return;
-	root.unavailableEnhancements ??= new Set();
-	if (root.unavailableEnhancements.has(identity)) return;
-	root.unavailableEnhancements.add(identity);
-	root.logger?.log({
-		level: 'warn',
-		message: `Optional renderer enhancement "${identity}" is unavailable`,
-		scope: { source: 'framework', packageName: '@exactjs/dom', category: 'enhancement' }
-	});
-}
-
-function activeEnhancement(root: Root, identity: string): boolean {
-	const component = root.enhancementCatalog?.get(identity);
-	return component !== undefined && !isExactEnhancementPassThrough(component);
 }

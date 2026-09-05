@@ -19,8 +19,20 @@ state.quantity++;
 console.log(subtotal.get());
 ```
 
-The package includes reactive objects and collections, signals, computed values, watchers,
-batching, effect scopes, scheduling priorities, equality controls, and external-source support.
+Computed reads are lazy, cached, and synchronously current through transitive computed chains. A
+read after a write settles only the required upstream graph; scheduled watchers and UI consequences
+remain coalesced. Equal effective results stop downstream propagation, and a direct or indirect
+computed cycle throws a bounded eXact diagnostic.
+
+A standalone computed that has no watcher is pull-only. It retains enough source-version evidence
+to validate a later read, but its sources do not retain it after that read. `watch()` or
+`subscribe()` attaches the reverse edges needed for push scheduling and releases them when stopped.
+Computeds created inside an effect scope remain scope-owned and release their dependencies when the
+scope stops. `inspectComputed()` returns value-free status and bounded edge counts without observing
+the value.
+
+The package includes reactive objects and collections, computed values, watchers, batching, effect
+scopes, scheduling priorities, structural result equality, and external-source support.
 Arrays, `Map`, and `Set` retain their familiar JavaScript operations.
 
 For application task and optimistic-state patterns, see

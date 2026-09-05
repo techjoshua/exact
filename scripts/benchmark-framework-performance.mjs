@@ -61,6 +61,7 @@ try {
 		: allNodeScenarios;
 	if (nodeScenarios.length === 0) throw new Error(`Unknown framework scenario ${scenarioFilter}`);
 	const nodeResults = [];
+	const nodeRawSamples = [];
 	for (const scenario of nodeScenarios) {
 		const fixture = scenario.startsWith('server.')
 			? scenario === 'server.ssr-task-readiness'
@@ -77,6 +78,7 @@ try {
 		}
 		const summary = summarizeScenario(scenario, scenarioSamples);
 		nodeResults.push(summary);
+		nodeRawSamples.push({ scenario, samples: scenarioSamples });
 		process.stdout.write(` ${primarySummary(summary)}\n`);
 	}
 
@@ -102,6 +104,7 @@ try {
 		},
 		fixtureBuild: buildSummary,
 		node: nodeResults,
+		raw: { build: buildMeasurements, node: nodeRawSamples },
 		...(chromium ? { chromium } : {}),
 		complete: Boolean(chromium)
 	};

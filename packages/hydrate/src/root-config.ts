@@ -2,7 +2,12 @@ import {
 	isExactComponentAuthorizationIdentity,
 	sameExactComponentAuthorization
 } from '@exactjs/core';
-import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom/root';
+import {
+	decodeExactValueWithSchema,
+	readPreparedExactClientExecutableComponentContract,
+	type AnyExactComponentCallable
+} from '@exactjs/core/framework/component-contracts';
+import { createDomWorkBudget, walkDomSubtree } from '@exactjs/dom/framework/component-root';
 import {
 	isRecord,
 	normalizeSerializedComponentResumptions,
@@ -16,6 +21,7 @@ import { hasOnlyKeys } from './validation.js';
 const rootConfigKeys = [
 	'pluginRegistryFingerprint',
 	'state',
+	'm',
 	'resumptions',
 	'publicContexts',
 	'wallClockSnapshot',
@@ -64,6 +70,8 @@ export function resolveRootHydrateOptions(
 	return {
 		...options,
 		state: options.state === undefined ? config.state : options.state,
+		markerlessRoot: options.markerlessRoot ?? config.markerlessRoot,
+		allowMarkerless: options.allowMarkerless ?? config.markerlessRoot,
 		resumptions: options.resumptions ?? config.resumptions,
 		publicContexts: options.publicContexts ?? config.publicContexts,
 		wallClockSnapshot: options.wallClockSnapshot ?? config.wallClockSnapshot,
@@ -126,13 +134,41 @@ function scriptBelongsToContainer(script: HTMLScriptElement, container: Element)
 	return false;
 }
 
-/** Reads the server-published component-root props before constructing the client root VNode. */
+/** Reads server-published component-root props before constructing the client root operation. */
 export function readPublishedRootProps<Props extends Record<string, unknown>>(
 	container: Element,
 	limits?: ExactHydrationConfigLimits,
 	maxDomNodes?: number
+): Props;
+export function readPublishedRootProps<Props extends Record<string, unknown>>(
+	component: AnyExactComponentCallable,
+	container: Element,
+	limits?: ExactHydrationConfigLimits,
+	maxDomNodes?: number
+): Props;
+export function readPublishedRootProps<Props extends Record<string, unknown>>(
+	componentOrContainer: AnyExactComponentCallable | Element,
+	containerOrLimits?: Element | ExactHydrationConfigLimits,
+	limitsOrMaxDomNodes?: ExactHydrationConfigLimits | number,
+	maxDomNodes?: number
 ): Props {
-	const value = readRootConfig(container, limits, maxDomNodes).state;
+	const component = typeof componentOrContainer === 'function' ? componentOrContainer : undefined;
+	const container = (component ? containerOrLimits : componentOrContainer) as Element;
+	const limits = (component ? limitsOrMaxDomNodes : containerOrLimits) as
+		| ExactHydrationConfigLimits
+		| undefined;
+	const domLimit = (component ? maxDomNodes : limitsOrMaxDomNodes) as number | undefined;
+	const config = readRootConfig(container, limits, domLimit);
+	let value = config.state;
+	if (component && Array.isArray(value)) {
+		const artifact = readPreparedExactClientExecutableComponentContract(component).artifact;
+		if (value.length !== 2 || value[0] !== artifact.id || !artifact.serialization)
+			throw new TypeError('Missing or malformed eXact published root props');
+		value = decodeExactValueWithSchema(value[1], artifact.serialization);
+		// The parsed request-owned config becomes the single named graph shared by root creation and
+		// hydration. The immutable artifact retains only schema strings and tuple kinds.
+		(config as { state?: unknown }).state = value;
+	}
 	if (!isRecord(value)) throw new TypeError('Missing or malformed eXact published root props');
 	return value as Props;
 }
@@ -158,38 +194,90 @@ function parseRootConfig(
 			{ maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes },
 			() => new TypeError('Malformed eXact hydration config')
 		);
-		if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-		const record = value as Record<string, unknown>;
-		// This decoder is narrow, not permissive: fields owned by the complete runtime fail closed.
-		if (!hasOnlyKeys(record, rootConfigKeys)) return {};
+		if (!value || typeof value !== 'object') return {};
+		let pluginRegistryFingerprint: unknown;
+		let state: unknown;
+		let hasState = false;
+		let markerlessRoot = false;
+		let serializedResumptions: unknown;
+		let publicContexts: unknown;
+		let wallClockSnapshot: unknown;
+		let hydrationTableValue: unknown;
+		let executionRoot: unknown;
+		let binding: unknown;
+		let buildKeyValue: unknown;
+		let componentAuthorizationValue: unknown;
+		if (Array.isArray(value)) {
+			const mask = value[1];
+			if (
+				value[0] !== 1 ||
+				typeof mask !== 'number' ||
+				!Number.isSafeInteger(mask) ||
+				mask < 0 ||
+				(mask & ~16_383) !== 0 ||
+				(mask & 38) !== 0
+			)
+				return {};
+			let index = 2;
+			if (mask & 1) pluginRegistryFingerprint = value[index++];
+			if (mask & 8) {
+				hasState = true;
+				state = value[index++];
+			}
+			markerlessRoot = Boolean(mask & 16);
+			if (mask & 64) serializedResumptions = value[index++];
+			if (mask & 128) publicContexts = value[index++];
+			if (mask & 256) wallClockSnapshot = value[index++];
+			if (mask & 512) hydrationTableValue = value[index++];
+			if (mask & 1024) executionRoot = value[index++];
+			if (mask & 2048) binding = value[index++];
+			if (mask & 4096) buildKeyValue = value[index++];
+			if (mask & 8192) componentAuthorizationValue = value[index++];
+			if (index !== value.length) return {};
+		} else {
+			const record = value as Record<string, unknown>;
+			// This decoder is narrow, not permissive: fields owned by the complete runtime fail closed.
+			if (!hasOnlyKeys(record, rootConfigKeys)) return {};
+			pluginRegistryFingerprint = record.pluginRegistryFingerprint;
+			hasState = 'state' in record;
+			state = record.state;
+			markerlessRoot = record.m === 1;
+			serializedResumptions = record.resumptions;
+			publicContexts = record.publicContexts;
+			wallClockSnapshot = record.wallClockSnapshot;
+			hydrationTableValue = record.h;
+			executionRoot = record.executionRoot;
+			binding = record.binding;
+			buildKeyValue = record.buildKey;
+			componentAuthorizationValue = record.componentAuthorization;
+		}
 		const componentAuthorization = isExactComponentAuthorizationIdentity(
-			record.componentAuthorization
+			componentAuthorizationValue
 		)
-			? record.componentAuthorization
+			? componentAuthorizationValue
 			: undefined;
-		const buildKey = typeof record.buildKey === 'string' ? record.buildKey : undefined;
+		const buildKey = typeof buildKeyValue === 'string' ? buildKeyValue : undefined;
 		if (componentAuthorization && buildKey && componentAuthorization.buildKey !== buildKey)
 			return {};
 		let resumptions: HydrateOptions['resumptions'];
 		try {
-			resumptions = normalizeSerializedComponentResumptions(record.resumptions);
+			resumptions = normalizeSerializedComponentResumptions(serializedResumptions);
 		} catch {
 			resumptions = undefined;
 		}
-		const hydrationTable = normalizeRootHydrationTable(record.h);
+		const hydrationTable = normalizeRootHydrationTable(hydrationTableValue);
 		const config: ExactHydrationConfig = {
-			...(typeof record.pluginRegistryFingerprint === 'string'
-				? { pluginRegistryFingerprint: record.pluginRegistryFingerprint }
-				: {}),
-			...('state' in record ? { state: record.state } : {}),
+			...(typeof pluginRegistryFingerprint === 'string' ? { pluginRegistryFingerprint } : {}),
+			...(hasState ? { state } : {}),
+			...(markerlessRoot ? { markerlessRoot: true as const } : {}),
 			...(resumptions ? { resumptions } : {}),
-			...(isRecord(record.publicContexts) ? { publicContexts: record.publicContexts } : {}),
-			...(typeof record.wallClockSnapshot === 'number' && Number.isFinite(record.wallClockSnapshot)
-				? { wallClockSnapshot: record.wallClockSnapshot }
+			...(isRecord(publicContexts) ? { publicContexts } : {}),
+			...(typeof wallClockSnapshot === 'number' && Number.isFinite(wallClockSnapshot)
+				? { wallClockSnapshot }
 				: {}),
 			...(hydrationTable ? { hydrationTable } : {}),
-			...(typeof record.executionRoot === 'string' ? { executionRoot: record.executionRoot } : {}),
-			...(typeof record.binding === 'string' ? { binding: record.binding } : {}),
+			...(typeof executionRoot === 'string' ? { executionRoot } : {}),
+			...(typeof binding === 'string' ? { binding } : {}),
 			...(buildKey ? { buildKey } : {}),
 			...(componentAuthorization ? { componentAuthorization } : {})
 		};

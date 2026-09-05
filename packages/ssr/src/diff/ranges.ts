@@ -71,13 +71,14 @@ function parseMarkerRanges(html: string): Map<string, MarkerRange> | undefined {
 	if (new TextEncoder().encode(html).byteLength > MAX_DIFF_HTML_BYTES) return undefined;
 	const ranges = new Map<string, MarkerRange>();
 	const stack: OpenMarker[] = [];
-	const pattern = /<!--(\/?)exact:([A-Za-z0-9_:/.-]+)-->/g;
+	const pattern = /<!--(?:(\/?)exact:([A-Za-z0-9_:/.-]+)|(\/?)i:([A-Za-z0-9_./-]+))-->/g;
 	let match: RegExpExecArray | null;
 	let count = 0;
 	while ((match = pattern.exec(html))) {
 		if (++count > MAX_DIFF_HTML_NODES) return undefined;
-		const closing = match[1] === '/';
-		const id = match[2]!;
+		const item = match[4] !== undefined;
+		const closing = (item ? match[3] : match[1]) === '/';
+		const id = item ? `item:${match[4]}` : match[2]!;
 		if (!closing) {
 			if (ranges.has(id) || stack.some((entry) => entry.id === id)) return undefined;
 			const parent = stack[stack.length - 1];

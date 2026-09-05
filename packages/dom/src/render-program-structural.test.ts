@@ -1,23 +1,29 @@
 /** @vitest-environment jsdom */
-import { Fragment, createVNode, type Component } from '@exactjs/core';
+import { createFrameworkFixtureComponentInstance } from '@exactjs/core/testing';
+import { type Component } from '@exactjs/core';
 import {
-	createCompiledComponentVNode,
-	createCompiledVNode,
 	createExpression,
-	createFrameworkFixtureComponentInstance,
-	keyCompiledVNode,
 	createPreparedRenderProgram,
 	prepareCompiledRenderProgram as prepareCoreRenderProgram
 } from '@exactjs/core/runtime/render';
-import { collectionRef, flushSync, indexedReactive, reactive, ref } from '@exactjs/reactive';
+import { createCompiledKeyedChildReceipt as keyCompiledVNode } from '@exactjs/core/runtime/component-operations';
+import { flushSync, reactive } from '@exactjs/reactive';
 import { expect, it, vi } from 'vitest';
-import { render, unmount } from './index.js';
+import { unmount } from './index.js';
+import { legacyTestRenderProgram, renderTestTree as render } from './testing.js';
 import {
+	applyCompiledProgramChild,
 	beginCompiledProgramClaims,
+	bindCompiledProgramChild,
 	bindCompiledProgramKeyedChild,
+	claimCompiledProgramChild,
 	claimCompiledProgramKeyedChild
 } from './runtime/render-program.js';
-import { jsx } from './test-support/native-vnode.js';
+import {
+	createCompiledOperation,
+	createOperation,
+	createTestComponentReceipt
+} from './test-support/native-operations.js';
 import { withGenericRenderProgramBindings } from './testing.js';
 
 function RenderProgramOwner(this: Component<{}>) {
@@ -29,36 +35,62 @@ const createCompiledRenderProgram = (
 	_cacheKey: string,
 	createProgram: () => Parameters<typeof prepareCoreRenderProgram>[0],
 	readers: Parameters<typeof createPreparedRenderProgram>[1],
-	fallback?: Parameters<typeof createPreparedRenderProgram>[3]
+	_fallback?: () => unknown
 ) =>
 	createPreparedRenderProgram(
 		prepareCoreRenderProgram(withGenericRenderProgramBindings(createProgram())),
 		readers,
-		renderProgramOwner,
-		fallback
+		renderProgramOwner
 	);
-const prepareCompiledRenderProgram: typeof prepareCoreRenderProgram = (program) =>
-	prepareCoreRenderProgram(withGenericRenderProgramBindings(program));
+it('applies a compiler-owned structural child operation without a retained watcher', () => {
+	const state = reactive({ shown: true });
+	let target: Parameters<typeof bindCompiledProgramChild>[0] | undefined;
+	const program = prepareCoreRenderProgram(
+		legacyTestRenderProgram({
+			version: 8,
+			id: 'render-program:direct-child-update',
+			namespace: 'html',
+			template: '<section><!--x:child--><!--/x:child--><footer>After</footer></section>',
+			directClaims: true,
+			bind(nextTarget) {
+				target = nextTarget;
+				if (beginCompiledProgramClaims(nextTarget, 'section', 'html', 2, 1)) {
+					claimCompiledProgramChild(nextTarget, 0, 0, 'child');
+					return;
+				}
+				bindCompiledProgramChild(nextTarget, 0, true);
+			}
+		})
+	);
+	const vnode = createPreparedRenderProgram(
+		program,
+		[() => (state.shown ? createCompiledOperation('strong', {}, 'Shown') : null)],
+		renderProgramOwner
+	);
+	const container = document.createElement('div');
+	render(vnode, container);
+	expect(container.textContent).toBe('ShownAfter');
+	state.shown = false;
+	flushSync();
+	expect(container.textContent).toBe('ShownAfter');
+	applyCompiledProgramChild(target!, 0);
+	expect(container.textContent).toBe('After');
+});
 
 it('reconciles compiler-keyed program children without list or item marker ranges', () => {
 	const state = reactive({ items: [{ id: 'a' }, { id: 'b' }] });
 	const vnode = createCompiledRenderProgram(
 		'render-program:direct-keyed-array',
 		() => ({
-			version: 4,
+			version: 8,
 			id: 'render-program:direct-keyed-array',
 			namespace: 'html',
-			template: '<ul><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
+			template: '<ul><!--x:items--><!--/x:items--></ul>',
 			slots: [['child', 'items']],
 			bindings: [['lists', [0]]],
 			nodes: [[0, 'ul']]
 		}),
-		[
-			() =>
-				state.items.map((item) =>
-					keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
-				)
-		]
+		[() => state.items.map((item) => keyCompiledVNode(createOperation('li', {}, item.id), item.id))]
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -78,28 +110,27 @@ it('reconciles compiler-keyed program children without list or item marker range
 
 it('owns a final compiler-keyed child lane without structural marker nodes', () => {
 	const state = reactive({ items: [{ id: 'a' }, { id: 'b' }] });
-	const program = prepareCoreRenderProgram({
-		version: 4,
-		id: 'render-program:markerless-keyed-tail',
-		namespace: 'html',
-		template: '<ul></ul>',
-		directClaims: true,
-		keyedChildren: 1,
-		bind(target) {
-			if (beginCompiledProgramClaims(target, 'ul', 'html', 1, 1)) {
-				claimCompiledProgramKeyedChild(target, 0, 0);
-				return;
+	const program = prepareCoreRenderProgram(
+		legacyTestRenderProgram({
+			version: 8,
+			id: 'render-program:markerless-keyed-tail',
+			namespace: 'html',
+			template: '<ul></ul>',
+			directClaims: true,
+			keyedChildren: 1,
+			bind(target) {
+				if (beginCompiledProgramClaims(target, 'ul', 'html', 1, 1)) {
+					claimCompiledProgramKeyedChild(target, 0, 0);
+					return;
+				}
+				bindCompiledProgramKeyedChild(target, 0);
 			}
-			bindCompiledProgramKeyedChild(target, 0);
-		}
-	});
+		})
+	);
 	const vnode = createPreparedRenderProgram(
 		program,
 		[
-			() =>
-				state.items.map((item) =>
-					keyCompiledVNode(createCompiledComponentVNode('li', {}, item.id), item.id)
-				)
+			() => state.items.map((item) => keyCompiledVNode(createOperation('li', {}, item.id), item.id))
 		],
 		renderProgramOwner
 	);
@@ -116,86 +147,13 @@ it('owns a final compiler-keyed child lane without structural marker nodes', () 
 	expect(reordered[1]).toBe(original[0]);
 });
 
-it('observes in-place collection mutations through a compiler-owned list lane', () => {
-	const state = reactive({ items: [{ id: 'a' }] });
-	const source = ref(state.items)!;
-	const cache = new Map();
-	const vnode = createCompiledRenderProgram(
-		'render-program:list-slot',
-		() => ({
-			version: 4,
-			id: 'render-program:list-slot',
-			namespace: 'html',
-			template:
-				'<ul data-exact-id="list-root"><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
-			slots: [['child', 'items']],
-			bindings: [['lists', [0]]],
-			nodes: [[0, 'ul']]
-		}),
-		[
-			() =>
-				createVNode(Fragment, {
-					list: {
-						collection: state.items,
-						source,
-						key: (item: { id: string }) => item.id,
-						render: (item: { id: string }) => createCompiledVNode('li', {}, item.id),
-						cache
-					}
-				})
-		]
-	);
-	const container = document.createElement('div');
-	render(vnode, container);
-	expect(container.querySelectorAll('li')).toHaveLength(1);
-	state.items.push({ id: 'b' });
-	flushSync();
-	expect(container.querySelectorAll('li')).toHaveLength(2);
-});
-
-it('observes an indexed-state collection without a parent-path source', () => {
-	const state = indexedReactive<{ items: Array<{ id: string }> }>(['items']);
-	state.items = [{ id: 'a' }, { id: 'b' }];
-	const cache = new Map();
-	const source = collectionRef(state.items)!;
-	const vnode = createCompiledRenderProgram(
-		'render-program:indexed-list-slot',
-		() => ({
-			version: 4,
-			id: 'render-program:indexed-list-slot',
-			namespace: 'html',
-			template: '<ul><!--exact:dynamic:items--><!--/exact:dynamic:items--></ul>',
-			slots: [['child', 'items']],
-			bindings: [['lists', [0]]],
-			nodes: [[0, 'ul']]
-		}),
-		[
-			() =>
-				createVNode(Fragment, {
-					list: {
-						collection: state.items,
-						source,
-						key: (item: { id: string }) => item.id,
-						render: (item: { id: string }) => createCompiledVNode('li', {}, item.id),
-						cache
-					}
-				})
-		]
-	);
-	const container = document.createElement('div');
-	render(vnode, container);
-	state.items.splice(0, 2, state.items[1]!, state.items[0]!);
-	flushSync();
-	expect([...container.querySelectorAll('li')].map((node) => node.textContent)).toEqual(['b', 'a']);
-});
-
 it('owns a stateful native component lifecycle in an explicit component slot', () => {
 	const released = vi.fn();
 	function Counter(this: Component<{ count: number }>) {
 		this.state.count = 0;
 		this.onUnmount(released);
 		return () =>
-			createCompiledVNode(
+			createCompiledOperation(
 				'button',
 				{ onClick: () => this.state.count++ },
 				createExpression(() => this.state.count)
@@ -204,16 +162,15 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 	const vnode = createCompiledRenderProgram(
 		'render-program:component-slot',
 		() => ({
-			version: 4,
+			version: 8,
 			id: 'render-program:component-slot',
 			namespace: 'html',
-			template:
-				'<main data-exact-id="component-root"><!--exact:dynamic:counter--><!--/exact:dynamic:counter--></main>',
+			template: '<main data-exact-id="component-root"><!--x:counter--><!--/x:counter--></main>',
 			slots: [['component', 'counter']],
 			bindings: [['component', 0]],
 			nodes: [[0, 'main']]
 		}),
-		[() => jsx(Counter, {})]
+		[() => createTestComponentReceipt(Counter, {})]
 	);
 	const container = document.createElement('div');
 	render(vnode, container);
@@ -226,37 +183,4 @@ it('owns a stateful native component lifecycle in an explicit component slot', (
 	expect(container.firstElementChild).toBe(host);
 	unmount(container);
 	expect(released).toHaveBeenCalledOnce();
-});
-
-it('tracks and applies one compiler-owned property writer operation', () => {
-	const state = reactive({ count: 0 });
-	const program = prepareCompiledRenderProgram({
-		version: 4,
-		id: 'render-program:property-writer',
-		namespace: 'html',
-		template: '<button data-exact-id="writer"></button>',
-		slots: [
-			['property', 0, 'title'],
-			['property', 0, 'onClick']
-		],
-		bindings: [['properties', [0, 1]]],
-		nodes: [[0, 'button']]
-	});
-	const vnode = createPreparedRenderProgram(
-		program,
-		[() => undefined, () => undefined],
-		renderProgramOwner,
-		undefined,
-		(_group, apply) => {
-			apply('title', String(state.count));
-			apply('onClick', () => state.count++);
-		}
-	);
-	const container = document.createElement('div');
-	render(vnode, container);
-	const button = container.querySelector('button')!;
-	expect(button.title).toBe('0');
-	button.click();
-	flushSync();
-	expect(button.title).toBe('1');
 });

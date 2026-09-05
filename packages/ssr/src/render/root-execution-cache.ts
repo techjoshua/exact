@@ -1,16 +1,17 @@
-import { type AnyComponentFunction, type VNode } from '@exactjs/core';
+import type { AnyComponentFunction, Child } from '@exactjs/core';
 import {
 	exactComponentContract,
 	exactComponentIdentity,
-	readPreparedExactCompiledComponentContract,
-	type ExactCompiledComponentContract
+	readPreparedExactServerExecutableComponentContract,
+	type ExactServerExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { SsrContext } from '../types.js';
+import { readServerComponentReference } from './server-component-reference.js';
 
 /** Validated component metadata cached beneath one SSR root component. */
 export type SsrComponentExecutionBlueprint = Readonly<{
 	componentId: string;
-	contract: ExactCompiledComponentContract;
+	contract: ExactServerExecutableComponentContract;
 }>;
 
 /** Root-scoped cache whose weak expansion entries accommodate dynamic component selection. */
@@ -21,9 +22,14 @@ export type SsrRootExecutionBlueprint = {
 const rootBlueprints = new WeakMap<AnyComponentFunction, SsrRootExecutionBlueprint>();
 
 /** Attaches the reusable blueprint for a component root after output extensions select it. */
-export function attachSsrRootExecutionBlueprint(context: SsrContext, vnode: VNode): void {
-	if (typeof vnode.type !== 'function') return;
-	context.rootExecutionBlueprint = ssrRootExecutionBlueprint(vnode.type);
+export function attachSsrRootExecutionBlueprint(context: SsrContext, root: Child): void {
+	const receipt = readServerComponentReference(root);
+	if (receipt) {
+		context.rootExecutionBlueprint = ssrRootExecutionBlueprint(
+			receipt.contract.artifact.instantiate as AnyComponentFunction
+		);
+		return;
+	}
 }
 
 /** Resolves cached validated metadata for one component reached beneath the active root. */
@@ -65,7 +71,7 @@ type CachedBlueprint = Readonly<{
 function prepareComponentBlueprint(
 	component: AnyComponentFunction
 ): SsrComponentExecutionBlueprint {
-	const contract = readPreparedExactCompiledComponentContract(component);
+	const contract = readPreparedExactServerExecutableComponentContract(component);
 	const componentId = exactComponentIdentity(component);
 	return Object.freeze({
 		componentId,

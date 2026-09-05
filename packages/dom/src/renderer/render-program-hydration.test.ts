@@ -6,18 +6,8 @@ import {
 	indexProgramHydration,
 	programElement
 } from './render-program-hydration.js';
-import type {
-	ExactRenderProgram,
-	ExactRenderProgramBindingTarget
-} from '@exactjs/core/runtime/render';
-import {
-	beginCompiledProgramClaims,
-	claimCompiledProgramChild,
-	claimCompiledProgramElementPath,
-	claimCompiledProgramKeyedChild,
-	claimCompiledProgramText,
-	claimCompiledRenderProgram
-} from './render-program-claims.js';
+import type { ExactRenderProgram } from '@exactjs/core/runtime/render';
+import { claimCompiledRenderProgram } from './render-program-claims.js';
 
 describe('compiled render-program hydration index', () => {
 	it('addresses dense compiler nodes without materializing identity maps', () => {
@@ -37,18 +27,17 @@ describe('compiled render-program hydration index', () => {
 
 	it('indexes structural markers without authored element identities', () => {
 		const root = document.createElement('main');
-		root.innerHTML =
-			'<section><!--exact:dynamic:slot--><span>value</span><!--/exact:dynamic:slot--></section>';
+		root.innerHTML = '<section><!--x:slot--><span>value</span><!--/x:slot--></section>';
 
 		const index = indexProgramHydration(root);
 
 		expect(programElement(index, 1)).toBe(root.firstElementChild);
-		expect(claimProgramChildSlot(index, 'slot')?.data).toBe('exact:dynamic:slot');
+		expect(claimProgramChildSlot(index, 'slot')?.data).toBe('x:slot');
 	});
 
 	it('releases scalar marker pairs after transferring ownership to the text node', () => {
 		const root = document.createElement('main');
-		root.innerHTML = '<!--exact:dynamic:label-->Ready<!--/exact:dynamic:label-->';
+		root.innerHTML = '<!--x:label-->Ready<!--/x:label-->';
 		const index = indexProgramHydration(root);
 
 		const text = claimProgramTextSlot(root, index, 'label');
@@ -60,17 +49,14 @@ describe('compiled render-program hydration index', () => {
 });
 
 describe('compiler-wired render-program claims', () => {
-	const scalarProgram: ExactRenderProgram = {
-		version: 4,
+	const scalarProgram = {
+		version: 8,
 		id: 'direct-scalar',
 		namespace: 'html',
 		template: '<p><!---->\ue000exact:0\ue001<!----></p>',
 		directClaims: true,
-		bind(target) {
-			if (!beginCompiledProgramClaims(target, 'p', 'html', 1, 1)) return;
-			claimCompiledProgramText(target, 0, 0, 'label');
-		}
-	};
+		wire: [['p', 'html', 1, 1], [[3, 0, 0, 'label']], []]
+	} satisfies ExactRenderProgram;
 
 	it('claims compiler template sentinels for later client-created regions', () => {
 		const template = document.createElement('template');
@@ -85,7 +71,7 @@ describe('compiler-wired render-program claims', () => {
 
 	it('claims identity sentinels from server-rendered regions', () => {
 		const root = document.createElement('p');
-		root.innerHTML = '<!--exact:dynamic:label-->Ready<!--/exact:dynamic:label-->';
+		root.innerHTML = '<!--x:label-->Ready<!--/x:label-->';
 
 		const claimed = claimCompiledRenderProgram(scalarProgram, root, 'ssr');
 
@@ -96,13 +82,10 @@ describe('compiler-wired render-program claims', () => {
 	it('claims compiler-proven marker-free SSR text without creating delimiters', () => {
 		const root = document.createElement('p');
 		root.textContent = 'Ready';
-		const program: ExactRenderProgram = {
+		const program = {
 			...scalarProgram,
-			bind(target: ExactRenderProgramBindingTarget) {
-				if (!beginCompiledProgramClaims(target, 'p', 'html', 1, 1)) return;
-				claimCompiledProgramText(target, 0, 0, true);
-			}
-		};
+			wire: [['p', 'html', 1, 1], [[3, 0, 0, true]], []] as const
+		} satisfies ExactRenderProgram;
 		const template = document.createElement('template');
 		template.innerHTML = program.template;
 		const mountedRoot = template.content.firstElementChild as Element;
@@ -120,16 +103,13 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<section><!--variable--><span>Static</span><button>Save</button></section>';
 		const program: ExactRenderProgram = {
-			version: 4,
+			version: 8,
 			id: 'direct-element-path',
 			namespace: 'html',
 			template: '<main><section><span>Static</span><button>Save</button></section></main>',
 			directClaims: true,
-			bind(target: ExactRenderProgramBindingTarget) {
-				if (!beginCompiledProgramClaims(target, 'main', 'html', 4, 0)) return;
-				// depth 2, followed by element-child ordinals 0 and 1 in base 128.
-				claimCompiledProgramElementPath(target, 3, 2 + 1 * 16 * 128, 'button');
-			}
+			// depth 2, followed by element-child ordinals 0 and 1 in base 128.
+			wire: [['main', 'html', 4, 0], [[6, 3, 2 + 1 * 16 * 128, 'button']], []]
 		};
 
 		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
@@ -143,16 +123,13 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('section');
 		root.innerHTML = '<article>Variable</article><form><textarea></textarea></form>';
 		const program: ExactRenderProgram = {
-			version: 4,
+			version: 8,
 			id: 'direct-element-reverse-path',
 			namespace: 'html',
 			template: '<section><form><textarea></textarea></form></section>',
 			directClaims: true,
-			bind(target: ExactRenderProgramBindingTarget) {
-				if (!beginCompiledProgramClaims(target, 'section', 'html', 3, 0)) return;
-				// The high bit selects the final element child; textarea is then child zero.
-				claimCompiledProgramElementPath(target, 2, 1 + 64 * 16, 'form');
-			}
+			// The high bit selects the final element child; textarea is then child zero.
+			wire: [['section', 'html', 3, 0], [[6, 2, 1 + 64 * 16, 'form']], []]
 		};
 
 		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
@@ -163,13 +140,10 @@ describe('compiler-wired render-program claims', () => {
 	it('materializes an empty text node at a compiler-proven marker-free boundary', () => {
 		const root = document.createElement('p');
 		root.innerHTML = '<strong>After</strong>';
-		const program: ExactRenderProgram = {
+		const program = {
 			...scalarProgram,
-			bind(target: ExactRenderProgramBindingTarget) {
-				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
-				claimCompiledProgramText(target, 0, 0, true);
-			}
-		};
+			wire: [['p', 'html', 2, 1], [[3, 0, 0, true]], []] as const
+		} satisfies ExactRenderProgram;
 
 		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
 
@@ -180,13 +154,10 @@ describe('compiler-wired render-program claims', () => {
 
 	it('rejects marker-free text when required preceding siblings are missing', () => {
 		const root = document.createElement('p');
-		const program: ExactRenderProgram = {
+		const program = {
 			...scalarProgram,
-			bind(target: ExactRenderProgramBindingTarget) {
-				if (!beginCompiledProgramClaims(target, 'p', 'html', 2, 1)) return;
-				claimCompiledProgramText(target, 0, 1, true);
-			}
-		};
+			wire: [['p', 'html', 2, 1], [[3, 0, 1, true]], []] as const
+		} satisfies ExactRenderProgram;
 
 		expect(claimCompiledRenderProgram(program, root, 'ssr')).toBeUndefined();
 		expect(root.childNodes).toHaveLength(0);
@@ -194,17 +165,14 @@ describe('compiler-wired render-program claims', () => {
 
 	it('promotes unusually high component-slot indexes without truncating identity', () => {
 		const root = document.createElement('main');
-		root.innerHTML = '<!--exact:dynamic:detail--><!--/exact:dynamic:detail-->';
+		root.innerHTML = '<!--x:detail--><!--/x:detail-->';
 		const program: ExactRenderProgram = {
-			version: 4,
+			version: 8,
 			id: 'direct-high-component-slot',
 			namespace: 'html',
-			template: '<main><!--exact:dynamic:detail--><!--/exact:dynamic:detail--></main>',
+			template: '<main><!--x:detail--><!--/x:detail--></main>',
 			directClaims: true,
-			bind(target) {
-				if (!beginCompiledProgramClaims(target, 'main', 'html', 1, 33)) return;
-				claimCompiledProgramChild(target, 32, 0, 'detail', true);
-			}
+			wire: [['main', 'html', 1, 33], [[5, 32, 0, 'detail', true]], []]
 		};
 
 		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
@@ -217,20 +185,42 @@ describe('compiler-wired render-program claims', () => {
 		const root = document.createElement('main');
 		root.innerHTML = '<article>detail</article>';
 		const program: ExactRenderProgram = {
-			version: 4,
+			version: 8,
 			id: 'direct-marker-free-component-tail',
 			namespace: 'html',
 			template: '<main></main>',
 			directClaims: true,
-			bind(target) {
-				if (!beginCompiledProgramClaims(target, 'main', 'html', 1, 1)) return;
-				claimCompiledProgramKeyedChild(target, 0, 0, true);
-			}
+			wire: [['main', 'html', 1, 1], [[4, 0, 0, true]], []]
 		};
 
 		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
 
 		expect(claimed?.slotNodes[0]).toEqual([root, root.firstChild]);
+		expect(claimed?.componentSlots).toBe(1);
+	});
+
+	it('claims a component range bounded by the following intrinsic', () => {
+		const root = document.createElement('main');
+		root.innerHTML = '<strong>detail</strong><footer>After</footer>';
+		const program: ExactRenderProgram = {
+			version: 8,
+			id: 'direct-bounded-component',
+			namespace: 'html',
+			template: '<main><footer>After</footer></main>',
+			directClaims: true,
+			wire: [
+				['main', 'html', 2, 1],
+				[
+					[6, 1, 1 + 64 * 16, 'footer'],
+					[4, 0, 0, true, 1]
+				],
+				[]
+			]
+		};
+
+		const claimed = claimCompiledRenderProgram(program, root, 'ssr');
+
+		expect(claimed?.slotNodes[0]).toEqual([root, root.firstChild, root.lastChild]);
 		expect(claimed?.componentSlots).toBe(1);
 	});
 });

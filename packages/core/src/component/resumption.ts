@@ -1,12 +1,25 @@
 import type { Reactive } from '@exactjs/reactive/framework/runtime';
-import type { ComponentResumptionActivation } from './contracts.js';
+import type { ComponentResumptionSource } from './contracts.js';
+
+type IndexedResumptionField = readonly [field: number | string, value: unknown];
 
 /** Applies compiler-selected SSR state paths without replacing client-local setup state. */
 export function applyComponentResumption(
 	state: Reactive<Record<string, unknown>>,
-	resumption: ComponentResumptionActivation
+	resumption: ComponentResumptionSource
 ): void {
-	for (const [path, value] of Object.entries(resumption.values)) writePath(state, path, value);
+	const values = 'componentId' in resumption ? resumption.values : (resumption[1] ?? []);
+	if (Array.isArray(values)) {
+		for (const [field, value] of values as unknown as readonly IndexedResumptionField[]) {
+			if (typeof field !== 'string')
+				throw new Error(
+					`eXact indexed resumption was not prepared for ${'componentId' in resumption ? resumption.componentId : resumption[0]}`
+				);
+			writePath(state, field, value);
+		}
+		return;
+	}
+	for (const [path, value] of Object.entries(values)) writePath(state, path, value);
 }
 
 /** Materializes one validated dotted state path into the live reactive state object. */

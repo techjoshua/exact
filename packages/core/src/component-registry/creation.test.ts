@@ -1,21 +1,20 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { AnyComponentFunction, Component, ComponentFunction } from '../component/contracts.js';
-import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
-import { renderInstance } from '../component/render.js';
+import { createExactFrameworkFixtureArtifact } from '../testing/runtime-artifacts.js';
 import {
 	exactComponentIdentity,
-	readExactCompiledComponentContract
+	readExactExecutableComponentContract
 } from '../component-contracts.js';
-import { isVNode } from '../vnode.js';
+import { readCompiledComponentReceipt } from '../component-abi/receipt.js';
+import { createCompiledComponentRegistry } from './creation.js';
 import {
-	createComponentRegistry,
-	createCompiledComponentRegistry,
 	hasComponent,
 	inspectComponentRegistry,
 	preloadComponent,
 	renderComponent
-} from './creation.js';
+} from './operations.js';
+import { createComponentRegistry } from './syntax.js';
 import type { ComponentSelection, KeyOf } from './contracts.js';
 
 type MessageProps = {
@@ -30,12 +29,25 @@ function Secondary(this: Component<Record<string, never>>, props: MessageProps) 
 	return () => props.message;
 }
 
+function ServerPrimary(this: Component<Record<string, never>>, props: MessageProps) {
+	return () => props.message;
+}
+
+createExactFrameworkFixtureArtifact(Primary, 'fixture:registry:Primary', 'client');
+createExactFrameworkFixtureArtifact(Secondary, 'fixture:registry:Secondary', 'client');
+createExactFrameworkFixtureArtifact(ServerPrimary, 'fixture:registry:ServerPrimary', 'server');
+
 describe('component registries', () => {
 	it('creates a frozen null-prototype registry with stable key-specific facades', () => {
-		const View = createComponentRegistry(() => ({
-			primary: Primary,
-			secondary: Primary
-		}));
+		const View = createCompiledComponentRegistry(
+			'test:stable-facades',
+			'StableView',
+			'server',
+			() => ({
+				primary: ServerPrimary,
+				secondary: ServerPrimary
+			})
+		);
 
 		expect(Object.getPrototypeOf(View)).toBeNull();
 		expect(Object.isFrozen(View)).toBe(true);
@@ -45,16 +57,12 @@ describe('component registries', () => {
 		expect(hasComponent(View, 'missing')).toBe(false);
 		expectTypeOf<KeyOf<typeof View>>().toEqualTypeOf<'primary' | 'secondary'>();
 
-		const primary = createFrameworkFixtureComponentInstance(View.primary, { message: 'one' });
-		const secondary = createFrameworkFixtureComponentInstance(View.secondary, { message: 'two' });
-		const primaryChild = renderInstance(primary, () => undefined)[0];
-		const secondaryChild = renderInstance(secondary, () => undefined)[0];
-		expect(typeof primaryChild).toBe('object');
-		expect(typeof secondaryChild).toBe('object');
-		expect((primaryChild as { key?: string }).key).toBe('exact-registry:primary');
-		expect((secondaryChild as { key?: string }).key).toBe('exact-registry:secondary');
-		primary.unmount();
-		secondary.unmount();
+		expect(readExactExecutableComponentContract(View.primary).artifact.id).toBe(
+			'test:stable-facades:primary'
+		);
+		expect(readExactExecutableComponentContract(View.secondary).artifact.id).toBe(
+			'test:stable-facades:secondary'
+		);
 	});
 
 	it('exposes compiler-derived identity and load status without executable metadata', async () => {
@@ -63,13 +71,25 @@ describe('component registries', () => {
 			secondary: lazy(async () => Secondary)
 		}));
 		expect(exactComponentIdentity(View.primary)).toBe('registry-id:primary');
-		expect(readExactCompiledComponentContract(View.primary)).toMatchObject({
+		expect(readExactExecutableComponentContract(View.primary)).toMatchObject({
 			placement: 'client',
 			role: 'client',
-			definition: {
-				instantiate: View.primary,
-				capabilities: ['registry', 'dynamic-components']
+			artifact: {
+				id: 'registry-id:primary',
+				instantiate: Primary,
+				capabilities: ['compatibility', 'interactions', 'tasks', 'registry']
 			}
+		});
+		expect(
+			readExactExecutableComponentContract(
+				createCompiledComponentRegistry('server-registry', 'ServerView', 'server', () => ({
+					primary: ServerPrimary
+				})).primary
+			).artifact
+		).toMatchObject({
+			id: 'server-registry:primary',
+			instantiate: ServerPrimary,
+			capabilities: ['compatibility', 'interactions', 'tasks', 'registry']
 		});
 
 		expect(inspectComponentRegistry(View)).toEqual({
@@ -79,6 +99,10 @@ describe('component registries', () => {
 				{ key: 'primary', mode: 'eager', status: 'ready', generation: 0 },
 				{ key: 'secondary', mode: 'lazy', status: 'idle', generation: 0 }
 			]
+		});
+		expect(readExactExecutableComponentContract(View.secondary).artifact).toMatchObject({
+			target: 'client',
+			capabilities: ['registry', 'dynamic-components']
 		});
 		await preloadComponent(View.secondary);
 		expect(inspectComponentRegistry(View).entries[1]).toEqual({
@@ -95,14 +119,22 @@ describe('component registries', () => {
 				primary: Primary
 			}))
 		).toThrow('target-local artifact target');
-		expect(() => createComponentRegistry(() => ({}))).toThrow('at least one');
+		expect(() => createComponentRegistry(() => ({ primary: Primary }))).toThrow(
+			'must be compiled before execution'
+		);
 		expect(() =>
-			createComponentRegistry(
+			createCompiledComponentRegistry(
+				'registry-id',
+				'View',
+				'client',
 				() => ({ constructor: Primary }) as unknown as { safe: typeof Primary }
 			)
 		).toThrow('prototype-safe');
 		expect(() =>
-			createComponentRegistry(
+			createCompiledComponentRegistry(
+				'registry-id',
+				'View',
+				'client',
 				() => ({ invalid: 1 }) as unknown as { invalid: AnyComponentFunction }
 			)
 		).toThrow('expected a component');
@@ -111,13 +143,18 @@ describe('component registries', () => {
 	it('deduplicates lazy loads and keeps lazy() scoped to definition execution', async () => {
 		const load = vi.fn(async () => Secondary);
 		let escaped: ((load: () => Promise<typeof Secondary>) => unknown) | undefined;
-		const View = createComponentRegistry((builder) => {
-			escaped = builder.lazy;
-			return {
-				primary: Primary,
-				secondary: builder.lazy(load)
-			};
-		});
+		const View = createCompiledComponentRegistry(
+			'test:deduplicate',
+			'View',
+			'client',
+			(builder) => {
+				escaped = builder.lazy;
+				return {
+					primary: Primary,
+					secondary: builder.lazy(load)
+				};
+			}
+		);
 
 		await Promise.all([preloadComponent(View.secondary), preloadComponent(View.secondary)]);
 		expect(load).toHaveBeenCalledTimes(1);
@@ -126,7 +163,7 @@ describe('component registries', () => {
 
 	it('clears failed lazy loads for explicit retry and validates callable shape', async () => {
 		let attempt = 0;
-		const View = createComponentRegistry(({ lazy }) => ({
+		const View = createCompiledComponentRegistry('test:retry', 'View', 'client', ({ lazy }) => ({
 			retry: lazy(async () => {
 				if (attempt++ === 0) throw new Error('temporary');
 				return Secondary;
@@ -143,7 +180,7 @@ describe('component registries', () => {
 	});
 
 	it('renders a correlated heterogeneous selection without losing props', () => {
-		const View = createComponentRegistry(() => ({
+		const View = createCompiledComponentRegistry('test:selection', 'View', 'client', () => ({
 			primary: Primary,
 			secondary: Secondary
 		}));
@@ -152,9 +189,10 @@ describe('component registries', () => {
 			props: { message: 'hello' }
 		};
 
-		const vnode = renderComponent(View, selection);
-		expect(isVNode(vnode)).toBe(true);
-		expect(vnode.type).toBe(View.secondary);
-		expect(vnode.props).toEqual({ message: 'hello' });
+		const receipt = readCompiledComponentReceipt(renderComponent(View, selection));
+		expect(receipt?.contract.artifact.id).toBe(
+			readExactExecutableComponentContract(View.secondary).artifact.id
+		);
+		expect(receipt?.props).toEqual({ message: 'hello' });
 	});
 });

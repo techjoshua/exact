@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "tanstack-start-controlled",
+	"framework": "TanStack Start (React)",
+	"frameworkVersion": "1.168.49",
+	"tracks": ["controlled-service"],
+	"runtime": "node-24",
+	"ssrTransports": { "node": "node-http", "bun": "node-http-compat" },
+	"commands": {
+		"build": "npm run build:tanstack-start -w @exactjs/framework-comparison-suite",
+		"start": "npm run dev:tanstack-start -w @exactjs/framework-comparison-suite"
+	},
+	"baseUrl": "http://127.0.0.1:4405",
+	"sourceRoots": ["src"]
+}

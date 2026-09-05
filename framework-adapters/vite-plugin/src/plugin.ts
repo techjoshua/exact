@@ -1,4 +1,4 @@
-import { inspectExactComponentBuildFacts, resolveExactArtifactImport } from '@exactjs/compiler';
+import { inspectExactComponentBuildFacts } from '@exactjs/compiler';
 import { loadExactConfig, type ExactLoadedConfig } from '@exactjs/config/node';
 import {
 	createExactDiagnosticReporter,
@@ -10,12 +10,16 @@ import {
 	prepareExactPluginRegistry,
 	type ExactPreparedPluginRegistry
 } from '@exactjs/plugin-host/node';
-import { validateInstalledReactReconciler } from '@exactjs/react-compat/plugin';
 import path from 'node:path';
 import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js';
 import { createExactViteAuthorizationOptions } from './authorization-options.js';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
-import { exactModuleFilename, exactTransformTarget } from './module-selection.js';
+import {
+	assertExactViteBuildTarget,
+	exactModuleFilename,
+	exactTransformTarget,
+	exactViteRequestTarget
+} from './module-selection.js';
 import { exactViteConfig } from './vite-config.js';
 import {
 	exactDevtoolsRuntimeBootstrap,
@@ -43,6 +47,13 @@ import {
 import { ExactViteCompilerSession } from './compiler-session.js';
 import { emitExactViteServerArtifacts } from './server-artifacts.js';
 import { createExactViteReactCompatibility } from './react-compatibility.js';
+import {
+	isCompiledTestResolution,
+	resolveExactTestTargetRequest
+} from './test-module-selection.js';
+import { resolveExactFrameworkImport } from './framework-import.js';
+import { attachExactViteServerDisposal } from './server-lifecycle.js';
+import { finalizeExactViteTransform } from './transform-result.js';
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
@@ -97,20 +108,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	return {
 		name: 'exact',
 		enforce: 'pre',
-		config() {
-			return exactViteConfig(options, reactCompatibility);
-		},
+		config: () => exactViteConfig(options, reactCompatibility),
 		configResolved(config) {
 			viteCommand = config.command;
-			if (
-				config.command === 'build' &&
-				Boolean(config.build?.ssr) !== (options.target === 'server')
-			)
-				throw new Error(
-					config.build?.ssr
-						? "eXact Vite SSR builds require exact({ target: 'server' })"
-						: 'eXact Vite server targets require Vite build.ssr'
-				);
+			assertExactViteBuildTarget(options, config);
 			compiler.configure(options.diagnostics ?? config.command === 'serve');
 		},
 		async buildStart() {
@@ -145,8 +146,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		configureServer(server) {
-			server.httpServer?.once('close', () => void disposeBuildProcesses());
-			server.watcher?.once('close', () => void disposeBuildProcesses());
+			attachExactViteServerDisposal(server, disposeBuildProcesses);
 		},
 		async buildEnd(error) {
 			if (!error) intl.validateCatalogs();
@@ -169,7 +169,17 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				emit: (file) => this.emitFile!(file)
 			});
 		},
-		async resolveId(source, importer) {
+		async resolveId(source, importer, hookOptions) {
+			const requestTarget = exactViteRequestTarget(options, hookOptions?.ssr);
+			const testResolution = await resolveExactTestTargetRequest(
+				source,
+				importer,
+				options,
+				this.resolve
+					? (request, owner) => this.resolve!(request, owner, { skipSelf: true })
+					: undefined
+			);
+			if (testResolution) return testResolution;
 			const intlModule = intl.resolve(source);
 			if (intlModule) return { id: intlModule, moduleSideEffects: false };
 			const enhancement = await resolveExactViteEnhancementRequest({
@@ -179,43 +189,38 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				resolve: async (request, owner) =>
 					this.resolve ? this.resolve(request, owner, { skipSelf: true }) : null,
 				authorize: (resolved, request, owner) =>
-					componentAuthorization.authorize(
-						resolved,
-						request,
-						owner,
-						createExactViteAuthorizationOptions(
-							options,
-							preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
-							(file) => this.addWatchFile?.(file)
-						)
-					),
+					isCompiledTestResolution(resolved, options)
+						? Promise.resolve(resolved)
+						: componentAuthorization.authorize(
+								resolved,
+								request,
+								owner,
+								createExactViteAuthorizationOptions(
+									options,
+									preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+									(file) => this.addWatchFile?.(file)
+								)
+							),
 				requires: (request, owner) => componentAuthorization.requires(request, owner),
 				activationModule:
-					options.target === 'server' ? undefined : '@exactjs/dom/framework/enhancements',
-				useRuntimeFacades: options.target === 'server'
+					requestTarget === 'server' ? undefined : '@exactjs/dom/framework/enhancements',
+				useRuntimeFacades: requestTarget === 'server'
 			});
 			if (enhancement.matched) return enhancement.resolution ?? null;
 			if (
 				source === exactDevtoolsRuntimeModule &&
-				options.target !== 'server' &&
+				requestTarget !== 'server' &&
 				inspectionRuntimeEnabled(configuredDebug, viteCommand)
 			)
 				return resolvedExactDevtoolsRuntimeModule;
-			const resolveFrameworkImport = () => {
-				if (source === 'react-reconciler' && reactCompatibility) {
-					validateInstalledReactReconciler(
-						reactCompatibility.target,
-						importer ? path.dirname(importer) : process.cwd()
-					);
-				}
-				return (
-					resolveExactArtifactImport(
-						source,
-						importer,
-						options.target === 'server' ? 'server' : 'client'
-					)?.id ?? null
+			const resolveFrameworkImport = () =>
+				resolveExactFrameworkImport(
+					source,
+					importer,
+					options,
+					reactCompatibility?.target,
+					hookOptions?.ssr
 				);
-			};
 			const resolved = microfrontends.resolveId(
 				source,
 				importer,
@@ -374,7 +379,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		closeBundle: async () => disposeBuildProcesses(),
-		transform(code, id) {
+		transform(code, id, hookOptions) {
 			// Rollup resolves a module's imports after this hook. Record every remote-scoped source here,
 			// including precompiled package JavaScript that the compiler transform intentionally skips.
 			microfrontends.recordModule(code, id);
@@ -382,6 +387,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				code,
 				id,
 				options,
+				requestTarget: exactViteRequestTarget(options, hookOptions?.ssr),
+				applicationRoot:
+					preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
 				compilerSession: compiler.current,
 				packageEnhancements: loadedConfig?.packageEnhancements ?? [],
 				reactCompatibility,
@@ -396,11 +404,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					microfrontends.recordModule(source, moduleId),
 				warn: (message) => this.warn?.(message)
 			});
-			if (!transformed) return null;
-			const { languageProjection: _languageProjection, ...result } = transformed;
-			return transformed.languageProjection && languageValidation
-				? languageValidation.validate([transformed.languageProjection]).then(() => result)
-				: result;
+			return finalizeExactViteTransform(transformed, languageValidation);
 		}
 	};
 }

@@ -4,5 +4,5 @@ This participant implements the incident console with React 19. Queue and detail
 derived filtering is calculated during render, service events update state through effects, and stable callbacks
 connect detail mutations to the queue owner.
 
-It remains `scaffolded` because this slice uses browser rendering rather than hydrating server-rendered HTML.
-Its controlled-service behavior is covered by the same black-box tests as the eXact participant.
+Its controlled-service behavior, production SSR, and hydration are covered by the same black-box tests as
+the eXact participant.

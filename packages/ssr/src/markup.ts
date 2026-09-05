@@ -1,15 +1,16 @@
 import {
-	UnsafeHtml,
 	adoptElementId,
-	isVNode,
 	normalizeClassValue,
 	reserveElementId,
 	sanitizeUrlAttribute
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive/framework/values';
+import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-abi';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
+import { renderAccountedAttribute } from './render/output-attribute.js';
 import type { RefBinding } from '@exactjs/core';
+import type { ExactRenderProgramSsrAttribute } from '@exactjs/core/framework/render-structure';
 import {
 	hasOwn,
 	isEventProperty,
@@ -24,12 +25,13 @@ import { renderStyle } from './style.js';
 
 export * from './markers.js';
 
-/** Renders vnode props into escaped HTML attributes, skipping event and framework-only props. */
+/** Renders intrinsic-operation props as escaped HTML attributes. */
 export function renderAttrs(
 	props: Record<string, unknown>,
 	reactMarkup: boolean | 18 | 19 = false,
 	tag?: string,
-	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>,
+	excludedNativeProps?: readonly string[]
 ): string {
 	const boundDetails = !reactMarkup && tag === 'details' && '__exactBindToggle' in props;
 	let attrs = boundDetails
@@ -49,13 +51,14 @@ export function renderAttrs(
 					const name = reactInputPriority[index]!;
 					if (hasOwn(props, name))
 						attrs += renderAttribute(
-							props,
+							props[name],
 							name,
 							reactMarkup,
 							tag,
 							context,
 							boundDetails,
-							customElement
+							customElement,
+							props.type
 						);
 				}
 			}
@@ -66,91 +69,97 @@ export function renderAttrs(
 					(reactMarkup !== 19 || !isReactInputPriority(name))
 				)
 					attrs += renderAttribute(
-						props,
+						props[name],
 						name,
 						reactMarkup,
 						tag,
 						context,
 						boundDetails,
-						customElement
+						customElement,
+						props.type
 					);
 			for (let index = 0; index < reactInputDeferred.length; index++) {
 				const name = reactInputDeferred[index]!;
 				if (hasOwn(props, name))
 					attrs += renderAttribute(
-						props,
+						props[name],
 						name,
 						reactMarkup,
 						tag,
 						context,
 						boundDetails,
-						customElement
+						customElement,
+						props.type
 					);
 			}
 		} else if (tag === 'option') {
 			for (const name in props)
 				if (hasOwn(props, name) && name !== 'value' && name !== 'selected')
 					attrs += renderAttribute(
-						props,
+						props[name],
 						name,
 						reactMarkup,
 						tag,
 						context,
 						boundDetails,
-						customElement
+						customElement,
+						props.type
 					);
 			for (let index = 0; index < reactOptionDeferred.length; index++) {
 				const name = reactOptionDeferred[index]!;
 				if (hasOwn(props, name))
 					attrs += renderAttribute(
-						props,
+						props[name],
 						name,
 						reactMarkup,
 						tag,
 						context,
 						boundDetails,
-						customElement
+						customElement,
+						props.type
 					);
 			}
 		} else {
 			for (const name in props)
 				if (hasOwn(props, name))
 					attrs += renderAttribute(
-						props,
+						props[name],
 						name,
 						reactMarkup,
 						tag,
 						context,
 						boundDetails,
-						customElement
+						customElement,
+						props.type
 					);
 		}
 	} else {
 		for (const name in props)
-			if (hasOwn(props, name))
+			if (hasOwn(props, name) && !excludedNativeProps?.includes(name))
 				attrs += renderAttribute(
-					props,
+					props[name],
 					name,
 					reactMarkup,
 					tag,
 					context,
 					boundDetails,
-					customElement
+					customElement,
+					props.type
 				);
 	}
 	return attrs;
 }
 
 function renderAttribute(
-	props: Record<string, unknown>,
+	rawValue: unknown,
 	name: string,
 	reactMarkup: boolean | 18 | 19,
 	tag: string | undefined,
 	context: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'> | undefined,
 	boundDetails: boolean,
-	customElement: boolean
+	customElement: boolean,
+	inputType?: unknown
 ): string {
-	const rawValue = props[name];
 	if (!reactMarkup && name === 'dangerouslySetInnerHTML') {
 		throw new Error(
 			'Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.'
@@ -185,7 +194,7 @@ function renderAttribute(
 	const normalized =
 		!reactMarkup && (name === 'className' || name === 'class')
 			? normalizeClassValue(unwrapped)
-			: name === 'value' && tag === 'input' && props.type === 'date' && unwrapped instanceof Date
+			: name === 'value' && tag === 'input' && inputType === 'date' && unwrapped instanceof Date
 				? Number.isNaN(unwrapped.getTime())
 					? ''
 					: unwrapped.toISOString().slice(0, 10)
@@ -210,12 +219,98 @@ function renderAttribute(
 	return ` ${escapeAttrName(attrName)}="${escapeAttr(String(value))}"`;
 }
 
+/** Serializes one compiler-known native host value without allocating or scanning a prop bag. */
+export function renderNativeAttribute(
+	value: unknown,
+	name: string,
+	tag: string,
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
+): string {
+	return renderAttribute(value, name, false, tag, context, false, false);
+}
+
+/** Serializes one compiler-classified native attribute without rediscovering its behavior. */
+export function renderCompiledNativeAttribute(
+	value: unknown,
+	kind: ExactRenderProgramSsrAttribute[0],
+	name: string,
+	attributeName: string,
+	tag: string,
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml' | 'outputSink'>,
+	accounted = false
+): string {
+	if (kind === 6) {
+		const rendered = renderNativeAttribute(value, name, tag, context);
+		if (accounted) context?.outputSink?.account(rendered);
+		return rendered;
+	}
+	if ((kind === 0 || kind === 1) && typeof value === 'string')
+		return accounted && context
+			? renderAccountedAttribute(context, attributeName, value)
+			: ` ${attributeName}="${escapeAttr(value)}"`;
+	const unwrapped = kind === 4 ? unsafeHtmlAttribute(value, context) : unwrap(value);
+	const normalized =
+		kind === 1
+			? normalizeClassValue(unwrapped)
+			: kind === 5 && unwrapped instanceof Date
+				? Number.isNaN(unwrapped.getTime())
+					? ''
+					: unwrapped.toISOString().slice(0, 10)
+				: unwrapped;
+	const sanitized = kind === 3 ? sanitizeUrlAttribute(name, normalized) : normalized;
+	if (sanitized === null || sanitized === undefined || sanitized === false) return '';
+	if (kind === 2) {
+		const style = renderStyle(sanitized, false);
+		return style
+			? accounted && context
+				? renderAccountedAttribute(context, 'style', style)
+				: ` style="${escapeAttr(style)}"`
+			: '';
+	}
+	if (sanitized === true) {
+		const rendered = ` ${attributeName}`;
+		if (accounted) context?.outputSink?.accountKnown(rendered, rendered.length);
+		return rendered;
+	}
+	return accounted && context
+		? renderAccountedAttribute(context, attributeName, String(sanitized))
+		: ` ${attributeName}="${escapeAttr(String(sanitized))}"`;
+}
+
+/** Serializes a compiler-owned root plan from its request-local prop values. */
+export function renderCompiledNativeAttributes(
+	props: Readonly<Record<string, unknown>>,
+	plan: readonly ExactRenderProgramSsrAttribute[],
+	tag: string,
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml' | 'outputSink'>,
+	accounted = false
+): string {
+	let attributes = '';
+	for (let index = 0; index < plan.length; index++) {
+		const attribute = plan[index]!;
+		const kind = attribute[0];
+		const property = attribute[1];
+		const attributeName = attribute[2];
+		attributes += renderCompiledNativeAttribute(
+			props[property],
+			kind,
+			property,
+			attributeName,
+			tag,
+			context,
+			accounted
+		);
+	}
+	return attributes;
+}
+
 function unsafeHtmlAttribute(
 	value: unknown,
 	context: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'> | undefined
 ): string {
 	const candidate = unwrap(value);
-	if (!isVNode(candidate) || candidate.type !== UnsafeHtml) {
+	const receipt = readUnsafeHtmlReceipt(candidate);
+	if (!receipt) {
 		throw new Error(
 			'Native eXact iframe srcdoc requires unsafeHtml() and explicit allowUnsafeHtml root opt-in.'
 		);
@@ -225,7 +320,7 @@ function unsafeHtmlAttribute(
 			'unsafeHtml() used for iframe srcdoc requires allowUnsafeHtml: true on the native eXact SSR root.'
 		);
 	}
-	const html = String(unwrap(candidate.props.value) ?? '');
+	const html = String(unwrap(receipt.value) ?? '');
 	context.onUnsafeHtml?.({ characters: html.length });
 	return html;
 }

@@ -44,7 +44,7 @@ re-executing the component.
   whenever the candidate set is known, and do not use open dynamic components for server work
 - `createComponentDomain({ executionRoot })` for integrations that establish explicit ownership
   roots without exposing framework transport or activation capabilities
-- Shared component, VNode, task, and inspection types used by framework integrations
+- Shared component-operation, task, and inspection types used by framework integrations
 - A realm-wide cache-backed `intl` facade; the compiler includes component localization only when
   a component uses `this.intl`, with the nearest localization context supplying the active locale
   for omitted or matching authored-source locale requests

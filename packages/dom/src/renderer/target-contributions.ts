@@ -1,6 +1,5 @@
 import {
 	type AnyComponentInstance,
-	Target,
 	TargetOverrides,
 	attachElementIdentity,
 	unwrap,
@@ -34,7 +33,7 @@ export function refreshTargetSubtree(
 ): void {
 	const instance = mounted.instance ?? parentInstance;
 	for (const child of mounted.children) refreshTargetSubtree(root, child, instance);
-	if (mounted.vnode.type === Target) refreshTargetBoundary(root, mounted, parentInstance);
+	if (mounted.targetReceipt) refreshTargetBoundary(root, mounted, parentInstance);
 }
 
 /** Schedules only target boundaries whose selected route traversed the changed structural owner. */
@@ -62,6 +61,9 @@ export function refreshTargetBoundary(
 	parentInstance: AnyComponentInstance | undefined
 ): void {
 	boundary.targetBoundary?.release?.();
+	const boundaryProps = boundary.targetReceipt?.props;
+	if (!boundaryProps)
+		throw new TypeError('A semantic target boundary must retain its compiler-issued props');
 	const dependencies = new Set<Mounted>();
 	const selected = resolveTargetBoundary(boundary, parentInstance, dependencies)?.mounted;
 	for (const dependency of dependencies) {
@@ -78,10 +80,10 @@ export function refreshTargetBoundary(
 
 	selected.targetContributions ??= new Map();
 	selected.targetContributions.set(boundary, {
-		props: boundary.vnode.props,
+		props: boundaryProps,
 		owner: parentInstance
 	});
-	const releaseRef = installTargetRef(boundary, selected.dom, boundary.vnode.props.ref);
+	const releaseRef = installTargetRef(boundary, selected.dom, boundaryProps.ref);
 	applyTargetProps(root, selected);
 	boundary.targetBoundary.release = () => {
 		releaseDependencies(boundary, dependencies);
@@ -92,7 +94,7 @@ export function refreshTargetBoundary(
 	refreshTargetDependents(root, boundary);
 }
 
-/** Applies authored props and all live target layers without mutating the authored VNode. */
+/** Applies authored props and all live target layers without mutating the authored operation. */
 export function updateTargetedIntrinsicProps(
 	root: Root,
 	mounted: Mounted,
@@ -140,8 +142,8 @@ function installTargetRef(boundary: Mounted, element: Element, source: unknown):
 function applyTargetProps(
 	root: Root,
 	mounted: Mounted,
-	previousAuthored: Readonly<Record<string, unknown>> = mounted.vnode.props,
-	nextAuthored: Readonly<Record<string, unknown>> = mounted.vnode.props
+	previousAuthored: Readonly<Record<string, unknown>> = authoredIntrinsicProps(mounted),
+	nextAuthored: Readonly<Record<string, unknown>> = authoredIntrinsicProps(mounted)
 ): void {
 	if (!(mounted.dom instanceof Element)) return;
 	for (const release of mounted.targetEventReleases ?? []) release();
@@ -152,9 +154,44 @@ function applyTargetProps(
 	updateProps(root, mounted.dom, previous, plan.props, mounted.scope);
 	mounted.targetEffectiveProps = plan.props;
 	if (!plan.events.length) return;
-	mounted.targetEventReleases = plan.events.map(({ key, source, owner }) =>
-		installOwnedEventSubscription(root, mounted.dom as Element, key, source, owner)
+	mounted.targetEventReleases = plan.events.map(({ key, source, owner, directInteraction }) =>
+		installOwnedEventSubscription(
+			root,
+			mounted.dom as Element,
+			key,
+			source,
+			owner,
+			directInteraction
+		)
 	);
+}
+
+function authoredIntrinsicProps(mounted: Mounted): Readonly<Record<string, unknown>> {
+	const props = mounted.intrinsicReceipt?.props;
+	if (props) return props;
+	if (mounted.targetAuthoredProps) return mounted.targetAuthoredProps;
+	const program = mounted.renderProgram;
+	if (!program?.programRoot)
+		throw new TypeError('A semantic intrinsic must retain its authored props');
+	if (!(program.programRoot instanceof Element))
+		throw new TypeError('A semantic intrinsic render-program root must be an element');
+	const programRoot = program.programRoot;
+	const rootProps: Record<string, unknown> = {};
+	for (const attribute of programRoot.attributes) {
+		const name =
+			attribute.name === 'class'
+				? 'className'
+				: attribute.name === 'for'
+					? 'htmlFor'
+					: attribute.name;
+		rootProps[name] = attribute.value;
+	}
+	Object.assign(rootProps, program.props?.get(programRoot));
+	for (const group of program.compiledProps ?? []) {
+		if (group?.element === programRoot) Object.assign(rootProps, group.values);
+	}
+	mounted.targetAuthoredProps = rootProps;
+	return rootProps;
 }
 
 type TargetPropPlan = {
@@ -163,6 +200,7 @@ type TargetPropPlan = {
 		key: string;
 		source: unknown;
 		owner?: AnyComponentInstance;
+		directInteraction?: boolean;
 	}>;
 };
 
@@ -184,6 +222,7 @@ function composeTargetProps(
 	for (const layer of innerToOuter) for (const key of Object.keys(layer.props)) keys.add(key);
 	const result: Record<string, unknown> = {};
 	const events: TargetPropPlan['events'][number][] = [];
+	const handledEvents = new Set<string>();
 	const overrides = new Set(
 		innerToOuter.flatMap((layer) => {
 			const value = unwrap(
@@ -205,14 +244,37 @@ function composeTargetProps(
 			continue;
 		}
 		if (isEventHandlerProp(key)) {
-			const contributed = innerToOuter.filter((layer) => key in layer.props);
+			const eventKey = authoredEventKey(key);
+			if (handledEvents.has(eventKey)) continue;
+			handledEvents.add(eventKey);
+			const authoredKey = Object.keys(authored).find(
+				(candidate) => isEventHandlerProp(candidate) && authoredEventKey(candidate) === eventKey
+			);
+			const contributed = innerToOuter.flatMap((layer) => {
+				const contributedKey = Object.keys(layer.props).find(
+					(candidate) => isEventHandlerProp(candidate) && authoredEventKey(candidate) === eventKey
+				);
+				return contributedKey
+					? [{ key: contributedKey, source: layer.props[contributedKey], owner: layer.owner }]
+					: [];
+			});
 			if (!contributed.length) {
-				if (key in authored) result[key] = authored[key];
+				if (authoredKey) result[authoredKey] = authored[authoredKey];
 				continue;
 			}
-			if (key in authored) events.push({ key, source: authored[key] });
-			for (const layer of contributed)
-				events.push({ key, source: layer.props[key], owner: layer.owner });
+			if (authoredKey)
+				events.push({
+					key: eventKey,
+					source: authored[authoredKey],
+					directInteraction: compilerDirectInteraction(authoredKey)
+				});
+			for (const contribution of contributed)
+				events.push({
+					key: eventKey,
+					source: contribution.source,
+					owner: contribution.owner,
+					directInteraction: compilerDirectInteraction(contribution.key)
+				});
 			continue;
 		}
 		const values = overrides.has(key)
@@ -232,6 +294,18 @@ function composeTargetProps(
 		else result[key] = computed(() => firstDefined(values));
 	}
 	return { props: result, events };
+}
+
+function authoredEventKey(key: string): string {
+	if (key.startsWith('__exactClosedInteraction:'))
+		return key.slice('__exactClosedInteraction:'.length);
+	if (key.startsWith('__exactDirectInteraction:'))
+		return key.slice('__exactDirectInteraction:'.length);
+	return key;
+}
+
+function compilerDirectInteraction(key: string): boolean {
+	return key.startsWith('__exactDirectInteraction:') || key.startsWith('__exactClosedInteraction:');
 }
 
 function firstDefined(values: readonly unknown[]): unknown {

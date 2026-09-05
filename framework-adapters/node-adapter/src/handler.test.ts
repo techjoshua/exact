@@ -1,6 +1,12 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createExactBufferedResponse, defineExactOperationContract } from '@exactjs/server';
+import {
+	createExactAsyncProducedResponse,
+	createExactBufferedResponse,
+	createExactProducedResponse,
+	defineExactOperationContract,
+	exactResponseBodyOf
+} from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
 
@@ -218,6 +224,224 @@ describe('@exactjs/node-adapter', () => {
 
 		expect(response.body).toBe('<main>ready</main>');
 		expect(() => result.stream).toThrow('already claimed');
+	});
+
+	it('hands a produced SSR rope to one terminal Node write', async () => {
+		const writes: string[] = [];
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			headersSent: false,
+			body: '',
+			setHeader() {
+				return this;
+			},
+			write(chunk: string) {
+				writes.push(chunk);
+				return true;
+			},
+			end(chunk?: string) {
+				if (chunk) this.body += chunk;
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & { body: string };
+		const environmentByteLengths: number[] = [];
+		const result = createExactProducedResponse(200, {}, (write, environment) => {
+			environmentByteLengths.push(environment?.encodedByteLength?.('\ud83d\ude80') ?? -1);
+			write('<main>');
+			write('ready');
+			write('</main>');
+		});
+
+		const completion = writeNodeResponse(response, result);
+		expect(writes).toEqual([]);
+		expect(response.body).toBe('<main>ready</main>');
+		expect(environmentByteLengths).toEqual([4]);
+		await completion;
+	});
+
+	it('writes asynchronous produced spans directly with Node backpressure', async () => {
+		const events = new EventEmitter();
+		const writes: string[] = [];
+		const production: string[] = [];
+		const response = Object.assign(events, {
+			statusCode: 0,
+			destroyed: false,
+			setHeader() {
+				return this;
+			},
+			write(chunk: string) {
+				writes.push(chunk);
+				return writes.length !== 1;
+			},
+			end() {
+				events.emit('ended');
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse;
+		const result = createExactAsyncProducedResponse(200, {}, async (write) => {
+			production.push('first');
+			await write('first');
+			production.push('second');
+			await write('second');
+		});
+
+		const completion = writeNodeResponse(response, result);
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		expect(writes).toEqual(['first']);
+		expect(production).toEqual(['first']);
+
+		events.emit('drain');
+		await completion;
+		expect(writes).toEqual(['first', 'second']);
+		expect(production).toEqual(['first', 'second']);
+	});
+
+	it('publishes an internal error when a produced body fails before commitment', async () => {
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			headersSent: false,
+			headers: new Map<string, unknown>(),
+			body: '',
+			setHeader(name: string, value: unknown) {
+				this.headers.set(name, value);
+				return this;
+			},
+			getHeaderNames() {
+				return [...this.headers.keys()];
+			},
+			removeHeader(name: string) {
+				this.headers.delete(name);
+			},
+			end(chunk?: string) {
+				if (chunk) this.body += chunk;
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & {
+			body: string;
+			headers: Map<string, unknown>;
+		};
+		const result = createExactProducedResponse(
+			200,
+			{ 'content-length': '123', 'x-produced': 'stale' },
+			() => {
+				throw new Error('render failed');
+			}
+		);
+
+		await writeNodeResponse(response, result);
+
+		expect(response.statusCode).toBe(500);
+		expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
+		expect(response.headers.has('content-length')).toBe(false);
+		expect(response.headers.has('x-produced')).toBe(false);
+		expect(response.body).toBe('{"error":"internal_error"}');
+		expect(response.destroyed).toBe(false);
+	});
+
+	it('publishes an internal error when an asynchronous producer fails before commitment', async () => {
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			headersSent: false,
+			headers: new Map<string, unknown>(),
+			body: '',
+			setHeader(name: string, value: unknown) {
+				this.headers.set(name, value);
+				return this;
+			},
+			getHeaderNames() {
+				return [...this.headers.keys()];
+			},
+			removeHeader(name: string) {
+				this.headers.delete(name);
+			},
+			write() {
+				this.headersSent = true;
+				return true;
+			},
+			end(chunk?: string) {
+				if (chunk) this.body += chunk;
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & {
+			body: string;
+			headers: Map<string, unknown>;
+		};
+		const result = createExactAsyncProducedResponse(
+			200,
+			{ 'content-length': '123', 'x-produced': 'stale' },
+			async () => {
+				throw new Error('render failed');
+			}
+		);
+
+		await writeNodeResponse(response, result);
+
+		expect(response.statusCode).toBe(500);
+		expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');
+		expect(response.headers.has('content-length')).toBe(false);
+		expect(response.headers.has('x-produced')).toBe(false);
+		expect(response.body).toBe('{"error":"internal_error"}');
+		expect(response.destroyed).toBe(false);
+	});
+
+	it('publishes a request-scope cleanup failure before commitment', async () => {
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			destroyed: false,
+			headersSent: false,
+			headers: new Map<string, unknown>(),
+			body: '',
+			setHeader(name: string, value: unknown) {
+				this.headers.set(name, value);
+				return this;
+			},
+			getHeaderNames() {
+				return [...this.headers.keys()];
+			},
+			removeHeader(name: string) {
+				this.headers.delete(name);
+			},
+			end(chunk?: string) {
+				if (chunk) this.body += chunk;
+				return this;
+			},
+			destroy() {
+				this.destroyed = true;
+				return this;
+			}
+		}) as unknown as ServerResponse & {
+			body: string;
+			headers: Map<string, unknown>;
+		};
+		const result = createExactProducedResponse(200, {}, (write) => write('uncommitted'));
+		exactResponseBodyOf(result)!.retainRequestScope?.(async () => {
+			throw new Error('cleanup failed');
+		});
+
+		await writeNodeResponse(response, result);
+
+		expect(response.statusCode).toBe(500);
+		expect(response.body).toBe('{"error":"internal_error"}');
+		expect(response.destroyed).toBe(false);
 	});
 
 	it('resumes ordered buffered chunks only after Node backpressure clears', async () => {

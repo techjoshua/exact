@@ -18,6 +18,9 @@ entry is explicitly trusted executable authority. Replacement resolvers should r
 `{ clientEntry, integrity }` for pinned build rotation.
 Remote entry waits stop with their owning component. Shared loads have a 30-second timeout and a
 64-entry cache ceiling so stalled deployments cannot accumulate indefinitely.
+On SSR, `RemoteComponent` is emitted as a compiler-owned client boundary; its browser loader does
+not execute on the server. Page-authored children retain their page instances and lifecycle when a
+remote build or cross-root patch replaces the remote ancestor around them.
 
 Server-executing remote builds may carry the compact component-library authorization identity
 created by `@exactjs/component-library-policy`. The remote entry, hydration client, gateway, and

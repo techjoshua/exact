@@ -1,4 +1,4 @@
-import { readPreparedExactCompiledComponentContract } from '../component-contracts.js';
+import { readPreparedExactExecutableComponentContract } from '../component-contracts.js';
 import { initializeComponentExecutionCapability } from '../tasks/component-execution-capability.js';
 import type { TaskOwnerRecord } from '../tasks/frame-contracts.js';
 import { taskObserverFor } from '../tasks/observers.js';
@@ -19,7 +19,7 @@ export function configureComponentTaskOwner(
 	initializeComponentExecutionCapability(
 		owner,
 		instance,
-		execution?.plan ?? readPreparedExactCompiledComponentContract(instance.type).execution,
+		execution?.plan ?? readPreparedExactExecutableComponentContract(instance.type).execution,
 		props
 	);
 	const readiness = componentReadinessContext(instance);

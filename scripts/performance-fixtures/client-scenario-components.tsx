@@ -3,12 +3,10 @@ import {
 	Fragment,
 	Suspense,
 	TaskContext,
-	createVNode,
 	type ActivityMode,
 	type Child,
 	type Component
 } from '@exactjs/core';
-import { computed } from '@exactjs/reactive';
 
 /** Stable enhancement identity used by the client routing workload. */
 export const enhancementIdentity = '@exactjs/performance#routing';
@@ -18,7 +16,6 @@ export type Item = Readonly<{ id: string; label: string }>;
 
 export let scalarInstance: Component<{ count: number }> | undefined;
 export let branchInstance: Component<{ visible: boolean }> | undefined;
-export let listInstance: Component<{ items: Item[] }> | undefined;
 export let activityInstance: Component<{ mode: ActivityMode }> | undefined;
 export let suspenseInstance: Component<{ ready: boolean }> | undefined;
 export let commitInstance:
@@ -34,11 +31,6 @@ export function releaseScalarInstance(): void {
 /** Releases the retained branch component after its update workload. */
 export function releaseBranchInstance(): void {
 	branchInstance = undefined;
-}
-
-/** Releases the retained list component after its reconciliation workload. */
-export function releaseListInstance(): void {
-	listInstance = undefined;
 }
 
 /** Releases the retained Activity owner after its park-and-restore workload. */
@@ -80,13 +72,13 @@ export function DynamicTree(this: Component<{ value: number }>, props: { count: 
 	);
 }
 
-/** Produces deterministic sibling markup shared by server adoption and client hydration. */
-export function hydrationTree() {
-	return createVNode(
-		Fragment,
-		null,
-		createVNode('i', null, 'first'),
-		createVNode('b', null, 'second')
+/** Produces the compiled root with deterministic sibling markup used by client hydration. */
+export function HydrationTree() {
+	return (
+		<section>
+			<i>first</i>
+			<b>second</b>
+		</section>
 	);
 }
 
@@ -110,19 +102,13 @@ export function Branch(this: Component<{ visible: boolean }>) {
 	return () => <section>{this.state.visible ? <p>visible</p> : <span>hidden</span>}</section>;
 }
 
-/** Exposes a retained keyed list for reorder and insertion timing. */
-export function KeyedList(this: Component<{ items: Item[] }>, props: { items: Item[] }) {
-	listInstance = this;
-	this.state.items = props.items;
+/** Renders a keyed list whose prop replacement exercises compiled reconciliation. */
+export function KeyedList(props: { items: Item[] }) {
 	return () => (
 		<ul>
-			{this.map(
-				this.state.items,
-				(item) => item.id,
-				(item) => (
-					<li>{item.label}</li>
-				)
-			)}
+			{props.items.map((item) => (
+				<li key={item.id}>{item.label}</li>
+			))}
 		</ul>
 	);
 }
@@ -136,8 +122,11 @@ export function RoutingEnhancement(_props: { children?: Child }) {
 export function ActivityBoundary(this: Component<{ mode: ActivityMode }>) {
 	activityInstance = this;
 	this.state.mode = 'active';
-	const mode = computed(() => this.state.mode);
-	return () => createVNode(Activity, { mode }, <button>retained</button>);
+	return () => (
+		<Activity mode={this.state.mode}>
+			<button>retained</button>
+		</Activity>
+	);
 }
 
 /** Owns the blocking task used to measure Suspense settlement. */
@@ -157,7 +146,11 @@ export function SuspendedPanel(this: Component<{ ready: boolean }>) {
 
 /** Wraps the benchmark panel in a native fallback boundary. */
 export function SuspenseBoundary() {
-	return () => createVNode(Suspense, { fallback: <span>loading</span> }, <SuspendedPanel />);
+	return () => (
+		<Suspense fallback={<span>loading</span>}>
+			<SuspendedPanel />
+		</Suspense>
+	);
 }
 
 /** Provides one stateful leaf in the mixed lifecycle workload. */
@@ -171,15 +164,13 @@ export function MixedTree(props: { count: number }) {
 	return () => (
 		<main>
 			<header>mixed</header>
-			{createVNode(
-				Activity,
-				{ mode: 'active' },
+			<Activity mode="active">
 				<section>
 					{Array.from({ length: props.count }, (_, index) => (
 						<MixedLeaf key={String(index)} index={index} />
 					))}
 				</section>
-			)}
+			</Activity>
 			<footer>done</footer>
 		</main>
 	);

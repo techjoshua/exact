@@ -2,12 +2,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { type Component } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { describe, expect, it } from 'vitest';
 import { applyPatches } from './patches.js';
 import { noopLogger } from './test-support/responses.js';
-import { createVNode } from './test-support/native-vnode.js';
+import {
+	ownedPatchIslandRoot,
+	readOwnedPatchIsland
+} from './test-support/patch-validation.fixtures.js';
 
 describe('@exactjs/hydrate patch-validation', () => {
 	it('rejects duplicate element protocol ids before mutating live DOM', () => {
@@ -80,18 +82,13 @@ describe('@exactjs/hydrate patch-validation', () => {
 	});
 
 	it('finishes a prepared patch batch before reporting ownership cleanup failures', () => {
-		let owner!: Component<{}>;
-		function Owned(this: Component<{}>) {
-			owner = this;
-			return () => createVNode('button', null, 'Old island');
-		}
 		const container = document.createElement('div');
 		const island = document.createElement('div');
 		island.setAttribute('data-exact-client-boundary', 'island');
 		container.append(island);
-		render(createVNode(Owned, null), island);
+		render(ownedPatchIslandRoot, island);
 		container.insertAdjacentHTML('beforeend', '<!--exact:title-->Old title<!--/exact:title-->');
-		(owner as any).scope.reactions.add({
+		(readOwnedPatchIsland() as any).scope.reactions.add({
 			stop() {
 				throw new Error('cleanup failed');
 			}

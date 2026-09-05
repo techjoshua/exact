@@ -40,9 +40,7 @@ export function createExactDomInspectionHost(): ExactDomInspectionHost {
 	const host: ExactDomInspectionHost = {
 		attach(sessionId, sink) {
 			for (const root of activeInspectableRoots()) {
-				const owner = root.current.domain
-					? componentDomainInspection(root.current.domain)
-					: undefined;
+				const owner = root.domain ? componentDomainInspection(root.domain) : undefined;
 				if (!owner) continue;
 				owner.attach(sessionId, sink);
 				attachedOwners.add(owner);
@@ -77,7 +75,7 @@ function snapshotRoots(roots: readonly Root[]): ExactDomInspectionSnapshot {
 	const components: ExactInspectedRuntimeComponent[] = [];
 	const partitions: ExactInspectedPartitionInstance[] = [];
 	for (const root of roots) {
-		const owner = root.current.domain ? componentDomainInspection(root.current.domain) : undefined;
+		const owner = root.domain ? componentDomainInspection(root.domain) : undefined;
 		if (!owner || !root.mounted) continue;
 		const before = components.length;
 		appendMounted(root.mounted, undefined, components);
@@ -208,7 +206,7 @@ function appendMounted(
 		});
 		if (snapshot) output.push(snapshot);
 	}
-	const dynamic = mounted.vnode.props.__exactDynamicComponent as
+	const dynamic = mounted.childRangeReceipt?.dynamicComponent?.inspection as
 		| Readonly<{
 				id: string;
 				status: 'unassigned' | 'pending' | 'absent' | 'available' | 'failed';
@@ -218,8 +216,9 @@ function appendMounted(
 		  }>
 		| undefined;
 	if (dynamic && nextParent) {
-		const owner = mounted.vnode.domain
-			? componentDomainInspection(mounted.vnode.domain)
+		const operationDomain = mounted.childRangeReceipt?.domain;
+		const owner = operationDomain
+			? componentDomainInspection(operationDomain)
 			: instance
 				? componentDomainInspection(instance.domain)
 				: undefined;
@@ -237,7 +236,7 @@ function appendMounted(
 					parent: nextParent,
 					name: 'DynamicComponent',
 					status: 'mounted',
-					props: owner.preview(mounted.vnode.props.__exactDynamicComponentProps ?? {}, [
+					props: owner.preview(mounted.childRangeReceipt?.dynamicComponent?.props ?? {}, [
 						'dynamicComponent',
 						dynamic.id,
 						'props'
@@ -293,7 +292,7 @@ function inspectTargetContributions(
 							})
 						}
 					: {}),
-				props: inspection.preview(snapshotTargetProps(boundary.vnode.props), [
+				props: inspection.preview(snapshotTargetProps(boundary.targetReceipt?.props ?? {}), [
 					'targetContributions',
 					'props'
 				]),

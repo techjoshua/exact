@@ -1,0 +1,58 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 7,
+	"recordedAt": "2026-08-27T07:58:00.0000000-07:00",
+	"mechanisms": [
+		"Publish target-local client and server executables with inert compiler analysis facts that nested consumers can validate without dependency source inspection.",
+		"Route all React component values through fixed precompiled client/server island and root-host artifacts instead of creating native component artifacts or adapters at runtime.",
+		"Carry native children across React ownership as opaque supplier operations whose handles expose no value kind, topology, VNode materialization, or component classification."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "package consumption and React boundary reachability",
+			"classification": "improve",
+			"metrics": [
+				"React island startup, mount, update, hydration, and disposal latency",
+				"client and server compatibility artifact raw, gzip, Brotli, decoded, and executed bytes",
+				"runtime-created artifact and adapter invocation counts",
+				"native-only application bundle reachability"
+			],
+			"structuralEvidence": [
+				"runtime-created native artifacts remain zero",
+				"React JSX and root APIs reference fixed target-local artifacts",
+				"native contribution handles expose no kind, topology, or materialization operation",
+				"packed nested consumers contain executables and inert build facts but no dependency source"
+			],
+			"counterMetrics": [
+				"React compatibility conformance and package-fixture assertions",
+				"native-only and compatibility bundle module inventories",
+				"opaque contribution mount, adoption, SSR, update, and disposal assertions"
+			]
+		},
+		{
+			"name": "native local component behavior",
+			"classification": "stable",
+			"metrics": [
+				"native browser startup, mount, hydration, and steady-state interaction latency",
+				"Node and Bun native SSR latency, throughput, CPU, allocation, retention, first chunk, and completion",
+				"native framework artifact sizes and DOM counts"
+			],
+			"structuralEvidence": [
+				"compatibility integrations remain separate package entry points",
+				"native artifacts do not import React compatibility packages",
+				"generic native renderer removal remains assigned to Phase 8"
+			],
+			"counterMetrics": [
+				"framework comparison response identities and correctness assertions",
+				"native compiler structural totals",
+				"native-only bundle input inventory"
+			]
+		}
+	]
+}

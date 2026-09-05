@@ -10,6 +10,7 @@
 	},
 	"references": [
 		{ "path": "../../component-libraries/app-theme-preference" },
+		{ "path": "../../component-libraries/charts" },
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/dom" },
 		{ "path": "../../packages/hydrate" },

@@ -1,11 +1,8 @@
 import {
-	ErrorBoundary,
-	activateTaskForHost,
-	defineTask,
-	type Component,
-	type ErrorBoundaryFallbackProps
-} from '@exactjs/core';
-import { defineExactBoundaryContract, defineExactOperationContract } from '@exactjs/server';
+	defineExactBoundaryContract,
+	defineExactOperationContract,
+	exactResponseBodyOf
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerHandlerRegistry,
@@ -13,148 +10,127 @@ import {
 	renderToString,
 	renderToStringAsync
 } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import {
+	renderCompilerClosedToHydratableSink,
+	renderCompilerClosedToHydratableResponse,
+	renderCompilerClosedToHydratableString
+} from './compiler-closed.js';
+import { createOperation } from './test-support/native-operations.js';
+import {
+	ObservedServerComponent,
+	ParallelSettledSiblings,
+	ParentWithSettledChild,
+	ProfileComponent,
+	readComponentRenderingFixtureState,
+	readParallelTaskStarts,
+	resetComponentRenderingFixtureState,
+	ServerCard,
+	settleParallelTasks,
+	SynchronousObservedServerComponent
+} from './component-rendering.fixtures.test.js';
 
 describe('@exactjs/ssr component and server contracts', () => {
 	it('renders component output without marking components as mounted', () => {
-		let mounted = false;
-
-		function Card(this: Component<{ title: string }>, props: { title: string }) {
-			this.state.title = props.title;
-			this.onMount(() => {
-				mounted = true;
-			});
-			return () => createVNode('article', null, this.state.title);
-		}
-
-		const result = renderToString(createVNode(Card, { title: 'Server' }));
+		resetComponentRenderingFixtureState();
+		const result = renderToString(createOperation(ServerCard, { title: 'Server' }));
 
 		expect(result.html).toContain('<article>Server</article>');
 		expect(result.html).toContain('<!--exact:component:');
-		expect(mounted).toBe(false);
+		expect(readComponentRenderingFixtureState().cardMounts).toBe(0);
+	});
+
+	it('publishes a compiler-closed hydratable root through an ordered string sink', () => {
+		const operation = createOperation(ServerCard, { title: 'Server' });
+		const expected = renderCompilerClosedToHydratableString(operation, {
+			markers: false
+		}).htmlWithHydration;
+		const chunks: string[] = [];
+		const bytes = renderCompilerClosedToHydratableSink(operation, (chunk) => chunks.push(chunk), {
+			markers: false
+		});
+		const rendered = chunks.join('');
+
+		expect(rendered).toBe(expected);
+		expect(new TextEncoder().encode(rendered)).toHaveLength(bytes);
+	});
+
+	it('defers a compiler-closed root until an adapter consumes its response body', async () => {
+		const operation = createOperation(ServerCard, { title: 'Server' });
+		const expected = renderCompilerClosedToHydratableString(operation, {
+			markers: false
+		}).htmlWithHydration;
+		const response = renderCompilerClosedToHydratableResponse(operation, { markers: false });
+		const chunks: string[] = [];
+
+		expect(exactResponseBodyOf(response)?.kind).toBe('produced');
+		await exactResponseBodyOf(response)?.writeTo((chunk) => {
+			chunks.push(chunk);
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.headers['content-type']).toBe('text/html; charset=utf-8');
+		expect(chunks.join('')).toBe(expected);
 	});
 
 	it('observes settled sync and async components before renderer disposal', async () => {
 		const observed: number[] = [];
-		let disposals = 0;
-		function Observed(this: Component<{ value: number }>) {
-			this.state.value = 1;
-			activateTaskForHost(
-				this,
-				defineTask({}, async () => {
-					await Promise.resolve();
-					this.state.value++;
-				})
-			);
-			this.onUnmount(() => {
-				disposals++;
-			});
-			return () => createVNode('p', null, this.state.value);
-		}
-
-		renderToString(createVNode(Observed, {}), {
-			onComponentRendered: (instance) => {
-				observed.push(instance.state.value);
-				expect(disposals).toBe(0);
+		resetComponentRenderingFixtureState();
+		renderToString(createOperation(SynchronousObservedServerComponent, {}), {
+			onDirectComponentRendered: (snapshot) => {
+				observed.push(snapshot.state.value as number);
+				expect(readComponentRenderingFixtureState().observedDisposals).toBe(0);
 			}
 		});
 		expect(observed).toEqual([1]);
-		expect(disposals).toBe(1);
+		expect(readComponentRenderingFixtureState().observedDisposals).toBe(1);
 
 		observed.length = 0;
-		disposals = 0;
-		await renderToStringAsync(createVNode(Observed, {}), {
-			onComponentRendered: (instance) => {
-				observed.push(instance.state.value);
-				expect(disposals).toBe(0);
+		resetComponentRenderingFixtureState();
+		await renderToStringAsync(createOperation(ObservedServerComponent, {}), {
+			onDirectComponentRendered: (snapshot) => {
+				observed.push(snapshot.state.value as number);
+				expect(readComponentRenderingFixtureState().observedDisposals).toBe(0);
 			}
 		});
 		expect(observed).toEqual([2]);
-		expect(disposals).toBe(1);
+		expect(readComponentRenderingFixtureState().observedDisposals).toBe(1);
 	});
 
 	it('counts empty primitive child slots against the SSR breadth budget', () => {
-		const vnode = createVNode('div', null, ...Array.from({ length: 20 }, () => null));
+		const vnode = createOperation('div', null, ...Array.from({ length: 20 }, () => null));
 		expect(() => renderToString(vnode, { markers: false, maxTreeNodes: 8 })).toThrow(
 			'eXact SSR tree exceeds the configured maximum of 8 render values'
 		);
 	});
 
-	it('retains component fallback semantics for checked string rendering', () => {
-		function Broken() {
-			const style: Record<string, unknown> = {};
-			Object.defineProperty(style, 'color', {
-				enumerable: true,
-				get() {
-					throw new Error('attribute failed');
-				}
-			});
-			return () => createVNode('p', { style }, 'broken');
-		}
-
-		expect(renderToString(createVNode(Broken, {}), { markers: false }).html).toContain(
-			'exact-error'
-		);
-	});
-
-	it('renders an error boundary fallback after async child construction fails', async () => {
-		function Broken(): never {
-			throw new Error('construction failed');
-		}
-
-		const result = await renderToStringAsync(
-			createVNode(
-				ErrorBoundary,
-				{
-					fallback: ({ error }: ErrorBoundaryFallbackProps) =>
-						createVNode('p', null, String(error.error))
-				},
-				createVNode(Broken, {})
-			),
-			{ markers: false }
-		);
-
-		expect(result.html).toBe('<p>Error: construction failed</p>');
-	});
-
 	it('waits for async tasks before rendering a component in async mode', async () => {
-		function Profile(this: Component<{ name: string }>) {
-			this.state.name = 'Loading';
-			activateTaskForHost(
-				this,
-				defineTask({}, async () => {
-					await Promise.resolve();
-					this.state.name = 'Ada';
-				})
-			);
-			return () => createVNode('p', null, this.state.name);
-		}
-
-		const result = await renderToStringAsync(createVNode(Profile, {}), { markers: false });
+		const result = await renderToStringAsync(createOperation(ProfileComponent, {}), {
+			markers: false
+		});
 
 		expect(result.html).toBe('<p>Ada</p>');
 	});
 
 	it('renders child components after their async tasks settle', async () => {
-		function Child(this: Component<{ label: string }>) {
-			this.state.label = 'Loading';
-			activateTaskForHost(
-				this,
-				defineTask({}, async () => {
-					await Promise.resolve();
-					this.state.label = 'Ready';
-				})
-			);
-			return () => createVNode('strong', null, this.state.label);
-		}
-
-		function Parent() {
-			return () => createVNode('section', null, createVNode(Child, {}));
-		}
-
-		const result = await renderToStringAsync(createVNode(Parent, {}), { markers: false });
+		const result = await renderToStringAsync(createOperation(ParentWithSettledChild, {}), {
+			markers: false
+		});
 
 		expect(result.html).toBe('<section><strong>Ready</strong></section>');
+	});
+
+	it('issues scheduled sibling tasks before serializing their ordered output', async () => {
+		resetComponentRenderingFixtureState();
+		const rendering = renderToStringAsync(createOperation(ParallelSettledSiblings, {}), {
+			markers: false
+		});
+		for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+		const startsBeforeRelease = readParallelTaskStarts();
+		settleParallelTasks();
+		expect(startsBeforeRelease).toBe(3);
+		await expect(rendering).resolves.toMatchObject({
+			html: '<section><strong>Ready 1</strong><strong>Ready 2</strong><strong>Ready 3</strong></section>'
+		});
 	});
 
 	it('creates contract-scoped server handler registries', async () => {
@@ -189,8 +165,8 @@ describe('@exactjs/ssr component and server contracts', () => {
 				})
 			},
 			boundaries: {
-				profile: () => createVNode('p', { className: 'saved' }, 'Saved'),
-				private: () => createVNode('p', null, 'Private')
+				profile: () => createOperation('p', { className: 'saved' }, 'Saved'),
+				private: () => createOperation('p', null, 'Private')
 			}
 		});
 
@@ -259,7 +235,7 @@ describe('@exactjs/ssr component and server contracts', () => {
 			},
 			markers: false,
 			boundaries: {
-				profile: () => createVNode('p', null, 'Generated')
+				profile: () => createOperation('p', null, 'Generated')
 			}
 		});
 

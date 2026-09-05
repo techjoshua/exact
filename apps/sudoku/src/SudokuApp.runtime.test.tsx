@@ -3,10 +3,12 @@
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
-import { TimeProvider } from '@exactjs/time';
 import { createManualTimeClock } from '@exactjs/time/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SudokuApp } from './SudokuApp.jsx';
+import {
+	createSudokuAppOperation,
+	createTimedSudokuAppOperation
+} from './SudokuApp.runtime.fixtures.jsx';
 import { createCells } from './game-engine.js';
 import { puzzles } from './puzzles.js';
 import { createSavedGame, storageKey } from './storage.js';
@@ -20,7 +22,7 @@ describe('SudokuApp runtime', () => {
 		const errors: unknown[] = [];
 
 		try {
-			render(<SudokuApp />, container, {
+			render(createSudokuAppOperation(), container, {
 				onErrorReport(report) {
 					errors.push(report.error);
 				}
@@ -38,7 +40,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(<SudokuApp />, container);
+			render(createSudokuAppOperation(), container);
 			const trigger = container.querySelector<HTMLButtonElement>('.theme-trigger');
 			expect(trigger).toBeTruthy();
 			expect(container.querySelector('.theme-menu')).toBeNull();
@@ -58,7 +60,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(<SudokuApp />, container);
+			render(createSudokuAppOperation(), container);
 			const selectedCell = container.querySelector<HTMLButtonElement>(
 				'[role="gridcell"][aria-selected="true"]'
 			);
@@ -77,7 +79,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(<SudokuApp />, container);
+			render(createSudokuAppOperation(), container);
 			const one = container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!;
 			one.click();
 			one.click();
@@ -99,7 +101,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(<SudokuApp />, container);
+			render(createSudokuAppOperation(), container);
 			const one = container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!;
 			expect(container.querySelectorAll('[role="gridcell"][aria-selected="true"]')).toHaveLength(1);
 
@@ -121,7 +123,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(<SudokuApp />, container);
+			render(createSudokuAppOperation(), container);
 			const one = container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!;
 			const editableCell = container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]')[2]!;
 
@@ -141,7 +143,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(<SudokuApp />, container);
+			render(createSudokuAppOperation(), container);
 			container.querySelectorAll<HTMLButtonElement>('.number-key')[0]!.click();
 			const cell = container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]')[2]!;
 			const valueLayer = cell.querySelector('.cell-value');
@@ -179,7 +181,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(<SudokuApp />, container);
+			render(createSudokuAppOperation(), container);
 			const cells = container.querySelectorAll<HTMLButtonElement>('[role="gridcell"]');
 			container.querySelectorAll<HTMLButtonElement>('.number-key')[4]!.click();
 			cells[2]!.click();
@@ -212,12 +214,7 @@ describe('SudokuApp runtime', () => {
 		);
 
 		try {
-			render(
-				<TimeProvider clock={clock}>
-					<SudokuApp />
-				</TimeProvider>,
-				container
-			);
+			render(createTimedSudokuAppOperation(clock), container);
 			await Promise.resolve();
 			await Promise.resolve();
 			await vi.advanceTimersByTimeAsync(1_000);
@@ -275,12 +272,7 @@ describe('SudokuApp runtime', () => {
 		const container = document.createElement('div');
 
 		try {
-			render(
-				<TimeProvider clock={clock}>
-					<SudokuApp />
-				</TimeProvider>,
-				container
-			);
+			render(createTimedSudokuAppOperation(clock), container);
 			await Promise.resolve();
 			const ownedTimerCount = clock.pendingTimerCount;
 			expect(ownedTimerCount).toBeGreaterThan(0);
@@ -332,7 +324,7 @@ describe('SudokuApp runtime', () => {
 		inspection.attach('session', { publish: (event) => events.push(event) });
 
 		try {
-			render(<SudokuApp />, container, { inspection });
+			render(createSudokuAppOperation(), container, { inspection });
 			await Promise.resolve();
 			await Promise.resolve();
 			events.length = 0;

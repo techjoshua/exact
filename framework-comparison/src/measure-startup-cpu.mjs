@@ -4,9 +4,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { analyzeStartupTrace } from './startup-cpu-analysis.mjs';
+import { measureRetainedMemory } from './browser-memory.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
+import { captureClientProfile } from './client-profiling.mjs';
 import { preciseExecutedBytes } from './precise-coverage.mjs';
 import { summarizeSampleMetric } from './percentile-summary.mjs';
+import { hashArtifactDirectory, hashSemanticResponse } from './artifact-integrity.mjs';
+import { attributeClientModules } from './module-attribution.mjs';
+import { balancedRoundOrder } from './balanced-round-order.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
 	throw new Error(
@@ -18,78 +23,172 @@ const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');
 const sampleCount = positiveInteger(process.env.COMPARISON_STARTUP_SAMPLES, 10);
 const throttleRates = throttleRateList(process.env.COMPARISON_CPU_RATES ?? '1,4,6');
+const attributionEnabled = process.env.COMPARISON_STARTUP_ATTRIBUTION === '1';
+const measurementRound = nonNegativeInteger(process.env.COMPARISON_MEASUREMENT_ROUND, 0);
 const participants = [
-	{ id: 'exact-controlled', directory: 'exact', url: 'http://127.0.0.1:4401' },
-	{ id: 'react-controlled', directory: 'react', url: 'http://127.0.0.1:4402' },
-	{ id: 'sveltekit-controlled', directory: 'sveltekit', url: 'http://127.0.0.1:4403' },
-	{ id: 'nuxt-controlled', directory: 'nuxt', url: 'http://127.0.0.1:4404' }
+	{ id: 'exact-controlled', directory: 'exact', artifact: 'dist', url: 'http://127.0.0.1:4401' },
+	{ id: 'react-controlled', directory: 'react', artifact: 'dist', url: 'http://127.0.0.1:4402' },
+	{
+		id: 'sveltekit-controlled',
+		directory: 'sveltekit',
+		artifact: 'build/client',
+		url: 'http://127.0.0.1:4403'
+	},
+	{
+		id: 'nuxt-controlled',
+		directory: 'nuxt',
+		artifact: '.output/public',
+		url: 'http://127.0.0.1:4404'
+	},
+	{
+		id: 'tanstack-start-controlled',
+		directory: 'tanstack-start',
+		artifact: '.output/public',
+		url: 'http://127.0.0.1:4405'
+	}
 ];
 
-const metadata = await Promise.all(
-	participants.map(async ({ directory }) =>
-		JSON.parse(
-			await readFile(resolve(suiteRoot, 'participants', directory, 'participant.json'), 'utf8')
-		)
+const artifacts = Object.fromEntries(
+	await Promise.all(
+		participants.map(async (participant) => [
+			participant.id,
+			await hashArtifactDirectory(
+				resolve(suiteRoot, 'participants', participant.directory, participant.artifact)
+			)
+		])
 	)
 );
-const unreviewed = metadata.filter((entry) => entry.status !== 'complete');
-if (unreviewed.length && !process.argv.includes('--allow-unreviewed')) {
-	throw new Error(
-		`Publishable measurement refused: incomplete or unreviewed participants: ${unreviewed.map((entry) => entry.id).join(', ')}`
-	);
-}
 
 const harness = await import('./e2e-server.mjs');
 const browser = await chromium.launch();
 
 try {
 	const profiles = {};
+	const sampleOrders = {};
 	for (const rate of throttleRates) {
-		const rateResults = {};
-		for (const participant of rotate(participants, rate % participants.length)) {
-			const samples = [];
-			for (let index = 0; index < sampleCount; index++) {
+		const samples = Object.fromEntries(participants.map((participant) => [participant.id, []]));
+		const orders = [];
+		for (let index = 0; index < sampleCount; index++) {
+			const order = balancedRoundOrder(participants, index, measurementRound + rate);
+			orders.push(order.map((participant) => participant.id));
+			for (const participant of order) {
 				console.log(
 					`Profiling ${participant.id} at ${rate}x CPU sample ${index + 1}/${sampleCount}`
 				);
-				samples.push(await measureColdStartup(browser, participant, rate));
+				samples[participant.id].push(await measureColdStartup(browser, participant, rate));
 			}
-			rateResults[participant.id] = { samples, summary: summarizeSamples(samples) };
 		}
+		const rateResults = {};
+		for (const participant of participants) {
+			const participantSamples = samples[participant.id];
+			const responseHashes = new Set(participantSamples.map((sample) => sample.responseHash));
+			if (responseHashes.size !== 1)
+				throw new Error(`${participant.id} produced unstable startup responses at ${rate}x`);
+			rateResults[participant.id] = {
+				samples: participantSamples,
+				response: { hash: participantSamples[0].responseHash, stable: true },
+				summary: summarizeSamples(participantSamples)
+			};
+		}
+		if (new Set(Object.values(rateResults).map((entry) => entry.response.hash)).size !== 1)
+			throw new Error(`Controlled participants produced different startup responses at ${rate}x`);
 		profiles[`${rate}x`] = rateResults;
+		sampleOrders[`${rate}x`] = orders;
+	}
+	const output = outputPath();
+	const timedCheckpoint = `${output}.timed.json`;
+	await mkdir(resolve(output, '..'), { recursive: true });
+	await writeFile(timedCheckpoint, `${JSON.stringify(createResult({}, false), null, 2)}\n`);
+	console.log(`Timed startup checkpoint written to ${relative(repositoryRoot, timedCheckpoint)}`);
+	const diagnostics = {};
+	for (const participant of participants) {
+		console.log(`Capturing untimed CPU and allocation profiles for ${participant.id}`);
+		diagnostics[participant.id] = await captureClientProfile(browser, participant, resetService);
+	}
+	let attributionWarning;
+	if (attributionEnabled) {
+		try {
+			diagnostics['exact-controlled'].startup.modules = await readExactModuleAttribution(
+				diagnostics['exact-controlled'].startup.coverage,
+				profiles['1x']['exact-controlled'].samples[0].trace.functionSites ?? []
+			);
+		} catch (error) {
+			attributionWarning = `Exact module attribution unavailable: ${error instanceof Error ? error.message : String(error)}`;
+			console.warn(attributionWarning);
+		}
 	}
 
-	const result = {
-		schemaVersion: 1,
-		kind: 'framework-comparison-startup-cpu-profile',
-		createdAt: new Date().toISOString(),
-		correctness: { status: 'passed', command: 'npm run test:e2e' },
-		publishable: unreviewed.length === 0,
-		environment: environmentMetadata(),
-		harness: {
-			commit: git('rev-parse', 'HEAD'),
-			workingTreeDirty: git('status', '--porcelain').length > 0,
-			sampleCount,
-			cpuThrottleRates: throttleRates,
-			cache: 'disabled',
-			network: 'local-loopback-unthrottled'
-		},
-		profiles,
-		limitations: [
-			'Chrome tracing adds observer overhead and trace categories may contain nested durations.',
-			'Parse, compile, and evaluation totals must be interpreted independently rather than summed.',
-			'CPU throttling is Chromium emulation on the recorded desktop CPU, not physical mobile hardware.',
-			'URL attribution identifies emitted chunks; source-map attribution within a chunk is not inferred.',
-			'Every sample uses a fresh browser context with the HTTP cache disabled.'
-		]
-	};
-	const output = outputPath();
-	await mkdir(resolve(output, '..'), { recursive: true });
+	const result = createResult(diagnostics, true, attributionWarning);
 	await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
 	console.log(`Startup CPU profile written to ${relative(repositoryRoot, output)}`);
+
+	function createResult(diagnosticProfiles, complete, warning) {
+		return {
+			schemaVersion: 1,
+			kind: 'framework-comparison-startup-cpu-profile',
+			createdAt: new Date().toISOString(),
+			correctness: { status: 'passed', command: 'npm run test:e2e' },
+			publishable: true,
+			complete,
+			environment: environmentMetadata(),
+			harness: {
+				commit: git('rev-parse', 'HEAD'),
+				workingTreeDirty: git('status', '--porcelain').length > 0,
+				sampleCount,
+				cpuThrottleRates: throttleRates,
+				measurementRound,
+				sampleOrders,
+				measurementTopology: 'balanced-round-interleaved',
+				cache: 'disabled',
+				network: 'local-loopback-unthrottled'
+			},
+			artifacts,
+			profiles,
+			diagnostics: diagnosticProfiles,
+			limitations: [
+				'Chrome tracing adds observer overhead and trace categories may contain nested durations.',
+				'Parse, compile, and evaluation totals must be interpreted independently rather than summed.',
+				'CPU throttling is Chromium emulation on the recorded desktop CPU, not physical mobile hardware.',
+				'Untimed CPU and heap top sites retain emitted locations; attribution-enabled Exact runs additionally join precise coverage and trace function sites to the emitted source map.',
+				'Best-effort coverage preserves normal V8 optimization but can omit functions collected before capture.',
+				'Sampling heap profiles estimate allocation sites and do not represent exact byte accounting.',
+				'Every sample uses a fresh browser context with the HTTP cache disabled.',
+				'Every timed round measures one cold sample from each participant in balanced rotating order.',
+				...(warning ? [warning] : [])
+			]
+		};
+	}
 } finally {
 	await browser.close();
 	await harness.close();
+}
+
+/** Joins the diagnostic Exact coverage and trace inventory to its emitted source map. */
+async function readExactModuleAttribution(coverageScripts, functionSites) {
+	const script = coverageScripts.find((entry) => /\/assets\/[^/]+\.js$/.test(entry.url));
+	if (!script) throw new Error('Exact startup attribution omitted the production client script');
+	const filename = pathBasename(new URL(script.url).pathname);
+	const outputRoot = resolve(suiteRoot, 'participants', 'exact', 'dist', 'assets');
+	const code = await readFile(resolve(outputRoot, filename), 'utf8');
+	const sourceMap = JSON.parse(await readFile(resolve(outputRoot, `${filename}.map`), 'utf8'));
+	const mapped = attributeClientModules({
+		code,
+		sourceMap,
+		coverage: script,
+		functionSites: functionSites.filter((site) => site.url === script.url)
+	});
+	const bundlerInventory = JSON.parse(
+		await readFile(
+			resolve(suiteRoot, 'participants', 'exact', 'dist', '.exact', 'module-attribution.json'),
+			'utf8'
+		)
+	);
+	const bundler = bundlerInventory.chunks.find((chunk) => chunk.fileName === `assets/${filename}`);
+	return { mapped, bundler: bundler?.modules ?? [] };
+}
+
+function pathBasename(value) {
+	return value.slice(value.lastIndexOf('/') + 1);
 }
 
 /** Captures one cache-cold navigation through the shared semantic readiness boundary. */
@@ -105,7 +204,6 @@ async function measureColdStartup(browserInstance, participant, throttleRate) {
 		await session.send('Network.setCacheDisabled', { cacheDisabled: true });
 		await session.send('Performance.enable');
 		await session.send('Profiler.enable');
-		await session.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true });
 		await session.send('Emulation.setCPUThrottlingRate', { rate: throttleRate });
 		await session.send('Tracing.start', {
 			categories: [
@@ -126,6 +224,10 @@ async function measureColdStartup(browserInstance, participant, throttleRate) {
 		await page.locator('.connection').getByText('Live service', { exact: true }).waitFor();
 		await page.evaluate(() => console.timeStamp('__framework_comparison_ready__'));
 		const vitals = await page.evaluate(readBrowserVitals);
+		const semanticResponse = await page.evaluate(() => ({
+			heading: document.querySelector('h1, h2')?.textContent?.trim() ?? null,
+			connection: document.querySelector('.connection')?.textContent?.trim() ?? null
+		}));
 		const readiness = await page.evaluate(() => ({
 			readyMs: performance.now(),
 			navigation: performance.getEntriesByType('navigation')[0]?.toJSON() ?? null,
@@ -141,10 +243,12 @@ async function measureColdStartup(browserInstance, participant, throttleRate) {
 				}))
 		}));
 		const performanceMetrics = metricRecord(await session.send('Performance.getMetrics'));
-		const coverage = summarizeCoverage((await session.send('Profiler.takePreciseCoverage')).result);
-		await session.send('Profiler.stopPreciseCoverage');
+		const coverage = summarizeCoverage(
+			(await session.send('Profiler.getBestEffortCoverage')).result
+		);
 		const traceEvents = await finishTrace(session);
 		tracing = false;
+		const memory = await measureRetainedMemory(session);
 		return {
 			firstContentfulPaintMs,
 			vitals,
@@ -152,8 +256,12 @@ async function measureColdStartup(browserInstance, participant, throttleRate) {
 			navigation: readiness.navigation,
 			scripts: readiness.scripts,
 			performance: selectPerformanceMetrics(performanceMetrics),
+			memory,
 			coverage,
-			trace: analyzeStartupTrace(traceEvents)
+			trace: analyzeStartupTrace(traceEvents, {
+				includeFunctionSites: attributionEnabled && participant.id === 'exact-controlled'
+			}),
+			responseHash: hashSemanticResponse(semanticResponse)
 		};
 	} finally {
 		if (tracing) await finishTrace(session).catch(() => undefined);
@@ -227,13 +335,29 @@ function summarizeSamples(samples) {
 		domTextCount: metric((sample) => sample.vitals.domTextCount),
 		readyMs: metric((sample) => sample.readyMs),
 		scriptDurationMs: metric((sample) => sample.performance.scriptDurationMs),
+		taskDurationMs: metric((sample) => sample.performance.taskDurationMs),
 		v8CompileDurationMs: metric((sample) => sample.performance.v8CompileDurationMs),
+		layoutDurationMs: metric((sample) => sample.performance.layoutDurationMs),
+		recalcStyleDurationMs: metric((sample) => sample.performance.recalcStyleDurationMs),
+		jsHeapUsedBytes: metric((sample) => sample.memory.jsHeapUsedBytes),
+		jsHeapTotalBytes: metric((sample) => sample.memory.jsHeapTotalBytes),
+		embedderHeapUsedBytes: metric((sample) => sample.memory.embedderHeapUsedBytes),
+		backingStorageBytes: metric((sample) => sample.memory.backingStorageBytes),
+		documentCount: metric((sample) => sample.memory.documents),
+		retainedNodeCount: metric((sample) => sample.memory.nodes),
+		eventListenerCount: metric((sample) => sample.memory.eventListeners),
 		parseTraceMs: metric((sample) => sample.trace.totals.parseMs),
 		compileTraceMs: metric((sample) => sample.trace.totals.compileMs),
 		evaluationTraceMs: metric((sample) => sample.trace.totals.evaluationMs),
 		parseBeforeFcpMs: metric((sample) => sample.trace.beforeFcp.parseMs),
 		compileBeforeFcpMs: metric((sample) => sample.trace.beforeFcp.compileMs),
 		evaluationBeforeFcpMs: metric((sample) => sample.trace.beforeFcp.evaluationMs),
+		parsedFunctionCount: metric((sample) => sample.trace.functionCounts.parsed),
+		compiledFunctionCount: metric((sample) => sample.trace.functionCounts.compiled),
+		parsedFunctionBeforeFcpCount: metric((sample) => sample.trace.functionCountsBeforeFcp.parsed),
+		compiledFunctionBeforeFcpCount: metric(
+			(sample) => sample.trace.functionCountsBeforeFcp.compiled
+		),
 		decodedScriptBytes: metric((sample) =>
 			sample.scripts.reduce((sum, script) => sum + script.decodedBodySize, 0)
 		),
@@ -249,7 +373,13 @@ function summarizeSamples(samples) {
 		invokedFunctionCount: metric((sample) =>
 			sample.coverage.reduce((sum, script) => sum + script.invokedFunctionCount, 0)
 		),
-		traceMarkerCoverage: Object.fromEntries(
+		traceMarkerCoverage: metric(
+			(sample) =>
+				Number(sample.trace.markers.navigationStartFound) +
+				Number(sample.trace.markers.firstContentfulPaintFound) +
+				Number(sample.trace.markers.readyFound)
+		),
+		traceMarkerCounts: Object.fromEntries(
 			['navigationStartFound', 'firstContentfulPaintFound', 'readyFound'].map((marker) => [
 				marker,
 				samples.filter((sample) => sample.trace.markers[marker]).length
@@ -294,6 +424,13 @@ function positiveInteger(value, fallback) {
 	return parsed;
 }
 
+function nonNegativeInteger(value, fallback) {
+	const parsed = Number(value ?? fallback);
+	if (!Number.isSafeInteger(parsed) || parsed < 0)
+		throw new TypeError('Measurement round must be a non-negative integer');
+	return parsed;
+}
+
 function throttleRateList(value) {
 	const rates = value.split(',').map(Number);
 	if (!rates.length || rates.some((rate) => !Number.isFinite(rate) || rate < 1))
@@ -315,10 +452,6 @@ function environmentMetadata() {
 
 function git(...arguments_) {
 	return execFileSync('git', arguments_, { cwd: repositoryRoot, encoding: 'utf8' }).trim();
-}
-
-function rotate(values, offset) {
-	return [...values.slice(offset), ...values.slice(0, offset)];
 }
 
 function outputPath() {

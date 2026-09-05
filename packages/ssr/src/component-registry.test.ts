@@ -1,31 +1,36 @@
-import { Suspense, type Component } from '@exactjs/core';
+import { Suspense } from '@exactjs/core';
 import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { readExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderToString, renderToStringAsync } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
-
-function Eager(this: Component<Record<string, never>>, props: { label: string }) {
-	return () => createVNode('p', null, `eager:${props.label}`);
-}
-
-function Lazy(this: Component<Record<string, never>>, props: { label: string }) {
-	return () => createVNode('p', null, `lazy:${props.label}`);
-}
-
-createExactFrameworkFixtureArtifact(Eager, '@exactjs/ssr:test:Eager');
-createExactFrameworkFixtureArtifact(Lazy, '@exactjs/ssr:test:Lazy');
+import { createOperation } from './test-support/native-operations.js';
+import {
+	EagerRegistryComponent as Eager,
+	LazyRegistryComponent as Lazy
+} from './component-registry.fixtures.test.js';
 
 describe('@exactjs/ssr component registries', () => {
 	it('renders eager registry members through their stable selection facade', () => {
+		let direct = 0;
+		let generic = 0;
 		const View = createCompiledComponentRegistry('test:ssr:eager', 'EagerView', 'server', () => ({
 			eager: Eager
 		}));
-		const output = renderToString(createVNode(View.eager, { label: 'ready' }));
+		const selectedArtifact = readExactServerExecutableComponentContract(Eager).artifact;
+		const registryArtifact = readExactServerExecutableComponentContract(View.eager).artifact;
+		expect(registryArtifact.execution).toEqual(selectedArtifact.execution);
+		expect(registryArtifact.instantiate).toBe(selectedArtifact.instantiate);
+		expect(registryArtifact.id).toBe('test:ssr:eager:eager');
+		const output = renderToString(createOperation(View.eager, { label: 'ready' }), {
+			onDirectComponentCreated: () => direct++,
+			onComponentCreated: () => generic++
+		});
 
-		expect(output.html).toContain('eager:ready');
+		expect(output.html).toMatch(/eager:.*ready/u);
 		expect(output.html).toContain('exact:component');
+		expect(direct).toBe(1);
+		expect(generic).toBe(0);
 	});
 
 	it('loads a lazy selected server entry through Suspense readiness', async () => {
@@ -39,15 +44,22 @@ describe('@exactjs/ssr component registries', () => {
 			})
 		);
 		const output = await renderToStringAsync(
-			createVNode(
+			createOperation(
 				Suspense,
-				{ fallback: createVNode('p', null, 'loading') },
-				createVNode(View.lazy, { label: 'ready' })
+				{ fallback: createOperation('p', null, 'loading') },
+				createOperation(View.lazy, { label: 'ready' })
 			)
 		);
+		const artifact = readExactServerExecutableComponentContract(View.lazy).artifact;
 
-		expect(output.html).toContain('lazy:ready');
+		expect(output.html).toMatch(/lazy:.*ready/u);
 		expect(output.html).not.toContain('loading');
 		expect(load).toHaveBeenCalledTimes(1);
+		expect(artifact.execution).toEqual({
+			version: 1,
+			classification: 'synchronous',
+			lane: 'direct'
+		});
+		expect(artifact.selection?.key).toBe('lazy');
 	});
 });

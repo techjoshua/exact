@@ -83,7 +83,10 @@ function closeNativeProcess(): void {
 	Atomics.store(header, 0, stateClosed);
 	Atomics.notify(header, 0);
 	try {
-		if (child.stdin.writable) child.stdin.write(`${JSON.stringify({ kind: 'shutdown' })}\n`);
+		// Closing the worker and immediately terminating its owned child cannot also promise that an
+		// asynchronous shutdown frame will flush. Destroy stdin first so a child that has already
+		// exited cannot surface an unhandled EPIPE while the development server is closing.
+		child.stdin.destroy();
 	} finally {
 		stopLines();
 		child.kill();

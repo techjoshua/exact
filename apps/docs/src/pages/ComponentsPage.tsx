@@ -154,6 +154,14 @@ export function ComponentsPage(this: Component<{}>) {
 					declarations, scheduling, and known DOM or storage effects belong in the component body, a
 					task, or an interaction callback according to their documented semantics.
 				</p>
+				<p>
+					A module-level PascalCase function that directly returns its view function is compiled as
+					a component even when that view only forwards <code>props.children</code> and contains no
+					JSX of its own. Transparent providers and enhancements therefore receive the same stable
+					artifact and ownership rules as visibly rendered components. Their existing component
+					boundary also owns child updates, so forwarding does not add a second wrapper element or
+					dynamic marker range.
+				</p>
 			</section>
 			<section>
 				<h2>Lexical micro-components</h2>
@@ -267,9 +275,11 @@ export function ComponentsPage(this: Component<{}>) {
 					initialization-derived value; the compiler observes its dependencies while the returned
 					view stays one expression. When the choice comes from a reusable named collection, declare
 					its complete key set with
-					<code>createComponentRegistry()</code>. A valid open-ended lookup becomes a warned,
-					client-only dynamic boundary because it cannot join the static client/server graph. Use it
-					only intentionally with <code>createDynamicComponent()</code> or a narrow
+					<code>createComponentRegistry()</code>. Eager entries follow ordinary function-declaration
+					hoisting, so the module-level component may be declared later in the same file. A valid
+					open-ended lookup becomes a warned, client-only dynamic boundary because it cannot join
+					the static client/server graph. Use it only intentionally with{' '}
+					<code>createDynamicComponent()</code> or a narrow
 					<code>@exact dynamic</code> annotation. Invalid component values remain errors.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/component-registries">
@@ -332,8 +342,9 @@ export function ComponentsPage(this: Component<{}>) {
 					</p>
 					<code>this.onMount()</code>
 					<p>
-						Registers client-mounted work with an abort signal; the server artifact does not
-						evaluate its handler.
+						Registers client-mounted work with an abort signal. It runs after the component&apos;s
+						DOM range is placed, so refs and layout are available; the server artifact does not
+						evaluate the handler.
 					</p>
 					<code>this.onUnmount()</code>
 					<p>Registers teardown or final bookkeeping.</p>

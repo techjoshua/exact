@@ -6,6 +6,11 @@ import {
 } from '@exactjs/server';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
+/** Node-owned immutable encoding capabilities used while consuming produced response bodies. */
+const nodeSynchronousResponseEnvironment = Object.freeze({
+	encodedByteLength: (value: string) => Buffer.byteLength(value)
+});
+
 /** Creates a Node http.createServer-compatible eXact endpoint handler. */
 export function createExactNodeHandler(
 	context: ExactServerContext
@@ -104,7 +109,29 @@ export async function writeNodeResponse(
 ): Promise<void> {
 	response.statusCode = result.status;
 	for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
-	if (!exactResponseBodyOf(result) && !result.stream) {
+	const body = exactResponseBodyOf(result);
+	if (body?.kind === 'produced' && body.writeSynchronously) {
+		try {
+			const collected = collectProducedBody(body, signal);
+			const output = typeof collected === 'string' ? collected : await collected;
+			throwIfAborted(signal);
+			response.end(output);
+		} catch (error) {
+			try {
+				await body.cancel(error);
+			} catch {
+				/* preserve the production or request-scope failure */
+			}
+			if (!response.headersSent) {
+				for (const name of response.getHeaderNames()) response.removeHeader(name);
+				response.statusCode = 500;
+				response.setHeader('content-type', 'application/json; charset=utf-8');
+				response.end(JSON.stringify({ error: 'internal_error' }));
+			} else if (!response.destroyed) response.destroy(error as Error);
+		}
+		return;
+	}
+	if (!body && !result.stream) {
 		throwIfAborted(signal);
 		response.end(result.body ?? '');
 		return;
@@ -115,7 +142,12 @@ export async function writeNodeResponse(
 		response.end();
 	} catch (error) {
 		await cancelNodeResponseBody(result, error);
-		if (!response.destroyed) response.destroy(error as Error);
+		if (body?.kind === 'produced' && !response.headersSent) {
+			for (const name of response.getHeaderNames()) response.removeHeader(name);
+			response.statusCode = 500;
+			response.setHeader('content-type', 'application/json; charset=utf-8');
+			response.end(JSON.stringify({ error: 'internal_error' }));
+		} else if (!response.destroyed) response.destroy(error as Error);
 	}
 }
 
@@ -127,6 +159,13 @@ export async function writeNodeResponseBody(
 ): Promise<void> {
 	const body = exactResponseBodyOf(result);
 	if (body) {
+		if (body.kind === 'produced' && body.writeSynchronously) {
+			const collected = collectProducedBody(body, signal);
+			const output = typeof collected === 'string' ? collected : await collected;
+			throwIfAborted(signal);
+			if (!response.write(output)) await waitForDrain(response, signal);
+			return;
+		}
 		await body.writeTo((chunk) => {
 			throwIfAborted(signal);
 			if (!response.write(chunk)) return waitForDrain(response, signal);
@@ -139,6 +178,18 @@ export async function writeNodeResponseBody(
 	}
 	throwIfAborted(signal);
 	response.write(result.body ?? '');
+}
+
+function collectProducedBody(
+	body: NonNullable<ReturnType<typeof exactResponseBodyOf>>,
+	signal?: AbortSignal
+): string | Promise<string> {
+	let output = '';
+	const completion = body.writeSynchronously!((chunk) => {
+		throwIfAborted(signal);
+		output += chunk;
+	}, nodeSynchronousResponseEnvironment);
+	return completion ? completion.then(() => output) : output;
 }
 
 /** Cancels an unconsumed eXact response body without forcing lazy stream construction. */

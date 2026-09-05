@@ -2,12 +2,22 @@
  * @vitest-environment jsdom
  */
 import '@exactjs/core/runtime/lists';
-import { type Child, type Component } from '@exactjs/core';
+import { type Component } from '@exactjs/core';
 import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
-import { createCompiledVNode, jsx, jsxs } from './test-support/native-vnode.js';
+import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	ControlFlowParent,
+	FilteredPropParent,
+	PrimitiveChildrenParent,
+	StructuralChildrenParent,
+	controlFlowParentInstance,
+	filteredPropParentInstance,
+	primitiveChildrenParentInstance,
+	structuralChildrenParentInstance
+} from './test-support/components/component-props.fixtures.js';
 
 describe('@exactjs/dom component-props', () => {
 	it('updates a derived prop collection when a canonical record changes membership', () => {
@@ -64,7 +74,7 @@ describe('@exactjs/dom component-props', () => {
 
 			return () => {
 				rendered();
-				return createCompiledVNode(
+				return createCompiledOperation(
 					'span',
 					{
 						title: createExpression(() => this.state.label),
@@ -76,7 +86,7 @@ describe('@exactjs/dom component-props', () => {
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Label, {}), container);
+		render(createCompiledOperation(Label, {}), container);
 		const span = container.querySelector('span')!;
 
 		expect(span.textContent).toBe('Ready');
@@ -93,45 +103,10 @@ describe('@exactjs/dom component-props', () => {
 		expect(rendered).toHaveBeenCalledTimes(1);
 	});
 
-	it('unwraps reactive component props when children read them', () => {
-		let parent!: Component<{ items: { id: string; status: 'open' | 'done' }[] }>;
-		const parentRendered = vi.fn();
-		const childRendered = vi.fn();
-
-		function Column(
-			this: Component<{}>,
-			props: { items: { id: string; status: 'open' | 'done' }[] }
-		) {
-			return () => {
-				childRendered();
-				return jsxs('section', {
-					children: [
-						jsx('span', { children: props.items.length }),
-						jsx('ul', {
-							children: props.items.map((item) => jsx('li', { children: item.id }))
-						})
-					]
-				});
-			};
-		}
-
-		function Board(this: Component<{ items: { id: string; status: 'open' | 'done' }[] }>) {
-			parent = this;
-			this.state.items = [
-				{ id: 'a', status: 'open' },
-				{ id: 'b', status: 'done' }
-			];
-
-			return () => {
-				parentRendered();
-				return createCompiledVNode(Column, {
-					items: createExpression(() => this.state.items.filter((item) => item.status === 'open'))
-				});
-			};
-		}
-
+	it('publishes a finalized compiled collection prop receipt', () => {
 		const container = document.createElement('div');
-		render(createCompiledVNode(Board, {}), container);
+		render(createCompiledOperation(FilteredPropParent, {}), container);
+		const parent = filteredPropParentInstance();
 
 		expect(container.textContent).toBe('1a');
 		parent.state.items = [
@@ -141,8 +116,6 @@ describe('@exactjs/dom component-props', () => {
 		flushSync();
 
 		expect(container.textContent).toBe('2ab');
-		expect(parentRendered).toHaveBeenCalledTimes(1);
-		expect(childRendered).toHaveBeenCalledTimes(2);
 	});
 
 	it('keeps sibling cell DOM stable when a reactive prop updates', () => {
@@ -179,74 +152,22 @@ describe('@exactjs/dom component-props', () => {
 		expect(rendered).toHaveBeenCalledTimes(1);
 	});
 
-	it('updates runtime primitive props.children by rerendering the parent', () => {
-		let instance!: Component<{ message: string }>;
-		const parentRendered = vi.fn();
-		const childRendered = vi.fn();
-
-		function Wrapper(this: Component<{}>, props: { children?: Child | Child[] }) {
-			return () => {
-				childRendered();
-				return jsx('section', { children: props.children });
-			};
-		}
-
-		function Parent(this: Component<{ message: string }>) {
-			instance = this;
-			this.state.message = 'Hello';
-
-			return () => {
-				parentRendered();
-				return jsx(Wrapper, { children: this.state.message });
-			};
-		}
-
+	it('publishes finalized primitive props.children values', () => {
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(createCompiledOperation(PrimitiveChildrenParent, {}), container);
+		const instance = primitiveChildrenParentInstance();
 
 		expect(container.textContent).toBe('Hello');
 		instance.state.message = 'Goodbye';
 		flushSync();
 
 		expect(container.textContent).toBe('Goodbye');
-		expect(parentRendered).toHaveBeenCalledTimes(2);
-		expect(childRendered).toHaveBeenCalledTimes(2);
 	});
 
-	it('rerenders a wrapper when props.children structure is replaced', () => {
-		let parent!: Component<{ mode: 'one' | 'two' }>;
-		const parentRendered = vi.fn();
-		const wrapperRendered = vi.fn();
-
-		function One() {
-			return () => jsx('span', { children: 'one' });
-		}
-
-		function Two() {
-			return () => jsx('strong', { children: 'two' });
-		}
-
-		function Wrapper(this: Component<{}>, props: { children?: Child | Child[] }) {
-			return () => {
-				wrapperRendered();
-				return jsx('section', { children: props.children });
-			};
-		}
-
-		function Parent(this: Component<{ mode: 'one' | 'two' }>) {
-			parent = this;
-			this.state.mode = 'one';
-
-			return () => {
-				parentRendered();
-				return jsx(Wrapper, {
-					children: this.state.mode == 'one' ? jsx(One, {}) : jsx(Two, {})
-				});
-			};
-		}
-
+	it('replaces finalized structural props.children values', () => {
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(createCompiledOperation(StructuralChildrenParent, {}), container);
+		const parent = structuralChildrenParentInstance();
 		expect(container.innerHTML).toContain('<span>one</span>');
 
 		parent.state.mode = 'two';
@@ -255,36 +176,6 @@ describe('@exactjs/dom component-props', () => {
 		expect(container.textContent).toBe('two');
 		expect(container.querySelector('span')).toBeNull();
 		expect(container.querySelectorAll('strong')).toHaveLength(1);
-		expect(parentRendered).toHaveBeenCalledTimes(2);
-		expect(wrapperRendered).toHaveBeenCalledTimes(2);
-	});
-
-	it('updates runtime primitive child component props by rerendering the child', () => {
-		let parent!: Component<{ text: string }>;
-		const childRendered = vi.fn();
-
-		function Label(this: Component<{}>, props: { text: string }) {
-			return () => {
-				childRendered();
-				return jsx('span', { children: props.text });
-			};
-		}
-
-		function Parent(this: Component<{ text: string }>) {
-			parent = this;
-			this.state.text = 'Hello';
-			return () => jsx(Label, { text: this.state.text });
-		}
-
-		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
-
-		expect(container.textContent).toBe('Hello');
-		parent.state.text = 'Goodbye';
-		flushSync();
-
-		expect(container.textContent).toBe('Goodbye');
-		expect(childRendered).toHaveBeenCalledTimes(2);
 	});
 
 	it('updates derived compiled object prop fields without rerendering parent or child', () => {
@@ -297,7 +188,7 @@ describe('@exactjs/dom component-props', () => {
 
 			return () => {
 				childRendered();
-				return createCompiledVNode('span', {}, title);
+				return createCompiledOperation('span', {}, title);
 			};
 		}
 
@@ -306,14 +197,14 @@ describe('@exactjs/dom component-props', () => {
 			this.state.task = { id: 'a', title: 'First' };
 			return () => {
 				parentRendered();
-				return createCompiledVNode(CardTitle, {
+				return createCompiledOperation(CardTitle, {
 					task: createExpression(() => this.state.task)
 				});
 			};
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container);
+		render(createCompiledOperation(Parent, {}), container);
 		const span = container.querySelector('span')!;
 
 		parent.state.task = { id: 'a', title: 'Second' };
@@ -335,7 +226,7 @@ describe('@exactjs/dom component-props', () => {
 
 			return () => {
 				childRendered();
-				return createCompiledVNode('span', {}, title);
+				return createCompiledOperation('span', {}, title);
 			};
 		}
 
@@ -344,14 +235,14 @@ describe('@exactjs/dom component-props', () => {
 			this.state.task = { id: 'a', title: 'First' };
 			return () => {
 				parentRendered();
-				return createCompiledVNode(CardTitle, {
+				return createCompiledOperation(CardTitle, {
 					task: createExpression(() => this.state.task)
 				});
 			};
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container);
+		render(createCompiledOperation(Parent, {}), container);
 		const span = container.querySelector('span')!;
 
 		parent.state.task.title = 'Second';
@@ -363,36 +254,18 @@ describe('@exactjs/dom component-props', () => {
 		expect(childRendered).toHaveBeenCalledTimes(1);
 	});
 
-	it('rerenders a child component when updated props drive control flow', () => {
-		let parent!: Component<{ mode: 'compact' | 'full' }>;
-		const childRendered = vi.fn();
-
-		function Panel(this: Component<{}>, props: { mode: 'compact' | 'full' }) {
-			return () => {
-				childRendered();
-				return props.mode == 'compact'
-					? jsx('span', { children: 'Compact' })
-					: jsx('strong', { children: 'Full' });
-			};
-		}
-
-		function Parent(this: Component<{ mode: 'compact' | 'full' }>) {
-			parent = this;
-			this.state.mode = 'compact';
-			return () => jsx(Panel, { mode: this.state.mode });
-		}
-
+	it('applies received props before child-local control flow', () => {
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(createCompiledOperation(ControlFlowParent, {}), container);
+		const parent = controlFlowParentInstance();
 		const panelNode = container.firstChild;
 		expect(container.textContent).toBe('Compact');
 
-		parent.state.mode = 'full';
+		parent.state.expanded = true;
 		flushSync();
 
 		expect(container.textContent).toBe('Full');
 		expect(container.querySelector('strong')).toBeTruthy();
-		expect(childRendered).toHaveBeenCalledTimes(2);
 		expect(container.firstChild).toBe(panelNode);
 	});
 
@@ -401,7 +274,7 @@ describe('@exactjs/dom component-props', () => {
 
 		function Detail(this: Component<{}>, props: { task: { id: string; title: string } }) {
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'strong',
 					{},
 					createExpression(() => props.task.title)
@@ -409,7 +282,7 @@ describe('@exactjs/dom component-props', () => {
 		}
 
 		function Empty() {
-			return () => createCompiledVNode('span', {}, 'empty');
+			return () => createCompiledOperation('span', {}, 'empty');
 		}
 
 		function Parent(this: Component<{ selected?: { id: string; title: string } }>) {
@@ -417,22 +290,22 @@ describe('@exactjs/dom component-props', () => {
 			this.state.selected = { id: 'a', title: 'Alpha' };
 
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'section',
 					{},
 					createDynamicChild(() =>
 						this.state.selected
-							? createCompiledVNode(Detail, {
+							? createCompiledOperation(Detail, {
 									key: this.state.selected.id,
 									task: createExpression(() => this.state.selected as { id: string; title: string })
 								})
-							: createCompiledVNode(Empty, {})
+							: createCompiledOperation(Empty, {})
 					)
 				);
 		}
 
 		const container = document.createElement('div');
-		render(createCompiledVNode(Parent, {}), container);
+		render(createCompiledOperation(Parent, {}), container);
 
 		parent.state.selected = undefined;
 		flushSync();

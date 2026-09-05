@@ -2,7 +2,7 @@ import type { Reactive } from '@exactjs/reactive/framework/runtime';
 import type {
 	AnyComponentInstance,
 	ComponentContextValues,
-	ComponentResumptionActivation,
+	ComponentResumptionSource,
 	ContextToken
 } from './contracts.js';
 
@@ -24,7 +24,7 @@ export type ComponentContextCapability = Readonly<{
 		token: ContextToken<unknown>,
 		operation: 'read' | 'write'
 	): void;
-	prepare(instance: AnyComponentInstance, resumption: ComponentResumptionActivation): void;
+	prepare(instance: AnyComponentInstance, resumption: ComponentResumptionSource): void;
 }>;
 
 let contextCapability: ComponentContextCapability | undefined;

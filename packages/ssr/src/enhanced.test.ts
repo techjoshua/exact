@@ -1,23 +1,17 @@
-import { createEnhancementNode, type Child, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createEnhancementNode } from '@exactjs/core';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { describe, expect, it } from 'vitest';
 import { renderToString } from './enhanced.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createOperation } from './test-support/native-operations.js';
+import { FacadeEnhancement } from './enhanced.fixtures.test.js';
 
 describe('enhanced SSR facade', () => {
 	it('supplies the application-bundle catalog by default', () => {
 		const identity = '@exactjs/ssr:enhanced-facade';
-		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			return () => createVNode('aside', null, props.children);
-		}, identity);
-		registerExactEnhancement(identity, Enhancement);
+		registerExactEnhancement(identity, FacadeEnhancement);
 
 		const output = renderToString(
-			createVNode(
+			createOperation(
 				'button',
 				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
 				'Save'

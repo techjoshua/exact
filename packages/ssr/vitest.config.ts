@@ -10,7 +10,17 @@ const ssrRuntimeTestSetup = fileURLToPath(
 );
 
 export default defineConfig({
-	plugins: [exactVitest({ compiler: { include: /\.fixtures\.tsx$/, reactCompatibility: false } })],
+	plugins: [
+		exactVitest({
+			compiler: {
+				include: /\.fixtures\.test\.tsx$/,
+				compileTestModules: true,
+				typescriptConfig: fileURLToPath(new URL('./tsconfig.test.json', import.meta.url)),
+				reactCompatibility: false,
+				target: 'server'
+			}
+		})
+	],
 	oxc: {
 		jsx: {
 			runtime: 'automatic',
@@ -20,6 +30,12 @@ export default defineConfig({
 	test: {
 		setupFiles: [coreRuntimeTestSetup, ssrRuntimeTestSetup],
 		maxWorkers: 2,
-		exclude: [...configDefaults.exclude, '**/.tmp/**', '**/dist/**', 'test-fixtures/**']
+		exclude: [
+			...configDefaults.exclude,
+			'**/.tmp/**',
+			'**/dist/**',
+			'test-fixtures/**',
+			'**/*.fixtures.test.tsx'
+		]
 	}
 });

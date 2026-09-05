@@ -1,4 +1,4 @@
-import { type AnyComponentInstance, Target, Text, type RootIntroduction } from '@exactjs/core';
+import { type AnyComponentInstance, type RootIntroduction } from '@exactjs/core';
 import {
 	disposeComponentRoot,
 	publishComponentRoot,
@@ -21,7 +21,7 @@ export function refreshComponentRoot(
 }
 
 function firstTargetElement(mounted: Mounted): Element | undefined {
-	if (mounted.vnode.type === Target && mounted.targetBoundary?.selected?.dom instanceof Element)
+	if (mounted.targetReceipt && mounted.targetBoundary?.selected?.dom instanceof Element)
 		return mounted.targetBoundary.selected.dom;
 	for (const child of mounted.children) {
 		if (child.instance && child.componentRootCache) {
@@ -75,11 +75,11 @@ export function disposeMountedComponentRoot(instance: AnyComponentInstance): voi
 /** Finds the first intrinsic element while preserving logical traversal through framework ranges. */
 export function firstHostElement(mounted: Mounted): Element | undefined {
 	if (
-		(typeof mounted.vnode.type === 'string' || mounted.renderProgram) &&
+		(mounted.intrinsicReceipt || mounted.renderProgram) &&
 		(mounted.renderProgram?.programRoot ?? mounted.dom) instanceof Element
 	)
 		return (mounted.renderProgram?.programRoot ?? mounted.dom) as Element;
-	if (mounted.vnode.type === Text) return undefined;
+	if (mounted.scalar) return undefined;
 	for (const child of mounted.children) {
 		if (child.instance && child.componentRootCache) {
 			if (child.componentRootCache.host) return child.componentRootCache.host;

@@ -2,13 +2,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { type Component } from '@exactjs/core';
-import {
-	exactComponentContract,
-	exactComponentType
-} from '@exactjs/core/framework/component-contracts';
-import { createVNode, markTestComponents } from './test-support/native-vnode.js';
 import { render } from '@exactjs/dom';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import {
 	defineExactOperationContract,
 	defineExactBoundaryContract,
@@ -19,20 +14,35 @@ import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrateClientIslands } from './index.js';
 import { applyPatches } from './patches.js';
 import { noopLogger, testContinuation } from './test-support/responses.js';
+import {
+	clickCounterRoot,
+	DeepPropsObserver,
+	EagerCounter,
+	IslandShell,
+	NestedInner,
+	NestedOuter,
+	PropsCounter,
+	PropsObserver,
+	readIslandClicks,
+	readIslandProps,
+	resetIslandFixtureObservations,
+	ResumableIslandCounter,
+	StableIslandShell
+} from './test-support/islands.fixtures.js';
 
 describe('@exactjs/hydrate islands', () => {
 	it('supports an eager root override for compiler-approved interaction islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction"><button>Count</button></div>';
-		function Counter() {
-			return () => createVNode('button', null, 'Count');
-		}
-
 		expect(
-			hydrateClientIslands(container, markTestComponents({ Counter }), {
-				hydration: { strategy: 'eager' }
-			})
+			hydrateClientIslands(
+				container,
+				{ Counter: EagerCounter },
+				{
+					hydration: { strategy: 'eager' }
+				}
+			)
 		).toBe(1);
 	});
 
@@ -40,36 +50,13 @@ describe('@exactjs/hydrate islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-resumption="true"><p>server mismatch</p></div>';
-		const implementation = function Counter(this: Component<{ count: number }>) {
-			this.state.count = 0;
-			return () => createVNode('output', null, String(this.state.count));
-		};
-		const Counter = Object.assign(implementation, {
-			[exactComponentType]: 'component:Counter',
-			[exactComponentContract]: {
-				version: 2 as const,
-				placement: 'isomorphic' as const,
-				role: 'client' as const,
-				implementations: [],
-				continuations: [],
-				executors: [],
-				boundaries: [],
-				resumption: {
-					componentId: 'component:Counter',
-					statePaths: ['count'],
-					stateInputs: [],
-					valueCaptures: [],
-					contexts: [],
-					boundaries: []
-				}
-			}
-		});
+		const componentId = exactComponentIdentity(ResumableIslandCounter);
 
 		const client = createExactClient(container, {
-			islands: markTestComponents({ Counter }),
+			islands: { Counter: ResumableIslandCounter },
 			resumptions: [
 				{
-					componentId: 'component:Counter',
+					componentId,
 					values: { count: 7 },
 					contexts: {},
 					settledContinuations: []
@@ -88,21 +75,18 @@ describe('@exactjs/hydrate islands', () => {
 	});
 
 	it('disposes a hydrated island before a server replacement removes it', () => {
-		let clicks = 0;
-		function Counter() {
-			return () => createVNode('button', { onClick: () => clicks++ }, 'Old');
-		}
+		resetIslandFixtureObservations();
 		const container = document.createElement('main'),
 			island = document.createElement('div');
 		island.setAttribute('data-exact-client-boundary', 'counter');
 		container.appendChild(island);
-		render(createVNode(Counter, null), island);
+		render(clickCounterRoot, island);
 		const detachedButton = island.querySelector('button')!;
 		expect(applyPatches(container, [{ type: 'replace', id: 'counter', html: '<p>New</p>' }])).toBe(
 			true
 		);
 		detachedButton.click();
-		expect(clicks).toBe(0);
+		expect(readIslandClicks()).toBe(0);
 		expect(container.textContent).toBe('New');
 	});
 
@@ -154,20 +138,13 @@ describe('@exactjs/hydrate islands', () => {
 			};
 		};
 
-		function Counter(this: Component<{ count: number }>, props: { count: number }) {
-			this.state.count = props.count;
-			return () => createVNode('button', null, String(this.state.count));
-		}
-
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			continuations: {
 				save: testContinuation('save', { boundaries: ['panel'] })
 			},
 			fetch,
-			islands: markTestComponents({
-				Counter_ExactClient_1: Counter
-			})
+			islands: { Counter_ExactClient_1: PropsCounter }
 		});
 		await client.invokeTask('save');
 
@@ -180,17 +157,7 @@ describe('@exactjs/hydrate islands', () => {
 		container.innerHTML =
 			'<div data-exact-client-boundary="island-1" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":2}}\'></div>';
 
-		function Counter(this: Component<{ count: number }>, props: { count: number }) {
-			this.state.count = props.count;
-			return () => createVNode('button', null, String(this.state.count));
-		}
-
-		const hydrated = hydrateClientIslands(
-			container,
-			markTestComponents({
-				Counter_ExactClient_1: Counter
-			})
-		);
+		const hydrated = hydrateClientIslands(container, { Counter_ExactClient_1: PropsCounter });
 
 		expect(hydrated).toBe(1);
 		expect(container.querySelector('[data-exact-client-hydrated="true"]')).not.toBeNull();
@@ -201,21 +168,7 @@ describe('@exactjs/hydrate islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="outer" data-exact-client-name="Outer"></div>';
-		function Inner() {
-			return () => createVNode('button', null, 'Inner');
-		}
-		function Outer() {
-			return () =>
-				createVNode(
-					'section',
-					null,
-					createVNode('div', {
-						'data-exact-client-boundary': 'inner',
-						'data-exact-client-name': 'Inner'
-					})
-				);
-		}
-		expect(hydrateClientIslands(container, markTestComponents({ Outer, Inner }))).toBe(2);
+		expect(hydrateClientIslands(container, { Outer: NestedOuter, Inner: NestedInner })).toBe(2);
 		expect(container.querySelector('button')?.textContent).toBe('Inner');
 		expect(container.querySelectorAll('[data-exact-client-hydrated="true"]')).toHaveLength(2);
 	});
@@ -224,22 +177,12 @@ describe('@exactjs/hydrate islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="island-1" data-exact-client-name="Counter_ExactClient_1" data-exact-client-props=\'{"props":{"count":2,"__proto__":{"polluted":true},"constructor":{"polluted":true},"prototype":{"polluted":true}}}\'></div>';
-		let receivedProps: any;
+		resetIslandFixtureObservations();
 
-		function Counter(this: Component<{ count: number }>, props: { count: number }) {
-			receivedProps = props;
-			this.state.count = props.count;
-			return () => createVNode('button', null, String(this.state.count));
-		}
-
-		const hydrated = hydrateClientIslands(
-			container,
-			markTestComponents({
-				Counter_ExactClient_1: Counter
-			})
-		);
+		const hydrated = hydrateClientIslands(container, { Counter_ExactClient_1: PropsObserver });
 
 		expect(hydrated).toBe(1);
+		const receivedProps = readIslandProps() as any;
 		expect(receivedProps.count).toBe(2);
 		expect(receivedProps.polluted).toBeUndefined();
 		expect(({} as any).polluted).toBeUndefined();
@@ -259,19 +202,9 @@ describe('@exactjs/hydrate islands', () => {
 		}
 		boundary.setAttribute('data-exact-client-props', JSON.stringify({ props }));
 		container.append(boundary);
-		let received: unknown;
-		expect(
-			hydrateClientIslands(
-				container,
-				markTestComponents({
-					Deep(_props) {
-						received = _props;
-						return () => null;
-					}
-				})
-			)
-		).toBe(1);
-		expect(received).toEqual({});
+		resetIslandFixtureObservations();
+		expect(hydrateClientIslands(container, { Deep: DeepPropsObserver })).toBe(1);
+		expect(readIslandProps()).toEqual({});
 	});
 
 	it('hydrates client islands without replacing server child slots', () => {
@@ -279,16 +212,7 @@ describe('@exactjs/hydrate islands', () => {
 		container.innerHTML =
 			'<div data-exact-client-boundary="island-children" data-exact-client-name="Shell_ExactClient_1" data-exact-client-props=\'{"props":{"children":{"__exactServerSlot":"island-children:children"}}}\'><span data-exact-server-slot="island-children:children" style="display: contents;"><p>Server child</p></span></div>';
 
-		function Shell(this: Component<{}>, props: { children?: unknown }) {
-			return () => createVNode('section', null, props.children);
-		}
-
-		const hydrated = hydrateClientIslands(
-			container,
-			markTestComponents({
-				Shell_ExactClient_1: Shell
-			})
-		);
+		const hydrated = hydrateClientIslands(container, { Shell_ExactClient_1: IslandShell });
 
 		expect(hydrated).toBe(1);
 		const section = container.querySelector('section');
@@ -350,21 +274,11 @@ describe('@exactjs/hydrate islands', () => {
 			};
 		};
 
-		function Counter(this: Component<{ count: number }>, props: { count: number }) {
-			this.state.count = props.count;
-			return () => createVNode('button', null, String(this.state.count));
-		}
-
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			fetch
 		});
-		await client.refreshIsland(
-			'panel',
-			markTestComponents({
-				Counter_ExactClient_1: Counter
-			})
-		);
+		await client.refreshIsland('panel', { Counter_ExactClient_1: PropsCounter });
 
 		expect(container.querySelector('p')).toBeNull();
 		expect(container.querySelector('button')?.textContent).toBe('4');
@@ -412,17 +326,10 @@ describe('@exactjs/hydrate islands', () => {
 			};
 		};
 
-		function Counter(this: Component<{ count: number }>, props: { count: number }) {
-			this.state.count = props.count;
-			return () => createVNode('button', null, String(this.state.count));
-		}
-
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			fetch,
-			islands: markTestComponents({
-				Counter_ExactClient_1: Counter
-			})
+			islands: { Counter_ExactClient_1: PropsCounter }
 		});
 		await client.refreshBoundary('panel');
 
@@ -472,23 +379,12 @@ describe('@exactjs/hydrate islands', () => {
 			};
 		};
 
-		function Shell(this: Component<{}>, props: { children?: unknown }) {
-			return () => createVNode('section', { 'data-shell': 'stable' }, props.children);
-		}
-
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			fetch,
-			islands: markTestComponents({
-				Shell_ExactClient_1: Shell
-			})
+			islands: { Shell_ExactClient_1: StableIslandShell }
 		});
-		hydrateClientIslands(
-			container,
-			markTestComponents({
-				Shell_ExactClient_1: Shell
-			})
-		);
+		hydrateClientIslands(container, { Shell_ExactClient_1: StableIslandShell });
 		const shell = container.querySelector('section');
 
 		await client.refreshBoundary('island-children:children');

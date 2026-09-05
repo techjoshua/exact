@@ -1,108 +1,130 @@
 import {
 	type AnyComponentFunction,
 	withComponentResumption,
-	type ComponentDomain,
-	type ComponentResumptionActivation
+	type ComponentDomain
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readPreparedExactCompiledComponentContract
+	readPreparedExactClientExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import { componentDomainResumption } from '@exactjs/core/framework/component-domains';
+import type { ComponentResumptionSource } from '@exactjs/core/framework/component-domains';
 
 /** Ordered resolver with checkpoints for fallible DOM adoption. */
-export type ComponentResumptionResolver = ((
-	type: AnyComponentFunction
-) => ComponentResumptionActivation | undefined) & {
+export type ComponentResumptionResolver<
+	Source extends ComponentResumptionSource = ComponentResumptionSource
+> = ((type: AnyComponentFunction) => Source | undefined) & {
 	checkpoint(): number;
 	rollback(checkpoint: number): void;
 };
 
 /** Creates the ordered, contract-checked source of SSR component activations. */
-export function createComponentResumptionResolver(
-	records: () => readonly ComponentResumptionActivation[] | undefined
-): ComponentResumptionResolver {
-	const consumed = new Set<number>();
-	const history: number[] = [];
+export function createComponentResumptionResolver<Source extends ComponentResumptionSource>(
+	records: () => readonly Source[] | undefined
+): ComponentResumptionResolver<Source> {
+	let cursor = 0;
 	const resolve = ((type: AnyComponentFunction) => {
-		const contract = readPreparedExactCompiledComponentContract(type);
+		const contract = readPreparedExactClientExecutableComponentContract(type);
 		if (!contract.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
 		const available = records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
-		const recordIndex = available.findIndex(
-			(record, candidate) => !consumed.has(candidate) && record.componentId === componentId
-		);
-		if (recordIndex < 0)
-			throw new Error(`eXact SSR resumption is missing component ${componentId}`);
-		const record = available[recordIndex]!;
-		const allowedPaths = new Set(contract.resumption.statePaths);
-		const values = expandIndexedFields(record.values, contract.resumption.statePaths, componentId);
-		for (const path of Object.keys(values)) {
-			if (!allowedPaths.has(path))
-				throw new Error(
-					`eXact SSR resumption contains undeclared state path ${componentId}:${path}`
-				);
+		const record = available[cursor] as ComponentResumptionSource | undefined;
+		if (!record) throw new Error(`eXact SSR resumption is missing component ${componentId}`);
+		const indexedRecord = !('componentId' in record);
+		const recordComponentId = indexedRecord ? record[0] : record.componentId;
+		if (recordComponentId !== componentId)
+			throw new Error(
+				`eXact SSR resumption expected component ${recordComponentId} before ${componentId}`
+			);
+		const values = indexedRecord ? (record[1] ?? []) : record.values;
+		const contexts = indexedRecord ? (record[2] ?? []) : record.contexts;
+		const settledContinuations = indexedRecord ? (record[3] ?? []) : record.settledContinuations;
+		const indexed = Array.isArray(values) && Array.isArray(contexts);
+		if (indexed) {
+			prepareIndexedFields(
+				values as unknown as readonly IndexedResumptionField[],
+				contract.resumption.statePaths,
+				componentId,
+				'state path'
+			);
+			prepareIndexedFields(
+				contexts as unknown as readonly IndexedResumptionField[],
+				contract.resumption.contexts,
+				componentId,
+				'context'
+			);
 		}
-		const allowedContexts = new Set(contract.resumption.contexts);
-		const contexts = expandIndexedFields(
-			record.contexts,
-			contract.resumption.contexts,
-			componentId
-		);
-		for (const name of Object.keys(contexts)) {
-			if (!allowedContexts.has(name))
-				throw new Error(`eXact SSR resumption contains undeclared context ${componentId}:${name}`);
+		if (!indexed) {
+			validateNamedFields(
+				values as Readonly<Record<string, unknown>>,
+				contract.resumption.statePaths,
+				componentId,
+				'state path'
+			);
+			validateNamedFields(
+				contexts as Readonly<Record<string, unknown>>,
+				contract.resumption.contexts,
+				componentId,
+				'context'
+			);
 		}
-		const allowedContinuations = new Set(
-			contract.continuations.map((continuation) => continuation.id)
-		);
-		for (const id of record.settledContinuations) {
-			if (!allowedContinuations.has(id))
+		for (const id of settledContinuations) {
+			if (!contract.continuations?.some((continuation) => continuation.id === id))
 				throw new Error(
 					`eXact SSR resumption contains undeclared continuation ${componentId}:${id}`
 				);
 		}
-		consumed.add(recordIndex);
-		history.push(recordIndex);
-		return { ...record, values, contexts };
-	}) as ComponentResumptionResolver;
-	resolve.checkpoint = () => history.length;
+		cursor++;
+		return record;
+	}) as ComponentResumptionResolver<Source>;
+	resolve.checkpoint = () => cursor;
 	resolve.rollback = (checkpoint) => {
-		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > history.length)
+		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > cursor)
 			throw new Error('Malformed eXact component resumption checkpoint');
-		while (history.length > checkpoint) consumed.delete(history.pop()!);
+		cursor = checkpoint;
 	};
 	return resolve;
 }
 
-/** Expands compiler indexes only after the receiving component contract supplies their names. */
-function expandIndexedFields(
-	values: Readonly<Record<string, unknown>>,
+type IndexedResumptionField = readonly [field: number | string, value: unknown];
+
+/** Resolves compact field cells in place only after the receiving artifact supplies its schema. */
+function prepareIndexedFields(
+	entries: readonly IndexedResumptionField[],
 	fields: readonly string[],
-	componentId: string
-): Readonly<Record<string, unknown>> {
-	const keys = Object.keys(values);
-	if (!keys.some((key) => key.startsWith('@'))) return values;
-	const output: Record<string, unknown> = {};
-	for (const key of keys) {
-		if (!key.startsWith('@')) {
-			if (Object.prototype.hasOwnProperty.call(output, key))
-				throw new Error(`Duplicate eXact resumption field ${componentId}:${key}`);
-			output[key] = values[key];
-			continue;
-		}
-		if (!/^@(?:0|[1-9]\d*)$/.test(key))
-			throw new Error(`Malformed eXact indexed resumption ${componentId}`);
-		const index = Number(key.slice(1));
-		const field = fields[index];
+	componentId: string,
+	fieldKind: 'state path' | 'context'
+): void {
+	for (let index = 0; index < entries.length; index++) {
+		const rawField = entries[index]![0];
+		const field = typeof rawField === 'number' ? fields[rawField] : rawField;
 		if (field === undefined)
 			throw new Error(`eXact SSR resumption index is outside component ${componentId}`);
-		if (Object.prototype.hasOwnProperty.call(output, field))
-			throw new Error(`Duplicate eXact resumption field ${componentId}:${field}`);
-		output[field] = values[key];
+		if (typeof rawField === 'string' && !fields.includes(rawField))
+			throw new Error(
+				`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${rawField}`
+			);
+		for (let previous = 0; previous < index; previous++)
+			if (entries[previous]![0] === field)
+				throw new Error(`Duplicate eXact resumption field ${componentId}:${field}`);
+		(entries[index] as [field: number | string, value: unknown])[0] = field;
 	}
-	return output;
+}
+
+/** Validates the explicit registration lane against its receiving component contract. */
+function validateNamedFields(
+	values: Readonly<Record<string, unknown>>,
+	fields: readonly string[],
+	componentId: string,
+	fieldKind: 'state path' | 'context'
+): void {
+	const keys = Object.keys(values);
+	for (const key of keys)
+		if (!fields.includes(key))
+			throw new Error(
+				`eXact SSR resumption contains undeclared ${fieldKind} ${componentId}:${key}`
+			);
 }
 
 /** Captures the current activation cursor before a fallible adoption attempt. */

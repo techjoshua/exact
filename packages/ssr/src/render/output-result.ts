@@ -35,7 +35,9 @@ export function createChunkedStringResult(
 /** Adds hydration output without flattening ordinary fragment-style HTML. */
 export function createChunkedHydratableResult(
 	result: RenderToStringResult,
-	resumptions: HydratableStringResult['resumptions'],
+	resumptions:
+		| HydratableStringResult['resumptions']
+		| (() => HydratableStringResult['resumptions']),
 	hydrationScript: string
 ): HydratableStringResult {
 	const htmlChunks = htmlChunksOf(result);
@@ -53,9 +55,12 @@ export function createChunkedHydratableResult(
 			: { wallClockSnapshot: result.wallClockSnapshot }),
 		...(result.hydrationTable ? { hydrationTable: result.hydrationTable } : {}),
 		...(result.preloadLinks ? { preloadLinks: result.preloadLinks } : {}),
-		resumptions,
 		hydrationScript
 	} as HydratableStringResult & SsrChunkedResult;
+	Object.defineProperty(hydratable, 'resumptions', {
+		enumerable: true,
+		get: typeof resumptions === 'function' ? resumptions : () => resumptions
+	});
 	Object.defineProperty(hydratable, 'htmlWithHydration', {
 		enumerable: true,
 		get() {

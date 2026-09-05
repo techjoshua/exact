@@ -1,13 +1,9 @@
+import { createContext, watch, type Child, type Component } from '@exactjs/core';
 import {
-	createContext,
-	createVNode,
-	isVNode,
-	watch,
-	type AnyComponentFunction,
-	type Child,
-	type Component,
-	type VNode
-} from '@exactjs/core';
+	createCompiledComponentReceipt,
+	createCompiledKeyedChildReceipt
+} from '@exactjs/core/runtime/component-abi';
+import { opaqueOperationKey } from '@exactjs/core/runtime/component-operations';
 import type { PresenceProps } from './contracts.js';
 import type { MotionPlayback } from './contracts.js';
 import { acquireSemanticAbsence, releaseSemanticAbsence } from './semantics.js';
@@ -137,7 +133,7 @@ function presenceItems(children: PresenceProps['children']): PresenceItem[] {
 		const child = values[index];
 		if (child === null || child === undefined || child === false || child === true) continue;
 		result.push({
-			key: isVNode(child) ? (child.key ?? `presence:${index}`) : `presence:${index}`,
+			key: opaqueOperationKey(child) ?? `presence:${index}`,
 			child
 		});
 	}
@@ -172,10 +168,10 @@ function projectPresence(
 	entered: (key: string) => void,
 	exited: (key: string) => void,
 	entering: ReadonlySet<string>
-): VNode[] {
+): Child[] {
 	return items.map((item) =>
-		createVNode(
-			PresenceRange as unknown as AnyComponentFunction,
+		createCompiledComponentReceipt(
+			PresenceRange,
 			{
 				key: item.key,
 				entering: entering.has(item.key),
@@ -262,14 +258,11 @@ export function keyedPresenceChild(
 	child: Child,
 	key: string,
 	exitLayout?: 'retain' | 'pop'
-): VNode {
+): Child {
 	if (exitLayout === 'pop')
-		return createVNode(
-			PresenceRange as unknown as AnyComponentFunction,
-			{ key, exitLayout },
-			child
+		return createCompiledKeyedChildReceipt(
+			createCompiledComponentReceipt(PresenceRange, { exitLayout }, child),
+			key
 		);
-	return isVNode(child)
-		? { ...child, key }
-		: createVNode(PresenceRange as unknown as AnyComponentFunction, { key }, child);
+	return createCompiledKeyedChildReceipt(child, key);
 }

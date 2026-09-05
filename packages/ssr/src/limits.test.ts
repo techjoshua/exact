@@ -1,45 +1,39 @@
-import { activateTaskForHost, defineTask, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderHydrationScript, renderToString, renderToStringAsync } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { LargeOutputComponent, NeverSettledComponent } from './limits.fixtures.test.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr limits', () => {
-	it('rejects over-deep sync and async vnode trees with a deterministic limit error', async () => {
-		let vnode = createVNode('span', null, 'leaf');
-		for (let depth = 0; depth < 20; depth++) vnode = createVNode('div', null, vnode);
+	it('rejects over-deep sync and async operation trees with a deterministic limit error', async () => {
+		let operation = createOperation('span', null, 'leaf');
+		for (let depth = 0; depth < 20; depth++) operation = createOperation('div', null, operation);
 
-		expect(() => renderToString(vnode, { markers: false, maxTreeDepth: 8 })).toThrow(
+		expect(() => renderToString(operation, { markers: false, maxTreeDepth: 8 })).toThrow(
 			'eXact SSR tree exceeds the configured maximum depth of 8'
 		);
-		await expect(renderToStringAsync(vnode, { markers: false, maxTreeDepth: 8 })).rejects.toThrow(
-			'eXact SSR tree exceeds the configured maximum depth of 8'
-		);
+		await expect(
+			renderToStringAsync(operation, { markers: false, maxTreeDepth: 8 })
+		).rejects.toThrow('eXact SSR tree exceeds the configured maximum depth of 8');
 	});
 
 	it('bounds encoded string output and does not let component fallbacks swallow the limit', async () => {
-		function Large() {
-			return () => createVNode('p', null, 'éé');
-		}
-
 		expect(() =>
-			renderToString(createVNode(Large, {}), { markers: false, maxOutputBytes: 9 })
+			renderToString(createOperation(LargeOutputComponent, {}), {
+				markers: false,
+				maxOutputBytes: 9
+			})
 		).toThrow('eXact SSR output exceeds the configured maximum of 9 bytes');
 		await expect(
-			renderToStringAsync(createVNode(Large, {}), { markers: false, maxOutputBytes: 9 })
+			renderToStringAsync(createOperation(LargeOutputComponent, {}), {
+				markers: false,
+				maxOutputBytes: 9
+			})
 		).rejects.toThrow('eXact SSR output exceeds the configured maximum of 9 bytes');
 	});
 
 	it('bounds the wall-clock duration of tasks that never settle', async () => {
-		function Pending(this: Component<{}>) {
-			activateTaskForHost(
-				this,
-				defineTask({}, () => new Promise<void>(() => undefined))
-			);
-			return () => createVNode('p', null, 'Loading');
-		}
-
 		await expect(
-			renderToStringAsync(createVNode(Pending, {}), { maxTaskDurationMs: 10 })
+			renderToStringAsync(createOperation(NeverSettledComponent, {}), { maxTaskDurationMs: 10 })
 		).rejects.toThrow('SSR task duration limit exceeded');
 	});
 
@@ -71,5 +65,17 @@ describe('@exactjs/ssr limits', () => {
 			'Hydration payload must be JSON-serializable'
 		);
 		expect(reads).toBe(0);
+	});
+
+	it('counts multibyte hydration payloads without retaining a second encoded buffer', () => {
+		const state = { text: 'ready 😀' };
+		const html = renderHydrationScript({ state });
+		const payload = html.match(/>(.*)<\/script>/s)![1]!;
+		const bytes = new TextEncoder().encode(payload).byteLength;
+
+		expect(() => renderHydrationScript({ state, maxHydrationBytes: bytes })).not.toThrow();
+		expect(() => renderHydrationScript({ state, maxHydrationBytes: bytes - 1 })).toThrow(
+			'exceeded maxHydrationBytes'
+		);
 	});
 });

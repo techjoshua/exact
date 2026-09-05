@@ -1,5 +1,5 @@
-import type { Component } from '@exactjs/core';
-import { Outlet, RouteContext } from '@exactjs/router';
+import type { Child, Component } from '@exactjs/core';
+import { RouteContext } from '@exactjs/router';
 import { DocsHeader } from './DocsHeader.jsx';
 import { DocsSearch } from './DocsSearch.jsx';
 import { DocsSidebar } from './DocsSidebar.jsx';
@@ -10,7 +10,7 @@ type LayoutState = {
 };
 
 /** Owns the responsive documentation shell, route scrolling, and search visibility. */
-export function DocsLayout(this: Component<LayoutState>) {
+export function DocsLayout(this: Component<LayoutState>, props: { children?: Child | Child[] }) {
 	const route = this.getContext(RouteContext);
 	this.state.mobileOpen = false;
 	this.state.searchOpen = false;
@@ -42,7 +42,7 @@ export function DocsLayout(this: Component<LayoutState>) {
 			<div className="docs-frame">
 				<DocsSidebar open={this.state.mobileOpen} onNavigate={closeNavigation} />
 				<main theme:surface="base" id="article" className="content-panel" tabindex="-1">
-					<Outlet />
+					{props.children}
 				</main>
 			</div>
 			{this.state.searchOpen ? (

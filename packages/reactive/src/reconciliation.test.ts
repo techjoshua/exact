@@ -7,12 +7,28 @@ import {
 	reactive,
 	registerReactiveListKey,
 	snapshot,
+	unwrap,
 	updateReactiveValue,
 	watch,
 	writeReactive
 } from './index.js';
+import { reactiveObjects } from './framework/objects.js';
+import { updateReactiveShallow } from './reconciliation.js';
 
 describe('@exactjs/reactive reconciliation', () => {
+	it('replaces dynamic prop values without mutating nested objects in place', () => {
+		const previous = { label: 'previous' };
+		const next = { label: 'next' };
+		const props = reactiveObjects<Record<string, unknown>>({ value: previous, removed: true });
+
+		updateReactiveShallow(props, { value: next, added: true });
+
+		expect(unwrap(props.value)).toBe(next);
+		expect(previous).toEqual({ label: 'previous' });
+		expect('removed' in props).toBe(false);
+		expect(props.added).toBe(true);
+	});
+
 	it('uses keyed item hashes across moves and only reconciles changed items', () => {
 		const state = reactive({
 			records: [

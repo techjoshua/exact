@@ -37,15 +37,17 @@ describe('@exactjs/compiler: registries', () => {
 				invocations: { [actionId]: '/remote-exact' }
 			},
 			islandsExportName: 'islands',
-			registrationExportName: 'registration'
+			registrationExportName: 'registration',
+			clientBootstrapExportName: 'createPanelClient'
 		});
 		expect(graph.operations).toEqual(result.build.operations);
 		expect(graph.artifacts[0]).not.toHaveProperty('build');
 		expect(graph.artifacts[0]?.componentIds).toEqual(result.build.componentIds);
 
 		expect(module).toContain('export const islands');
-		expect(module).toContain('defineExactHydrationRegistration as __exactDefineRegistration');
+		expect(module).not.toContain('defineExactHydrationRegistration');
 		expect(module).toContain('lazyClientIsland as __exactLazyIsland');
+		expect(module).toContain('from "@exactjs/hydrate/framework/client-bootstrap"');
 		expect(module).toContain('import("./dist/panel.exact.client.js")');
 		expect(module).toContain('.then((module) => module["Panel_ExactClient_1"])');
 		expect(module).toContain('"mode":"interaction"');
@@ -57,9 +59,11 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).toContain('"/remote-exact"');
 		expect(module).toContain(`${JSON.stringify(actionId)}: {`);
 		expect(module).toContain('continuations: __exactContinuations');
-		expect(module).not.toContain('"serverContexts"');
-		expect(module).not.toContain('"serverContextWrites"');
-		expect(module).not.toContain('"publicContexts": []');
+		expect(module).toContain('export function createPanelClient(root: Element');
+		expect(module).toContain('...__exactReadConfig(root), ...registration, ...options');
+		expect(module).toContain('"serverContexts": []');
+		expect(module).toContain('"serverContextWrites": []');
+		expect(module).toContain('"publicContexts": []');
 		expect(module).not.toContain('"boundaries": []');
 		expect(module).not.toContain('"stateContracts"');
 		expect(module).not.toContain('"actionBoundaries"');
@@ -245,14 +249,17 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).toContain(
 			'const __exactImplementation_Panel_1 = function Panel(this: Component<'
 		);
-		expect(server).toContain('definition:');
+		expect(server).toContain('artifact:');
 		expect(server).toContain('instantiate: __exactImplementation_Panel_1');
 		expect(server).toContain('export { Panel as Panel_ExactServer_1 }');
-		expect(server).toContain('statePaths: [');
+		expect(server).not.toContain('statePaths: [');
+		expect(server).toContain('state: [');
 		expect(server).toContain('"count"');
-		expect(server).toContain('<section><button class=\\"primary\\"');
-		expect(server).toContain('[this.state.count, true, this.state.count]');
-		expect(server).toContain('__exactSsr.attribute(');
+		expect(server).toContain(
+			'__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "section", "<section", "><button class=\\"primary\\""'
+		);
+		expect(server).toContain('[{}, this.state.count, true, this.state.count]');
+		expect(server).toContain('__exactSsr.compiledAttribute(');
 		expect(server).not.toContain('onClick');
 		expect(
 			artifactAnalysis(result)

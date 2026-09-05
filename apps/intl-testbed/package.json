@@ -6,7 +6,7 @@
 	"scripts": {
 		"generate": "node scripts/generate-catalogs.mjs",
 		"predev": "npm run generate",
-		"dev": "vite --host 0.0.0.0",
+		"dev": "node ../../scripts/start-owned-vite-dev-server.mjs --host 0.0.0.0",
 		"prebuild": "npm run generate",
 		"build": "vite build",
 		"test": "node scripts/generate-catalogs.mjs --check",

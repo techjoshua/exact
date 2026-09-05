@@ -220,6 +220,7 @@ func createContinuationContracts(
 		serverStateReads := []string{}
 		statePaths := []string{}
 		stateInputs := []StateInput{}
+		stateDefaults := []StateDefault{}
 		valueCaptures := []string{}
 		for _, island := range clientIslands {
 			if island.component.Name != component.Name {
@@ -292,15 +293,24 @@ func createContinuationContracts(
 		}
 		for _, write := range stateWrites {
 			if write.Component != component.Name || write.SetupExecution == "" ||
-				write.Operation != "assignment" || write.InputPath == "" {
+				write.Operation != "assignment" {
 				continue
 			}
 			statePath := strings.Join(write.Path, ".")
-			if containsString(statePaths, statePath) {
+			if write.InputPath != "" && containsString(statePaths, statePath) {
 				stateInputs = appendUniqueStateInput(stateInputs, StateInput{
 					StatePath: statePath,
 					PropPath:  write.InputPath,
 				})
+			}
+			if containsString(statePaths, statePath) {
+				if write.Default != nil && write.SetupExecution == "initialization" {
+					candidate := *write.Default
+					candidate.StatePath = statePath
+					stateDefaults = appendUniqueStateDefault(stateDefaults, candidate)
+				} else {
+					stateDefaults = invalidateStateDefault(stateDefaults, statePath)
+				}
 			}
 		}
 		serverContexts := []ContextEffect{}
@@ -318,6 +328,7 @@ func createContinuationContracts(
 			Client: ClientResumptionRecord{
 				StatePaths:    uniqueSortedStrings(statePaths),
 				StateInputs:   validStateInputs(stateInputs),
+				StateDefaults: validStateDefaults(stateDefaults),
 				ValueCaptures: uniqueSortedStrings(valueCaptures),
 				Contexts:      sharedContextWrites(component.Name, tasks, policies),
 				Boundaries:    boundaryIDsForComponent(boundaries, component.ID),
@@ -329,6 +340,46 @@ func createContinuationContracts(
 			resumptions[right].ComponentID
 	})
 	return continuations, resumptions
+}
+
+func appendUniqueStateDefault(values []StateDefault, candidate StateDefault) []StateDefault {
+	for index, value := range values {
+		if value.StatePath != candidate.StatePath {
+			continue
+		}
+		if value.Kind == candidate.Kind && value.Value == candidate.Value {
+			return values
+		}
+		// More than one setup value for a path is not an unconditional default proof.
+		values[index].Kind = ""
+		values[index].Value = ""
+		return values
+	}
+	return append(values, candidate)
+}
+
+func invalidateStateDefault(values []StateDefault, statePath string) []StateDefault {
+	for index := range values {
+		if values[index].StatePath == statePath {
+			values[index].Kind = ""
+			values[index].Value = ""
+			break
+		}
+	}
+	return values
+}
+
+func validStateDefaults(values []StateDefault) []StateDefault {
+	result := make([]StateDefault, 0, len(values))
+	for _, value := range values {
+		if value.StatePath != "" && value.Kind != "" {
+			result = append(result, value)
+		}
+	}
+	sort.Slice(result, func(left, right int) bool {
+		return result[left].StatePath < result[right].StatePath
+	})
+	return result
 }
 
 func appendUniqueStateInput(values []StateInput, candidate StateInput) []StateInput {

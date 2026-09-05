@@ -23,8 +23,27 @@ import { Airplay } from 'lucide-react-phase1';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, hydrateRoot } from './client.js';
 import { createPortal } from './index.js';
+import type { Component } from '@exactjs/core';
+import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-operations';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/testing';
+import { exposeExactComponent } from '@exactjs/react-compat/interop';
 
 describe('React compatibility root', () => {
+	it('renders an exposed native component through an opaque native range', () => {
+		const Native = createExactFrameworkFixtureArtifact(function Native(
+			this: Component<{}>,
+			props: { label: string }
+		) {
+			return () => createCompiledIntrinsicReceipt('strong', null, props.label);
+		}, '@exactjs/react-dom-compat:test:native-boundary');
+		const Boundary = exposeExactComponent(Native);
+		const container = document.createElement('div');
+		const root = createRoot(container);
+		root.render(createElement(Boundary, { label: 'native' }));
+		expect(container.innerHTML).toBe('<strong>native</strong>');
+		root.unmount();
+		expect(container.childNodes).toHaveLength(0);
+	});
 	it('hydrates markerless server markup without replacing matching DOM', () => {
 		let setCount!: (value: number) => void;
 		function Counter() {
@@ -290,6 +309,32 @@ describe('React compatibility root', () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		flushSync();
 		expect(container.textContent).toBe('settledready');
+	});
+
+	it('finishes a transition when Suspense was already showing its fallback', async () => {
+		const Pending = lazy(() => new Promise<{ default: () => null }>(() => undefined));
+		let advance!: () => void;
+		function App() {
+			const [value, setValue] = useState('first');
+			const [pending, start] = useTransition();
+			advance = () => start(() => setValue('second'));
+			return createElement(
+				'section',
+				null,
+				`${value}/${pending ? 'pending' : 'settled'}/`,
+				createElement(Suspense, { fallback: 'loading' }, createElement(Pending))
+			);
+		}
+		const container = document.createElement('div');
+		createRoot(container).render(createElement(App));
+		flushSync();
+		expect(container.textContent).toBe('first/settled/loading');
+
+		advance();
+		flushSync();
+		for (let index = 0; index < 4; index++) await Promise.resolve();
+		flushSync();
+		expect(container.textContent).toBe('second/settled/loading');
 	});
 
 	it('shows fallback for an urgent React Suspense update', () => {

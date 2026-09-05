@@ -9,7 +9,8 @@
 		"capability.d.ts",
 		"dist",
 		"styles.css",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"!dist/**/*.fixtures.*"
 	],
 	"exports": {
 		".": {
@@ -42,7 +43,7 @@
 		"./styles.css"
 	],
 	"exactComponentLibrary": {
-		"protocol": 1,
+		"protocol": 2,
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
@@ -56,10 +57,11 @@
 	"devDependencies": {
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/hydrate": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/testing": "^0.1.0"
 	},
 	"scripts": {
-		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node scripts/generate-styles.mjs && prettier --write styles.css && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node scripts/generate-styles.mjs && prettier --write styles.css",
 		"check:performance": "npm run build && node scripts/check-performance.mjs",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"

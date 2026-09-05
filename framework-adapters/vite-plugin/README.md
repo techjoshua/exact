@@ -68,8 +68,8 @@ their dependent companion, while server builds emit none. The option is disabled
 uses the shared native analyzer/build coordinator documented in
 [internationalization](../../docs/internationalization.md).
 
-`include` and `exclude` define the complete set of modules owned by the transform. Test modules
-are left to the runner by default; imported application components are still compiled.
+`include` and `exclude` select transformed modules. Tests stay runner-owned unless
+`compileTestModules` is true; `typescriptConfig` can select their test project.
 
 ## DevTools
 
