@@ -7042,6 +7042,66 @@ func TestSessionLowersKeyedMapsInsideMaterializedReactiveClosures(t *testing.T) 
 	}
 }
 
+func TestSessionRetainsDerivedCollectionsInsideRenderedMapCallbacks(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			interface Item {
+				/** @exact key */
+				id: string;
+				status: string;
+			}
+			interface Column {
+				/** @exact key */
+				id: string;
+			}
+			export function Board(props: { columns: Column[]; items: Item[] }) {
+				return () => <section>{props.columns.map((column) => {
+					const items = props.items.filter((item) => item.status === column.id);
+					return <article>
+						<span>{items.length}</span>
+						<ul>{items.map((item) => <li>{item.id}</li>)}</ul>
+					</article>;
+				})}</section>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "const items = __exactDerived(") ||
+		!strings.Contains(response.Code, "items.get()!).length") ||
+		!strings.Contains(response.Code, "__exactMapKeyedChildren(this, items.get()") {
+		t.Fatalf("rendered map callback retained a stale derived collection snapshot: %s", response.Code)
+	}
+}
+
+func TestSessionDoesNotRetainDerivedLocalsInsideUnownedMapCallbacks(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			interface Item { id: string; group: string; }
+			interface Group { id: string; }
+			export function Board(props: { groups: Group[]; items: Item[] }) {
+				return () => <section>{props.groups.map((group) => {
+					const items = props.items.filter((item) => item.group === group.id);
+					return <article>{items.length}</article>;
+				})}</section>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "const items = __exactDerived(") {
+		t.Fatalf("unowned map callback allocated a retained derived computation: %s", response.Code)
+	}
+}
+
 func TestSessionLowersDerivedKeyedMapsInsideConditionalFragments(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "component.tsx",

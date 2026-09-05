@@ -367,7 +367,8 @@ func collectComponentReactiveStates(
 	}
 	walkNode(candidate.node, func(node *ast.Node) bool {
 		if !ast.IsVariableDeclaration(node) ||
-			!setupOwnedNode(node, candidate.node) {
+			(!setupOwnedNode(node, candidate.node) &&
+				!renderCollectionCallbackOwnedNode(node, candidate.node, typeChecker)) {
 			return true
 		}
 		declaration := node.AsVariableDeclaration()
@@ -420,6 +421,50 @@ func collectComponentReactiveStates(
 		return true
 	})
 	return states
+}
+
+// renderCollectionCallbackOwnedNode recognizes locals created while materializing one retained
+// collection item. A rendered map callback executes once for each keyed owner, so a pure local
+// derived from component inputs must become a computation owned by that item instead of a snapshot
+// captured by its bindings and structural operations.
+func renderCollectionCallbackOwnedNode(
+	node *ast.Node,
+	component *ast.Node,
+	typeChecker *checker.Checker,
+) bool {
+	var callable *ast.Node
+	for current := node.Parent; current != nil && current != component; current = current.Parent {
+		if ast.IsFunctionLike(current) {
+			callable = current
+			break
+		}
+	}
+	if callable == nil ||
+		(!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable)) {
+		return false
+	}
+	parent := callable.Parent
+	if parent == nil || !ast.IsCallExpression(parent) {
+		return false
+	}
+	call := parent.AsCallExpression()
+	if !ast.IsPropertyAccessExpression(call.Expression) ||
+		call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
+		call.Arguments == nil || len(call.Arguments.Nodes) != 1 ||
+		call.Arguments.Nodes[0] != callable {
+		return false
+	}
+	if !insideJSXChildExpression(parent) {
+		return false
+	}
+	if collectionMapExplicitJSXKey(callable) != nil {
+		return true
+	}
+	_, _, keyed := safeCollectionKeyForChecker(
+		typeChecker,
+		call.Expression.AsPropertyAccessExpression().Expression,
+	)
+	return keyed
 }
 
 func reactiveReadWithinInitializer(
