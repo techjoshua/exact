@@ -288,7 +288,6 @@ jobs:
 
   publish-pages:
     name: Publish Pages apps
-    if: ${{ github.event_name != 'pull_request' }}
     needs: native-compiler
     runs-on: ubuntu-24.04
     permissions:
@@ -324,6 +323,7 @@ jobs:
       - name: Assemble Pages branch
         run: node scripts/prepare-gh-pages.mjs
       - name: Publish gh-pages branch
+        if: ${{ github.event_name != 'pull_request' }}
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

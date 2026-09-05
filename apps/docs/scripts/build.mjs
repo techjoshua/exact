@@ -25,6 +25,7 @@ await build({
 		rollupOptions: {
 			input: join(root, 'index.html'),
 			output: {
+				codeSplitting: false,
 				entryFileNames: 'assets/app.js',
 				assetFileNames: 'assets/[name][extname]'
 			}
@@ -34,17 +35,21 @@ await build({
 
 const clientHtml = await readFile(join(clientRoot, 'index.html'), 'utf8');
 const assets = await readdir(join(clientRoot, 'assets'));
-const scriptName = assets.find((name) => name.endsWith('.js'));
+const scriptNames = assets.filter((name) => name.endsWith('.js'));
 const styleNames = assets.filter((name) => name.endsWith('.css'));
 const externalAssets = assets.filter((name) => !name.endsWith('.js') && !name.endsWith('.css'));
-if (!scriptName) throw new Error('The documentation client build did not emit JavaScript.');
+if (scriptNames.length !== 1) {
+	throw new Error(
+		`Expected one standalone documentation JavaScript bundle, found ${scriptNames.length}.`
+	);
+}
 if (externalAssets.length > 0) {
 	throw new Error(
 		`Standalone documentation assets must be inlined, found: ${externalAssets.join(', ')}`
 	);
 }
 
-const script = (await readFile(join(clientRoot, 'assets', scriptName), 'utf8')).replace(
+const script = (await readFile(join(clientRoot, 'assets', scriptNames[0]), 'utf8')).replace(
 	/<\/script/gi,
 	'<\\/script'
 );
