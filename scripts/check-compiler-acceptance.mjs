@@ -25,6 +25,13 @@ const applications = [
 		name: 'shipping continuations',
 		workspace: '@exactjs/sample-shipping-calculator',
 		journey: checkShipping
+	},
+	{
+		key: 'intl',
+		name: 'component localization',
+		workspace: '@exactjs/sample-intl-testbed',
+		journey: checkIntl,
+		production: true
 	}
 ];
 const selectedApplications = requestedApplication
@@ -37,8 +44,7 @@ const browser = await chromium.launch({ headless: true });
 let failure;
 
 try {
-	for (const application of selectedApplications)
-		await checkApplication(application.name, application.workspace, application.journey);
+	for (const application of selectedApplications) await checkApplication(application);
 	console.log(
 		`Compiler browser acceptance passed (${selectedApplications.map(({ name }) => name).join(', ')}).`
 	);
@@ -50,9 +56,9 @@ if (failure) console.error(failure);
 // every application server and browser context has completed its own cleanup.
 process.exit(failure ? 1 : 0);
 
-async function checkApplication(name, workspace, journey) {
+async function checkApplication({ name, workspace, journey, production = false }) {
 	const port = await availablePort();
-	const server = await startServer(workspace, port);
+	const server = await startServer(workspace, port, production);
 	try {
 		await server.ready(port);
 		const context = await browser.newContext();
@@ -137,21 +143,43 @@ async function checkShipping(page, origin) {
 	await page.getByRole('heading', { name: 'DOOP Today' }).waitFor();
 }
 
+async function checkIntl(page, origin) {
+	await page.goto(origin, { waitUntil: 'networkidle' });
+	const french = page.locator('[data-locale="fr-FR"]');
+	const japanese = page.locator('[data-locale="ja-JP"]');
+	const arabic = page.locator('[data-locale="ar-EG"]');
+	await french.getByRole('heading', { name: 'La même source, localisée' }).waitFor();
+	await japanese.getByRole('heading', { name: '同じソースをローカライズ' }).waitFor();
+	await arabic.getByRole('heading', { name: 'المصدر نفسه، مترجم' }).waitFor();
+	if ((await arabic.getAttribute('dir')) !== 'rtl')
+		throw new Error('Arabic component localization did not project RTL direction');
+	await page.getByLabel('Name').fill('Jordan');
+	await french.getByText('Bonjour, Jordan.', { exact: false }).waitFor();
+}
+
 async function navigateToDocs(page, origin) {
 	// Vite keeps development connections and dependency discovery active beyond initial page
 	// readiness. The visible journey below is the acceptance signal, not network quiescence.
 	await page.goto(origin, { waitUntil: 'domcontentloaded' });
 }
 
-async function startServer(workspace, port) {
+async function startServer(workspace, port, production) {
 	const applicationDirectory = {
 		'@exactjs/sample-sudoku': path.join(root, 'apps', 'sudoku'),
 		'@exactjs/docs': path.join(root, 'apps', 'docs'),
-		'@exactjs/sample-shipping-calculator': path.join(root, 'apps', 'shipping-calculator')
+		'@exactjs/sample-shipping-calculator': path.join(root, 'apps', 'shipping-calculator'),
+		'@exactjs/sample-intl-testbed': path.join(root, 'apps', 'intl-testbed')
 	}[workspace];
 	const shipping = workspace === '@exactjs/sample-shipping-calculator';
 	const hmrPort = shipping ? await availablePort() : undefined;
-	if (shipping) {
+	if (production) {
+		await runProcess(
+			npmCommand.command,
+			[...npmCommand.prefix, 'run', 'build', '-w', workspace],
+			root,
+			'inherit'
+		);
+	} else if (shipping) {
 		await runProcess(
 			npmCommand.command,
 			[...npmCommand.prefix, 'run', 'generate', '-w', workspace],
@@ -163,7 +191,11 @@ async function startServer(workspace, port) {
 		process.execPath,
 		shipping
 			? ['scripts/dev.mjs']
-			: [path.join(root, 'scripts', 'start-vite-acceptance-server.mjs'), applicationDirectory],
+			: [
+					path.join(root, 'scripts', 'start-vite-acceptance-server.mjs'),
+					applicationDirectory,
+					...(production ? ['--preview'] : [])
+				],
 		{
 			cwd: applicationDirectory,
 			env: {

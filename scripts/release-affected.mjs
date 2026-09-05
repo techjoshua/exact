@@ -96,9 +96,10 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 }
 
 /**
- * Reports whether changed source can alter compiler output or its bundler assembly.
+ * Reports whether changed source can alter compiler output, bundler assembly, or the production
+ * capability-selection fixtures exercised by compiler acceptance.
  *
- * Runtime-only and application changes intentionally remain outside this slower browser gate.
+ * Unrelated runtime and application changes intentionally remain outside this slower browser gate.
  */
 export function compilerAcceptanceAffected(changedFiles) {
 	return changedFiles.some(
@@ -106,6 +107,11 @@ export function compilerAcceptanceAffected(changedFiles) {
 			filename.startsWith('native/typescript-go/') ||
 			filename.startsWith('fixtures/native-compiler-corpus/') ||
 			/^packages\/(?:compiler|plugin-api|plugin-host)\//.test(filename) ||
+			filename === 'packages/core/package.json' ||
+			/^packages\/core\/src\/(?:component\/(?:localization-capability|runtime-surface-localization)|localization(?:\/|\.ts$)|runtime\/localization)/.test(
+				filename
+			) ||
+			filename.startsWith('apps/intl-testbed/') ||
 			/^framework-adapters\/(?:bun|vite|webpack)-plugin\//.test(filename) ||
 			[
 				'scripts/check-compiler-acceptance.mjs',
