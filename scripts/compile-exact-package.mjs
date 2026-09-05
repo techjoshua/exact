@@ -72,8 +72,11 @@ try {
 		}
 		await copyGeneratedEnhancementFacades(generatedRoot, path.join(outputRoot, targetDirectory));
 		validateRuntimeDependencies();
-		await verifyCompiledExports(target, targetDirectory);
 	}
+	// Export inspection runs in Node, so a client artifact can resolve one of its own conditional
+	// package imports through the server condition. Both immutable target trees must exist first.
+	for (const target of ['client', 'server'])
+		await verifyCompiledExports(target, declaredTargetDirectory(target));
 	await writeComponentLibraryBuildFacts();
 } finally {
 	await rm(stageRoot, { recursive: true, force: true });
