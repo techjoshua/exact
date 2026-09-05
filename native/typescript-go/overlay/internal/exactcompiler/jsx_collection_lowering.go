@@ -4,6 +4,7 @@ import (
 	"regexp"
 
 	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/checker"
 )
 
 type collectionMapPlan struct {
@@ -360,19 +361,27 @@ func (lowering *jsxLowering) collectionMapKeyExpression(
 func (lowering *jsxLowering) safeCollectionKey(
 	collection *ast.Node,
 ) (member string, primitive bool, keyed bool) {
+	return safeCollectionKeyForChecker(lowering.checker, collection)
+}
+
+func safeCollectionKeyForChecker(
+	typeChecker *checker.Checker,
+	collection *ast.Node,
+) (member string, primitive bool, keyed bool) {
 	defer func() {
 		if recover() != nil {
 			member, primitive, keyed = "", false, false
 		}
 	}()
-	return lowering.collectionKey(collection)
+	return collectionKey(typeChecker, collection)
 }
 
-func (lowering *jsxLowering) collectionKey(
+func collectionKey(
+	typeChecker *checker.Checker,
 	collection *ast.Node,
 ) (string, bool, bool) {
 	if ast.IsIdentifier(collection) {
-		if symbol := lowering.checker.GetSymbolAtLocation(collection); symbol != nil {
+		if symbol := typeChecker.GetSymbolAtLocation(collection); symbol != nil {
 			for _, declaration := range symbol.Declarations {
 				if !ast.IsVariableDeclaration(declaration) {
 					continue
@@ -389,16 +398,16 @@ func (lowering *jsxLowering) collectionKey(
 			}
 		}
 	}
-	valueType := lowering.checker.GetTypeAtLocation(collection)
-	elementType := lowering.checker.GetElementTypeOfArrayType(valueType)
+	valueType := typeChecker.GetTypeAtLocation(collection)
+	elementType := typeChecker.GetElementTypeOfArrayType(valueType)
 	if elementType == nil {
 		return "", false, false
 	}
-	switch lowering.checker.TypeToString(elementType) {
+	switch typeChecker.TypeToString(elementType) {
 	case "string", "number", "boolean", "bigint", "symbol":
 		return "", true, true
 	}
-	for _, property := range lowering.checker.GetPropertiesOfType(elementType) {
+	for _, property := range typeChecker.GetPropertiesOfType(elementType) {
 		for _, declaration := range property.Declarations {
 			declarationSource := ast.GetSourceFileOfNode(declaration)
 			if declarationSource == nil {

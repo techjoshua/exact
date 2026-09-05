@@ -204,6 +204,10 @@ operation whose entries are opaque keyed child operations. Every cached key owns
 scope, DOM reconciliation transfers that scope with the keyed range, removal stops it, and
 hydration claims the corresponding server item range. Native list execution never creates a
 Fragment VNode or exposes its cached child topology to the component.
+Pure locals declared inside a rendered map callback belong to that retained item scope. When such
+a local derives from component state or props, the client artifact emits an item-owned computation
+so counts, branches, and nested keyed collections observe the same current result rather than the
+callback's initial snapshot.
 When a render arrow returns an otherwise unstructured value such as `props.children`, the client
 artifact marks that authored render function as its component-range output operation. The existing
 component boundary owns its dependency subscription and child reconciliation; the artifact does
