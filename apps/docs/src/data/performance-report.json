@@ -210,7 +210,7 @@
 			"title": "Warm browser used heap",
 			"unit": "MB",
 			"precision": 2,
-			"comment": "Exact uses 2.50 MB after readiness and explicit garbage collection: about 0.20 MB above React and 0.26 MB below TanStack Start. Heap analysis shows a mixed fixed footprint: V8 function and bytecode metadata, retained framework closures and generator state, and runtime objects all contribute. It is not evidence of a leak, but the difference cannot be attributed solely to V8's compiled-JavaScript cache.",
+			"comment": "Exact uses 2.50 MB after readiness and explicit garbage collection: about 0.20 MB above React and 0.26 MB below TanStack Start. In a focused eXact-versus-React heap snapshot, V8 code nodes accounted for 205 KB (79%) of the 260 KB snapshot self-byte difference, consistent with eXact's larger compiled-function population. Its dominant retained bundle script/source entry was about 3 KB smaller than React's. Arrays, object shapes, objects, and closures made up the smaller remainder.",
 			"series": [
 				{
 					"name": "Exact",

@@ -19,6 +19,8 @@ test('heap dominators exclude weak edges and accumulate strong retained size', (
 	const result = summarizeHeapDominators(snapshot);
 	assert.equal(result.reachableNodeCount, 3);
 	assert.equal(result.rootRetainedBytes, 30);
+	assert.deepEqual(result.selfBytesByType, { synthetic: 0, object: 130 });
+	assert.deepEqual(result.nodeCountByType, { synthetic: 1, object: 3 });
 	assert.deepEqual(result.topDominators[0], {
 		node: 1,
 		type: 'object',

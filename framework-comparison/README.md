@@ -48,6 +48,9 @@ The startup CPU profile uses a fresh cache-disabled browser context for every sa
 Chromium's JavaScript parse, compile, evaluation, and total script-duration signals through semantic
 readiness. It runs at 1x, 4x, and 6x CPU rates by default. `COMPARISON_STARTUP_SAMPLES` selects the sample
 count and `COMPARISON_CPU_RATES` accepts a comma-separated rate list.
+Set `COMPARISON_HEAP_DOMINATORS=1` for the untimed diagnostic pass to report retained dominators plus
+node counts and self bytes grouped by V8 heap-node type. These category totals distinguish compiled-code
+metadata from ordinary objects and closures without affecting the timed sample population.
 
 The SSR profile gives every participant an independently owned worker. Comparable workers start concurrently,
 then latency and throughput samples are collected one participant at a time in balanced round-interleaved order
