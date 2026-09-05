@@ -17,7 +17,7 @@
 			"title": "Navigation completion",
 			"unit": "ms",
 			"precision": 1,
-			"comment": "Exact has the fastest mean and central distribution in this application. Lower values are better.",
+			"comment": "Exact has the fastest mean navigation and leads through P95 in this application. Its higher P99 reflects the upper-tail sample rather than the central experience; lower values are better.",
 			"series": [
 				{
 					"name": "Exact",
@@ -94,7 +94,7 @@
 			"title": "Optimistic feedback",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "Nuxt has the lowest interaction latency; Exact remains within a few tenths of React.",
+			"comment": "Nuxt has the lowest interaction latency. Exact averages 1.51 ms, effectively alongside React and TanStack Start for visible feedback.",
 			"series": [
 				{
 					"name": "Exact",
@@ -152,7 +152,7 @@
 			"title": "Authoritative settlement",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "All frameworks cluster tightly because controlled service delivery dominates this phase. Exact is slightly best at the center.",
+			"comment": "All frameworks cluster within 0.72 ms by mean because controlled service delivery dominates this phase. React has the lowest mean; Exact remains within 0.47 ms.",
 			"series": [
 				{
 					"name": "Exact",
@@ -210,7 +210,7 @@
 			"title": "Warm browser used heap",
 			"unit": "MB",
 			"precision": 2,
-			"comment": "Exact retains more than React, SvelteKit, and Nuxt, but less than TanStack Start.",
+			"comment": "Exact uses 2.50 MB after readiness and explicit garbage collection: about 0.20 MB above React and 0.26 MB below TanStack Start. This bounded snapshot is not a leak measurement.",
 			"series": [
 				{
 					"name": "Exact",
@@ -270,7 +270,7 @@
 			"title": "Ordinary concurrent Node responses - c16",
 			"unit": "requests/s",
 			"precision": 0,
-			"comment": "Exact and React are effectively tied at p50.",
+			"comment": "Exact and React are effectively tied at P50, while Exact leads mean whole-response throughput by about 2%. Higher values are better.",
 			"series": [
 				{
 					"name": "Exact",
@@ -328,7 +328,7 @@
 			"title": "Warm sequential response latency",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "Exact is close to React and materially ahead of the full-stack participants. Lower values are better.",
+			"comment": "React has the lowest mean sequential latency at 1.25 ms. Exact follows at 1.43 ms and remains ahead of SvelteKit, Nuxt, and TanStack Start; lower values are better.",
 			"series": [
 				{
 					"name": "Exact",
@@ -387,7 +387,7 @@
 				"title": "Sustained Node throughput - concurrency 1",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Low concurrency emphasizes per-request latency and worker placement. Exact and React remain close; higher is better.",
+				"comment": "At concurrency 1, React leads Exact mean throughput by 1.9%. The two remain close; higher values are better.",
 				"series": [
 					{
 						"name": "Exact",
@@ -445,7 +445,7 @@
 				"title": "Sustained Node throughput - concurrency 4",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Low concurrency emphasizes per-request latency and worker placement. Exact and React remain close; higher is better.",
+				"comment": "At concurrency 4, React leads Exact mean throughput by 0.8%. The two remain close; higher values are better.",
 				"series": [
 					{
 						"name": "Exact",
@@ -503,7 +503,7 @@
 				"title": "Sustained Node throughput - concurrency 8",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "React leads narrowly at c8. Exact reaches parity by c16 as fixed request overhead is amortized.",
+				"comment": "At concurrency 8, React leads Exact mean throughput by 1.0%. Exact reaches parity by concurrency 16.",
 				"series": [
 					{
 						"name": "Exact",
@@ -561,7 +561,7 @@
 				"title": "Sustained Node throughput - concurrency 16",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment.",
+				"comment": "At concurrency 16, Exact and React differ by less than 1% in mean throughput.",
 				"series": [
 					{
 						"name": "Exact",
@@ -619,7 +619,7 @@
 				"title": "Sustained Node throughput - concurrency 32",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment.",
+				"comment": "At concurrency 32, Exact leads React mean throughput by 1.2%.",
 				"series": [
 					{
 						"name": "Exact",
@@ -677,7 +677,7 @@
 				"title": "Sustained Node throughput - concurrency 64",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment.",
+				"comment": "At concurrency 64, Exact leads React mean throughput by 2.8%.",
 				"series": [
 					{
 						"name": "Exact",
@@ -736,7 +736,7 @@
 			"title": "Post-GC server heap across retention checkpoints",
 			"unit": "MB",
 			"precision": 2,
-			"comment": "Exact retains the least Node heap in this workload.",
+			"comment": "Exact retains the least post-GC Node heap in this workload at a 12.67 MB mean, 0.63 MB below React. These bounded checkpoints are a retention signal, not proof about unbounded growth.",
 			"series": [
 				{
 					"name": "Exact",
