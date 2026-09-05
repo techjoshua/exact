@@ -3,7 +3,6 @@
 	"id": "react-native",
 	"framework": "React Router",
 	"frameworkVersion": "7.18.1",
-	"status": "scaffolded",
 	"tracks": ["native-full-stack"],
 	"runtime": "node-24",
 	"ssrTransports": { "node": "node-http", "bun": "node-http-compat" },

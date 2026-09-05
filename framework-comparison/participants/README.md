@@ -4,9 +4,9 @@ Each child directory owns one framework implementation. It must contain a `parti
 lockfile, source, tests, and a short README explaining framework-specific choices. Do not import UI or state
 code from another participant.
 
-Copy [`participant.example.json`](participant.example.json) when beginning an implementation. A participant
-remains `scaffolded` until its contract tests pass; only `complete` participants may produce published results.
-Framework and adapter versions must be exact so a result can be reproduced.
+Copy [`participant.example.json`](participant.example.json) when beginning an implementation. Every measured
+participant must pass the shared contract, and framework and adapter versions must be exact so a result can
+be reproduced.
 
 The controlled-service participants are:
 

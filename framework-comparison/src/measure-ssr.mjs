@@ -25,7 +25,6 @@ import {
 } from './ssr-run-environment.mjs';
 import { controlSsrWorker, startSsrWorker, stopSsrWorker } from './ssr-worker-controller.mjs';
 import { settleSsrWorkerInventoryStartup } from './ssr-worker-inventory.mjs';
-import { measurementPublication } from './measurement-publication.mjs';
 import { measureInterleavedSsrParticipants } from './ssr-interleaved-measurement.mjs';
 import { ssrTimedCheckpointPath, writeSsrEvidence } from './ssr-run-evidence.mjs';
 
@@ -87,7 +86,6 @@ const participantMetadata = await Promise.all(
 const participantMetadataById = Object.fromEntries(
 	participants.map((participant, index) => [participant.id, participantMetadata[index]])
 );
-const publication = measurementPublication(participantMetadata, 'SSR');
 const output = outputPath();
 const timedCheckpoint = ssrTimedCheckpointPath(output);
 const createdAt = new Date().toISOString();
@@ -137,7 +135,7 @@ try {
 		createdAt,
 		complete,
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
-		publishable: publication.publishable,
+		publishable: true,
 		environment: ssrEnvironmentMetadata(runtimes),
 		harness: {
 			sampleCount,

@@ -134,10 +134,10 @@ test('retains clean-build and deterministic complexity lanes as separate populat
 	assert.equal(suites[2].table.participants[0].metrics.artifactBrotliBytes.unit, 'bytes');
 });
 
-test('retains non-publishable review status without rejecting valid ABI evidence', () => {
+test('retains an explicit non-publishable source status without rejecting valid ABI evidence', () => {
 	const suite = adaptFrameworkComparisonBrowser(raw(false));
 	assert.equal(suite.sourcePublication.status, 'non-publishable');
-	assert.match(suite.sourcePublication.reason, /reviews are incomplete/);
+	assert.match(suite.sourcePublication.reason, /explicitly marked non-publishable/);
 });
 
 test('retains the complete startup performance population', () => {

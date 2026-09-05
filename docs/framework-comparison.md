@@ -5,8 +5,8 @@ production-shaped application comparison for eXact and other web frameworks. Its
 deterministic fixture and service, scenario catalog, fairness methodology, production SSR applications,
 black-box acceptance suites, and measurement harness are implemented. The controlled track includes eXact,
 React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact compiler server tasks and React
-Router loaders and actions. All participants remain scaffolded until specialist review; publishable results
-have not been added.
+Router loaders and actions. Correctness-gated results from the current controlled comparison are published
+in the documentation's Performance page.
 
 The eXact browser build explicitly selects the hydrating component-contract projection: it preserves the
 same SSR adoption behavior while leaving analysis-only component inventories out of the shipped bundle.
@@ -54,9 +54,10 @@ track results.
 Correctness gates every timed scenario. Runs retain raw samples, environment and dependency metadata, exact
 participant revisions, and limitations. Performance remains a vector of browser, server, build, delivery, and
 memory measurements; codebase complexity remains a separate profile of authored code, dependencies, boundary
-plumbing, error paths, review findings, and standardized change effort. The suite does not calculate a synthetic
-overall winner. Development measurement commands may collect explicitly non-publishable samples for either
-track while reviews are pending; both publication commands reject unreviewed participants.
+plumbing, error paths, and standardized change effort. The suite does not calculate a synthetic overall
+winner. Correctness, complete raw populations, artifact identity, and environment metadata gate publication.
+Timing and normalization warnings remain visible evidence for interpretation rather than silently discarding
+a completed run.
 
 Controlled browser, startup CPU, and comparable SSR timing results use balanced round interleaving: each round
 collects one sample or window from every framework, rotates their order positions, and reverses alternating

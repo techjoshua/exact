@@ -208,7 +208,7 @@ export function withSourcePublication(suite, raw) {
 			status: raw.publishable ? 'publishable' : 'non-publishable',
 			reason: raw.publishable
 				? 'framework-comparison publication gate passed'
-				: 'framework-comparison participant reviews are incomplete'
+				: 'source measurement was explicitly marked non-publishable'
 		})
 	});
 }

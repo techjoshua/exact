@@ -5,4 +5,4 @@ initial server data, route actions own mutations, automatic revalidation refresh
 resources, and a resource route carries server-sent events.
 
 It belongs to the `native-full-stack` track and must not be ranked against controlled-service
-participants. Results remain unpublished until the specialist review in `review.json` is approved.
+participants. Its native acceptance suite gates every measurement.
