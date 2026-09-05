@@ -19,7 +19,6 @@ interface DistributionChart {
 	readonly comment: string;
 	readonly series: readonly {
 		readonly name: string;
-		readonly before?: boolean;
 		readonly stats: DistributionStatistics;
 	}[];
 }
@@ -31,7 +30,6 @@ interface ValueChart {
 	readonly comment: string;
 	readonly values: readonly {
 		readonly name: string;
-		readonly before?: boolean;
 		readonly value: number;
 	}[];
 }
@@ -80,7 +78,7 @@ export function PerformancePage(this: Component<{}>) {
 		<Article
 			eyebrow="Accepted performance evidence"
 			title="Browser experience and server capacity"
-			description="Decision-useful results from the balanced framework comparison, including arithmetic means, distribution percentiles, and normalized Exact history."
+			description="Decision-useful current results from the balanced framework comparison, including arithmetic means and distribution percentiles."
 			previous={{ path: '/framework-comparison', label: 'Read the benchmark methodology' }}
 			next={{ path: '/components/charts', label: 'Explore the chart components' }}
 		>
@@ -97,10 +95,10 @@ export function PerformancePage(this: Component<{}>) {
 			<Callout title="How to read these charts">
 				<p>
 					The horizontal range spans P50 through P99. Its primary marker is the arithmetic mean; P75
-					and P95 are retained as named marks. The table below every chart gives the exact values
-					without expanding each percentile into a separate metric row. “Exact before” is
-					control-normalized only where the accepted report found at least two eligible controls
-					within the documented dispersion limit.
+					and P95 are retained as named marks. The table below every chart gives the exact current
+					values without expanding each percentile into a separate metric row. Historical and
+					control-normalized comparisons remain part of the internal engineering evidence rather
+					than this public framework comparison.
 				</p>
 			</Callout>
 

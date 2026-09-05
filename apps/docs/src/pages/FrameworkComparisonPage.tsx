@@ -78,9 +78,9 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					and TanStack Start. A separate native track exercises eXact compiler server tasks and
 					React Router loaders and actions. Both acceptance suites and the controlled measurement
 					harness are implemented. The latest admitted evidence is published on the Performance
-					results page with raw framework values, arithmetic means, percentiles, and eligible
-					control-normalized Exact history; it deliberately does not collapse the dimensions into
-					one ranking.
+					results page with current raw framework values, arithmetic means, and percentiles; it
+					deliberately does not collapse the dimensions into one ranking. Historical comparisons
+					remain in the internal engineering evidence.
 				</p>
 			</Callout>
 

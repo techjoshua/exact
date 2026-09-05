@@ -20,17 +20,6 @@
 			"comment": "Exact has the fastest mean and central distribution in this application. Lower values are better.",
 			"series": [
 				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 32.98386995999053,
-						"p50": 33.17308972677941,
-						"p75": 34.06529753982791,
-						"p95": 36.40184518876619,
-						"p99": 38.799999952316284
-					}
-				},
-				{
 					"name": "Exact",
 					"stats": {
 						"mean": 33.69199999451637,
@@ -88,17 +77,6 @@
 			"precision": 0,
 			"comment": "Paint is quantized into four-millisecond buckets. Exact is competitive, while SvelteKit owns the lowest central bucket.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 48.01620089078345,
-						"p50": 44,
-						"p75": 50.259332875825294,
-						"p95": 59.92417595048347,
-						"p99": 56.98399742286462
-					}
-				},
 				{ "name": "Exact", "stats": { "mean": 47.68, "p50": 48, "p75": 52, "p95": 56, "p99": 60 } },
 				{ "name": "React", "stats": { "mean": 54.72, "p50": 56, "p75": 60, "p95": 64, "p99": 68 } },
 				{
@@ -116,19 +94,8 @@
 			"title": "Optimistic feedback",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "Exact improves against its normalized history through p95. Nuxt has the lowest interaction latency; Exact remains within a few tenths of React.",
+			"comment": "Nuxt has the lowest interaction latency; Exact remains within a few tenths of React.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 1.8800657130627652,
-						"p50": 2,
-						"p75": 2.2008681096326512,
-						"p95": 2.836406096718916,
-						"p99": 3.0376107791702767
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {
@@ -188,17 +155,6 @@
 			"comment": "All frameworks cluster tightly because controlled service delivery dominates this phase. Exact is slightly best at the center.",
 			"series": [
 				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 12.977259770867434,
-						"p50": 13.207838018053435,
-						"p75": 13.738253137777262,
-						"p95": 14.10281021655708,
-						"p99": 14.567499930127003
-					}
-				},
-				{
 					"name": "Exact",
 					"stats": {
 						"mean": 12.71199999809265,
@@ -256,17 +212,6 @@
 			"precision": 2,
 			"comment": "Exact retains more than React, SvelteKit, and Nuxt, but less than TanStack Start. The latest correctness fix adds only 200 bytes.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 2.4960357904428747,
-						"p50": 2.496528,
-						"p75": 2.496528,
-						"p95": 2.4965582631049434,
-						"p99": 2.496544
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {
@@ -326,17 +271,6 @@
 			"comment": "Exact is close to the fastest participants and well ahead of TanStack Start in end-to-end readiness.",
 			"series": [
 				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 72.86408451683873,
-						"p50": 72.56687961705363,
-						"p75": 76.58872460823032,
-						"p95": 80.86865236224459,
-						"p99": 85.89999997615814
-					}
-				},
-				{
 					"name": "Exact",
 					"stats": {
 						"mean": 73.06000000476837,
@@ -394,17 +328,6 @@
 			"precision": 1,
 			"comment": "Evaluation remains Exact's clearest client weakness. It is close to TanStack Start but trails React, Nuxt, and especially SvelteKit.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 19.271725878760094,
-						"p50": 18.971942865399345,
-						"p75": 19.824032004628013,
-						"p95": 21.411811836066747,
-						"p99": 20.772483395505716
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {
@@ -464,17 +387,6 @@
 			"comment": "CPU throttling magnifies Exact's evaluation topology. This is a better optimization signal than the already-snappy interaction path.",
 			"series": [
 				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 110.09533786691962,
-						"p50": 111.16970359103232,
-						"p75": 115.61783806048024,
-						"p95": 126.85650412638236,
-						"p99": 128.76148322177266
-					}
-				},
-				{
 					"name": "Exact",
 					"stats": {
 						"mean": 115.03871999999997,
@@ -532,17 +444,6 @@
 			"precision": 1,
 			"comment": "CPU throttling magnifies Exact's evaluation topology. This is a better optimization signal than the already-snappy interaction path.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 196.64465312186655,
-						"p50": 200.45612229259078,
-						"p75": 211.576492805195,
-						"p95": 214.61727394012715,
-						"p99": 220.46831440682644
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {
@@ -602,7 +503,6 @@
 			"unit": "KB",
 			"precision": 1,
 			"values": [
-				{ "name": "Exact before", "before": true, "value": 200.875 },
 				{ "name": "Exact", "value": 200.918 },
 				{ "name": "React", "value": 204.931 },
 				{ "name": "SvelteKit", "value": 170.946 },
@@ -616,7 +516,6 @@
 			"unit": "KB",
 			"precision": 1,
 			"values": [
-				{ "name": "Exact before", "before": true, "value": 100.859 },
 				{ "name": "Exact", "value": 100.902 },
 				{ "name": "React", "value": 96.232 },
 				{ "name": "SvelteKit", "value": 47.016 },
@@ -630,7 +529,6 @@
 			"unit": "functions",
 			"precision": 0,
 			"values": [
-				{ "name": "Exact before", "before": true, "value": 530 },
 				{ "name": "Exact", "value": 530 },
 				{ "name": "React", "value": 236 },
 				{ "name": "SvelteKit", "value": 367 },
@@ -647,17 +545,6 @@
 			"precision": 0,
 			"comment": "Exact and React are effectively tied at p50. This lane includes the complete application response rather than the artificial preloaded path.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 2014.606989199097,
-						"p50": 2019.9724778747382,
-						"p75": 2087.0291140566183,
-						"p95": 2247.4119646599283,
-						"p99": 2355.886034013327
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {
@@ -716,17 +603,6 @@
 			"precision": 2,
 			"comment": "Exact is close to React and materially ahead of the full-stack participants. Lower values are better.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 1.7761454250709627,
-						"p50": 1.6392395146196581,
-						"p75": 1.8398936106694226,
-						"p95": 2.60257686932396,
-						"p99": 2.8153999999994994
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {
@@ -787,17 +663,6 @@
 				"comment": "Low concurrency emphasizes per-request latency and worker placement. Exact and React remain close; higher is better.",
 				"series": [
 					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 1522.6801319065075,
-							"p50": 1536.1427455658638,
-							"p75": 1593.8493354146171,
-							"p95": 1643.653852475537,
-							"p99": 1663.8537243422263
-						}
-					},
-					{
 						"name": "Exact",
 						"stats": {
 							"mean": 1225.6353942717524,
@@ -855,17 +720,6 @@
 				"precision": 0,
 				"comment": "Low concurrency emphasizes per-request latency and worker placement. Exact and React remain close; higher is better.",
 				"series": [
-					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2472.6850872793807,
-							"p50": 2471.616119304697,
-							"p75": 2529.8642569709336,
-							"p95": 2588.3575676606074,
-							"p99": 2599.8572549859646
-						}
-					},
 					{
 						"name": "Exact",
 						"stats": {
@@ -925,17 +779,6 @@
 				"comment": "React leads narrowly at c8. Exact reaches parity by c16 as fixed request overhead is amortized.",
 				"series": [
 					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2216.8008096556728,
-							"p50": 2252.462110842852,
-							"p75": 2314.0853522224206,
-							"p95": 2412.308530635317,
-							"p99": 2436.924416899768
-						}
-					},
-					{
 						"name": "Exact",
 						"stats": {
 							"mean": 2281.6321652559727,
@@ -991,19 +834,8 @@
 				"title": "Sustained Node throughput - concurrency 16",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment. The Exact before/current artifacts are byte-identical.",
+				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment.",
 				"series": [
-					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2245.9817117367184,
-							"p50": 2231.625528243433,
-							"p75": 2314.6642668248114,
-							"p95": 2411.842439012882,
-							"p99": 2390.3942583012035
-						}
-					},
 					{
 						"name": "Exact",
 						"stats": {
@@ -1060,19 +892,8 @@
 				"title": "Sustained Node throughput - concurrency 32",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment. The Exact before/current artifacts are byte-identical.",
+				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment.",
 				"series": [
-					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2251.152110206483,
-							"p50": 2248.9787404183985,
-							"p75": 2345.539154660041,
-							"p95": 2396.481429668058,
-							"p99": 2494.9843699183093
-						}
-					},
 					{
 						"name": "Exact",
 						"stats": {
@@ -1129,19 +950,8 @@
 				"title": "Sustained Node throughput - concurrency 64",
 				"unit": "requests/s",
 				"precision": 0,
-				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment. The Exact before/current artifacts are byte-identical.",
+				"comment": "Exact is effectively tied with React at c16 and leads the current c32/c64 worker assignment.",
 				"series": [
-					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2195.211305588638,
-							"p50": 2196.4856115763796,
-							"p75": 2291.4493496449654,
-							"p95": 2376.0588603362035,
-							"p99": 2397.331977399027
-						}
-					},
 					{
 						"name": "Exact",
 						"stats": {
@@ -1203,17 +1013,6 @@
 				"comment": "Equalizing response size removes wire-volume advantage. Exact leads React at the central value in all three sustained lanes.",
 				"series": [
 					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2171.7073912878673,
-							"p50": 2193.4959777680024,
-							"p75": 2244.1032280702484,
-							"p95": 2328.6064443781324,
-							"p99": 2368.032656610215
-						}
-					},
-					{
 						"name": "Exact",
 						"stats": {
 							"mean": 2216.381736086755,
@@ -1272,17 +1071,6 @@
 				"comment": "Equalizing response size removes wire-volume advantage. Exact leads React at the central value in all three sustained lanes.",
 				"series": [
 					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2196.4295350887237,
-							"p50": 2200.1328778952125,
-							"p75": 2245.212116310648,
-							"p95": 2281.447295900971,
-							"p99": 2297.574476598937
-						}
-					},
-					{
 						"name": "Exact",
 						"stats": {
 							"mean": 2224.7953093340225,
@@ -1340,17 +1128,6 @@
 				"precision": 0,
 				"comment": "Equalizing response size removes wire-volume advantage. Exact leads React at the central value in all three sustained lanes.",
 				"series": [
-					{
-						"name": "Exact before - normalized",
-						"before": true,
-						"stats": {
-							"mean": 2155.3034146904342,
-							"p50": 2146.8409698710416,
-							"p75": 2229.339895614127,
-							"p95": 2312.2249328634307,
-							"p99": 2403.8935563445125
-						}
-					},
 					{
 						"name": "Exact",
 						"stats": {
@@ -1411,17 +1188,6 @@
 			"comment": "React remains faster in the isolated renderer. Exact compensates at application scale with much lower allocation and lean request machinery.",
 			"series": [
 				{
-					"name": "Exact before - raw",
-					"before": true,
-					"stats": {
-						"mean": 0.03524949999999796,
-						"p50": 0.03139999999996235,
-						"p75": 0.03849999999999909,
-						"p95": 0.055799999999976535,
-						"p99": 0.07730000000003656
-					}
-				},
-				{
 					"name": "Exact",
 					"stats": {
 						"mean": 0.03888749999999857,
@@ -1449,17 +1215,6 @@
 			"precision": 2,
 			"comment": "Exact retains the least Node heap in this workload. Lower values are better; the fitted per-request slope is shown separately.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 12.664479317278435,
-						"p50": 12.55818745451911,
-						"p75": 12.77408304538319,
-						"p95": 12.944841013787858,
-						"p99": 12.944841013787858
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {
@@ -1633,17 +1388,6 @@
 			"precision": 0,
 			"comment": "This removes real task and data readiness work. It isolates renderer overhead but does not represent the normal eXact request path.",
 			"series": [
-				{
-					"name": "Exact before - normalized",
-					"before": true,
-					"stats": {
-						"mean": 7153.206694661154,
-						"p50": 7195.239806103878,
-						"p75": 7282.1891469470565,
-						"p95": 7475.290279244419,
-						"p99": 7600.410345385986
-					}
-				},
 				{
 					"name": "Exact",
 					"stats": {

@@ -182,8 +182,8 @@ capability closure pass focused tests with no request/component values in module
 
 - Define a compact versioned accepted-metrics summary produced by repository performance tooling.
 - Preserve immutable raw evidence and environment metadata outside the browser artifact.
-- Include arithmetic mean, suite percentiles, raw historical Exact, eligible normalized Exact-before,
-  and normalization eligibility explanations.
+- Include arithmetic mean and suite percentiles for the current framework population. Preserve raw
+  and normalized historical Exact comparisons only in internal engineering evidence.
 - Add a lazy `/performance` docs route that imports the chart package only for that route.
 - Present browser experience, retained heap, meaningful SSR capacity, allocation diagnostics, and
   payload size with complete accompanying tables.

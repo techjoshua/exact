@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const execute = promisify(execFile);
 const script = resolve('scripts/component-local-target-abi/publish-docs-performance-report.mjs');
 
-test('publishes only complete compact distributions with arithmetic means', async () => {
+test('publishes complete current distributions without internal before comparisons', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'exact-docs-performance-'));
 	try {
 		const input = join(root, 'input.json');
@@ -30,17 +30,40 @@ test('publishes only complete compact distributions with arithmetic means', asyn
 					{
 						title: 'Fixture',
 						unit: 'ms',
+						comment:
+							'Exact improves against its normalized history. Exact is currently the fastest.',
+						series: [
+							{ name: 'Exact before - normalized', before: true, stats },
+							{ name: 'Exact', stats }
+						]
+					}
+				],
+				clientFootprint: [
+					{
+						title: 'Bytes',
+						unit: 'B',
 						comment: 'Lower is better.',
-						series: [{ name: 'Exact', stats }]
+						values: [
+							{ name: 'Exact before', before: true, value: 3 },
+							{ name: 'Exact', value: 2 }
+						]
 					}
 				]
 			})
 		);
 		await execute(process.execPath, [script, input, output]);
-		assert.equal(
-			JSON.parse(await readFile(output, 'utf8')).browserCharts[0].series[0].stats.mean,
-			2
+		const published = JSON.parse(await readFile(output, 'utf8'));
+		assert.deepEqual(
+			published.browserCharts[0].series.map((series) => series.name),
+			['Exact']
 		);
+		assert.deepEqual(
+			published.clientFootprint[0].values.map((value) => value.name),
+			['Exact']
+		);
+		assert.equal(JSON.stringify(published).includes('before'), false);
+		assert.equal(published.browserCharts[0].series[0].stats.mean, 2);
+		assert.equal(published.browserCharts[0].comment, 'Exact is currently the fastest.');
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
