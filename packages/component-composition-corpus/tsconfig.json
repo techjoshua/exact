@@ -1,0 +1,23 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"jsx": "react-jsx",
+		"jsxImportSource": "@exactjs/jsx",
+		"lib": ["ES2022", "DOM"],
+		"types": ["node", "vitest/globals"]
+	},
+	"references": [
+		{ "path": "../core" },
+		{ "path": "../dom" },
+		{ "path": "../hydrate" },
+		{ "path": "../reactive" },
+		{ "path": "../ssr" },
+		{ "path": "../compiler" },
+		{ "path": "../vitest" }
+	],
+	"include": ["src"],
+	"exclude": ["src/**/*.fixtures.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"]
+}

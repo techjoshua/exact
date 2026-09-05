@@ -4,16 +4,17 @@
 import { createExpression } from '@exactjs/core/runtime/render';
 import { flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { render, unmount } from './index.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
 import { propBindings, roots } from './state.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { createOperation } from './test-support/native-operations.js';
 import type { Mounted } from './types.js';
 
 describe('@exactjs/dom static bindings', () => {
 	it('does not retain property or text watchers that observed no dependencies', () => {
 		const container = document.createElement('div');
 		render(
-			createVNode('div', { title: 'Account', style: 'color: red' }, 'Static label'),
+			createOperation('div', { title: 'Account', style: 'color: red' }, 'Static label'),
 			container
 		);
 		const element = container.querySelector('div')!;
@@ -28,7 +29,7 @@ describe('@exactjs/dom static bindings', () => {
 		const state = reactive({ enabled: true, title: 'First' });
 		const container = document.createElement('div');
 		render(
-			createVNode('div', {
+			createOperation('div', {
 				title: createExpression(() => (state.enabled ? state.title : 'Final'))
 			}),
 			container

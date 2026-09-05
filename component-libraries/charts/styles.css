@@ -1,0 +1,227 @@
+.exact-chart {
+	--exact-chart-foreground: var(--exact-theme-surface-foreground, currentColor);
+	--exact-chart-foreground-muted: var(
+		--exact-theme-surface-foreground-muted,
+		var(--exact-chart-foreground)
+	);
+	--exact-chart-axis: color-mix(in srgb, var(--exact-chart-foreground) 65%, transparent);
+	--exact-chart-grid: color-mix(in srgb, var(--exact-chart-foreground) 18%, transparent);
+	--exact-chart-series-1: #2563eb;
+	--exact-chart-series-2: #dc2626;
+	--exact-chart-series-3: #059669;
+	--exact-chart-series-4: #7c3aed;
+	display: grid;
+	gap: 0.75rem;
+	margin: 0;
+	min-inline-size: 0;
+	position: relative;
+}
+
+.exact-chart__title {
+	font: inherit;
+	font-weight: 650;
+}
+
+.exact-chart__description {
+	color: color-mix(in srgb, currentColor 75%, transparent);
+}
+
+.exact-chart__declarations {
+	display: contents;
+}
+
+.exact-chart__legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.exact-chart__legend li > :is(span, button) {
+	align-items: center;
+	display: inline-flex;
+	gap: 0.4rem;
+}
+
+.exact-chart__legend button {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 0.25rem;
+	color: inherit;
+	font: inherit;
+	padding: 0.2rem 0.35rem;
+}
+
+.exact-chart__legend button:focus-visible {
+	border-color: currentColor;
+	outline: 2px solid Highlight;
+	outline-offset: 2px;
+}
+
+.exact-chart__legend button[aria-pressed='false'] {
+	opacity: 0.55;
+	text-decoration: line-through;
+}
+
+.exact-chart__legend-swatch {
+	background-color: var(--exact-chart-series-current);
+	block-size: 0.75rem;
+	border: 1px solid currentColor;
+	display: inline-block;
+	inline-size: 1.5rem;
+}
+
+.exact-chart__pattern-1 {
+	background-image: repeating-linear-gradient(45deg, transparent 0 3px, Canvas 3px 5px);
+}
+
+.exact-chart__pattern-2 {
+	background-image: radial-gradient(Canvas 1px, transparent 1px);
+	background-size: 4px 4px;
+}
+
+.exact-chart__pattern-3 {
+	background-image: repeating-linear-gradient(-45deg, transparent 0 2px, Canvas 2px 3px);
+}
+
+.exact-chart__plot {
+	block-size: auto;
+	inline-size: 100%;
+	overflow: hidden;
+}
+
+.exact-chart__plot-region {
+	isolation: isolate;
+	min-inline-size: 0;
+	overflow: clip;
+	position: relative;
+}
+
+.exact-chart__axis,
+.exact-chart__grid {
+	fill: none;
+	stroke: var(--exact-chart-axis);
+	vector-effect: non-scaling-stroke;
+}
+
+.exact-chart__grid {
+	stroke: var(--exact-chart-grid);
+}
+
+.exact-chart__ticks {
+	fill: var(--exact-chart-foreground-muted);
+	font-size: var(--exact-theme-font-size-sm, 0.875rem);
+}
+
+.exact-chart__axis-labels {
+	fill: var(--exact-chart-foreground);
+}
+
+.exact-chart__series {
+	fill: none;
+	stroke: var(--exact-chart-series-1);
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 2;
+}
+
+.exact-chart__line-hit {
+	fill: none;
+	pointer-events: stroke;
+	stroke: transparent;
+	stroke-width: 16;
+}
+
+.exact-chart__datum:focus {
+	outline: none;
+	stroke: CanvasText;
+	stroke-width: 3;
+}
+
+.exact-chart__tooltip {
+	--exact-chart-tooltip-x: -50%;
+	--exact-chart-tooltip-y: calc(-100% - 0.5rem);
+	background: Canvas;
+	border: 1px solid var(--exact-chart-axis);
+	border-radius: 0.375rem;
+	box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, CanvasText 16%, transparent);
+	color: CanvasText;
+	inline-size: max-content;
+	max-inline-size: min(24rem, calc(100% - 1rem));
+	padding: 0.5rem 0.75rem;
+	position: absolute;
+	transform: translate(var(--exact-chart-tooltip-x), var(--exact-chart-tooltip-y));
+	z-index: 1;
+}
+
+.exact-chart__tooltip--start {
+	--exact-chart-tooltip-x: 0;
+}
+
+.exact-chart__tooltip--end {
+	--exact-chart-tooltip-x: -100%;
+}
+
+.exact-chart__tooltip--after {
+	--exact-chart-tooltip-y: 0.5rem;
+}
+
+.exact-chart__tooltip > * {
+	display: block;
+}
+
+.exact-chart__tooltip[hidden] {
+	display: none;
+}
+
+.exact-chart--motion .exact-chart__tooltip {
+	display: block;
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		opacity var(--exact-theme-duration-fast, 120ms) var(--exact-theme-easing-standard, ease-out),
+		visibility 0s linear var(--exact-theme-duration-fast, 120ms);
+	visibility: hidden;
+}
+
+.exact-chart--motion .exact-chart__tooltip[data-visible='true'] {
+	opacity: 1;
+	pointer-events: auto;
+	transition-delay: 0s;
+	visibility: visible;
+}
+
+.exact-chart__data-view table {
+	border-collapse: collapse;
+	inline-size: 100%;
+}
+
+.exact-chart__data-view :is(th, td) {
+	border-block-end: 1px solid var(--exact-chart-grid);
+	padding: 0.375rem 0.5rem;
+	text-align: start;
+}
+
+.exact-chart__assistive {
+	block-size: 1px;
+	clip-path: inset(50%);
+	inline-size: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+}
+
+@media (forced-colors: active) {
+	.exact-chart__series {
+		stroke: CanvasText;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.exact-chart * {
+		scroll-behavior: auto;
+		transition-duration: 0s;
+	}
+}

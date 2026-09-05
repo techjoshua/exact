@@ -1,17 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
+import { createFrameworkFixtureComponentInstance } from './testing.js';
 import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import './runtime/lifecycle.js';
 import {
 	ErrorContext,
 	createErrorContext,
-	createVNode,
-	isVNode,
 	taskAwait,
 	type Component,
 	type ErrorReport
 } from './index.js';
-import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
+import { executeCompiledComponentOutput } from './component/compiled-output.js';
+import {
+	createCompiledIntrinsicReceipt,
+	readCompiledIntrinsicReceipt
+} from './component-abi/intrinsic-receipt.js';
 import { defaultErrorContext } from './component/errors.js';
 
 describe('@exactjs/core errors', () => {
@@ -42,18 +45,19 @@ describe('@exactjs/core errors', () => {
 			this.setContext(ErrorContext, createErrorContext(this.state.errors));
 
 			return () => {
-				if (this.state.errors.length) return createVNode('span', null, 'fallback');
+				if (this.state.errors.length)
+					return createCompiledIntrinsicReceipt('span', null, 'fallback');
 				throw new Error('render failed');
 			};
 		}, {});
 
-		renderInstance(component, () => renderInstance(component, () => undefined));
+		executeCompiledComponentOutput(component);
 		flushSync();
-		const nodes = renderInstance(component, () => undefined);
+		const nodes = executeCompiledComponentOutput(component);
 
 		expect(instance.state.errors).toHaveLength(1);
 		expect(instance.state.errors[0]!.source).toBe('render');
-		expect(isVNode(nodes[0]) ? nodes[0].children[0] : undefined).toBe('fallback');
+		expect(readCompiledIntrinsicReceipt(nodes[0])?.children[0]).toBe('fallback');
 	});
 
 	it('lets components report and clear errors through error context', () => {
@@ -184,7 +188,7 @@ describe('@exactjs/core errors', () => {
 			{},
 			second
 		);
-		renderInstance(first, () => undefined);
+		executeCompiledComponentOutput(first);
 		expect(firstChild.getContext(ErrorContext).errors).toHaveLength(1);
 		expect(secondChild.getContext(ErrorContext).errors).toHaveLength(0);
 	});

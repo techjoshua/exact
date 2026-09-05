@@ -1,7 +1,18 @@
 import type { Mounted, Root } from '../types.js';
+import type { ExactUnsafeHtmlReceiptData } from '@exactjs/core/runtime/component-operations';
+import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 
 /** Optional unsafe-HTML range renderer installed only for artifacts that use the capability. */
 export type UnsafeHtmlDomCapability = Readonly<{
+	mount(root: Root, receipt: ExactUnsafeHtmlReceiptData, parentScope?: EffectScope): Mounted;
+	adopt(
+		root: Root,
+		receipt: ExactUnsafeHtmlReceiptData,
+		nodes: readonly Node[],
+		cursor: number,
+		parentScope: EffectScope,
+		rangeEnd: number
+	): { mounted: Mounted; next: number } | undefined;
 	assertAllowed(root: Root): void;
 	bind(root: Root, mounted: Mounted, value: unknown, adopted?: boolean): void;
 }>;

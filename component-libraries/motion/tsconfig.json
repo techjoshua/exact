@@ -8,5 +8,5 @@
 	},
 	"references": [{ "path": "../../packages/core" }, { "path": "../../packages/plugin-api" }],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts"]
+	"exclude": ["src/**/*.test.ts", "src/**/*.fixtures.tsx"]
 }

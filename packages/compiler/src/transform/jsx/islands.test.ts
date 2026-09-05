@@ -18,15 +18,16 @@ describe('@exactjs/compiler: islands', () => {
 			serverComponents: true
 		});
 
-		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(client).toContain('title: __exactExpression(() => this.state.label)');
-		expect(client).toContain('__exactUpdateResult(this.state, ["count"]');
-		expect(client).toContain('__exactDynamic(() => this.state.count');
+		expect(client).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(client).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() =>');
+		expect(client).toContain('title: __exactIndexedExpression(this.state, 1)');
+		expect(client).toContain('__exactUpdateStateResult(this.state, 0');
+		expect(client).toContain('__exactDynamic(() => __exactReadState(this.state, 0)');
 		expect(server).toContain(
 			'"__exactState": { count: this.state.count, label: this.state.label }'
 		);
 		expect(server).toContain('__exactHydration: "interaction"');
-		expect(server).toContain('__exactHydrationFallback: __exactVNode("button"');
+		expect(server).toContain('__exactHydrationFallback: __exactIntrinsicReceipt("button"');
 		expect(server).toContain('title: this.state.label');
 		expect(server).not.toContain('onClick');
 	});
@@ -218,7 +219,7 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).not.toContain('__exactCapture: attrs');
 		expect(server).toContain('"__exactState": { count: this.state.count }');
 		expect(server).toContain('title: this.state.label');
-		expect(client).toContain('__exactUpdateResult(this.state, ["count"]');
+		expect(client).toContain('__exactUpdateStateResult(this.state, 0');
 		expect(client).not.toContain('__exactClientProps');
 	});
 
@@ -264,7 +265,7 @@ describe('@exactjs/compiler: islands', () => {
 		expect(analyzeSource(finite, { filename: 'Panel.tsx' }).boundaries[0]?.activation?.mode).toBe(
 			'interaction'
 		);
-		expect(client).toContain('this.state.alternate ? () =>');
+		expect(client).toContain('__exactReadState(this.state, 0) ? () =>');
 		expect(server).toContain("this.state.alternate ? 'First' : 'Second'");
 		expect(
 			analyzeSource(mismatched, { filename: 'Panel.tsx' }).boundaries[0]?.activation?.reasons[0]
@@ -287,7 +288,9 @@ describe('@exactjs/compiler: islands', () => {
 			serverComponents: true
 		});
 
-		expect(client).toContain('value: __exactExpression(() => this.state.name ?? "")');
+		expect(client).toContain(
+			'value: __exactExpression(() => __exactReadState(this.state, 0) ?? "")'
+		);
 		expect(client).toContain('__exactBindInput:');
 		expect(client).not.toContain('value:onInput');
 		expect(server).toContain('"__exactState": { name: this.state.name }');
@@ -315,7 +318,9 @@ describe('@exactjs/compiler: islands', () => {
 
 		expect(server).not.toContain('"__exactCapture"');
 		expect(server).toContain('"__exactState": { count: this.state.count }');
-		expect(client).toContain('const label = __exactDerived(() => String(this.state.count));');
+		expect(client).toContain(
+			'const label = __exactDerived(() => String(__exactReadState(this.state, 0)'
+		);
 		expect(client).toContain('console.log(label.get())');
 		expect(client).toContain('__exactDynamic(() => label.get()');
 	});
@@ -376,7 +381,7 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(server).not.toContain('__exactCapture');
-		expect(client).toContain('const save = () => __exactUpdateResult(this.state, ["count"]');
+		expect(client).toContain('const save = () => __exactUpdateStateResult(this.state, 0');
 		expect(client).toContain('onClick: () => save()');
 	});
 
@@ -397,7 +402,8 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(analysis.components[0]!.clientIslandCount).toBe(1);
-		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(client).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(client).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() =>');
 		expect(client).not.toContain('export function Panel_ExactClient_2');
 		expect(server).toContain('Panel_ExactClient_1');
 		expect(server).not.toContain('Panel_ExactClient_2');
@@ -442,16 +448,18 @@ describe('@exactjs/compiler: islands', () => {
 				kind: 'server-slot'
 			})
 		);
-		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(client).toContain('props.children');
+		expect(client).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
+		expect(client).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() =>');
+		expect(client).toContain('__exactReadState(props, 1)');
 		expect(client).not.toContain('ServerSummary');
 		expect(client).not.toContain('readFile');
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('__exactHydration: "interaction"');
 		expect(server).toContain('Panel_ExactClient_1');
-		expect(server).toContain('<div class=\\"summary\\">');
+		expect(server).toContain('{ className: "summary" }');
+		expect(server).toContain('__exactSsr.rootOpening(');
 		expect(server).toContain('__exactSsr.component(');
-		expect(server).toContain('__exactComponentVNode(ServerSummary');
+		expect(server).toContain('__exactComponentReceipt(ServerSummary');
 		expect(server).toContain('readFile');
 		expect(
 			analysis.boundaries.find((boundary) => boundary.name === 'Panel_ExactClient_1')?.activation

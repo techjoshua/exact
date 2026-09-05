@@ -259,9 +259,10 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 				edge.artifactTargets.includes('server')
 		);
 		const enhancementEdge =
-			candidate.reason === 'server-enhancement' &&
+			candidate.optionalEnhancementIdentity !== undefined &&
 			importer.facts.rendererEnhancements.some(
 				(edge) =>
+					edge.identity === candidate.optionalEnhancementIdentity &&
 					edge.moduleSpecifier === candidate.moduleSpecifier &&
 					edge.exportName === candidate.exportName
 			);
@@ -270,7 +271,11 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 				'provenance-unresolved',
 				candidate,
 				instance,
-				`Compiler facts do not contain a server component edge for ${candidate.moduleSpecifier}#${candidate.exportName}`
+				`Compiler facts for ${candidate.importerModuleId} do not contain a ${candidate.reason} edge for ${candidate.moduleSpecifier}#${candidate.exportName}; recorded enhancements: ${
+					importer.facts.rendererEnhancements
+						.map((edge) => `${edge.moduleSpecifier}#${edge.exportName}`)
+						.join(', ') || '(none)'
+				}`
 			);
 	}
 

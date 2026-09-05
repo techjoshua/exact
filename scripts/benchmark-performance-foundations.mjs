@@ -6,13 +6,7 @@ import { summarizeValues } from './performance/measurement.mjs';
 
 const workspace = path.resolve(import.meta.dirname, '..');
 const worker = path.join(import.meta.dirname, 'performance', 'foundations-worker.mjs');
-const availableScenarios = [
-	'render-plan',
-	'async-ssr',
-	'hydration-publication',
-	'transport',
-	'build-host'
-];
+const availableScenarios = ['transport', 'build-host'];
 const requestedScenario = argument('scenario');
 const outputArgument = argument('output');
 if (outputArgument && requestedScenario)

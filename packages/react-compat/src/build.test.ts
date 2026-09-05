@@ -12,6 +12,7 @@ const fixtureRoot = path.resolve(
 describe('React compatibility build engine', () => {
 	it('reports a frozen registry and fast-paths irrelevant modules', () => {
 		const engine = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target: 18 });
+		expect(engine.jsxInterop.clientRendererModule).toBe('@exactjs/react-dom-compat/client18');
 		expect(engine.report()).toMatchObject({
 			activeAdapters: ['@exactjs/tanstack-query'],
 			target: 18
@@ -131,6 +132,16 @@ describe('React compatibility build engine', () => {
 				declarationSources: [
 					path.resolve(import.meta.dirname, '../../../apps/docs/src/demos/CounterDemo.tsx')
 				],
+				declarationSignatures: []
+			})
+		).toBe('exact');
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'server-app.tsx'),
+				sourceModule: '../.exact/App.exact.server.js',
+				localName: 'ShippingCalculatorPage',
+				tagName: 'ShippingCalculatorPage',
+				declarationSources: [],
 				declarationSignatures: []
 			})
 		).toBe('exact');

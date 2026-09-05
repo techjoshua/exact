@@ -20,6 +20,27 @@
 			"exposure": "Transitive dependency of the comparison-only Svelte fixture.",
 			"owner": "Framework comparison",
 			"expires": "2026-11-30"
+		},
+		{
+			"package": "body-parser",
+			"maximumSeverity": "moderate",
+			"exposure": "Transitive dependency of the loopback-only React framework-comparison server; the advisory is inherited from its pinned qs range.",
+			"owner": "Framework comparison",
+			"expires": "2026-10-15"
+		},
+		{
+			"package": "express",
+			"maximumSeverity": "moderate",
+			"exposure": "React Router's comparison-only server receives controlled local benchmark routes and cannot yet consume qs 6.16 through Express 4's pinned range.",
+			"owner": "Framework comparison",
+			"expires": "2026-10-15"
+		},
+		{
+			"package": "qs",
+			"maximumSeverity": "moderate",
+			"exposure": "The remaining vulnerable copy is constrained to Express 4 in the loopback-only React framework-comparison server; other tooling is overridden to qs 6.16.",
+			"owner": "Framework comparison",
+			"expires": "2026-10-15"
 		}
 	]
 }

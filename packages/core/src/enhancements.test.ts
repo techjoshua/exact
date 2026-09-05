@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createContext } from './keys.js';
-import { createExactFrameworkFixtureArtifact } from './component-contracts.js';
+import { createExactFrameworkFixtureArtifact } from './testing/runtime-artifacts.js';
 import {
 	createEnhancementNode,
 	markExactEnhancementContexts,
 	omitKnownProps,
 	readExactEnhancementContexts
 } from './enhancements.js';
-import { createVNode } from './vnode.js';
+import {
+	createCompiledIntrinsicReceipt,
+	readCompiledIntrinsicReceipt
+} from './component-abi/intrinsic-receipt.js';
 
 describe('renderer enhancement markers', () => {
 	it('groups canonical entries outside authored props', () => {
@@ -15,13 +18,13 @@ describe('renderer enhancement markers', () => {
 			{ identity: '@exactjs/motion#motion', props: { preset: 'fade' } },
 			{ identity: '@exactjs/gestures#gestures', props: { draggable: true }, root: true }
 		]);
-		const vnode = createVNode('button', {
+		const operation = createCompiledIntrinsicReceipt('button', {
 			id: 'save',
 			__exactEnhancements: marker
 		});
 
-		expect(vnode.props).toEqual({ id: 'save' });
-		expect(vnode.enhancement).toBe(marker);
+		expect(readCompiledIntrinsicReceipt(operation)?.props).toEqual({ id: 'save' });
+		expect(readCompiledIntrinsicReceipt(operation)?.enhancement).toBe(marker);
 		expect(marker).toMatchObject({ kind: 'enhancement', fallback: 'preserve-target' });
 		expect(marker.entries).toEqual([
 			{ identity: '@exactjs/motion#motion', props: { preset: 'fade' } },

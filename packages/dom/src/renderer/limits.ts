@@ -1,5 +1,6 @@
 import type { Root } from '../types.js';
 import { consumeDomWork } from '../work.js';
+import { flushPlacementRetentions } from '../placement.js';
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
@@ -28,7 +29,7 @@ export function normalizeTreeDepth(value: number | undefined): number {
 		: DEFAULT_MAX_TREE_DEPTH;
 }
 
-/** Normalizes the amount of vnode work permitted during one renderer update. */
+/** Normalizes the amount of operation work permitted during one renderer update. */
 export function normalizeTreeNodes(value: number | undefined): number {
 	return Number.isSafeInteger(value) && value! > 0 ? value! : DEFAULT_MAX_TREE_NODES;
 }
@@ -46,6 +47,7 @@ export function withDomWork<T>(root: Root, run: () => T): T {
 		return run();
 	} finally {
 		root.workDepth--;
+		if (outermost) flushPlacementRetentions(root);
 	}
 }
 

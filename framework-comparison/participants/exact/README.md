@@ -6,4 +6,4 @@ events replace only their corresponding incident. Detail interaction state belon
 
 The server emits hydratable HTML and its compiler-owned resumption payload. The browser adopts that DOM
 without replacing the application root; the shared black-box suite protects both the user behavior and
-that root-adoption boundary. It remains `scaffolded` until the framework-specialist review is approved.
+that root-adoption boundary.

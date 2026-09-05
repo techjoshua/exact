@@ -10,9 +10,8 @@ import {
 	pluralRulesFormatter,
 	relativeTimeFormatter
 } from './formatter-cache.js';
+import { formatPreparedIntlMeasurement } from './measurement-presentation.js';
 import { resolveIntlBinding, type PreparedIntlActivation } from './prepared.js';
-import { convertIntlUnit, intlUnitDefinitions } from './unit-definitions.js';
-import { resolveCldrUnitPreference } from './unit-preferences.js';
 
 /** Renders a prepared source message or its current validated translation. */
 export function renderIntlActivation(
@@ -22,6 +21,23 @@ export function renderIntlActivation(
 	const { descriptor } = activation;
 	const pattern =
 		environment.find(descriptor.owner, descriptor.key, descriptor) ?? descriptor.source;
+	return renderIntlPatternActivation(pattern, activation, environment);
+}
+
+/** Renders the authored source pattern for a prepared activation without catalog lookup. */
+export function renderIntlSourceActivation(
+	activation: PreparedIntlActivation,
+	environment: IntlEnvironment
+): Child[] {
+	return renderIntlPatternActivation(activation.descriptor.source, activation, environment);
+}
+
+function renderIntlPatternActivation(
+	pattern: IntlPatternV1,
+	activation: PreparedIntlActivation,
+	environment: IntlEnvironment
+): Child[] {
+	const { descriptor } = activation;
 	const usedStructures = new Set<number>();
 	const output = renderPattern(pattern, activation, environment, usedStructures);
 	for (const binding of descriptor.bindings)
@@ -144,7 +160,7 @@ function formatValue(
 				currencyDisplay: formatter.display
 			}).format(first as number);
 		case 'unit':
-			return formatUnitRange(formatter, values, environment);
+			return formatPreparedIntlMeasurement(environment, formatter, values);
 		case 'date-time':
 			if (formatter.range) {
 				return dateTimeFormatter(environment, nativeOptions(formatter.options)).formatRange(
@@ -186,166 +202,6 @@ function formatValue(
 			return duration?.format(first) ?? String(first);
 		}
 	}
-}
-
-function formatUnitRange(
-	formatter: Extract<IntlFormatterV1, { kind: 'unit' }>,
-	values: readonly unknown[],
-	environment: IntlEnvironment
-): string {
-	const preference =
-		formatter.convertTo ??
-		environment.unitPreferences[
-			`${formatter.quantity}/${formatter.usage}` as keyof typeof environment.unitPreferences
-		] ??
-		resolveCldrUnitPreference(
-			environment.state.locale,
-			formatter.quantity,
-			formatter.usage,
-			values.map(Number),
-			formatter.sourceUnit
-		);
-	const destinations = Array.isArray(preference)
-		? preference
-		: [preference ?? formatter.sourceUnit];
-	const options = sourcePrecisionOptions(formatter, values, destinations);
-	if (destinations.length > 1) {
-		if (values.length !== 1)
-			throw new TypeError('Mixed-unit intl formatting requires one source value');
-		return formatMixedUnit(
-			Number(values[0]),
-			formatter.sourceUnit,
-			destinations,
-			environment,
-			options
-		);
-	}
-	const destination = destinations[0] ?? formatter.sourceUnit;
-	const converted = values.map((value) =>
-		convertIntlUnit(Number(value), formatter.sourceUnit, destination)
-	);
-	const unit = nativeUnitFormatter(environment, destination, options);
-	if (converted.length < 2)
-		return (
-			unit?.format(converted[0]!) ??
-			formatUnitSymbol(converted[0]!, destination, environment, options)
-		);
-	if (!unit)
-		return `${numberFormatter(environment, options).format(converted[0]!)}–${formatUnitSymbol(converted[1]!, destination, environment, options)}`;
-	const nativeRange = (
-		unit as Intl.NumberFormat & { formatRange?: (start: number, end: number) => string }
-	).formatRange;
-	if (nativeRange) return nativeRange.call(unit, converted[0]!, converted[1]!);
-	const number = numberFormatter(environment, options);
-	return `${number.format(converted[0]!)}–${unit.format(converted[1]!)}`;
-}
-
-function sourcePrecisionOptions(
-	formatter: Extract<IntlFormatterV1, { kind: 'unit' }>,
-	values: readonly unknown[],
-	destinations: readonly string[]
-): Record<string, unknown> {
-	const options = nativeOptions(formatter.options);
-	if (
-		(formatter.precision !== undefined && formatter.precision !== 'source') ||
-		options.maximumFractionDigits !== undefined ||
-		options.maximumSignificantDigits !== undefined
-	)
-		return options;
-	const sourceFractionDigits = Math.max(0, ...values.map(visibleFractionDigits));
-	const nonzeroFractionDigits =
-		destinations.length === 1
-			? Math.max(
-					0,
-					...values.map((value) =>
-						minimumNonzeroFractionDigits(
-							convertIntlUnit(Number(value), formatter.sourceUnit, destinations[0]!),
-							sourceFractionDigits
-						)
-					)
-				)
-			: 0;
-	return {
-		...options,
-		maximumFractionDigits: Math.max(sourceFractionDigits, nonzeroFractionDigits)
-	};
-}
-
-/** Adds precision only when baseline rounding would erase a finite nonzero converted value. */
-function minimumNonzeroFractionDigits(value: number, baselineFractionDigits: number): number {
-	const magnitude = Math.abs(value);
-	if (!Number.isFinite(magnitude) || magnitude === 0 || magnitude >= 1) return 0;
-	const baselineScale = 10 ** baselineFractionDigits;
-	if (Math.round(magnitude * baselineScale) / baselineScale !== 0) return 0;
-	return Math.min(20, Math.max(0, Math.ceil(-Math.log10(magnitude))));
-}
-
-function visibleFractionDigits(value: unknown): number {
-	const numeric = Number(value);
-	if (!Number.isFinite(numeric)) return 0;
-	const [coefficient, exponentText] = String(numeric).toLowerCase().split('e');
-	const fraction = coefficient?.split('.')[1]?.length ?? 0;
-	const exponent = exponentText === undefined ? 0 : Number(exponentText);
-	return Math.max(0, Math.min(20, fraction - exponent));
-}
-
-function formatMixedUnit(
-	value: number,
-	source: string,
-	destinations: readonly string[],
-	environment: IntlEnvironment,
-	options: Record<string, unknown>
-): string {
-	if (destinations.length !== 2)
-		throw new TypeError('Protocol-1 mixed-unit formatting supports exactly two destination units');
-	const first = convertIntlUnit(value, source, destinations[0]!);
-	const firstPart = first < 0 ? Math.ceil(first) : Math.floor(first);
-	const firstInSecond = convertIntlUnit(firstPart, destinations[0]!, destinations[1]!);
-	const secondPart = convertIntlUnit(value, source, destinations[1]!) - firstInSecond;
-	const unitDisplay = String(options.unitDisplay ?? 'short') as 'long' | 'short' | 'narrow';
-	const numberOptions = options;
-	const parts = [destinations[0]!, destinations[1]!].map((unit, index) => {
-		const part = index === 0 ? firstPart : secondPart;
-		const formatter = nativeUnitFormatter(environment, unit, { ...numberOptions, unitDisplay });
-		return formatter?.format(part) ?? formatUnitSymbol(part, unit, environment, numberOptions);
-	});
-	return listFormatter(environment, {
-		type: 'unit',
-		style: unitDisplay === 'long' ? 'long' : 'short'
-	}).format(parts);
-}
-
-function nativeUnitFormatter(
-	environment: IntlEnvironment,
-	unit: string,
-	options: Record<string, unknown>
-): Intl.NumberFormat | undefined {
-	try {
-		return numberFormatter(environment, { ...options, style: 'unit', unit });
-	} catch (error) {
-		if (error instanceof RangeError) return undefined;
-		throw error;
-	}
-}
-
-function formatUnitSymbol(
-	value: number,
-	unit: string,
-	environment: IntlEnvironment,
-	options: Record<string, unknown>
-): string {
-	const symbol = intlUnitDefinitions[unit]?.symbol;
-	if (!symbol) throw new TypeError(`Unsupported intl unit ${unit}`);
-	const proxy = numberFormatter(environment, {
-		...options,
-		style: 'unit',
-		unit: 'meter',
-		unitDisplay: 'short'
-	});
-	return proxy
-		.formatToParts(value)
-		.map((part) => (part.type === 'unit' ? symbol : part.value))
-		.join('');
 }
 
 function nativeOptions(options: IntlFiniteOptionsV1): Record<string, unknown> {

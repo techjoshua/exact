@@ -147,9 +147,11 @@ and other foreign functions remain outside native component ownership and cross
 their explicit compatibility adapter.
 
 The compiler discovers function declarations and function-valued variable
-declarations. An uppercase function that contains JSX is a component by
-convention. A typed `this: Component<...>` receiver or use of the component
-protocol also identifies component ownership. Durable component definitions
+declarations. An uppercase function that contains JSX or directly returns its
+component-local render function is a component by convention. The latter rule
+also covers transparent components whose render function forwards `props.children`
+without spelling JSX. A typed `this: Component<...>` receiver or use of the
+component protocol also identifies component ownership. Durable component definitions
 belong at module scope so every emitted target and package export receives one
 stable artifact identity. Use a component-body-local PascalCase view arrow for
 a lexical micro-component; a nested durable component declaration is rejected.
@@ -218,6 +220,9 @@ function Dashboard(this: Component<{ widget: WidgetKey }>) {
 Component registries are immutable module-level declarations. Static members such as
 `<Widget.grid />` retain entry-specific props and tree shaking. Dynamic selection must be finite
 through `KeyOf<typeof Widget>` or a successful `hasComponent(Widget, untrustedKey)` check.
+Ordinary function-declaration hoisting applies to eager entries, so a registry may reference a
+module-level component declared later in the same module; its compiled artifact is available when
+the registry definition executes.
 Registry keys are component identity: changing keys replaces only the registry-owned component
 range, while same-key prop updates retain the instance. Lazy entries deduplicate loading and
 participate in `Suspense`; `preloadComponent()` starts loading without constructing an instance.
@@ -442,6 +447,18 @@ uses result equality to stop unchanged values from propagating farther through
 the graph. Keep a derived declaration in the component body when several consumers should
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
+
+A derived read is synchronously current through the complete dependency chain. After state is
+written, an event, task, or library callback may read a retained downstream value immediately; it
+does not need to flush the global scheduler first. The runtime settles only that value's potentially
+stale upstream graph. DOM bindings and other consequences remain coalesced at their assigned
+scheduler priority. Equal intermediate results are propagation barriers, so a downstream
+calculation or binding does not run merely because a more distant source was written.
+
+The runtime reports a direct or indirect first-class computed cycle as
+`eXact reactive computation cycle detected` before exhausting the JavaScript stack. Compiler
+diagnostics still reject setup-derived state cycles that are visible statically; runtime detection
+covers dynamic branches and values composed through library boundaries.
 
 Generated reactive callbacks sample a retained derived cell once when an
 authored expression reads it repeatedly. Consequently, ordinary TypeScript
@@ -1566,7 +1583,8 @@ this.onRender(({ duration, dependencies }) => {
 });
 ```
 
-- `onMount` runs after the instance is mounted;
+- `onMount` runs after the instance's DOM range reaches its final root or portal placement, so
+  mounted refs and layout reads observe the placed subtree;
 - `onActivate` runs when a retained instance becomes connected;
 - `onDeactivate` runs when it is parked or otherwise disconnected;
 - `onUnmount` is final disposal; and

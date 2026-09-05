@@ -33,6 +33,12 @@ export function createWebAnimationDriver(): MotionDriver {
 		async play(element: Element, effect: MotionEffect, signal: AbortSignal): Promise<void> {
 			if (signal.aborted) throw signal.reason;
 			if (typeof element.animate !== 'function') return;
+			// Enhancement targets can be logically presented while their containing component tree is
+			// still being placed. Starting a backwards-filled animation in that provisional state can
+			// leave Chromium displaying its first frame after the tree becomes connected. The next paint
+			// boundary is the first browser-owned point after synchronous and microtask-driven placement.
+			await placementFrame();
+			if (signal.aborted) throw signal.reason;
 			const interrupted = interruptedFrames.get(element);
 			if (interrupted) interruptedFrames.delete(element);
 			const keyframes = interrupted
@@ -60,6 +66,11 @@ export function createWebAnimationDriver(): MotionDriver {
 			}
 		}
 	});
+}
+
+function placementFrame(): Promise<void> {
+	if (typeof globalThis.requestAnimationFrame !== 'function') return Promise.resolve();
+	return new Promise((resolve) => globalThis.requestAnimationFrame(() => resolve()));
 }
 
 function captureAnimatedFrame(

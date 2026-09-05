@@ -21,9 +21,25 @@
 			"types": "./dist/enhanced.d.ts",
 			"default": "./dist/enhanced.js"
 		},
-		"./runtime/generic-components": {
-			"types": "./dist/runtime/generic-components.d.ts",
-			"default": "./dist/runtime/generic-components.js"
+		"./runtime/direct-context-frame": {
+			"types": "./dist/runtime/direct-context-frame.d.ts",
+			"default": "./dist/runtime/direct-context-frame.js"
+		},
+		"./runtime/direct-logging-frame": {
+			"types": "./dist/runtime/direct-logging-frame.d.ts",
+			"default": "./dist/runtime/direct-logging-frame.js"
+		},
+		"./runtime/direct-refs": {
+			"types": "./dist/runtime/direct-refs.d.ts",
+			"default": "./dist/runtime/direct-refs.js"
+		},
+		"./runtime/direct-reactivity": {
+			"types": "./dist/runtime/direct-reactivity.d.ts",
+			"default": "./dist/runtime/direct-reactivity.js"
+		},
+		"./runtime/direct-lifecycle": {
+			"types": "./dist/runtime/direct-lifecycle.d.ts",
+			"default": "./dist/runtime/direct-lifecycle.js"
 		},
 		"./runtime/structural-boundaries": {
 			"types": "./dist/runtime/structural-boundaries.d.ts",
@@ -32,10 +48,6 @@
 		"./runtime/resumption-boundaries": {
 			"types": "./dist/runtime/resumption-boundaries.d.ts",
 			"default": "./dist/runtime/resumption-boundaries.js"
-		},
-		"./runtime/enhancements": {
-			"types": "./dist/runtime/enhancements.d.ts",
-			"default": "./dist/runtime/enhancements.js"
 		},
 		"./runtime/compiler-closed": {
 			"types": "./dist/compiler-closed.d.ts",

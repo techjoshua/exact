@@ -6,6 +6,7 @@ export {
 	componentDomainWallClockSnapshot,
 	componentDomainUsesWallClock,
 	createFrameworkComponentDomain,
+	callWithComponentDomain,
 	currentComponentDomain,
 	isHydrationComponentDomain,
 	markComponentDomainWallClockUsed,
@@ -16,3 +17,7 @@ export {
 	type ComponentDomainLogging,
 	type FrameworkComponentDomainOptions
 } from '../component/domain.js';
+export type {
+	ComponentResumptionSource,
+	IndexedComponentResumptionActivation
+} from '../component/contracts.js';

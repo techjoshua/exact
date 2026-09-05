@@ -98,6 +98,7 @@ export interface ReactCompatibilityBuildEngine {
 export interface ReactCompatibilityJsxInterop {
 	readonly adapterModule: '@exactjs/react-compat/exact';
 	readonly adapterExport: 'adaptReactComponent';
+	readonly clientRendererModule: `@exactjs/react-dom-compat/client${18 | 19}`;
 	readonly cacheKey: string;
 	classify(candidate: {
 		readonly importer: string;

@@ -10,59 +10,117 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./testing": {
 			"types": "./dist/testing.d.ts",
-			"default": "./dist/testing.js"
+			"browser": "./dist/client/testing.js",
+			"default": "./dist/server/testing.js"
 		},
 		"./root": {
 			"types": "./dist/root.d.ts",
-			"default": "./dist/root.js"
+			"browser": "./dist/client/root.js",
+			"default": "./dist/server/root.js"
 		},
 		"./enhanced": {
 			"types": "./dist/enhanced.d.ts",
-			"default": "./dist/enhanced.js"
+			"browser": "./dist/client/enhanced.js",
+			"default": "./dist/server/enhanced.js"
 		},
 		"./framework/hydration": {
 			"types": "./dist/framework/hydration.d.ts",
-			"default": "./dist/framework/hydration.js"
+			"browser": "./dist/client/framework/hydration.js",
+			"default": "./dist/server/framework/hydration.js"
+		},
+		"./framework/component-root": {
+			"types": "./dist/framework/component-root.d.ts",
+			"browser": "./dist/client/framework/component-root.js",
+			"default": "./dist/server/framework/component-root.js"
+		},
+		"./framework/intrinsic-root": {
+			"types": "./dist/framework/intrinsic-root.d.ts",
+			"browser": "./dist/client/framework/intrinsic-root.js",
+			"default": "./dist/server/framework/intrinsic-root.js"
+		},
+		"./framework/render-program-root": {
+			"types": "./dist/framework/render-program-root.d.ts",
+			"browser": "./dist/client/framework/render-program-root.js",
+			"default": "./dist/server/framework/render-program-root.js"
 		},
 		"./framework/enhancements": {
 			"types": "./dist/framework/enhancements.d.ts",
-			"default": "./dist/framework/enhancements.js"
+			"browser": "./dist/client/framework/enhancements.js",
+			"default": "./dist/server/framework/enhancements.js"
 		},
 		"./runtime/modal": {
 			"types": "./dist/runtime/modal.d.ts",
-			"default": "./dist/runtime/modal.js"
+			"browser": "./dist/client/runtime/modal.js",
+			"default": "./dist/server/runtime/modal.js"
 		},
 		"./runtime/target": {
 			"types": "./dist/runtime/target.d.ts",
-			"default": "./dist/runtime/target.js"
+			"browser": "./dist/client/runtime/target.js",
+			"default": "./dist/server/runtime/target.js"
 		},
 		"./runtime/render-program": {
 			"types": "./dist/runtime/render-program.d.ts",
-			"default": "./dist/runtime/render-program.js"
+			"browser": "./dist/client/runtime/render-program.js",
+			"default": "./dist/server/runtime/render-program.js"
+		},
+		"./runtime/foreign-components": {
+			"types": "./dist/runtime/foreign-components.d.ts",
+			"browser": "./dist/client/runtime/foreign-components.js",
+			"default": "./dist/server/runtime/foreign-components.js"
+		},
+		"./runtime/compatibility-ranges": {
+			"types": "./dist/runtime/compatibility-ranges.d.ts",
+			"browser": "./dist/client/runtime/compatibility-ranges.js",
+			"default": "./dist/server/runtime/compatibility-ranges.js"
+		},
+		"./runtime/root-release": {
+			"types": "./dist/runtime/root-release.d.ts",
+			"browser": "./dist/client/runtime/root-release.js",
+			"default": "./dist/server/runtime/root-release.js"
 		},
 		"./runtime/unsafe-html": {
 			"types": "./dist/runtime/unsafe-html.d.ts",
-			"default": "./dist/runtime/unsafe-html.js"
+			"browser": "./dist/client/runtime/unsafe-html.js",
+			"default": "./dist/server/runtime/unsafe-html.js"
 		},
 		"./unsafe-html": {
 			"types": "./dist/unsafe-html.d.ts",
-			"default": "./dist/unsafe-html.js"
+			"browser": "./dist/client/unsafe-html.js",
+			"default": "./dist/server/unsafe-html.js"
 		},
 		"./runtime/structural-boundaries": {
 			"types": "./dist/runtime/structural-boundaries.d.ts",
-			"default": "./dist/runtime/structural-boundaries.js"
+			"browser": "./dist/client/runtime/structural-boundaries.js",
+			"default": "./dist/server/runtime/structural-boundaries.js"
 		},
 		"./structural-boundaries": {
 			"types": "./dist/structural-boundaries.d.ts",
-			"default": "./dist/structural-boundaries.js"
+			"browser": "./dist/client/structural-boundaries.js",
+			"default": "./dist/server/structural-boundaries.js"
 		}
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"sideEffects": [
+		"./dist/**/enhanced.js",
+		"./dist/**/framework/enhancements.js",
+		"./dist/**/structural-boundaries.js",
+		"./dist/**/unsafe-html.js",
+		"./dist/**/runtime/modal.js",
+		"./dist/**/runtime/foreign-components.js",
+		"./dist/**/runtime/root-release.js",
+		"./dist/**/runtime/structural-boundaries.js",
+		"./dist/**/runtime/target.js",
+		"./dist/**/runtime/unsafe-html.js"
+	],
+	"exactCompileModules": [
+		"src/testing-component.tsx"
+	],
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/devtools-protocol": "^0.1.0",

@@ -173,8 +173,10 @@ func pruneArtifactImports(
 	retainedUses map[string]struct{},
 ) *ast.SourceFile {
 	used := artifactIdentifierUses(sourceFile)
+	runtimeUsed := artifactRuntimeIdentifierUses(sourceFile)
 	for name := range retainedUses {
 		used[name] = struct{}{}
+		runtimeUsed[name] = struct{}{}
 	}
 	statements := make([]*ast.Node, 0, len(sourceFile.Statements.Nodes))
 	changed := false
@@ -220,7 +222,7 @@ func pruneArtifactImports(
 			statements = append(statements, statement)
 			continue
 		}
-		updated, keep := pruneImportDeclaration(statement, factory, used)
+		updated, keep := pruneImportDeclaration(statement, factory, used, runtimeUsed)
 		if !keep {
 			changed = true
 			continue
@@ -258,10 +260,29 @@ func artifactIdentifierUses(sourceFile *ast.SourceFile) map[string]struct{} {
 	return result
 }
 
+// artifactRuntimeIdentifierUses excludes identifiers that survive solely as TypeScript types so
+// consumed compiler syntax does not retain its original runtime module after lowering.
+func artifactRuntimeIdentifierUses(sourceFile *ast.SourceFile) map[string]struct{} {
+	result := make(map[string]struct{})
+	for _, statement := range sourceFile.Statements.Nodes {
+		if ast.IsImportDeclaration(statement) {
+			continue
+		}
+		walkNode(statement, func(node *ast.Node) bool {
+			if ast.IsIdentifier(node) && !semanticTypeOnly(node) {
+				result[node.Text()] = struct{}{}
+			}
+			return true
+		})
+	}
+	return result
+}
+
 func pruneImportDeclaration(
 	node *ast.Node,
 	factory *printer.NodeFactory,
 	used map[string]struct{},
+	runtimeUsed map[string]struct{},
 ) (*ast.Node, bool) {
 	declaration := node.AsImportDeclaration()
 	if declaration.ImportClause == nil {
@@ -295,9 +316,19 @@ func pruneImportDeclaration(
 				if name == nil {
 					continue
 				}
-				if _, retained := used[name.Text()]; retained {
-					elements = append(elements, element)
+				if _, retained := used[name.Text()]; !retained {
+					continue
 				}
+				if _, runtime := runtimeUsed[name.Text()]; runtime || element.AsImportSpecifier().IsTypeOnly {
+					elements = append(elements, element)
+					continue
+				}
+				specifier := element.AsImportSpecifier()
+				elements = append(elements, factory.NewImportSpecifier(
+					true,
+					specifier.PropertyName,
+					specifier.Name(),
+				))
 			}
 			if len(elements) == 0 {
 				bindings = nil

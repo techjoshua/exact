@@ -1,4 +1,4 @@
-import { createEnhancementNode, createVNode, type Component, type VNode } from '@exactjs/core';
+import { createEnhancementNode, type Child, type Component } from '@exactjs/core';
 import {
 	deriveDataColors,
 	ThemeContext,
@@ -32,115 +32,91 @@ type DepthControlsState = { dragging: boolean; interaction: DepthInteractionStat
 
 /** Portable acceptance specimen containing native controls, text, statuses, selection, and a derived chart. */
 export function ThemeSpecimen(this: Component<{}>, props: { label: string }) {
-	return () =>
-		enhance(
-			'surface',
-			{ surface: 'raised' },
-			createVNode(
-				'section',
-				{ 'aria-label': `${props.label} themed specimen` },
-				enhance('text', { text: 'heading' }, createVNode('h2', null, props.label)),
-				enhance(
-					'text',
-					{ text: 'supporting' },
-					createVNode(
-						'p',
-						null,
-						'This component comes from an independently compiled package and owns no theme CSS.'
-					)
-				),
-				createVNode(
-					'div',
-					{ className: 'theme-lab-statuses', 'aria-label': 'Notifications' },
-					enhance('status', { status: 'info' }, createVNode('span', null, 'Information')),
-					enhance('status', { status: 'success' }, createVNode('span', null, 'Confirmed')),
-					enhance('status', { status: 'warning' }, createVNode('span', null, 'Warning')),
-					enhance('status', { status: 'danger' }, createVNode('span', null, 'Invalid'))
-				),
-				createVNode(
-					'div',
-					{ className: 'theme-lab-fields' },
-					createVNode(
-						'label',
-						null,
-						'Name',
-						enhance(
-							'field',
-							{ field: 'default' },
-							createVNode('input', { name: `${props.label}-name`, placeholder: 'Ada Lovelace' })
-						)
-					),
-					createVNode(
-						'label',
-						null,
-						'Region',
-						enhance(
-							'field',
-							{ field: 'subtle' },
-							createVNode(
-								'select',
-								{ name: `${props.label}-region` },
-								createVNode('option', null, 'North'),
-								createVNode('option', null, 'Central'),
-								createVNode('option', null, 'South')
-							)
-						)
-					),
-					createVNode(
-						'label',
-						null,
-						enhance(
-							'field',
-							{ field: true },
-							createVNode('input', { type: 'checkbox', checked: true })
-						),
-						' Receive updates'
-					),
-					createVNode(
-						'label',
-						null,
-						'Invalid field',
-						enhance(
-							'field',
-							{ field: 'default' },
-							createVNode('input', { value: 'Needs attention', 'aria-invalid': 'true' })
-						)
-					),
-					createVNode(
-						'label',
-						null,
-						'Confidence',
-						enhance(
-							'field',
-							{ field: true },
-							createVNode('progress', { value: 72, max: 100, 'aria-label': 'Confidence' }, '72%')
-						)
-					)
-				),
-				createVNode(DepthControls, {}),
-				createVNode(
-					'div',
-					{
-						className: 'theme-lab-selection',
-						role: 'tablist',
-						'aria-label': 'View',
-						style: separatedControlGroupStyle
-					},
-					enhance(
-						'selection',
-						{ selection: 'strong' },
-						createVNode('button', { role: 'tab', 'aria-selected': 'true' }, 'Overview')
-					),
-					enhance(
-						'selection',
-						{ selection: 'subtle' },
-						createVNode('button', { role: 'tab', 'aria-selected': 'false' }, 'Details')
-					)
-				),
-				enhance('separator', { separator: 'strong' }, createVNode('hr', null)),
-				createVNode(ThemeAreaChart, { label: `${props.label} overlapping area chart` })
-			)
-		);
+	return () => (
+		<section
+			{...enhancementAttributes('surface', { surface: 'raised' })}
+			aria-label={`${props.label} themed specimen`}
+		>
+			<h2 {...enhancementAttributes('text', { text: 'heading' })}>{props.label}</h2>
+			<p {...enhancementAttributes('text', { text: 'supporting' })}>
+				This component comes from an independently compiled package and owns no theme CSS.
+			</p>
+			<div className="theme-lab-statuses" aria-label="Notifications">
+				<span {...enhancementAttributes('status', { status: 'info' })}>Information</span>
+				<span {...enhancementAttributes('status', { status: 'success' })}>Confirmed</span>
+				<span {...enhancementAttributes('status', { status: 'warning' })}>Warning</span>
+				<span {...enhancementAttributes('status', { status: 'danger' })}>Invalid</span>
+			</div>
+			<div className="theme-lab-fields">
+				<label>
+					Name
+					<input
+						{...enhancementAttributes('field', { field: 'default' })}
+						name={`${props.label}-name`}
+						placeholder="Ada Lovelace"
+					/>
+				</label>
+				<label>
+					Region
+					<select
+						{...enhancementAttributes('field', { field: 'subtle' })}
+						name={`${props.label}-region`}
+					>
+						<option>North</option>
+						<option>Central</option>
+						<option>South</option>
+					</select>
+				</label>
+				<label>
+					<input {...enhancementAttributes('field', { field: true })} type="checkbox" checked />{' '}
+					Receive updates
+				</label>
+				<label>
+					Invalid field
+					<input
+						{...enhancementAttributes('field', { field: 'default' })}
+						value="Needs attention"
+						aria-invalid="true"
+					/>
+				</label>
+				<label>
+					Confidence
+					<progress
+						{...enhancementAttributes('field', { field: true })}
+						value={72}
+						max={100}
+						aria-label="Confidence"
+					>
+						72%
+					</progress>
+				</label>
+			</div>
+			<DepthControls />
+			<div
+				className="theme-lab-selection"
+				role="tablist"
+				aria-label="View"
+				style={separatedControlGroupStyle}
+			>
+				<button
+					{...enhancementAttributes('selection', { selection: 'strong' })}
+					role="tab"
+					aria-selected="true"
+				>
+					Overview
+				</button>
+				<button
+					{...enhancementAttributes('selection', { selection: 'subtle' })}
+					role="tab"
+					aria-selected="false"
+				>
+					Details
+				</button>
+			</div>
+			<hr {...enhancementAttributes('separator', { separator: 'strong' })} />
+			<ThemeAreaChart label={`${props.label} overlapping area chart`} />
+		</section>
+	);
 }
 
 /** Owns the specimen's interactive depth demonstration as one compiled reactive range. */
@@ -222,117 +198,90 @@ function themeAreaChartView(
 	label: string,
 	theme: ResolvedTheme,
 	surface: ThemeSurfaceBundle
-): VNode {
+): Child {
 	const palette = deriveDataColors(theme, {
 		kind: 'categorical',
 		count: values.length,
 		surface
 	});
-	return createVNode(
-		'figure',
-		{ className: 'theme-lab-chart' },
-		createVNode(
-			'svg',
-			{ viewBox: '0 0 600 260', role: 'img', 'aria-label': label },
-			createVNode('title', null, label),
-			...[20, 80, 140, 200].map((y) =>
-				createVNode('line', {
-					x1: 30,
-					y1: y,
-					x2: 580,
-					y2: y,
-					stroke: 'var(--exact-theme-surface-border)',
-					'stroke-width': 1
-				})
-			),
-			...values.map((series, index) =>
-				createVNode('path', {
-					d: areaPath(series.points),
-					fill: translucent(palette.colors[index]!, 0.24),
-					stroke: palette.strokes[index],
-					'stroke-width': 4,
-					'stroke-linejoin': 'round'
-				})
-			)
-		),
-		createVNode(
-			'figcaption',
-			null,
-			createVNode('strong', null, 'Quarterly activity'),
-			createVNode(
-				'ul',
-				{ className: 'theme-lab-legend' },
-				...values.map((series, index) =>
-					createVNode(
-						'li',
-						null,
-						createVNode(
-							'span',
-							{
-								className: `theme-lab-pattern pattern-${palette.recommendedPatterns[index]}`,
-								style: `--series:${palette.colors[index]}`
-							},
-							'◆'
-						),
-						`${series.label}: ${series.points.at(-1)}`
-					)
-				)
-			),
-			createVNode(
-				'details',
-				null,
-				createVNode('summary', null, 'View chart data'),
-				createVNode(
-					'table',
-					{ style: dataTableStyle },
-					createVNode(
-						'thead',
-						null,
-						createVNode(
-							'tr',
-							null,
-							themeTableHeader('Series'),
-							...seriesColumns().map(themeTableHeader)
-						)
-					),
-					createVNode(
-						'tbody',
-						null,
-						...values.map((series) =>
-							createVNode(
-								'tr',
-								null,
-								themeTableHeader(series.label),
-								...series.points.map((point) =>
-									enhance(
-										'text',
-										{ text: 'body' },
-										createVNode('td', { style: dataCellStyle }, point)
-									)
-								)
-							)
-						)
-					)
-				)
-			)
-		)
+	return (
+		<figure className="theme-lab-chart">
+			<svg viewBox="0 0 600 260" role="img" aria-label={label}>
+				<title>{label}</title>
+				{[20, 80, 140, 200].map((y) => (
+					<line
+						key={`${y}`}
+						x1={30}
+						y1={y}
+						x2={580}
+						y2={y}
+						stroke="var(--exact-theme-surface-border)"
+						stroke-width={1}
+					/>
+				))}
+				{values.map((series, index) => (
+					<path
+						key={series.label}
+						d={areaPath(series.points)}
+						fill={translucent(palette.colors[index]!, 0.24)}
+						stroke={palette.strokes[index]}
+						stroke-width={4}
+						stroke-linejoin="round"
+					/>
+				))}
+			</svg>
+			<figcaption>
+				<strong>Quarterly activity</strong>
+				<ul className="theme-lab-legend">
+					{values.map((series, index) => (
+						<li key={series.label}>
+							<span
+								className={`theme-lab-pattern pattern-${palette.recommendedPatterns[index]}`}
+								style={`--series:${palette.colors[index]}`}
+							>
+								◆
+							</span>
+							{`${series.label}: ${series.points.at(-1)}`}
+						</li>
+					))}
+				</ul>
+				<details>
+					<summary>View chart data</summary>
+					<table style={dataTableStyle}>
+						<thead>
+							<tr>
+								{themeTableHeader('Series')}
+								{seriesColumns().map(themeTableHeader)}
+							</tr>
+						</thead>
+						<tbody>
+							{values.map((series) => (
+								<tr key={series.label}>
+									{themeTableHeader(series.label)}
+									{series.points.map((point, index) => (
+										<td
+											key={`${series.label}-${index}`}
+											{...enhancementAttributes('text', { text: 'body' })}
+											style={dataCellStyle}
+										>
+											{point}
+										</td>
+									))}
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</details>
+			</figcaption>
+		</figure>
 	);
 }
 
-function themeTableHeader(label: string): VNode {
-	return enhance('text', { text: 'body' }, createVNode('th', { style: dataCellStyle }, label));
-}
-
-function enhance(name: string, props: Record<string, unknown>, vnode: VNode): VNode {
-	return createVNode(
-		vnode.type,
-		{
-			...vnode.props,
-			__exactEnhancements: createEnhancementNode([
-				{ identity: `@exactjs/theme/enhancements#${name}`, props }
-			])
-		},
-		...vnode.children
+function themeTableHeader(label: string): Child {
+	return (
+		<th key={label} {...enhancementAttributes('text', { text: 'body' })} style={dataCellStyle}>
+			{label}
+		</th>
 	);
 }
 

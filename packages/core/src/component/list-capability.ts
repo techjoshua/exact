@@ -1,5 +1,5 @@
 import type { ReactiveValue } from '@exactjs/reactive/framework/runtime';
-import type { VNode } from './contracts.js';
+import type { Child } from './contracts.js';
 
 /** Runtime bridge for optional compiler-owned keyed list controllers. */
 export type ComponentListCapability = Readonly<{
@@ -7,11 +7,20 @@ export type ComponentListCapability = Readonly<{
 		owner: object,
 		collection: Iterable<T> | ReactiveValue<Iterable<T>>,
 		key: (item: T) => string,
-		render: (item: T) => VNode,
+		render: (item: T) => Child,
 		id?: string,
 		provenance?: Iterable<T>,
 		keyIdentity?: string
-	): VNode;
+	): Child;
+	mapDirect<T>(
+		owner: object,
+		collection: Iterable<T> | ReactiveValue<Iterable<T>>,
+		key: (item: T) => string,
+		render: (item: T) => Child,
+		id: string,
+		provenance?: Iterable<T>,
+		keyIdentity?: string
+	): Child[];
 	begin(owner: object): void;
 	end(owner: object): void;
 	dispose(owner: object): void;

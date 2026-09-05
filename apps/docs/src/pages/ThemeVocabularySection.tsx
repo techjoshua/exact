@@ -156,7 +156,7 @@ export function ThemeVocabularySection() {
 						<tr>
 							<td>display</td>
 							<td>
-								A page hero, major identity, or exceptional headlineâ€”not routine section titles.
+								A page hero, major identity, or exceptional headline—not routine section titles.
 							</td>
 						</tr>
 						<tr>

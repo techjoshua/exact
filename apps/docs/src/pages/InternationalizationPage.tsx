@@ -185,6 +185,14 @@ export function InternationalizationPage(this: Component<{}>) {
 					<code>Mb</code> and <code>MB</code>.
 				</p>
 				<p>
+					Component libraries can reuse that exact policy through the public measurement
+					presentation operations, and can format runtime numbers and dates through intl&apos;s
+					cached native formatters. An existing prepared scalar message may publish its current
+					translated text, authored-source fallback, locale, and direction through{' '}
+					<code>IntlScalarPresentationContext</code>. Structural messages remain rendered ranges;
+					the projection does not weaken JSX extraction or source fallback.
+				</p>
+				<p>
 					Currency display is likewise inferred from <code>$</code>, <code>USD</code>, a long
 					currency name, or the package source locale. A bare currency activation in an
 					<code>en-US</code>

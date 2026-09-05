@@ -1,5 +1,4 @@
-import type { VNode } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive/framework/values';
+import type { ExactServerSlotReceiptData } from '@exactjs/core/runtime/component-abi';
 import { escapeAttr } from '../html.js';
 import type { SsrContext } from '../types.js';
 
@@ -41,29 +40,29 @@ export function serverSlotPayload(
 			};
 }
 
-/** Reads one standalone compiler-emitted server-range VNode. */
-export function serverSlotVNodeReference(vnode: VNode): ExactServerSlotReference {
-	const props = unwrap(vnode.props) as Record<string, unknown>;
-	const id = props.id;
+/** Validates one opaque compiler-owned retained server-range operation. */
+export function serverSlotReceiptReference(
+	receipt: ExactServerSlotReceiptData
+): ExactServerSlotReference {
 	const candidate = {
-		__exactServerSlot: id,
-		planVersion: props.planVersion,
-		buildKey: props.buildKey,
-		planEdgeId: props.planEdgeId,
-		ownerComponentId: props.ownerComponentId,
-		discriminator: props.discriminator,
-		generation: props.generation
+		__exactServerSlot: receipt.id,
+		planVersion: receipt.planVersion,
+		buildKey: receipt.buildKey,
+		planEdgeId: receipt.planEdgeId,
+		ownerComponentId: receipt.ownerComponentId,
+		discriminator: receipt.discriminator,
+		generation: receipt.generation
 	};
 	if (!serverSlotReference(candidate))
 		throw new Error('Compiler-planned server range has malformed runtime authority');
 	return {
-		id: id as string,
-		planVersion: props.planVersion as number,
-		buildKey: props.buildKey as string,
-		planEdgeId: props.planEdgeId as string,
-		ownerComponentId: props.ownerComponentId as string,
-		discriminator: props.discriminator as NonNullable<ExactServerSlotReference['discriminator']>,
-		generation: props.generation as number
+		id: receipt.id,
+		planVersion: receipt.planVersion as number,
+		buildKey: receipt.buildKey as string,
+		planEdgeId: receipt.planEdgeId as string,
+		ownerComponentId: receipt.ownerComponentId as string,
+		discriminator: receipt.discriminator as NonNullable<ExactServerSlotReference['discriminator']>,
+		generation: receipt.generation as number
 	};
 }
 

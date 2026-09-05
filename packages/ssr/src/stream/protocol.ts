@@ -32,18 +32,22 @@ export function progressiveHtmlResponse(
 	stream: ReadableStream<Uint8Array>,
 	options: RenderToProgressiveHtmlResponseOptions
 ): ExactResponseLike {
-	const headers = {
-		...options.headers
-	};
-	if (options.contentType !== undefined || !hasHeader(headers, 'content-type')) {
-		setHeader(headers, 'content-type', options.contentType ?? 'text/html; charset=utf-8');
-	}
 	return {
 		status: options.status ?? 200,
-		headers,
+		headers: progressiveHtmlResponseHeaders(options),
 		body: '',
 		stream
 	};
+}
+
+/** Builds the shared progressive response headers without selecting a body adapter. */
+export function progressiveHtmlResponseHeaders(
+	options: RenderToProgressiveHtmlResponseOptions
+): Record<string, string> {
+	const headers = { ...options.headers };
+	if (options.contentType !== undefined || !hasHeader(headers, 'content-type'))
+		setHeader(headers, 'content-type', options.contentType ?? 'text/html; charset=utf-8');
+	return headers;
 }
 
 /** Tracks the state owned by progressive document. */

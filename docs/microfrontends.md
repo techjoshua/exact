@@ -55,13 +55,20 @@ Webpack and Bun expose optional `onRemoteEntries` and `onRemoteDevelopmentEntrie
 deployment or development host that needs the immutable exposure-to-entry map.
 
 The page publishes explicitly configured provided-package instances before
-hydration. Remote builds externalize those packages and resolve exact package
-keys from the page realm. This avoids duplicate framework/context identities
-without treating arbitrary semver similarity as runtime compatibility.
+hydration. Remote builds externalize those packages and the compiler-selected
+eXact runtime capability subpaths used by their generated artifacts, then
+resolve those exact package keys from the page realm. This avoids duplicate
+framework/context identities without treating arbitrary semver similarity as
+runtime compatibility.
 
 `RemoteComponent` loads the generated registration, establishes an immutable
 component domain, and mounts page-authored children beneath that domain.
 Contexts and portals continue to follow logical component ownership.
+SSR emits `RemoteComponent` as a compiler-owned client boundary with its serializable page props;
+the server does not execute the browser loader or manufacture its placeholder DOM. During a remote
+build rotation or a cross-root structural patch, the renderer parks page-domain descendants and
+reattaches their existing component operations beneath the replacement remote artifact. Their
+instances, state, context handles, update routes, and lifecycle ownership remain page-owned.
 The domain's application-visible shape is only its `executionRoot` identity;
 transport, resumption, inspection, and activation capabilities remain private
 to framework render and hydration boundaries.

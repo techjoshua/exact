@@ -12,14 +12,14 @@ export function materializeWebpackEnhancementFacades(
 	code: string,
 	enhancements: readonly ExactRendererEnhancementIR[] | undefined,
 	importer: string,
-	applicationRoot = process.cwd(),
-	target: TransformTarget = 'default'
+	applicationRoot: string | undefined,
+	target: TransformTarget
 ): string {
 	const result = materializeExactPhysicalEnhancementFacades(
 		code,
 		enhancements,
 		importer,
-		applicationRoot,
+		applicationRoot ?? process.cwd(),
 		target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
 	);
 	for (const facade of result.facades) {

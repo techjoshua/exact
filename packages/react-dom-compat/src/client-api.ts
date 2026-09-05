@@ -14,6 +14,7 @@ import {
 	type Root,
 	type RootOptions
 } from './client.js';
+import { resolveReactComponentDomNode } from './renderer/component-dom-node.js';
 
 /** Identifies the React DOM compatibility version implemented by eXact. */
 export const version = '19.2.0-exact';
@@ -58,6 +59,8 @@ export function findDOMNode(componentOrElement: unknown): Node | null {
 	if (!owner && isUnmountedReactClassInstance(componentOrElement)) return null;
 	if (!owner)
 		throw new TypeError('findDOMNode expected a mounted React class instance or DOM Node');
+	const reactNode = resolveReactComponentDomNode(owner);
+	if (reactNode.owned) return reactNode.node;
 	return findComponentDomNode(owner);
 }
 

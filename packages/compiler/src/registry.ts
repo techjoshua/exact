@@ -50,6 +50,7 @@ export function createExactHydrationRegistrationModule(
 ): string {
 	const islandsExportName = options.islandsExportName ?? 'exactClientIslands';
 	const registrationExportName = options.registrationExportName ?? 'exactHydrationRegistration';
+	const clientBootstrapExportName = options.clientBootstrapExportName;
 	const continuationsName = '__exactContinuations';
 	const islandEntries = uniqueRegistryEntries(graph.clientIslands);
 	const islandsModule = createClientDescriptorCompositionModule(
@@ -70,7 +71,21 @@ export function createExactHydrationRegistrationModule(
 			([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)}`
 		)
 	];
-	return `${islandsModule}\nexport const ${registrationExportName} = {\n${registrationEntries.join(',\n')}\n};\n`;
+	const registrationModule = `export const ${registrationExportName} = {\n${registrationEntries.join(',\n')}\n};\n`;
+	const ownsClientCapabilities = islandEntries.length !== 0 || graph.operations.length !== 0;
+	const bootstrapModule =
+		clientBootstrapExportName && ownsClientCapabilities
+			? [
+					'import { createExactClient as __exactCreateClient, readExactHydrationConfig as __exactReadConfig } from "@exactjs/hydrate/framework/client-bootstrap";',
+					'import type { ExactClient as __ExactClient, HydrateOptions as __ExactHydrateOptions } from "@exactjs/hydrate/framework/client-bootstrap";',
+					'',
+					`export function ${clientBootstrapExportName}(root: Element, options: __ExactHydrateOptions = {}): __ExactClient {`,
+					`  return __exactCreateClient(root, { ...__exactReadConfig(root), ...${registrationExportName}, ...options });`,
+					'}',
+					''
+				].join('\n')
+			: '';
+	return `${islandsModule}\n${registrationModule}${bootstrapModule}`;
 }
 
 function createClientDescriptorCompositionModule(
@@ -87,11 +102,7 @@ function createClientDescriptorCompositionModule(
 		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(module)}).then((module) => module[${JSON.stringify(entry.exportName)}])${activation})`;
 	});
 	const continuationValues = operations.map((continuation) =>
-		compactHydrationContinuation({
-			...continuation,
-			serverContexts: [],
-			serverContextWrites: []
-		})
+		clientHydrationContinuation(continuation)
 	);
 	const continuations: Record<string, Record<string, unknown>> = {};
 	for (const continuation of continuationValues) {
@@ -103,17 +114,17 @@ function createClientDescriptorCompositionModule(
 		continuations[id] = continuation;
 	}
 	return [
-		'import { defineExactHydrationRegistration as __exactDefineRegistration, lazyClientIsland as __exactLazyIsland } from "@exactjs/hydrate";',
+		...(islands.length
+			? [
+					'import { lazyClientIsland as __exactLazyIsland } from "@exactjs/hydrate/framework/client-bootstrap";'
+				]
+			: []),
 		'',
 		`export const ${exportName} = {`,
 		...islands.map((value, index) => `${value}${index + 1 < islands.length ? ',' : ''}`),
 		'};',
 		...(continuationValues.length
-			? [
-					`const ${continuationsName} = __exactDefineRegistration({`,
-					`  continuations: ${JSON.stringify(continuations, null, 2)}`,
-					'}).continuations;'
-				]
+			? [`const ${continuationsName} = ${JSON.stringify(continuations, null, 2)} as const;`]
 			: []),
 		''
 	].join('\n');
@@ -132,38 +143,14 @@ function compactEndpointRoutes(
 	return Object.keys(output).length ? output : undefined;
 }
 
-function compactHydrationContinuation(
+function clientHydrationContinuation(
 	continuation: Record<string, unknown>
 ): Record<string, unknown> {
-	const output = omitEmptyMetadataFields(continuation, [
-		'dependencies',
-		'stateReads',
-		'stateWrites',
-		'publicContexts',
-		'serverContexts',
-		'contextWrites',
-		'serverContextWrites',
-		'boundaries'
-	]);
-	const invocation = output.invocation;
-	if (invocation && typeof invocation === 'object' && !Array.isArray(invocation)) {
-		output.invocation = omitEmptyMetadataFields(invocation as Record<string, unknown>, [
-			'arguments'
-		]);
-	}
-	return output;
-}
-
-function omitEmptyMetadataFields(
-	value: Record<string, unknown>,
-	fields: readonly string[]
-): Record<string, unknown> {
-	const output = { ...value };
-	for (const field of fields) {
-		const item = output[field];
-		if (Array.isArray(item) && item.length === 0) delete output[field];
-	}
-	return output;
+	return {
+		...continuation,
+		serverContexts: [],
+		serverContextWrites: []
+	};
 }
 
 function uniqueRegistryEntries<T extends ClientIslandRegistryEntry | ServerPartRegistryEntry>(

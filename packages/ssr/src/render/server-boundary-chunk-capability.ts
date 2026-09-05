@@ -1,4 +1,4 @@
-import type { VNode } from '@exactjs/core';
+import type { ExactServerBoundaryReceiptData } from '@exactjs/core/runtime/component-abi';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
 import { ssrCapabilities } from './capability-registry.js';
 
@@ -10,7 +10,7 @@ type ChunkRenderer = (
 type MarkerRenderer = (id: string, content: () => Generator<string>) => Generator<string>;
 type ServerBoundaryChunkCapability = (
 	context: SsrContext,
-	vnode: VNode,
+	boundary: ExactServerBoundaryReceiptData,
 	parent: AnyComponentInstance | undefined,
 	depth: number,
 	renderChild: ChunkRenderer,
@@ -27,7 +27,7 @@ export function registerServerBoundaryChunkCapability(next: ServerBoundaryChunkC
 /** Streams an explicitly compiler-selected client boundary. */
 export function renderServerBoundaryChunks(
 	context: SsrContext,
-	vnode: VNode,
+	boundary: ExactServerBoundaryReceiptData,
 	parent: AnyComponentInstance | undefined,
 	depth: number,
 	renderChild: ChunkRenderer,
@@ -36,5 +36,5 @@ export function renderServerBoundaryChunks(
 	const capability = ssrCapabilities[capabilityName] as ServerBoundaryChunkCapability | undefined;
 	if (!capability)
 		throw new TypeError('Server boundary rendering requires its compiler capability');
-	return capability(context, vnode, parent, depth, renderChild, marked);
+	return capability(context, boundary, parent, depth, renderChild, marked);
 }

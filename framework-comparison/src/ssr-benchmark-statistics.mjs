@@ -41,8 +41,27 @@ export function summarizeWorkerRequests(statistics) {
 		cpuBatchSize: 5,
 		userCpuPerRequestMs: summarizeSsrSamples(cpuBatches.map((sample) => sample.userMs)),
 		systemCpuPerRequestMs: summarizeSsrSamples(cpuBatches.map((sample) => sample.systemMs)),
-		totalCpuPerRequestMs: summarizeSsrSamples(cpuBatches.map((sample) => sample.totalMs))
+		totalCpuPerRequestMs: summarizeSsrSamples(cpuBatches.map((sample) => sample.totalMs)),
+		phases: summarizeAvailableWorkerPhases(statistics)
 	};
+}
+
+/** Preserves only worker phase populations actually exposed by a participant integration. */
+export function summarizeAvailableWorkerPhases(statistics) {
+	return Object.fromEntries(
+		[
+			'participantWorkMs',
+			'dataLoadMs',
+			'dataFetchMs',
+			'dataDecodeMs',
+			'renderMs',
+			'envelopeMs',
+			'renderedBytes',
+			'responseBytes'
+		]
+			.filter((name) => statistics[name]?.length)
+			.map((name) => [name, summarizeSsrSamples(statistics[name])])
+	);
 }
 
 /** Parses, sorts, and deduplicates the positive concurrency levels selected for a saturation run. */
@@ -54,7 +73,8 @@ export function parseSsrConcurrencyLevels(value, fallback = [1, 4, 8, 16, 32, 64
 }
 
 /** Groups coarse process CPU ticks before normalizing them to one request. */
-function batchedCpuPerRequest(statistics, batchSize) {
+/** Groups coarse per-request process CPU deltas into stable fixed-size observations. */
+export function batchedCpuPerRequest(statistics, batchSize) {
 	const result = [];
 	for (let start = 0; start < (statistics.userCpuMs?.length ?? 0); start += batchSize) {
 		const end = Math.min(start + batchSize, statistics.userCpuMs.length);

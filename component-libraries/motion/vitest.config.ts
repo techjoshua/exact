@@ -5,7 +5,8 @@ export default defineConfig({
 	plugins: [
 		exactVitest({
 			compiler: {
-				include: /[\\/](?:context|layout|motion-element|motion-list|motion|presence)\.ts$/,
+				include:
+					/[\\/](?:(?:context|layout|motion-element|motion-list|motion|presence)\.ts|.*\.fixtures\.tsx)$/,
 				reactCompatibility: false
 			}
 		})

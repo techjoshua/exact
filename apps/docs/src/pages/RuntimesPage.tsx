@@ -185,7 +185,9 @@ export function RuntimesPage(this: Component<{}>) {
 				<p>
 					Every eXact application must run the compiler. A first-class or supported plugin embeds it
 					in the host build; <code>exactc</code> remains the escape hatch for other pipelines. All
-					four routes use the same persistent native compiler and expose no alternate backend.
+					four routes use the same persistent native compiler and expose no alternate backend. A
+					direct compiler call without a target emits a client artifact; select <code>server</code>{' '}
+					explicitly or request paired artifacts when producing server output.
 				</p>
 				<p>
 					Native source maps are composed through mapped host transforms. Framework-generated
@@ -197,6 +199,17 @@ export function RuntimesPage(this: Component<{}>) {
 					An SSR-only server entry can set <code>renderMode: 'server-render'</code> to omit
 					continuation-dispatch executors. Keep the default server mode when the same bundle also
 					handles continuation requests.
+				</p>
+				<p>
+					A Vite development server can use one <code>exact()</code> plugin for hydrated browser
+					modules and middleware SSR. Vite SSR module requests automatically receive the paired
+					server compilation target, including native components imported from generated{' '}
+					<code>.exact.server</code> modules.
+				</p>
+				<p>
+					Bun component tests use <code>@exactjs/bun-test</code> with{' '}
+					<code>bun --conditions=browser test</code>. The browser condition selects DOM-facing
+					compiled artifacts before Bun executes the test preload.
 				</p>
 				<h3>Build paired Vite targets together</h3>
 				<p>

@@ -1,4 +1,4 @@
-import type { ExactComponentContract } from '../component-contracts.js';
+import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import type { PreparedComponentExecution } from '../tasks/component-execution-plan.js';
 import type { AnyComponentFunction, AnyComponentInstance } from './contracts.js';
 
@@ -13,7 +13,7 @@ export type ComponentTaskCapability = Readonly<{
 	create(
 		instance: AnyComponentInstance,
 		type: AnyComponentFunction,
-		contract: ExactComponentContract | undefined,
+		contract: ExactExecutableComponentContract | undefined,
 		execution: PreparedComponentExecution | undefined,
 		props: Record<string, unknown>,
 		resuming: boolean

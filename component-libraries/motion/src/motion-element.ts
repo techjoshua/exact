@@ -56,8 +56,9 @@ export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 		if (!element || !root.presented) return;
 		// Read both live phases before selecting one so a change-only enhancement remains subscribed
 		// after its initial introduction chose the enter path.
-		const enterPhase = resolvePhase(props, 'enter');
-		const changePhase = resolvePhase(props, 'change');
+		const definition = unwrap(props.apply);
+		const enterPhase = unwrap(props.enter) ?? definition?.enter;
+		const changePhase = unwrap(props.change) ?? definition?.change;
 		const reversing = releasedGeneration === root.generation;
 		const entering = root.generation !== observedGeneration || reversing;
 		const phase = entering ? enterPhase : changePhase;
@@ -70,7 +71,7 @@ export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 		if (reversing) releasedGeneration = undefined;
 		if (entering && !shouldAppear) return;
 		changePlayback?.cancel('motion-superseded');
-		changePlayback = play(element, phase, entering ? 'enter' : 'change', props.apply, settings);
+		changePlayback = play(element, phase, entering ? 'enter' : 'change', definition, settings);
 		if (entering && changePlayback && !isDetachedMotionPlayback(changePlayback)) {
 			presenceEnter?.register(changePlayback);
 		}
@@ -103,7 +104,13 @@ export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 			: undefined;
 		acquireSemanticAbsence(release.target, semanticOwner, { exitLayout });
 		leavePlayback?.cancel('motion-leave-superseded');
-		leavePlayback = playRelease(release, resolvePhase(props, 'leave'), props.apply, settings);
+		const definition = unwrap(props.apply);
+		leavePlayback = playRelease(
+			release,
+			unwrap(props.leave) ?? definition?.leave,
+			definition,
+			settings
+		);
 		if (leavePlayback) observePlayback(leavePlayback, this.log.error);
 	}, undefined);
 
@@ -124,13 +131,6 @@ export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 		leavePlayback?.cancel('motion-owner-disposed');
 	});
 	return () => props.children;
-}
-
-function resolvePhase(
-	props: MotionElementProps,
-	phase: 'enter' | 'change' | 'leave'
-): MotionPhase | undefined {
-	return unwrap(props[phase]) ?? unwrap(props.apply)?.[phase];
 }
 
 function play(

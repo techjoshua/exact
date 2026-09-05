@@ -1,3 +1,4 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it } from 'vitest';
 import { flushSync } from '@exactjs/reactive';
 import '../runtime/component-execution.js';
@@ -9,7 +10,7 @@ import {
 	type Component,
 	type TaskContext
 } from '../index.js';
-import { createFrameworkFixtureComponentInstance, createExpression } from '../runtime/render.js';
+import { createExpression } from '../runtime/render.js';
 import { exactComponentContract, exactComponentType } from '../framework/component-contracts.js';
 import { markComponentContinuationTask } from './component-continuation.js';
 import { createContinuationDependencySlot } from './dependency-source.js';
@@ -51,7 +52,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledEditor = Object.assign(Editor, {
 			[exactComponentType]: 'component:Editor',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -100,7 +101,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledProjection = Object.assign(Projection, {
 			[exactComponentType]: 'component:Projection',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -156,7 +157,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledConsumer = Object.assign(Consumer, {
 			[exactComponentType]: 'component:PropConsumer',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -235,7 +236,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledPipeline = Object.assign(Pipeline, {
 			[exactComponentType]: 'component:Pipeline',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'executor' as const,
 				implementations: [],

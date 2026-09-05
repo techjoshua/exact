@@ -117,6 +117,7 @@ export function createReactCompatibilityBuildEngine(
 			return Object.freeze({
 				adapterModule: '@exactjs/react-compat/exact' as const,
 				adapterExport: 'adaptReactComponent' as const,
+				clientRendererModule: `@exactjs/react-dom-compat/client${resolved.target}` as const,
 				cacheKey: `${resolved.target}:${current.hash}`,
 				classify(candidate: Parameters<ReactCompatibilityJsxInterop['classify']>[0]) {
 					for (const source of candidate.declarationSources)
@@ -412,6 +413,7 @@ function classifyReactComponent(
 	graph: ReactCompatPackageGraph
 ): 'exact' | 'component' | 'unknown' | 'ambiguous' {
 	if (sourceModule === 'react' || sourceModule.startsWith('react/')) return 'component';
+	if (isExactTargetArtifactSpecifier(sourceModule)) return 'exact';
 	const signatureOwnership = ownershipFromSignatures(declarationSignatures);
 	if (signatureOwnership) return signatureOwnership;
 	const packageName = barePackageName(sourceModule);
@@ -466,6 +468,11 @@ function classifyReactComponent(
 		if (packageUsesExact) return 'exact';
 	}
 	return 'unknown';
+}
+
+/** Identifies compiler-owned physical component artifacts before foreign JSX adaptation. */
+function isExactTargetArtifactSpecifier(sourceModule: string): boolean {
+	return /(?:^|[/\\])[^/\\]+\.exact\.(?:client|server)\.[cm]?[jt]sx?$/i.test(sourceModule);
 }
 
 function ownershipFromSignatures(

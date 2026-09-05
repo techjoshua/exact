@@ -2,5 +2,4 @@
 
 This participant implements Signal Desk with SvelteKit SSR, hydration, component-local state, and the
 controlled JSON/SSE service. Its application code and transport ownership are independent of the other
-participants. Run it through the comparison workspace commands; do not interpret measurements while its
-metadata status is `scaffolded`.
+participants. Run it through the comparison workspace commands so correctness gates every measurement.

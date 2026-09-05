@@ -73,3 +73,8 @@ Use inherited `translate="no"` for intentional exclusions. The provider entry is
 
 Automatic destination units use pinned Unicode CLDR 48 preferences; explicit application policy
 takes priority while `intl:convert-to` stays fixed. See the [reference](../../docs/internationalization.md).
+Component libraries can opt into `IntlScalarPresentationContext` to receive current scalar text,
+source fallback, locale, and direction; structurally movable messages remain render-only. Runtime
+values use `resolveIntlMeasurementPresentation()` plus the public conversion and formatting
+operations, reusing the same CLDR, preferences, precision, formatter cache, and bidi policy as
+`intl:unit`.

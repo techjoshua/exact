@@ -5,7 +5,8 @@ const participants = [
 	{ id: 'exact', url: 'http://127.0.0.1:4401' },
 	{ id: 'react', url: 'http://127.0.0.1:4402' },
 	{ id: 'sveltekit', url: 'http://127.0.0.1:4403' },
-	{ id: 'nuxt', url: 'http://127.0.0.1:4404' }
+	{ id: 'nuxt', url: 'http://127.0.0.1:4404' },
+	{ id: 'tanstack-start', url: 'http://127.0.0.1:4405' }
 ];
 
 for (const participant of participants) {

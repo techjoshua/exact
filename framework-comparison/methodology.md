@@ -20,17 +20,28 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
 4. Production builds are measured. Development builds may be measured separately for build and feedback
    metrics, but never mixed with runtime results.
 5. A scenario must pass its correctness assertions before its timing is accepted.
-6. Warm and cold measurements are labeled and reported separately. The controlled browser runner records warm
-   samples after one equivalent discarded scenario per participant; run order is randomized or rotated.
+6. Warm and cold measurements are labeled and reported separately. Comparable timing populations use balanced
+   round interleaving: every round measures one sample or window from each participant, rotations distribute
+   order positions, and alternating cycle direction counters monotonic host drift. The controlled browser runner
+   records warm samples after one equivalent discarded scenario per participant.
 7. Raw samples, environment metadata, participant commit, dependency lockfile, and harness version accompany
    every summary.
-8. Framework specialists should review meaningful participants. Review corrections are recorded rather than
-   silently rewriting historical results.
+8. Participant implementations must pass the shared observable-behavior contract. Architecture notes and
+   later corrections are recorded with the evidence rather than silently rewriting historical results.
 9. Every sampled metric is summarized at p50, p75, p95, and p99 with the same nearest-rank convention. Reports
    must not substitute a smaller hand-picked metric or percentile set for an architectural comparison.
 10. Production client resources must be discoverable from the document head through the framework's idiomatic
     module script, preload, or equivalent mechanism. A participant must not delay discovery until after its SSR
     body merely because its application document uses a less efficient template.
+11. Production artifact identity hashes the ordered relative path and bytes of every measured output file.
+    Browser and startup samples also hash a participant-neutral semantic DOM record after their correctness
+    boundary. Every sample for one participant and every participant in the controlled track must produce the
+    same response identity; a mismatch invalidates the run rather than becoming a timing sample.
+12. Complete SSR response identity retains exact byte-length stability. TanStack Router's serialized
+    request-time match timestamps are canonicalized only for the content hash because they govern cache
+    staleness rather than application output; all other markup and serialized data remain identity-bearing.
+13. Framework-generated source such as TanStack Router's route-tree manifest is excluded from authored-line
+    complexity, but its emitted client and server code remains included in production artifact measurements.
 
 ## Performance dimensions
 
@@ -59,9 +70,10 @@ Participants may preserve framework-native identity for unchanged resource branc
 retains an unchanged comments collection during owner/status merges so its fine-grained renderer does not perform
 unrelated response-log work.
 
-The controlled browser heap signal is collected after the measured interaction settles and an explicit garbage
-collection. It therefore describes post-interaction, post-GC retained JavaScript heap for that page state, not
-allocation churn, a process-wide footprint, or proof by itself that an application does or does not leak.
+The controlled browser memory signals are collected after the measured interaction settles and an explicit
+garbage collection. They report used and reserved JavaScript heap, embedder heap, backing storage, documents,
+DOM nodes, and event listeners. They therefore describe post-interaction retention for that page state, not a
+process-wide footprint or proof by themselves that an application does or does not leak.
 
 First contentful paint is read only after a buffered paint observer or a subsequent rendering opportunity confirms
 that Chromium published the entry. A missing paint entry fails the sample instead of silently reducing the
@@ -81,21 +93,43 @@ with Chromium's 4x and 6x CPU emulation.
 Tracing begins before navigation and ends only after the shared `Live service` readiness state. Chromium trace
 events report JavaScript parsing, compilation, and evaluation, while the Performance domain reports total script
 and task duration. The trace also records navigation, first-contentful-paint, and readiness markers so work on the
-paint-critical path can be separated from later activation. Precise coverage reports emitted script extent and
-invoked-function counts by chunk URL. Raw samples remain authoritative; embedded summaries always carry the
-common p50/p75/p95/p99 set so consecutive runs can be compared without reconstructing omitted percentiles.
+paint-critical path can be separated from later activation. Best-effort coverage reports emitted script extent
+and invoked-function counts by chunk URL without disabling optimized V8 code; a function collected before the
+capture can be absent, so raw samples and their variance remain authoritative. Embedded summaries always carry
+the common p50/p75/p95/p99 set so consecutive runs can be compared without reconstructing omitted percentiles.
+
+After all percentile samples, one separate diagnostic navigation per participant records sampling CPU profiles
+for startup and the first optimistic interaction. Sampling heap profiles retain allocation-site attribution for
+startup and compare interaction allocations immediately before and after an explicit collection. An optional
+diagnostic heap snapshot computes strong-edge dominators after collection without retaining the raw snapshot.
+These profiles
+use a 100-microsecond CPU interval and a 4 KiB heap interval; interaction CPU capture uses 6x Chromium emulation
+to collect enough samples from sub-millisecond framework work without changing the ordinary timing lane. They
+are not timing samples: their instrumentation overhead must not be interpreted as participant latency. Raw V8
+profiles accompany ranked URL, function, and source-location summaries so a later analysis can revisit attribution
+without rerunning the suite. The heap sampler is statistical and its sampled bytes are not exact heap accounting.
+The eXact diagnostic bundle also substitutes compile-time profiling policies for detailed hydration
+and DOM adoption phases. Installed-package policies are constant false, and the ordinary production
+comparison bundle excludes those timers and phase strings.
 
 Trace categories can contain nested work, so parse, compile, evaluation, and total script duration are independent
 signals and must not be added together. Parse and compile trace durations may also aggregate background-thread
 work, while Performance-domain script duration describes main-thread wall time. CPU throttling is a repeatable
 desktop-browser emulation rather than a claim about a particular mobile processor. Chunk URLs and precise
 coverage provide bundle-level attribution; source-map attribution inside a chunk requires a separate sampling
-profile.
+profile. Attribution-enabled eXact builds also retain Rollup's per-module rendered lengths and join precise
+coverage to the emitted source map. Chromium's aggregate parsed and compiled function counts remain bundle-level
+when its trace events omit script locations; the harness reports that absence instead of distributing those
+counts speculatively across modules.
 
 ### Isolated SSR profile
 
 The SSR track starts one production participant per child process so framework heap, RSS, external
-memory, and CPU are not mixed with the controlled fixture service or another framework. Participant
+memory, and CPU ownership remain attributable to that framework rather than the controlled fixture service.
+Comparable workers start concurrently and remain warm simultaneously, but requests and fixed-duration windows
+are issued to only one participant at a time in balanced round-interleaved order. Concurrent startup prevents
+the admitted historical artifact or a framework from inheriting a fixed process-age, listener-port, or scheduler
+slot before request-order balancing begins. Participant
 metadata declares the production transport used for each runtime. The worker imports that target-local
 server artifact directly and owns its listener; it does not start a shell, package manager, or descendant
 application process. Shutdown first uses the worker's control endpoint, then terminates only that exact
@@ -107,9 +141,68 @@ the complete SSR route. A Node HTTP worker records response first-byte and finis
 worker records handler completion when its immutable `Response` becomes ready. The report records this
 worker-measurement contract beside the transport so unlike internal phases are not mistaken for equivalent
 socket events. Sequential requests use warm keep-alive connections.
-Concurrent results are reported as individual latency percentiles and per-wave throughput percentiles;
+The load generator owns one bounded `node:http` keep-alive agent per participant and closes it when
+that participant finishes. Reusing those connections prevents client-side ephemeral-port exhaustion
+from being misreported as framework capacity while preserving exact process and socket ownership.
+Before the timing population starts, the harness probes both controlled-service resources repeatedly and records
+the resulting latency distribution. Every browser, startup-CPU, and comparable SSR timing round uses a balanced
+rotation keyed by the recorded measurement round and track offset. Successive rounds move every framework through
+every order position, and alternating cycles reverse direction, while every exact order remains stored in the raw
+result. This prevents one framework from consistently inheriting host drift, background activity, or service
+temperature and makes residual order effects auditable.
+
+Cold-start populations, post-GC retention, response decomposition, and instrumented CPU/allocation diagnostics
+remain isolated because simultaneous processes or profiling changes would contaminate their ownership. When an
+admitted historical eXact server artifact is available, it may run as another interleaved worker under the same
+transport. That direct paired population is preferred for estimating a small before/current change; unchanged
+React, SvelteKit, and Nuxt controls remain useful for relating a current run to older unpaired checkpoints.
+TanStack Start is reported as a fifth participant but is not a normalization control because it shares
+React's renderer and would otherwise give correlated React behavior double weight.
+
+SSR evidence captures the repository-dirty flag once before starting services or creating raw output. The
+evidence files produced by the run therefore cannot cause the run to mark itself dirty.
+
+The bounded concurrent lane remains a fixed request population. Saturation levels instead use 50
+fixed-duration, closed-loop windows; each client immediately replaces a completed request until the window
+closes, then outstanding requests settle. Throughput therefore has the same window population for every
+participant, while request-latency observation counts legitimately differ. Those distributions retain every
+published percentile and report each participant's count rather than truncating faster participants to a
+common size. After summarization, the runner releases the high-volume request and worker arrays; fixed-size
+throughput-window samples and finite-lane raw observations remain in the result.
+Before either concurrent lane, every participant receives one discarded two-second capacity prime at c32.
+The worker then resets telemetry. Startup and sequential lanes therefore retain their lighter warm-up
+contract, while concurrent and saturation results do not mix V8 tier-up work with steady-state capacity.
+Concurrent results are reported as individual latency percentiles and per-window throughput percentiles;
 aggregate process CPU is normalized by completed requests because overlapping requests cannot be assigned
 independent process-CPU intervals safely.
+
+Every Node integration records participant work from handler entry through the response `finish` event;
+native Fetch integrations record handler entry through immutable `Response` readiness. The directly hosted
+eXact and React integrations
+also separate controlled-service loading, framework rendering, document-envelope construction, rendered
+fragment bytes, and complete response bytes. These detailed phases are attribution evidence, not a claim
+that framework-owned server adapters expose identical internal boundaries.
+
+Five diagnostic lanes test likely causes without replacing the end-to-end result. The equal-payload lane
+runs each ordinary framework route while padding the complete body to the same byte count. The payload sweep
+serves renderer-free bodies at several exact sizes through each participant's declared transport. The
+render-only lane reuses preloaded fixture data for integrations that expose a direct renderer and, on Node,
+captures statistical heap-allocation and CPU summaries in separate passes. Sampled bytes, sample count,
+sampled CPU time, top sites, and URL attribution
+identify likely allocation work; the large inspector tree is not embedded in the main result, and sampled
+bytes are not exact allocation accounting. Unsupported renderer or inspector combinations remain
+explicitly unsupported rather than receiving zero values. A sustained preloaded lane measures the same
+renderer and response path with one cached immutable service snapshot. A separate service-phase lane adds
+fetch and JSON-decode clocks; those clocks never run in primary requests. Finally, a response-decomposition
+control operation accounts for semantic markup, marker categories, framework identity attributes,
+hydration data, comparison data, and the document envelope without adding work to a measured response.
+An attribution-only lane that encounters a transport failure is recorded as unsupported with its participant,
+concurrency, and round context. Its partial timings are discarded, while completed primary and independent
+diagnostic populations remain valid and continue to the per-runtime checkpoint.
+On Windows, Bun workers default their maximum concurrent HTTP requests to 64, matching Bun 1.3.5's observed
+reusable per-origin connection population. Higher simultaneous upstream populations otherwise create one-shot
+sockets and can exhaust Windows' bounded ephemeral-port range during the long diagnostic population. Explicit
+operator configuration overrides the default, and the report records the effective worker environment.
 
 Memory checkpoints force collection outside the measured latency lanes, then record `heapUsed`,
 `heapTotal`, RSS, external memory, and array buffers after equal request batches. A least-squares
@@ -120,11 +213,18 @@ cannot be accepted as an SSR sample.
 
 CPU lanes read cumulative process counters without forcing collection. Forced collection is confined to
 the separate retention lane, so benchmark bookkeeping is not charged to framework request CPU.
+Bun's event-loop monitor has a coarser sampling interval than Node's. After each telemetry reset, the
+worker therefore admits one idle monitor observation before the measured requests begin; this guarantees
+that very short low-concurrency lanes have a real histogram sample without adding the wait to request
+latency, throughput, or CPU measurements. The reset gate applies to both native `Bun.serve` and Bun's
+`node:http` compatibility transport; neither transport may publish a zero-observation lane.
 
 Node and Bun results are separate runtime rows over target-local production artifacts. A framework's
 native runtime integration is part of the comparison rather than normalized away. Frameworks without a
 native Bun host may use Bun's explicitly reported `node-http-compat` transport; that diagnostic must not
 be described as native Bun support.
+The collector writes an immutable timed checkpoint after each runtime. A later runtime or optional diagnostic
+may mark the complete run unsuccessful, but it cannot erase a completed Node or Bun population.
 
 ## Complexity dimensions
 
@@ -136,7 +236,7 @@ Complexity is reported as a profile rather than one synthetic score:
 - explicit client/server boundaries and manual transport code;
 - cache invalidation, rollback, cancellation, and synchronization sites;
 - build and test commands;
-- a blind maintainability review against a published rubric; and
+- independently inspectable framework-specific source and boundary plumbing; and
 - effort and code touched for the same change request across participants.
 
 Comments, formatting, and tests must not be removed merely to improve line counts. Generated code and lockfiles

@@ -101,7 +101,7 @@ describe('React compatibility Phase 3', () => {
 				createElement(Activity, { mode: 'hidden' }, createElement('span', null, 'hidden'))
 			)
 		);
-		expect(container.textContent).toBe('');
+		expect(container.querySelector('span')?.hidden).toBe(true);
 		await act(() =>
 			root.render(
 				createElement(Activity, { mode: 'visible' }, createElement('span', null, 'visible'))
@@ -131,7 +131,8 @@ describe('React compatibility Phase 3', () => {
 		expect(button.textContent).toBe('1');
 
 		await act(() => root.render(view('hidden')));
-		expect(container.querySelector('button')).toBeNull();
+		expect(container.querySelector('button')).toBe(button);
+		expect(button.hidden).toBe(true);
 		expect(lifecycle).toEqual(['effect', 'cleanup']);
 
 		await act(() => root.render(view('visible')));

@@ -1,4 +1,4 @@
-import { createServerSlot } from '@exactjs/core/runtime/render';
+import { createServerSlot } from '@exactjs/core/runtime/render-operations';
 import { isSafeObjectKey } from '../safety.js';
 import type { HydrateOptions } from '../types.js';
 

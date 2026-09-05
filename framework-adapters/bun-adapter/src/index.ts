@@ -8,10 +8,17 @@ import {
 /** Converts an eXact response through Bun's native Blob-backed response body lane. */
 export function exactResponseToBunResponse(result: ExactResponseLike): Response {
 	const body = exactResponseBodyOf(result);
-	return new Response(body ? body.toBlob() : (result.stream ?? result.body ?? ''), {
-		status: result.status,
-		headers: result.headers
-	});
+	return new Response(
+		body
+			? body.kind === 'produced'
+				? body.toReadableStream()
+				: body.toBlob()
+			: (result.stream ?? result.body ?? ''),
+		{
+			status: result.status,
+			headers: result.headers
+		}
+	);
 }
 
 /** Creates a Bun.serve-compatible fetch handler for an eXact endpoint. */

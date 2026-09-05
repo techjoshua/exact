@@ -20,9 +20,34 @@ import { recordArrayUndo, recordPropertyUndo } from './array-mutation.js';
 import { hasChanged, reactiveValueChanged } from './change-detection.js';
 
 import { listKeyExtractors, reactiveRawObjects } from './proxy/state.js';
+import { updateIndexedReactive } from './indexed-base.js';
 
 /** Mutates an existing reactive object to match a partial next value while preserving nested proxies. */
 export function updateReactive<T extends object>(target: Reactive<T>, next: Partial<T>): void {
+	updateReactiveProperties(target, next, true);
+}
+
+/** Replaces top-level reactive properties without reconciling nested prop values in place. */
+export function updateReactiveShallow<T extends object>(
+	target: Reactive<T>,
+	next: Partial<T>
+): void {
+	updateReactiveProperties(target, next, false);
+}
+
+function updateReactiveProperties<T extends object>(
+	target: Reactive<T>,
+	next: Partial<T>,
+	reconcileNested: boolean
+): void {
+	if (
+		updateIndexedReactive(target, next as Record<PropertyKey, unknown>, (previous, value) => {
+			if (!reconcileNested || !canUpdateNestedReactive(previous, value)) return false;
+			updateReactive(previous as object, unwrap(value) as Partial<object>);
+			return true;
+		})
+	)
+		return;
 	const raw = isReactive(target) ? (target as { [rawTarget]: T })[rawTarget] : target;
 	const nextRecord = next as Record<PropertyKey, unknown>;
 
@@ -44,7 +69,7 @@ export function updateReactive<T extends object>(target: Reactive<T>, next: Part
 			const previous = Reflect.get(raw, key);
 			const value = Reflect.get(next, key);
 			const hadKey = Object.prototype.hasOwnProperty.call(raw, key);
-			if (canUpdateNestedReactive(previous, value)) {
+			if (reconcileNested && canUpdateNestedReactive(previous, value)) {
 				updateReactive(previous as object, unwrap(value) as Partial<object>);
 				continue;
 			}

@@ -7,7 +7,7 @@ import {
 	type Child,
 	type Component
 } from '@exactjs/core';
-import { createCompiledTarget } from '@exactjs/core/runtime/render';
+import { createCompiledTargetReceipt } from '@exactjs/core/runtime/component-abi';
 import type { IntlPropertyActivation, IntlPropertyName } from './contracts.js';
 import type { IntlLocaleString } from './cldr-locale-types.js';
 import {
@@ -17,6 +17,10 @@ import {
 } from './environment.js';
 import { isPreparedIntlActivation, type PreparedIntlActivation } from './prepared.js';
 import { renderIntlActivation } from './render.js';
+import {
+	IntlScalarPresentationContext,
+	publishIntlScalarPresentation
+} from './scalar-presentation.js';
 
 /** Shared application context used by intl enhancement components. */
 export const IntlEnvironmentContext = createContext<IntlEnvironment>('@exactjs/intl.environment', {
@@ -112,6 +116,14 @@ export function IntlMessage(this: Component<{}>, props: IntlPreparedMessageProps
 	const environment = this.hasContext(IntlEnvironmentContext)
 		? this.getContext(IntlEnvironmentContext)
 		: undefined;
+	if (environment && this.hasContext(IntlScalarPresentationContext)) {
+		const release = publishIntlScalarPresentation(
+			props,
+			environment,
+			this.getContext(IntlScalarPresentationContext)
+		);
+		if (release) this.onUnmount(({ reason }) => releaseScalarPresentation(release, reason));
+	}
 	return () => renderIntlMessage(props, environment);
 }
 
@@ -127,7 +139,18 @@ export function IntlSelect(this: Component<{}>, props: IntlSelectProps) {
 
 /** Explicit currency component backed by the shared prepared-message renderer. */
 export function IntlCurrency(this: Component<{}>, props: IntlCurrencyProps) {
-	return IntlMessage.call(this, props);
+	const environment = this.hasContext(IntlEnvironmentContext)
+		? this.getContext(IntlEnvironmentContext)
+		: undefined;
+	if (environment && this.hasContext(IntlScalarPresentationContext)) {
+		const release = publishIntlScalarPresentation(
+			props,
+			environment,
+			this.getContext(IntlScalarPresentationContext)
+		);
+		if (release) this.onUnmount(({ reason }) => releaseScalarPresentation(release, reason));
+	}
+	return () => renderIntlMessage(props, environment);
 }
 
 /** Explicit semantic-unit component backed by the shared prepared-message renderer. */
@@ -155,7 +178,7 @@ export function IntlAttributes(this: Component<{}>, props: IntlPreparedAttribute
 
 function renderIntlLocale(environment: IntlEnvironment, props: IntlLocaleProps): Child {
 	const metadata = intlLocaleMetadata(environment.state.locale);
-	return createCompiledTarget(
+	return createCompiledTargetReceipt(
 		{ lang: metadata.lang, dir: metadata.dir, [TargetOverrides]: ['lang', 'dir'] },
 		props.children
 	);
@@ -172,6 +195,12 @@ function renderIntlMessage(
 	return prepared.target ? prepared.target(content, prepared.values) : content;
 }
 
+/** Retains sibling-consumed scalar output through one synchronous SSR traversal. */
+function releaseScalarPresentation(release: () => void, reason: string | undefined): void {
+	if (reason !== 'ssr render complete') release();
+}
+
+/** Projects prepared scalar attributes without target-specific side effects. @exact pure */
 function renderIntlAttributes(
 	props: IntlPreparedAttributesProps,
 	environment: IntlEnvironment | undefined
@@ -190,7 +219,7 @@ function renderIntlAttributes(
 			.map((value) => String(value ?? ''))
 			.join('');
 	}
-	return createCompiledTarget(
+	return createCompiledTargetReceipt(
 		{ ...contributions, [TargetOverrides]: Object.keys(contributions) },
 		props.children
 	);

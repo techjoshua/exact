@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
+import {
+	exactComponentContract,
+	type AnyExactComponentCallable
+} from '@exactjs/core/framework/component-contracts';
 import { readPublishedRootProps, resolveRootHydrateOptions } from './root-config.js';
 
 describe('hydration-only config projection', () => {
@@ -27,6 +31,65 @@ describe('hydration-only config projection', () => {
 		expect(() => readPublishedRootProps(configContainer({ state: 'invalid' }))).toThrow(
 			'Missing or malformed eXact published root props'
 		);
+	});
+
+	it('decodes component-bound positional root props into authored objects', () => {
+		const component = Object.assign(() => undefined, {
+			[exactComponentContract]: {
+				artifact: {
+					target: 'client',
+					id: 'component:Root',
+					serialization: [1, 'rows', [2, [1, 'id', 0]], 'label', 0]
+				}
+			}
+		}) as unknown as AnyExactComponentCallable;
+		const container = configContainer({
+			state: ['component:Root', [[['first'], ['second']], 'queue']]
+		});
+		expect(readPublishedRootProps(component, container)).toEqual({
+			rows: [{ id: 'first' }, { id: 'second' }],
+			label: 'queue'
+		});
+		expect(resolveRootHydrateOptions(container, {}).state).toEqual({
+			rows: [{ id: 'first' }, { id: 'second' }],
+			label: 'queue'
+		});
+		expect(() =>
+			readPublishedRootProps(
+				component,
+				configContainer({ state: ['component:Other', [[['first']], 'queue']] })
+			)
+		).toThrow('Missing or malformed eXact published root props');
+	});
+
+	it('accepts only the compiler-published markerless-root proof', () => {
+		expect(resolveRootHydrateOptions(configContainer({ m: 1 }), {})).toMatchObject({
+			markerlessRoot: true,
+			allowMarkerless: true
+		});
+		expect(
+			resolveRootHydrateOptions(configContainer({ m: true }), {}).markerlessRoot
+		).toBeUndefined();
+	});
+
+	it('decodes only a complete versioned direct envelope tuple', () => {
+		const resumptions = [['component:Counter', [[0, 7]]]];
+		expect(
+			resolveRootHydrateOptions(configContainer([1, 88, { ready: true }, resumptions]), {})
+		).toMatchObject({
+			state: { ready: true },
+			markerlessRoot: true,
+			allowMarkerless: true,
+			resumptions
+		});
+
+		for (const malformed of [
+			[2, 0],
+			[1, 16_384],
+			[1, 8],
+			[1, 0, 'trailing']
+		])
+			expect(resolveRootHydrateOptions(configContainer(malformed), {})).toEqual({});
 	});
 
 	it('reuses the bounded root decode when root props are read before hydration', () => {
@@ -71,12 +134,15 @@ describe('hydration-only config projection', () => {
 			]
 		});
 		expect(resolveRootHydrateOptions(valid, {}).resumptions).toEqual([
-			{
-				componentId: 'component:Counter',
-				values: { '@0': 7, label: 'ready' },
-				contexts: {},
-				settledContinuations: ['task:ready']
-			}
+			[
+				'component:Counter',
+				[
+					[0, 7],
+					['label', 'ready']
+				],
+				[],
+				['task:ready']
+			]
 		]);
 
 		for (const resumptions of [
@@ -98,7 +164,7 @@ describe('hydration-only config projection', () => {
 	});
 });
 
-function configContainer(config: Record<string, unknown>): HTMLElement {
+function configContainer(config: unknown): HTMLElement {
 	const container = document.createElement('main');
 	const script = document.createElement('script');
 	script.id = '__exact_hydration';

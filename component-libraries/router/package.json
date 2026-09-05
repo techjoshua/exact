@@ -5,7 +5,8 @@
 	"files": [
 		"AGENTS.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"!dist/**/*.fixtures.*"
 	],
 	"exports": {
 		".": {
@@ -35,13 +36,11 @@
 		"Link",
 		"Navigate",
 		"NavLink",
-		"Outlet",
-		"Route",
 		"Router"
 	],
 	"sideEffects": false,
 	"exactComponentLibrary": {
-		"protocol": 1,
+		"protocol": 2,
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
@@ -1032,8 +1031,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
-		"test": "vitest run --config vitest.config.ts",
+		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
+		"test": "vitest run --config vitest.config.ts && vitest run --config vitest.server.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

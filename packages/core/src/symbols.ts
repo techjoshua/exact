@@ -26,3 +26,5 @@ export const Suspense = Symbol.for('exact.suspense') as symbol &
 	((props: { fallback?: unknown; children?: unknown }) => never);
 /** Compiler-emitted render-program kind shared by independently loaded framework artifacts. */
 export const RenderProgram = Symbol.for('exact.render-program');
+/** React-private carrier for an opaque compiled native contribution handle. */
+export const CompatibilityContribution = Symbol.for('exact.compatibility-contribution');

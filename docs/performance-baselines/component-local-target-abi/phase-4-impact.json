@@ -1,0 +1,58 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 4,
+	"recordedAt": "2026-08-27T00:08:00.0000000-07:00",
+	"mechanisms": [
+		"Route matching native root and nested-component hydration through the same artifact attachment method used by client-only mount.",
+		"Use compiler-generated render-program claims for successful same-build attachment without generic intrinsic traversal.",
+		"On a failed generated claim, retire the partial hydration candidate and enter the artifact's specialized mount mode for replacement."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "client attachment and hydration",
+			"classification": "improve",
+			"metrics": [
+				"hydration and client mount latency",
+				"DOM claim and traversal work",
+				"hydration temporary and retained heap",
+				"DOM marker and node counts"
+			],
+			"structuralEvidence": [
+				"native roots invoke artifact attach in hydrate mode",
+				"matching render programs execute generated direct claims",
+				"failed claims invoke the same artifact in mount mode",
+				"client-only roots retain the identical artifact ABI"
+			],
+			"counterMetrics": [
+				"element, text, comment, and total DOM node counts",
+				"identity, focus, selection, and dirty form-control preservation",
+				"mismatch isolation and disposal assertions"
+			]
+		},
+		{
+			"name": "updates and server execution",
+			"classification": "stable",
+			"metrics": [
+				"client scalar, branch, keyed-list, task, and lifecycle updates",
+				"Node and Bun SSR latency, throughput, CPU, memory, and payload",
+				"client and server artifact size outside attachment reachability"
+			],
+			"structuralEvidence": [
+				"Phase 4 changes attachment ownership rather than update operations",
+				"server issuance remains assigned to Phase 5",
+				"dynamic selection and compatibility boundaries remain assigned to Phases 6 and 7"
+			],
+			"counterMetrics": [
+				"SSR response identity and byte counts",
+				"focused update correctness",
+				"native and explicit-boundary corpus counts"
+			]
+		}
+	]
+}

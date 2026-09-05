@@ -1,18 +1,22 @@
-import { flushSync, unwrap } from '@exactjs/reactive';
+import { createFrameworkFixtureComponentInstance } from './testing.js';
+import { flushSync, reactive, unwrap } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import {
 	ErrorContext,
 	LoggerContext,
+	ReadinessContext,
+	SuspensionContext,
 	createContext,
 	createRef,
-	createVNode,
-	isVNode,
-	type Component,
-	type VNode
+	type Component
 } from './index.js';
-import './runtime/lists.js';
+import { mapExactCompiledKeyedChildren } from './runtime/lists.js';
 import './runtime/refs.js';
-import { createFrameworkFixtureComponentInstance, renderInstance } from './runtime/render.js';
+import { executeCompiledComponentOutput } from './component/compiled-output.js';
+import {
+	createCompiledIntrinsicReceipt,
+	readCompiledIntrinsicReceipt
+} from './component-abi/intrinsic-receipt.js';
 
 describe('@exactjs/core context-reactive', () => {
 	it('scopes contexts to descendants and stores refs', () => {
@@ -119,45 +123,61 @@ describe('@exactjs/core context-reactive', () => {
 	it('uses global identity for built-in framework contexts', () => {
 		expect(LoggerContext.global).toBe(true);
 		expect(ErrorContext.global).toBe(true);
+		expect(SuspensionContext.global).toBe(true);
+		expect(ReadinessContext.global).toBe(true);
 		expect(ErrorContext.reactive).toBe(false);
 		expect(LoggerContext.id).toBe(Symbol.for('exact.context:exact.logger'));
 		expect(ErrorContext.id).toBe(Symbol.for('exact.context:exact.error'));
+		expect(SuspensionContext.id).toBe(Symbol.for('exact.context:exact.suspension'));
+		expect(ReadinessContext.id).toBe(Symbol.for('exact.context:exact.readiness'));
 	});
 
-	it('creates a keyed list fragment through this.map', () => {
+	it('publishes direct compiler-keyed lanes from the component-local cache', () => {
+		const items = [{ id: 'a' }, { id: 'b' }];
 		const instance = createFrameworkFixtureComponentInstance(function List(this: Component<{}>) {
 			return () =>
-				this.map(
-					[{ id: 'a' }, { id: 'b' }],
-					(item) => item.id,
-					(item) => createVNode('li', null, item.id)
-				);
-		}, {});
-
-		const nodes = renderInstance(instance, () => undefined);
-		expect(nodes).toHaveLength(1);
-		expect(isVNode(nodes[0])).toBe(true);
-		expect(isVNode(nodes[0]) ? nodes[0].type : undefined).toBe(Symbol.for('exact.fragment'));
-	});
-
-	it('preserves compiler-identified list caches across recreated render closures', () => {
-		const items = [{ id: 'a' }];
-		const instance = createFrameworkFixtureComponentInstance(function List(this: Component<{}>) {
-			return () =>
-				this.map(
+				mapExactCompiledKeyedChildren(
+					this,
 					items,
 					(item) => item.id,
-					(item) => createVNode('li', null, item.id),
-					'fixture:list'
+					(item) => createCompiledIntrinsicReceipt('li', null, item.id),
+					'fixture:direct-list'
 				);
 		}, {});
 
-		const first = renderInstance(instance, () => undefined)[0] as VNode;
-		const firstCache = (first.props.list as { cache: Map<string, unknown> }).cache;
-		firstCache.set('a', { retained: true });
-		const second = renderInstance(instance, () => undefined)[0] as VNode;
+		const first = executeCompiledComponentOutput(instance);
+		const second = executeCompiledComponentOutput(instance);
 
-		expect((second.props.list as { cache: Map<string, unknown> }).cache).toBe(firstCache);
+		expect(second).toEqual(first);
+		expect(second[0]).toBe(first[0]);
+		expect(second[1]).toBe(first[1]);
+	});
+
+	it('reuses direct keyed operations across collection-specific reactive proxies', () => {
+		const raw = [{ id: 'a' }, { id: 'b' }];
+		let items = reactive([...raw]);
+		let renders = 0;
+		const instance = createFrameworkFixtureComponentInstance(function List(this: Component<{}>) {
+			return () =>
+				mapExactCompiledKeyedChildren(
+					this,
+					items,
+					(item) => item.id,
+					(item) => {
+						renders++;
+						return createCompiledIntrinsicReceipt('li', null, item.id);
+					},
+					'fixture:reactive-direct-list'
+				);
+		}, {});
+
+		const first = executeCompiledComponentOutput(instance);
+		items = reactive([...raw].reverse());
+		const second = executeCompiledComponentOutput(instance);
+
+		expect(renders).toBe(2);
+		expect(second[0]).toBe(first[1]);
+		expect(second[1]).toBe(first[0]);
 	});
 
 	it('prevents child components from writing to parent-owned props', () => {
@@ -166,14 +186,14 @@ describe('@exactjs/core context-reactive', () => {
 				expect(() => {
 					props.text = 'changed';
 				}).toThrow(TypeError);
-				return createVNode('span', null, props.text);
+				return createCompiledIntrinsicReceipt('span', null, props.text);
 			};
 		}
 
 		const instance = createFrameworkFixtureComponentInstance(Child, { text: 'original' });
-		const nodes = renderInstance(instance, () => undefined);
+		const nodes = executeCompiledComponentOutput(instance);
 
-		expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe('original');
+		expect(unwrap(readCompiledIntrinsicReceipt(nodes[0])?.children[0])).toBe('original');
 	});
 
 	it('creates reactive template and lambda values on component instances', () => {
@@ -190,16 +210,16 @@ describe('@exactjs/core context-reactive', () => {
 				this.state.formal == true ? `Countess ${fullName}` : fullName
 			);
 
-			return () => createVNode('span', null, label);
+			return () => createCompiledIntrinsicReceipt('span', null, label);
 		}
 
 		const component = createFrameworkFixtureComponentInstance(Person, {});
-		const nodes = renderInstance(component, () => undefined);
+		const nodes = executeCompiledComponentOutput(component);
 
-		expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe('Ada Lovelace');
+		expect(unwrap(readCompiledIntrinsicReceipt(nodes[0])?.children[0])).toBe('Ada Lovelace');
 		instance.state.formal = true;
 		flushSync();
-		expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe(
+		expect(unwrap(readCompiledIntrinsicReceipt(nodes[0])?.children[0])).toBe(
 			'Countess Ada Lovelace'
 		);
 	});

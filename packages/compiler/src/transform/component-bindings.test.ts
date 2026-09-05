@@ -13,7 +13,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		);
 
 		expect(result.code).toContain('function (this: object)');
-		expect(result.code).toContain('[], this,');
+		expect(result.code).toMatch(/__exactPreparedRenderProgram\([^;]+, \[\], this\)/);
 	});
 
 	it('lowers shorthand through the ordinary reactive value and state-write callback path', () => {
@@ -38,11 +38,9 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		);
 
 		expect(result.code).not.toContain('open:onOpenChanged');
-		expect(result.code).toContain('open: __exactExpression(() => this.state.dialogOpen)');
+		expect(result.code).toContain('open: __exactIndexedExpression(this.state, 0)');
 		expect(result.code).toContain('onOpenChanged: (__exactBindingValue: boolean) =>');
-		expect(result.code).toContain(
-			'__exactWrite(this.state, ["dialogOpen"], () => __exactBindingValue)'
-		);
+		expect(result.code).toContain('__exactWriteState(this.state, 0, __exactBindingValue)');
 	});
 
 	it('rejects an explicit generated prop instead of composing callbacks', () => {
@@ -89,10 +87,12 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 			{ filename: '/app/Disclosure.tsx' }
 		);
 
-		expect(result.code).toContain('open: __exactExpression(() => this.state.open ?? false)');
-		expect(result.code).toContain('__exactBindToggle:');
+		expect(result.code).toContain(
+			'__exactApply("open", __exactReadState(this.state, 0) as any ?? false)'
+		);
+		expect(result.code).toContain('__exactApply("__exactBindToggle",');
 		expect(result.code).toContain('event.currentTarget.open');
-		expect(result.code).toContain('"__exactClosedInteraction:onToggle": () => { }');
+		expect(result.code).toContain('__exactApply("__exactClosedInteraction:onToggle", () => { })');
 	});
 
 	it('lowers modal state without serializing an open HTML attribute', () => {
@@ -107,10 +107,10 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 		expect(result.code).not.toContain('modal:isOpen');
 		expect(result.code).toContain('import "@exactjs/dom/runtime/modal"');
 		expect(result.code).toContain(
-			'__exactModalOpen: __exactExpression(() => this.state.open ?? false)'
+			'__exactApply("__exactModalOpen", __exactReadState(this.state, 0) as any ?? false)'
 		);
-		expect(result.code).toContain('__exactBindModalToggle:');
-		expect(result.code).toContain('__exactBindModalClose:');
+		expect(result.code).toContain('__exactApply("__exactBindModalToggle",');
+		expect(result.code).toContain('__exactApply("__exactBindModalClose",');
 		expect(result.code).toContain('event.currentTarget.matches(":modal")');
 		expect(server.code).not.toContain('modal:isOpen');
 		expect(server.code).not.toContain('__exactModalOpen');
@@ -200,7 +200,7 @@ describe('@exactjs/compiler component value/callback bindings', () => {
 			{ filename: '/app/Page.tsx' }
 		);
 		expect(result.code).toContain(
-			'__exactWrite(this.state, ["rows", this.state.selected, "enabled"]'
+			'__exactWrite(this.state, ["rows", __exactReadState(this.state, 1) as string, "enabled"]'
 		);
 	});
 

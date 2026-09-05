@@ -77,7 +77,7 @@ func collectStateAnalysis(
 					node.Pos(),
 				)
 			}
-			writes = append(writes, StateWrite{
+			write := StateWrite{
 				Component: candidate.name,
 				Path:      path,
 				Operation: operation,
@@ -90,7 +90,11 @@ func collectStateAnalysis(
 					path,
 				),
 				InputPath: stateWriteInputPath(node, propsSymbol, typeChecker),
-			})
+			}
+			if value, ok := unconditionalPrimitiveStateDefault(node, candidate.node); ok {
+				write.Default = &value
+			}
+			writes = append(writes, write)
 			return true
 		})
 	}
@@ -106,6 +110,37 @@ func collectStateAnalysis(
 	return aliases, reads, writes
 }
 
+// Recognizes only a direct top-level assignment whose primitive value is safe to retain as
+// immutable compiler metadata. Nested control flow and reference-bearing values remain captured.
+func unconditionalPrimitiveStateDefault(write *ast.Node, component *ast.Node) (StateDefault, bool) {
+	if !ast.IsBinaryExpression(write) ||
+		write.AsBinaryExpression().OperatorToken.Kind != ast.KindEqualsToken ||
+		write.Parent == nil || !ast.IsExpressionStatement(write.Parent) ||
+		write.Parent.Parent == nil || write.Parent.Parent != component.Body() {
+		return StateDefault{}, false
+	}
+	value := write.AsBinaryExpression().Right
+	for value != nil && ast.IsParenthesizedExpression(value) {
+		value = value.AsParenthesizedExpression().Expression
+	}
+	if value == nil {
+		return StateDefault{}, false
+	}
+	switch value.Kind {
+	case ast.KindStringLiteral:
+		return StateDefault{Kind: "string", Value: value.Text()}, true
+	case ast.KindTrueKeyword:
+		return StateDefault{Kind: "boolean", Value: "true"}, true
+	case ast.KindFalseKeyword:
+		return StateDefault{Kind: "boolean", Value: "false"}, true
+	case ast.KindNullKeyword:
+		return StateDefault{Kind: "null"}, true
+	case ast.KindNumericLiteral:
+		return StateDefault{Kind: "number", Value: value.Text()}, true
+	}
+	return StateDefault{}, false
+}
+
 // Returns the checker identity of the component's ordinary props parameter.
 func componentPropsSymbol(component *ast.Node, typeChecker *checker.Checker) *ast.Symbol {
 	for _, parameter := range component.Parameters() {
@@ -118,7 +153,8 @@ func componentPropsSymbol(component *ast.Node, typeChecker *checker.Checker) *as
 	return nil
 }
 
-// Recognizes the conservative setup form `this.state.x = props.y ?? fallback`.
+// Recognizes conservative setup forms rooted in one exact prop path, including
+// `this.state.x = peek(() => props.y ?? fallback)` snapshots.
 // Runtime publication still verifies identity before omitting the state value.
 func stateWriteInputPath(
 	write *ast.Node,
@@ -129,6 +165,19 @@ func stateWriteInputPath(
 		return ""
 	}
 	value := write.AsBinaryExpression().Right
+	for value != nil && ast.IsParenthesizedExpression(value) {
+		value = value.AsParenthesizedExpression().Expression
+	}
+	if ast.IsCallExpression(value) {
+		call := value.AsCallExpression()
+		if ast.IsIdentifier(call.Expression) && call.Expression.Text() == "peek" &&
+			call.Arguments != nil && len(call.Arguments.Nodes) == 1 &&
+			ast.IsArrowFunction(call.Arguments.Nodes[0]) &&
+			len(call.Arguments.Nodes[0].Parameters()) == 0 &&
+			!ast.IsBlock(call.Arguments.Nodes[0].AsArrowFunction().Body) {
+			value = call.Arguments.Nodes[0].AsArrowFunction().Body
+		}
+	}
 	for value != nil && ast.IsParenthesizedExpression(value) {
 		value = value.AsParenthesizedExpression().Expression
 	}

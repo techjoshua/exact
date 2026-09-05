@@ -1,3 +1,4 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 
@@ -5,7 +6,6 @@ import '../component/task-capability-integration.js';
 import '../runtime/contexts.js';
 import type { Component } from '../component/contracts.js';
 import { LoggerContext } from '../component/contexts.js';
-import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import type { LogEvent, Logger } from '../logging.js';
 import type { TaskContext } from './contracts.js';
 import {

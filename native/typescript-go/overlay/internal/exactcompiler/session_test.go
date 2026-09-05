@@ -77,7 +77,7 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 	if clientPage.Error != "" {
 		t.Fatal(clientPage.Error)
 	}
-	if !strings.Contains(clientPage.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0, true)`) ||
+	if !strings.Contains(clientPage.Code, `[[4, 0, 0, true]], [[2, 0, [], 0]]`) ||
 		strings.Contains(clientPage.Code, `__exactVNode("main"`) {
 		t.Fatalf("imported native component did not enter the compiled host lifecycle slot:\n%s", clientPage.Code)
 	}
@@ -125,6 +125,21 @@ func TestSessionReportsTypeScriptAndBackendVersions(t *testing.T) {
 	}
 }
 
+func TestSessionCheckValidatesWithoutReturningAnArtifact(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:          "check.ts",
+		Kind:        "check",
+		Diagnostics: "semantic",
+		Source:      `const answer: number = 42; void answer;`,
+	})
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+		t.Fatalf("valid check failed: error=%q diagnostics=%#v", response.Error, response.Diagnostics)
+	}
+	if response.Code != "" {
+		t.Fatalf("check exposed a transient executable artifact: %q", response.Code)
+	}
+}
+
 func TestUTF16PackageEnhancementBoundaryConversion(t *testing.T) {
 	source := "const label = '°😀';\nimport * as time from 'enhancement';"
 	authored := "const label = '°😀';"
@@ -156,12 +171,12 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedServerRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 4",
+		"version: 8",
 		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
-		`__exactSsr.begin(__exactContext, 2, 1, 30)`,
-		`__exactSsr.static(__exactOutput, "<span><strong>")`,
-		`const __exactValue_0 = __exactSsr.prepareText(__exactInvocation, 0)`,
-		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_0,`,
+		`__exactSsr.begin(__exactContext, 2, 2, 30, 30)`,
+		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "span", "<span", "><strong>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
+		`const __exactValue_1 = __exactSsr.prepareText(__exactInvocation, 1)`,
+		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
 		`, true)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -172,6 +187,19 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		if strings.Contains(response.Code, omitted) {
 			t.Fatalf("generated server program retained %q topology metadata:\n%s", omitted, response.Code)
 		}
+	}
+}
+
+func TestSessionEmitsExactUTF8BytesForStaticServerSpans(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "static-unicode.tsx", Kind: "compile", Target: TargetServer,
+		Source: `export function StaticUnicode() { return () => <p>café🚀</p>; }`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactSsr.begin(__exactContext, 1, 1, 13, 16)`) {
+		t.Fatalf("static server program omitted its exact UTF-8 byte fact:\n%s", response.Code)
 	}
 }
 
@@ -189,13 +217,12 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
-		!strings.Contains(response.Code, `from "@exactjs/core/runtime/render"`) ||
+		!strings.Contains(response.Code, `from "@exactjs/core/runtime/render-operations"`) ||
 		!strings.Contains(response.Code, `function Planned(this: object, props:`) ||
 		!strings.Contains(response.Code, `], this)`) ||
 		!strings.Contains(response.Code, "directClaims: true") ||
-		!strings.Contains(response.Code, `__exactBeginProgramClaims(__exactBindingTarget, "span", "html", 1, 1)`) ||
-		!strings.Contains(response.Code, "__exactClaimProgramText") ||
-		!strings.Contains(response.Code, ", true)") ||
+		!strings.Contains(response.Code, `wire: [["span", "html", 1, 1]`) ||
+		!strings.Contains(response.Code, `[[3, 0, 0, true]]`) ||
 		strings.Contains(response.Code, "nodes:") ||
 		strings.Contains(response.Code, "slots:") ||
 		strings.Contains(response.Code, "parts:") ||
@@ -203,6 +230,14 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		strings.Contains(response.Code, "ssrOperations:") ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) {
 		t.Fatalf("client render program retained server marker metadata:\n%s", response.Code)
+	}
+	for _, erased := range []string{
+		"version: 3", `placement: "isomorphic"`, `role: "client"`, "implementations: [",
+		"continuations: [", "executors: [", "boundaries: [",
+	} {
+		if strings.Contains(response.Code, erased) {
+			t.Fatalf("client runtime module retained build-only component inventory %q:\n%s", erased, response.Code)
+		}
 	}
 }
 
@@ -220,9 +255,52 @@ func TestSessionInitializesRenderProgramsBeforeTopLevelMounts(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	program := strings.Index(response.Code, "const __exact_render_program_1")
-	mount := strings.LastIndex(response.Code, "render(")
+	mount := strings.LastIndex(response.Code, "__exactRenderCompiledRoot(")
 	if program < 0 || mount < 0 || program > mount {
 		t.Fatalf("render program was not initialized before the top-level mount:\n%s", response.Code)
+	}
+}
+
+func TestSessionLowersMultipleIndependentClientRoots(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "multiple-roots.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			import { render } from "@exactjs/dom";
+			function Header() { return () => <header>Header</header>; }
+			function Workspace() { return () => <main>Workspace</main>; }
+			render(<Header />, document.querySelector("header-root")!);
+			render(<Workspace />, document.querySelector("workspace-root")!);
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("multiple client roots failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if count := strings.Count(response.Code, "__exactRenderCompiledRoot("); count != 2 {
+		t.Fatalf("expected two independently lowered client roots, received %d:\n%s", count, response.Code)
+	}
+	if strings.Contains(response.Code, `from "@exactjs/dom"`) {
+		t.Fatalf("multiple compiled roots retained the public root facade:\n%s", response.Code)
+	}
+}
+
+func TestSessionLowersImplicitThisStateInsideGeneratedClientIsland(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "implicit-island-this.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Counter() {
+				this.state.count = 0;
+				return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("implicit-this client island failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, "Counter_ExactClient_1") ||
+		!strings.Contains(response.Code, "__exactReadState(this.state, 0)") {
+		t.Fatalf("implicit-this client island was not emitted through indexed state storage:\n%s", response.Code)
 	}
 }
 
@@ -244,18 +322,22 @@ func TestSessionGeneratesDirtyUpdatesForDirectStateBindings(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`__exactBindProgramText(__exactBindingTarget, 2, true)`,
-		`__exactBindProgramProperties(__exactBindingTarget, 0, 0, true)`,
-		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
+		`[[0, 2, [0, 0], true], [12, 0, 0, [["disabled", 0, 1]], true], [9, 0, __exact_component_updates_1]]`,
 		`updates: __exact_component_updates_1`,
-		`bindings: [["count", 1, 0], ["disabled", 2, 0]] as const`,
+		`bindings: [[0, 1, 0], [1, 2, 0]] as const`,
 		`apply: (__exactTargets: object[], __exactDirtyLow: number, __exactDirtyHigh: number) =>`,
-		`__exactApplyProgramText(__exactTarget0, 2)`,
+		`__exactApplyProgramText(__exactTarget0, 2, 0, 0)`,
 		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("generated direct state update omitted %q:\n%s", expected, response.Code)
 		}
+	}
+	if strings.Contains(response.Code, `[8, 0, __exact_component_updates_1]`) {
+		t.Fatalf("narrow component update retained the wide binding runtime:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `[7, 0, __exact_component_updates_1]`) {
+		t.Fatalf("state-only component update retained the mixed-source binding runtime:\n%s", response.Code)
 	}
 	definition := strings.Index(response.Code, "const __exact_component_updates_1")
 	attachment := strings.Index(response.Code, "updates: __exact_component_updates_1")
@@ -286,12 +368,11 @@ func TestSessionClaimsOnlyRequiredPropertyTargetsByElementPath(t *testing.T) {
 	}
 	if !strings.Contains(
 		response.Code,
-		`__exactClaimProgramElementPath(__exactBindingTarget, 3, 2050, "button")`,
+		`[6, 3, 2050, "button"]`,
 	) {
 		t.Fatalf("compiled property target did not use its direct element path:\n%s", response.Code)
 	}
-	if strings.Contains(response.Code, `__exactClaimProgramElement(__exactBindingTarget`) ||
-		strings.Contains(response.Code, `"span")`) ||
+	if strings.Contains(response.Code, `"span")`) ||
 		strings.Contains(response.Code, `"aside")`) {
 		t.Fatalf("targeted hydration retained inert static element claims:\n%s", response.Code)
 	}
@@ -321,9 +402,19 @@ func TestSessionAddressesPropertyTargetsFromStableEdgeAfterStructuralContent(t *
 	// contribute any number of elements, then reaches the textarea from the front.
 	if !strings.Contains(
 		response.Code,
-		`__exactClaimProgramElementPath(__exactBindingTarget, 2, 1026, "textarea")`,
+		`[6, 2, 1026, "textarea"]`,
 	) {
 		t.Fatalf("compiled property targets did not select their stable path edges:\n%s", response.Code)
+	}
+	if !strings.Contains(
+		response.Code,
+		`[7, 0, __exact_component_updates_1]`,
+	) || !strings.Contains(response.Code, `props: 1`) ||
+		!strings.Contains(response.Code, `bindings: [[0,`) {
+		t.Fatalf("mixed state/prop dependencies did not retain the source-qualified binder:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `[9, 0, __exact_component_updates_1]`) {
+		t.Fatalf("mixed state/prop dependencies selected the state-only binder:\n%s", response.Code)
 	}
 }
 
@@ -344,9 +435,9 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`__exactBindComponentUpdate(__exactBindingTarget, 0, __exact_component_updates_1)`,
-		`__exactBindComponentUpdate(__exactBindingTarget, 1, __exact_component_updates_1)`,
-		`bindings: [["first", 1, 0], ["second", 2, 0]] as const`,
+		`[9, 0, __exact_component_updates_1]`,
+		`[9, 1, __exact_component_updates_1]`,
+		`bindings: [[0, 1, 0], [1, 2, 0]] as const`,
 		`const __exactTarget0 = __exactTargets[0]`,
 		`const __exactTarget1 = __exactTargets[1]`,
 	} {
@@ -356,6 +447,104 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	}
 	if strings.Count(response.Code, "updates: __exact_component_updates_1") != 1 {
 		t.Fatalf("finite regions did not share one component update definition:\n%s", response.Code)
+	}
+}
+
+func TestSessionCompilesMultiSlotScalarExpressionsIntoComponentUpdates(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "component-scalar-expression-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type State = { first: string; last: string };
+			export function Planned(this: { state: State }, props: { active: boolean }) {
+				this.state.first = "Ada";
+				this.state.last = "Lovelace";
+				return () => <p className:active={props.active && this.state.first !== ""}>
+					{this.state.first + " " + this.state.last}
+				</p>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`bindings: [[0, 2, 0], [0, 3, 0], [1, 1, 0]] as const`,
+		`__exactApplyProgramText(__exactTarget0, 1)`,
+		`__exactApplyProgramProperties(__exactTarget0, 0, 0)`,
+		`[7, 0, __exact_component_updates_1]`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("multi-slot scalar update omitted %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionCombinesMixedRenderProgramReaderBodies(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "mixed-reader-dispatch.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			type Item = { id: string; label: string };
+			export function Mixed(props: { pending: boolean; items: Item[] }) {
+				const visible = props.items.filter(item => item.label !== '');
+				return () => <section>
+					{props.pending ? <p>Pending</p> : null}
+					{visible.map(item => (
+						<strong key={item.id}>{item.label}</strong>
+					))}
+				</section>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `__exactSlot => {`) ||
+		strings.Count(response.Code, `if (__exactSlot ===`) < 2 {
+		t.Fatalf("mixed reader bodies did not share one dispatcher:\n%s", response.Code)
+	}
+}
+
+func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *testing.T) {
+	var fields strings.Builder
+	var initializers strings.Builder
+	var regions strings.Builder
+	for index := 0; index < 65; index++ {
+		name := fmt.Sprintf("value%d", index)
+		fmt.Fprintf(&fields, "%s: number;", name)
+		fmt.Fprintf(&initializers, "this.state.%s = %d;", name, index)
+		fmt.Fprintf(&regions, "<span>{this.state.%s}</span>,", name)
+	}
+	response := NewSession().Execute(Request{
+		ID: "wide-component-state-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: fmt.Sprintf(`
+			type State = {%s};
+			export function Planned(this: { state: State }) {
+				%s
+				return () => [%s];
+			}
+		`, fields.String(), initializers.String(), regions.String()),
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`words: 3`,
+		`[10, 64, __exact_component_updates_1]`,
+		`[61, 0, 0, 1]`,
+		`__exactDirtyWords: Uint32Array`,
+		`__exactDirtyWords[0] & 1`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("wide component update program omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, "bindCompiledProgramState") ||
+		strings.Contains(response.Code, "__exactBindProgramState") ||
+		strings.Contains(response.Code, `[7, 0, __exact_component_updates_1]`) {
+		t.Fatalf("wide component update retained the generic lane fallback:\n%s", response.Code)
 	}
 }
 
@@ -373,15 +562,15 @@ func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `template: "<span><strong>`) ||
-		!strings.Contains(response.Code, `bind: __exactBindingTarget =>`) ||
+		!strings.Contains(response.Code, `wire: [["span", "html", 2, 1]`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		strings.Contains(response.Code, `slots: [["text"`) ||
-		!strings.Contains(response.Code, `() => __exactVNode("span"`) ||
+		strings.Contains(response.Code, `() => __exactVNode("span"`) ||
 		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
 		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") {
-		t.Fatalf("complete metadata artifact omitted a direct lane or its universal fallback:\n%s", response.Code)
+		t.Fatalf("complete metadata artifact did not close over its direct client lane:\n%s", response.Code)
 	}
 }
 
@@ -400,12 +589,12 @@ func TestSessionUsesDirectStructuralClaimsWithCompleteMetadata(t *testing.T) {
 	if strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") ||
-		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0, true)`) ||
+		!strings.Contains(response.Code, `[[4, 0, 0, true]]`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
 		strings.Contains(response.Code, `["component"`) ||
-		!strings.Contains(response.Code, `() => __exactVNode("span"`) {
-		t.Fatalf("complete metadata artifact omitted direct structural execution or recovery:\n%s", response.Code)
+		strings.Contains(response.Code, `() => __exactVNode("span"`) {
+		t.Fatalf("complete metadata artifact did not close over direct structural execution:\n%s", response.Code)
 	}
 }
 
@@ -414,7 +603,7 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 		ID: "planned-props.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
 			export function Planned(props: { label: string; disabled: boolean }) {
-				return () => <button className="action" disabled={props.disabled}>{props.label}</button>;
+				return () => <button className="action" disabled={props.disabled} onClick={() => props.label}>{props.label}</button>;
 			}
 		`,
 	})
@@ -423,20 +612,23 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"createPreparedServerRenderProgram",
+		`ssrRootStatic: [" data-exact-id=\"`,
+		` class=\"action\"", ["data-exact-id", "className"], [[0, "disabled", "disabled"]]]`,
 		`const __exactValue_0 = __exactSsr.prepareAttribute(__exactInvocation, 0)`,
-		`__exactSsr.attribute(__exactContext, __exactOutput, __exactValue_0, "disabled", "button", __exactCharacters)`,
+		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "button", "<button", ">", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
-		`__exactSsr.static(__exactOutput, "<button class=\"action\"")`,
-		`class=\"action\"`,
-		`__exactPreparedServerRenderProgram(__exact_render_program_1, [props.disabled, props.label])`,
+		`"data-exact-id":`,
+		`className: "action", disabled: props.disabled`,
+		`__exactPreparedServerRenderProgram(__exact_render_program_1, [`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned host-property output omitted %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, `"className", "button"`) ||
+	if strings.Contains(response.Code, `onClick`) ||
+		strings.Contains(response.Code, `__exactSsr.attribute(`) ||
 		strings.Contains(response.Code, `(__exactSlot) =>`) {
-		t.Fatalf("static class was retained as generated attribute work:\n%s", response.Code)
+		t.Fatalf("root properties escaped the compiler-selected target operation:\n%s", response.Code)
 	}
 }
 
@@ -456,10 +648,10 @@ func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 	for _, expected := range []string{
 		`<!---->\uE000exact:0\uE001<!---->`,
 		`<!---->\uE000exact:1\uE001<!---->`,
-		`__exactClaimProgramText(__exactBindingTarget, 0, 0,`,
-		`__exactClaimProgramText(__exactBindingTarget, 1, 1,`,
-		`__exactBindProgramText(__exactBindingTarget, 0)`,
-		`__exactBindProgramText(__exactBindingTarget, 1)`,
+		`[3, 0, 0,`,
+		`[3, 1, 1,`,
+		`[0, 0, [1, 0], true]`,
+		`[0, 1, [1, 1], true]`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("adjacent scalar program omitted %q:\n%s", expected, response.Code)
@@ -467,6 +659,36 @@ func TestSessionPlansScalarChildrenBesideStaticText(t *testing.T) {
 	}
 	if strings.Contains(response.Code, `createCompiledVNode("small"`) {
 		t.Fatalf("adjacent scalar children fell back to a generic host VNode:\n%s", response.Code)
+	}
+}
+
+func TestSessionKeepsMarkerlessTextClaimsPairedAcrossTargets(t *testing.T) {
+	source := `
+		export function Planned(props: { label: string }) {
+			return () => <p>{props.label}</p>;
+		}
+	`
+	client := NewSession().Execute(Request{
+		ID: "planned-markerless-text.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source:                      source,
+	})
+	server := NewSession().Execute(Request{
+		ID: "planned-markerless-text.tsx", Kind: "compile", Target: TargetServer,
+		Source: source,
+	})
+	if client.Error != "" {
+		t.Fatal(client.Error)
+	}
+	if server.Error != "" {
+		t.Fatal(server.Error)
+	}
+	if !strings.Contains(client.Code, `[[3, 0, 0, true]]`) {
+		t.Fatalf("client artifact did not select its markerless scalar claim:\n%s", client.Code)
+	}
+	if !strings.Contains(server.Code, `__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`) ||
+		!strings.Contains(server.Code, `__exactCharacters, true)`) {
+		t.Fatalf("server artifact did not select the paired markerless scalar write:\n%s", server.Code)
 	}
 }
 
@@ -484,9 +706,9 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`<!--exact:dynamic:`,
-		`__exactClaimProgramChild(__exactBindingTarget, 0, 0,`,
-		`__exactBindProgramChild(__exactBindingTarget, 0)`,
+		`<!--x:0-->`,
+		`[5, 0, 0,`,
+		`[1, 0, true]`,
 		`createPreparedRenderProgram`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -509,7 +731,7 @@ func TestSessionPlansStructuralChildRangesInClientArtifacts(t *testing.T) {
 		t.Fatal(server.Error)
 	}
 	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
-		!strings.Contains(server.Code, `__exactSsr.static(__exactOutput, "<section>")`) ||
+		!strings.Contains(server.Code, `__exactSsr.rootOpening(`) ||
 		!strings.Contains(server.Code, `__exactSsr.prepareChild(`) ||
 		!strings.Contains(server.Code, `__exactSsr.child(`) ||
 		strings.Contains(server.Code, `__exactVNode("section"`) {
@@ -534,10 +756,12 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`__exactClaimProgramChild(__exactBindingTarget, 0, 0,`,
-		`, true)`,
-		`__exactBindProgramChild(__exactBindingTarget, 0)`,
-		`__exactComponentVNode(Detail`,
+		`template: "<main><footer>After</footer></main>"`,
+		`[6, 1, 1025, "footer"]`,
+		`[4, 0, 0, true, 1]`,
+		`[2, 0, [[0]], 1]`,
+		`[7, 0, __exact_component_updates_1]`,
+		`__exactComponentReceipt(Detail`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf("planned native component child omitted %q:\n%s", expected, client.Code)
@@ -545,6 +769,9 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	if strings.Contains(client.Code, `__exactVNode("main"`) {
 		t.Fatalf("planned native component child retained a generic client host:\n%s", client.Code)
+	}
+	if strings.Contains(client.Code, `__exactApplyProgramChild(`) {
+		t.Fatalf("planned native component child retained parent-owned dirty routing:\n%s", client.Code)
 	}
 
 	server := NewSession().Execute(Request{
@@ -562,9 +789,9 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 		t.Fatal(server.Error)
 	}
 	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
-		!strings.Contains(server.Code, `__exactComponentVNode(Detail`) ||
-		!strings.Contains(server.Code, `__exactSsr.prepareComponent(`) ||
-		!strings.Contains(server.Code, `__exactSsr.component(`) ||
+		!strings.Contains(server.Code, `__exactSsr.prepareComponentProps(`) ||
+		!strings.Contains(server.Code, `__exactSsr.directComponent(__exactContext, __exactOutput, Detail,`) ||
+		strings.Contains(server.Code, `__exactComponentReceipt(Detail`) ||
 		strings.Contains(server.Code, `__exactSsr.child(`) ||
 		strings.Contains(server.Code, `__exactVNode("main"`) {
 		t.Fatalf("server artifact did not compile recursive component rendering:\n%s", server.Code)
@@ -585,11 +812,11 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if complete.Error != "" {
 		t.Fatal(complete.Error)
 	}
-	if !strings.Contains(complete.Code, `__exactClaimProgramChild`) ||
-		!strings.Contains(complete.Code, `__exactComponentVNode(Detail`) ||
-		!strings.Contains(complete.Code, `__exactVNode("main"`) ||
-		!strings.Contains(complete.Code, `__exactDynamic(() => __exactComponentVNode(Detail`) {
-		t.Fatalf("complete metadata artifact omitted direct component claims or recovery:\n%s", complete.Code)
+	if !strings.Contains(complete.Code, `[4, 0, 0, true, 1]`) ||
+		!strings.Contains(complete.Code, `__exactComponentReceipt(Detail`) ||
+		strings.Contains(complete.Code, `__exactVNode("main"`) ||
+		strings.Contains(complete.Code, `__exactDynamic(() => __exactComponentReceipt(Detail`) {
+		t.Fatalf("complete metadata artifact did not close over direct component claims:\n%s", complete.Code)
 	}
 
 	stateful := NewSession().Execute(Request{
@@ -609,11 +836,64 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	if stateful.Error != "" {
 		t.Fatal(stateful.Error)
 	}
-	if !strings.Contains(stateful.Code, `__exactClaimProgramChild(__exactBindingTarget, 0, 0,`) ||
-		!strings.Contains(stateful.Code, `, true)`) ||
-		!strings.Contains(stateful.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
+	if !strings.Contains(stateful.Code, `[4, 0, 0, true, 1]`) ||
+		!strings.Contains(stateful.Code, `[2, 0, [], 0]`) ||
 		strings.Contains(stateful.Code, `__exactVNode("main"`) {
 		t.Fatalf("stateful component child did not enter its compiler-owned lifecycle slot:\n%s", stateful.Code)
+	}
+}
+
+func TestSessionRetainsPreparedServerReferencesForComponentInvocationMetadata(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "prepared-component-metadata.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			function Child(props: { key?: string; title?: string }) { return () => <span>child</span>; }
+			function Wrapper(props: { children?: unknown }) { return () => <section>{props.children}</section>; }
+			export function Page(props: { title?: string }) {
+				return () => <main><Wrapper><Child /></Wrapper><Child key="stable" /><Child {...props} /></main>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `__exactSsr.prepareComponent(`) ||
+		!strings.Contains(response.Code, `__exactSsr.component(`) ||
+		!strings.Contains(response.Code, `__exactComponentReceipt(Wrapper, {}, __exactComponentReceipt(Child`) ||
+		!strings.Contains(response.Code, `__exactComponentReceipt(Child, { key: "stable" })`) ||
+		!strings.Contains(response.Code, `__exactComponentReceipt(Child, { "data-exact-id":`) ||
+		!strings.Contains(response.Code, `...props })`) {
+		t.Fatalf("component invocation metadata lost its prepared-reference fallback:\n%s", response.Code)
+	}
+}
+
+func TestSessionFinalizesComponentChildrenInsidePropReceipts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "component-child-receipt-values.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			declare class Component<State> { state: State }
+			function Child(props: { children?: unknown }) { return () => props.children; }
+			function Wrapper(props: { children?: unknown }) { return () => props.children; }
+			export function Page(this: Component<{ key: string }>) {
+				this.state.key = "a";
+				return () => <Wrapper><Child key={this.state.key}>{this.state.key}</Child></Wrapper>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`__exactComponentReceipt(Wrapper, {}, __exactComponentReceiptUpdate(__exactComponentReceipt(Child, { key: __exactReadState(this.state, 0) as string }, __exactIndexedExpression(this.state, 0))`,
+		`__exactApplyComponentReceipt(__exactTarget0)`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("component child receipt omitted finalized input %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `__exactDynamic(() => __exactComponentReceipt(Child`) {
+		t.Fatalf("component child retained a live structural wrapper across the prop ABI:\n%s", response.Code)
 	}
 }
 
@@ -633,22 +913,21 @@ func TestSessionGroupsPlannedKeyedListsIntoOneRenderLane(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `__exactBindProgramLists(__exactBindingTarget, [0])`) ||
+	if !strings.Contains(response.Code, `[[4, [0]]]`) ||
 		!strings.Contains(response.Code, `listBindings: true`) {
 		t.Fatalf("planned keyed list did not emit one list lane:\n%s", response.Code)
 	}
-	if strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) {
+	if strings.Contains(response.Code, `[[1, 0]]`) {
 		t.Fatalf("planned keyed list retained the generic child binding:\n%s", response.Code)
 	}
 }
 
-func TestSessionWiresInferredProgramListsWithoutComponentListController(t *testing.T) {
+func TestSessionWiresInferredProgramListsThroughComponentLocalCache(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "compiled-program-list.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionHydrate,
 		Source: `
 			interface Item {
-				/** @exact key */
 				id: string;
 				label: string;
 			}
@@ -656,27 +935,79 @@ func TestSessionWiresInferredProgramListsWithoutComponentListController(t *testi
 				return () => <span>{props.value}</span>;
 			}
 			export function List(props: { items: Item[] }) {
-				return () => <ul>{props.items.map((item) => <li><Badge value={item.label} />{item.label}</li>)}</ul>;
+				return () => <ul>{props.items.map((item) => <li key={item.id}><Badge value={item.label} />{item.label}</li>)}</ul>;
 			}
 		`,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `props.items.map((item) => __exactKeyedVNode(`) ||
-		!strings.Contains(response.Code, `, item.id))`) {
-		t.Fatalf("compiler-owned list omitted direct key wiring:\n%s", response.Code)
+	if !strings.Contains(response.Code, `__exactMapKeyedChildren(this, __exactReadState(props, 0) as Item[]`) ||
+		!strings.Contains(response.Code, `item => item.id`) {
+		t.Fatalf("compiler-owned list omitted component-local key wiring:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `constructDurableComponentInstance as __exactConstructDurableComponent`) ||
+		!strings.Contains(response.Code, `abi: 5`) {
+		t.Fatalf("authored JSX key omitted component list ownership from the constructor ABI:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, `__exactPreparedRenderProgram(`) ||
-		!strings.Contains(response.Code, `__exactBindProgramKeyedChild(__exactBindingTarget, 0)`) ||
-		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0)`) ||
+		!strings.Contains(response.Code, `[[3, 0]]`) ||
+		!strings.Contains(response.Code, `[[4, 0, 0]]`) ||
 		!strings.Contains(response.Code, `template: "<ul></ul>"`) {
 		t.Fatalf("compiled list item did not retain its generated program lane:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `this.map(`) ||
-		strings.Contains(response.Code, `__exactBindProgramLists(`) ||
-		strings.Contains(response.Code, `@exactjs/core/runtime/lists`) {
-		t.Fatalf("closed program list retained the universal component list controller:\n%s", response.Code)
+		strings.Contains(response.Code, `[[4, [0]]]`) ||
+		strings.Contains(response.Code, `key:`) ||
+		!strings.Contains(response.Code, `mapExactCompiledKeyedChildren as __exactMapKeyedChildren`) {
+		t.Fatalf("authored JSX key did not select only the focused component-local cache:\n%s", response.Code)
+	}
+}
+
+func TestSessionKeepsExplicitlyKeyedJSXHelpersIndependentOfAComponentReceiver(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compiled-keyed-helper.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			interface Item { id: string; label: string; }
+			function rows(items: Item[]) {
+				return <ul>{items.map((item) => <li key={item.id}>{item.label}</li>)}</ul>;
+			}
+			export function List(props: { items: Item[] }) {
+				return () => rows(props.items);
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `items.map((item) => __exactKeyedChild(`) ||
+		!strings.Contains(response.Code, `item.id`) {
+		t.Fatalf("keyed JSX helper lost its receiver-independent keyed operation:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactMapKeyedChildren(this, items`) ||
+		strings.Contains(response.Code, `this.map(items`) {
+		t.Fatalf("keyed JSX helper invented a component receiver:\n%s", response.Code)
+	}
+}
+
+func TestSessionCarriesPrimitiveKeyInferenceIntoTheComponentConstructorABI(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compiled-primitive-list.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function List(props: { items: string[] }) {
+				return () => <ul>{props.items.map((item) => <li>{item}</li>)}</ul>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactMapKeyedChildren(this,`) ||
+		!strings.Contains(response.Code, `constructDurableComponentInstance as __exactConstructDurableComponent`) ||
+		!strings.Contains(response.Code, `abi: 5`) {
+		t.Fatalf("primitive key inference did not reach the component constructor ABI:\n%s", response.Code)
 	}
 }
 
@@ -697,9 +1028,9 @@ func TestSessionRetainsAListBoundaryBeforeAFollowingSibling(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if strings.Contains(response.Code, `__exactClaimProgramKeyedChild(`) ||
-		!strings.Contains(response.Code, `__exactClaimProgramChild(`) ||
-		!strings.Contains(response.Code, `<!--exact:dynamic:`) {
+	if strings.Contains(response.Code, `[[4, 0, 0]]`) ||
+		!strings.Contains(response.Code, `[5, 0, 0,`) ||
+		!strings.Contains(response.Code, `<!--x:0-->`) {
 		t.Fatalf("non-final keyed list lost its required sibling boundary:\n%s", response.Code)
 	}
 }
@@ -717,16 +1048,38 @@ func TestSessionInlinesConditionalFragmentsIntoTheirProgramRange(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `props.open ? [__exactPreparedRenderProgram(`) ||
-		!strings.Contains(response.Code, `__exactBindProgramChild(__exactBindingTarget, 0)`) ||
-		!strings.Contains(response.Code, `__exactClaimProgramKeyedChild(__exactBindingTarget, 0, 0)`) ||
+	if !strings.Contains(response.Code, `__exactReadState(props, 0) as boolean ? [__exactPreparedRenderProgram(`) ||
+		!strings.Contains(response.Code, `[1, 0, true]`) ||
+		!strings.Contains(response.Code, `[[4, 0, 0]]`) ||
 		!strings.Contains(response.Code, `template: "<section></section>"`) {
 		t.Fatalf("conditional fragment was not inlined into its generated structural range:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactFragment(`) ||
+		strings.Contains(response.Code, `__exactComponentVNode("h2"`) ||
 		strings.Contains(response.Code, `__exactVNode("h2"`) ||
 		strings.Contains(response.Code, `__exactVNode("p"`) {
 		t.Fatalf("closed conditional retained generic fragment or cell construction:\n%s", response.Code)
+	}
+}
+
+func TestSessionUsesMarkerFreeIntrinsicOperationsInsideStructuralPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "compiled-program-late-intrinsic.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			const attributes = { title: "late" };
+			export function Detail(props: { open: boolean }) {
+				return () => <section>{props.open ? <div {...attributes}>Ready</div> : null}</section>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `template: "<div>Ready</div>"`) ||
+		!strings.Contains(response.Code, `__exactApply("", attributes)`) ||
+		strings.Contains(response.Code, `__exactComponentVNode("div"`) {
+		t.Fatalf("late intrinsic branch did not preserve its compiler-owned program identity:\n%s", response.Code)
 	}
 }
 
@@ -743,20 +1096,41 @@ func TestSessionOrdersOptionBindingsBeforeControlledSelectValue(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 0, 1)`) ||
-		!strings.Contains(response.Code, `__exactBindProgramProperties(__exactBindingTarget, 1, 0)`) {
+	if !strings.Contains(response.Code, `[12, 0, 1, [["value", 1, 0]], true]`) ||
+		!strings.Contains(response.Code, `[12, 1, 0, [["value", 1, 1]], true]`) {
 		t.Fatalf("controlled select bindings were not emitted in browser-safe order:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
-		!strings.Contains(response.Code, `__exactApply("value", props.option)`) {
-		t.Fatalf("closed client output omitted the direct property writer:\n%s", response.Code)
-	}
-	if !strings.Contains(response.Code, `], this, undefined, (__exactGroup, __exactApply) =>`) {
-		t.Fatalf("closed client property writer omitted its authored component owner:\n%s", response.Code)
+	if strings.Contains(response.Code, `(__exactGroup, __exactApply) =>`) ||
+		strings.Contains(response.Code, `__exactApply("value",`) {
+		t.Fatalf("exact property operands retained a generated property writer:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, `__exactSlot === 0 ? undefined`) ||
 		strings.Contains(response.Code, `__exactSlot === 1 ? undefined`) {
 		t.Fatalf("closed client output retained redundant property reader arms:\n%s", response.Code)
+	}
+}
+
+func TestSessionEncodesExactReadersInsideMixedPropertyGroups(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "mixed-planned-properties.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Field(props: { value: string }) {
+				return () => <input value={props.value} title={props.value + "!"} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactApply("title", (__exactReadState(props, 0) as string) + "!")`) {
+		t.Fatalf("mixed property group lost its arbitrary expression fallback:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `[12, 0, 0, [["value", 1, 0]], true]`) {
+		t.Fatalf("mixed property group did not encode its exact indexed operand:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactApply("value", __exactReadState(props, 0) as string)`) {
+		t.Fatalf("mixed property group retained a redundant indexed reader:\n%s", response.Code)
 	}
 }
 
@@ -772,10 +1146,9 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `namespace: "svg", ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
-		!strings.Contains(response.Code, `__exactSsr.static(__exactOutput, "<path class=\"route\"")`) ||
-		!strings.Contains(response.Code, `__exactSsr.attribute(__exactContext, __exactOutput, __exactValue_0, "d", "path", __exactCharacters)`) ||
-		strings.Contains(response.Code, `__exactSsr.attribute(__exactContext, __exactOutput, __exactValue_0, "d", "svg", __exactCharacters)`) {
+	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"], [[0, "d", "d"]]], ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
+		!strings.Contains(response.Code, `__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "path", "<path", "></path>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`) ||
+		!strings.Contains(response.Code, `[{ className: "route", d: props.path }]`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
 }
@@ -793,8 +1166,8 @@ func TestSessionEmitsOnlyRenderProgramNamespaceTransitions(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `"div", "html")`) ||
-		strings.Contains(response.Code, `"foreignObject", "svg")`) {
+	if !strings.Contains(response.Code, `[0, 2, 0, "div", "html"]`) ||
+		strings.Contains(response.Code, `[0, 1, 0, "foreignObject", "svg"]`) {
 		t.Fatalf("render program did not compact inherited namespaces:\n%s", response.Code)
 	}
 }
@@ -812,7 +1185,9 @@ func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
-		strings.Count(response.Code, "__exactComponentVNode(") < 2 ||
+		strings.Count(response.Code, "__exactSsr.directComponent(") < 2 ||
+		strings.Contains(response.Code, "__exactComponentReceipt(Left") ||
+		strings.Contains(response.Code, "__exactComponentReceipt(Right") ||
 		strings.Contains(response.Code, "markIndependentAsyncSiblings as") {
 		t.Fatalf("proven sibling group was not captured by the direct server program:\n%s", response.Code)
 	}
@@ -1207,6 +1582,9 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 			export function Named() {
 				return () => <main />;
 			}
+			export function Transparent(props: { children?: unknown }) {
+				return () => props.children;
+			}
 			const protocolOnly = function () {
 				this.onMount(() => undefined);
 			};
@@ -1220,8 +1598,8 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	components := response.Analysis.Components
-	if len(components) != 3 {
-		t.Fatalf("discovered %d components, expected 3: %#v", len(components), components)
+	if len(components) != 4 {
+		t.Fatalf("discovered %d components, expected 4: %#v", len(components), components)
 	}
 	for _, component := range components {
 		if component.ID == "" || !strings.HasPrefix(component.ID, "x") {
@@ -1229,16 +1607,20 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 		}
 	}
 	if components[0].Name != "Named" || !components[0].Exported ||
-		len(components[0].Signals) != 1 || components[0].Signals[0] != "named-jsx" {
+		!equalStrings(components[0].Signals, []string{"named-jsx", "named-render"}) {
 		t.Fatalf("unexpected named JSX component: %#v", components[0])
 	}
-	if components[1].Name != "protocolOnly" ||
-		components[1].Signals[0] != "component-protocol" {
-		t.Fatalf("unexpected protocol component: %#v", components[1])
+	if components[1].Name != "Transparent" || !components[1].Exported ||
+		!equalStrings(components[1].Signals, []string{"named-render"}) {
+		t.Fatalf("unexpected transparent component: %#v", components[1])
 	}
-	if components[2].Name != "typedOnly" ||
-		components[2].Signals[0] != "typed-receiver" {
-		t.Fatalf("unexpected typed component: %#v", components[2])
+	if components[2].Name != "protocolOnly" ||
+		components[2].Signals[0] != "component-protocol" {
+		t.Fatalf("unexpected protocol component: %#v", components[2])
+	}
+	if components[3].Name != "typedOnly" ||
+		components[3].Signals[0] != "typed-receiver" {
+		t.Fatalf("unexpected typed component: %#v", components[3])
 	}
 }
 
@@ -1366,7 +1748,7 @@ func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 			`[Symbol.for("@exactjs/component")]: "` + panel.ID + `"`,
 			`[Symbol.for("@exactjs/component")]: "` + inline.ID + `"`,
 			`[__exactComponentContract_1]: {`,
-			`definition: {`,
+			`artifact: {`,
 			`instantiate:`,
 		} {
 			if !strings.Contains(response.Code, expected) {
@@ -1392,12 +1774,39 @@ func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 	}
 }
 
+func TestSessionDoesNotSubscribeComponentPropsToDeferredCallbackReads(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "planned-component-callback.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			function Detail(_props: { readCount: () => number }) {
+				return () => <strong>Detail</strong>;
+			}
+			export function Page(this: { state: { count: number } }) {
+				this.state.count = 0;
+				return () => <main><Detail readCount={() => this.state.count} /></main>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `[2, 0, [], 0]`) {
+		t.Fatalf("static component callback did not select direct child construction:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `__exactApplyProgramChild(`) {
+		t.Fatalf("deferred callback state read became an eager component-prop update:\n%s", response.Code)
+	}
+}
+
 func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
 		Target: TargetClient,
 		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare function delay(signal: AbortSignal): Promise<void>;
 			interface Component<State> {
 				state: State;
 				onMount(handler: () => void): void;
@@ -1409,19 +1818,91 @@ func TestSessionEmitsCompactComponentRuntimeABI(t *testing.T) {
 				this.onMount(() => undefined);
 				return () => <aside />;
 			}
+			function TaskPanel(this: Component<{}>) {
+				async function refresh(_task: TaskContext = TaskContext.client().latest()) {
+					await delay(_task.signal);
+				}
+				return () => <button onClick={() => refresh()}>Refresh</button>;
+			}
 		`,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
 	if strings.Count(response.Code, `abi: 1`) != 1 ||
-		strings.Count(response.Code, `abi: 3`) != 1 {
-		t.Fatalf("component runtime ABI did not distinguish direct and lifecycle paths:\n%s", response.Code)
+		strings.Count(response.Code, `abi: 3`) != 1 ||
+		strings.Count(response.Code, `abi: 9`) != 1 {
+		t.Fatalf("component runtime ABI did not distinguish render, lifecycle, and task paths:\n%s", response.Code)
+	}
+	for _, expected := range []string{
+		`constructRenderComponentInstance as __exactConstructRenderComponent`,
+		`constructTaskComponentInstance as __exactConstructTaskComponent`,
+		`constructDurableComponentInstance as __exactConstructDurableComponent`,
+		`construct: __exactConstructRenderComponent`,
+		`construct: __exactConstructTaskComponent`,
+		`construct: __exactConstructDurableComponent`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("component artifact did not select constructor %q:\n%s", expected, response.Code)
+		}
 	}
 	if !strings.Contains(response.Code, `registerComponentLifecycleHandler as __exactRegisterLifecycle`) ||
 		!strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount", () => undefined)`) ||
 		strings.Contains(response.Code, `"@exactjs/core/runtime/lifecycle"`) {
 		t.Fatalf("canonical lifecycle registration was not lowered directly:\n%s", response.Code)
+	}
+}
+
+func TestSessionPropagatesComponentSurfaceThroughBoundLocalHelpers(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component-helper.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare const FormContext: unknown;
+			interface Component<State = {}> {
+				getContext<T>(token: unknown): T;
+				onUnmount(handler: () => void): void;
+			}
+			function control(this: Component) {
+				this.getContext(FormContext);
+				this.onUnmount(() => undefined);
+				return () => <input />;
+			}
+			export function Input(this: Component) {
+				return control.call(this);
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	receiverResolved := false
+	for _, callable := range response.Analysis.Callables {
+		for _, edge := range callable.Calls {
+			if strings.Contains(edge.Name, "control.call") && edgeForwardsComponentReceiver(edge) {
+				receiverResolved = true
+			}
+		}
+	}
+	if !receiverResolved {
+		t.Fatalf("bound helper receiver was not resolved: %#v", response.Analysis.Callables)
+	}
+	inputStart := strings.Index(response.Code, "const __exactImplementation_Input_")
+	if inputStart < 0 {
+		t.Fatalf("compiled Input implementation is missing:\n%s", response.Code)
+	}
+	inputContract := response.Code[inputStart:]
+	if next := strings.Index(inputContract[1:], "const __exactImplementation_"); next >= 0 {
+		inputContract = inputContract[:next+1]
+	}
+	if !strings.Contains(inputContract, `construct: __exactConstructDurableComponent`) ||
+		!strings.Contains(inputContract, `"contexts"`) {
+		t.Fatalf("bound helper requirements did not widen the owning component ABI:\n%s", response.Code)
+	}
+	if !strings.Contains(inputContract, `return control.call(this)`) ||
+		strings.Contains(inputContract, `return () => control.call(this)`) {
+		t.Fatalf("bound setup helper gained an extra render callable layer:\n%s", response.Code)
 	}
 }
 
@@ -1450,6 +1931,40 @@ func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *te
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("hoisted component output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+	attachment := strings.Index(response.Code, `Object.assign(Ready, {`)
+	reference := strings.Index(response.Code, `const entries = { ready: Ready }`)
+	if attachment < 0 || reference < 0 || attachment > reference {
+		t.Fatalf(
+			"hoisted component contract was not available to the earlier module reference:\n%s",
+			response.Code,
+		)
+	}
+}
+
+func TestSessionAttachesHoistedRegistryEntriesBeforeRegistryCreation(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "registry-hoisting.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { createComponentRegistry } from "@exactjs/core";
+			const Region = createComponentRegistry(() => ({ empty: EmptyRegion }));
+			function EmptyRegion() {
+				return () => <aside>Empty</aside>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	attachment := strings.Index(response.Code, `Object.assign(EmptyRegion, {`)
+	registry := strings.Index(response.Code, `__exactComponentRegistry(`)
+	if attachment < 0 || registry < 0 || attachment > registry {
+		t.Fatalf(
+			"registry executed before its hoisted component artifact was attached:\n%s",
+			response.Code,
+		)
 	}
 }
 
@@ -1523,12 +2038,13 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 				return () => <span />;
 			}
 			export function Panel() {
-				return () => <main><Local /><Foreign /></main>;
+				return () => <main><Local /><Foreign><em>native</em></Foreign></main>;
 			}
 		`,
 		JSXInterop: &JSXInterop{
-			AdapterModule: "@exactjs/react-compat",
-			AdapterExport: "adaptComponent",
+			AdapterModule:        "@exactjs/react-compat",
+			AdapterExport:        "adaptComponent",
+			ClientRendererModule: "@exactjs/react-dom-compat/client19",
 		},
 	})
 	if response.Error != "" {
@@ -1536,12 +2052,83 @@ func TestSessionWrapsUnprovenComponentsWithJSXInteropAdapter(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`import { adaptComponent as __exactInteropComponent } from "@exactjs/react-compat"`,
-		`__exactComponentVNode(Local,`,
-		`__exactVNode(__exactInteropComponent(Foreign),`,
+		`import "@exactjs/react-dom-compat/client19"`,
+		`import { createCompatibilityContribution as __exactCompatibilityContribution } from "@exactjs/core/framework/compatibility-contributions"`,
+		`__exactComponentReceipt(Local,`,
+		`__exactComponentReceipt(__exactInteropComponent, { component: Foreign, ...{} }, __exactCompatibilityContribution(__exactContributionTarget => __exactContributionTarget.place(`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native JSX interop output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+	if strings.Contains(response.Code, `contribution: __exactVNode`) ||
+		strings.Contains(response.Code, `materialize`) {
+		t.Fatalf("foreign owner received native topology instead of an opaque supplier operation:\n%s", response.Code)
+	}
+}
+
+func TestSessionOmitsClientInteropRendererWithoutForeignClientOutput(t *testing.T) {
+	interop := &JSXInterop{
+		AdapterModule:        "@exactjs/react-compat",
+		AdapterExport:        "adaptComponent",
+		ClientRendererModule: "@exactjs/react-dom-compat/client19",
+	}
+	local := NewSession().Execute(Request{
+		ID: "local.tsx", Kind: "compile", Target: TargetClient,
+		Source: `function Local() { return () => <span />; }
+			export function Panel() { return () => <main><Local /></main>; }`,
+		JSXInterop: interop,
+	})
+	if local.Error != "" || len(local.Diagnostics) != 0 {
+		t.Fatalf("local compile failed: %s %#v", local.Error, local.Diagnostics)
+	}
+	if strings.Contains(local.Code, interop.ClientRendererModule) {
+		t.Fatalf("native-only client output retained the foreign renderer:\n%s", local.Code)
+	}
+
+	server := NewSession().Execute(Request{
+		ID: "server.tsx", Kind: "compile", Target: TargetServer,
+		Source: `import { Foreign } from "foreign-ui";
+			export function Panel() { return () => <main><Foreign /></main>; }`,
+		JSXInterop: interop,
+	})
+	if server.Error != "" || len(server.Diagnostics) != 0 {
+		t.Fatalf("server compile failed: %s %#v", server.Error, server.Diagnostics)
+	}
+	if strings.Contains(server.Code, interop.ClientRendererModule) {
+		t.Fatalf("server output retained the browser renderer:\n%s", server.Code)
+	}
+}
+
+func TestSessionUsesHostClassifiedExactImportsOutsideComponentRenderFunctions(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "scenario.tsx", Kind: "compile", Target: TargetClient,
+		Source: `
+			import { Native } from "./native.js";
+			import { Foreign } from "foreign-ui";
+			export function mountScenarios() {
+				return <main><Native label="native" /><Foreign label="foreign" /></main>;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptReactComponent",
+			ExactComponents: []JSXInteropExactComponent{
+				{ModuleSpecifier: "./native.js", ExportName: "Native"},
+			},
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactComponentReceipt(Native,`) {
+		t.Fatalf("host-classified native import did not use the native target ABI:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `__exactComponentReceipt(__exactInteropComponent, { component: Foreign`) {
+		t.Fatalf("unproven import did not remain behind compatibility:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `{ component: Native`) {
+		t.Fatalf("host-classified native import crossed the React compatibility boundary:\n%s", response.Code)
 	}
 }
 
@@ -1564,6 +2151,36 @@ func TestSessionKeepsUnprovenInteropComponentsBehindServerBoundary(t *testing.T)
 		!strings.Contains(response.Code, `"Foreign"`) ||
 		strings.Contains(response.Code, `__exactInteropComponent(Foreign)`) {
 		t.Fatalf("foreign component escaped its server compatibility boundary:\n%s", response.Code)
+	}
+}
+
+func TestSessionKeepsImportedReactPackageInsideDirectServerCompatibilityBoundary(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "react-package-owner.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			import { DatePicker } from "react-date-picker";
+			export function Page(props: { value: string }) {
+				return () => <main><DatePicker value={props.value} /></main>;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat/exact",
+			AdapterExport: "adaptReactComponent",
+		},
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if !strings.Contains(response.Code, `__exactBoundary(`) ||
+		!strings.Contains(response.Code, `"DatePicker"`) {
+		t.Fatalf("imported React package was not retained behind its compatibility boundary:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `lane: "direct"`) {
+		t.Fatalf("native owner containing a React package did not retain direct server execution:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `@exactjs/ssr/runtime/generic-components`) ||
+		strings.Contains(response.Code, `materialize`) {
+		t.Fatalf("imported React package reopened generic native server execution:\n%s", response.Code)
 	}
 }
 
@@ -1619,8 +2236,71 @@ func TestSessionRetainsImportedExactComponentsWithoutJSXInteropAdapter(t *testin
 	if strings.Contains(response.Code, `__exactInteropComponent(Child)`) {
 		t.Fatalf("imported eXact component was lowered through JSX interop:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `__exactComponentVNode(Child,`) {
-		t.Fatalf("imported eXact component was not retained as an eXact VNode type:\n%s", response.Code)
+	if !strings.Contains(response.Code, `__exactComponentReceipt(Child,`) {
+		t.Fatalf("imported eXact component was not retained as an eXact component operation:\n%s", response.Code)
+	}
+}
+
+func TestSessionUsesPublishedBuildFactsToSeparateNativeAndForeignPackageComponents(t *testing.T) {
+	root := t.TempDir()
+	nativeRoot := filepath.Join(root, "node_modules", "@fixture", "native")
+	foreignRoot := filepath.Join(root, "node_modules", "@fixture", "foreign")
+	for _, directory := range []string{nativeRoot, foreignRoot} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFixture := func(filename string, contents string) {
+		t.Helper()
+		if err := os.WriteFile(filename, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFixture(filepath.Join(nativeRoot, "package.json"), `{
+		"name": "@fixture/native",
+		"types": "./index.d.ts",
+		"exactComponentLibrary": { "protocol": 2, "build": "./exact-component-build.json" }
+	}`)
+	writeFixture(filepath.Join(nativeRoot, "index.d.ts"), `
+		export declare function Native(props: { label: string }): unknown;
+	`)
+	writeFixture(filepath.Join(nativeRoot, "exact-component-build.json"), `{
+		"protocol": 2,
+		"package": { "name": "@fixture/native" },
+		"exports": [{ "subpath": ".", "condition": "browser", "exportName": "Native" }]
+	}`)
+	writeFixture(filepath.Join(foreignRoot, "package.json"), `{
+		"name": "@fixture/foreign",
+		"types": "./index.d.ts"
+	}`)
+	writeFixture(filepath.Join(foreignRoot, "index.d.ts"), `
+		export declare function Foreign(props: { label: string }): unknown;
+	`)
+	entry := filepath.Join(root, "entry.tsx")
+	response := NewSession().Execute(Request{
+		ID: entry, Root: root, Kind: "compile", Target: TargetClient, Source: `
+			import { Native } from "@fixture/native";
+			import { Foreign } from "@fixture/foreign";
+			export function Parent() {
+				return () => <main><Native label="native" /><Foreign label="foreign" /></main>;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat",
+			AdapterExport: "adaptReactComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `__exactComponentReceipt(Native,`) {
+		t.Fatalf("published native export did not use the native target ABI:\\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `__exactComponentReceipt(__exactInteropComponent, { component: Foreign`) {
+		t.Fatalf("unproven package export did not remain behind compatibility:\\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `{ component: Native`) {
+		t.Fatalf("published native export crossed the React compatibility boundary:\\n%s", response.Code)
 	}
 }
 
@@ -1651,7 +2331,7 @@ func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `__exactComponentVNode(Child,`) ||
+	if !strings.Contains(response.Code, `__exactSsr.directComponent(__exactContext, __exactOutput, Child,`) ||
 		strings.Contains(response.Code, `__exactVNode("Child",`) {
 		t.Fatalf("server-render projection lost the imported component identity:\n%s", response.Code)
 	}
@@ -1697,8 +2377,8 @@ func TestSessionDoesNotAdaptCoreVNodeSymbolsAsReactComponents(t *testing.T) {
 	if strings.Contains(response.Code, `__exactInteropComponent(Suspense)`) {
 		t.Fatalf("core Suspense symbol was incorrectly lowered through React interop:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `__exactVNode(Suspense,`) {
-		t.Fatalf("core Suspense symbol was not retained as an eXact VNode type:\n%s", response.Code)
+	if !strings.Contains(response.Code, `__exactSuspenseReceipt({`) {
+		t.Fatalf("core Suspense symbol was not lowered to its focused receipt:\n%s", response.Code)
 	}
 	if !strings.Contains(response.Code, `import "@exactjs/dom/runtime/structural-boundaries"`) {
 		t.Fatalf("native Suspense did not select its DOM structural capability:\n%s", response.Code)
@@ -1830,8 +2510,14 @@ func TestSessionImportsComponentLocalizationOnlyWhenUsed(t *testing.T) {
 		if localized.Error != "" {
 			t.Fatal(localized.Error)
 		}
-		if !strings.Contains(localized.Code, `import "@exactjs/core/runtime/localization"`) {
+		if !strings.Contains(localized.Code, `"@exactjs/core/runtime/localization"`) {
 			t.Fatalf("component Intl use did not import its runtime capability:\n%s", localized.Code)
+		}
+		if index == 0 && !strings.Contains(
+			localized.Code,
+			`componentIntl as __exactComponentIntl`,
+		) {
+			t.Fatalf("component-owned Intl access was not compiler-linked:\n%s", localized.Code)
 		}
 		if !containsString(localized.RuntimeDependencies, "@exactjs/core/runtime/localization") {
 			t.Fatalf("emitted localization dependency was not reported: %#v", localized.RuntimeDependencies)
@@ -1951,7 +2637,7 @@ func TestSessionEmitsCompatibilityCapabilityOnlyForAdaptedComponentRoots(t *test
 	}
 	for _, expected := range []string{
 		`import "@exactjs/core/runtime/tasks"`,
-		`__exactInteropComponent(Widget)`,
+		`__exactComponentReceipt(__exactInteropComponent, { component: Widget, ...{} })`,
 		`"compatibility"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2010,7 +2696,7 @@ func TestSessionReplacesClientFunctionRootWithServerBoundaryStub(t *testing.T) {
 		t.Fatalf("missing client root boundary: %#v", response.Analysis.Boundaries)
 	}
 	for _, expected := range []string{
-		`createServerBoundary as __exactBoundary`,
+		`createServerBoundaryReceipt as __exactBoundary`,
 		`function Button(props = {})`,
 		`() => __exactBoundary("` + boundaryID + `", "Button", props)`,
 	} {
@@ -2048,7 +2734,7 @@ func TestSessionReplacesClientComponentValueWithServerBoundaryStub(t *testing.T)
 		t.Fatalf("missing client root boundary: %#v", response.Analysis.Boundaries)
 	}
 	for _, expected := range []string{
-		`createServerBoundary as __exactBoundary`,
+		`createServerBoundaryReceipt as __exactBoundary`,
 		`function Button(props = {})`,
 		`() => __exactBoundary("` + boundaryID + `", "Button", props)`,
 	} {
@@ -2114,7 +2800,7 @@ __fixtureTask0();
 		)
 	}
 	for _, expected := range []string{
-		`createServerBoundary as __exactBoundary`,
+		`createServerBoundaryReceipt as __exactBoundary`,
 		`__exactBoundary("` + edgeBoundary.ID +
 			`", "ClientButton", { label: "Save" })`,
 	} {
@@ -2159,7 +2845,7 @@ func TestSessionSerializesPlainClientBoundaryChildrenAsProps(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`createServerBoundary as __exactBoundary`,
+		`createServerBoundaryReceipt as __exactBoundary`,
 		`"ClientShell", { children: ["Issue ", this.state.title, " #", this.state.count] }`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2238,8 +2924,9 @@ func TestSessionRetainsJSXClientBoundaryChildrenAsServerSlot(t *testing.T) {
 		`planEdgeId: "` + partitionRange.ID + `"`,
 		`discriminator: { kind: "single" }`,
 		`generation: 1`,
-		`__exactVNode("p"`,
-		`"Server child"`,
+		`namespace: "contextual", attachmentTag: "p"`,
+		`__exactPreparedServerRenderProgram(__exact_render_program_1, [{}])`,
+		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "p", "<p", ">Server child</p>"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -2275,7 +2962,12 @@ func TestSessionKeepsUnknownComponentChildrenInClientOnlyArtifacts(t *testing.T)
 	if strings.Contains(response.Code, "__exactServerSlot") {
 		t.Fatalf("client-only compilation replaced an unknown component child with a server slot:\n%s", response.Code)
 	}
-	for _, expected := range []string{`__exactVNode(External`, `__exactVNode("span"`, `"Client child"`} {
+	for _, expected := range []string{
+		`__exactComponentReceipt(External`,
+		`namespace: "contextual", attachmentTag: "span"`,
+		`__exactPreparedRenderProgram(__exact_render_program_1, [], this)`,
+		`<span>Client child</span>`,
+	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("client-only component output omitted %q:\n%s", expected, response.Code)
 		}
@@ -2348,7 +3040,7 @@ __fixtureTask1();
 		`__exactBoundary("`,
 		`"__exactState"`,
 		`__exactHydration`,
-		`__exactVNode("button"`,
+		`__exactIntrinsicReceipt("button"`,
 		`title: this.state.label`,
 		`"Save "`,
 		`name: "Panel_ExactServer_1"`,
@@ -2403,6 +3095,15 @@ func TestSessionEmitsOnlyFiniteClientIslandForServerOwnedSetup(t *testing.T) {
 	}
 	if !strings.Contains(response.Code, "Panel_ExactClient_1") {
 		t.Fatalf("client artifact omitted the finite interactive island:\n%s", response.Code)
+	}
+	for _, expected := range []string{
+		"constructRenderComponentInstance as __exactConstructRenderComponent",
+		"construct: __exactConstructRenderComponent",
+		"abi: 1",
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("client island omitted construction artifact %q:\n%s", expected, response.Code)
+		}
 	}
 	for _, forbidden := range []string{"node:private-data", "__exactActivateTask"} {
 		if strings.Contains(response.Code, forbidden) {
@@ -2524,9 +3225,10 @@ __fixtureTask2();
 		`export const Panel =`,
 		`placement: "isomorphic"`,
 		`instantiate: __exactImplementation_Panel_1`,
-		`title: __exactExpression(() => this.state.label)`,
-		`"__exactClosedInteraction:onClick": () => __exactUpdateResult(this.state, ["count"]`,
-		`__exactDynamic(() => this.state.count`,
+		`__exactSlot === 1 ? () => __exactUpdateStateResult(this.state, 0`,
+		`[["title", 0, 1]]`,
+		`[11, 2, ["Save ", "", true, 0, 0]]`,
+		`__exactApplyProgramText(__exactTarget0, 2, 0, 0, "Save ", "")`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -2535,6 +3237,9 @@ __fixtureTask2();
 				response.Code,
 			)
 		}
+	}
+	if strings.Contains(response.Code, `__exactSlot === 0 ? __exactReadState(this.state, 1)`) {
+		t.Fatalf("direct property operand retained its obsolete reader:\n%s", response.Code)
 	}
 	for _, forbidden := range []string{"loadPrivate"} {
 		if strings.Contains(response.Code, forbidden) {
@@ -2547,7 +3252,7 @@ __fixtureTask2();
 	}
 }
 
-func TestSessionUsesElementAccessForNamespacedClientIslandProps(t *testing.T) {
+func TestSessionIndexesNamespacedClientIslandProps(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:                          "conditional-class-island.tsx",
 		Kind:                        "compile",
@@ -2567,8 +3272,9 @@ func TestSessionUsesElementAccessForNamespacedClientIslandProps(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `"className:active": props["className:active"]`) {
-		t.Fatalf("namespaced island prop did not use valid element access:\n%s", response.Code)
+	if !strings.Contains(response.Code, `"className:active": __exactReadState(props, 1)`) ||
+		!strings.Contains(response.Code, `"className:active"`) {
+		t.Fatalf("namespaced island prop did not use its compiler-owned numeric slot:\n%s", response.Code)
 	}
 }
 
@@ -2611,9 +3317,10 @@ __fixtureTask0();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`value: __exactExpression(() => this.state.name ?? "")`,
+		`__exactSlot === 0 ? __exactReadState(this.state, 0)`,
+		`?? ""`,
 		`readonly currentTarget: HTMLInputElement`,
-		`=> __exactWrite(this.state, ["name"], () => event.currentTarget.value as any)`,
+		`=> __exactWriteState(this.state, 0, event.currentTarget.value as any)`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -2628,6 +3335,31 @@ __fixtureTask0();
 			"authored form-binding namespace escaped into client output:\n%s",
 			client.Code,
 		)
+	}
+}
+
+func TestSessionRetainsPathWriteForNestedFormBinding(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "profile.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			export function Profile(this: Component<{ profile: { name: string } }>) {
+				return () => <input value:onInput={this.state.profile.name} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(
+		response.Code,
+		`__exactWrite(this.state, ["profile", "name"], () => event.currentTarget.value as any)`,
+	) {
+		t.Fatalf("nested form binding lost its path write:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, "__exactWriteState") {
+		t.Fatalf("nested form binding incorrectly used a top-level indexed slot:\n%s", response.Code)
 	}
 }
 
@@ -2667,13 +3399,16 @@ __fixtureTask1();
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`Number.isNaN(this.state.count)`,
+		`Number.isNaN(__exactReadState(this.state, 2)`,
 		`event.currentTarget.valueAsNumber`,
-		`this.state.enabled ?? false`,
-		`this.state.method === "ground"`,
+		`__exactReadState(this.state, 3)`,
+		`?? false`,
+		`__exactReadState(this.state, 4)`,
+		`=== "ground"`,
 		`event.currentTarget.checked &&`,
 		`Array.from(event.currentTarget.selectedOptions`,
-		`(this.state.codes ?? []).includes(Number("2"))`,
+		`__exactReadState(this.state, 1)`,
+		`.includes(Number("2"))`,
 		`const value = Number(event.currentTarget.value)`,
 		`event.currentTarget.valueAsDate`,
 		`currentTarget: HTMLInputElement`,
@@ -2743,8 +3478,8 @@ func TestSessionPlansFormBindingWithStaticOptions(t *testing.T) {
 		`<option value=\"all\"`,
 		`value=\"all\"`,
 		`value=\"high\"`,
-		`__exactClaimProgramProperty(__exactBindingTarget, 0, 0)`,
-		`__exactBindProgramProperties(__exactBindingTarget, 0, 0)`,
+		`[[7, 0, 0]]`,
+		`[[6, 0, 0]]`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned form binding omitted %q:\n%s", expected, response.Code)
@@ -2826,8 +3561,8 @@ __fixtureTask2();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`...props.events`,
-		`"__exactClosedInteraction:onClick": () => alert(1)`,
+		`__exactApply("", __exactReadState(props, 0) as Record<string, unknown>)`,
+		`__exactApply("__exactClosedInteraction:onClick", () => alert(1))`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -2867,9 +3602,9 @@ __fixtureTask4();
 		t.Fatal(server.Error)
 	}
 	for _, expected := range []string{
-		`__exactVNode("section"`,
+		`__exactIntrinsicReceipt("section"`,
 		`__exactPreparedServerRenderProgram(__exact_render_program_2`,
-		`__exactComponentVNode(ServerSummary`,
+		`__exactComponentReceipt(ServerSummary`,
 		"loadSummary",
 	} {
 		if !strings.Contains(server.Code, expected) {
@@ -2896,7 +3631,7 @@ __fixtureTask4();
 	}
 	for _, expected := range []string{
 		`export const Panel =`,
-		`"__exactClosedInteraction:onClick": () => __exactUpdateResult`,
+		`__exactSlot === 0 ? () => __exactUpdateStateResult`,
 		`__exactServerSlot(`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -2970,9 +3705,9 @@ __fixtureTask5();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`const label = __exactDerived(() => String(this.state.count));`,
+		`const label = __exactDerived(() => String(__exactReadState(this.state, 0)`,
 		`console.log(label.get())`,
-		`__exactDynamic(() => label.get()`,
+		`: label.get(), this`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -3046,7 +3781,7 @@ __fixtureTask6();
 		`console.log(prefix)`,
 		`save();`,
 		`cancel();`,
-		`__exactUpdateResult(this.state, ["count"]`,
+		`__exactUpdateStateResult(this.state, 0`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -3220,8 +3955,9 @@ func TestSessionCollectsNamespacedJSXAttributes(t *testing.T) {
 
 func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			function Card(this: Component<{ active: boolean; disabled: boolean }>, props: { className?: unknown }) {
 				return () => (
@@ -3238,10 +3974,10 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`className: [`,
-		`{ "active": __exactExpression(() => this.state.active) }`,
-		`__exactExpression(() => props.className)`,
-		`{ "disabled": __exactExpression(() => !this.state.disabled) }`,
+		`__exactApply("className", [`,
+		`{ "active": __exactReadState(this.state, 0) as any }`,
+		`__exactReadState(props, 0) as unknown`,
+		`{ "disabled": !(__exactReadState(this.state, 1) as any) }`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("conditional class output is missing %q:\n%s", expected, response.Code)
@@ -3251,7 +3987,8 @@ func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
 		strings.Contains(response.Code, `"className:disabled"`) {
 		t.Fatalf("conditional class namespace escaped into output:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `["class", 0, "className"]`) {
+	if !strings.Contains(response.Code, `[[7, 0, 0]]`) ||
+		strings.Contains(response.Code, `__exactGroup === 1`) {
 		t.Fatalf("conditional classes were not represented as one planned class operation:\n%s", response.Code)
 	}
 }
@@ -3260,12 +3997,13 @@ func TestSessionFoldsStaticConditionalClassNames(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
+		Target: TargetClient,
 		Source: `const view = <div className="card" className:selected />;`,
 	})
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `className: "card selected"`) {
+	if !strings.Contains(response.Code, `__exactApply("className", "card selected")`) {
 		t.Fatalf("static class contributions were not folded:\n%s", response.Code)
 	}
 }
@@ -3661,8 +4399,9 @@ func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
 
 func TestSessionLowersLexicalMicroComponentsWithoutDurableIdentity(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "micro-components.tsx",
-		Kind: "compile",
+		ID:     "micro-components.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			declare class Component<State> { state: State }
 			function Article(this: Component<{ copyrightText: string }>) {
@@ -3683,14 +4422,18 @@ func TestSessionLowersLexicalMicroComponentsWithoutDurableIdentity(t *testing.T)
 	}
 	for _, expected := range []string{
 		`const Footer = (props: {`,
-		`__exactVNode("footer"`,
-		`const Page = () => __exactVNode("article",`,
+		`__exactPreparedRenderProgram(__exact_render_program_1`,
+		`const Page = () => __exactPreparedRenderProgram(`,
 		`Footer({ prefix: "Copyright: " })`,
 		`return () => Page({});`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("micro-component output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+	if response.Structure.DeclinedNativeJSXRegions != 0 ||
+		strings.Contains(response.Code, `__exactVNode("article"`) {
+		t.Fatalf("micro-component interior retained generic host lowering: %#v\n%s", response.Structure, response.Code)
 	}
 }
 
@@ -4054,9 +4797,9 @@ func TestSessionLowersFragmentsSpreadsAndNamespacedAttributes(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	for _, expected := range []string{
-		`createCompiledVNode as __exactVNode_1`,
+		`createCompiledIntrinsicReceipt as __exactIntrinsicReceipt`,
 		`__exactFragment({}`,
-		`__exactVNode_1("input"`,
+		`__exactIntrinsicReceipt("input"`,
 		`disabled: true`,
 		`"custom:active": __exactExpression(() => ready)`,
 		`...props`,
@@ -4100,7 +4843,89 @@ func TestSessionElidesSingleConsumerScalarDerivedBindings(t *testing.T) {
 	}
 }
 
-func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
+func TestClientRenderProgramRetainsNestedPropReactivity(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "nested-prop.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Detail(
+				this: Component<{}>,
+				props: { incident: { version: number } }
+			) {
+				return () => <span>Version {props.incident.version}</span>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `[[11, 0, ["Version ", ""]]]`) {
+		t.Fatalf("nested prop read lost its focused reactive text binding:\n%s", response.Code)
+	}
+	if strings.Contains(response.Code, `[[0, 0, true]]`) ||
+		strings.Contains(response.Code, `[9, 0, __exact_component_updates_1]`) {
+		t.Fatalf("nested prop read was incorrectly closed over its top-level receipt:\n%s", response.Code)
+	}
+}
+
+func TestServerComponentPropForwardingDoesNotPublishClientIndexedSources(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "server-state-prop.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			declare class Component<State> { state: State }
+			function Child(props: { value: { label: string } }) {
+				return () => <span>{props.value.label}</span>;
+			}
+			export function Parent(this: Component<{ value: { label: string } }>) {
+				this.state.value = { label: 'ready' };
+				return () => <Child value={this.state.value} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "createIndexedReactiveValue") ||
+		strings.Contains(response.Code, "__exactIndexedExpression") {
+		t.Fatalf("server prop forwarding retained a client indexed source:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `value: this.state.value`) {
+		t.Fatalf("server prop forwarding lost its request-owned state value:\n%s", response.Code)
+	}
+}
+
+func TestServerRenderProgramFoldsOnlyProvenStaticNativeAttributes(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "static-native-attributes.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			export function Form(props: { limit: number; required: boolean }) {
+				return () => <div>
+					<textarea maxLength={2000} required />
+					<textarea maxLength={props.limit} required={props.required} />
+					<x-field maxLength={2000} required />
+				</div>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `<textarea maxLength=\"2000\" required></textarea><textarea`) {
+		t.Fatalf("static native attributes did not join compiler-owned structure:\n%s", response.Code)
+	}
+	if strings.Count(response.Code, `"maxLength", "maxLength"`) != 2 ||
+		strings.Count(response.Code, `"required", "required"`) != 2 {
+		t.Fatalf("dynamic or custom-element attributes lost runtime operations:\n%s", response.Code)
+	}
+}
+
+func TestSessionRetainsSharedAndMaterializesSoleConsumerDerivedBindings(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:   "shared-derived.tsx",
 		Kind: "compile",
@@ -4124,12 +4949,67 @@ func TestSessionRetainsSharedAndIdentityBearingDerivedBindings(t *testing.T) {
 	for _, expected := range []string{
 		`createDerived as __exactDerived`,
 		"const label = __exactDerived(() => `Count: ${this.state.count}`)",
-		`const options = __exactDerived(() => ({ label: String(this.state.count) }))`,
 		`label.get()`,
-		`options.get()`,
+		`const __exact_options_1 = { label: String(this.state.count) }`,
+		`return __exact_options_1`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("retained derived output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `const options = __exactDerived`) ||
+		strings.Contains(response.Code, `options.get()`) {
+		t.Fatalf("sole-consumer derived output retained a redundant computation cell:\n%s", response.Code)
+	}
+}
+
+func TestSessionOmitsMaterializedDerivedCellsFromHydrationArtifacts(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:                          "derived-hydration.tsx",
+		Kind:                        "compile",
+		Target:                      TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		ServerComponents:            true,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			declare class Component<State> { state: State }
+			export function View(this: Component<{
+				items: { id: string }[];
+				selectedId: string;
+			}>) {
+				const load = async (_task: TaskContext = TaskContext.server()) => undefined;
+				load();
+				const selected = this.state.items.find(
+					(item) => item.id === this.state.selectedId
+				);
+				return () => <button
+					title={selected?.id}
+					onClick={() => this.state.selectedId = ""}
+				/>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "View_ExactClient_1") {
+		t.Fatalf("hydration artifact omitted generated client island:\n%s", response.Code)
+	}
+	for _, omitted := range []string{"createDerived", "const selected =", "selected.get()"} {
+		if strings.Contains(response.Code, omitted) {
+			t.Fatalf("hydration artifact retained redundant derived cell %q:\n%s", omitted, response.Code)
+		}
+	}
+	for _, expected := range []string{
+		"View_ExactClient_1",
+		"title: __exactReadState(props, 1)",
+		`state: [`,
+		`"items"`,
+		`"selectedId"`,
+		`__exactWriteState(this.state, 1`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("hydration artifact omitted specialized island input %q:\n%s", expected, response.Code)
 		}
 	}
 }
@@ -4190,11 +5070,42 @@ __fixtureTask10();
 	}
 	for _, expected := range []string{
 		`const label = __exactDerived(() => this.state.query + "!")`,
-		`__exactDerived(() => label.get())`,
+		`__exactActivationDependency(() => label.get())`,
 		`(__exactDependency: string, _task: TaskContext) => consume(__exactDependency)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("native derived task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionRetainsAndReadsDerivedChainInsideInteraction(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "derived-interaction.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function View(this: Component<{ count: number }>) {
+				const doubled = this.state.count * 2;
+				const label = ` + "`value:${doubled}`" + `;
+				const increment = () => {
+					this.state.count++;
+					consume(label);
+				};
+				return () => <button title={label} onClick={increment}>{doubled}:{label}</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`const doubled = __exactDerived(() => this.state.count * 2)`,
+		"const label = __exactDerived(() => `value:${doubled.get()}`)",
+		`consume(label.get())`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("native derived interaction output is missing %q:\n%s", expected, response.Code)
 		}
 	}
 }
@@ -4525,8 +5436,9 @@ __fixtureTask17();
 
 func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "view.tsx",
-		Kind: "compile",
+		ID:     "view.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			declare function handler(name: string): (event: Event) => void;
 			export function view() {
@@ -4539,8 +5451,8 @@ func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 	}
 	if !strings.Contains(
 		response.Code,
-		`"__exactDirectInteraction:onInput": handler("value")`,
-	) || strings.Contains(response.Code, `"__exactDirectInteraction:onInput": __exactExpression`) {
+		`__exactApply("__exactDirectInteraction:onInput", handler("value"))`,
+	) || strings.Contains(response.Code, `__exactExpression(() => handler("value"))`) {
 		t.Fatalf("event handler factory was emitted as a reactive value:\n%s", response.Code)
 	}
 }
@@ -4591,7 +5503,7 @@ func TestSessionLowersFunctionDefinedSetupTask(t *testing.T) {
 		"activateTaskForHost as __exactActivateTask",
 		"defineTask as __exactDefineTask",
 		"__exactActivateTask(this, __exactDefineTask(",
-		"__exactDerived(() => this.state.revision)",
+		"__exactIndexedActivationDependency(this.state, 0)",
 		"async (revision: number, task: TaskContext)",
 		"__exactTaskAwait(task.signal, delay(task.signal))",
 	} {
@@ -4734,14 +5646,14 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
 		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft : __exactTaskArgs[1];`,
 		`return [__exactTaskArgs[0], draft];`,
-		`__exactDerived(() => this.state.revision)`,
+		`__exactActivationDependency(() => this.state.revision)`,
 		`async (__exactDependency: number, draft: string, task: TaskContext)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("captured task output is missing %q:\n%s", expected, response.Code)
 		}
 	}
-	if strings.Contains(response.Code, "__exactDerived(() => this.state.draft)") ||
+	if strings.Contains(response.Code, "__exactActivationDependency(() => this.state.draft)") ||
 		strings.Contains(response.Code, "draft: string = this.state.draft") {
 		t.Fatalf("captured default remained a reactive dependency or body default:\n%s", response.Code)
 	}
@@ -4785,7 +5697,8 @@ func TestSessionTransportsCapturedDefaultsForInvokedServerTasks(t *testing.T) {
 	}
 	for _, expected := range []string{
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
-		`const draft = __exactTaskArgs[0] === void 0 ? this.state.draft : __exactTaskArgs[0];`,
+		`const draft = __exactTaskArgs[0] === void 0 ? __exactReadState(this.state, 0)`,
+		`: __exactTaskArgs[0];`,
 		`return [draft];`,
 		`__exactDispatchContinuation`,
 		`save()`,
@@ -4832,7 +5745,7 @@ func TestSessionLowersInvokedFunctionTaskThroughPublicABI(t *testing.T) {
 		`const save = __exactBindTask(this, __exactDefineTask(`,
 		`placement: "server"`,
 		`concurrency: "latest"`,
-		`save(this.state.title)`,
+		`save(__exactReadState(this.state, 0) as string)`,
 		`__exactDispatchContinuation`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -4841,6 +5754,43 @@ func TestSessionLowersInvokedFunctionTaskThroughPublicABI(t *testing.T) {
 	}
 	if strings.Contains(response.Code, "TaskContext.server().latest()") {
 		t.Fatalf("task policy builder escaped into runtime output:\n%s", response.Code)
+	}
+}
+
+func TestSessionReusesInvokedFunctionTaskBindingDuringSetup(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { TaskContext } from "@exactjs/core";
+			function Editor(props: { ready: boolean }) {
+				async function load(task: TaskContext = TaskContext.client().latest()) {
+					await consume("one durable task body", task.signal);
+				}
+				const refresh = () => load();
+				if (!props.ready) void load();
+				return () => <button onClick={refresh}>Refresh</button>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`const load = __exactBind`,
+		`if (!(__exactReadState(props, 0) as boolean))`,
+		`void load()`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("reused function task output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if count := strings.Count(response.Code, "one durable task body"); count != 1 {
+		t.Fatalf("function task body was emitted %d times:\n%s", count, response.Code)
+	}
+	if strings.Count(response.Code, `label: "load"`) != 1 {
+		t.Fatalf("function task definition was duplicated:\n%s", response.Code)
 	}
 }
 
@@ -4981,8 +5931,10 @@ func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
 			response.Code,
 		)
 	}
-	if !strings.Contains(response.Code, "(id: string, task: TaskContext) =>") {
-		t.Fatalf("server task work did not retain one runtime task context:\n%s", response.Code)
+	if !strings.Contains(response.Code, "markComponentContinuationTask as") ||
+		strings.Contains(response.Code, "bindTaskForHost") ||
+		strings.Contains(response.Code, "defineTask") {
+		t.Fatalf("direct server render did not isolate invoked task executor work:\n%s", response.Code)
 	}
 	if strings.Contains(response.Code, "localStorage") {
 		t.Fatalf("client parent work escaped into the server artifact:\n%s", response.Code)
@@ -5077,13 +6029,15 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		Target: TargetServer,
 		Source: `
 			declare class Component<State> { state: State }
+			declare function peek<T>(read: () => T): T;
 			export function Queue(
-				this: Component<{ items: string[]; selected: string }>,
-				props: { initial?: { items: string[] }; selected: string }
+				this: Component<{ items: string[]; selected: string; snapshot: string }>,
+				props: { initial?: { items: string[] }; selected: string; detail?: { label: string } }
 			) {
 				this.state.items = props.initial?.items ?? [];
 				this.state.selected = props.selected;
-				return () => <output>{this.state.items.length}:{this.state.selected}</output>;
+				this.state.snapshot = peek(() => props.detail?.label ?? "missing");
+				return () => <output>{this.state.items.length}:{this.state.selected}:{this.state.snapshot}</output>;
 			}
 		`,
 	})
@@ -5094,9 +6048,10 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		t.Fatalf("unexpected resumptions: %#v", response.Analysis.Resumptions)
 	}
 	inputs := response.Analysis.Resumptions[0].Client.StateInputs
-	if len(inputs) != 2 ||
+	if len(inputs) != 3 ||
 		inputs[0] != (StateInput{StatePath: "items", PropPath: "initial.items"}) ||
-		inputs[1] != (StateInput{StatePath: "selected", PropPath: "selected"}) {
+		inputs[1] != (StateInput{StatePath: "selected", PropPath: "selected"}) ||
+		inputs[2] != (StateInput{StatePath: "snapshot", PropPath: "detail.label"}) {
 		t.Fatalf("unexpected state inputs: %#v resumption=%#v writes=%#v\n%s", inputs, response.Analysis.Resumptions[0], response.Analysis.StateWrites, response.Code)
 	}
 	for _, expected := range []string{
@@ -5105,6 +6060,8 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		`"initial.items"`,
 		`"selected",`,
 		`"selected"`,
+		`"snapshot",`,
+		`"detail.label"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("server contract is missing %q:\n%s", expected, response.Code)
@@ -5138,10 +6095,10 @@ __fixtureTask7();
 	}
 	taskID := server.Analysis.Tasks[0].ID
 	for _, expected := range []string{
-		`import "@exactjs/ssr/runtime/resumption-boundaries"`,
-		`markComponentContinuationTask as __exactContinuationTask`,
-		`__exactActivateTask(this, __exactDefineTask(`,
-		`__exactContinuationTask("` + taskID + `", async`,
+		`activateServerComponentTaskForHost as __exactActivateServerTask`,
+		`__exactActivateServerTask(this, __exact_server_task_slice_1, "` + taskID + `", async`,
+		`classification: "scheduled"`,
+		`lane: "direct"`,
 	} {
 		if !strings.Contains(server.Code, expected) {
 			t.Fatalf(
@@ -5154,6 +6111,12 @@ __fixtureTask7();
 	if strings.Contains(server.Code, `import "@exactjs/ssr/runtime/structural-boundaries"`) {
 		t.Fatalf("continuation-only server output retained the full structural boundary runtime:\n%s", server.Code)
 	}
+	if strings.Contains(server.Code, `import "@exactjs/ssr/runtime/resumption-boundaries"`) {
+		t.Fatalf("server-only continuation retained client resumption publication:\n%s", server.Code)
+	}
+	if strings.Contains(server.Code, `@exactjs/ssr/runtime/generic-components`) {
+		t.Fatalf("server continuation retained the generic component renderer:\n%s", server.Code)
+	}
 	client := NewSession().Execute(Request{
 		ID:     "component.tsx",
 		Kind:   "compile",
@@ -5164,8 +6127,8 @@ __fixtureTask7();
 		t.Fatal(client.Error)
 	}
 	if !strings.Contains(client.Code, "export const Loader") ||
-		!strings.Contains(client.Code, "createServerBoundary") ||
-		!strings.Contains(client.Code, `import "@exactjs/dom/runtime/structural-boundaries"`) ||
+		!strings.Contains(client.Code, "createServerBoundaryReceipt") ||
+		strings.Contains(client.Code, `import "@exactjs/dom/runtime/structural-boundaries"`) ||
 		strings.Contains(client.Code, "this.state.count++") {
 		t.Fatalf(
 			"server-only task implementation escaped into the client artifact:\n%s",
@@ -5247,6 +6210,43 @@ __fixtureTask24();
 	}
 }
 
+func TestSessionBrandsClientIsomorphicSetupTaskForResumption(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			export function Search(this: Component<{ query: string; result: string }>) {
+				this.state.query = "first";
+				const load = async (query: string) => {
+					await Promise.resolve();
+					this.state.result = query.toUpperCase();
+				};
+				load(this.state.query);
+				return () => <output>{this.state.result}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Analysis.Tasks) != 1 ||
+		response.Analysis.Tasks[0].Placement != "isomorphic" {
+		t.Fatalf("unexpected isomorphic setup task: %#v", response.Analysis.Tasks)
+	}
+	taskID := response.Analysis.Tasks[0].ID
+	for _, expected := range []string{
+		`markComponentContinuationTask as __exactContinuationTask`,
+		`__exactActivateTask(this, __exactDefineTask(`,
+		`__exactContinuationTask("` + taskID + `"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("client resumable task is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
 func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "component.tsx",
@@ -5284,8 +6284,9 @@ __fixtureTask25();
 		`const __exactComponent_1 = { state: __exactActivation_1.state }`,
 		`await (async (_task: TaskContext) =>`,
 		`})(__exactExecution_1.task)`,
-		`__exactUpdateResult(__exactComponent_1.state, ["count"]`,
 		`return { state: __exactComponent_1.state, contexts: __exactContextWrites_1 }`,
+		`classification: "scheduled"`,
+		`lane: "direct"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -5298,6 +6299,13 @@ __fixtureTask25();
 	if strings.Contains(response.Code, "__exactStageTaskMutation") {
 		t.Fatalf(
 			"server executor retained client generation staging:\n%s",
+			response.Code,
+		)
+	}
+	if strings.Contains(response.Code, "__exactUpdateResult") ||
+		strings.Contains(response.Code, `@exactjs/ssr/runtime/generic-components`) {
+		t.Fatalf(
+			"direct server executor retained generic update machinery:\n%s",
 			response.Code,
 		)
 	}
@@ -5358,9 +6366,18 @@ func TestSessionEmitsTypedInvokedServerTaskArtifactsWithRenderImports(t *testing
 		`markComponentContinuationTask as __exactContinuationTask`,
 		`__exactExecution_1.task`,
 		`value: __exactTaskResult_1`,
+		`lane: "direct"`,
 	} {
 		if !strings.Contains(server.Code, expected) {
 			t.Fatalf("server invoked task artifact is missing %q:\n%s", expected, server.Code)
+		}
+	}
+	for _, excluded := range []string{
+		`defineTask as`,
+		`bindTaskForHost as`,
+	} {
+		if strings.Contains(server.Code, excluded) {
+			t.Fatalf("direct server render retained invoked task runtime %q:\n%s", excluded, server.Code)
 		}
 	}
 	component := findComponent(t, server.Analysis.Components, "Workspace")
@@ -6025,6 +7042,101 @@ func TestSessionLowersKeyedMapsInsideMaterializedReactiveClosures(t *testing.T) 
 	}
 }
 
+func TestSessionLowersDerivedKeyedMapsInsideConditionalFragments(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			interface Item {
+				/** @exact key */
+				id: string;
+				visible: boolean;
+			}
+			export function List(props: { items: Item[]; selected?: string }) {
+				const visible = props.items.filter((item) => item.visible);
+				return () => <ul>{visible.length === 0 ? <p>Empty</p> : <>{visible.map((item) => (
+					<><span>{props.selected === item.id ? "selected" : ""}</span><li>{item.id}</li></>
+				))}</>}</ul>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "this.map(") {
+		t.Fatalf("conditional keyed map was not lowered inside its reactive closure: %s", response.Code)
+	}
+}
+
+func TestSessionInlinesElidedDerivedValuesInsideKeyedPropertyWriters(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			interface Line {
+				/** @exact key */
+				id: string;
+			}
+			export function Lines(props: { lines: Line[]; highlighted?: string[] }) {
+				const highlighted = new Set(props.highlighted ?? []);
+				return () => <div>{props.lines.map((line) => (
+					<span className="line" className:highlighted={highlighted.has(line.id)}>{line.id}</span>
+				))}</div>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if strings.Contains(response.Code, "highlighted.has(line.id)") ||
+		!strings.Contains(response.Code, "const __exact_highlighted_1 = new Set(") ||
+		!strings.Contains(response.Code, "return __exact_highlighted_1.has(line.id);") {
+		t.Fatalf("keyed property writer retained an elided derived identifier: %s", response.Code)
+	}
+}
+
+func TestSessionKeepsServerKeyedMapItemsOnPreparedRenderPrograms(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			interface Item {
+				/** @exact key */
+				id: string;
+				active: boolean;
+			}
+			function Badge(props: { active: boolean }) {
+				return () => <span className:active={props.active}>badge</span>;
+			}
+			export function List(props: { items: Item[]; select(id: string): void }) {
+				const visible = props.items.filter((item) => item.active);
+				return () => <div>{visible.map((item) => (
+					<button
+						className="item"
+						className:active={item.active}
+						onClick={() => props.select(item.id)}
+						data-testid="item"
+					>
+						<Badge active={item.active} />
+						<strong>{item.id}</strong>
+					</button>
+				))}</div>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
+		!strings.Contains(response.Code, "createPreparedServerKeyedChild") ||
+		strings.Contains(response.Code, `__exactIntrinsicReceipt("button"`) ||
+		strings.Contains(response.Code, "createCompiledKeyedChildReceipt") {
+		t.Fatalf("server keyed item retained the generic intrinsic operation: %s", response.Code)
+	}
+}
+
 func TestSessionLowersKeyedMapsDeclaredInImportedTypes(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
@@ -6062,20 +7174,21 @@ func TestSessionLowersKeyedMapsDeclaredInImportedTypes(t *testing.T) {
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "__exactClaimProgramKeyedChild") ||
+	if !strings.Contains(response.Code, `[[4, 0, 0]]`) ||
 		!strings.Contains(response.Code, "keyedChildren:") ||
-		!strings.Contains(response.Code, "__exactKeyedVNode") {
+		!strings.Contains(response.Code, "__exactMapKeyedChildren") {
 		t.Fatalf("imported keyed item type was not lowered to direct keyed execution: %s", response.Code)
 	}
-	if strings.Contains(response.Code, "const copy = () => __exactKeyedVNode(") {
+	if strings.Contains(response.Code, "const copy = () => __exactKeyedChild(") {
 		t.Fatalf("ordinary data mapping was lowered as a rendered list: %s", response.Code)
 	}
 }
 
 func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *testing.T) {
 	response := NewSession().Execute(Request{
-		ID:   "component.tsx",
-		Kind: "compile",
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
 		Source: `
 			const rows = [{ id: "first" }] as const;
 			export function List() {
@@ -6088,7 +7201,7 @@ func TestSessionAvoidsReactiveWrappersInsideDeclarativeModuleCollections(t *test
 	}
 	if !strings.Contains(response.Code, "rows.map((row) => __exactPreparedRenderProgram") ||
 		!strings.Contains(response.Code, "__exactSlot => __exactSlot === 0 ? row.id : row.id") ||
-		!strings.Contains(response.Code, "title: row.id }, row.id") {
+		!strings.Contains(response.Code, `__exactApply("title", row.id)`) {
 		t.Fatalf("declarative collection did not preserve direct values: %s", response.Code)
 	}
 	if strings.Contains(response.Code, "__exactExpression(() => row.id)") ||
@@ -6113,10 +7226,12 @@ func TestSessionPreservesNarrowedDerivedValuesInsideNestedPrograms(t *testing.T)
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, "point.get()!") {
+	if !strings.Contains(response.Code, "const __exact_cached_point_1 = point.get();") ||
+		!strings.Contains(response.Code, "__exact_cached_point_1 ?") {
 		t.Fatalf("nested program discarded the authored nullish narrowing: %s", response.Code)
 	}
-	if strings.Contains(response.Code, "point.get().x") || strings.Contains(response.Code, "point.get().y") {
+	if strings.Contains(response.Code, "point.get().x") || strings.Contains(response.Code, "point.get().y") ||
+		strings.Contains(response.Code, "point.get() ?") {
 		t.Fatalf("nested program emitted property reads without the authored narrowing: %s", response.Code)
 	}
 }
@@ -6219,6 +7334,8 @@ func TestSessionSpecializesDirectServerAwaitAndTimeout(t *testing.T) {
 		}
 	}
 	for _, excluded := range []string{
+		`import { TaskContext, taskTimeout`,
+		`import { taskTimeout`,
 		`taskAwait as __exactTaskAwait`,
 		`taskTimeout as __exactTaskTimeout`,
 		`@exactjs/core/runtime/reactivity`,
@@ -6228,6 +7345,9 @@ func TestSessionSpecializesDirectServerAwaitAndTimeout(t *testing.T) {
 		if strings.Contains(response.Code, excluded) {
 			t.Fatalf("direct server task output retained %q:\n%s", excluded, response.Code)
 		}
+	}
+	if !strings.Contains(response.Code, `import { type TaskContext, type Component } from "@exactjs/core"`) {
+		t.Fatalf("direct server task output did not convert consumed policy syntax to type-only imports:\n%s", response.Code)
 	}
 }
 
@@ -6870,7 +7990,7 @@ func TestSessionRetainsServerCleanupWhenProjectingClientLifecycle(t *testing.T) 
 		strings.Contains(response.Code, `__exactRegisterLifecycle(this, "mount"`) {
 		t.Fatalf("server output retained client lifecycle work: %s", response.Code)
 	}
-	if !strings.Contains(response.Code, `__exactRegisterLifecycle(this, "unmount"`) ||
+	if !strings.Contains(response.Code, `__exactRegisterDirectSsrLifecycle(this, "unmount"`) ||
 		!strings.Contains(response.Code, `releaseRequestResource()`) {
 		t.Fatalf("server output discarded request cleanup: %s", response.Code)
 	}
@@ -7758,8 +8878,11 @@ func TestSessionDescribesOpaqueRuntimeComponentImports(t *testing.T) {
 		page.RenderEdges[0].ComponentID != "" {
 		t.Fatalf("opaque runtime import build edge was not retained: %#v", page.RenderEdges)
 	}
-	if !strings.Contains(response.Code, "__exactVNode(RemoteComponent") {
+	if !strings.Contains(response.Code, "__exactComponentReceipt(RemoteComponent") {
 		t.Fatalf("runtime component import was not lowered: %s", response.Code)
+	}
+	if strings.Contains(response.Code, "createCompiledVNode") {
+		t.Fatalf("compiled component import reopened the generic VNode representation: %s", response.Code)
 	}
 }
 
@@ -8213,6 +9336,30 @@ func TestSessionTreatsUnderscoreJSXAsCompilerFragment(t *testing.T) {
 	}
 }
 
+func TestSessionKeepsNestedCompilerFragmentAsFocusedRenderProgramRange(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID:     "C:/virtual/nested-fragment.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			import { _ } from "@exactjs/jsx";
+			export function View(props: { label: string }) {
+				return () => <section><_><span>{props.label}</span></_></section>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if response.Structure.DeclinedNativeJSXRegions != 0 {
+		t.Fatalf("nested compiler fragment declined render-program lowering: %#v", response.Structure)
+	}
+	if !strings.Contains(response.Code, "createPreparedRenderProgram") ||
+		!strings.Contains(response.Code, "__exactFragment(") {
+		t.Fatalf("nested compiler fragment did not retain a focused structural range:\n%s", response.Code)
+	}
+}
+
 func TestSessionLowersAttributedEnhancementJSXNamespaces(t *testing.T) {
 	root := t.TempDir()
 	configFile := filepath.Join(root, "tsconfig.json")
@@ -8328,6 +9475,65 @@ func TestSessionLowersAttributedEnhancementJSXNamespaces(t *testing.T) {
 	serverRanges := partitionEdgesFrom(response.Analysis.PartitionPlan, gravityNode.ID, "server-range")
 	if len(serverRanges) != 1 {
 		t.Fatalf("enhancement output did not retain its nested server range: %#v", response.Analysis.PartitionPlan)
+	}
+}
+
+func TestClientRenderProgramKeepsEnhancedDescendantAsFocusedOpaqueRange(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	entryFile := filepath.Join(root, "enhanced-descendant.tsx")
+	motionFile := filepath.Join(root, "motion.ts")
+	implementationFile := filepath.Join(root, "motion-implementation.ts")
+	entrySource := `
+		import { createEnhancementNode } from "@exactjs/core";
+		function enhancementAttributes(preset: string) {
+			return { __exactEnhancements: createEnhancementNode([{ identity: "./motion.js#motion", props: { preset } }]) };
+		}
+		export function View(this: Component<{ active: boolean }>) {
+			this.state.active = false;
+			return () => <main><button className="authored" {...enhancementAttributes(this.state.active ? "in" : "out")}>Ready</button></main>;
+		}
+	`
+	for filename, source := range map[string]string{
+		configFile:         `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+		entryFile:          entrySource,
+		motionFile:         `export { motion } from "./motion-implementation.js" with { type: "exact-enhancement" };`,
+		implementationFile: `export function motion(props: { preset?: string; children?: unknown }) { return props.children; }`,
+	} {
+		if err := os.WriteFile(filename, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := NewSession().Execute(Request{
+		ID:         entryFile,
+		Kind:       "compile",
+		Target:     TargetClient,
+		Source:     entrySource,
+		ConfigFile: configFile,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Severity == "error" {
+			t.Fatalf("client enhancement compilation failed: %#v", response.Diagnostics)
+		}
+	}
+	if response.Structure.DeclinedNativeJSXRegions != 0 {
+		t.Fatalf("enhanced descendant caused a native JSX decline: %#v", response.Structure)
+	}
+	for _, expected := range []string{
+		"createPreparedRenderProgram",
+		`__exactIntrinsicReceipt("button"`,
+		`className: "authored"`,
+		`identity: "./motion.js#motion"`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("focused enhancement range omitted %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `<button class=\"authored\"`) {
+		t.Fatalf("enhanced semantic target was absorbed into the parent render-program template:\n%s", response.Code)
 	}
 }
 
@@ -8494,7 +9700,10 @@ func TestSessionSuppressesDefaultEnhancementWhenNamedActivatorIsPresent(t *testi
 func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) {
 	valid := NewSession().Execute(Request{
 		ID: "target.tsx", Kind: "compile",
-		Source: `export const view = <_target className="surface"><button>Save</button></_target>;`,
+		Source: `
+			declare function _target(props: Record<string, unknown>): unknown;
+			export const view = <_target className="surface"><button>Save</button></_target>;
+		`,
 	})
 	if valid.Error != "" {
 		t.Fatal(valid.Error)
@@ -8509,13 +9718,13 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 		ID: "direct-target.ts", Kind: "compile", Target: TargetClient,
 		Source: `
 			import type { Component } from "@exactjs/core";
-			import { createCompiledTarget } from "@exactjs/core/runtime/render";
+			import { createCompiledTargetReceipt } from "@exactjs/core/runtime/component-abi";
 			export function Enhancement(this: Component<{}>, props: { children: unknown }) {
 				return () => renderTarget(props.children);
 			}
 			/** @exact pure */
 			function renderTarget(children: unknown) {
-				return createCompiledTarget({ className: "surface" }, children);
+				return createCompiledTargetReceipt({ className: "surface" }, children);
 			}
 		`,
 	})
@@ -8535,11 +9744,23 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	if strings.Contains(server.Code, `@exactjs/dom/runtime/target`) {
 		t.Fatalf("server target output selected a client DOM capability:\n%s", server.Code)
 	}
-	if !strings.Contains(server.Code, `import "@exactjs/ssr/runtime/enhancements"`) {
-		t.Fatalf("server target output omitted its SSR enhancement capability:\n%s", server.Code)
+	if strings.Contains(server.Code, `@exactjs/ssr/runtime/enhancements`) ||
+		strings.Contains(valid.Code, `@exactjs/ssr/runtime/enhancements`) {
+		t.Fatalf("target output retained the removed global SSR enhancement capability")
 	}
-	if strings.Contains(valid.Code, `@exactjs/ssr/runtime/enhancements`) {
-		t.Fatalf("client target output retained an SSR enhancement capability:\n%s", valid.Code)
+	forwarding := NewSession().Execute(Request{
+		ID: "target-forwarding-component.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			export function TargetForwarding(props: { children: unknown }) {
+				return () => <_target className="surface">{props.children}</_target>;
+			}
+		`,
+	})
+	if forwarding.Error != "" {
+		t.Fatal(forwarding.Error)
+	}
+	if !strings.Contains(forwarding.Code, `"targets"`) {
+		t.Fatalf("target-forwarding component omitted its server capability:\n%s", forwarding.Code)
 	}
 	missing := NewSession().Execute(Request{
 		ID: "missing-target.tsx", Kind: "compile", Source: `export const view = <_target />;`,

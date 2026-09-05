@@ -1,5 +1,5 @@
 import { peek, type Child, type Component } from '@exactjs/core';
-import { createCompiledTarget } from '@exactjs/core/runtime/render';
+import { createCompiledTargetReceipt } from '@exactjs/core/runtime/component-abi';
 import type { ThemeSurfaceBundle, ThemeTone } from './contracts.js';
 import { ThemeSurfaceContext, type ThemeSurfaceEnvironment } from './components.js';
 
@@ -64,7 +64,7 @@ export function ThemeSurfaceEnhancement(this: Component<{}>, props: ThemeSurface
 /** @exact pure */
 function renderThemeSurface(props: ThemeSurfaceEnhancementProps, bundle: ThemeSurfaceBundle) {
 	const variant = props.surface === true || props.surface === undefined ? 'auto' : props.surface;
-	return createCompiledTarget(
+	return createCompiledTargetReceipt(
 		{
 			className: 'exact-theme-surface',
 			'data-exact-theme-role': 'surface',
@@ -145,7 +145,7 @@ function roleTarget(
 	props: { tone?: ThemeTone; size?: Size; dragging?: boolean },
 	children: Children['children']
 ) {
-	return createCompiledTarget(
+	return createCompiledTargetReceipt(
 		{
 			className: `exact-theme-${role}`,
 			'data-exact-theme-role': role,

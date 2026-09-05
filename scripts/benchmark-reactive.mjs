@@ -2,8 +2,17 @@ import { cpus, platform, release } from 'node:os';
 import process from 'node:process';
 import * as reactiveRuntime from '../packages/reactive/dist/index.js';
 
-const { batch, flushSync, reactive, registerReactiveListKey, watch, writeReactive } =
-	reactiveRuntime;
+const {
+	batch,
+	computed,
+	createEffectScope,
+	flushSync,
+	reactive,
+	registerReactiveListKey,
+	watch,
+	withEffectScope,
+	writeReactive
+} = reactiveRuntime;
 
 const size = Number(process.env.EXACT_REACTIVE_BENCH_SIZE ?? 10_000);
 const warmups = Number(process.env.EXACT_REACTIVE_BENCH_WARMUPS ?? 3);
@@ -259,6 +268,57 @@ const scenarios = [
 			}
 			return { elapsed, bytes: Buffer.byteLength(json) };
 		}
+	},
+	{
+		name: 'scoped computed chain settlement',
+		run: () => {
+			const depth = Math.min(size, 1_000);
+			const scope = createEffectScope();
+			const state = reactive({ value: 0 });
+			let current;
+			withEffectScope(scope, () => {
+				current = computed(() => state.value);
+				current.get();
+				for (let index = 0; index < depth; index++) {
+					const source = current;
+					current = computed(() => source.get() + 1);
+					current.get();
+				}
+			});
+			const start = performance.now();
+			state.value = 1;
+			const result = current.get();
+			const elapsed = performance.now() - start;
+			if (result !== depth + 1) throw new Error('Computed chain settled to the wrong value');
+			scope.stop();
+			return elapsed;
+		}
+	},
+	{
+		name: 'equal computed diamond settlement',
+		run: () => {
+			const scope = createEffectScope();
+			const state = reactive({ value: 1 });
+			let downstreamRuns = 0;
+			let label;
+			withEffectScope(scope, () => {
+				const left = computed(() => state.value % 2);
+				const right = computed(() => state.value % 2);
+				label = computed(() => {
+					downstreamRuns++;
+					return `${left.get()}:${right.get()}`;
+				});
+				label.get();
+			});
+			const start = performance.now();
+			state.value = 3;
+			flushSync();
+			const elapsed = performance.now() - start;
+			if (label.get() !== '1:1' || downstreamRuns !== 1)
+				throw new Error('Equal computed results crossed the propagation barrier');
+			scope.stop();
+			return elapsed;
+		}
 	}
 ];
 
@@ -277,15 +337,20 @@ for (const scenario of scenarios) {
 	}
 	timings.sort((left, right) => left - right);
 	const median = percentile(timings, 0.5);
+	const p75 = percentile(timings, 0.75);
 	const p95 = percentile(timings, 0.95);
+	const p99 = percentile(timings, 0.99);
 	const bytes = byteSamples.length
 		? Math.round(byteSamples.reduce((sum, value) => sum + value, 0) / byteSamples.length)
 		: undefined;
 	results.push({
 		name: scenario.name,
 		medianMs: median,
+		p75Ms: p75,
 		p95Ms: p95,
-		...(bytes === undefined ? {} : { bytes })
+		p99Ms: p99,
+		rawTimingsMs: timings,
+		...(bytes === undefined ? {} : { bytes, rawByteSamples: byteSamples })
 	});
 	console.log(
 		`${scenario.name}: median ${median.toFixed(2)}ms; p95 ${p95.toFixed(2)}ms${bytes === undefined ? '' : `; ${bytes} bytes`}`

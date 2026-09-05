@@ -1,202 +1,308 @@
 import {
-	type AnyComponentInstance,
 	componentContinuationContextValues,
 	settledComponentContinuationIds,
+	type AnyComponentInstance,
 	type ComponentResumptionActivation
 } from '@exactjs/core';
 import {
 	exactComponentIdentity,
-	readPreparedExactCompiledComponentContract
+	readPreparedExactServerExecutableComponentContract,
+	type ExactServerExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
+import {
+	serverComponentContinuationContextValuesForHost,
+	settledServerComponentContinuationIdsForHost
+} from '@exactjs/core/framework/server-component-execution';
+import { type ReactiveOwnPropertyReadCell } from '@exactjs/reactive/framework/indexed-objects';
 import type { RenderToStringOptions } from './types.js';
-import type { DirectSsrComponentSnapshot } from './types.js';
-import { readReactiveOwnProperty } from '@exactjs/reactive/framework/indexed-objects';
+import {
+	captureContextEntries,
+	captureDirectStateEntries,
+	captureStateEntries,
+	emptyContextValues,
+	emptyContinuationIds,
+	emptyIndexedEntries,
+	projectActivation,
+	publishTuple,
+	resumptionSchema,
+	type MutableSerializedResumption,
+	type SsrResumptionSchema,
+	type SsrSerializedResumption
+} from './resumption-serialization.js';
+export type { SsrResumptionLayout, SsrSerializedResumption } from './resumption-serialization.js';
 
-type MutableResumption = {
-	componentId: string;
-	values: Record<string, unknown>;
-	contexts: Record<string, unknown>;
-	settledContinuations: string[];
-};
-
-/** Compiler-owned field order used only to compact the serialized hydration record. */
-export type SsrResumptionLayout = Readonly<{
-	statePaths: readonly string[];
-	contexts: readonly string[];
+/** Request-local capture consumed directly by synchronous component execution. */
+export type SsrResumptionCapture = Readonly<{
+	checkpoint(): number;
+	rollback(checkpoint: number): void;
+	reserveDirect(
+		componentId: string,
+		contract: ExactServerExecutableComponentContract
+	): number | undefined;
+	publishDirect(
+		token: number,
+		host: object,
+		state: Record<string, unknown>,
+		props: Record<string, unknown>
+	): void;
+	serializedRecords(): readonly SsrSerializedResumption[];
+	activations(): readonly ComponentResumptionActivation[];
 }>;
 
-/** Captures compiler-selected state and settled work in deterministic construction order. */
+/** Captures compiler-selected state directly in deterministic indexed construction order. */
 export function createSsrResumptionCapture(
 	options: RenderToStringOptions,
 	publishedRootProps?: Readonly<Record<string, unknown>>,
 	rootComponentId?: string
-): {
+): CreatedSsrResumptionCapture {
+	return createResumptionCapture(options, publishedRootProps, rootComponentId);
+}
+
+/** Constructs indexed capture without the generic-instance bridge unused by direct artifacts. */
+export function createDirectSsrResumptionCapture(
+	options: RenderToStringOptions,
+	publishedRootProps?: Readonly<Record<string, unknown>>,
+	rootComponentId?: string
+): CreatedSsrResumptionCapture {
+	return new DirectSsrResumptionCapture(options, publishedRootProps, rootComponentId);
+}
+
+type CreatedSsrResumptionCapture = {
 	options: RenderToStringOptions;
-	records(): readonly ComponentResumptionActivation[];
-	layouts(): ReadonlyMap<string, SsrResumptionLayout>;
-} {
-	const records: MutableResumption[] = [];
-	const layouts = new Map<string, SsrResumptionLayout>();
-	const recordsByInstance = new WeakMap<AnyComponentInstance, MutableResumption>();
-	const recordsByDirectFrame = new WeakMap<DirectSsrComponentSnapshot, MutableResumption>();
-	const rootInputRecords = new WeakSet<MutableResumption>();
-	let rootInputClaimed = false;
-	const reserveDirect = (snapshot: DirectSsrComponentSnapshot): void => {
-		const resumption = snapshot.contract.resumption;
-		if (!resumption) return;
-		const record: MutableResumption = {
-			componentId: snapshot.componentId,
-			values: {},
-			contexts: {},
-			settledContinuations: []
-		};
-		if (!rootInputClaimed && snapshot.componentId === rootComponentId) {
-			rootInputRecords.add(record);
-			rootInputClaimed = true;
-		}
-		layouts.set(snapshot.componentId, {
-			statePaths: resumption.statePaths,
-			contexts: resumption.contexts
-		});
-		recordsByDirectFrame.set(snapshot, record);
-		records.push(record);
-	};
-	const captureDirect = (snapshot: DirectSsrComponentSnapshot): void => {
-		const resumption = snapshot.contract.resumption;
-		const record = recordsByDirectFrame.get(snapshot);
-		if (!resumption || !record) return;
-		captureStateValues(
-			record,
-			rootInputRecords.has(record),
-			snapshot.state,
-			snapshot.props,
-			resumption,
-			publishedRootProps
-		);
-	};
-	return {
-		options: {
+	serializedRecords(): readonly SsrSerializedResumption[];
+	activations(): readonly ComponentResumptionActivation[];
+};
+
+/** Request-owned direct capture whose fixed operations are shared through its prototype. */
+class DirectSsrResumptionCapture implements CreatedSsrResumptionCapture, SsrResumptionCapture {
+	readonly options: RenderToStringOptions;
+	private readonly records: MutableSerializedResumption[] = [];
+	private readonly schemas: SsrResumptionSchema[] = [];
+	private readonly pathReadCell: ReactiveOwnPropertyReadCell = { value: undefined };
+	private rootInputToken: number | undefined;
+	private projectedActivations: readonly ComponentResumptionActivation[] | undefined;
+
+	constructor(
+		options: RenderToStringOptions,
+		private readonly publishedRootProps: Readonly<Record<string, unknown>> | undefined,
+		private readonly rootComponentId: string | undefined
+	) {
+		this.options = {
 			...options,
+			resumptionCapture: this,
 			allowIndependentComponentObservation:
 				!options.onComponentCreated &&
 				!options.onComponentRendered &&
 				!options.onDirectComponentCreated &&
-				!options.onDirectComponentRendered,
-			onDirectComponentCreated(snapshot) {
-				reserveDirect(snapshot);
-				options.onDirectComponentCreated?.(snapshot);
-			},
-			onDirectComponentRendered(snapshot) {
-				captureDirect(snapshot);
-				options.onDirectComponentRendered?.(snapshot);
-			},
-			onComponentAttemptCheckpoint: () => records.length,
-			onComponentAttemptRollback(checkpoint) {
-				if (typeof checkpoint === 'number') records.splice(checkpoint);
-			},
-			onComponentCreated(instance) {
-				const contract = readPreparedExactCompiledComponentContract(instance.type);
-				if (contract.resumption) {
-					layouts.set(exactComponentIdentity(instance.type), {
-						statePaths: contract.resumption.statePaths,
-						contexts: contract.resumption.contexts
-					});
-					const record: MutableResumption = {
-						componentId: exactComponentIdentity(instance.type),
-						values: {},
-						contexts: {},
-						settledContinuations: []
-					};
-					if (!rootInputClaimed && exactComponentIdentity(instance.type) === rootComponentId) {
-						rootInputRecords.add(record);
-						rootInputClaimed = true;
-					}
-					records.push(record);
-					recordsByInstance.set(instance, record);
-				}
-				options.onComponentCreated?.(instance);
-			},
-			onComponentRendered(instance) {
-				const record = recordsByInstance.get(instance);
-				const contract = readPreparedExactCompiledComponentContract(instance.type);
-				if (record && contract.resumption) {
-					captureStateValues(
-						record,
-						rootInputRecords.has(record),
+				!options.onDirectComponentRendered
+		};
+	}
+
+	checkpoint(): number {
+		return this.records.length;
+	}
+
+	rollback(checkpoint: number): void {
+		this.records.splice(checkpoint);
+		this.schemas.splice(checkpoint);
+		if (this.rootInputToken !== undefined && this.rootInputToken >= checkpoint)
+			this.rootInputToken = undefined;
+		this.projectedActivations = undefined;
+	}
+
+	reserveDirect(
+		componentId: string,
+		contract: ExactServerExecutableComponentContract
+	): number | undefined {
+		if (!contract.resumption) return undefined;
+		const token = this.records.length;
+		this.records.push([componentId]);
+		this.schemas.push(resumptionSchema(contract));
+		if (this.rootInputToken === undefined && componentId === this.rootComponentId)
+			this.rootInputToken = token;
+		this.projectedActivations = undefined;
+		return token;
+	}
+
+	publishDirect(
+		token: number,
+		host: object,
+		state: Record<string, unknown>,
+		props: Record<string, unknown>
+	): void {
+		const record = this.records[token];
+		const schema = this.schemas[token];
+		if (!record || !schema) return;
+		const values = captureDirectStateEntries(
+			token === this.rootInputToken,
+			state,
+			props,
+			schema,
+			this.publishedRootProps,
+			this.pathReadCell
+		);
+		const contexts = schema.contexts.length
+			? captureContextEntries(
+					serverComponentContinuationContextValuesForHost(host, schema.contexts),
+					schema.contexts
+				)
+			: emptyIndexedEntries;
+		const settled = schema.continuations.size
+			? settledServerComponentContinuationIdsForHost(host).filter((id) =>
+					schema.continuations.has(id)
+				)
+			: emptyContinuationIds;
+		publishTuple(record, values, contexts, settled);
+		this.projectedActivations = undefined;
+	}
+
+	serializedRecords(): readonly SsrSerializedResumption[] {
+		return this.records;
+	}
+
+	activations(): readonly ComponentResumptionActivation[] {
+		return (this.projectedActivations ??= this.records.map((record, index) =>
+			projectActivation(record, this.schemas[index]!)
+		));
+	}
+}
+
+function createResumptionCapture(
+	options: RenderToStringOptions,
+	publishedRootProps: Readonly<Record<string, unknown>> | undefined,
+	rootComponentId: string | undefined
+): CreatedSsrResumptionCapture {
+	const records: MutableSerializedResumption[] = [];
+	const schemas: SsrResumptionSchema[] = [];
+	const recordsByInstance = new WeakMap<AnyComponentInstance, number>();
+	const pathReadCell: ReactiveOwnPropertyReadCell = { value: undefined };
+	let rootInputToken: number | undefined;
+	let projectedActivations: readonly ComponentResumptionActivation[] | undefined;
+
+	const reserve = (
+		componentId: string,
+		contract: ExactServerExecutableComponentContract
+	): number | undefined => {
+		if (!contract.resumption) return undefined;
+		const schema = resumptionSchema(contract);
+		const token = records.length;
+		records.push([componentId]);
+		schemas.push(schema);
+		if (rootInputToken === undefined && componentId === rootComponentId) rootInputToken = token;
+		projectedActivations = undefined;
+		return token;
+	};
+
+	const publish = (
+		token: number,
+		state: unknown,
+		props: unknown,
+		contexts: Record<string, unknown>,
+		settledContinuations: readonly string[]
+	): void => {
+		const record = records[token];
+		const schema = schemas[token];
+		if (!record || !schema) return;
+		const values = captureStateEntries(
+			token === rootInputToken,
+			state,
+			props,
+			schema,
+			publishedRootProps,
+			pathReadCell
+		);
+		const indexedContexts = schema.contexts.length
+			? captureContextEntries(contexts, schema.contexts)
+			: emptyIndexedEntries;
+		const settled = schema.continuations.size
+			? settledContinuations.filter((id) => schema.continuations.has(id))
+			: emptyContinuationIds;
+		publishTuple(record, values, indexedContexts, settled);
+		projectedActivations = undefined;
+	};
+
+	const capture: SsrResumptionCapture = {
+		checkpoint: () => records.length,
+		rollback(checkpoint) {
+			records.splice(checkpoint);
+			schemas.splice(checkpoint);
+			if (rootInputToken !== undefined && rootInputToken >= checkpoint) rootInputToken = undefined;
+			projectedActivations = undefined;
+		},
+		reserveDirect(componentId, contract) {
+			return reserve(componentId, contract);
+		},
+		publishDirect(token, host, state, props) {
+			const schema = schemas[token];
+			if (!schema) return;
+			publish(
+				token,
+				state,
+				props,
+				schema.contexts.length
+					? serverComponentContinuationContextValuesForHost(host, schema.contexts)
+					: emptyContextValues,
+				schema.continuations.size
+					? settledServerComponentContinuationIdsForHost(host)
+					: emptyContinuationIds
+			);
+		},
+		serializedRecords: () => records,
+		activations() {
+			return (projectedActivations ??= records.map((record, index) =>
+				projectActivation(record, schemas[index]!)
+			));
+		}
+	};
+
+	const allowIndependentComponentObservation =
+		!options.onComponentCreated &&
+		!options.onComponentRendered &&
+		!options.onDirectComponentCreated &&
+		!options.onDirectComponentRendered;
+	const captureOptions: RenderToStringOptions = {
+		...options,
+		resumptionCapture: capture,
+		allowIndependentComponentObservation,
+		onComponentCreated(instance) {
+			const contract = readPreparedExactServerExecutableComponentContract(instance.type);
+			const token = reserve(exactComponentIdentity(instance.type), contract);
+			if (token !== undefined) recordsByInstance.set(instance, token);
+			options.onComponentCreated?.(instance);
+		},
+		onComponentRendered(instance) {
+			const token = recordsByInstance.get(instance);
+			if (token !== undefined) {
+				const schema = schemas[token];
+				if (schema)
+					publish(
+						token,
 						instance.state,
 						instance.props,
-						contract.resumption,
-						publishedRootProps
+						schema.contexts.length
+							? componentContinuationContextValues(instance, schema.contexts)
+							: emptyContextValues,
+						schema.continuations.size
+							? settledComponentContinuationIds(instance)
+							: emptyContinuationIds
 					);
-					record.contexts = componentContinuationContextValues(
-						instance,
-						contract.resumption.contexts
-					);
-					const allowed = new Set(contract.continuations.map((continuation) => continuation.id));
-					record.settledContinuations = settledComponentContinuationIds(instance).filter((id) =>
-						allowed.has(id)
-					);
-				}
-				options.onComponentRendered?.(instance);
 			}
+			options.onComponentRendered?.(instance);
 		},
-		records: () => records,
-		layouts: () => layouts
-	};
-}
-
-function captureStateValues(
-	record: MutableResumption,
-	rootInput: boolean,
-	state: unknown,
-	props: unknown,
-	resumption: {
-		statePaths: readonly string[];
-		stateInputs: readonly (readonly [string, string])[];
-	},
-	publishedRootProps: Readonly<Record<string, unknown>> | undefined
-): void {
-	const inputs = new Map(resumption.stateInputs);
-	for (const path of resumption.statePaths) {
-		const found = readPath(state, path);
-		if (!found.present || found.value === undefined) continue;
-		const propPath = inputs.get(path);
-		if (rootInput && publishedRootProps && propPath) {
-			const local = readPath(props, propPath);
-			const published = readPath(publishedRootProps, propPath);
-			if (
-				local.present &&
-				published.present &&
-				Object.is(found.value, local.value) &&
-				Object.is(local.value, published.value)
-			)
-				continue;
+		onComponentAttemptCheckpoint: () => [
+			capture.checkpoint(),
+			options.onComponentAttemptCheckpoint?.()
+		],
+		onComponentAttemptRollback(checkpoint) {
+			if (Array.isArray(checkpoint) && typeof checkpoint[0] === 'number') {
+				capture.rollback(checkpoint[0]);
+				options.onComponentAttemptRollback?.(checkpoint[1]);
+			}
 		}
-		record.values[path] = found.value;
-	}
-}
-
-/** Reads one own-property state path without invoking accessors. */
-function readPath(
-	value: unknown,
-	path: string
-): { present: true; value: unknown } | { present: false } {
-	let cursor = value;
-	for (const segment of path.split('.')) {
-		if (!safeSegment(segment) || !cursor || typeof cursor !== 'object') return { present: false };
-		const field = readReactiveOwnProperty(cursor, segment);
-		if (!field.present) return field;
-		cursor = field.value;
-	}
-	return { present: true, value: cursor };
-}
-
-/** Rejects prototype-bearing path segments while inspecting component state. */
-function safeSegment(segment: string): boolean {
-	return (
-		segment.length > 0 &&
-		segment !== '__proto__' &&
-		segment !== 'prototype' &&
-		segment !== 'constructor'
-	);
+	};
+	return {
+		options: captureOptions,
+		serializedRecords: capture.serializedRecords,
+		activations: capture.activations
+	};
 }

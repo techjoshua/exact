@@ -2,11 +2,10 @@
  * @vitest-environment jsdom
  */
 import '@exactjs/dom/runtime/modal';
-import { createExpression } from '@exactjs/core/runtime/render';
 import { afterEach, describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';
 import { installDialogPlatform } from './test-support/dialog-platform.js';
-import { createCompiledVNode } from './test-support/native-vnode.js';
+import { modalAdoptionRoot } from './test-support/modal-adoption.fixtures.js';
 import { noopLogger } from './test-support/responses.js';
 
 const restorations: Array<() => void> = [];
@@ -27,16 +26,10 @@ describe('@exactjs/hydrate modal adoption', () => {
 			open = (event.currentTarget as HTMLDialogElement).matches(':modal');
 		};
 
-		hydrate(
-			createCompiledVNode('dialog', {
-				'data-exact-id': 'settings',
-				__exactModalOpen: createExpression(() => open),
-				__exactBindModalToggle: publish,
-				__exactBindModalClose: publish
-			}),
-			container,
-			{ allowMarkerless: true, logger: noopLogger }
-		);
+		hydrate(modalAdoptionRoot(publish), container, {
+			allowMarkerless: true,
+			logger: noopLogger
+		});
 
 		const adopted = container.querySelector('dialog')!;
 		expect(adopted.matches(':modal')).toBe(true);

@@ -2,14 +2,24 @@
 /**
  * @vitest-environment jsdom
  */
-import { Fragment } from '@exactjs/core';
 import { render } from '@exactjs/dom';
+import { renderToHydratableString } from '@exactjs/ssr';
 import { defineExactBoundaryContract, handleExactRequest, unsafeExactHtml } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
 import { invokeExact, invokeExactBatch } from './invocations.js';
 import { applyPatches } from './patches.js';
-import { createVNode } from './test-support/native-vnode.js';
+import {
+	readRequestClicks,
+	reorderedControlsRoot,
+	requestClickCounterRoot,
+	resetRequestClicks,
+	requestParagraphRoot
+} from './test-support/request-operations.fixtures.js';
+import {
+	reorderedControlsRoot as serverReorderedControlsRoot,
+	requestParagraphRoot as serverRequestParagraphRoot
+} from './test-support/request-operations.fixtures.js?exact-target=server';
 import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate request-operations', () => {
@@ -58,12 +68,9 @@ describe('@exactjs/hydrate request-operations', () => {
 	});
 
 	it('keeps unrelated client ownership active after a server prop patch', () => {
-		let clicks = 0;
-		function Counter() {
-			return () => createVNode('button', { onClick: () => clicks++ }, 'Click');
-		}
+		resetRequestClicks();
 		const container = document.createElement('div');
-		render(createVNode(Counter, null), container);
+		render(requestClickCounterRoot, container);
 		const button = container.querySelector('button')!;
 		button.setAttribute('data-exact-id', 'server-label');
 		expect(
@@ -72,7 +79,7 @@ describe('@exactjs/hydrate request-operations', () => {
 			])
 		).toBe(true);
 		button.click();
-		expect(clicks).toBe(1);
+		expect(readRequestClicks()).toBe(1);
 	});
 
 	it('parses replacement patches in the target SVG namespace', () => {
@@ -87,22 +94,16 @@ describe('@exactjs/hydrate request-operations', () => {
 	it('restores same-signature form controls by compiler identity after repair reorders them', () => {
 		const container = document.createElement('div');
 		document.body.appendChild(container);
-		container.innerHTML =
-			'<!--exact:fragment:0--><input data-exact-id=a name=title value=A><input data-exact-id=b name=title value=B><!--/exact:fragment:0-->';
+		const rendered = renderToHydratableString(serverReorderedControlsRoot(false));
+		container.innerHTML = rendered.html;
 		try {
 			const edited = container.querySelector('[data-exact-id=b]') as HTMLInputElement;
 			edited.value = 'typed B';
 			edited.focus();
-			hydrate(
-				createVNode(
-					Fragment,
-					null,
-					createVNode('input', { 'data-exact-id': 'b', name: 'title', value: 'B' }),
-					createVNode('input', { 'data-exact-id': 'a', name: 'title', value: 'A' })
-				),
-				container,
-				{ logger: noopLogger }
-			);
+			hydrate(reorderedControlsRoot(true), container, {
+				logger: noopLogger,
+				resumptions: rendered.resumptions
+			});
 			const restored = container.querySelector('[data-exact-id=b]') as HTMLInputElement;
 			expect(restored.value).toBe('typed B');
 			expect(document.activeElement).toBe(restored);
@@ -135,8 +136,12 @@ describe('@exactjs/hydrate request-operations', () => {
 
 	it('does not duplicate marker-bearing SSR markup while creating the client tree', () => {
 		const root = document.createElement('div');
-		root.innerHTML = '<!--exact:component:0--><p>server</p><!--/exact:component:0-->';
-		hydrate(createVNode('p', null, 'client'), root, { logger: noopLogger });
+		const rendered = renderToHydratableString(serverRequestParagraphRoot('server'));
+		root.innerHTML = rendered.html;
+		hydrate(requestParagraphRoot('client'), root, {
+			logger: noopLogger,
+			resumptions: rendered.resumptions
+		});
 		expect(root.querySelectorAll('p')).toHaveLength(1);
 		expect(root.textContent).toBe('client');
 	});

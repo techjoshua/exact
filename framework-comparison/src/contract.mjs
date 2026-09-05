@@ -58,8 +58,6 @@ export function validateParticipant(value) {
 	if (value.schemaVersion !== 1) throw new Error('participant.schemaVersion must be 1');
 	for (const field of ['id', 'framework', 'frameworkVersion', 'runtime', 'baseUrl'])
 		requireString(value[field], `participant.${field}`);
-	if (!['scaffolded', 'complete'].includes(value.status))
-		throw new Error('participant.status must be scaffolded or complete');
 	requireArray(value.tracks, 'participant.tracks');
 	if (value.tracks.length === 0) throw new Error('participant.tracks must not be empty');
 	for (const track of value.tracks) {
@@ -75,21 +73,6 @@ export function validateParticipant(value) {
 		throw new Error('participant.ssrTransports.node must be node-http');
 	if (!['node-http-compat', 'bun-fetch'].includes(value.ssrTransports.bun))
 		throw new Error('participant.ssrTransports.bun must be node-http-compat or bun-fetch');
-}
-
-/** Validates the independent framework-specialist decision that gates publishable measurements. */
-export function validateReview(value, participantId) {
-	requireObject(value, 'participant review');
-	if (value.schemaVersion !== 1) throw new Error('participant review schemaVersion must be 1');
-	if (value.participantId !== participantId)
-		throw new Error(`participant review must identify ${participantId}`);
-	if (!['pending', 'approved', 'changes-requested'].includes(value.status))
-		throw new Error(`participant review ${participantId} has an invalid status`);
-	requireArray(value.findings, `participant review ${participantId}.findings`);
-	if (value.status === 'approved') {
-		requireString(value.reviewer, `participant review ${participantId}.reviewer`);
-		requireString(value.reviewedAt, `participant review ${participantId}.reviewedAt`);
-	}
 }
 
 function uniqueIds(values, label) {

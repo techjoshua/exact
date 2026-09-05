@@ -6,19 +6,16 @@ import {
 	normalizeRenderResult,
 	trackComponentAsync,
 	unwrap,
-	type Child,
-	type Component,
-	type VNode
+	type Child
 } from '@exactjs/core';
-import { createComponentInstance } from '@exactjs/core/runtime/render';
-import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
+import { createFrameworkLogicalOwner } from '@exactjs/core/runtime/render-operations';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { registerComponentLifecycleHandler } from '@exactjs/core/framework/component-lifecycle';
 import { flushSync, withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 import { placeMountedBefore } from '../placement.js';
 import { mountDetachedChildren } from './mounting/children.js';
-import { ownMountedInstance } from './root-lifecycle.js';
+import { ownMountedInstance } from './component-mount-ownership.js';
 import { disposeMounted, unmountMany } from './teardown.js';
 
 /** Constructs the candidate and presentation state for a native Suspense mount. */
@@ -30,13 +27,7 @@ export function initializeSuspense(
 ): void {
 	prepareSuspense(root, mounted, parentInstance);
 	const suspense = mounted.suspense!;
-	const candidate = mountDetachedChildren(
-		root,
-		mounted.vnode.children,
-		suspense.owner,
-		mounted.scope,
-		parentNode
-	);
+	const candidate = mountSuspenseCandidate(root, mounted, suspenseInput(mounted), parentNode);
 	if (suspense.coordinator.pending) {
 		retainSuspenseTransition(mounted);
 		suspense.candidate = {
@@ -45,7 +36,7 @@ export function initializeSuspense(
 		};
 		mounted.children = mountFallback(
 			root,
-			mounted.vnode,
+			suspenseInput(mounted),
 			parentInstance,
 			mounted.scope,
 			parentNode
@@ -90,12 +81,24 @@ export function prepareSuspense(
 	});
 	coordinator.beginGeneration();
 	const owner = withEffectScope(mounted.scope, () =>
-		createComponentInstance(
-			ReadinessOwner,
-			{ context: coordinator.context },
+		createFrameworkLogicalOwner(
 			parentInstance,
-			undefined,
-			mounted.vnode.domain ?? parentInstance?.domain
+			parentInstance?.ambientContexts ?? root.ambientContexts,
+			suspenseInput(mounted).domain ?? parentInstance?.domain ?? root.domain!,
+			(owner) => {
+				owner.contexts.set(ReadinessContext.id, coordinator.context);
+				owner.contexts.set(SuspensionContext.id, {
+					suspend: (settlement: PromiseLike<unknown>) => {
+						trackComponentAsync(owner, settlement);
+						return coordinator.context.register({
+							owner,
+							taskGeneration: 0,
+							settlement,
+							retry: true
+						});
+					}
+				});
+			}
 		)
 	);
 	registerComponentLifecycleHandler(owner, 'unmount', () => {
@@ -120,7 +123,7 @@ function retrySuspenseCandidate(root: Root, mounted: Mounted, generation: number
 		mounted.afterPlacement = () => retrySuspenseCandidate(root, mounted, generation);
 		return;
 	}
-	updateSuspense(root, parent, mounted, mounted.vnode, suspense.parentInstance);
+	updateSuspense(root, parent, mounted, suspenseInput(mounted), suspense.parentInstance);
 }
 
 /** Starts a new candidate while retaining already revealed content until it is ready. */
@@ -128,7 +131,7 @@ export function updateSuspense(
 	root: Root,
 	parent: Node,
 	mounted: Mounted,
-	next: VNode,
+	next: SuspenseBoundaryInput,
 	parentInstance: AnyComponentInstance | undefined
 ): void {
 	const suspense = mounted.suspense;
@@ -138,15 +141,9 @@ export function updateSuspense(
 		unmountMany(suspense.candidate.children);
 		suspense.candidate = undefined;
 	}
-	mounted.vnode = next;
+	mounted.suspenseReceipt = next;
 	const generation = suspense.coordinator.beginGeneration();
-	const candidate = mountDetachedChildren(
-		root,
-		next.children,
-		suspense.owner,
-		mounted.scope,
-		parent
-	);
+	const candidate = mountSuspenseCandidate(root, mounted, next, parent);
 	if (suspense.coordinator.pending) {
 		retainSuspenseTransition(mounted);
 		suspense.candidate = { generation, children: candidate };
@@ -210,24 +207,43 @@ function replacePresentedChildren(
 
 function mountFallback(
 	root: Root,
-	vnode: VNode,
+	boundary: SuspenseBoundaryInput,
 	parentInstance: AnyComponentInstance | undefined,
 	scope: EffectScope,
 	parentNode: Node | undefined
 ): Mounted[] {
 	return mountDetachedChildren(
 		root,
-		normalizeRenderResult(unwrap(vnode.props.fallback) as Child | Child[]),
+		normalizeRenderResult(unwrap(boundary.props.fallback) as Child | Child[]),
 		parentInstance,
 		scope,
 		parentNode
 	);
 }
 
+/** Mounts a pending candidate into an owned fragment so reactive replacements remain patchable. */
+function mountSuspenseCandidate(
+	root: Root,
+	mounted: Mounted,
+	input: SuspenseBoundaryInput,
+	_parentNode: Node | undefined
+): Mounted[] {
+	const fragment = document.createDocumentFragment();
+	const children = mountDetachedChildren(
+		root,
+		[...input.children],
+		mounted.suspense!.owner,
+		mounted.scope,
+		fragment
+	);
+	for (const child of children) placeMountedBefore(root, fragment, child, null);
+	return children;
+}
+
 function retainSuspenseTransition(mounted: Mounted): void {
 	const suspense = mounted.suspense;
 	if (!suspense || suspense.releaseTransition) return;
-	const transition = mounted.vnode.props.__exactTransition as
+	const transition = suspenseInput(mounted).props.__exactTransition as
 		| { retain?: () => () => void }
 		| undefined;
 	if (typeof transition?.retain === 'function') suspense.releaseTransition = transition.retain();
@@ -241,26 +257,15 @@ function releaseSuspenseTransition(mounted: Mounted): void {
 	release();
 }
 
-const ReadinessOwner = createExactInternalOwnerArtifact(
-	function ReadinessOwner(
-		this: Component<Record<string, never>>,
-		props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
-	) {
-		const owner = this as AnyComponentInstance;
-		owner.contexts.set(ReadinessContext.id, props.context);
-		owner.contexts.set(SuspensionContext.id, {
-			suspend: (settlement: PromiseLike<unknown>) => {
-				trackComponentAsync(owner, settlement);
-				props.context.register({
-					owner,
-					taskGeneration: 0,
-					settlement,
-					retry: true
-				});
-			}
-		});
-		return () => null;
-	},
-	'@exactjs/dom:SuspenseReadinessOwner',
-	'client'
-);
+type SuspenseBoundaryInput = Readonly<{
+	props: Readonly<Record<string, unknown>>;
+	children: readonly Child[];
+	domain?: import('@exactjs/core').ComponentDomain;
+}>;
+
+/** Reads readiness-boundary inputs directly from a compiler-issued operation. */
+function suspenseInput(mounted: Mounted): SuspenseBoundaryInput {
+	const input = mounted.suspenseReceipt;
+	if (!input) throw new Error('Mounted Suspense boundary has no readiness-boundary inputs');
+	return input;
+}

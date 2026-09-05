@@ -8,13 +8,45 @@ import {
 	registerReactiveListKey,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
+	unwrap,
 	watch,
 	writeReactive,
 	writeReactiveLazy
 } from './index.js';
 import { keyedCollectionMetadata } from './internal/keyed-collections.js';
+import { indexedReactive } from './indexed.js';
+import {
+	deleteIndexedReactiveValue,
+	updateIndexedReactiveValue,
+	updateIndexedReactiveValueWithResult,
+	writeIndexedReactiveValue
+} from './writes.js';
 
 describe('@exactjs/reactive writes', () => {
+	it('does not reschedule a watcher installed by a synchronous replacement scheduler', () => {
+		const state = reactive({ count: 0 });
+		const stable = watch(() => void state.count);
+		let replacement: () => void = () => undefined;
+		let schedules = 0;
+		const install = () => {
+			replacement = watch(
+				() => void state.count,
+				() => {
+					schedules++;
+					replacement();
+					install();
+				}
+			);
+		};
+		install();
+
+		batch(() => state.count++);
+
+		expect(schedules).toBe(1);
+		stable();
+		replacement();
+	});
+
 	it('retains keyed record identity when an API response reorders records', () => {
 		const state = reactive({
 			records: [
@@ -132,6 +164,68 @@ describe('@exactjs/reactive writes', () => {
 		expect(state.count).toBe(10);
 	});
 
+	it('writes compiler-proven indexed slots without changing reactive semantics', () => {
+		const state = indexedReactive<{ count?: number; record?: { value: number } }>([
+			'count',
+			'record'
+		]);
+		state.count = 2;
+		state.record = { value: 1 };
+		const seen: Array<number | undefined> = [];
+		watch(() => seen.push(state.count));
+
+		expect(writeIndexedReactiveValue(state, 0, 3)).toBe(3);
+		expect(updateIndexedReactiveValue(state, 0, (value) => Number(value) * 2)).toBe(6);
+		expect(
+			updateIndexedReactiveValueWithResult(state, 0, (value) => [Number(value) + 1, `was:${value}`])
+		).toBe('was:6');
+		flushSync();
+		expect(seen).toEqual([2, 7]);
+
+		const record = state.record;
+		writeIndexedReactiveValue(state, 1, { value: 2 });
+		expect(state.record).toBe(record);
+		expect(state.record?.value).toBe(2);
+		expect(deleteIndexedReactiveValue(state, 0)).toBe(true);
+		expect('count' in state).toBe(false);
+		expect(() => writeIndexedReactiveValue(state, 2, 1)).toThrow('invalid indexed slot');
+	});
+
+	it('writes direct compiler values without invoking function-valued state', () => {
+		const state = indexedReactive<{ callback?: () => number; count?: number }>([
+			'callback',
+			'count'
+		]);
+		const callback = () => 42;
+
+		expect(writeIndexedReactiveValue(state, 0, callback)).toBe(callback);
+		expect(state.callback).toBe(callback);
+		expect(writeIndexedReactiveValue(state, 1, 3)).toBe(3);
+		expect(state.count).toBe(3);
+		expect(() => writeIndexedReactiveValue(state, 2, 1)).toThrow('invalid indexed slot');
+	});
+
+	it('does not peek before the indexed storage commit', () => {
+		const state = indexedReactive<{ count: number }>(['count']);
+		state.count = 2;
+		const target = unwrap(state);
+		let reads = 0;
+		Object.defineProperty(target, 'count', {
+			configurable: true,
+			enumerable: true,
+			get() {
+				reads++;
+				return 2;
+			}
+		});
+
+		expect(writeIndexedReactiveValue(state, 0, 3)).toBe(3);
+		// The commit reads once for comparison and indexed storage reads once for mutation bookkeeping.
+		// A preliminary compiler-hook peek would make this three reads without changing semantics.
+		expect(reads).toBe(2);
+		expect(state.count).toBe(3);
+	});
+
 	it('delegates array mutations while rejecting non-array compiler targets', () => {
 		const state = reactive({ items: ['a'], label: 'not-an-array' });
 
@@ -187,11 +281,14 @@ describe('@exactjs/reactive writes', () => {
 		replacement();
 	});
 
-	it('releases keyed metadata after the final list registration stops', () => {
+	it('creates keyed metadata lazily and releases it after the final registration stops', () => {
 		const records = [{ id: 'one' }];
-		const first = registerReactiveListKey(records, (item) => (item as { id: string }).id);
-		const second = registerReactiveListKey(records, (item) => (item as { id: string }).id);
+		const byId = (item: unknown) => (item as { id: string }).id;
+		const first = registerReactiveListKey(records, byId);
+		const second = registerReactiveListKey(records, byId);
 
+		expect(keyedCollectionMetadata(records)).toBeUndefined();
+		expect(keyedCollectionMetadata(records, byId)).toBeDefined();
 		expect(keyedCollectionMetadata(records)).toBeDefined();
 		first();
 		expect(keyedCollectionMetadata(records)).toBeDefined();

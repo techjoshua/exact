@@ -21,9 +21,21 @@ for (const check of checks) {
 	if (check.average > check.budget)
 		throw new Error(`${check.name} exceeded its average performance budget`);
 }
+console.log(
+	`THEME_BENCHMARK_JSON=${JSON.stringify({ environment: { node: process.version }, checks })}`
+);
 
 function measure(name, iterations, budget, run) {
-	const started = performance.now();
-	for (let index = 0; index < iterations; index++) run();
-	return { name, average: (performance.now() - started) / iterations, budget };
+	const samplesMs = [];
+	for (let index = 0; index < iterations; index++) {
+		const started = performance.now();
+		run();
+		samplesMs.push(performance.now() - started);
+	}
+	return {
+		name,
+		average: samplesMs.reduce((total, value) => total + value, 0) / samplesMs.length,
+		budget,
+		samplesMs
+	};
 }

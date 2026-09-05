@@ -28,12 +28,19 @@ enqueue events and perform I/O outside the measured operation.
 
 - Compiler: native requests, project invalidation, and session clearing.
 - Reactive: scheduler flushes owned by `createProfiledEffectScope`.
-- DOM: root rendering and traversal counts.
-- Hydrate: hydration, including nested DOM events when the same sink is passed.
+- DOM: root rendering plus exclusive component construction, attachment, render-program claim,
+  structural-child adoption, and binding phases.
+- Hydrate: client creation, DOM capture, adoption, form-control restoration, and total hydration,
+  including nested DOM events when the same sink is passed.
 - Server: complete request protocol handling.
 - SSR: synchronous string rendering and stream construction.
 - React compatibility: render and commit work created inside `withReactProfile`.
 - Vite, webpack, and Bun plugins: compiler events through `onProfile`.
+
+Aggregate runtime observations remain available through the public sink. The framework-comparison
+participant selects the finer hydration and DOM phase timers only in its explicit diagnostic build;
+their policy constants are false in installed production modules, allowing bundlers to erase the
+timers and call sites. Percentile measurements always use the ordinary production bundle.
 
 ## Component performance traces
 
@@ -82,13 +89,16 @@ but excluded from the ratio guard because scheduler noise dominates them. Run
 accepting a new native baseline. `EXACT_NATIVE_CORPUS_WORKERS`,
 `EXACT_NATIVE_CORPUS_PROJECT`, `EXACT_NATIVE_CORPUS_SAMPLES`, and
 `EXACT_NATIVE_CORPUS_MAX_BASELINE_RATIO` provide focused investigation
-overrides without changing repository policy.
+overrides without changing repository policy. A ratio above the tracked ceiling marks the timing
+comparison non-publishable and emits a warning, but it does not discard the raw corpus, structural,
+or incremental evidence or fail an otherwise valid local admission run.
 
 Corpus throughput is a controlled-machine diagnostic, not a release requirement. Hosted runners have
 variable CPU allocation and worker availability, so GitHub workflows and aggregate release profiles do not
 invoke the corpus or compare their timing with the tracked local baseline. Run
 `npm run check:native-compiler-corpus` explicitly on a stable machine when investigating compiler performance;
-its unchanged guard still fails meaningful regressions in that controlled environment.
+timing warnings require review or a controlled rerun before publication, while structural and
+correctness failures remain hard failures.
 
 ## Isolation
 

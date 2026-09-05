@@ -1,10 +1,12 @@
-import { type AnyComponentInstance, Fragment, unwrap, type EnhancementEntry } from '@exactjs/core';
+import { type AnyComponentInstance, unwrap, type EnhancementEntry } from '@exactjs/core';
 import type { Mounted } from '../types.js';
 import {
 	findFirstTargetExport,
 	findRootBearingFrame,
+	isMountedSemanticIntrinsic,
 	type MountedTarget
 } from './target-routing.js';
+import { mountedEnhancementEntries } from './enhancement-chain.js';
 
 /** One mounted semantic target and the logical owner frame that selected it. */
 export type EnhancementTarget = MountedTarget;
@@ -26,7 +28,7 @@ export function collectTargetEnhancements(
 	const orders = new Map<Mounted, Map<string, number>>();
 	let order = 0;
 	walkMounted(boundary, undefined, parentInstance, 0, (mounted, owner, instance, depth) => {
-		for (const entry of mounted.vnode.enhancement?.entries ?? []) {
+		for (const entry of mountedEnhancementEntries(mounted)) {
 			if (isRoutingOnlyEntry(entry)) continue;
 			const target = resolveEnhancementTarget(mounted, entry.identity, instance, owner, depth);
 			if (!target) continue;
@@ -92,7 +94,7 @@ export function resolveEnhancementTarget(
 	owner?: Mounted,
 	depth = 0
 ): EnhancementTarget | undefined {
-	if (typeof boundary.vnode.type === 'string' || boundary.vnode.type === Fragment)
+	if (isMountedSemanticIntrinsic(boundary) || boundary.fragmentReceipt !== undefined)
 		return { mounted: boundary, owner, parentInstance, depth };
 	const exported = findFirstTargetExport(boundary, owner, parentInstance, depth);
 	if (exported) return exported;
@@ -107,7 +109,7 @@ function findExplicitTarget(
 	parentInstance: AnyComponentInstance | undefined,
 	depth: number
 ): EnhancementTarget | undefined {
-	const children = typeof frame.vnode.type === 'function' ? frame.children : [frame];
+	const children = frame.clientArtifact ? frame.children : [frame];
 	for (const child of children) {
 		const result = findExplicitInTransparentOutput(
 			child,
@@ -128,7 +130,13 @@ function findExplicitInTransparentOutput(
 	depth: number,
 	identity: string
 ): EnhancementTarget | undefined {
-	if (mounted.enhancement)
+	if (mounted.enhancement) {
+		const selector = mountedEnhancementEntries(mounted).find(
+			(entry) => entry.identity === identity && entry.root !== undefined
+		);
+		if (selector && unwrap(selector.root)) {
+			return { mounted: mounted.enhancement.target, owner, parentInstance, depth };
+		}
 		return findExplicitInTransparentOutput(
 			mounted.enhancement.target,
 			owner,
@@ -136,9 +144,10 @@ function findExplicitInTransparentOutput(
 			depth,
 			identity
 		);
-	if (typeof mounted.vnode.type === 'function') return undefined;
-	if (typeof mounted.vnode.type === 'string') {
-		const selector = mounted.vnode.enhancement?.entries.find(
+	}
+	if (mounted.clientArtifact) return undefined;
+	if (isMountedSemanticIntrinsic(mounted)) {
+		const selector = mountedEnhancementEntries(mounted).find(
 			(entry) => entry.identity === identity && entry.root !== undefined
 		);
 		if (selector && unwrap(selector.root)) return { mounted, owner, parentInstance, depth };

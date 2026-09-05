@@ -1,4 +1,4 @@
 import { registerResumptionBoundaryCapability } from '../render/resumption-boundary-capability.js';
-import { renderResumableComponentBoundary } from '../render/resumption-boundaries.js';
+import { renderPreparedResumptionBoundary } from '../render/prepared-resumption-boundary.js';
 
-registerResumptionBoundaryCapability(renderResumableComponentBoundary);
+registerResumptionBoundaryCapability(renderPreparedResumptionBoundary);

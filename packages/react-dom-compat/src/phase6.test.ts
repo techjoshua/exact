@@ -20,7 +20,7 @@ import {
 	preload,
 	preloadModule
 } from './index.js';
-import { renderToPipeableStream, renderToReadableStream, renderToString } from './server-node.js';
+import { renderToPipeableStream, renderToReadableStream, renderToString } from './server/node.js';
 
 describe('React compatibility Phase 6 root hardening', () => {
 	it('uses identifierPrefix deterministically across server rendering and hydration', () => {
@@ -75,6 +75,9 @@ describe('React compatibility Phase 6 root hardening', () => {
 	});
 
 	it('normalizes specialized form, SVG, custom-element, style, and image server markup', () => {
+		expect(
+			renderToString(createElement('input', { defaultChecked: true, defaultValue: 'yes' }))
+		).toBe('<input checked="" value="yes"/>');
 		const tree = createElement(
 			'section',
 			null,

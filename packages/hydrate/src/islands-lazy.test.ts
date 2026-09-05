@@ -3,7 +3,18 @@
  */
 import { describe, expect, it } from 'vitest';
 import { hydrateClientIslands, lazyClientIsland } from './index.js';
-import { createVNode, markTestComponent } from './test-support/native-vnode.js';
+import {
+	LazyCheckoutForm,
+	LazyCounter,
+	LazyFocus,
+	LazyInput,
+	LazyRelease,
+	LazyStaticCounter,
+	readFocusNotifications,
+	readInteractionClicks,
+	readInteractionInputValues,
+	resetInteractionFixture
+} from './test-support/island-interaction.fixtures.js';
 
 function activation(
 	id: string,
@@ -22,21 +33,12 @@ describe('@exactjs/hydrate lazy islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="counter-button">Count</button></div>';
-		let clicks = 0;
+		resetInteractionFixture();
 		let loads = 0;
-		let resolveLoad!: (component: typeof Counter) => void;
-		const loaded = new Promise<typeof Counter>((resolve) => {
+		let resolveLoad!: (component: typeof LazyCounter) => void;
+		const loaded = new Promise<typeof LazyCounter>((resolve) => {
 			resolveLoad = resolve;
 		});
-		function Counter() {
-			return () =>
-				createVNode(
-					'button',
-					{ 'data-exact-id': 'counter-button', onClick: () => clicks++ },
-					'Count'
-				);
-		}
-		markTestComponent(Counter);
 
 		hydrateClientIslands(container, {
 			Counter: lazyClientIsland(
@@ -52,11 +54,11 @@ describe('@exactjs/hydrate lazy islands', () => {
 		button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
 		expect(loads).toBe(1);
-		expect(clicks).toBe(0);
-		resolveLoad(Counter);
+		expect(readInteractionClicks()).toBe(0);
+		resolveLoad(LazyCounter);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(clicks).toBe(2);
+		expect(readInteractionClicks()).toBe(2);
 		expect(container.querySelector('button')).toBe(button);
 	});
 
@@ -64,19 +66,11 @@ describe('@exactjs/hydrate lazy islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="form" data-exact-client-name="Form" data-exact-client-hydration="interaction"><input data-exact-id="name"></div>';
-		const values: string[] = [];
-		let resolveLoad!: (component: typeof Form) => void;
-		const loaded = new Promise<typeof Form>((resolve) => {
+		resetInteractionFixture();
+		let resolveLoad!: (component: typeof LazyInput) => void;
+		const loaded = new Promise<typeof LazyInput>((resolve) => {
 			resolveLoad = resolve;
 		});
-		function Form() {
-			return () =>
-				createVNode('input', {
-					'data-exact-id': 'name',
-					onInput: (event: Event) => values.push((event.currentTarget as HTMLInputElement).value)
-				});
-		}
-		markTestComponent(Form);
 
 		hydrateClientIslands(container, {
 			Form: lazyClientIsland(() => loaded, activation('name', 'input', 'latest-value'))
@@ -91,10 +85,10 @@ describe('@exactjs/hydrate lazy islands', () => {
 		// Replay must restore the last browser-owned mutation, not that later fallback value.
 		input.value = 'server-refresh';
 		input.setSelectionRange(0, 0);
-		resolveLoad(Form);
+		resolveLoad(LazyInput);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(values).toEqual(['latest']);
+		expect(readInteractionInputValues()).toEqual(['latest']);
 		expect(container.querySelector('input')).toBe(input);
 		expect(input.value).toBe('latest');
 		expect(input.selectionStart).toBe(2);
@@ -107,15 +101,11 @@ describe('@exactjs/hydrate lazy islands', () => {
 		container.innerHTML =
 			'<div data-exact-client-boundary="counter" data-exact-client-name="Counter" data-exact-client-hydration="interaction"><button data-exact-id="counter-button">Count</button></div>';
 		let loads = 0;
-		function Counter() {
-			return () => createVNode('button', {}, 'Count');
-		}
-		markTestComponent(Counter);
 		hydrateClientIslands(container, {
 			Counter: lazyClientIsland(
 				async () => {
 					loads++;
-					return Counter;
+					return LazyStaticCounter;
 				},
 				activation('counter-button', 'click', 'native-click')
 			)
@@ -129,26 +119,18 @@ describe('@exactjs/hydrate lazy islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="focus" data-exact-client-name="Focus" data-exact-client-hydration="interaction"><input data-exact-id="focus-input"></div>';
-		let notifications = 0;
-		let resolveLoad!: (component: typeof Focus) => void;
-		const loaded = new Promise<typeof Focus>((resolve) => (resolveLoad = resolve));
-		function Focus() {
-			return () =>
-				createVNode('input', {
-					'data-exact-id': 'focus-input',
-					onFocusIn: () => notifications++
-				});
-		}
-		markTestComponent(Focus);
+		resetInteractionFixture();
+		let resolveLoad!: (component: typeof LazyFocus) => void;
+		const loaded = new Promise<typeof LazyFocus>((resolve) => (resolveLoad = resolve));
 		hydrateClientIslands(container, {
 			Focus: lazyClientIsland(() => loaded, activation('focus-input', 'focusin', 'notification'))
 		});
 		const input = container.querySelector('input') as HTMLInputElement;
 		input.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
-		resolveLoad(Focus);
+		resolveLoad(LazyFocus);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(notifications).toBe(1);
+		expect(readFocusNotifications()).toBe(1);
 		expect(container.querySelector('input')).toBe(input);
 	});
 
@@ -156,12 +138,8 @@ describe('@exactjs/hydrate lazy islands', () => {
 		const container = document.createElement('main');
 		container.innerHTML =
 			'<div data-exact-client-boundary="form" data-exact-client-name="Form" data-exact-client-hydration="interaction"><form data-exact-id="checkout"></form></div>';
-		let resolveLoad!: (component: typeof Form) => void;
-		const loaded = new Promise<typeof Form>((resolve) => (resolveLoad = resolve));
-		function Form() {
-			return () => createVNode('form', { 'data-exact-id': 'checkout' });
-		}
-		markTestComponent(Form);
+		let resolveLoad!: (component: typeof LazyCheckoutForm) => void;
+		const loaded = new Promise<typeof LazyCheckoutForm>((resolve) => (resolveLoad = resolve));
 		const original = HTMLFormElement.prototype.requestSubmit;
 		let submissions = 0;
 		HTMLFormElement.prototype.requestSubmit = function () {
@@ -174,7 +152,7 @@ describe('@exactjs/hydrate lazy islands', () => {
 			const form = container.querySelector('form')!;
 			for (let index = 0; index < 257; index++)
 				form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
-			resolveLoad(Form);
+			resolveLoad(LazyCheckoutForm);
 			await new Promise((resolve) => setTimeout(resolve, 0));
 			expect(submissions).toBe(256);
 		} finally {
@@ -227,18 +205,9 @@ describe('@exactjs/hydrate lazy islands', () => {
 			container.innerHTML =
 				'<div data-exact-client-boundary="release" data-exact-client-name="Release" data-exact-client-hydration="interaction" data-exact-client-generation="1"><button data-exact-id="release-button">Open</button></div>';
 			const controller = new AbortController();
-			let resolveLoad!: (component: typeof Release) => void;
-			const loaded = new Promise<typeof Release>((resolve) => (resolveLoad = resolve));
-			let clicks = 0;
-			function Release() {
-				return () =>
-					createVNode(
-						'button',
-						{ 'data-exact-id': 'release-button', onClick: () => clicks++ },
-						'Open'
-					);
-			}
-			markTestComponent(Release);
+			resetInteractionFixture();
+			let resolveLoad!: (component: typeof LazyRelease) => void;
+			const loaded = new Promise<typeof LazyRelease>((resolve) => (resolveLoad = resolve));
 			hydrateClientIslands(
 				container,
 				{
@@ -257,10 +226,10 @@ describe('@exactjs/hydrate lazy islands', () => {
 				container
 					.querySelector('[data-exact-client-boundary]')!
 					.setAttribute('data-exact-client-generation', '2');
-			resolveLoad(Release);
+			resolveLoad(LazyRelease);
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
-			expect(clicks).toBe(0);
+			expect(readInteractionClicks()).toBe(0);
 			expect(container.querySelector('[data-exact-client-hydrated="true"]')).toBeNull();
 		}
 	});

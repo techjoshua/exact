@@ -43,7 +43,7 @@ export type ExactPolicyFlowIR = {
 		| 'context'
 		| 'call'
 		| 'state'
-		| 'vnode'
+		| 'operation'
 		| 'error'
 		| 'log';
 	authorized: boolean;

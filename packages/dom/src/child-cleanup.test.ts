@@ -10,12 +10,26 @@ import {
 	unsafeHtml,
 	type Component
 } from '@exactjs/core';
-import { createDynamicChild, createExpression } from '@exactjs/core/runtime/render';
+import { createExpression } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
-import { jsx, jsxs } from './test-support/native-vnode.js';
+import { jsx, jsxs } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	DynamicBranchCleanup,
+	ListBranchCleanup,
+	PropBranchCleanup,
+	StyleBranchCleanup,
+	StyleObjectCleanup,
+	TextBranchCleanup,
+	dynamicBranchCleanupInstance,
+	listBranchCleanupInstance,
+	propBranchCleanupInstance,
+	styleBranchCleanupInstance,
+	styleObjectCleanupInstance,
+	textBranchCleanupInstance
+} from './child-cleanup.fixtures.js';
 
 describe('@exactjs/dom child-cleanup', () => {
 	it('rolls back earlier child ownership when a later child cannot mount', () => {
@@ -43,21 +57,9 @@ describe('@exactjs/dom child-cleanup', () => {
 	});
 
 	it('removes replaced style object properties', () => {
-		let instance!: Component<{ compact: boolean }>;
-
-		function Box(this: Component<{ compact: boolean }>) {
-			instance = this;
-			this.state.compact = true;
-
-			return () =>
-				jsx('div', {
-					style:
-						this.state.compact == true ? { color: 'red', paddingTop: '4px' } : { color: 'blue' }
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Box, {}), container);
+		render(jsx(StyleObjectCleanup, {}), container);
+		const instance = styleObjectCleanupInstance();
 		const box = container.querySelector('div')!;
 		expect(box.style.color).toBe('red');
 		expect(box.style.paddingTop).toBe('4px');
@@ -153,30 +155,9 @@ describe('@exactjs/dom child-cleanup', () => {
 	});
 
 	it('stops removed list fragment watchers', () => {
-		let parent!: Component<{ show: boolean; items: { id: string; label: string }[] }>;
-
-		function Parent(this: Component<{ show: boolean; items: { id: string; label: string }[] }>) {
-			parent = this;
-			this.state.show = true;
-			this.state.items = [
-				{ id: 'a', label: 'A' },
-				{ id: 'b', label: 'B' }
-			];
-
-			return () =>
-				this.state.show == true
-					? jsx('section', {
-							children: this.map(
-								this.state.items,
-								(item) => item.id,
-								(item) => jsx('span', { children: item.label })
-							)
-						})
-					: jsx('section', { children: 'empty' });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(jsx(ListBranchCleanup, {}), container);
+		const parent = listBranchCleanupInstance();
 		expect(container.textContent).toBe('AB');
 
 		parent.state.show = false;
@@ -190,23 +171,9 @@ describe('@exactjs/dom child-cleanup', () => {
 	});
 
 	it('stops removed dynamic child watchers', () => {
-		let parent!: Component<{ show: boolean; label: string }>;
-
-		function Parent(this: Component<{ show: boolean; label: string }>) {
-			parent = this;
-			this.state.show = true;
-			this.state.label = 'visible';
-
-			return () =>
-				this.state.show == true
-					? jsx('section', {
-							children: createDynamicChild(() => jsx('span', { children: this.state.label }))
-						})
-					: jsx('section', { children: 'hidden' });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(jsx(DynamicBranchCleanup, {}), container);
+		const parent = dynamicBranchCleanupInstance();
 		const removedSpan = container.querySelector('span')!;
 
 		parent.state.show = false;
@@ -220,26 +187,9 @@ describe('@exactjs/dom child-cleanup', () => {
 	});
 
 	it('stops reactive style watchers when DOM nodes are removed', () => {
-		let parent!: Component<{ show: boolean; color: string }>;
-
-		function Parent(this: Component<{ show: boolean; color: string }>) {
-			parent = this;
-			this.state.show = true;
-			this.state.color = 'red';
-
-			return () =>
-				this.state.show == true
-					? jsx('section', {
-							children: jsx('span', {
-								style: { color: this.state.color },
-								children: 'styled'
-							})
-						})
-					: jsx('section', { children: 'gone' });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(jsx(StyleBranchCleanup, {}), container);
+		const parent = styleBranchCleanupInstance();
 		const removedSpan = container.querySelector('span')!;
 		expect(removedSpan.style.color).toBe('red');
 
@@ -254,26 +204,9 @@ describe('@exactjs/dom child-cleanup', () => {
 	});
 
 	it('stops reactive prop watchers when DOM nodes are removed', () => {
-		let parent!: Component<{ show: boolean; label: string }>;
-
-		function Parent(this: Component<{ show: boolean; label: string }>) {
-			parent = this;
-			this.state.show = true;
-			this.state.label = 'ready';
-
-			return () =>
-				this.state.show == true
-					? jsx('section', {
-							children: jsx('button', {
-								title: this.state.label,
-								children: 'Action'
-							})
-						})
-					: jsx('section', { children: 'gone' });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(jsx(PropBranchCleanup, {}), container);
+		const parent = propBranchCleanupInstance();
 		const removedButton = container.querySelector('button')!;
 		expect(removedButton.title).toBe('ready');
 
@@ -288,23 +221,9 @@ describe('@exactjs/dom child-cleanup', () => {
 	});
 
 	it('stops reactive text watchers when text nodes are removed', () => {
-		let parent!: Component<{ show: boolean; label: string }>;
-
-		function Parent(this: Component<{ show: boolean; label: string }>) {
-			parent = this;
-			this.state.show = true;
-			this.state.label = 'ready';
-
-			return () =>
-				this.state.show == true
-					? jsx('section', {
-							children: jsx('span', { children: this.state.label })
-						})
-					: jsx('section', { children: 'gone' });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Parent, {}), container);
+		render(jsx(TextBranchCleanup, {}), container);
+		const parent = textBranchCleanupInstance();
 		const removedText = container.querySelector('span')!.firstChild as CharacterData;
 		expect(removedText.data).toBe('ready');
 

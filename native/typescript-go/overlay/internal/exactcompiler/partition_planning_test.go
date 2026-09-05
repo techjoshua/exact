@@ -172,7 +172,7 @@ func TestPartitionPlanKeepsInteractiveShellAndServerChildrenInOneServerTree(t *t
 		t.Fatalf("server-only child ranges lost their partition contracts: %#v", response.Analysis.Boundaries)
 	}
 	if !strings.Contains(response.Code, `__exactBoundary("`) ||
-		!strings.Contains(response.Code, `__exactComponentVNode(ClientShell`) {
+		!strings.Contains(response.Code, `__exactComponentReceipt(ClientShell`) {
 		t.Fatalf("server-renderable interactive shell lost its finite element boundary or server tree:\n%s", response.Code)
 	}
 }
@@ -529,7 +529,7 @@ func TestPartitionPlanLowersKeyedServerItemsIntoRuntimeRanges(t *testing.T) {
 	for _, expected := range []string{
 		`createKeyedServerSlot as __exactKeyedServerSlot`,
 		`__exactKeyedServerSlot("` + items[0].ID + `", "` + keyed.ID + `", item.id`,
-		`__exactComponentVNode(ServerRow`,
+		`__exactComponentReceipt(ServerRow`,
 		`discriminator: { kind: "single" }`,
 	} {
 		if !strings.Contains(server.Code, expected) {

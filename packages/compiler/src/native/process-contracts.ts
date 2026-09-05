@@ -49,12 +49,20 @@ export type * from './process-activation-contracts.js';
 export type * from './process-state-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.36.0';
+export const nativeCompilerProtocolVersion = '1.38.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
 	id?: string;
-	kind: 'version' | 'reset' | 'synchronize' | 'diagnose' | 'analyze' | 'compile' | 'extension';
+	kind:
+		| 'version'
+		| 'reset'
+		| 'synchronize'
+		| 'diagnose'
+		| 'analyze'
+		| 'check'
+		| 'compile'
+		| 'extension';
 	source?: string;
 	root?: string;
 	/** Immutable deployment namespace shared by every artifact in one partition graph. */
@@ -94,6 +102,11 @@ export type NativeCompilerProjectSource = Readonly<{
 export type NativeCompilerJSXInterop = Readonly<{
 	adapterModule: string;
 	adapterExport: string;
+	clientRendererModule?: string;
+	exactComponents?: readonly Readonly<{
+		moduleSpecifier: string;
+		exportName: string;
+	}>[];
 }>;
 
 /** Serializable asset classification rule consumed by native import planning. */
@@ -173,6 +186,20 @@ export type NativeCompilerWorkCounters = Readonly<{
 	fullInvalidations: number;
 	affectedSourceCount: number;
 	reusedSourceCount: number;
+}>;
+
+/** Target-local native execution inventory used by structural architecture gates. */
+export type NativeCompilerArtifactStructure = Readonly<{
+	nativeComponents: number;
+	targetArtifacts: number;
+	declinedNativeJsxRegions: number;
+	fallbackBearingArtifacts: number;
+	genericNativeBindingGroups: number;
+	genericNativeRendererImports: number;
+	genericNativeRendererReasons?: Readonly<Record<string, number>>;
+	genericNativeSsrImports: number;
+	runtimeCreatedNativeArtifacts: number;
+	parentOwnedChildDirtyRouting: number;
 }>;
 
 /** Source map emitted directly while the Go printer writes transformed nodes. */
@@ -410,6 +437,8 @@ export type NativeCompilerResponse = Readonly<{
 	analysis: NativeCompilerAnalysis;
 	timings: NativeCompilerTimings;
 	counters?: NativeCompilerWorkCounters;
+	/** Complete zero-inclusive structural evidence for this physical target artifact. */
+	structure: NativeCompilerArtifactStructure;
 	cacheHit?: boolean;
 	error?: string;
 	/** Namespaced response returned only for an extension request. */

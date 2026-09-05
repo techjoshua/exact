@@ -1,20 +1,19 @@
 import {
 	type AnyComponentInstance,
-	ReadinessContext,
-	SuspensionContext,
 	createReadinessCoordinator,
 	normalizeRenderResult,
 	unwrap,
-	type Child,
-	type Component,
-	type VNode
+	type Child
 } from '@exactjs/core';
-import { createComponentInstance } from '@exactjs/core/runtime/render';
-import { createExactInternalOwnerArtifact } from '@exactjs/core/framework/component-contracts';
 import type { SsrContext } from '../types.js';
 import { awaitWithAbort } from './context.js';
 import type { SsrRenderOptions } from './entrypoints.js';
-import type { SsrSuspenseResult } from './structural-boundary-capability.js';
+import { createSsrReadinessOwner } from './readiness-owner.js';
+import type {
+	SsrSuspenseBoundaryInput,
+	SsrSuspenseResult
+} from './structural-boundary-capability.js';
+import { SsrScheduledComponentSignal } from './sync-component.js';
 
 type RenderChildren = (
 	context: SsrContext,
@@ -25,25 +24,26 @@ type RenderChildren = (
 /** Renders a native Suspense boundary synchronously and reports its presentation state. */
 export function renderNativeSuspenseSyncCapability(
 	context: SsrContext,
-	vnode: VNode,
+	boundary: SsrSuspenseBoundaryInput,
 	parent: AnyComponentInstance | undefined,
 	renderChildren: RenderChildren
 ): SsrSuspenseResult {
 	const coordinator = createReadinessCoordinator(() => undefined);
 	coordinator.beginGeneration();
-	const owner = createComponentInstance(
-		SsrReadinessOwner,
-		{ context: coordinator.context },
-		parent,
-		context.componentContexts,
-		context.componentDomain
-	);
-	const candidate = renderChildren(context, vnode.children, owner);
-	const pending = coordinator.pending > 0;
+	const owner = createSsrReadinessOwner(context, parent, coordinator.context);
+	let candidate = '';
+	let scheduled = false;
+	try {
+		candidate = renderChildren(context, boundary.children, owner);
+	} catch (error) {
+		if (!(error instanceof SsrScheduledComponentSignal)) throw error;
+		scheduled = true;
+	}
+	const pending = scheduled || coordinator.pending > 0;
 	const output = pending
 		? renderChildren(
 				context,
-				normalizeRenderResult(unwrap(vnode.props.fallback) as Child | Child[]),
+				normalizeRenderResult(unwrap(boundary.props.fallback) as Child | Child[]),
 				parent
 			)
 		: candidate;
@@ -55,7 +55,7 @@ export function renderNativeSuspenseSyncCapability(
 /** Renders a native Suspense boundary asynchronously until its generation is stable. */
 export async function renderNativeSuspenseAsyncCapability(
 	context: SsrContext,
-	vnode: VNode,
+	boundary: SsrSuspenseBoundaryInput,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
 	renderChildren: (
@@ -67,18 +67,26 @@ export async function renderNativeSuspenseAsyncCapability(
 ): Promise<SsrSuspenseResult> {
 	const coordinator = createReadinessCoordinator(() => undefined, { commitSettled: true });
 	coordinator.beginGeneration();
-	const owner = createComponentInstance(
-		SsrReadinessOwner,
-		{ context: coordinator.context },
-		parent,
-		context.componentContexts,
-		context.componentDomain
-	);
+	const owner = createSsrReadinessOwner(context, parent, coordinator.context);
 	try {
 		const maxPasses = context.maxTaskPasses;
 		for (let pass = 0; pass < maxPasses; pass++) {
 			if (pass) coordinator.beginGeneration();
-			const candidate = await renderChildren(context, vnode.children, owner, options);
+			const scheduledBefore = options.streamingScheduledComponents?.length ?? 0;
+			const candidate = await renderChildren(context, boundary.children, owner, options);
+			if (
+				options.streamingScheduledComponents &&
+				(options.streamingScheduledComponents.length > scheduledBefore || coordinator.pending > 0)
+			)
+				return {
+					html: await renderChildren(
+						context,
+						normalizeRenderResult(unwrap(boundary.props.fallback) as Child | Child[]),
+						parent,
+						options
+					),
+					status: 'fallback'
+				};
 			const readiness = await awaitWithAbort(
 				coordinator.whenReady(),
 				options.signal,
@@ -95,25 +103,3 @@ export async function renderNativeSuspenseAsyncCapability(
 		owner.unmount('ssr suspense complete');
 	}
 }
-
-const SsrReadinessOwner = createExactInternalOwnerArtifact(
-	function SsrReadinessOwner(
-		this: Component<Record<string, never>>,
-		props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
-	) {
-		const owner = this as AnyComponentInstance;
-		owner.contexts.set(ReadinessContext.id, props.context);
-		owner.contexts.set(SuspensionContext.id, {
-			suspend: (settlement: PromiseLike<unknown>) =>
-				props.context.register({
-					owner,
-					taskGeneration: 0,
-					settlement,
-					retry: true
-				})
-		});
-		return () => null;
-	},
-	'@exactjs/ssr:SyncReadinessOwner',
-	'server'
-);

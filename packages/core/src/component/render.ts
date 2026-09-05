@@ -5,18 +5,32 @@ import type { AnyComponentInstance, Child, RenderResult } from './contracts.js';
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
 import { createErrorReport, handleComponentError, handleComponentSuspension } from './errors.js';
-import { normalizeRenderResult } from '../vnode.js';
+import { normalizeRenderResult } from '../render-children.js';
 import { componentDomainInspection, withComponentDomain } from './domain.js';
 import { componentRenderHandlers } from './lifecycle-handlers.js';
-import { compiledComponentLifecycleABI, compiledComponentRenderABI } from './compiled-abi.js';
+import {
+	compiledComponentLifecycleABI,
+	compiledComponentRangeOutputABI,
+	compiledComponentRenderABI
+} from './compiled-abi.js';
 
 /** Renders once for a compiler-owned program or retains the general watched fallback. */
 export function renderInstance(instance: AnyComponentInstance, onInvalidate: () => void): Child[] {
-	return normalizeRenderResult(renderInstanceOutput(instance, onInvalidate) as RenderResult);
+	return normalizeRenderResult(
+		executePreparedComponentOutput(instance, onInvalidate) as RenderResult
+	);
 }
 
-/** Executes one durable instance while preserving compiler-owned non-VNode server output. */
+/** Executes one durable instance while preserving compiler-owned server output. */
 export function renderInstanceOutput(
+	instance: AnyComponentInstance,
+	onInvalidate: () => void
+): unknown {
+	return executePreparedComponentOutput(instance, onInvalidate);
+}
+
+/** Executes already-constructed component output for a target ABI owner. */
+export function executePreparedComponentOutput(
 	instance: AnyComponentInstance,
 	onInvalidate: () => void
 ): unknown {
@@ -55,7 +69,9 @@ export function renderInstanceOutput(
 			instance.endRender();
 		}
 	};
-	if (instance.runtimeABI & compiledComponentRenderABI) {
+	if (instance.runtimeABI & compiledComponentRangeOutputABI) {
+		instance.renderStop = watch(render, observedInvalidate, { scope: instance.scope });
+	} else if (instance.runtimeABI & compiledComponentRenderABI) {
 		render();
 	} else {
 		instance.renderStop = watch(render, observedInvalidate, { scope: instance.scope });

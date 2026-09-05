@@ -4,21 +4,24 @@
 import { BLOCKED_JAVASCRIPT_URL, unsafeHtml } from '@exactjs/core';
 import './unsafe-html.js';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { renderTestTree as render } from './testing.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/dom security', () => {
 	it('mounts and replaces opted-in opaque unsafe HTML ranges', () => {
 		const container = document.createElement('div');
 		const audit = vi.fn();
 
-		render(createVNode('section', null, unsafeHtml('<strong>first</strong>')), container, {
+		render(createOperation('section', null, unsafeHtml('<strong>first</strong>')), container, {
 			allowUnsafeHtml: true,
 			onUnsafeHtml: audit
 		});
 		expect(container.innerHTML).toContain('<strong>first</strong>');
 
-		render(createVNode('section', null, unsafeHtml('<em>second</em><span>tail</span>')), container);
+		render(
+			createOperation('section', null, unsafeHtml('<em>second</em><span>tail</span>')),
+			container
+		);
 		expect(container.querySelector('section')?.innerHTML).toContain(
 			'<em>second</em><span>tail</span>'
 		);
@@ -28,10 +31,10 @@ describe('@exactjs/dom security', () => {
 
 	it('applies the native javascript URL guard on mount and updates', () => {
 		const container = document.createElement('div');
-		render(createVNode('a', { href: 'java\nscript:alert(1)' }, 'blocked'), container);
+		render(createOperation('a', { href: 'java\nscript:alert(1)' }, 'blocked'), container);
 		expect(container.querySelector('a')?.getAttribute('href')).toBe(BLOCKED_JAVASCRIPT_URL);
 
-		render(createVNode('a', { href: '/safe' }, 'safe'), container);
+		render(createOperation('a', { href: '/safe' }, 'safe'), container);
 		expect(container.querySelector('a')?.getAttribute('href')).toBe('/safe');
 	});
 
@@ -39,15 +42,18 @@ describe('@exactjs/dom security', () => {
 		const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 		const plainContainer = document.createElement('div');
 		const unconfiguredContainer = document.createElement('div');
-		render(createVNode('iframe', { srcdoc: '<p>untrusted</p>' }), plainContainer);
-		render(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), unconfiguredContainer);
+		render(createOperation('iframe', { srcdoc: '<p>untrusted</p>' }), plainContainer);
+		render(
+			createOperation('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }),
+			unconfiguredContainer
+		);
 		expect(plainContainer.querySelector('iframe')).toBeNull();
 		expect(unconfiguredContainer.querySelector('iframe')).toBeNull();
 		logged.mockRestore();
 
 		const container = document.createElement('div');
 		const audit = vi.fn();
-		render(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), container, {
+		render(createOperation('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), container, {
 			allowUnsafeHtml: true,
 			onUnsafeHtml: audit
 		});
@@ -59,7 +65,7 @@ describe('@exactjs/dom security', () => {
 		const container = document.createElement('div');
 		delete (globalThis as { __exactScriptRan?: boolean }).__exactScriptRan;
 		render(
-			createVNode(
+			createOperation(
 				'script',
 				{
 					nonce: 'request-nonce',

@@ -1,40 +1,60 @@
 export {
-	adaptReactType as adaptReactComponent,
 	exactComponentForReactInstance,
 	isUnmountedReactClassInstance,
 	ReactCacheContext,
 	reactCompatibilityTarget,
 	ReactRootContext,
 	recordReactResourceHint,
-	toExactNode,
+	reactOwnerComponentName,
+	reactErrorOwnerName,
 	type ReactCacheScope,
 	type ReactRootRuntime
 } from './internals.js';
-import type { Component } from '@exactjs/core';
-import { adaptReactType, toExactNode } from './internals.js';
-import type { AnyReactComponentType, ReactNode } from './types.js';
+export {
+	constructReactRendererComponent,
+	constructReactServerRendererComponent,
+	createReactRendererRootContexts,
+	disposeReactRendererComponent,
+	finishReactRendererComponentTransition,
+	mountReactRendererComponent,
+	receiveReactRendererComponent,
+	readReactRendererSuspension,
+	readReactRendererComponentTransition,
+	renderReactRendererComponent,
+	type ReactRendererComponentInstance
+} from './runtime/renderer-bridge.js';
+export type { ReactTransitionOwnership } from './runtime/shared.js';
+export {
+	exactComponentType,
+	isReactPortal,
+	invokeReactType,
+	reactElementCompatibilityContribution,
+	toReactNode
+} from './runtime/nodes.js';
+export { assignReactRef } from './runtime/refs.js';
+export { reactEventHandler } from './runtime/host-props.js';
+export {
+	REACT_ACTIVITY_TYPE,
+	REACT_FRAGMENT_TYPE,
+	isReactElement,
+	REACT_PROFILER_TYPE,
+	REACT_STRICT_MODE_TYPE,
+	REACT_SUSPENSE_TYPE
+} from './runtime/shared.js';
+import { ReactClientIsland } from './runtime/island-artifacts.js';
+import type { ComponentFunction } from '@exactjs/core';
+import type { AnyReactComponentType } from './types.js';
 
-/** Performs the react host domain operation. */
-export function ReactHost(
-	this: Component<Record<string, unknown>>,
-	props: {
-		component: AnyReactComponentType;
-		componentProps?: Record<string, unknown>;
-		children?: ReactNode;
-	}
-) {
-	const Adapted = adaptReactType(props.component);
-	return () => ({
-		type: Adapted,
-		props: {
-			...(props.componentProps ?? {}),
-			...(props.children === undefined ? {} : { children: props.children })
-		},
-		children: []
-	});
-}
+type ReactIslandProps = Record<string, unknown> & { component: AnyReactComponentType };
 
-/** Performs the exact node domain operation. */
-export function exactNode(node: ReactNode) {
-	return toExactNode(node);
-}
+/** Precompiled client React-island artifact selected by the default development entry point. */
+export const adaptReactComponent: ComponentFunction<
+	Record<string, unknown>,
+	ReactIslandProps
+> = ReactClientIsland;
+
+/** Named form of the precompiled React-island artifact for explicit native composition. */
+export const ReactHost: ComponentFunction<
+	Record<string, unknown>,
+	ReactIslandProps
+> = ReactClientIsland;

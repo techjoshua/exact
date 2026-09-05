@@ -26,14 +26,14 @@ The Vite, Webpack, and Bun plugins share the important options:
 
 ```ts
 {
-	target: 'default', // or 'client' / 'server'
+	target: 'client', // use 'server' for a server artifact
 	serverComponents: false,
 	sourceMap: true
 }
 ```
 
-Use `target: "default"` for an ordinary single-target application. Use explicit client and server
-targets for split artifact builds:
+An omitted target compiles a client artifact. Use explicit client and server targets for split
+artifact builds:
 
 ```ts
 // client build

@@ -215,6 +215,13 @@ necessary, record its exact PID ownership, stop every process in that owned tree
 finishes or fails, and verify that no task-owned `node`, language-extension runner, or
 `exactc` process remains. A shell-command timeout is not cleanup.
 
+Repository development commands must use the shared process owners. Use
+`scripts/start-owned-vite-dev-server.mjs` for ordinary Vite applications, install
+`scripts/development-process-lifecycle.mjs` when a custom script owns servers in-process, and use
+`scripts/start-owned-development-command.mjs` only for a development server such as Nuxt that must
+remain a child process. Do not add a direct long-lived `vite`, `nuxt`, or similar package script;
+the shared owners provide signal cleanup and detect Windows parent-shell disappearance.
+
 ## The seat-belt rule for testing
 
 Treat tests like seat belts: add protection in proportion to the risk of the journey.

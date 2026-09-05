@@ -66,7 +66,7 @@ describe('policy emission and sinks', () => {
 		expect(analysis.policy.secretConsumers).toEqual([]);
 	});
 
-	it('rejects unconsumed secrets in VNode children, attributes, and spreads', () => {
+	it('rejects unconsumed secrets in native operation children, attributes, and spreads', () => {
 		const analysis = analyzeSource(
 			`
       import type { Component } from "@exactjs/core";
@@ -77,7 +77,7 @@ describe('policy emission and sinks', () => {
       }
     `,
 			{
-				filename: fixture('secret-vnode-sinks'),
+				filename: fixture('secret-operation-sinks'),
 				packageType: 'application',
 				target: 'server'
 			}
@@ -85,17 +85,21 @@ describe('policy emission and sinks', () => {
 
 		expect(analysis.diagnostics).toEqual(
 			expect.arrayContaining([
-				expect.stringContaining('secret-qualified value cannot influence VNode output'),
-				expect.stringContaining('secret-qualified value cannot influence a VNode attribute'),
-				expect.stringContaining('secret-qualified value cannot influence a VNode spread attribute')
+				expect.stringContaining('secret-qualified value cannot influence operation output'),
+				expect.stringContaining('secret-qualified value cannot influence an operation attribute'),
+				expect.stringContaining(
+					'secret-qualified value cannot influence an operation spread attribute'
+				)
 			])
 		);
 		expect(analysis.policy.flows).toEqual(
-			expect.arrayContaining([expect.objectContaining({ boundary: 'vnode', authorized: false })])
+			expect.arrayContaining([
+				expect.objectContaining({ boundary: 'operation', authorized: false })
+			])
 		);
 	});
 
-	it('allows consume() to end tracking before deliberate server VNode output', () => {
+	it('allows consume() to end tracking before deliberate server operation output', () => {
 		const analysis = analyzeSource(
 			`
       import { consume } from "@exactjs/secrets";
@@ -106,13 +110,13 @@ describe('policy emission and sinks', () => {
       }
     `,
 			{
-				filename: fixture('consumed-vnode-sink'),
+				filename: fixture('consumed-operation-sink'),
 				packageType: 'application',
 				target: 'server'
 			}
 		);
 
-		expect(analysis.diagnostics.some((diagnostic) => diagnostic.includes('VNode'))).toBe(false);
+		expect(analysis.diagnostics.some((diagnostic) => diagnostic.includes('operation'))).toBe(false);
 		expect(analysis.policy.secretConsumers).toEqual([
 			expect.objectContaining({
 				authorization: 'implicit-application-owner',
@@ -159,7 +163,7 @@ describe('policy emission and sinks', () => {
 		);
 	});
 
-	it('propagates secret control dependencies through branch writes into VNode sinks', () => {
+	it('propagates secret control dependencies through branch writes into operation sinks', () => {
 		const analysis = analyzeSource(
 			`
       import type { Component } from "@exactjs/core";
@@ -190,7 +194,7 @@ describe('policy emission and sinks', () => {
 		);
 		expect(analysis.diagnostics).toEqual(
 			expect.arrayContaining([
-				expect.stringContaining('secret-qualified value cannot influence VNode output')
+				expect.stringContaining('secret-qualified value cannot influence operation output')
 			])
 		);
 	});

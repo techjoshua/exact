@@ -1,24 +1,26 @@
 /**
  * @vitest-environment jsdom
  */
-import { createRef, type Component } from '@exactjs/core';
-import { createExpression } from '@exactjs/core/runtime/render';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
-import {
-	createTestVNode as createVNode,
-	createCompiledTestVNode,
-	markTestComponent
-} from '@exactjs/testing/internal/fixtures';
+import { createTestOperation as createOperation } from '@exactjs/testing/internal/fixtures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installMotionDriver } from './driver.js';
-import { MotionConfig } from './context.js';
-import { LayoutGroup } from './layout.js';
-import { MotionList } from './motion-list.js';
-import { Motion } from './motion.js';
-import { Presence } from './presence.js';
 import { fade } from './presets.js';
 import { createMotionTestDriver } from './testing.js';
+import {
+	DuplicateMotionListView,
+	FocusPresenceView,
+	LayoutMotionListView,
+	MotionListIdentityView,
+	PoppingMotionListView,
+	PresenceKeyedView,
+	focusPresenceViewInstance,
+	layoutMotionListViewInstance,
+	motionListIdentityViewInstance,
+	poppingMotionListViewInstance,
+	presenceKeyedViewInstance
+} from './presence-list.fixtures.js';
 
 const containers: Element[] = [];
 
@@ -33,27 +35,12 @@ describe('Presence and MotionList', () => {
 	it('waits for keyed exits before mounting an out-in replacement', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		let owner!: Component<{ key: string }>;
-		const View = markTestComponent(function View(this: Component<{ key: string }>) {
-			owner = this;
-			this.state.key = 'a';
-			return () =>
-				createVNode(
-					Presence,
-					{ when: true, mode: 'out-in' },
-					createVNode(Motion, {
-						key: this.state.key,
-						as: 'button',
-						motion: fade,
-						children: this.state.key
-					})
-				);
-		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		containers.push(container);
 		try {
-			render(createVNode(View, null), container);
+			render(createOperation(PresenceKeyedView, { mode: 'out-in' }), container);
+			const owner = presenceKeyedViewInstance();
 			const first = container.querySelector('button')!;
 
 			owner.state.key = 'b';
@@ -80,27 +67,12 @@ describe('Presence and MotionList', () => {
 	it('mounts an in-out replacement before releasing the previous keyed range', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		let owner!: Component<{ key: string }>;
-		const View = markTestComponent(function View(this: Component<{ key: string }>) {
-			owner = this;
-			this.state.key = 'a';
-			return () =>
-				createVNode(
-					Presence,
-					{ when: true, mode: 'in-out' },
-					createVNode(Motion, {
-						key: this.state.key,
-						as: 'button',
-						motion: fade,
-						children: this.state.key
-					})
-				);
-		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		containers.push(container);
 		try {
-			render(createVNode(View, null), container);
+			render(createOperation(PresenceKeyedView, { mode: 'in-out' }), container);
+			const owner = presenceKeyedViewInstance();
 			const first = container.querySelector('button')!;
 
 			owner.state.key = 'b';
@@ -131,31 +103,12 @@ describe('Presence and MotionList', () => {
 	it('advances in-out replacement immediately when reduced motion skips enter', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		let owner!: Component<{ key: string }>;
-		const View = markTestComponent(function View(this: Component<{ key: string }>) {
-			owner = this;
-			this.state.key = 'a';
-			return () =>
-				createVNode(
-					MotionConfig,
-					{ reducedMotion: 'always' },
-					createVNode(
-						Presence,
-						{ when: true, mode: 'in-out' },
-						createVNode(Motion, {
-							key: this.state.key,
-							as: 'button',
-							motion: fade,
-							children: this.state.key
-						})
-					)
-				);
-		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		containers.push(container);
 		try {
-			render(createVNode(View, null), container);
+			render(createOperation(PresenceKeyedView, { mode: 'in-out', reduced: true }), container);
+			const owner = presenceKeyedViewInstance();
 			owner.state.key = 'b';
 			flushSync();
 			await vi.waitFor(() => {
@@ -171,32 +124,12 @@ describe('Presence and MotionList', () => {
 	it('makes a leaving target inert, returns focus, and reverses the same DOM generation', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		const opener = createRef<HTMLButtonElement>('opener');
-		let owner!: Component<{ shown: boolean }>;
-		const View = markTestComponent(function View(this: Component<{ shown: boolean }>) {
-			owner = this;
-			this.state.shown = true;
-			return () =>
-				createVNode(
-					'section',
-					null,
-					createVNode('button', { ref: this.ref(opener) }, 'Open'),
-					createVNode(
-						Presence,
-						{ when: this.state.shown, returnFocus: this.ref(opener) },
-						createVNode(Motion, {
-							as: 'button',
-							motion: fade,
-							children: 'Close'
-						})
-					)
-				);
-		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		containers.push(container);
 		try {
-			render(createVNode(View, null), container);
+			render(createOperation(FocusPresenceView, null), container);
+			const owner = focusPresenceViewInstance();
 			const target = [...container.querySelectorAll('button')][1]!;
 			target.focus();
 
@@ -229,23 +162,11 @@ describe('Presence and MotionList', () => {
 	});
 
 	it('preserves keyed DOM identity across reorder and rejects duplicate keys', () => {
-		let owner!: Component<{ items: Array<{ id: string }> }>;
-		const List = markTestComponent(function List(
-			this: Component<{ items: Array<{ id: string }> }>
-		) {
-			owner = this;
-			this.state.items = [{ id: 'a' }, { id: 'b' }];
-			return () =>
-				createCompiledTestVNode(MotionList, {
-					items: createExpression(() => this.state.items),
-					getKey: (item: { id: string }) => item.id,
-					children: (item: { id: string }) => createVNode('li', null, item.id)
-				});
-		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		containers.push(container);
-		render(createVNode(List, null), container);
+		render(createOperation(MotionListIdentityView, null), container);
+		const owner = motionListIdentityViewInstance();
 		const first = container.querySelector('li');
 
 		owner.state.items.reverse();
@@ -256,53 +177,28 @@ describe('Presence and MotionList', () => {
 		]);
 		expect(container.querySelectorAll('li')[1]).toBe(first);
 
-		const Duplicate = markTestComponent(function Duplicate(this: Component<{}>) {
-			const items = [{ id: 'a' }, { id: 'a' }];
-			return () =>
-				createVNode(MotionList, {
-					items,
-					getKey: (item: { id: string }) => item.id,
-					children: (item: { id: string }) => createVNode('li', null, item.id)
-				});
-		});
 		const duplicateContainer = document.createElement('div');
 		document.body.append(duplicateContainer);
 		containers.push(duplicateContainer);
-		render(createVNode(Duplicate, null), duplicateContainer);
-		expect(duplicateContainer.textContent).toContain('Duplicate key "a" in this.map()');
+		let duplicateError: unknown;
+		render(createOperation(DuplicateMotionListView, null), duplicateContainer, {
+			onErrorReport(report) {
+				duplicateError = report.error;
+			}
+		});
+		expect(duplicateError).toBeInstanceOf(Error);
+		expect((duplicateError as Error).message).toContain('Duplicate key "a"');
 	});
 
 	it('measures keyed reorders inside a LayoutGroup and plays additive FLIP motion', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		let owner!: Component<{ items: Array<{ id: string }> }>;
-		const List = markTestComponent(function List(
-			this: Component<{ items: Array<{ id: string }> }>
-		) {
-			owner = this;
-			this.state.items = [{ id: 'a' }, { id: 'b' }];
-			return () =>
-				createVNode(
-					LayoutGroup,
-					{ id: 'cards' },
-					createCompiledTestVNode(MotionList, {
-						items: createExpression(() => this.state.items),
-						getKey: (item: { id: string }) => item.id,
-						children: (item: { id: string }) =>
-							createVNode(Motion, {
-								as: 'li',
-								layout: 'position',
-								layoutId: item.id,
-								children: item.id
-							})
-					})
-				);
-		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		containers.push(container);
 		try {
-			render(createVNode(List, null), container);
+			render(createOperation(LayoutMotionListView, null), container);
+			const owner = layoutMotionListViewInstance();
 			const elements = [...container.querySelectorAll('li')];
 			for (const element of elements) {
 				vi.spyOn(element, 'getBoundingClientRect').mockImplementation(() => {
@@ -333,30 +229,12 @@ describe('Presence and MotionList', () => {
 	it('pops a leaving list item out of layout and restores it on reinsertion', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);
-		let owner!: Component<{ items: Array<{ id: string }> }>;
-		const List = markTestComponent(function List(
-			this: Component<{ items: Array<{ id: string }> }>
-		) {
-			owner = this;
-			this.state.items = [{ id: 'a' }];
-			return () =>
-				createCompiledTestVNode(MotionList, {
-					items: createExpression(() => this.state.items),
-					getKey: (item: { id: string }) => item.id,
-					exitLayout: 'pop',
-					children: (item: { id: string }) =>
-						createVNode(Motion, {
-							as: 'li',
-							motion: fade,
-							children: item.id
-						})
-				});
-		});
 		const container = document.createElement('div');
 		document.body.append(container);
 		containers.push(container);
 		try {
-			render(createVNode(List, null), container);
+			render(createOperation(PoppingMotionListView, null), container);
+			const owner = poppingMotionListViewInstance();
 			const target = container.querySelector('li')!;
 			vi.spyOn(target, 'getBoundingClientRect').mockReturnValue(rect(24));
 

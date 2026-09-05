@@ -21,17 +21,33 @@ export type ReactiveValue<T = unknown> = {
 	[Symbol.toPrimitive](): T;
 };
 
-/** Defines the dep type contract. */
-export type Dep = Set<Reaction>;
+/** Immutable, value-free diagnostic projection for one computed value. */
+export type ComputedInspection = Readonly<{
+	state: 'clean' | 'checked' | 'dirty' | 'computing' | 'stopped' | 'failed' | 'paused';
+	priority: WorkPriority;
+	observed: boolean;
+	initialized: boolean;
+	sources: number;
+	sinks: number;
+}>;
+
+/** Owns one target/key identity and its compact scalar-or-set subscriber population. */
+export type Dep = {
+	readonly target: object;
+	readonly key: PropertyKey;
+	subscribers?: Reaction | Set<Reaction>;
+};
 
 /** Defines the reaction type contract. */
 export type Reaction = {
 	active: boolean;
 	scheduled: boolean;
+	/** Framework-internal ordering within one user-visible work priority. */
+	order?: number;
 	/** Highest-priority invalidation waiting to run this reaction. */
 	pendingPriority?: WorkPriority;
 	scope?: EffectScopeImpl;
-	deps: Set<Dep>;
+	deps: Dep[];
 	run(): void;
 	schedule(): void;
 	stop(): void;

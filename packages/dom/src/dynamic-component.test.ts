@@ -2,21 +2,21 @@
  * @vitest-environment jsdom
  */
 import './structural-boundaries.js';
-import { Suspense, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
-import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
-import { flushSync, reactive } from '@exactjs/reactive';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { render, unmount } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
-
-function LoadedPanel(this: Component<{}>, props: { label: string }) {
-	this.onUnmount(() => unmounts++);
-	return () => createVNode('p', null, props.label);
-}
-createExactFrameworkFixtureArtifact(LoadedPanel, 'fixture:loaded-panel');
-
-let unmounts = 0;
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import { createCompiledComponentOperation } from './test-support/native-operations.js';
+import {
+	AsyncPanelHost,
+	clearSelectedPanel,
+	getLoadedPanelUnmounts,
+	getReplacementSignals,
+	LoadedPanel,
+	ReplacementPanelHost,
+	resetReplacementPanelFixture,
+	setPendingPanelSource
+} from './dynamic-component.fixtures.js';
 
 describe('@exactjs/dom dynamic components', () => {
 	it('uses native Suspense readiness and adopts the resolved component in its range', async () => {
@@ -24,18 +24,10 @@ describe('@exactjs/dom dynamic components', () => {
 		const pending = new Promise<typeof LoadedPanel>((resolve) => {
 			settle = resolve;
 		});
-		function Host(this: Component<{}>) {
-			const child = createCompiledDynamicComponent({
-				id: 'fixture:async-panel',
-				source: () => pending,
-				props: { label: 'ready' }
-			});
-			return () => createVNode(Suspense, { fallback: createVNode('span', null, 'loading') }, child);
-		}
-		createExactFrameworkFixtureArtifact(Host, 'fixture:dynamic-host');
+		setPendingPanelSource(pending);
 
 		const container = document.createElement('div');
-		render(createVNode(Host, {}), container);
+		render(createCompiledComponentOperation(AsyncPanelHost, {}), container);
 		expect(container.textContent).toBe('loading');
 
 		settle(LoadedPanel);
@@ -45,32 +37,18 @@ describe('@exactjs/dom dynamic components', () => {
 	});
 
 	it('cancels stale selections and disposes the adopted owner', async () => {
-		unmounts = 0;
-		const selection = reactive({ value: 0 });
-		const signals: AbortSignal[] = [];
-		function Host(this: Component<{}>) {
-			const child = createCompiledDynamicComponent({
-				id: 'fixture:replace-panel',
-				source: (signal: AbortSignal) => {
-					signals.push(signal);
-					return selection.value === 0 ? LoadedPanel : undefined;
-				},
-				props: { label: 'selected' }
-			});
-			return () => child;
-		}
-		createExactFrameworkFixtureArtifact(Host, 'fixture:replacement-host');
+		resetReplacementPanelFixture();
 
 		const container = document.createElement('div');
-		render(createVNode(Host, {}), container);
+		render(createCompiledComponentOperation(ReplacementPanelHost, {}), container);
 		expect(container.textContent).toBe('selected');
-		selection.value = 1;
+		clearSelectedPanel();
 		flushSync();
-		expect(signals[0]?.aborted).toBe(true);
+		expect(getReplacementSignals()[0]?.aborted).toBe(true);
 		expect(container.textContent).toBe('');
-		expect(unmounts).toBe(1);
+		expect(getLoadedPanelUnmounts()).toBe(1);
 		unmount(container);
-		expect(signals.at(-1)?.aborted).toBe(true);
+		expect(getReplacementSignals().at(-1)?.aborted).toBe(true);
 	});
 });
 

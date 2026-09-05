@@ -1,12 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { type Component } from '@exactjs/core';
 import { defineExactBoundaryContract, handleExactRequest, unsafeExactHtml } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrateClientIslands } from './index.js';
 import { partitionAuthority } from './patching/api.js';
-import { createVNode, markTestComponents } from './test-support/native-vnode.js';
+import { IslandShell } from './test-support/islands.fixtures.js';
 
 describe('@exactjs/hydrate partition islands', () => {
 	it('hydrates independent partition slots without replacing either sibling range', () => {
@@ -16,13 +15,7 @@ describe('@exactjs/hydrate partition islands', () => {
 		const summary = container.querySelector('[data-exact-server-slot="summary-edge"]');
 		const permissions = container.querySelector('[data-exact-server-slot="permissions-edge"]');
 
-		function Shell(this: Component<{}>, props: { children?: unknown }) {
-			return () => createVNode('section', null, props.children);
-		}
-
-		expect(
-			hydrateClientIslands(container, markTestComponents({ Shell_ExactClient_1: Shell }))
-		).toBe(1);
+		expect(hydrateClientIslands(container, { Shell_ExactClient_1: IslandShell })).toBe(1);
 		expect(container.querySelector('[data-exact-server-slot="summary-edge"]')).toBe(summary);
 		expect(container.querySelector('[data-exact-server-slot="permissions-edge"]')).toBe(
 			permissions
@@ -60,15 +53,15 @@ describe('@exactjs/hydrate partition islands', () => {
 		};
 		container.innerHTML = `<div data-exact-client-boundary="reports" data-exact-client-name="Shell_ExactClient_1" data-exact-client-props='${JSON.stringify({ props: { children: reference } })}'><span data-exact-server-slot="remote-branch" data-exact-partition-version="1" data-exact-partition-build="build-1" data-exact-partition-root="page" data-exact-partition-edge="remote-branch" data-exact-partition-owner="reports-component" data-exact-partition-discriminator="branch" data-exact-partition-branch="remote-branch" data-exact-partition-generation="3" style="display: contents"><p>Remote</p></span></div>`;
 		const retained = container.querySelector('[data-exact-server-slot="remote-branch"]');
-		function Shell(this: Component<{}>, props: { children?: unknown }) {
-			return () => createVNode('section', null, props.children);
-		}
-
 		expect(
-			hydrateClientIslands(container, markTestComponents({ Shell_ExactClient_1: Shell }), {
-				buildKey: 'build-1',
-				executionRoot: 'page'
-			})
+			hydrateClientIslands(
+				container,
+				{ Shell_ExactClient_1: IslandShell },
+				{
+					buildKey: 'build-1',
+					executionRoot: 'page'
+				}
+			)
 		).toBe(1);
 		expect(container.querySelector('[data-exact-server-slot="remote-branch"]')).toBe(retained);
 	});
@@ -87,18 +80,19 @@ describe('@exactjs/hydrate partition islands', () => {
 		const markup = (buildKey: string) => {
 			const container = document.createElement('main');
 			container.innerHTML = `<div data-exact-client-boundary="partitioned" data-exact-client-name="Shell_ExactClient_1" data-exact-client-props='${JSON.stringify({ props: { children: reference } })}'><span data-exact-server-slot="summary-edge" data-exact-partition-version="1" data-exact-partition-build="build-1" data-exact-partition-root="page" data-exact-partition-edge="summary-edge" data-exact-partition-owner="workspace-component" data-exact-partition-discriminator="single" data-exact-partition-generation="1" style="display: contents;"><p>Summary</p></span></div>`;
-			function Shell(this: Component<{}>, props: { children?: unknown }) {
-				return () => createVNode('section', null, props.children);
-			}
 			const original = container.querySelector('[data-exact-server-slot="summary-edge"]');
 			let instances: readonly import('./types.js').ExactPartitionInstance[] = [];
-			hydrateClientIslands(container, markTestComponents({ Shell_ExactClient_1: Shell }), {
-				buildKey,
-				executionRoot: 'page',
-				onPartitionInstances(value) {
-					instances = value;
+			hydrateClientIslands(
+				container,
+				{ Shell_ExactClient_1: IslandShell },
+				{
+					buildKey,
+					executionRoot: 'page',
+					onPartitionInstances(value) {
+						instances = value;
+					}
 				}
-			});
+			);
 			return { container, original, instances };
 		};
 		const matching = markup('build-1');
@@ -136,15 +130,15 @@ describe('@exactjs/hydrate partition islands', () => {
 		container.innerHTML = `<div data-exact-client-boundary="workspace" data-exact-client-name="Shell_ExactClient_1" data-exact-client-props='${JSON.stringify({ props: { children: [reference('summary', 'build-1'), reference('permissions', 'wrong-build')] } })}'><span data-exact-server-slot="summary" data-exact-partition-version="1" data-exact-partition-build="build-1" data-exact-partition-root="page" data-exact-partition-edge="summary" data-exact-partition-owner="workspace-component" data-exact-partition-discriminator="single" data-exact-partition-generation="1"><p>Summary</p></span><span data-exact-server-slot="permissions" data-exact-partition-version="1" data-exact-partition-build="wrong-build" data-exact-partition-root="page" data-exact-partition-edge="permissions" data-exact-partition-owner="workspace-component" data-exact-partition-discriminator="single" data-exact-partition-generation="1"><p>Stale permissions</p></span></div>`;
 		const summary = container.querySelector('[data-exact-server-slot="summary"]');
 		const permissions = container.querySelector('[data-exact-server-slot="permissions"]');
-		function Shell(this: Component<{}>, props: { children?: unknown }) {
-			return () => createVNode('section', null, props.children);
-		}
-
 		expect(
-			hydrateClientIslands(container, markTestComponents({ Shell_ExactClient_1: Shell }), {
-				buildKey: 'build-1',
-				executionRoot: 'page'
-			})
+			hydrateClientIslands(
+				container,
+				{ Shell_ExactClient_1: IslandShell },
+				{
+					buildKey: 'build-1',
+					executionRoot: 'page'
+				}
+			)
 		).toBe(1);
 		expect(container.querySelector('[data-exact-server-slot="summary"]')).toBe(summary);
 		expect(summary?.textContent).toBe('Summary');
