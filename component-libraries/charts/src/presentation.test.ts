@@ -53,7 +53,7 @@ describe('chart presentation', () => {
 			'Exact',
 			'TanStack Start'
 		]);
-		expect(presentation.layout.left).toBeGreaterThan(100);
+		expect(presentation.layout.left).toBeGreaterThan(120);
 		expect(presentation.ranges[0]?.marks.map((mark) => mark.name)).toEqual(['P75', 'P95']);
 		expect(presentation.ranges[0]?.label).toContain('P75:');
 		expect(presentation.rows[0]?.value).toContain('P95:');
