@@ -142,7 +142,7 @@ test('shipping artifact generation builds the target artifacts it consumes', asy
 
 	assert.equal(
 		manifest.scripts.pregenerate,
-		'npm run build -w @exactjs/compiler && npm run build -w @exactjs/request && npm run build -w @exactjs/theme'
+		'npm run build -w @exactjs/compiler && node ../../scripts/compile-exact-package.mjs ../../packages/core && node ../../scripts/compile-exact-package.mjs ../../packages/dom && npm run build -w @exactjs/request && npm run build -w @exactjs/theme'
 	);
 });
 

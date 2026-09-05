@@ -153,8 +153,8 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 				const output = result.outputs.find((item) => item.kind === 'entry-point');
 				testApi.expect(output).toBeDefined();
 				const outputText = await output!.text();
-				testApi.expect(outputText).toContain('@exactjs/core/runtime/render');
-				testApi.expect(outputText).toContain('@exactjs/dom/runtime/render-program');
+				testApi.expect(outputText).toContain('@exactjs/core/runtime/render-operations');
+				testApi.expect(outputText).not.toContain('@exactjs/dom/runtime/render-program');
 				testApi.expect(outputText).toContain('template: "<button>');
 				const sourceMap = result.outputs.find((item) => item.kind === 'sourcemap');
 				testApi.expect(await sourceMap!.text()).toContain('entry.tsx');
