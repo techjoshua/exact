@@ -160,7 +160,7 @@ export function estimateRowLabelWidth(
 				formatChartCoordinate(datum.props.x, environment);
 			longest = Math.max(longest, Array.from(label).length);
 		}
-	return longest * 7 + 12;
+	return longest * 7 + 24;
 }
 
 /** Formats one source-domain value without taking locale or unit ownership into charts. */

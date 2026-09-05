@@ -112,6 +112,7 @@
 
 .exact-chart__ticks {
 	fill: var(--exact-chart-foreground-muted);
+	font-size: var(--exact-theme-font-size-sm, 0.875rem);
 }
 
 .exact-chart__axis-labels {
