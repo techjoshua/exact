@@ -3,7 +3,6 @@
 	"id": "tanstack-start-controlled",
 	"framework": "TanStack Start (React)",
 	"frameworkVersion": "1.168.49",
-	"status": "scaffolded",
 	"tracks": ["controlled-service"],
 	"runtime": "node-24",
 	"ssrTransports": { "node": "node-http", "bun": "node-http-compat" },

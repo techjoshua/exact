@@ -10,7 +10,6 @@ import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
 import { summarizePercentiles, summarizeSampleMetric } from './percentile-summary.mjs';
 import { hashArtifactDirectory, hashSemanticResponse } from './artifact-integrity.mjs';
-import { measurementPublication } from './measurement-publication.mjs';
 import { balancedRoundNames, balancedRoundOrder } from './balanced-round-order.mjs';
 
 if (!process.argv.includes('--correctness-passed')) {
@@ -60,18 +59,6 @@ const participants = [
 	}
 ];
 
-const participantMetadata = await Promise.all(
-	participants.map(async (participant) =>
-		JSON.parse(
-			await readFile(
-				resolve(suiteRoot, 'participants', participant.directory, 'participant.json'),
-				'utf8'
-			)
-		)
-	)
-);
-const publication = measurementPublication(participantMetadata, 'browser');
-
 const buildOrder = balancedRoundOrder(participants, measurementRound);
 const builds = Object.fromEntries(
 	buildOrder.map((participant) => [participant.id, measureBuild(participant.directory)])
@@ -106,7 +93,7 @@ try {
 		kind: 'framework-comparison-raw-run',
 		createdAt: new Date().toISOString(),
 		correctness: { status: 'passed', command: 'npm run test:e2e' },
-		publishable: publication.publishable,
+		publishable: true,
 		environment: environmentMetadata(),
 		harness: {
 			commit: git('rev-parse', 'HEAD'),

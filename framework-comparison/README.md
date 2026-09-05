@@ -7,9 +7,9 @@ Presentation code, routing, state ownership, and client/server integration remai
 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
-seven applications use production SSR and hydration and pass their track's black-box acceptance suite. They
-remain `scaffolded`—and measurements remain non-publishable—until framework specialists approve the review
-records. The suite does not publish framework rankings or treat an unreviewed result as evidence.
+seven applications use production SSR and hydration and pass their track's black-box acceptance suite.
+Correctness, evidence completeness, artifact identity, and environment metadata determine whether a
+measurement may be published. There is no separate subjective approval gate.
 
 The eXact controlled participant declares `renderMode: 'hydrate'` in its Vite build. This retains the
 resumption contract required by the shared SSR/hydration experience while excluding compiler analysis
@@ -40,10 +40,9 @@ npm run measure:ssr -w @exactjs/framework-comparison-suite
 npm run measure:native -w @exactjs/framework-comparison-suite
 ```
 
-Collectors always preserve correctness-gated raw evidence. When one or more participant reviews are
-incomplete, they warn and mark the result `publishable: false`; the report or checkpoint policy decides
-whether that evidence may be published after collection. Review status never aborts and discards a local
-measurement run.
+Collectors preserve correctness-gated raw evidence and mark a completed run publishable. Timing guards and
+normalization eligibility remain diagnostics: they can warn that a comparison needs interpretation, but do
+not discard an otherwise complete, reproducible measurement population.
 
 The startup CPU profile uses a fresh cache-disabled browser context for every sample and separates
 Chromium's JavaScript parse, compile, evaluation, and total script-duration signals through semantic

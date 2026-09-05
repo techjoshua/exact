@@ -21,7 +21,7 @@ test('renders every participant, percentile, comparison, and structural counter'
 			{
 				sourcePublication: {
 					status: 'non-publishable',
-					reason: 'framework specialist review is incomplete'
+					reason: 'source measurement was explicitly marked non-publishable'
 				},
 				sourceLimitations: ['local loopback'],
 				table: {

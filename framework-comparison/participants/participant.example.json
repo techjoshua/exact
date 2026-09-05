@@ -3,7 +3,6 @@
 	"id": "framework-runtime",
 	"framework": "Framework name",
 	"frameworkVersion": "0.0.0",
-	"status": "scaffolded",
 	"tracks": ["controlled-service"],
 	"runtime": "node-24",
 	"ssrTransports": { "node": "node-http", "bun": "node-http-compat" },

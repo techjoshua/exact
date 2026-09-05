@@ -26,8 +26,8 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
    records warm samples after one equivalent discarded scenario per participant.
 7. Raw samples, environment metadata, participant commit, dependency lockfile, and harness version accompany
    every summary.
-8. Framework specialists should review meaningful participants. Review corrections are recorded rather than
-   silently rewriting historical results.
+8. Participant implementations must pass the shared observable-behavior contract. Architecture notes and
+   later corrections are recorded with the evidence rather than silently rewriting historical results.
 9. Every sampled metric is summarized at p50, p75, p95, and p99 with the same nearest-rank convention. Reports
    must not substitute a smaller hand-picked metric or percentile set for an architectural comparison.
 10. Production client resources must be discoverable from the document head through the framework's idiomatic
@@ -236,7 +236,7 @@ Complexity is reported as a profile rather than one synthetic score:
 - explicit client/server boundaries and manual transport code;
 - cache invalidation, rollback, cancellation, and synchronization sites;
 - build and test commands;
-- a blind maintainability review against a published rubric; and
+- independently inspectable framework-specific source and boundary plumbing; and
 - effort and code touched for the same change request across participants.
 
 Comments, formatting, and tests must not be removed merely to improve line counts. Generated code and lockfiles
