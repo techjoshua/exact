@@ -73,7 +73,10 @@ function renderCurrentSuite(suite) {
 		`| --- | --- | --- | ${participants.map(() => '---:').join(' | ')} |`
 	];
 	for (const metric of suite.table.metrics) {
-		for (const percentile of percentiles) {
+		const fields = participants.every((entry) => Number.isFinite(entry.metrics[metric].mean))
+			? ['mean', ...percentiles]
+			: percentiles;
+		for (const percentile of fields) {
 			lines.push(
 				`| ${escapeCell(metric)} | ${escapeCell(participants[0].metrics[metric].unit)} | ${percentile} | ${participants.map((entry) => formatNumber(entry.metrics[metric][percentile])).join(' | ')} |`
 			);
@@ -89,7 +92,7 @@ function renderFrameworkComparisonSuite(suite) {
 	const lines = [
 		`### ${suite.table.suite}`,
 		'',
-		'Every metric cell is `p50 / p75 / p95 / p99`.',
+		'Every metric cell is `mean / p50 / p75 / p95 / p99` when a raw-population mean is available; historical summaries without a mean retain `p50 / p75 / p95 / p99`.',
 		'',
 		`Populations: ${suite.populations.map((population) => (population.kind === 'reported' ? `${population.name} (reported aggregate; ${population.metrics.join(', ')})` : `${population.name} (${population.sampleCount} samples; ${population.warmupCount} warmups; ${population.metrics.join(', ')})`)).join('; ')}.`,
 		...(suite.sourcePublication
@@ -109,10 +112,20 @@ function renderFrameworkComparisonSuite(suite) {
 	];
 	for (const participant of participants) {
 		lines.push(
-			`| ${frameworkLabel(participant.name)} | ${metrics.map((metric) => percentiles.map((percentile) => formatNumber(participant.metrics[metric][percentile])).join(' / ')).join(' | ')} |`
+			`| ${frameworkLabel(participant.name)} | ${metrics
+				.map((metric) =>
+					summaryFields(participant.metrics[metric])
+						.map((field) => formatNumber(participant.metrics[metric][field]))
+						.join(' / ')
+				)
+				.join(' | ')} |`
 		);
 	}
 	return [...lines, ''];
+}
+
+function summaryFields(metric) {
+	return Number.isFinite(metric.mean) ? ['mean', ...percentiles] : percentiles;
 }
 
 function frameworkLabel(name) {

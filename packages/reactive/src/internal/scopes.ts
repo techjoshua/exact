@@ -169,6 +169,11 @@ export function createEffectScope(
 	return new EffectScopeRecord(parentScope, onError, onProfile);
 }
 
+/** Returns the current ownership parent for framework integrations that preserve nested scope identity. */
+export function effectScopeParent(scope: EffectScope): EffectScope | undefined {
+	return (scope as EffectScopeRecord).parent;
+}
+
 /** Creates an effect scope whose owned scheduler work emits profiling events. */
 export function createProfiledEffectScope(
 	onProfile: ExactProfileSink<ReactiveProfileEvent>,

@@ -2,7 +2,7 @@ import type { Component } from '@exactjs/core';
 import { Router, type LocationSource, type RouteDefinition } from '@exactjs/router';
 import { DocsLayout } from './components/DocsLayout.jsx';
 import { ThemeProvider } from './components/ThemeProvider.jsx';
-import { docPages } from './docs-manifest.js';
+import { docPages } from './docs-manifest.jsx';
 import { NotFoundPage } from './pages/NotFoundPage.jsx';
 
 type DocsAppProps = { source?: LocationSource };

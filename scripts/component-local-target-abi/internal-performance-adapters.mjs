@@ -248,6 +248,7 @@ function summaryMetric(unit, summary, samples) {
 	return {
 		unit,
 		summary: {
+			...(Number.isFinite(summary.mean) ? { mean: summary.mean } : {}),
 			p50: summary.p50,
 			p75: summary.p75,
 			p95: summary.p95,
@@ -261,7 +262,13 @@ function summaryMetric(unit, summary, samples) {
 function recordedMetric(unit, summary, samples) {
 	return {
 		unit,
-		summary: { p50: summary.p50, p75: summary.p75, p95: summary.p95, p99: summary.p99 },
+		summary: {
+			...(Number.isFinite(summary.mean) ? { mean: summary.mean } : {}),
+			p50: summary.p50,
+			p75: summary.p75,
+			p95: summary.p95,
+			p99: summary.p99
+		},
 		samples,
 		warmups: 0
 	};
@@ -272,6 +279,7 @@ function sampledMetric(unit, samples, warmups) {
 	return {
 		unit,
 		summary: {
+			mean: samples.reduce((sum, value) => sum + value, 0) / samples.length,
 			p50: percentile(sorted, 0.5),
 			p75: percentile(sorted, 0.75),
 			p95: percentile(sorted, 0.95),

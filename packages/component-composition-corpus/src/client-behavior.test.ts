@@ -117,6 +117,16 @@ describe('composition corpus client behavior', () => {
 		const container = mount(capabilitiesRoot);
 		const alpha = container.querySelector('[data-id="a"]');
 		const betaLabel = container.querySelector('[data-id="b"] [data-role="item-label"]');
+		expect(
+			[...container.querySelectorAll('[data-id="a"] [data-role="nested-value"]')].map(
+				(node) => node.textContent
+			)
+		).toEqual(['a:mean', 'a:p50']);
+		expect(
+			[...container.querySelectorAll('[data-id="b"] [data-role="nested-value"]')].map(
+				(node) => node.textContent
+			)
+		).toEqual(['b:mean', 'b:p50']);
 
 		capabilitiesOwner().state.items[1]!.label = 'Beta nested';
 		flushSync();
@@ -124,8 +134,8 @@ describe('composition corpus client behavior', () => {
 		expect(betaLabel?.textContent).toBe('Beta nested');
 
 		capabilitiesOwner().state.items = [
-			{ id: 'b', label: 'Beta updated' },
-			{ id: 'a', label: 'Alpha' }
+			{ id: 'b', label: 'Beta updated', values: ['mean', 'p50'] },
+			{ id: 'a', label: 'Alpha', values: ['mean', 'p50'] }
 		];
 		flushSync();
 

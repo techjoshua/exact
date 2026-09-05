@@ -82,7 +82,8 @@ async function prepareFile(
 					rendererEnhancements,
 					inputFile,
 					options.outDir ?? path.dirname(outputFile),
-					target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
+					target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined,
+					outputFile
 				).code
 			: result.code;
 	return Object.freeze({

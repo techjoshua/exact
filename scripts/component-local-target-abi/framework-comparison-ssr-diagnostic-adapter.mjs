@@ -136,15 +136,18 @@ function artifactHashes(raw, runtime, entries) {
 
 function summarizeValues(rawValues) {
 	const values = [...rawValues].sort((left, right) => left - right);
-	return Object.fromEntries(
-		[
-			['p50', 0.5],
-			['p75', 0.75],
-			['p95', 0.95],
-			['p99', 0.99]
-		].map(([name, quantile]) => [
-			name,
-			values[Math.min(values.length - 1, Math.ceil(values.length * quantile) - 1)]
-		])
-	);
+	return {
+		mean: values.reduce((sum, value) => sum + value, 0) / values.length,
+		...Object.fromEntries(
+			[
+				['p50', 0.5],
+				['p75', 0.75],
+				['p95', 0.95],
+				['p99', 0.99]
+			].map(([name, quantile]) => [
+				name,
+				values[Math.min(values.length - 1, Math.ceil(values.length * quantile) - 1)]
+			])
+		)
+	};
 }

@@ -19,6 +19,7 @@
 		{ "path": "./component-libraries/gestures" },
 		{ "path": "./component-libraries/physics" },
 		{ "path": "./component-libraries/gravity" },
+		{ "path": "./component-libraries/charts" },
 		{ "path": "./packages/module-rewrite" },
 		{ "path": "./packages/reactive" },
 		{ "path": "./packages/core" },

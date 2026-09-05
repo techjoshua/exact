@@ -1,4 +1,4 @@
-import type { AnyComponentFunction } from '@exactjs/core';
+import type { AnyAuthoredComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AccessibilityPage } from './pages/AccessibilityPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
@@ -36,6 +36,7 @@ import { StoryPage } from './pages/StoryPage.jsx';
 import { TasksPage } from './pages/TasksPage.jsx';
 import { TestingPage } from './pages/TestingPage.jsx';
 import { ThemeProposalPage } from './pages/ThemeProposalPage.jsx';
+import { ChartsDocsRoute, PerformanceDocsRoute } from './pages/SpecializedDocsRoutes.jsx';
 
 /** Describes one routable and searchable documentation article. */
 export type DocPage = {
@@ -44,7 +45,7 @@ export type DocPage = {
 	label: string;
 	summary: string;
 	keywords: string;
-	component: AnyComponentFunction;
+	component: AnyAuthoredComponentFunction;
 };
 
 /** Groups related documentation pages under one navigation heading. */
@@ -117,6 +118,14 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'framework comparison benchmark methodology performance complexity incident operations controlled service native full stack reproducible',
 				component: FrameworkComparisonPage
+			},
+			{
+				path: '/performance',
+				label: 'Performance results',
+				summary: 'Explore admitted browser experience and Node server capacity evidence.',
+				keywords:
+					'performance results charts mean percentile p50 p75 p95 p99 browser heap evaluation optimistic SSR Node throughput requests per second payload allocation normalization',
+				component: PerformanceDocsRoute
 			}
 		]
 	},
@@ -243,6 +252,14 @@ export const docGroups: DocGroup[] = [
 	{
 		label: 'Component libraries',
 		pages: [
+			{
+				path: '/components/charts',
+				label: 'Charts',
+				summary: 'Compose accessible, localized, theme-aware SVG charts.',
+				keywords:
+					'charts graph line area bar stacked range percentile data visualization SVG accessibility tooltip legend keyboard intl localization units theme',
+				component: ChartsDocsRoute
+			},
 			{
 				path: '/components/enhancements',
 				label: 'Enhancements',

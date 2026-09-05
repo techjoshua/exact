@@ -1,6 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { NavLink } from '@exactjs/router';
-import { docGroups } from '../docs-manifest.js';
+import { docGroups } from '../docs-manifest.jsx';
 
 type DocsSidebarProps = {
 	open: boolean;

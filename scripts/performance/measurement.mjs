@@ -90,6 +90,7 @@ export function summarizeValues(values) {
 	const sorted = [...values].sort((left, right) => left - right);
 	const p50 = percentile(sorted, 0.5);
 	return {
+		mean: values.reduce((sum, value) => sum + value, 0) / values.length,
 		p50,
 		median: p50,
 		p75: percentile(sorted, 0.75),

@@ -31,6 +31,7 @@ test('uses nearest-rank percentiles for isolated process samples', () => {
 	assert.equal(percentile([1, 2, 3, 4, 5], 0.5), 3);
 	assert.equal(percentile([1, 2, 3, 4, 5], 0.95), 5);
 	assert.deepEqual(summarizeValues([5, 1, 3]), {
+		mean: 3,
 		p50: 3,
 		median: 3,
 		p75: 5,

@@ -63,6 +63,11 @@ export function validateComponentLocalTargetAbiMeasurementTable(table) {
 			if (typeof metric?.unit !== 'string' || metric.unit.length === 0)
 				throw new Error(`${table.suite} ${participant.name}.${metricName} requires a unit`);
 			const values = {};
+			if (metric.mean !== undefined) {
+				if (typeof metric.mean !== 'number' || !Number.isFinite(metric.mean))
+					throw new Error(`${table.suite} ${participant.name}.${metricName} has invalid mean`);
+				values.mean = metric.mean;
+			}
 			for (const percentile of percentiles) {
 				const value = metric[percentile];
 				if (typeof value !== 'number' || !Number.isFinite(value))

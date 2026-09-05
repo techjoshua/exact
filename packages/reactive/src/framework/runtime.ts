@@ -26,6 +26,8 @@ export {
 export {
 	createEffectScope,
 	createProfiledEffectScope,
+	currentEffectScope,
+	effectScopeParent,
 	effectScopeWorkPriority,
 	registerEffectScopeCleanup,
 	setEffectScopeWorkPriority,

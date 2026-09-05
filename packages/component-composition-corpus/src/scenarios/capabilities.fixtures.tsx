@@ -1,6 +1,6 @@
 import { createContext, createRef, type Component } from '@exactjs/core';
 
-type Item = { id: string; label: string };
+type Item = { id: string; label: string; values: string[] };
 type CapabilityState = { items: Item[] };
 const corpusContext = createContext<string>('@exactjs/corpus/context');
 /** Stable ref key used to verify both mount and hydration fulfillment. */
@@ -21,8 +21,8 @@ function ItemLabel(props: { label: string }) {
 function CapabilityComposition(this: Component<CapabilityState>) {
 	mountedCapabilities = this;
 	this.state.items = [
-		{ id: 'a', label: 'Alpha' },
-		{ id: 'b', label: 'Beta' }
+		{ id: 'a', label: 'Alpha', values: ['mean', 'p50'] },
+		{ id: 'b', label: 'Beta', values: ['mean', 'p50'] }
 	];
 	this.setContext(corpusContext, 'provided');
 	this.onUnmount(() => unmountCount++);
@@ -34,6 +34,11 @@ function CapabilityComposition(this: Component<CapabilityState>) {
 				{this.state.items.map((item) => (
 					<li key={item.id} data-id={item.id}>
 						<ItemLabel label={item.label} />
+						{item.values.map((value) => (
+							<small key={value} data-role="nested-value">
+								{item.id}:{value}
+							</small>
+						))}
 					</li>
 				))}
 			</ul>
@@ -52,8 +57,8 @@ function ContextOnly(this: Component<{}>) {
 
 function KeyedOnly(this: Component<CapabilityState>) {
 	this.state.items = [
-		{ id: 'a', label: 'Alpha' },
-		{ id: 'b', label: 'Beta' }
+		{ id: 'a', label: 'Alpha', values: [] },
+		{ id: 'b', label: 'Beta', values: [] }
 	];
 	return () => (
 		<ul data-scenario="keyed-only">

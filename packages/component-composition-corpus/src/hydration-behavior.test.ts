@@ -158,6 +158,16 @@ describe('composition corpus hydration behavior', () => {
 			adoptedLabel
 		);
 		expect(adoptedLabel?.textContent).toBe('Beta hydrated');
+		expect(
+			[...capability.container.querySelectorAll('[data-id="a"] [data-role="nested-value"]')].map(
+				(node) => node.textContent
+			)
+		).toEqual(['a:mean', 'a:p50']);
+		expect(
+			[...capability.container.querySelectorAll('[data-id="b"] [data-role="nested-value"]')].map(
+				(node) => node.textContent
+			)
+		).toEqual(['b:mean', 'b:p50']);
 
 		const enhanced = serverContainer(serverEnhancementsRoot, {
 			enhancementCatalog: new Map([

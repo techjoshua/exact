@@ -10,6 +10,8 @@ const packageProjectConfigs = [
 	'react-adapters/redux/vitest.config.ts',
 	'react-adapters/tanstack-query/vitest.config.ts',
 	'plugins/microfrontends/vitest.config.ts',
+	'component-libraries/charts/vitest.config.ts',
+	'component-libraries/charts/vitest.server.config.ts',
 	'component-libraries/forms/vitest.config.ts',
 	'component-libraries/gravity/vitest.config.ts',
 	'component-libraries/motion/vitest.config.ts',
@@ -18,9 +20,13 @@ const packageProjectConfigs = [
 	'component-libraries/theme-fixture/vitest.config.ts'
 ] as const;
 
-const packageProjectDirectories = packageProjectConfigs.map((configPath) =>
-	configPath.replace('/vitest.config.ts', '/**')
-);
+const packageProjectDirectories = [
+	...new Set(
+		packageProjectConfigs.map(
+			(configPath) => `${configPath.slice(0, configPath.lastIndexOf('/'))}/**`
+		)
+	)
+];
 
 export default defineConfig({
 	test: {

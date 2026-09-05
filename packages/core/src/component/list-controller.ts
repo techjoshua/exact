@@ -2,6 +2,8 @@ import {
 	isReactiveValue,
 	collectionRef,
 	createEffectScope,
+	currentEffectScope,
+	effectScopeParent,
 	peek,
 	registerEffectScopeCleanup,
 	registerReactiveListKey,
@@ -28,7 +30,35 @@ export function createComponentListController(ownerScope: EffectScope) {
 	>();
 	const activeSlots = new Set<string>();
 	const directSlots = new Set<string>();
+	const scopePrefixes = new WeakMap<EffectScope, string>();
 	let mapCallIndex = 0;
+	let itemScopeGeneration = 0;
+
+	const scopedSlot = (slot: string) => {
+		const prefix = currentScopePrefix();
+		return prefix === undefined ? slot : `${prefix}${encodeSlot(slot)}`;
+	};
+	const currentScopePrefix = () => {
+		for (
+			let scope: EffectScope | undefined = currentEffectScope();
+			scope;
+			scope = effectScopeParent(scope)
+		) {
+			const prefix = scopePrefixes.get(scope);
+			if (prefix !== undefined) return prefix;
+		}
+		return undefined;
+	};
+	const releaseNestedSlots = (prefix: string) => {
+		for (const [slot, registration] of registrations) {
+			if (!slot.startsWith(prefix)) continue;
+			registration.stop();
+			registrations.delete(slot);
+			caches.delete(slot);
+			directSlots.delete(slot);
+			activeSlots.delete(slot);
+		}
+	};
 
 	return {
 		beginRender(): void {
@@ -65,7 +95,8 @@ export function createComponentListController(ownerScope: EffectScope) {
 				isReactiveValue(collection) && source
 					? peek(() => source.get())
 					: (collection as Iterable<T>);
-			const cacheId = id ?? `map:${mapCallIndex++}`;
+			const authoredId = id ?? `map:${mapCallIndex++}`;
+			const cacheId = scopedSlot(authoredId);
 			activeSlots.add(cacheId);
 			if (direct) directSlots.add(cacheId);
 			const registrationCollection = unwrap(provenance ?? current) as object;
@@ -115,6 +146,9 @@ export function createComponentListController(ownerScope: EffectScope) {
 					let cached = activeCache.get(itemKey);
 					if (!cached || !Object.is(unwrap(cached.item), unwrap(item))) {
 						const scope = createEffectScope(ownerScope);
+						const itemScope = `${cacheId}${encodeSlot(itemKey)}${itemScopeGeneration++}:`;
+						scopePrefixes.set(scope, itemScope);
+						registerEffectScopeCleanup(scope, () => releaseNestedSlots(itemScope));
 						let operation: Child;
 						try {
 							operation = withEffectScope(scope, () => render(item));
@@ -142,4 +176,9 @@ export function createComponentListController(ownerScope: EffectScope) {
 			return direct ? materialize() : createCompiledChildRangeReceipt(materialize, id);
 		}
 	};
+}
+
+/** Encodes one authored list identity without allowing nested key collisions. */
+function encodeSlot(value: string): string {
+	return `${value.length}:${value}/`;
 }

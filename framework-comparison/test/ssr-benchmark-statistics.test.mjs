@@ -12,6 +12,7 @@ import {
 describe('SSR benchmark statistics', () => {
 	it('reports the common nearest-rank percentile set', () => {
 		assert.deepEqual(summarizeSsrSamples([1, 2, 3, 4, 5]), {
+			mean: 3,
 			p50: 3,
 			p75: 4,
 			p95: 5,
@@ -48,13 +49,13 @@ describe('SSR benchmark statistics', () => {
 				systemCpuMs: [2, 1, 1, 1, 0, 2]
 			}),
 			{
-				firstByteMs: { p50: 3, p75: 5, p95: 6, p99: 6 },
-				totalMs: { p50: 6, p75: 8, p95: 9, p99: 9 },
-				deliveryMs: { p50: 3, p75: 3, p95: 3, p99: 3 },
+				firstByteMs: { mean: 3.5, p50: 3, p75: 5, p95: 6, p99: 6 },
+				totalMs: { mean: 6.5, p50: 6, p75: 8, p95: 9, p99: 9 },
+				deliveryMs: { mean: 3, p50: 3, p75: 3, p95: 3, p99: 3 },
 				cpuBatchSize: 5,
-				userCpuPerRequestMs: { p50: 2, p75: 4, p95: 4, p99: 4 },
-				systemCpuPerRequestMs: { p50: 1, p75: 2, p95: 2, p99: 2 },
-				totalCpuPerRequestMs: { p50: 3, p75: 6, p95: 6, p99: 6 },
+				userCpuPerRequestMs: { mean: 3, p50: 2, p75: 4, p95: 4, p99: 4 },
+				systemCpuPerRequestMs: { mean: 1.5, p50: 1, p75: 2, p95: 2, p99: 2 },
+				totalCpuPerRequestMs: { mean: 4.5, p50: 3, p75: 6, p95: 6, p99: 6 },
 				phases: {}
 			}
 		);
@@ -70,10 +71,10 @@ describe('SSR benchmark statistics', () => {
 				envelopeMs: []
 			}),
 			{
-				dataLoadMs: { p50: 2, p75: 3, p95: 3, p99: 3 },
-				dataFetchMs: { p50: 1, p75: 2, p95: 2, p99: 2 },
-				dataDecodeMs: { p50: 0.3, p75: 0.4, p95: 0.4, p99: 0.4 },
-				renderMs: { p50: 0.8, p75: 0.9, p95: 0.9, p99: 0.9 }
+				dataLoadMs: { mean: 2, p50: 2, p75: 3, p95: 3, p99: 3 },
+				dataFetchMs: { mean: 7 / 6, p50: 1, p75: 2, p95: 2, p99: 2 },
+				dataDecodeMs: { mean: 0.3, p50: 0.3, p75: 0.4, p95: 0.4, p99: 0.4 },
+				renderMs: { mean: (0.8 + 0.7 + 0.9) / 3, p50: 0.8, p75: 0.9, p95: 0.9, p99: 0.9 }
 			}
 		);
 	});

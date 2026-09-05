@@ -137,6 +137,12 @@ export const compilerPathInventory = [
 		['client-update', 'ssr-sync', 'hydrate-match']
 	),
 	path(
+		'nested-keyed-list-scope',
+		'specialized',
+		'Nested keyed map sites retain a distinct operation cache beneath every outer item.',
+		['client-mount', 'client-update', 'ssr-sync', 'hydrate-match']
+	),
+	path(
 		'context-capability',
 		'specialized',
 		'Context providers and consumers use durable component ownership.',

@@ -35,7 +35,7 @@ const formatNumber = (value) => {
 const sections = [
 	`# Phase ${report.phase} complete framework metrics`,
 	'',
-	'Frameworks are columns in the fixed order eXact, React, SvelteKit, Nuxt, and TanStack Start. Every value cell is p50 / p75 / p95 / p99.'
+	'Frameworks are columns in the fixed order eXact, React, SvelteKit, Nuxt, and TanStack Start. Every value cell is mean / p50 / p75 / p95 / p99 when the raw population exposes a mean; older summaries retain p50 / p75 / p95 / p99.'
 ];
 
 for (const { table } of frameworkSuites) {
@@ -63,7 +63,7 @@ for (const { table } of frameworkSuites) {
 		const cells = frameworkOrder.map((framework) => {
 			const value = participants.get(framework)?.metrics[metric];
 			return value
-				? ['p50', 'p75', 'p95', 'p99']
+				? [...(Number.isFinite(value.mean) ? ['mean'] : []), 'p50', 'p75', 'p95', 'p99']
 						.map((percentile) => formatNumber(value[percentile]))
 						.join(' / ')
 				: '—';
