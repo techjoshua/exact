@@ -96,6 +96,8 @@ test('core public and narrow exports select one target-local module graph', asyn
 		'./dist/**/component/*-capability-integration.js',
 		'./dist/**/component/runtime-surface-*.js',
 		'./dist/**/framework/server-task-helpers.js',
+		'./dist/**/localization.js',
+		'./dist/**/localization/component-integration.js',
 		'./dist/**/runtime/collections.js',
 		'./dist/**/runtime/component-execution.js',
 		'./dist/**/runtime/component-reactivity.js',

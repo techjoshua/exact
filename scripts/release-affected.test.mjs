@@ -3,15 +3,18 @@ import test from 'node:test';
 
 import { compilerAcceptanceAffected } from './release-affected.mjs';
 
-test('compiler acceptance follows compiler and bundler-assembly changes', () => {
+test('compiler acceptance follows compiler, bundler, and selected production-capability changes', () => {
 	for (const filename of [
 		'native/typescript-go/overlay/internal/exactcompiler/compiler.go',
 		'packages/compiler/src/index.ts',
+		'packages/core/package.json',
+		'packages/core/src/localization/component-integration.ts',
 		'fixtures/native-compiler-corpus/src/control-flow.ts',
 		'packages/plugin-api/src/index.ts',
 		'packages/plugin-host/src/index.ts',
 		'framework-adapters/vite-plugin/src/index.ts',
 		'framework-adapters/webpack-plugin/src/index.ts',
+		'apps/intl-testbed/src/showcase.tsx',
 		'framework-adapters/bun-plugin/src/index.ts',
 		'scripts/check-compiler-acceptance.mjs',
 		'scripts/start-vite-acceptance-server.mjs'
