@@ -143,6 +143,12 @@ export const compilerPathInventory = [
 		['client-mount', 'client-update', 'ssr-sync', 'hydrate-match']
 	),
 	path(
+		'rendered-map-derived-local',
+		'supported-general',
+		'A pure collection local inside a rendered map callback remains reactive under its item owner.',
+		['client-update']
+	),
+	path(
 		'context-capability',
 		'specialized',
 		'Context providers and consumers use durable component ownership.',
