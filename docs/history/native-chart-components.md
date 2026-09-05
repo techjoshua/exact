@@ -422,7 +422,8 @@ It includes only decision-useful charts and tables:
 - SSR latency and concurrent requests per second across meaningful lanes;
 - render-only time and allocation where they diagnose server capacity;
 - response payload size; and
-- current Exact compared with raw and eligible control-normalized historical Exact.
+- the current framework population, while raw and control-normalized historical Exact comparisons
+  remain available only in internal engineering evidence.
 
 Distribution charts show the suite-produced percentiles and arithmetic mean without expanding every
 percentile into a separate table row. Comments explain whether higher or lower is preferable, the
