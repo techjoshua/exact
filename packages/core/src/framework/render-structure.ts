@@ -5,39 +5,32 @@ export {
 	createPreparedRenderProgram,
 	prepareCompiledRenderProgram,
 	readRenderProgram,
+	readRenderProgramReceipt,
 	readRenderProgramSlot,
-	renderProgramFallback,
 	type ExactRenderProgram,
 	type ExactDirectRenderProgram,
 	type ExactDomRenderProgram,
 	type ExactRenderProgramBinding,
+	type ExactRenderProgramBindingOperation,
 	type ExactRenderProgramBinder,
 	type ExactRenderProgramBindingTarget,
+	type ExactRenderProgramClaimOperation,
 	type ExactRenderProgramInvocation,
+	type ExactRenderProgramReceipt,
+	type ExactRenderProgramReceiptData,
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
 	type ExactRenderProgramSsrOperations,
+	type ExactRenderProgramSsrAttribute,
+	type ExactRenderProgramSsrInvocation,
 	type ExactRenderProgramSsrOutput,
 	type ExactRenderProgramSsrWriter,
-	type ExactRenderProgramUpdater,
+	type ExactRenderProgramWiring,
 	type ExactSsrRenderProgram,
 	type ExactTableRenderProgram
 } from '../render-program.js';
 export {
-	createCompiledFragment,
-	createCompiledComponentVNode,
-	createCompiledTarget,
-	createCompiledVNode,
-	createCellVNode,
-	keyCompiledVNode,
-	createKeyedServerSlot,
-	createServerBoundary,
-	createServerSlot,
-	getCellVNode,
-	isCellVNode
-} from '../vnode.js';
-export {
 	createDynamicChild,
 	createExpression,
 	createForwardedExpression
-} from '../component/reactive-vnodes.js';
+} from '../component/reactive-expressions.js';

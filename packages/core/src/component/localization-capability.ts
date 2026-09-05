@@ -1,9 +1,12 @@
 import type { IntlFacade } from '../localization/contracts.js';
 import type { AnyComponentInstance } from './contracts.js';
 
+/** Minimal component ownership needed to resolve an inherited localization policy. */
+export type ComponentLocalizationOwner = Pick<AnyComponentInstance, 'hasContext' | 'getContext'>;
+
 /** Capability-local bridge installed only when component localization is reachable. */
 export type ComponentLocalizationCapability = Readonly<{
-	create(instance: AnyComponentInstance): IntlFacade;
+	create(owner: ComponentLocalizationOwner): IntlFacade;
 }>;
 
 let localizationCapability: ComponentLocalizationCapability | undefined;

@@ -12,20 +12,9 @@ export {
 	setExactDomInspectionOwner,
 	setExactDomInspectionOwnerFactory
 } from './state.js';
-export {
-	adoptComponentRoot,
-	adoptCellRoot,
-	adoptDocumentRoot,
-	adoptMarkerlessComponentRoot,
-	adoptStatic
-} from './renderer/adoption/root.js';
-export {
-	dispose,
-	disposeOwnedSubtree,
-	findComponentDomNode,
-	render,
-	unmount
-} from './renderer/root-lifecycle.js';
+export { dispose, disposeOwnedSubtree, unmount } from './renderer/root-disposal.js';
+export { findComponentDomNode } from './renderer/component-node.js';
+export { renderCompiledComponentRoot as render } from './framework/component-root.js';
 export {
 	deg,
 	em,

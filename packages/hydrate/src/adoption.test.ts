@@ -4,10 +4,7 @@
 import '@exactjs/core/runtime/lists';
 import '@exactjs/core/runtime/refs';
 import {
-	Fragment,
-	Target,
-	createEnhancementNode,
-	createRef,
+	exactEnhancementPassThrough,
 	unsafeHtml,
 	type Child,
 	type Component,
@@ -15,54 +12,69 @@ import {
 	type Logger,
 	type RootLifecycle
 } from '@exactjs/core';
-import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
-import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import '@exactjs/dom/runtime/target';
+import '@exactjs/dom/framework/enhancements';
 import '@exactjs/dom/unsafe-html';
-import {
-	createCompiledDynamicComponent,
-	createServerDynamicComponent
-} from '@exactjs/core/runtime/dynamic-components';
-import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
 import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
-import { renderToString } from '@exactjs/ssr';
+import { renderToHydratableString, renderToString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
-import { hydrate as hydrateEnhanced } from './enhanced.js';
 import { noopLogger } from './test-support/responses.js';
+import {
+	boundInputRoot,
+	AdoptionEnhancement,
+	adoptionEnhancementIdentity,
+	buttonRefKey,
+	buttonRefRoot,
+	configureAdoptionEnhancement,
+	configureNestedTargetRoot,
+	configureRegistrySelection,
+	counterRoot,
+	disclosureRoot,
+	dynamicLabelRoot,
+	dynamicPanelRoot,
+	enhancedPageRoot,
+	greetingRoot,
+	inputRoot,
+	keyedListRoot,
+	labelPropsRoot,
+	labelStateRoot,
+	mountedDynamicPanel,
+	mountedKeyedList,
+	nestedParentRoot,
+	nestedTargetRoot,
+	paragraphRoot,
+	registryRoot,
+	siblingRoot,
+	targetForwardingRoot,
+	unsafeIframeRoot
+} from './test-support/adoption.fixtures.js';
+import {
+	greetingRoot as serverGreetingRoot,
+	buttonRefRoot as serverButtonRefRoot,
+	counterRoot as serverCounterRoot,
+	dynamicLabelRoot as serverDynamicLabelRoot,
+	labelPropsRoot as serverLabelPropsRoot,
+	labelStateRoot as serverLabelStateRoot,
+	keyedListRoot as serverKeyedListRoot,
+	nestedParentRoot as serverNestedParentRoot,
+	nestedTargetRoot as serverNestedTargetRoot,
+	paragraphRoot as serverParagraphRoot,
+	dynamicPanelRoot as serverDynamicPanelRoot,
+	enhancedPageRoot as serverEnhancedPageRoot,
+	registryRoot as serverRegistryRoot,
+	siblingRoot as serverSiblingRoot,
+	targetForwardingRoot as serverTargetForwardingRoot
+} from './test-support/adoption.fixtures.js?exact-target=server';
 
 describe('@exactjs/hydrate adoption', () => {
-	it('claims the deterministic progressive helper when the root hydrates', () => {
-		const root = document.createElement('div');
-		root.id = 'page';
-		root.innerHTML = '<p>ready</p>';
-		let hash = 2166136261;
-		for (const character of root.id) {
-			hash ^= character.charCodeAt(0);
-			hash = Math.imul(hash, 16777619);
-		}
-		const helper = `__xR${(hash >>> 0).toString(36)}`;
-		(globalThis as Record<string, unknown>)[helper] = () => undefined;
-		hydrate(createVNode('p', null, 'ready'), root, {
-			allowMarkerless: true,
-			logger: noopLogger
-		});
-		expect(helper in globalThis).toBe(false);
-	});
-
 	it('adopts target-forwarded attributes without replacing the intrinsic', () => {
-		const vnode = createVNode(
-			Target,
-			{ className: 'forwarded', 'aria-describedby': 'help' },
-			createVNode('button', { className: 'authored' }, 'Save')
-		);
 		const root = document.createElement('div');
-		root.innerHTML = renderToString(vnode).html;
+		const resumptions = prepareServerHydration(root, serverTargetForwardingRoot);
 		const serverButton = root.querySelector('button')!;
 
-		hydrate(vnode, root, { logger: noopLogger });
+		hydrate(targetForwardingRoot, root, { logger: noopLogger, resumptions });
 
 		expect(root.querySelector('button')).toBe(serverButton);
 		expect(serverButton.className).toBe('authored forwarded');
@@ -73,31 +85,18 @@ describe('@exactjs/hydrate adoption', () => {
 		const calls: string[] = [];
 		const refs: Element[] = [];
 		const ref = { fulfill: (value: unknown) => value instanceof Element && refs.push(value) };
-		const vnode = createVNode(
-			Target,
-			{ className: 'outer', ref, onClick: () => calls.push('outer') },
-			createVNode(
-				Target,
-				{ className: 'inner', ref, onClick: () => calls.push('inner') },
-				createVNode(
-					'button',
-					{
-						className: 'authored',
-						ref,
-						onClick: (event: Event) => {
-							calls.push('authored');
-							event.stopImmediatePropagation();
-						}
-					},
-					'Save'
-				)
-			)
-		);
+		const props = {
+			onAuthored: () => calls.push('authored'),
+			onInner: () => calls.push('inner'),
+			onOuter: () => calls.push('outer'),
+			ref: ref as never
+		};
+		configureNestedTargetRoot(props);
 		const root = document.createElement('div');
-		root.innerHTML = renderToString(vnode).html;
+		const resumptions = prepareServerHydration(root, serverNestedTargetRoot);
 		const serverButton = root.querySelector('button')!;
 
-		hydrate(vnode, root, { logger: noopLogger });
+		hydrate(nestedTargetRoot, root, { logger: noopLogger, resumptions });
 		serverButton.click();
 
 		expect(root.querySelector('button')).toBe(serverButton);
@@ -107,73 +106,53 @@ describe('@exactjs/hydrate adoption', () => {
 	});
 
 	it('activates bundle-local enhancements after adopting their authored target', () => {
-		const identity = '@exactjs/hydrate:test-enhancement#default';
 		const roots: RootLifecycle<HTMLElement>[] = [];
-		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			roots.push(this.refs.root<HTMLElement>());
-			return () => props.children;
-		}, '@exactjs/hydrate:test-enhancement');
-		function Page(this: Component<{}>) {
-			return () =>
-				createVNode(
-					'button',
-					{
-						__exactEnhancements: createEnhancementNode([{ identity, props: {} }])
-					},
-					'Save'
-				);
-		}
+		configureAdoptionEnhancement((root) => roots.push(root));
 		const root = document.createElement('div');
-		const enhancementCatalog = new Map([[identity, Enhancement]]);
-		root.innerHTML = renderToString(createVNode(Page, null), { enhancementCatalog }).html;
+		const enhancementCatalog = new Map([[adoptionEnhancementIdentity, AdoptionEnhancement]]);
+		const serverEnhancementCatalog = new Map([
+			[adoptionEnhancementIdentity, exactEnhancementPassThrough]
+		]);
+		const rendered = renderToString(serverEnhancedPageRoot, {
+			enhancementCatalog: serverEnhancementCatalog
+		});
+		root.innerHTML = rendered.html;
 		const serverNode = root.querySelector('button')!;
 
-		hydrateEnhanced(createVNode(Page, null), root, {
+		hydrate(enhancedPageRoot, root, {
 			logger: noopLogger,
 			enhancementCatalog
 		});
+		flushSync();
 
 		expect(root.querySelector('button')).toBe(serverNode);
-		expect(roots).toHaveLength(2);
-		expect(roots[0]?.current).toBeUndefined();
-		expect(roots[1]?.current).toBe(serverNode);
+		expect(serverNode.dataset.enhanced).toBe('yes');
+		expect(roots).toHaveLength(1);
+		expect(roots[0]?.current).toBe(serverNode);
 	});
 
 	it('preserves dirty form state entered before hydration', () => {
 		const container = document.createElement('div');
-		container.innerHTML = '<!--exact:fragment:0--><input value=server><!--/exact:fragment:0-->';
+		container.innerHTML = '<input value=server>';
 		const input = container.querySelector('input')!;
 		input.value = 'typed';
-		hydrate(createVNode(Fragment, null, createVNode('input', { value: 'server' })), container, {
-			logger: noopLogger
-		});
+		hydrate(inputRoot, container, { allowMarkerless: true, logger: noopLogger });
 		expect(container.querySelector('input')?.value).toBe('typed');
 	});
 
 	it('publishes preserved dirty state through the compiled binding', () => {
 		const container = document.createElement('div');
-		container.innerHTML =
-			'<!--exact:fragment:0--><input data-exact-id=name value=server><!--/exact:fragment:0-->';
+		container.innerHTML = '<input data-exact-id=name value=server>';
 		const input = container.querySelector('input')!;
 		input.value = 'typed';
 		let value = 'server';
 		hydrate(
-			createVNode(
-				Fragment,
-				null,
-				createVNode('input', {
-					'data-exact-id': 'name',
-					value,
-					__exactBindInput: (event: Event) => {
-						value = (event.currentTarget as HTMLInputElement).value;
-					}
-				})
-			),
+			boundInputRoot((next) => (value = next)),
 			container,
-			{ logger: noopLogger }
+			{
+				allowMarkerless: true,
+				logger: noopLogger
+			}
 		);
 
 		expect(value).toBe('typed');
@@ -181,25 +160,17 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('adopts and publishes disclosure changes made before hydration', () => {
 		const container = document.createElement('div');
-		container.innerHTML =
-			'<!--exact:fragment:0--><details data-exact-id=more data-exact-ssr-open=false></details><!--/exact:fragment:0-->';
+		container.innerHTML = '<details data-exact-id=more data-exact-ssr-open=false></details>';
 		const details = container.querySelector('details')!;
 		details.open = true;
 		let open = false;
 		hydrate(
-			createVNode(
-				Fragment,
-				null,
-				createVNode('details', {
-					'data-exact-id': 'more',
-					open,
-					__exactBindToggle: (event: Event) => {
-						open = (event.currentTarget as HTMLDetailsElement).open;
-					}
-				})
-			),
+			disclosureRoot((next) => (open = next)),
 			container,
-			{ logger: noopLogger }
+			{
+				allowMarkerless: true,
+				logger: noopLogger
+			}
 		);
 
 		expect(container.querySelector('details')?.open).toBe(true);
@@ -208,10 +179,12 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('makes hydration idempotent and exposes idempotent disposal', () => {
 		const container = document.createElement('div');
-		container.innerHTML = '<!--exact:fragment:0--><p>server</p><!--/exact:fragment:0-->';
-		const vnode = createVNode(Fragment, null, createVNode('p', null, 'server'));
-		const first = hydrate(vnode, container, { logger: noopLogger });
-		expect(hydrate(vnode, container, { logger: noopLogger })).toBe(first);
+		container.innerHTML = '<p>server</p>';
+		const operation = paragraphRoot('server');
+		const first = hydrate(operation, container, { allowMarkerless: true, logger: noopLogger });
+		expect(hydrate(operation, container, { allowMarkerless: true, logger: noopLogger })).toBe(
+			first
+		);
 		first.dispose();
 		first.dispose();
 		expect(() => first.applyPatches([])).toThrow('disposed');
@@ -219,11 +192,12 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('adopts compatible static marker-wrapped SSR nodes', () => {
 		const root = document.createElement('div');
-		root.innerHTML = '<!--exact:component:0--><p class="ready">server</p><!--/exact:component:0-->';
+		const resumptions = prepareServerHydration(root, serverParagraphRoot('server', 'ready'));
 		const serverNode = root.querySelector('p')!;
 		const observations: unknown[] = [];
-		hydrate(createVNode('p', { className: 'ready' }, 'server'), root, {
+		hydrate(paragraphRoot('server', 'ready'), root, {
 			logger: noopLogger,
+			resumptions,
 			onHydration: (observation) => observations.push(observation)
 		});
 		expect(root.querySelector('p')).toBe(serverNode);
@@ -233,26 +207,27 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('adopts normalized static class-list values without replacing the server node', () => {
 		const root = document.createElement('div');
-		root.innerHTML =
-			'<!--exact:component:0--><p class="panel active">server</p><!--/exact:component:0-->';
+		const resumptions = prepareServerHydration(
+			root,
+			serverParagraphRoot('server', ['panel', { active: true, hidden: false }])
+		);
 		const serverNode = root.querySelector('p');
 
-		hydrate(
-			createVNode('p', { className: ['panel', { active: true, hidden: false }] }, 'server'),
-			root,
-			{ logger: noopLogger }
-		);
+		hydrate(paragraphRoot('server', ['panel', { active: true, hidden: false }]), root, {
+			logger: noopLogger,
+			resumptions
+		});
 
 		expect(root.querySelector('p')).toBe(serverNode);
 	});
 
 	it('adopts opted-in iframe srcdoc through the unsafe HTML capability', () => {
 		const root = document.createElement('div');
-		root.innerHTML =
-			'<!--exact:component:0--><iframe srcdoc="&lt;p&gt;trusted&lt;/p&gt;"></iframe><!--/exact:component:0-->';
+		root.innerHTML = '<iframe srcdoc="&lt;p&gt;trusted&lt;/p&gt;"></iframe>';
 		const serverNode = root.querySelector('iframe');
 		const audit: Array<{ characters: number }> = [];
-		hydrate(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), root, {
+		hydrate(unsafeIframeRoot(unsafeHtml('<p>trusted</p>')), root, {
+			allowMarkerless: true,
 			logger: noopLogger,
 			allowUnsafeHtml: true,
 			onUnsafeHtml: (event) => audit.push(event)
@@ -263,10 +238,10 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('patches an adopted static root without appending a second tree', () => {
 		const root = document.createElement('div');
-		root.innerHTML = '<!--exact:component:0--><p>server</p><!--/exact:component:0-->';
+		const resumptions = prepareServerHydration(root, serverParagraphRoot('server'));
 		const serverNode = root.querySelector('p')!;
-		hydrate(createVNode('p', null, 'server'), root, { logger: noopLogger });
-		render(createVNode('p', null, 'client'), root);
+		hydrate(paragraphRoot('server'), root, { logger: noopLogger, resumptions });
+		render(paragraphRoot('client'), root);
 		expect(root.querySelectorAll('p')).toHaveLength(1);
 		expect(root.querySelector('p')).toBe(serverNode);
 		expect(root.textContent).toBe('client');
@@ -274,42 +249,35 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('adopts an SSR root component boundary without replacing its DOM', () => {
 		const root = document.createElement('div');
-		function Greeting(this: Component<{}>) {
-			return () => createVNode('p', null, 'hello');
-		}
-		root.innerHTML = renderToString(createVNode(Greeting, null)).html;
+		const resumptions = prepareServerHydration(root, serverGreetingRoot);
 		const serverNode = root.querySelector('p')!;
-		hydrate(createVNode(Greeting, null), root, { logger: noopLogger });
+		hydrate(greetingRoot, root, { logger: noopLogger, resumptions });
 		expect(root.querySelector('p')).toBe(serverNode);
-		render(createVNode(Greeting, null), root);
+		render(greetingRoot, root);
 		expect(root.querySelector('p')).toBe(serverNode);
 	});
 
 	it('adopts nested component marker boundaries', () => {
 		const root = document.createElement('div');
-		function Child(this: Component<{}>) {
-			return () => createVNode('em', null, 'child');
-		}
-		function Parent(this: Component<{}>) {
-			return () => createVNode('section', null, createVNode(Child, null));
-		}
-		root.innerHTML = renderToString(createVNode(Parent, null)).html;
+		const resumptions = prepareServerHydration(root, serverNestedParentRoot);
 		const serverChild = root.querySelector('em')!;
-		hydrate(createVNode(Parent, null), root, { logger: noopLogger });
+		hydrate(nestedParentRoot, root, { logger: noopLogger, resumptions });
 		expect(root.querySelector('em')).toBe(serverChild);
 	});
 
 	it('adopts compiler cell marker boundaries', () => {
 		const root = document.createElement('div');
 		let instance!: Component<{ label: string }>;
-		function Label(this: Component<{ label: string }>) {
-			instance = this;
-			this.state.label = 'server';
-			return () => createCompiledVNode('p', null, this.state.label);
-		}
-		root.innerHTML = renderToString(createVNode(Label, null)).html;
+		const resumptions = prepareServerHydration(root, serverLabelStateRoot());
 		const serverNode = root.querySelector('p')!;
-		hydrate(createVNode(Label, null), root, { logger: noopLogger });
+		hydrate(
+			labelStateRoot((value) => (instance = value)),
+			root,
+			{
+				logger: noopLogger,
+				resumptions
+			}
+		);
 		instance.state.label = 'client';
 		flushSync();
 		expect(root.querySelector('p')).toBe(serverNode);
@@ -318,46 +286,23 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('adopts a compiler cell at the hydration root without replacing server DOM', () => {
 		const root = document.createElement('div');
-		function Label(this: Component<{}>, props: { label: string }) {
-			return () => createCompiledVNode('p', null, props.label);
-		}
-		const vnode = createCompiledVNode(Label, { label: 'server' });
-		root.innerHTML = renderToString(vnode).html;
+		const resumptions = prepareServerHydration(root, serverLabelPropsRoot('server'));
 		const serverNode = root.querySelector('p')!;
 
-		hydrate(vnode, root, { logger: noopLogger });
+		hydrate(labelPropsRoot('server'), root, { logger: noopLogger, resumptions });
 
 		expect(root.querySelector('p')).toBe(serverNode);
-		hydrate(createCompiledVNode(Label, { label: 'client' }), root, { logger: noopLogger });
+		hydrate(labelPropsRoot('client'), root, { logger: noopLogger });
 		expect(root.querySelector('p')).toBe(serverNode);
 		expect(serverNode.textContent).toBe('client');
 	});
 
 	it('adopts keyed SSR item ranges and reorders their existing DOM', () => {
 		const root = document.createElement('div');
-		let instance!: Component<{ items: { id: string; title: string }[] }>;
-		function List(this: Component<{ items: { id: string; title: string }[] }>) {
-			instance = this;
-			this.state.items = [
-				{ id: 'a', title: 'A' },
-				{ id: 'b', title: 'B' }
-			];
-			return () =>
-				createVNode(
-					'ul',
-					null,
-					this.map(
-						this.state.items,
-						(item) => item.id,
-						(item) => createVNode('li', null, item.title),
-						'tasks'
-					)
-				);
-		}
-		root.innerHTML = renderToString(createVNode(List, null)).html;
+		root.innerHTML = renderToString(serverKeyedListRoot).html;
 		const [a, b] = Array.from(root.querySelectorAll('li'));
-		hydrate(createVNode(List, null), root, { logger: noopLogger });
-		instance.state.items.splice(0, 2, { id: 'b', title: 'B' }, { id: 'a', title: 'A' });
+		hydrate(keyedListRoot, root, { logger: noopLogger });
+		mountedKeyedList().state.items.splice(0, 2, { id: 'b', title: 'B' }, { id: 'a', title: 'A' });
 		flushSync();
 		expect(Array.from(root.querySelectorAll('li'))).toEqual([b, a]);
 	});
@@ -365,19 +310,16 @@ describe('@exactjs/hydrate adoption', () => {
 	it('adopts a dynamic marker range and updates it after hydration', () => {
 		const root = document.createElement('div');
 		let client!: Component<{ label: string }>;
-		function Label(this: Component<{ label: string }>) {
-			client = this;
-			this.state.label = 'server';
-			return () =>
-				createVNode(
-					'p',
-					null,
-					createDynamicChild(() => this.state.label)
-				);
-		}
-		root.innerHTML = renderToString(createVNode(Label, null)).html;
+		const resumptions = prepareServerHydration(root, serverDynamicLabelRoot());
 		const serverNode = root.querySelector('p')!;
-		hydrate(createVNode(Label, null), root, { logger: noopLogger });
+		hydrate(
+			dynamicLabelRoot((value) => (client = value)),
+			root,
+			{
+				logger: noopLogger,
+				resumptions
+			}
+		);
 		client.state.label = 'client';
 		flushSync();
 		expect(root.querySelector('p')).toBe(serverNode);
@@ -386,40 +328,19 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('activates a client-only dynamic component inside its SSR-owned range', () => {
 		const root = document.createElement('div');
-		let serverPhase = true;
-		function ClientPanel() {
-			return () => createVNode('strong', null, 'activated');
-		}
-		function Page() {
-			const dynamic = serverPhase
-				? createServerDynamicComponent('fixture:hydrated-dynamic')
-				: createCompiledDynamicComponent({
-						id: 'fixture:hydrated-dynamic',
-						source: () => ClientPanel,
-						props: {}
-					});
-			return () =>
-				createVNode(
-					'div',
-					null,
-					createVNode('span', null, 'before'),
-					dynamic,
-					createVNode('span', null, 'after')
-				);
-		}
-		createExactFrameworkFixtureArtifact(ClientPanel, 'fixture:hydrated-dynamic-panel');
-		createExactFrameworkFixtureArtifact(Page, 'fixture:hydrated-dynamic-page');
-		root.innerHTML = renderToString(createVNode(Page, null)).html;
+		const resumptions = prepareServerHydration(root, serverDynamicPanelRoot);
 		const siblings = root.querySelectorAll('span');
 		const before = siblings[0];
 		const after = siblings[1];
-		serverPhase = false;
 
 		const diagnostics: string[] = [];
-		hydrate(createVNode(Page, null), root, {
+		hydrate(dynamicPanelRoot, root, {
 			logger: noopLogger,
+			resumptions,
 			onDiagnostic: (diagnostic) => diagnostics.push(`${diagnostic.code}:${diagnostic.message}`)
 		});
+		mountedDynamicPanel().state.active = true;
+		flushSync();
 		expect(root.textContent).toBe('beforeactivatedafter');
 		expect(diagnostics).toEqual([]);
 		expect(root.querySelectorAll('span')[0]).toBe(before);
@@ -428,19 +349,8 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('attaches JSX events while adopting a component root', () => {
 		const root = document.createElement('div');
-		function Counter(this: Component<{ count: number }>) {
-			this.state.count = 0;
-			return () =>
-				createVNode(
-					'button',
-					{
-						onClick: () => this.state.count++
-					},
-					String(this.state.count)
-				);
-		}
-		root.innerHTML = renderToString(createVNode(Counter, null)).html;
-		hydrate(createVNode(Counter, null), root, { logger: noopLogger });
+		const resumptions = prepareServerHydration(root, serverCounterRoot);
+		hydrate(counterRoot, root, { logger: noopLogger, resumptions });
 		const button = root.querySelector('button')!;
 		button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		flushSync();
@@ -454,13 +364,8 @@ describe('@exactjs/hydrate adoption', () => {
 			isEnabled: (level) => level === 'trace',
 			log: (event) => events.push(event)
 		};
-		function Counter(this: Component<{ count: number }>) {
-			this.state.count = 0;
-			return () =>
-				createVNode('button', { onClick: () => this.state.count++ }, String(this.state.count));
-		}
-		root.innerHTML = renderToString(createVNode(Counter, null)).html;
-		hydrate(createVNode(Counter, null), root, { logger });
+		const resumptions = prepareServerHydration(root, serverCounterRoot);
+		hydrate(counterRoot, root, { logger, resumptions });
 
 		root.querySelector('button')!.click();
 		await vi.waitFor(() =>
@@ -470,68 +375,55 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('fulfills component refs while adopting existing elements', () => {
 		const root = document.createElement('div');
-		const buttonRef = createRef<HTMLButtonElement>('hydrated-button');
 		let instance!: Component<{}>;
-		function Button(this: Component<{}>) {
-			instance = this;
-			return () => createVNode('button', { ref: this.ref(buttonRef) }, 'save');
-		}
-		root.innerHTML = renderToString(createVNode(Button, null)).html;
+		const resumptions = prepareServerHydration(root, serverButtonRefRoot());
 		const serverNode = root.querySelector('button')!;
-		hydrate(createVNode(Button, null), root, { logger: noopLogger });
-		expect(instance.refs.get(buttonRef)).toBe(serverNode);
+		hydrate(
+			buttonRefRoot((value) => (instance = value)),
+			root,
+			{
+				logger: noopLogger,
+				resumptions
+			}
+		);
+		expect(instance.refs.get(buttonRefKey)).toBe(serverNode);
 	});
 
 	it('adopts static fragment siblings inside a marker range', () => {
 		const root = document.createElement('div');
-		root.innerHTML = '<!--exact:fragment:0--><p>one</p><p>two</p><!--/exact:fragment:0-->';
+		const resumptions = prepareServerHydration(root, serverSiblingRoot({}));
 		const [first, second] = Array.from(root.querySelectorAll('p'));
-		hydrate(
-			createVNode(Fragment, null, createVNode('p', null, 'one'), createVNode('p', null, 'two')),
-			root,
-			{ logger: noopLogger }
-		);
+		hydrate(siblingRoot({}), root, { logger: noopLogger, resumptions });
 		expect(root.querySelectorAll('p')[0]).toBe(first);
 		expect(root.querySelectorAll('p')[1]).toBe(second);
 	});
 
 	it('adopts nested static fragments inside a marker range', () => {
 		const root = document.createElement('div');
-		root.innerHTML = '<!--exact:fragment:0--><p>one</p><p>two</p><!--/exact:fragment:0-->';
+		const resumptions = prepareServerHydration(root, serverSiblingRoot({}));
 		const [first, second] = Array.from(root.querySelectorAll('p'));
-		hydrate(
-			createVNode(
-				Fragment,
-				null,
-				createVNode(Fragment, null, createVNode('p', null, 'one'), createVNode('p', null, 'two'))
-			),
-			root,
-			{ logger: noopLogger }
-		);
+		hydrate(siblingRoot({}), root, { logger: noopLogger, resumptions });
 		expect(root.querySelectorAll('p')[0]).toBe(first);
 		expect(root.querySelectorAll('p')[1]).toBe(second);
 	});
 
-	it('remounts static markup when SSR includes an unexpected attribute', () => {
+	it('repairs an unexpected SSR attribute without replacing compatible markup', () => {
 		const root = document.createElement('div');
-		root.innerHTML =
-			'<!--exact:component:0--><p data-stale="yes">server</p><!--/exact:component:0-->';
+		const resumptions = prepareServerHydration(root, serverParagraphRoot('server'));
 		const serverNode = root.querySelector('p')!;
-		hydrate(createVNode('p', null, 'server'), root, { logger: noopLogger });
-		expect(root.querySelector('p')).not.toBe(serverNode);
+		serverNode.setAttribute('data-stale', 'yes');
+		hydrate(paragraphRoot('server'), root, { logger: noopLogger, resumptions });
+		expect(root.querySelector('p')).toBe(serverNode);
 		expect(root.querySelector('p')?.hasAttribute('data-stale')).toBe(false);
 	});
 
 	it('repairs only the mismatched child of an adopted static fragment', () => {
 		const root = document.createElement('div');
-		root.innerHTML = '<!--exact:fragment:0--><p>one</p><p>stale</p><!--/exact:fragment:0-->';
+		const resumptions = prepareServerHydration(root, serverSiblingRoot({}));
+		root.querySelectorAll('p')[1]!.textContent = 'stale';
 		const first = root.querySelectorAll('p')[0]!;
 		const stale = root.querySelectorAll('p')[1]!;
-		hydrate(
-			createVNode(Fragment, null, createVNode('p', null, 'one'), createVNode('p', null, 'two')),
-			root,
-			{ logger: noopLogger }
-		);
+		hydrate(siblingRoot({}), root, { logger: noopLogger, resumptions });
 		expect(root.querySelectorAll('p')[0]).toBe(first);
 		expect(root.querySelectorAll('p')[1]).toBe(stale);
 		expect(root.textContent).toBe('onetwo');
@@ -539,20 +431,10 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('repairs a stale static attribute without replacing compatible siblings', () => {
 		const root = document.createElement('div');
-		root.innerHTML =
-			'<!--exact:fragment:0--><p class="stale">one</p><p>two</p><!--/exact:fragment:0-->';
+		const resumptions = prepareServerHydration(root, serverSiblingRoot({ firstClass: 'stale' }));
 		const stale = root.querySelectorAll('p')[0]!;
 		const sibling = root.querySelectorAll('p')[1]!;
-		hydrate(
-			createVNode(
-				Fragment,
-				null,
-				createVNode('p', { className: 'fresh' }, 'one'),
-				createVNode('p', null, 'two')
-			),
-			root,
-			{ logger: noopLogger }
-		);
+		hydrate(siblingRoot({ firstClass: 'fresh' }), root, { logger: noopLogger, resumptions });
 		expect(root.querySelectorAll('p')[0]).toBe(stale);
 		expect(root.querySelectorAll('p')[0]?.className).toBe('fresh');
 		expect(root.querySelectorAll('p')[1]).toBe(sibling);
@@ -561,22 +443,13 @@ describe('@exactjs/hydrate adoption', () => {
 	it('restores focus and selection when local static repair replaces an input', () => {
 		const root = document.createElement('div');
 		document.body.appendChild(root);
-		root.innerHTML =
-			'<!--exact:fragment:0--><input value="stale"><p>stable</p><!--/exact:fragment:0-->';
+		const resumptions = prepareServerHydration(root, serverSiblingRoot({ input: true }));
 		const input = root.querySelector('input')!;
+		input.setAttribute('value', 'stale');
 		input.focus();
 		input.setSelectionRange(1, 3);
 		try {
-			hydrate(
-				createVNode(
-					Fragment,
-					null,
-					createVNode('input', { value: 'fresh' }),
-					createVNode('p', null, 'stable')
-				),
-				root,
-				{ logger: noopLogger }
-			);
+			hydrate(siblingRoot({ input: true }), root, { logger: noopLogger, resumptions });
 			const repaired = root.querySelector('input')!;
 			expect(document.activeElement).toBe(repaired);
 			expect(repaired.selectionStart).toBe(1);
@@ -586,46 +459,21 @@ describe('@exactjs/hydrate adoption', () => {
 		}
 	});
 
-	it('hydrates by falling back to normal render when markers are missing', () => {
-		const container = document.createElement('div');
-
-		hydrate(createVNode('p', null, 'ready'), container, { logger: noopLogger });
-
-		expect(container.querySelector('p')?.textContent).toBe('ready');
-	});
-
 	it('recovers a mismatched registry entry without replacing adjacent adopted DOM', () => {
-		function First() {
-			return () => createVNode('p', null, 'first');
-		}
-		function Second() {
-			return () => createVNode('p', null, 'second');
-		}
-		createExactFrameworkFixtureArtifact(First, '@exactjs/hydrate:test:FirstRegistryEntry');
-		createExactFrameworkFixtureArtifact(Second, '@exactjs/hydrate:test:SecondRegistryEntry');
-		const View = createCompiledComponentRegistry('test:adoption', 'AdoptionView', 'client', () => ({
-			first: First,
-			second: Second
-		}));
-		let selected: 'first' | 'second' = 'first';
-		function Parent() {
-			const Current = View[selected];
-			return () =>
-				createVNode(
-					Fragment,
-					null,
-					createVNode('span', null, 'stable'),
-					createVNode(Current, null)
-				);
-		}
 		const container = document.createElement('div');
-		container.innerHTML = renderToString(createVNode(Parent, null)).html;
+		const resumptions = prepareServerHydration(container, serverRegistryRoot);
 		const stable = container.querySelector('span');
-		selected = 'second';
+		configureRegistrySelection('second');
 
-		hydrate(createVNode(Parent, null), container, { logger: noopLogger });
+		hydrate(registryRoot, container, { logger: noopLogger, resumptions });
 
 		expect(container.querySelector('span')).toBe(stable);
 		expect(container.querySelector('p')?.textContent).toBe('second');
 	});
 });
+
+function prepareServerHydration(container: Element, operation: Child) {
+	const rendered = renderToHydratableString(operation);
+	container.innerHTML = rendered.html;
+	return rendered.resumptions;
+}

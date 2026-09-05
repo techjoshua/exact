@@ -1,4 +1,4 @@
-import { logFrameworkEvent, type VNode } from '@exactjs/core';
+import { logFrameworkEvent } from '@exactjs/core';
 import type { Root } from './types.js';
 
 /** Emits a DOM patch trace event through the root logger. */
@@ -22,11 +22,4 @@ export function describeNode(node: Node | null | undefined): string {
 		return `${node.tagName.toLowerCase()}${id}${className}`;
 	}
 	return node.nodeName;
-}
-
-/** Produces a compact human-readable description of a vnode type for logs. */
-export function describeVNodeType(type: VNode['type']): string {
-	if (typeof type === 'string') return type;
-	if (typeof type === 'function') return type.name || 'anonymous';
-	return String(type.description ?? type.toString());
 }

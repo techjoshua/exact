@@ -20,5 +20,6 @@ function nativeLocationPath(
 	router: { getSnapshot(): { location: { pathname: string } } },
 	_version: number
 ): string {
+	void _version;
 	return router.getSnapshot().location.pathname;
 }

@@ -26,7 +26,10 @@ export {
 export {
 	createEffectScope,
 	createProfiledEffectScope,
+	currentEffectScope,
+	effectScopeParent,
 	effectScopeWorkPriority,
+	registerEffectScopeCleanup,
 	setEffectScopeWorkPriority,
 	transferEffectScope,
 	whenEffectScopeResumed,
@@ -44,19 +47,47 @@ export type {
 	WatchOptions
 } from '../internal/types.js';
 export { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
-export { collectionRef, computed, ref, subscribe, subscribeKeys, watch } from '../observation.js';
-export { reactiveOwnDependencies, readReactiveOwnProperty } from '../indexed-base.js';
+export { computed, inspectComputed, type ComputedInspection } from '../computation.js';
+export {
+	collectionRef,
+	ref,
+	subscribe,
+	subscribeKeys,
+	trackCollectionStructure,
+	watch,
+	watchStructural
+} from '../observation.js';
+export {
+	compiledReactivePropertyOperand,
+	createIndexedReactiveValue,
+	deleteIndexedReactiveSlot,
+	deleteIndexedReactiveSlotWithResult,
+	updateIndexedReactive,
+	reactiveIndexedDependencies,
+	reactiveOwnDependencies,
+	readIndexedReactiveSource,
+	readIndexedReactiveSlot,
+	peekIndexedReactiveSlot,
+	readReactiveOwnProperty,
+	setIndexedReactiveSlot,
+	setIndexedReactiveSlotWithResult
+} from '../indexed-base.js';
+export type { CompiledReactivePropertyOperand } from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
 export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';
-export { updateReactive } from '../reconciliation.js';
+export { updateReactive, updateReactiveShallow } from '../reconciliation.js';
 export {
+	deleteIndexedReactiveValue,
 	deleteReactiveValue,
 	mutateReactiveArray,
 	mutateReactiveCollection,
 	registerReactiveListKey,
+	updateIndexedReactiveValue,
+	updateIndexedReactiveValueWithResult,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
+	writeIndexedReactiveValue,
 	writeReactive,
 	writeReactiveLazy
 } from '../writes.js';

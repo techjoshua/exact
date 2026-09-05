@@ -18,17 +18,24 @@ export type ExactMicrofrontendBuildConfig = {
 /** Packages whose identity must be shared by every eXact remote client. */
 export const mandatoryExactProvidedPackages = Object.freeze([
 	'@exactjs/core',
+	'@exactjs/core/runtime/collections',
+	'@exactjs/core/runtime/component-construction/render',
+	'@exactjs/core/runtime/component-operations',
+	'@exactjs/core/runtime/contexts',
 	'@exactjs/core/runtime/dynamic-components',
 	'@exactjs/core/runtime/enhancements',
 	'@exactjs/core/runtime/inspection',
 	'@exactjs/core/runtime/reactivity',
+	'@exactjs/core/runtime/refs',
 	'@exactjs/core/runtime/registry',
 	'@exactjs/core/runtime/render',
+	'@exactjs/core/runtime/render-operations',
 	'@exactjs/core/runtime/tasks',
 	'@exactjs/dom',
 	'@exactjs/dom/enhanced',
 	'@exactjs/hydrate',
 	'@exactjs/hydrate/enhanced',
+	'@exactjs/hydrate/framework/client-bootstrap',
 	'@exactjs/reactive',
 	'@exactjs/jsx/jsx-runtime'
 ] as const);

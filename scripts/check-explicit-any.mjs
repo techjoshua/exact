@@ -23,6 +23,7 @@ const ignoredDirectories = new Set([
 	'node_modules',
 	'reference'
 ]);
+const ignoredGeneratedFiles = new Set(['routeTree.gen.ts']);
 const baseline = 73;
 let total = 0;
 const counts = [];
@@ -69,6 +70,7 @@ async function sourceFiles(directory) {
 	const files = [];
 	for (const entry of await readdir(directory, { withFileTypes: true })) {
 		if (ignoredDirectories.has(entry.name)) continue;
+		if (ignoredGeneratedFiles.has(entry.name)) continue;
 		const target = path.join(directory, entry.name);
 		if (entry.isDirectory()) files.push(...(await sourceFiles(target)));
 		else if (/\.tsx?$/.test(entry.name)) files.push(target);

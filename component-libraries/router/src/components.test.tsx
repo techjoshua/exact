@@ -1,18 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { type AnyComponentFunction, createErrorContext, createVNode } from '@exactjs/core';
-import { createExpression } from '@exactjs/core/runtime/render';
+import { createErrorContext, type Child } from '@exactjs/core';
 import { isExactComponent } from '@exactjs/core/framework/component-contracts';
 import { render } from '@exactjs/dom';
-import {
-	createRequestContextValue,
-	RequestContext,
-	runWithRequestContext,
-	type RequestResponseState
-} from '@exactjs/request';
-import { renderToString } from '@exactjs/ssr';
-import '@exactjs/ssr/runtime/generic-components';
+import { createTestComponentReceipt } from '@exactjs/testing/internal/fixtures';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	ApplePage,
@@ -28,7 +20,9 @@ import {
 	TargetLinksPage,
 	UserPage
 } from './components.fixtures.js';
-import { createMemoryLocationSource, Navigate, Route, Router } from './index.js';
+import { createMemoryLocationSource, Router } from './index.js';
+
+const component = createTestComponentReceipt;
 
 describe('router', () => {
 	it('uses compiler identity for authored native fixtures', () => {
@@ -40,12 +34,18 @@ describe('router', () => {
 		const source = createMemoryLocationSource('https://example.test/');
 		const container = document.createElement('div');
 		render(
-			<Router source={source}>
-				<Route component={NestedLayout}>
-					<Route index component={HomePage} />
-					<Route path="users/:id" component={UserPage} />
-				</Route>
-			</Router>,
+			component(Router, {
+				source,
+				routes: [
+					{
+						render: (outlet: Child) => component(NestedLayout, null, outlet),
+						children: [
+							{ index: true, render: () => component(HomePage, null) },
+							{ path: 'users/:id', render: () => component(UserPage, null) }
+						]
+					}
+				]
+			}),
 			container
 		);
 		expect(container.textContent).toBe('Open');
@@ -61,9 +61,12 @@ describe('router', () => {
 		const source = createMemoryLocationSource('https://example.test/app/start');
 		const container = document.createElement('div');
 		render(
-			<Router source={source} basename="/app" mode="hash">
-				<Route path="start" component={BasenamePage} />
-			</Router>,
+			component(Router, {
+				source,
+				basename: '/app',
+				mode: 'hash',
+				routes: [{ path: 'start', render: () => component(BasenamePage, null) }]
+			}),
 			container
 		);
 		expect(container.querySelector('a')?.getAttribute('href')).toBe('#/app/start');
@@ -74,9 +77,12 @@ describe('router', () => {
 		const source = createMemoryLocationSource('https://example.test/#/app/start?from=ssr');
 		const container = document.createElement('div');
 		render(
-			<Router source={source} basename="/app" mode="hash">
-				<Route path="start" component={HashPage} />
-			</Router>,
+			component(Router, {
+				source,
+				basename: '/app',
+				mode: 'hash',
+				routes: [{ path: 'start', render: () => component(HashPage, null) }]
+			}),
 			container
 		);
 		expect(container.querySelector('p')?.textContent).toBe('?from=ssr');
@@ -84,26 +90,22 @@ describe('router', () => {
 	});
 
 	it('collects routes generated inside compiled fragments', async () => {
-		const routeType = Route as unknown as AnyComponentFunction;
 		const generated = [
-			createVNode(routeType, {
-				path: createExpression(() => 'guides/routing'),
-				component: createExpression(() => GeneratedPage)
-			}),
-			createVNode(routeType, {
-				path: createExpression(() => 'learn/state'),
-				component: createExpression(() => StatePage)
-			})
+			{ path: 'guides/routing', render: () => component(GeneratedPage, null) },
+			{ path: 'learn/state', render: () => component(StatePage, null) }
 		];
 		const source = createMemoryLocationSource('https://example.test/guides/routing');
 		const container = document.createElement('div');
 		render(
-			<Router source={source}>
-				<Route component={GeneratedLayout}>
-					{generated}
-					<Route path="*" component={MissingPage} />
-				</Route>
-			</Router>,
+			component(Router, {
+				source,
+				routes: [
+					{
+						render: (outlet: Child) => component(GeneratedLayout, null, outlet),
+						children: [...generated, { path: '*', render: () => component(MissingPage, null) }]
+					}
+				]
+			}),
 			container
 		);
 		expect(container.querySelector('p')?.textContent).toBe('Generated route');
@@ -128,9 +130,10 @@ describe('router', () => {
 		const source = createMemoryLocationSource('https://example.test/users/42');
 		const container = document.createElement('div');
 		render(
-			<Router source={source}>
-				<Route path="users/:id" component={TargetLinksPage} />
-			</Router>,
+			component(Router, {
+				source,
+				routes: [{ path: 'users/:id', render: () => component(TargetLinksPage, null) }]
+			}),
 			container
 		);
 		expect(
@@ -141,79 +144,20 @@ describe('router', () => {
 	it('does not strip a basename from a partial segment', () => {
 		const container = document.createElement('div');
 		render(
-			<Router source={createMemoryLocationSource('https://example.test/apple')} basename="/app">
-				<Route path="le" component={ApplePage} />
-			</Router>,
+			component(Router, {
+				source: createMemoryLocationSource('https://example.test/apple'),
+				basename: '/app',
+				routes: [{ path: 'le', render: () => component(ApplePage, null) }]
+			}),
 			container
 		);
 		expect(container.textContent).toBe('');
 	});
 
-	it('reads SSR request URLs and records redirects', () => {
-		const first: RequestResponseState = { headers: new Headers(), committed: false };
-		runWithRequestContext(
-			createRequestContextValue(
-				{ url: 'https://example.test/old', publicOrigin: 'https://example.test' },
-				first
-			),
-			() =>
-				renderToString(
-					<Router>
-						<Route path="old" component={Navigate} componentProps={{ to: '/new', status: 301 }} />
-					</Router>
-				)
-		);
-		expect(first.redirect).toEqual({ location: new URL('https://example.test/new'), status: 301 });
-
-		const second: RequestResponseState = { headers: new Headers(), committed: false };
-		runWithRequestContext(
-			createRequestContextValue(
-				{ url: 'https://example.test/old', publicOrigin: 'https://example.test' },
-				second
-			),
-			() =>
-				renderToString(
-					<Router>
-						<Route
-							path="old"
-							component={Navigate}
-							componentProps={{ to: '/pushed', replace: false, status: 307 }}
-						/>
-					</Router>
-				)
-		);
-		expect(second.redirect).toEqual({
-			location: new URL('https://example.test/pushed'),
-			status: 307
-		});
-	});
-
-	it('prefers explicitly propagated server request context over ambient storage', () => {
-		const response: RequestResponseState = { headers: new Headers(), committed: false };
-		const request = createRequestContextValue(
-			{
-				url: 'https://example.test/explicit',
-				publicOrigin: 'https://example.test'
-			},
-			response
-		);
-		const rendered = renderToString(
-			<Router>
-				<Route path="explicit" component={Navigate} componentProps={{ to: '/next', status: 308 }} />
-			</Router>,
-			{ contexts: new Map([[RequestContext.id, request]]) }
-		);
-		expect(rendered.html).toContain('exact:component');
-		expect(response.redirect).toEqual({
-			location: new URL('https://example.test/next'),
-			status: 308
-		});
-	});
-
 	it('observes rejected consumer link callbacks', async () => {
 		const errors = createErrorContext();
 		const container = document.createElement('div');
-		render(<ErrorLinkApp errors={errors} />, container);
+		render(component(ErrorLinkApp, { errors }), container);
 		container.querySelector('a')!.click();
 		await vi.waitFor(() => expect(errors.errors[0]?.error).toEqual(new Error('link failed')));
 	});

@@ -1,0 +1,80 @@
+{
+	"name": "@exactjs/charts",
+	"version": "0.1.0",
+	"description": "Accessible, localized, theme-aware native chart components for eXact",
+	"type": "module",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"dist",
+		"styles.css",
+		"!dist/**/*.test.*",
+		"!dist/**/*.fixtures.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
+		},
+		"./scales": {
+			"types": "./dist/scales.d.ts",
+			"browser": "./dist/client/scales.js",
+			"default": "./dist/server/scales.js"
+		},
+		"./internal": {
+			"types": "./dist/plot.d.ts",
+			"browser": "./dist/client/plot.js",
+			"default": "./dist/server/plot.js"
+		},
+		"./styles.css": "./styles.css"
+	},
+	"main": "./dist/server/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": [
+		"./styles.css"
+	],
+	"exactCompiledComponents": {
+		".": [
+			"Axis",
+			"AxisLabel",
+			"Chart",
+			"ChartDescription",
+			"ChartTitle",
+			"Data",
+			"DataDescription",
+			"DataLabel",
+			"Legend",
+			"Series",
+			"SeriesLabel"
+		],
+		"./internal": [
+			"ChartPlot"
+		]
+	},
+	"exactComponentLibrary": {
+		"protocol": 2,
+		"build": "./dist/exact-component-build.json"
+	},
+	"dependencies": {
+		"@exactjs/component-library": "^0.1.0",
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/intl": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/theme": "^0.1.0"
+	},
+	"devDependencies": {
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/testing": "^0.1.0",
+		"@exactjs/vitest": "^0.1.0"
+	},
+	"scripts": {
+		"build": "tsc6 -b && node ../../scripts/compile-exact-package.mjs .",
+		"test": "vitest run --config vitest.config.ts && vitest run --config vitest.server.config.ts",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

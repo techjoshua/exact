@@ -2,14 +2,66 @@ import { exact } from '@exactjs/vite-plugin';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 
+const profileClient = process.env.EXACT_COMPARISON_PROFILE === '1';
+
 /** Builds and serves only the independently authored eXact participant. */
 export default {
 	root: fileURLToPath(new URL('.', import.meta.url)),
-	plugins: [exact({ renderMode: 'hydrate' }), rejectUnusedReactCompatibility()],
+	plugins: [
+		...(profileClient ? [enableDetailedClientProfiling()] : []),
+		exact({ renderMode: 'hydrate' }),
+		rejectUnusedReactCompatibility(),
+		...(profileClient ? [emitModuleAttribution()] : [])
+	],
+	define: {
+		__EXACT_COMPARISON_PROFILE__: JSON.stringify(profileClient)
+	},
 	server: { host: '127.0.0.1' },
 	preview: { host: '127.0.0.1' },
-	build: { outDir: 'dist', emptyOutDir: true }
+	build: { outDir: 'dist', emptyOutDir: true, sourcemap: profileClient }
 };
+
+/** Selects detailed DOM phase timing only for the explicitly diagnostic comparison bundle. */
+function enableDetailedClientProfiling(): Plugin {
+	return {
+		name: 'exact-comparison-detailed-client-profiling',
+		transform(code, id) {
+			const normalized = id.replaceAll('\\', '/');
+			if (normalized.endsWith('/packages/dom/dist/client/renderer/profiling-policy.js'))
+				return code.replace('domPhaseProfiling = false', 'domPhaseProfiling = true');
+			if (
+				normalized.endsWith('/packages/hydrate/dist/profiling-policy.js') ||
+				normalized.endsWith('/packages/hydrate/dist/client/profiling-policy.js')
+			)
+				return code.replace('hydrationPhaseProfiling = false', 'hydrationPhaseProfiling = true');
+		}
+	};
+}
+
+/** Emits the bundler's exact per-module shipped-byte accounting for diagnostic builds only. */
+function emitModuleAttribution(): Plugin {
+	return {
+		name: 'exact-comparison-module-attribution',
+		generateBundle(_options, bundle) {
+			const chunks = Object.values(bundle)
+				.filter((output) => output.type === 'chunk')
+				.map((output) => ({
+					fileName: output.fileName,
+					modules: Object.entries(output.modules)
+						.map(([id, details]) => ({
+							id,
+							shippedBytes: details.renderedLength
+						}))
+						.sort((left, right) => right.shippedBytes - left.shippedBytes)
+				}));
+			this.emitFile({
+				type: 'asset',
+				fileName: '.exact/module-attribution.json',
+				source: `${JSON.stringify({ chunks }, null, 2)}\n`
+			});
+		}
+	};
+}
 
 /** Fails the production fixture if native ownership accidentally retains React compatibility. */
 function rejectUnusedReactCompatibility(): Plugin {

@@ -1,0 +1,102 @@
+import type { AnyComponentInstance } from '@exactjs/core';
+import type { ExactWideComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
+import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
+import type { Mounted } from '../types.js';
+import {
+	createCompiledComponentDependencies,
+	type CompiledComponentDependencies,
+	visitChangedCompiledComponentDependencies
+} from './component-update-dependencies.js';
+import {
+	bindComponentUpdateTarget,
+	publishComponentUpdateTargets,
+	type CompiledComponentUpdateTargets
+} from './component-update-storage.js';
+
+/** Lazily allocated mask storage for one compiler-generated wide component update program. */
+type CompiledWideComponentUpdateState = {
+	readonly d: CompiledComponentDependencies;
+	readonly t: CompiledComponentUpdateTargets;
+	readonly w: Uint32Array;
+};
+
+type WideComponentUpdateOwner = AnyComponentInstance & {
+	[wideComponentUpdateState]?: CompiledWideComponentUpdateState;
+};
+
+const wideComponentUpdateState = Symbol('exact.dom.component-wide-updates');
+
+type ProgramBindingTarget = {
+	readonly mounted: Mounted;
+	readonly stopBindings: Array<{ stop(): void }>;
+	valid: boolean;
+};
+
+/** Joins one finite DOM region to a compiler-generated update program wider than 64 operations. */
+export function bindCompiledWideComponentUpdate(
+	target: ExactRenderProgramBindingTarget,
+	index: number,
+	updates: ExactWideComponentUpdateContract
+): void {
+	const context = target as ProgramBindingTarget;
+	const owner =
+		context.mounted.renderProgram?.bindingOwner ?? context.mounted.renderProgram?.parentInstance;
+	if (!owner) {
+		context.valid = false;
+		return;
+	}
+	const component = owner as WideComponentUpdateOwner;
+	let state = component[wideComponentUpdateState];
+	if (!state) {
+		let initialized: CompiledWideComponentUpdateState;
+		const dependencies = createCompiledComponentDependencies(
+			owner,
+			updates.bindings,
+			updates.props!,
+			(binding) => publishCompiledWideComponentUpdate(updates, initialized, binding)
+		);
+		if (!dependencies) {
+			context.valid = false;
+			return;
+		}
+		state = initialized = {
+			d: dependencies,
+			t: [],
+			w: new Uint32Array(updates.words - 2)
+		};
+		component[wideComponentUpdateState] = state;
+	}
+	bindComponentUpdateTarget(target, state.t, index);
+}
+
+/** Publishes every changed compiler-sized mask word through the generated wide updater. */
+function publishCompiledWideComponentUpdate(
+	updates: ExactWideComponentUpdateContract,
+	state: CompiledWideComponentUpdateState,
+	forwardedBinding?: number
+): void {
+	let dirtyLow = 0;
+	let dirtyHigh = 0;
+	let changed = false;
+	changed = visitChangedCompiledComponentDependencies(
+		state.d,
+		(index) => {
+			const binding = updates.bindings[index]!;
+			dirtyLow |= binding[1];
+			dirtyHigh |= binding[2];
+			const bindingWords = binding as unknown as readonly number[];
+			for (let word = 0; word < state.w.length; word++) {
+				state.w[word] = state.w[word]! | (bindingWords[word + 3] ?? 0);
+			}
+		},
+		forwardedBinding
+	);
+	if (!changed) return;
+	try {
+		publishComponentUpdateTargets(state.t, (targets) =>
+			updates.apply(targets, dirtyLow, dirtyHigh, state.w)
+		);
+	} finally {
+		state.w.fill(0);
+	}
+}

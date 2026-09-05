@@ -9,7 +9,7 @@ import { defineMotion, Presence } from '@exactjs/motion';
 const previewActionsMotion = defineMotion({
 	enter: {
 		keyframes: [
-			{ opacity: 0, transform: 'translateX(8px)' },
+			{ opacity: 0, transform: 'translateX(-8px)' },
 			{ opacity: 1, transform: 'none' }
 		],
 		options: { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }

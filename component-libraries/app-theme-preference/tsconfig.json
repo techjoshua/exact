@@ -5,9 +5,15 @@
 		"rootDir": "src",
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"],
-		"jsx": "preserve"
+		"jsx": "react-jsx",
+		"jsxImportSource": "@exactjs/jsx"
 	},
-	"references": [{ "path": "../../packages/core" }, { "path": "../../packages/ssr" }],
+	"references": [
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/dom" },
+		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/ssr" }
+	],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts"]
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

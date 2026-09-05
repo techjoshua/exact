@@ -19,6 +19,7 @@ import {
 	preparePackageEnhancementSource,
 	sanitizePackageEnhancementResponse
 } from '../compilation/package-enhancements.js';
+import { classifyExactJsxInteropImports } from './jsx-interop-classification.js';
 
 /**
  * Executes a normalized module entirely through the persistent Go host.
@@ -36,7 +37,7 @@ export function transformSourceWithNativeCompiler(
 	if (!session?.hasNativeCompiler())
 		throw new Error('Native compilation requires a session with a configured Go compiler host');
 	const policyOptions = capabilityCompilationOptions(options);
-	const target = options.target ?? 'default';
+	const target = executableTarget(options.target);
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
@@ -72,7 +73,15 @@ export function transformSourceWithNativeCompiler(
 				? {
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
-							adapterExport: options.jsxInterop.adapterExport
+							adapterExport: options.jsxInterop.adapterExport,
+							clientRendererModule: options.jsxInterop.clientRendererModule,
+							exactComponents: classifyExactJsxInteropImports(
+								session,
+								prepared.source,
+								filename,
+								options,
+								target
+							)
 						}
 					}
 				: {}),
@@ -141,6 +150,74 @@ export function transformSourceWithNativeCompiler(
 	};
 }
 
+/**
+ * Validates the compiler-aware TypeScript projection without returning an executable artifact.
+ * Target-neutral lowering is private to this transient check operation.
+ */
+export function checkSourceWithNativeCompiler(
+	normalized: string,
+	filename: string,
+	options: TransformOptions
+): void {
+	const session = options.session;
+	if (!session?.hasNativeCompiler())
+		throw new Error('Native checking requires a session with a configured Go compiler host');
+	const policyOptions = capabilityCompilationOptions(options);
+	const prepared = preparePackageEnhancementSource(
+		normalized,
+		filename,
+		options.packageEnhancements
+	);
+	const response = sanitizePackageEnhancementResponse(
+		session.compileNative({
+			id: filename,
+			kind: 'check',
+			source: prepared.source,
+			...(prepared.moduleSpecifiers.size
+				? { packageEnhancementBoundary: prepared.authoredLength }
+				: {}),
+			root: options.root,
+			configFile: options.configFile,
+			target: 'default',
+			serverComponents: options.serverComponents,
+			preserveComponentHoisting: options.preserveComponentHoisting,
+			diagnostics: 'semantic',
+			packageType: policyOptions.packageType,
+			packageName: policyOptions.packageName,
+			capabilities: nativeCapabilityPolicy(policyOptions),
+			assetRules: options.assetRules?.map((rule) => ({
+				...rule,
+				extensions: [...(rule.extensions ?? [])],
+				queries: [...(rule.queries ?? [])]
+			})),
+			preserveClientAssetImports: options.preserveClientAssetImports,
+			...(options.jsxInterop
+				? {
+						jsxInterop: {
+							adapterModule: options.jsxInterop.adapterModule,
+							adapterExport: options.jsxInterop.adapterExport,
+							clientRendererModule: options.jsxInterop.clientRendererModule,
+							exactComponents: classifyExactJsxInteropImports(
+								session,
+								prepared.source,
+								filename,
+								options,
+								'default'
+							)
+						}
+					}
+				: {})
+		}),
+		prepared
+	);
+	throwNativeCompilerErrors(filename, normalized, response.diagnostics);
+}
+
+/** Selects one executable artifact target while keeping neutral projection private to analysis. */
+function executableTarget(target: TransformOptions['target']): 'client' | 'server' {
+	return target ?? 'client';
+}
+
 function shouldEnableInspection(
 	value: TransformOptions['emitInspection'] | TransformOptions['instrumentInspection']
 ): boolean {
@@ -190,7 +267,15 @@ export function analyzeSourceWithNativeCompiler(
 				? {
 						jsxInterop: {
 							adapterModule: options.jsxInterop.adapterModule,
-							adapterExport: options.jsxInterop.adapterExport
+							adapterExport: options.jsxInterop.adapterExport,
+							clientRendererModule: options.jsxInterop.clientRendererModule,
+							exactComponents: classifyExactJsxInteropImports(
+								session,
+								prepared.source,
+								filename,
+								options,
+								options.target ?? 'default'
+							)
 						}
 					}
 				: {}),

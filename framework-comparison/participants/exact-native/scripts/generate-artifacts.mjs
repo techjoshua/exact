@@ -23,6 +23,8 @@ const graph = createExactArtifactGraph(results, {
 });
 await writeFile(
 	path.join(outDir, 'hydration-registration.ts'),
-	createExactHydrationRegistrationModule(graph)
+	createExactHydrationRegistrationModule(graph, {
+		clientBootstrapExportName: 'createExactComparisonClient'
+	})
 );
 console.log(`Generated ${results.length} native eXact artifact set`);

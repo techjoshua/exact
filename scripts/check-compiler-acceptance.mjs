@@ -30,6 +30,7 @@ const applications = [
 const selectedApplications = requestedApplication
 	? applications.filter(({ key }) => key === requestedApplication)
 	: applications;
+const coldApplicationTimeout = 90_000;
 if (!selectedApplications.length)
 	throw new Error(`Unknown EXACT_ACCEPTANCE_APP ${requestedApplication}`);
 const browser = await chromium.launch({ headless: true });
@@ -56,6 +57,10 @@ async function checkApplication(name, workspace, journey) {
 		await server.ready(port);
 		const context = await browser.newContext();
 		const page = await context.newPage();
+		// A clean CI worker compiles the application after navigation. Allow that owned compiler work
+		// to finish without treating Vite's dependency traffic as application readiness.
+		page.setDefaultTimeout(coldApplicationTimeout);
+		page.setDefaultNavigationTimeout(coldApplicationTimeout);
 		const failures = [];
 		page.on('pageerror', (error) => failures.push(`page error: ${error.stack ?? error.message}`));
 		page.on('console', (message) => {
@@ -98,7 +103,7 @@ async function checkSudoku(page, origin) {
 }
 
 async function checkDocs(page, origin) {
-	await page.goto(origin, { waitUntil: 'networkidle' });
+	await navigateToDocs(page, origin);
 	await page.getByRole('heading', { name: 'Build reactive apps with TypeScript' }).waitFor();
 	await page.locator('.copy-button').first().waitFor();
 	await page.getByRole('button', { name: '+1' }).click();
@@ -130,6 +135,12 @@ async function checkShipping(page, origin) {
 		throw new Error(`shipping __exact requests returned ${exactStatuses.join(', ')}`);
 	}
 	await page.getByRole('heading', { name: 'DOOP Today' }).waitFor();
+}
+
+async function navigateToDocs(page, origin) {
+	// Vite keeps development connections and dependency discovery active beyond initial page
+	// readiness. The visible journey below is the acceptance signal, not network quiescence.
+	await page.goto(origin, { waitUntil: 'domcontentloaded' });
 }
 
 async function startServer(workspace, port) {

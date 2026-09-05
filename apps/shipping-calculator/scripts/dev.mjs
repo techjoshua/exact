@@ -1,6 +1,7 @@
 import { createServer as createHttpServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createServer as createViteServer } from 'vite';
+import { installDevelopmentProcessLifecycle } from '../../../scripts/development-process-lifecycle.mjs';
 
 const port = readPort(process.env.PORT);
 const hmrPort = process.env.HMR_PORT ? readPort(process.env.HMR_PORT) : undefined;
@@ -45,7 +46,7 @@ vite.watcher.on('change', (file) => {
 const server = createHttpServer((request, response) => {
 	vite.middlewares(request, response, async () => {
 		try {
-			const module = await vite.ssrLoadModule('/src/server-app.ts');
+			const module = await vite.ssrLoadModule('/src/server-app.tsx');
 			await module.handleParcelLabRequest(request, response, {
 				clientScript: '/src/client.ts',
 				stylesheet: '/src/styles.css',
@@ -60,17 +61,19 @@ const server = createHttpServer((request, response) => {
 });
 
 server.listen(port, '0.0.0.0', () => console.log(`Parcel Lab running at http://localhost:${port}`));
+const lifecycle = installDevelopmentProcessLifecycle({
+	label: 'Parcel Lab development server',
+	close: closeResources
+});
 process.on('message', (message) => {
-	if (message?.type === 'exact-acceptance-close') void close();
+	if (message?.type === 'exact-acceptance-close') void lifecycle.shutdown('acceptance-close');
 });
 
 let closing;
-function close() {
+function closeResources() {
 	return (closing ??= new Promise((resolve, reject) => {
 		server.close((error) => (error ? reject(error) : resolve()));
-	})
-		.then(() => vite.close())
-		.then(() => process.exit(0)));
+	}).then(() => vite.close()));
 }
 
 function readPort(value) {

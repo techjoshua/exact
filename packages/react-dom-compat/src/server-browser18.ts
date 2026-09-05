@@ -1,6 +1,6 @@
 import '@exactjs/react-compat/react18';
-import * as Server from './server-shared.js';
-export * from './server-shared.js';
+import * as Server from './server/shared.js';
+export * from './server/shared.js';
 /** Provides the canonical version value. */
 export const version = '18.3.1-exact';
 /** Transforms to node stream into its required representation. */

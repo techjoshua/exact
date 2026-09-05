@@ -1,191 +1,97 @@
-import { type AnyComponentInstance, type Child, type VNode } from '@exactjs/core';
+import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
 	readRenderProgram,
-	renderProgramFallback,
-	type ExactRenderProgram,
-	type ExactDomRenderProgram,
-	type ExactRenderProgramInvocation,
-	type ExactTableRenderProgram
-} from '@exactjs/core/runtime/render';
+	readRenderProgramReceipt
+} from '@exactjs/core/runtime/render-operations';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
-import { setElementOwner, setNodeOwner } from '../ownership.js';
 import type { Mounted, Root } from '../types.js';
-import { countDomWork } from './limits.js';
-import { materializeProgramTemplate } from './render-program-template.js';
-import { adoptProgramChildSlots } from './render-program-children.js';
-import {
-	indexProgramHydration,
-	markedProgramRange,
-	programElement,
-	type ProgramHydrationIndex
-} from './render-program-hydration.js';
-import { ownProgramNodes, releaseProgramNodeOwners } from './render-program-ownership.js';
+import { adoptProgramChildSlots } from './render-program-adoption.js';
+import { markedProgramRange } from './render-program-hydration.js';
 import { bindRenderProgram } from './render-program-bindings.js';
 import { claimCompiledRenderProgram } from './render-program-claims.js';
 import {
-	claimGenericHydrationSlots,
-	claimGenericMountSlots,
 	ownDirectProgramNodes,
-	releaseDirectProgramNodeOwners,
-	validRenderProgramSlotNodes
+	releaseDirectProgramNodeOwners
 } from './render-program-slot-claims.js';
-
-const elementNode = 1;
-
-/** Mounts a branded program, or reports that its generic region fallback is required. */
-export function mountRenderProgram(
-	root: Root,
-	vnode: VNode,
-	scope: EffectScope,
-	parentInstance?: AnyComponentInstance
-): Mounted | undefined {
-	const invocation = readRenderProgram(vnode);
-	if (!invocation) return undefined;
-	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
-	// A browser renderer can receive only client or complete compiler artifacts. Server-only
-	// descriptors are excluded by artifact partitioning and cannot be authored through the brand.
-	const program = invocation.program as ExactDomRenderProgram;
-	const fragment = materializeProgramTemplate(program, root.container.ownerDocument);
-	if (!fragment.firstChild || fragment.firstChild !== fragment.lastChild) return undefined;
-	const dom = fragment.firstChild!;
-	if (!(dom instanceof Element)) return undefined;
-	const direct = claimCompiledRenderProgram(program, dom, 'template');
-	if (program.directClaims && !direct) return undefined;
-	const table = tableProgram(invocation);
-	const programIndex = direct ? undefined : indexProgramHydration(dom);
-	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
-	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
-	const mounted: Mounted = {
-		vnode,
-		dom,
-		scope,
-		children: [],
-		renderProgram: {
-			invocation,
-			programRoot: dom,
-			slotNodes,
-			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
-			root,
-			bindingOwner,
-			parentInstance
-		}
-	};
-	if (bindingOwner) {
-		if (programIndex) ownProgramNodes(table!, programIndex, bindingOwner);
-		else ownDirectProgramNodes(direct?.elements, bindingOwner);
-	}
-	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
-		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
-		else releaseDirectProgramNodeOwners(direct?.elements);
-		return undefined;
-	}
-	countProgramWork(root, program, direct, false);
-	return mounted;
-}
+import {
+	countProgramWork,
+	directProgram,
+	renderProgramHasBindings
+} from './render-program-operation.js';
+import { beginDomProfile, finishDomProfile } from './profiling.js';
 
 /** Adopts an existing markerless program root with one bounded path cursor. */
 export function adoptRenderProgram(
 	root: Root,
-	vnode: VNode,
+	value: unknown,
 	dom: Node,
 	scope: EffectScope,
-	parentInstance: AnyComponentInstance,
+	parentInstance: AnyComponentInstance | undefined,
 	adoptChildren: (
 		children: readonly Child[],
 		nodes: readonly Node[],
-		parentInstance: AnyComponentInstance,
+		parentInstance: AnyComponentInstance | undefined,
 		scope: EffectScope,
 		cursor: number,
 		end: number,
 		compilerOwnedComponent?: boolean
 	) => Mounted[] | undefined
 ): Mounted | undefined {
-	const invocation = readRenderProgram(vnode);
+	const invocation = readRenderProgram(value);
 	if (!invocation) return undefined;
 	const bindingOwner = (invocation.owner as AnyComponentInstance | undefined) ?? parentInstance;
-	const program = invocation.program as ExactDomRenderProgram;
+	const program = directProgram(invocation.program);
 	if (!(dom instanceof Element)) return undefined;
+	const claimStarted = beginDomProfile(root);
 	const direct = claimCompiledRenderProgram(program, dom, 'ssr');
-	if (program.directClaims && !direct) return undefined;
-	const table = tableProgram(invocation);
-	const rootPlan = table?.nodes[0];
-	if (
-		!direct &&
-		(!rootPlan ||
-			!matchesProgramElement(dom, rootPlan[0], rootPlan[1], rootPlan[2] ?? table!.namespace))
-	)
-		return undefined;
-	const programIndex = direct ? undefined : indexProgramHydration(dom);
-	if (programIndex && !validateGenericProgramNodes(table!, programIndex)) return undefined;
-	const slotNodes = direct?.slotNodes ?? claimGenericMountSlots(table!, dom, programIndex!);
-	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
+	finishDomProfile(root, 'program-claim', claimStarted);
+	if (!direct) return undefined;
+	const receipt = readRenderProgramReceipt(value);
+	if (!receipt) return undefined;
 	const mounted: Mounted = {
-		vnode,
+		renderProgramReceipt: receipt,
 		dom,
 		scope,
 		children: [],
 		renderProgram: {
 			invocation,
 			programRoot: dom,
-			slotNodes,
-			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
+			slotNodes: direct.slotNodes,
+			...(direct.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
 			bindingOwner,
 			parentInstance
 		}
 	};
-	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
-	if (programIndex) ownProgramNodes(table!, programIndex, bindingOwner);
-	else ownDirectProgramNodes(direct?.elements, bindingOwner);
-	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
-		if (programIndex) releaseProgramNodeOwners(table!, programIndex);
-		else releaseDirectProgramNodeOwners(direct?.elements);
+	const childrenStarted = beginDomProfile(root);
+	const adoptedChildren = adoptProgramChildSlots(mounted, parentInstance, adoptChildren);
+	finishDomProfile(root, 'program-children', childrenStarted);
+	if (!adoptedChildren) return undefined;
+	ownDirectProgramNodes(direct.elements, bindingOwner);
+	const bindingStarted = beginDomProfile(root);
+	const bound = !renderProgramHasBindings(program) || bindRenderProgram(mounted);
+	finishDomProfile(root, 'program-bind', bindingStarted);
+	if (!bound) {
+		releaseDirectProgramNodeOwners(direct.elements);
 		return undefined;
 	}
-	countProgramWork(root, program, direct, true);
+	countProgramWork(root, direct.work, true);
 	return mounted;
 }
 
-function matchesProgramElement(
-	node: Node | undefined,
-	_id: number,
-	tag: string | undefined,
-	namespace: ExactRenderProgram['namespace']
-): boolean {
-	if (node?.nodeType !== elementNode || !tag) return false;
-	const element = node as Element;
-	const uri =
-		namespace === 'svg'
-			? 'http://www.w3.org/2000/svg'
-			: namespace === 'mathml'
-				? 'http://www.w3.org/1998/Math/MathML'
-				: 'http://www.w3.org/1999/xhtml';
-	return element.localName.toLowerCase() === tag.toLowerCase() && element.namespaceURI === uri;
-}
-
-/** Adopts a program or transfers the untouched range to its generic fallback. */
-export function adoptRenderProgramOrFallback(
+/** Adopts a compiler-specialized program or asks the hydration root to recover. */
+export function adoptCompiledRenderProgram(
 	root: Root,
-	vnode: VNode,
+	value: unknown,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: AnyComponentInstance,
-	parentScope: EffectScope,
+	parentInstance: AnyComponentInstance | undefined,
 	scope: EffectScope,
 	end: number,
-	adoptFallback: (
-		root: Root,
-		vnode: VNode,
-		nodes: readonly Node[],
-		cursor: number,
-		parentInstance: AnyComponentInstance,
-		parentScope: EffectScope,
-		end?: number
-	) => { mounted: Mounted; next: number } | undefined,
 	adoptChildren: (
 		children: readonly Child[],
 		nodes: readonly Node[],
-		parentInstance: AnyComponentInstance,
+		parentInstance: AnyComponentInstance | undefined,
 		scope: EffectScope,
 		cursor: number,
 		end: number,
@@ -194,7 +100,7 @@ export function adoptRenderProgramOrFallback(
 ): { mounted: Mounted; next: number } | undefined {
 	const marked = adoptMarkedRenderProgram(
 		root,
-		vnode,
+		value,
 		nodes,
 		cursor,
 		end,
@@ -204,76 +110,56 @@ export function adoptRenderProgramOrFallback(
 	);
 	if (marked) return marked;
 	const adopted = nodes[cursor]
-		? adoptRenderProgram(root, vnode, nodes[cursor]!, scope, parentInstance, adoptChildren)
+		? adoptRenderProgram(root, value, nodes[cursor]!, scope, parentInstance, adoptChildren)
 		: undefined;
 	if (adopted) return { mounted: adopted, next: cursor + 1 };
 	scope.stop();
-	const fallback = fallbackRenderProgram(vnode);
-	// Client-closed programs deliberately recover at the hydration-root boundary. Keeping a
-	// region-local VNode factory in every successful program costs more than the rare full-root
-	// recovery, while the root still preserves the same fail-closed malformed-SSR behavior.
-	if (!fallback) return undefined;
-	return adoptFallback(root, fallback, nodes, cursor, parentInstance, parentScope, end);
+	// Same-build hydration failures recover at the owning root. A production component does not
+	// carry a second runtime topology for region-local recovery.
+	return undefined;
 }
 
 /** Adopts compiler-addressed program nodes inside the marker ranges required by generic SSR. */
 function adoptMarkedRenderProgram(
 	root: Root,
-	vnode: VNode,
+	value: unknown,
 	nodes: readonly Node[],
 	cursor: number,
 	end: number,
 	scope: EffectScope,
-	parentInstance: AnyComponentInstance,
+	parentInstance: AnyComponentInstance | undefined,
 	adoptChildren: (
 		children: readonly Child[],
 		nodes: readonly Node[],
-		parentInstance: AnyComponentInstance,
+		parentInstance: AnyComponentInstance | undefined,
 		scope: EffectScope,
 		cursor: number,
 		end: number,
 		compilerOwnedComponent?: boolean
 	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
-	const invocation = readRenderProgram(vnode);
+	const invocation = readRenderProgram(value);
 	if (!invocation) return undefined;
-	const program = invocation.program as ExactDomRenderProgram;
-	// Universal artifacts retain table-driven bindings for server-safe serialization. The browser
-	// runtime intentionally does not activate that generic table. Select the untouched region
-	// fallback before claiming scalar sentinels so a failed optimized attempt remains atomic.
-	if (!program.bind && program.bindings?.length) return undefined;
+	const program = directProgram(invocation.program);
 	const range = markedProgramRange(nodes, cursor, end);
 	if (!range) return undefined;
-	const table = tableProgram(invocation);
-	const rootNodePlan = table?.nodes[0];
 	let programRoot: Element | undefined;
 	for (let index = range.contentStart; index < range.endIndex; index++) {
 		const node = nodes[index];
-		if (
-			node instanceof Element &&
-			(program.directClaims ||
-				(rootNodePlan &&
-					matchesProgramElement(
-						node,
-						rootNodePlan[0],
-						rootNodePlan[1],
-						rootNodePlan[2] ?? table!.namespace
-					)))
-		) {
+		if (node instanceof Element) {
 			programRoot = node;
 			break;
 		}
 	}
 	if (!programRoot) return undefined;
+	const claimStarted = beginDomProfile(root);
 	const direct = claimCompiledRenderProgram(program, programRoot, 'ssr');
-	if (program.directClaims && !direct) return undefined;
-	const hydrationIndex = direct ? undefined : indexProgramHydration(programRoot);
-	if (hydrationIndex && !validateGenericProgramNodes(table!, hydrationIndex)) return undefined;
-	const slotNodes =
-		direct?.slotNodes ?? claimGenericHydrationSlots(table!, programRoot, hydrationIndex!);
-	if (!direct && !validRenderProgramSlotNodes(invocation, slotNodes)) return undefined;
+	finishDomProfile(root, 'program-claim', claimStarted);
+	if (!direct) return undefined;
+	const receipt = readRenderProgramReceipt(value);
+	if (!receipt) return undefined;
 	const mounted: Mounted = {
-		vnode,
+		renderProgramReceipt: receipt,
 		dom: range.start ?? programRoot,
 		...(range.start ? { end: nodes[range.endIndex]! } : {}),
 		...(range.start ? { rawNodes: [programRoot] } : {}),
@@ -282,89 +168,26 @@ function adoptMarkedRenderProgram(
 		renderProgram: {
 			invocation,
 			programRoot,
-			slotNodes,
-			...(direct?.componentSlots ? { componentSlots: direct.componentSlots } : {}),
+			slotNodes: direct.slotNodes,
+			...(direct.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
 			parentInstance
 		}
 	};
-	if (!adoptProgramChildSlots(mounted, parentInstance, adoptChildren)) return undefined;
-	const elements =
-		direct?.elements ?? table!.nodes.map((planned) => programElement(hydrationIndex!, planned[0]));
-	if (direct) {
-		// Compiler-generated claims deliberately omit inert static intrinsics. They remain owned by
-		// the enclosing DOM range and need no per-element bookkeeping of their own.
-		ownDirectProgramNodes(elements, parentInstance);
-		countProgramWork(root, program, direct, true);
-	} else {
-		for (const element of elements) {
-			if (!element) return undefined;
-			setNodeOwner(element, parentInstance);
-			setElementOwner(element, parentInstance);
-			countDomWork(root);
-		}
-	}
-	if ((program.bind || program.bindings?.length) && !bindRenderProgram(mounted)) {
-		releaseDirectProgramNodeOwners(elements);
+	const childrenStarted = beginDomProfile(root);
+	const adoptedChildren = adoptProgramChildSlots(mounted, parentInstance, adoptChildren);
+	finishDomProfile(root, 'program-children', childrenStarted);
+	if (!adoptedChildren) return undefined;
+	// Compiler-generated claims deliberately omit inert static intrinsics. They remain owned by
+	// the enclosing DOM range and need no per-element bookkeeping of their own.
+	ownDirectProgramNodes(direct.elements, parentInstance);
+	countProgramWork(root, direct.work, true);
+	const bindingStarted = beginDomProfile(root);
+	const bound = !renderProgramHasBindings(program) || bindRenderProgram(mounted);
+	finishDomProfile(root, 'program-bind', bindingStarted);
+	if (!bound) {
+		releaseDirectProgramNodeOwners(direct.elements);
 		return undefined;
 	}
 	return { mounted, next: range.start ? range.endIndex + 1 : range.endIndex };
-}
-
-/** Rebinds invocation-local readers when a component publishes the same program again. */
-export function patchRenderProgram(mounted: Mounted, vnode: VNode): boolean {
-	const invocation = readRenderProgram(vnode);
-	if (
-		!invocation ||
-		!mounted.renderProgram ||
-		mounted.renderProgram.invocation.program.id !== invocation.program.id
-	)
-		return false;
-	mounted.vnode = vnode;
-	mounted.renderProgram.invocation = invocation;
-	mounted.renderProgram.refresh?.();
-	return true;
-}
-
-/** Returns the lazy fallback without exposing its compiler-owned brand. */
-export function fallbackRenderProgram(vnode: VNode): VNode | undefined {
-	return renderProgramFallback(vnode);
-}
-
-function validateGenericProgramNodes(
-	program: ExactTableRenderProgram,
-	index: ProgramHydrationIndex
-): boolean {
-	return program.nodes.every((plan) =>
-		matchesProgramElement(
-			programElement(index, plan[0]),
-			plan[0],
-			plan[1],
-			plan[2] ?? program.namespace
-		)
-	);
-}
-
-function tableProgram(
-	invocation: ExactRenderProgramInvocation
-): ExactTableRenderProgram | undefined {
-	const program = invocation.program;
-	return program.directClaims ? undefined : (program as ExactTableRenderProgram);
-}
-
-function countProgramWork(
-	root: Root,
-	program: ExactDomRenderProgram,
-	direct: ReturnType<typeof claimCompiledRenderProgram>,
-	includeRoot: boolean
-): void {
-	let work: readonly [number, number];
-	if (direct) work = direct.work;
-	else {
-		if (program.directClaims) return;
-		work = [program.nodes.length, program.slots.length];
-	}
-	const [nodes, slots] = work;
-	for (let index = includeRoot ? 0 : 1; index < nodes; index++) countDomWork(root);
-	if (!includeRoot) for (let index = 0; index < slots; index++) countDomWork(root);
 }

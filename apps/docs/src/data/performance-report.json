@@ -1,0 +1,826 @@
+{
+	"schemaVersion": 1,
+	"metadata": {
+		"commit": "b52c0a00",
+		"createdAt": "2026-09-05T07:20:27.461Z",
+		"browserSamples": 50,
+		"startupSamples": 50,
+		"ssrSamples": 50
+	},
+	"summary": [
+		{ "label": "Exact c32 mean RPS", "value": "2,412", "context": "sustained Node saturation" },
+		{ "label": "Optimistic mean", "value": "1.51 ms", "context": "visible client feedback" },
+		{ "label": "Warm browser heap", "value": "2.50 MB", "context": "post-GC used heap" }
+	],
+	"browserCharts": [
+		{
+			"title": "Navigation completion",
+			"unit": "ms",
+			"precision": 1,
+			"comment": "Exact has the fastest mean navigation and leads through P95 in this application. Its higher P99 reflects the upper-tail sample rather than the central experience; lower values are better.",
+			"series": [
+				{
+					"name": "Exact",
+					"stats": {
+						"mean": 30.279999994039535,
+						"p50": 30.19999998807907,
+						"p75": 31.30000001192093,
+						"p95": 33,
+						"p99": 44.59999996423721
+					}
+				},
+				{
+					"name": "React",
+					"stats": {
+						"mean": 38.44199999928475,
+						"p50": 38.10000002384186,
+						"p75": 39.30000001192093,
+						"p95": 41,
+						"p99": 42.60000002384186
+					}
+				},
+				{
+					"name": "SvelteKit",
+					"stats": {
+						"mean": 31.864000000953673,
+						"p50": 31.700000047683716,
+						"p75": 32.40000003576279,
+						"p95": 34.30000001192093,
+						"p99": 36.10000002384186
+					}
+				},
+				{
+					"name": "Nuxt",
+					"stats": {
+						"mean": 43.366000001430514,
+						"p50": 43.19999998807907,
+						"p75": 44.60000002384186,
+						"p95": 46.40000003576279,
+						"p99": 49
+					}
+				},
+				{
+					"name": "TanStack Start",
+					"stats": {
+						"mean": 51.80399999976158,
+						"p50": 50.59999996423721,
+						"p75": 52.30000001192093,
+						"p95": 55.80000001192093,
+						"p99": 72.5
+					}
+				}
+			]
+		},
+		{
+			"title": "First contentful paint",
+			"unit": "ms",
+			"precision": 0,
+			"comment": "Paint is quantized into four-millisecond buckets. Exact is competitive, while SvelteKit owns the lowest central bucket.",
+			"series": [
+				{ "name": "Exact", "stats": { "mean": 43.84, "p50": 44, "p75": 48, "p95": 52, "p99": 60 } },
+				{ "name": "React", "stats": { "mean": 48.56, "p50": 52, "p75": 52, "p95": 56, "p99": 56 } },
+				{
+					"name": "SvelteKit",
+					"stats": { "mean": 41.84, "p50": 40, "p75": 44, "p95": 48, "p99": 48 }
+				},
+				{ "name": "Nuxt", "stats": { "mean": 45.68, "p50": 48, "p75": 52, "p95": 52, "p99": 56 } },
+				{
+					"name": "TanStack Start",
+					"stats": { "mean": 44.16, "p50": 44, "p75": 48, "p95": 48, "p99": 64 }
+				}
+			]
+		},
+		{
+			"title": "Optimistic feedback",
+			"unit": "ms",
+			"precision": 2,
+			"comment": "Nuxt has the lowest interaction latency. Exact averages 1.51 ms, effectively alongside React and TanStack Start for visible feedback.",
+			"series": [
+				{
+					"name": "Exact",
+					"stats": {
+						"mean": 1.5120000004768372,
+						"p50": 1.5,
+						"p75": 1.5,
+						"p95": 2,
+						"p99": 2.100000023841858
+					}
+				},
+				{
+					"name": "React",
+					"stats": {
+						"mean": 1.4679999995231627,
+						"p50": 1.4000000357627869,
+						"p75": 1.5,
+						"p95": 1.600000023841858,
+						"p99": 2
+					}
+				},
+				{
+					"name": "SvelteKit",
+					"stats": {
+						"mean": 1.3459999966621399,
+						"p50": 1.300000011920929,
+						"p75": 1.4000000357627869,
+						"p95": 1.5999999642372131,
+						"p99": 2
+					}
+				},
+				{
+					"name": "Nuxt",
+					"stats": {
+						"mean": 1.0660000002384187,
+						"p50": 1.0999999642372131,
+						"p75": 1.100000023841858,
+						"p95": 1.2000000476837158,
+						"p99": 1.5
+					}
+				},
+				{
+					"name": "TanStack Start",
+					"stats": {
+						"mean": 1.5560000038146973,
+						"p50": 1.5,
+						"p75": 1.600000023841858,
+						"p95": 1.9000000357627869,
+						"p99": 2.100000023841858
+					}
+				}
+			]
+		},
+		{
+			"title": "Authoritative settlement",
+			"unit": "ms",
+			"precision": 2,
+			"comment": "All frameworks cluster within 0.72 ms by mean because controlled service delivery dominates this phase. React has the lowest mean; Exact remains within 0.47 ms.",
+			"series": [
+				{
+					"name": "Exact",
+					"stats": {
+						"mean": 13.882000002861023,
+						"p50": 14,
+						"p75": 14.400000035762787,
+						"p95": 15.099999964237213,
+						"p99": 15.199999988079071
+					}
+				},
+				{
+					"name": "React",
+					"stats": {
+						"mean": 13.41400000333786,
+						"p50": 13.399999976158142,
+						"p75": 13.800000011920929,
+						"p95": 14.5,
+						"p99": 15
+					}
+				},
+				{
+					"name": "SvelteKit",
+					"stats": {
+						"mean": 13.721999995708465,
+						"p50": 13.699999988079071,
+						"p75": 14,
+						"p95": 15,
+						"p99": 15.5
+					}
+				},
+				{
+					"name": "Nuxt",
+					"stats": {
+						"mean": 14.13599999666214,
+						"p50": 14.199999988079071,
+						"p75": 14.5,
+						"p95": 15.399999976158142,
+						"p99": 16.099999964237213
+					}
+				},
+				{
+					"name": "TanStack Start",
+					"stats": {
+						"mean": 13.772000002861024,
+						"p50": 13.699999988079071,
+						"p75": 14.199999988079071,
+						"p95": 14.699999988079071,
+						"p99": 15.200000047683716
+					}
+				}
+			]
+		},
+		{
+			"title": "Warm browser used heap",
+			"unit": "MB",
+			"precision": 2,
+			"comment": "Exact uses 2.50 MB after readiness and explicit garbage collection: about 0.20 MB above React and 0.26 MB below TanStack Start. In a focused eXact-versus-React heap snapshot, V8 code nodes accounted for 205 KB (79%) of the 260 KB snapshot self-byte difference, consistent with eXact's larger compiled-function population. Its dominant retained bundle script/source entry was about 3 KB smaller than React's. Arrays, object shapes, objects, and closures made up the smaller remainder.",
+			"series": [
+				{
+					"name": "Exact",
+					"stats": {
+						"mean": 2.5009644,
+						"p50": 2.500964,
+						"p75": 2.500964,
+						"p95": 2.500964,
+						"p99": 2.50098
+					}
+				},
+				{
+					"name": "React",
+					"stats": {
+						"mean": 2.30279504,
+						"p50": 2.3028,
+						"p75": 2.3028,
+						"p95": 2.302808,
+						"p99": 2.302816
+					}
+				},
+				{
+					"name": "SvelteKit",
+					"stats": {
+						"mean": 2.07813736,
+						"p50": 2.07814,
+						"p75": 2.07814,
+						"p95": 2.07814,
+						"p99": 2.07814
+					}
+				},
+				{
+					"name": "Nuxt",
+					"stats": {
+						"mean": 2.33378744,
+						"p50": 2.333788,
+						"p75": 2.333788,
+						"p95": 2.333788,
+						"p99": 2.333828
+					}
+				},
+				{
+					"name": "TanStack Start",
+					"stats": {
+						"mean": 2.7590167200000004,
+						"p50": 2.757728,
+						"p75": 2.757748,
+						"p95": 2.757764,
+						"p99": 2.822268
+					}
+				}
+			]
+		}
+	],
+	"server": {
+		"ordinary": {
+			"title": "Ordinary concurrent Node responses - c16",
+			"unit": "requests/s",
+			"precision": 0,
+			"comment": "Exact and React are effectively tied at P50, while Exact leads mean whole-response throughput by about 2%. Higher values are better.",
+			"series": [
+				{
+					"name": "Exact",
+					"stats": {
+						"mean": 2065.424109064392,
+						"p50": 2075.9270311650366,
+						"p75": 2109.73245955207,
+						"p95": 2304.147465437952,
+						"p99": 2471.156964801898
+					}
+				},
+				{
+					"name": "React",
+					"stats": {
+						"mean": 2024.1047089172448,
+						"p50": 2069.6970480938903,
+						"p75": 2170.786638807645,
+						"p95": 2339.694377421382,
+						"p99": 2382.9736532476745
+					}
+				},
+				{
+					"name": "SvelteKit",
+					"stats": {
+						"mean": 1112.4680523571585,
+						"p50": 1157.1395510298776,
+						"p75": 1228.378616999116,
+						"p95": 1302.5815538170618,
+						"p99": 1436.0852316584433
+					}
+				},
+				{
+					"name": "Nuxt",
+					"stats": {
+						"mean": 997.5198585016094,
+						"p50": 1046.2713504748515,
+						"p75": 1083.2695784049074,
+						"p95": 1121.681400419314,
+						"p99": 1157.1228141228255
+					}
+				},
+				{
+					"name": "TanStack Start",
+					"stats": {
+						"mean": 1112.0583065408732,
+						"p50": 1139.6011396013641,
+						"p75": 1170.7973861948385,
+						"p95": 1231.2048878834248,
+						"p99": 1324.31694215231
+					}
+				}
+			]
+		},
+		"sequential": {
+			"title": "Warm sequential response latency",
+			"unit": "ms",
+			"precision": 2,
+			"comment": "React has the lowest mean sequential latency at 1.25 ms. Exact follows at 1.43 ms and remains ahead of SvelteKit, Nuxt, and TanStack Start; lower values are better.",
+			"series": [
+				{
+					"name": "Exact",
+					"stats": {
+						"mean": 1.429653999999955,
+						"p50": 1.2856000000001586,
+						"p75": 1.589600000000246,
+						"p95": 2.1927999999998065,
+						"p99": 2.400900000000547
+					}
+				},
+				{
+					"name": "React",
+					"stats": {
+						"mean": 1.245893999999953,
+						"p50": 1.202700000000732,
+						"p75": 1.3472000000001572,
+						"p95": 1.8679000000001906,
+						"p99": 2.352899999999863
+					}
+				},
+				{
+					"name": "SvelteKit",
+					"stats": {
+						"mean": 1.6779039999999623,
+						"p50": 1.5924000000004526,
+						"p75": 1.8176000000003114,
+						"p95": 2.254399999999805,
+						"p99": 3.086699999999837
+					}
+				},
+				{
+					"name": "Nuxt",
+					"stats": {
+						"mean": 2.1443879999999624,
+						"p50": 2.0670000000000073,
+						"p75": 2.3203999999996086,
+						"p95": 2.7932999999993626,
+						"p99": 3.5577999999986787
+					}
+				},
+				{
+					"name": "TanStack Start",
+					"stats": {
+						"mean": 2.132103999999963,
+						"p50": 2.0864999999994325,
+						"p75": 2.3109000000004016,
+						"p95": 3.028700000000754,
+						"p99": 3.2031999999999243
+					}
+				}
+			]
+		},
+		"saturationCharts": [
+			{
+				"title": "Sustained Node throughput - concurrency 1",
+				"unit": "requests/s",
+				"precision": 0,
+				"comment": "At concurrency 1, React leads Exact mean throughput by 1.9%. The two remain close; higher values are better.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 1422.3587420432732,
+							"p50": 1424.1027903451552,
+							"p75": 1491.9123431875987,
+							"p95": 1562.4844497964825,
+							"p99": 1566.0582314314759
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 1449.269369051529,
+							"p50": 1452.7001815875942,
+							"p75": 1510.9328917168125,
+							"p95": 1588.7232424253143,
+							"p99": 1605.4450353098478
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 1033.5462342552157,
+							"p50": 1042.2746602184945,
+							"p75": 1065.7052080116523,
+							"p95": 1177.3897269752738,
+							"p99": 1178.8741751626833
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 847.8122130785922,
+							"p50": 846.1677064574524,
+							"p75": 901.3872448751845,
+							"p95": 945.3535871192736,
+							"p99": 964.5953721299113
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 889.2862605702902,
+							"p50": 888.8400637167912,
+							"p75": 945.5888281168136,
+							"p95": 999.5951639586416,
+							"p99": 1052.0799421951338
+						}
+					}
+				]
+			},
+			{
+				"title": "Sustained Node throughput - concurrency 4",
+				"unit": "requests/s",
+				"precision": 0,
+				"comment": "At concurrency 4, React leads Exact mean throughput by 0.8%. The two remain close; higher values are better.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 2325.8975915188958,
+							"p50": 2332.5874324933875,
+							"p75": 2432.8571314620945,
+							"p95": 2538.652471368192,
+							"p99": 2613.2662858952644
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 2344.498215265899,
+							"p50": 2371.6680534336215,
+							"p75": 2434.2914480176237,
+							"p95": 2504.2009959166676,
+							"p99": 2548.340013216976
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 1469.361728131849,
+							"p50": 1488.2234528351098,
+							"p75": 1545.7944054058405,
+							"p95": 1601.9199452792088,
+							"p99": 1608.8841799595643
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 1098.1822078951566,
+							"p50": 1101.5988921062278,
+							"p75": 1162.3683254631035,
+							"p95": 1252.5791294672651,
+							"p99": 1288.727732835131
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 1214.9413975581424,
+							"p50": 1223.5792531859636,
+							"p75": 1269.8986870979327,
+							"p95": 1332.301452796391,
+							"p99": 1353.4706223317219
+						}
+					}
+				]
+			},
+			{
+				"title": "Sustained Node throughput - concurrency 8",
+				"unit": "requests/s",
+				"precision": 0,
+				"comment": "At concurrency 8, React leads Exact mean throughput by 1.0%. Exact reaches parity by concurrency 16.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 2403.2515021479853,
+							"p50": 2411.158999407889,
+							"p75": 2477.7713430012886,
+							"p95": 2554.8840382651892,
+							"p99": 2581.5940169604837
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 2428.178109162148,
+							"p50": 2432.6628142964573,
+							"p75": 2493.4498241924434,
+							"p95": 2578.2584450170634,
+							"p99": 2609.807141183601
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 1525.1684508632773,
+							"p50": 1573.137798131433,
+							"p75": 1600.826678399656,
+							"p95": 1666.5398298202772,
+							"p99": 1710.1807252916876
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 1122.6481167559455,
+							"p50": 1168.0156765078493,
+							"p75": 1200.3981808599883,
+							"p95": 1285.9452897455058,
+							"p99": 1309.6049485861317
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 1248.8676436855476,
+							"p50": 1280.6116354079918,
+							"p75": 1310.7056704403005,
+							"p95": 1358.4061615814587,
+							"p99": 1433.9695029823608
+						}
+					}
+				]
+			},
+			{
+				"title": "Sustained Node throughput - concurrency 16",
+				"unit": "requests/s",
+				"precision": 0,
+				"comment": "At concurrency 16, Exact and React differ by less than 1% in mean throughput.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 2422.5987829342534,
+							"p50": 2442.36588930749,
+							"p75": 2506.0301350122486,
+							"p95": 2599.8032942947025,
+							"p99": 2647.116929578017
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 2408.755696741113,
+							"p50": 2451.4897109251615,
+							"p75": 2505.272326037632,
+							"p95": 2566.5138703127946,
+							"p99": 2625.2013539087598
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 1545.5936437302983,
+							"p50": 1564.6211977127641,
+							"p75": 1626.5211669550722,
+							"p95": 1667.2713683086818,
+							"p99": 1699.252989505241
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 1133.7863757107652,
+							"p50": 1152.973555993654,
+							"p75": 1204.199468558447,
+							"p95": 1261.255537846219,
+							"p99": 1309.3064761455294
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 1270.0271295785678,
+							"p50": 1287.9613182283733,
+							"p75": 1318.6801110987772,
+							"p95": 1352.328345322254,
+							"p99": 1428.224444106893
+						}
+					}
+				]
+			},
+			{
+				"title": "Sustained Node throughput - concurrency 32",
+				"unit": "requests/s",
+				"precision": 0,
+				"comment": "At concurrency 32, Exact leads React mean throughput by 1.2%.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 2411.7481738539236,
+							"p50": 2434.212090237434,
+							"p75": 2482.43146404339,
+							"p95": 2534.507919346866,
+							"p99": 2544.6572840086214
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 2383.3010615283692,
+							"p50": 2392.601627155841,
+							"p75": 2445.8450729119563,
+							"p95": 2529.5389597833996,
+							"p99": 2569.6547138788524
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 1548.4926249254574,
+							"p50": 1562.052537033561,
+							"p75": 1592.1853820168476,
+							"p95": 1618.9953074564446,
+							"p99": 1709.298226246837
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 1146.4597652920222,
+							"p50": 1152.4598931782239,
+							"p75": 1204.1082137139128,
+							"p95": 1233.3067904261623,
+							"p99": 1253.2664924538033
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 1284.763508121092,
+							"p50": 1293.6536463429836,
+							"p75": 1339.1564318845074,
+							"p95": 1364.5240795858927,
+							"p99": 1378.1092513335377
+						}
+					}
+				]
+			},
+			{
+				"title": "Sustained Node throughput - concurrency 64",
+				"unit": "requests/s",
+				"precision": 0,
+				"comment": "At concurrency 64, Exact leads React mean throughput by 2.8%.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 2386.002510495312,
+							"p50": 2388.861931245796,
+							"p75": 2452.98603139455,
+							"p95": 2521.4343507434887,
+							"p99": 2700.978091691335
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 2320.8998484223825,
+							"p50": 2343.611963772624,
+							"p75": 2398.8780631829586,
+							"p95": 2463.797521879864,
+							"p99": 2485.8921393388514
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 1535.6252528153723,
+							"p50": 1562.622079850176,
+							"p75": 1591.008745219452,
+							"p95": 1646.8755682579524,
+							"p99": 1737.654044562105
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 1172.8474687017672,
+							"p50": 1189.460591437446,
+							"p75": 1214.8716937393574,
+							"p95": 1253.2426692991994,
+							"p99": 1292.854742981488
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 1285.94128845801,
+							"p50": 1312.6977250948837,
+							"p75": 1341.5297071971218,
+							"p95": 1366.502330527115,
+							"p99": 1381.8894747523298
+						}
+					}
+				]
+			}
+		],
+		"retention": {
+			"title": "Post-GC server heap across retention checkpoints",
+			"unit": "MB",
+			"precision": 2,
+			"comment": "Exact retains the least post-GC Node heap in this workload at a 12.67 MB mean, 0.63 MB below React. These bounded checkpoints are a retention signal, not proof about unbounded growth.",
+			"series": [
+				{
+					"name": "Exact",
+					"stats": {
+						"mean": 12.665916800000002,
+						"p50": 12.55776,
+						"p75": 12.790704,
+						"p95": 12.92588,
+						"p99": 12.92588
+					}
+				},
+				{
+					"name": "React",
+					"stats": {
+						"mean": 13.2929168,
+						"p50": 13.18324,
+						"p75": 13.400368,
+						"p95": 13.56236,
+						"p99": 13.56236
+					}
+				},
+				{
+					"name": "SvelteKit",
+					"stats": {
+						"mean": 14.4052368,
+						"p50": 14.205424,
+						"p75": 14.532968,
+						"p95": 14.800776,
+						"p99": 14.800776
+					}
+				},
+				{
+					"name": "Nuxt",
+					"stats": {
+						"mean": 18.1735152,
+						"p50": 18.033504,
+						"p75": 18.306568,
+						"p95": 18.481888,
+						"p99": 18.481888
+					}
+				},
+				{
+					"name": "TanStack Start",
+					"stats": {
+						"mean": 16.863416,
+						"p50": 16.673304,
+						"p75": 17.126304,
+						"p95": 17.334424,
+						"p99": 17.334424
+					}
+				}
+			]
+		},
+		"bars": [
+			{
+				"title": "SSR response size",
+				"unit": "bytes",
+				"precision": 0,
+				"values": [
+					{ "name": "Exact", "value": 3710 },
+					{ "name": "React", "value": 3384 },
+					{ "name": "SvelteKit", "value": 4063 },
+					{ "name": "Nuxt", "value": 4462 },
+					{ "name": "TanStack Start", "value": 5193 }
+				],
+				"comment": "Exact is 326 bytes larger than React but smaller than SvelteKit, Nuxt, and TanStack Start."
+			}
+		],
+		"responseComposition": {
+			"title": "Where the response bytes come from",
+			"unit": "bytes",
+			"categories": [
+				"Semantic markup",
+				"Envelope",
+				"Markers",
+				"Identity attributes",
+				"Hydration",
+				"Comparison data"
+			],
+			"series": [
+				{ "name": "Exact", "values": [2392, 214, 385, 160, 559, 0] },
+				{ "name": "React", "values": [2383, 214, 56, 0, 0, 731] }
+			],
+			"comment": "Exact's remaining response gap is structural metadata: 385 marker bytes, 160 identity-attribute bytes, and 559 hydration-script bytes. Semantic markup is nearly identical."
+		}
+	}
+}

@@ -5,7 +5,6 @@ import type {
 	ComponentDomain,
 	DynamicComponentArtifact,
 	ComponentContextValues,
-	EnhancementEntry,
 	ComponentFunction,
 	ComponentInstance,
 	ComponentResumptionActivation,
@@ -13,12 +12,11 @@ import type {
 	ExactComponentAuthorizationIdentity,
 	Logger,
 	TaskObserver,
-	UnsafeHtmlAuditEvent,
-	VNode
+	UnsafeHtmlAuditEvent
 } from '@exactjs/core';
 export type { AnyComponentInstance };
 import type {
-	ExactCompiledComponentContract,
+	ExactServerExecutableComponentContract,
 	ExactComponentContinuationContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
@@ -51,9 +49,9 @@ export type RenderToStringOptions = {
 	maxTaskDurationMs?: number;
 	/** Request-wide limit for compiler-proven independent async SSR siblings. Defaults to 4. */
 	maxAsyncSsrConcurrency?: number;
-	/** Maximum nested vnode depth. Defaults to 512 and is capped at 1,024. */
+	/** Maximum nested operation depth. Defaults to 512 and is capped at 1,024. */
 	maxTreeDepth?: number;
-	/** Maximum vnode and primitive child values visited by one render. Defaults to 100,000. */
+	/** Maximum operation and scalar child values visited by one render. Defaults to 100,000. */
 	maxTreeNodes?: number;
 	/** Maximum UTF-8 bytes in a checked string render. Defaults to 16 MiB. */
 	maxOutputBytes?: number;
@@ -87,6 +85,8 @@ export type RenderToStringOptions = {
 	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** @internal Publishes a compiler-closed component without manufacturing a durable instance. */
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** @internal Request-owned compact resumption capture selected by hydratable entry points. */
+	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
 	/** @internal Allows framework-owned observers to be replayed after independent sibling work. */
 	allowIndependentComponentObservation?: boolean;
 	/** Receives SSR rendering profiling observations. */
@@ -127,6 +127,8 @@ export type HydrationScriptOptions = {
 	state?: unknown;
 	/** Publishes the rendered root component props as the single client bootstrap input. */
 	publishRootProps?: boolean;
+	/** @internal Signals that a compiler-closed root omitted only its redundant component boundary. */
+	markerlessRoot?: true;
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
@@ -182,7 +184,7 @@ export type RenderToProgressiveHtmlResponseOptions = RenderToProgressiveHtmlStre
 };
 
 /** Defines the exact request render function type contract. */
-export type ExactRequestRenderFunction = (context: ExactServerContext) => VNode | Promise<VNode>;
+export type ExactRequestRenderFunction = (context: ExactServerContext) => Child | Promise<Child>;
 
 /** Configures render exact request to html response. */
 export type RenderExactRequestToHtmlResponseOptions = RenderToStringOptions &
@@ -206,7 +208,7 @@ export type ExactDocumentStreamEvent =
 export type BoundaryRenderFunction = (
 	input: ExactInvocationRequest,
 	context: ExactServerContext
-) => VNode | Promise<VNode>;
+) => Child | Promise<Child>;
 
 /** Configures boundary refresh. */
 export type BoundaryRefreshOptions = RenderToStringOptions & {
@@ -280,7 +282,7 @@ export type KeyedListSnapshotOptions<T> = RenderToStringOptions & {
 	listId: string;
 	items: Iterable<T>;
 	key(item: T): string;
-	render(item: T): VNode;
+	render(item: T): Child;
 };
 
 /** Configures keyed list snapshot parse. */
@@ -297,7 +299,7 @@ export type KeyedListSnapshotParseOptions = {
 export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 	listId: string;
 	key(item: T): string;
-	render(item: T): VNode;
+	render(item: T): Child;
 	items(
 		input: ExactInvocationRequest,
 		context: ExactServerContext
@@ -327,6 +329,8 @@ export type SsrContext = {
 	maxTreeNodes: number;
 	traversedNodes: number;
 	maxOutputBytes: number;
+	/** Request-owned sink receiving compiler-proven synchronous output byte facts. */
+	outputSink?: import('./render/output-buffer.js').SsrOutputBuffer;
 	reactResourceHints?: string[];
 	reactResourceKeys?: Set<string>;
 	dynamicComponentArtifacts?: RenderToStringOptions['dynamicComponentArtifacts'];
@@ -345,43 +349,24 @@ export type SsrContext = {
 	hostStack: string[];
 	enhancementCatalog?: ReadonlyMap<string, AnyEnhancementComponentFunction>;
 	unavailableEnhancements?: Set<string>;
-	/** Generated ordinary component vnodes whose internal SSR boundary is not authored hydration data. */
-	enhancementVNodes?: WeakSet<VNode>;
-	/** Authored boundaries whose logical subtree has an SSR enhancement route plan. */
-	plannedEnhancementBoundaries?: WeakSet<VNode>;
-	/** `_target` boundaries whose logical children have been prepared once. */
-	plannedTargetBoundaries?: WeakSet<VNode>;
-	/** `_target` boundaries whose owned layer has been applied to the active target. */
-	appliedTargetBoundaries?: WeakSet<VNode>;
-	/** Effective layered props contributed to resolved semantic intrinsic targets. */
-	targetContributions?: WeakMap<VNode, Record<string, unknown>>;
-	/** Resolved intrinsic targets and their merged enhancement declarations. */
-	enhancementTargets?: WeakMap<VNode, readonly EnhancementEntry[]>;
-	/** Component work materialized once while resolving a logical enhancement target. */
-	preparedEnhancementComponents?: WeakMap<
-		VNode,
-		{
-			readonly instance?: AnyComponentInstance;
-			readonly props: Record<string, unknown>;
-			readonly children: readonly Child[];
-			readonly failed: boolean;
-		}
-	>;
-	/** Dynamic/list children materialized while resolving an enhancement target. */
-	preparedEnhancementChildren?: WeakMap<VNode, readonly Child[]>;
-	/** Suspense candidate selected while resolving an enhancement route. */
-	preparedEnhancementSuspense?: WeakMap<
-		VNode,
-		{
-			readonly children: readonly Child[];
-			readonly parent?: AnyComponentInstance;
-			readonly status: 'content' | 'fallback';
-			dispose(): void;
-		}
-	>;
+	/** Active operation-local enhancement routes awaiting their compiler-designated root. */
+	enhancementOperationRoutes?: Array<{
+		identity: string;
+		props: Readonly<Record<string, unknown>>;
+		componentDepth: number;
+		consumed: boolean;
+		nested: boolean;
+		nestedBefore?: string;
+	}>;
+	enhancementOperationComponentDepth?: number;
+	/** Active opaque `_target` layers consumed by the first semantic intrinsic they serialize. */
+	targetReceiptLayers?: Array<{
+		readonly props: Readonly<Record<string, unknown>>;
+		consumed: boolean;
+	}>;
 	/** Request-local scheduled frames started from compiler-proven child reachability. */
 	preparedDirectScheduledComponents?: WeakMap<
-		VNode,
+		object,
 		import('./render/direct-component.js').PreparedDirectScheduledSsrComponent
 	>;
 	componentContexts?: ComponentContextValues;
@@ -394,8 +379,10 @@ export type SsrContext = {
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
+	/** Request-owned direct indexed resumption capture. */
+	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
 	/** Request-local scheduler shared by every eligible sibling group. */
-	asyncScheduler: import('./render/async-scheduler.js').AsyncSsrScheduler;
+	asyncScheduler?: import('./render/async-scheduler.js').AsyncSsrScheduler;
 	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
 	asyncFrame: boolean;
 	/** Response-local compiler-finite boundary table. */
@@ -407,7 +394,8 @@ export type SsrContext = {
 /** Request-local state published by a compiler-closed synchronous server component. */
 export type DirectSsrComponentSnapshot = Readonly<{
 	componentId: string;
-	contract: ExactCompiledComponentContract;
+	contract: ExactServerExecutableComponentContract;
+	host: object;
 	state: Record<string, unknown>;
 	props: Record<string, unknown>;
 }>;
@@ -422,6 +410,5 @@ export type {
 	ExactResponseLike,
 	ExactServerContext,
 	Logger,
-	TaskObserver,
-	VNode
+	TaskObserver
 };

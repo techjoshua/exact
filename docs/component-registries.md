@@ -37,6 +37,10 @@ object definition. Entries cannot be added, removed, or replaced after
 creation. Unsafe object keys, branching definitions, side effects, and
 unprovable computed keys are compiler diagnostics.
 
+`createComponentRegistry()` is compiler source syntax, just like an eXact component definition.
+Do not execute a registry module outside an eXact compilation pipeline; the compiler replaces the
+declaration with its target-specific client or server artifact.
+
 ## Keys and untrusted input
 
 `KeyOf<typeof Registry>` derives the exact key union. Use `hasComponent()` to

@@ -122,6 +122,10 @@ transformation kernel for JSX ownership, React compatibility selection, native c
 inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
 asset emission, and build-tool lifecycle behavior remain adapter-owned.
 
+Bun component tests run with `bun --conditions=browser test` so dependencies resolve their compiled
+client artifacts before `@exactjs/bun-test/preload` executes. A preload can register the compiler
+and DOM environment, but it cannot retroactively change export conditions for its own imports.
+
 Process startup is provisional until the worker starts and the native protocol/version handshake
 completes. Any startup, timeout, or negotiation failure closes the worker and its child process
 before the error escapes. Native JSX lowering receives one immutable analysis plan, prepares its

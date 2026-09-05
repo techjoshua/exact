@@ -16,7 +16,7 @@ func planComponentTargets(
 	components []Component,
 	tasks []Task,
 	resumptions []ComponentResumption,
-	compatibilityEnabled bool,
+	interop *JSXInterop,
 ) {
 	for index := range components {
 		component := &components[index]
@@ -25,35 +25,197 @@ func planComponentTargets(
 			continue
 		}
 		execution := projectComponentExecution(component.Execution, TargetServer)
-		hasResumption := component.Placement == "isomorphic" &&
-			componentHasResumption(component.ID, resumptions)
-		directResumption := hasResumption &&
-			directServerResumptionSupported(component.ID, resumptions)
-		usesCompatibility := compatibilityEnabled && componentUsesJSXInterop(*component, componentNode)
-		hasLifecycle := component.Surface.ServerLifecycle
-		unsupportedSurface := component.Surface.Logging || component.Surface.Localization ||
-			component.Surface.Contexts || component.Surface.Reactivity || component.Surface.Refs ||
-			component.Surface.ServerLifecycle
-		abi := componentRuntimeABI(*component, execution, hasLifecycle, false, usesCompatibility)
-		directABI := componentABICompiledRender | componentABITasks
-		tasksSupported := true
-		for _, task := range tasks {
-			if task.Component == component.Name && !directServerTaskSupported(task) {
-				tasksSupported = false
-				break
-			}
-		}
-		directServer := component.CompiledRender &&
-			(!hasResumption || directResumption) && !usesCompatibility &&
-			!component.DynamicComponents && !unsupportedSurface && tasksSupported && abi&^directABI == 0
+		serverSurface := projectServerComponentSurface(componentNode, *component, tasks)
+		usesCompatibility := componentUsesJSXInterop(*component, componentNode, interop)
+		hasLifecycle := serverSurface.ServerLifecycle
+		abi := componentRuntimeABI(
+			*component,
+			serverSurface,
+			execution,
+			hasLifecycle,
+			false,
+			usesCompatibility,
+			component.CompiledRender,
+			false,
+		)
+		directABI := componentABICompiledRender | componentABITasks | componentABICollections |
+			componentABIContexts | componentABILifecycle
+		// Every non-client native component owns one direct request-local server artifact. Dynamic
+		// selection, resumptions, and focused surfaces change emitted operations, never the lane.
+		directServer := component.Placement != "client" && abi&^directABI == 0
+		directServerFrame := directServer && len(execution.Transitions) == 0
 		component.TargetPlan = ComponentTargetPlan{
 			ClientExecution:      projectComponentExecution(component.Execution, TargetClient),
 			ServerExecution:      execution,
+			ClientSurface:        component.Surface,
+			ServerSurface:        serverSurface,
 			DeferredTaskProps:    deferredServerTaskProps(*component, execution, componentNode, tasks),
 			DirectServer:         directServer,
-			DirectServerFrame:    directServer && len(execution.Transitions) == 0,
-			GenericServerRuntime: component.Placement != "client" && !directServer,
+			DirectServerFrame:    directServerFrame,
+			DirectServerExecutor: directServerFrame && directServerExecutorSupported(componentNode),
+			UsesCompatibility:    usesCompatibility,
 		}
+	}
+}
+
+// directServerExecutorSupported accepts the normalized single expression render arrow whose body
+// can execute immediately after setup without retaining the authored closure.
+func directServerExecutorSupported(componentNode *ast.Node) bool {
+	returns := directCallableReturns(componentNode)
+	if len(returns) != 1 {
+		return false
+	}
+	render := unwrapRenderExpression(returns[0])
+	return ast.IsArrowFunction(render) && !ast.IsBlock(render.AsArrowFunction().Body) &&
+		containsJSX(render.AsArrowFunction().Body)
+}
+
+// directServerLifecycleSupported accepts canonical and extracted named operations that generated
+// code can link to the request-local lifecycle sidecar.
+func directServerLifecycleSupported(componentNode *ast.Node) bool {
+	supported := true
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if !supported {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member || (name != "onUnmount" && name != "onRender" && name != "own") {
+			return true
+		}
+		if dynamic {
+			supported = false
+			return false
+		}
+		supported = !dynamic
+		return supported
+	})
+	return supported
+}
+
+// directServerReactivitySupported accepts the canonical component convenience operation. Its
+// request-local value recomputes on observation, so task-driven plain-frame state writes remain
+// fresh without constructing a dependency graph. Named extraction receives a stable focused method.
+func directServerReactivitySupported(componentNode *ast.Node) bool {
+	supported := true
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if !supported {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member || name != "reactive" {
+			return true
+		}
+		if dynamic {
+			supported = false
+			return false
+		}
+		supported = !dynamic
+		return supported
+	})
+	return supported
+}
+
+// directServerRefsSupported accepts only ref operations whose complete server semantics can be
+// linked to the request-local direct-ref helpers. Named extraction receives stable focused methods.
+func directServerRefsSupported(componentNode *ast.Node) bool {
+	supported := true
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if !supported {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member || (name != "ref" && name != "readRef" && name != "refs") {
+			return true
+		}
+		if dynamic {
+			supported = false
+			return false
+		}
+		supported = !dynamic
+		return supported
+	})
+	return supported
+}
+
+func componentTargetSurface(component Component, target Target) ComponentSurfacePlan {
+	if target == TargetServer {
+		return component.TargetPlan.ServerSurface
+	}
+	return component.TargetPlan.ClientSurface
+}
+
+// projectServerComponentSurface removes only capability uses whose complete expression is erased
+// by server lowering. Requirements propagated from external helpers remain conservative because
+// their call-site reachability cannot be recovered from a target-neutral boolean summary.
+func projectServerComponentSurface(
+	componentNode *ast.Node,
+	component Component,
+	tasks []Task,
+) ComponentSurfacePlan {
+	result := component.ForwardedSurface
+	clientLifecycle := componentClientLifecycleCallbackSpans(componentNode)
+	clientTasks := make([]SourceSpan, 0)
+	for _, task := range tasks {
+		if task.Component != component.Name || task.Placement != "client" {
+			continue
+		}
+		if task.Length != 0 {
+			clientTasks = append(clientTasks, SourceSpan{Start: task.Start, Length: task.Length})
+		}
+		if task.WorkLength != 0 {
+			clientTasks = append(clientTasks, SourceSpan{Start: task.WorkStart, Length: task.WorkLength})
+		}
+	}
+	walkNode(componentNode, func(node *ast.Node) bool {
+		if insideSourceSpans(node.Pos(), clientLifecycle) || withinAnySourceSpan(node, clientTasks) {
+			return false
+		}
+		if serverErasesJSXAttribute(node, componentNode) {
+			return false
+		}
+		name, member, dynamic := componentProtocolMember(node)
+		if !member {
+			return true
+		}
+		mergeComponentSurfaceMember(&result, name, dynamic)
+		return true
+	})
+	return result
+}
+
+func serverErasesJSXAttribute(node *ast.Node, componentNode *ast.Node) bool {
+	for current := node; current != nil && current != componentNode; current = current.Parent {
+		if !ast.IsJsxAttribute(current) {
+			continue
+		}
+		return interactiveJSXAttribute(jsxAttributeText(current.AsJsxAttribute().Name()))
+	}
+	return false
+}
+
+func mergeComponentSurfaceMember(surface *ComponentSurfacePlan, name string, dynamic bool) {
+	if dynamic {
+		surface.Logging = true
+		surface.Localization = true
+		surface.Refs = true
+		surface.Contexts = true
+		surface.Reactivity = true
+		surface.ServerLifecycle = true
+		return
+	}
+	switch name {
+	case "log":
+		surface.Logging = true
+	case "intl":
+		surface.Localization = true
+	case "ref", "readRef", "refs":
+		surface.Refs = true
+	case "hasContext", "getContext", "setContext":
+		surface.Contexts = true
+	case "reactive":
+		surface.Reactivity = true
+	case "onUnmount", "onRender", "own":
+		surface.ServerLifecycle = true
 	}
 }
 
@@ -61,12 +223,18 @@ func directServerTaskSupported(task Task) bool {
 	if task.Placement == "client" {
 		return true
 	}
+	// Invoked tasks are continuation operations, not request-render setup. Their generated execute
+	// entry belongs to the same artifact but does not require a durable component during SSR.
+	if task.Invoked {
+		return true
+	}
 	if directServerSetupComputation(task) {
 		return true
 	}
-	return !task.Invoked && !task.Detached && task.KeyLength == 0 &&
-		(task.Readiness == "" || task.Readiness == "blocking" || !task.Async) &&
-		len(task.Contexts) == 0
+	// The direct scheduled frame already owns blocking and nonblocking generations, cancellation,
+	// context reads, sibling pre-issuance, and request disposal. Detached and keyed setup lanes still
+	// require their dedicated request-local encodings before they may enter this path.
+	return !task.Detached && task.KeyLength == 0
 }
 
 func componentTargetExecution(component Component, target Target) ComponentExecution {
@@ -124,29 +292,41 @@ func componentExecutionMetadata(
 	return contractObject(factory, true, properties...)
 }
 
-// componentDefinitionMetadata emits the single compiler-owned executable description consumed
-// while creating each durable state-machine instance.
-func componentDefinitionMetadata(
+// componentArtifactMetadata emits the one current target-discriminated executable carried by a
+// native export. Inert continuation and build facts remain outside this runtime artifact.
+func componentArtifactMetadata(
 	factory *printer.NodeFactory,
+	componentID string,
+	target Target,
+	operations componentTargetOperations,
 	instantiate *ast.Node,
+	construct *ast.Node,
 	execution ComponentExecution,
 	deferredTaskProps []string,
 	stateSlots []string,
+	propsSlots []string,
+	propsSerialization *ComponentValueSchema,
 	continuations []Continuation,
 	hasResumption bool,
+	serverPublicationName string,
+	serverFrame *ast.Node,
+	serverLifecycle *ast.Node,
 	directResumption bool,
 	hasInteractions bool,
 	compatibility bool,
 	dynamicComponents bool,
 	collections bool,
+	targets bool,
 	runtimeABI int,
-	unsupportedServerSurface bool,
 	directServer bool,
+	directServerExecutor bool,
 	server bool,
 	compact bool,
 	updates *ast.Node,
+	inputs *ast.Node,
 ) *ast.Node {
 	state := append([]string{}, stateSlots...)
+	props := append([]string{}, propsSlots...)
 	tasks := []string{}
 	capabilities := []string{}
 	for _, transition := range execution.Transitions {
@@ -173,6 +353,12 @@ func componentDefinitionMetadata(
 	if collections {
 		capabilities = append(capabilities, "collections")
 	}
+	if runtimeABI&componentABIContexts != 0 {
+		capabilities = append(capabilities, "contexts")
+	}
+	if targets {
+		capabilities = append(capabilities, "targets")
+	}
 	reactive := make([]*ast.Node, 0, len(execution.Reactive))
 	for _, binding := range execution.Reactive {
 		reactive = append(reactive, contractObject(factory, true,
@@ -184,25 +370,57 @@ func componentDefinitionMetadata(
 	}
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
+		contractProperty(factory, "target", contractString(factory, string(target))),
+		contractProperty(factory, "id", contractString(factory, componentID)),
 		contractProperty(factory, "instantiate", instantiate),
+		contractProperty(factory, "construct", construct),
 		contractProperty(factory, "abi", contractNumber(factory, runtimeABI)),
 		contractProperty(factory, "capabilities", stringMetadata(factory, capabilities)),
 		contractProperty(factory, "state", stringMetadata(factory, state)),
+		contractProperty(factory, "props", stringMetadata(factory, props)),
+	}
+	if propsSerialization != nil {
+		properties = append(properties,
+			contractProperty(factory, "serialization", componentValueSchemaMetadata(factory, propsSerialization)),
+		)
+	}
+	if target == TargetClient {
+		properties = append(properties,
+			contractProperty(factory, "attach", operations.attach),
+			contractProperty(factory, "receive", operations.receive),
+			contractProperty(factory, "dispose", operations.dispose),
+		)
+	} else {
+		properties = append(properties,
+			contractProperty(factory, "issue", operations.issue),
+			contractProperty(factory, "write", operations.write),
+			contractProperty(factory, "dispose", operations.dispose),
+		)
 	}
 	if updates != nil {
 		properties = append(properties, contractProperty(factory, "updates", updates))
 	}
+	if inputs != nil {
+		properties = append(properties, contractProperty(factory, "inputs", inputs))
+	}
 	if server {
+		statelessDirectExecutor := directServerExecutor && len(state) == 0 &&
+			len(capabilities) == 0 && serverFrame == nil && serverLifecycle == nil
 		properties = append(properties, contractProperty(
 			factory,
-			"server",
+			"execution",
 			serverComponentExecutionMetadata(
 				factory,
 				execution,
 				deferredTaskProps,
 				instantiate,
 				directServer,
+				directServerExecutor,
+				statelessDirectExecutor,
 				dynamicComponents,
+				serverPublicationName,
+				serverFrame,
+				serverLifecycle,
 			),
 		))
 	}
@@ -224,18 +442,20 @@ func serverComponentExecutionMetadata(
 	deferredTaskProps []string,
 	instantiate *ast.Node,
 	direct bool,
+	directExecutor bool,
+	statelessDirectExecutor bool,
 	dynamic bool,
+	publicationName string,
+	frame *ast.Node,
+	lifecycle *ast.Node,
 ) *ast.Node {
 	classification := "synchronous"
-	if dynamic {
+	if dynamic && !direct {
 		classification = "dynamic"
 	} else if len(execution.Transitions) != 0 {
 		classification = "scheduled"
 	}
-	lane := "generic"
-	if direct && classification != "dynamic" {
-		lane = "direct"
-	}
+	lane := "direct"
 	properties := []*ast.Node{
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "classification", contractString(factory, classification)),
@@ -250,6 +470,29 @@ func serverComponentExecutionMetadata(
 		properties = append(properties,
 			contractProperty(factory, "render", instantiate),
 		)
+		if statelessDirectExecutor {
+			properties = append(properties,
+				contractProperty(factory, "mode", contractString(factory, "stateless")),
+			)
+		} else if directExecutor {
+			properties = append(properties,
+				contractProperty(factory, "mode", contractString(factory, "direct")),
+			)
+		}
+		if frame != nil {
+			properties = append(properties, contractProperty(factory, "frame", frame))
+		}
+		if lifecycle != nil {
+			properties = append(properties, contractProperty(factory, "lifecycle", lifecycle))
+		}
+	}
+	if publicationName != "" {
+		properties = append(properties, contractProperty(factory, "publication", contractObject(
+			factory,
+			true,
+			contractProperty(factory, "kind", contractString(factory, "resumption")),
+			contractProperty(factory, "name", contractString(factory, publicationName)),
+		)))
 	}
 	return contractObject(factory, true, properties...)
 }
@@ -377,14 +620,21 @@ func withinAnySourceSpan(node *ast.Node, spans []SourceSpan) bool {
 // componentRuntimeABI compacts compiler-proven execution needs into the hot construction record.
 func componentRuntimeABI(
 	component Component,
+	surface ComponentSurfacePlan,
 	execution ComponentExecution,
 	hasLifecycle bool,
 	hasInteractions bool,
 	compatibility bool,
+	compiledRender bool,
+	continuationDispatch bool,
 ) int {
 	abi := 0
-	if component.CompiledRender {
+	rangeOutput := compiledRender && component.ClientRangeOutput
+	if compiledRender && !rangeOutput {
 		abi |= componentABICompiledRender
+	}
+	if rangeOutput {
+		abi |= componentABIRangeOutput
 	}
 	if hasLifecycle {
 		abi |= componentABILifecycle
@@ -392,8 +642,14 @@ func componentRuntimeABI(
 	if component.Lists {
 		abi |= componentABILists
 	}
-	if len(execution.Transitions) != 0 || hasInteractions || compatibility {
+	if len(execution.Transitions) != 0 || compatibility || continuationDispatch {
 		abi |= componentABITasks
+	}
+	if component.Collections {
+		abi |= componentABICollections
+	}
+	if surface.Contexts || surface.Localization {
+		abi |= componentABIContexts
 	}
 	return abi
 }

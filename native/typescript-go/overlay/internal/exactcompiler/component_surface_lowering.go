@@ -22,6 +22,7 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+2)
 	arguments = append(arguments, lowering.factory.NewThisExpression())
 	helper := ""
+	directServer := lowering.target == TargetServer && lowering.directServerArtifactComponent(node)
 	switch name {
 	case "onMount", "onActivate", "onDeactivate", "onUnmount":
 		// Mount and client activation phases never execute during SSR. Erase the complete
@@ -35,14 +36,23 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 			)
 		}
 		helper = lowering.names.registerLifecycle
+		if directServer {
+			helper = lowering.names.directSsrLifecycle
+		}
 		phase := map[string]string{
 			"onMount": "mount", "onActivate": "activate", "onDeactivate": "deactivate", "onUnmount": "unmount",
 		}[name]
 		arguments = append(arguments, lowering.factory.NewStringLiteral(phase, ast.TokenFlagsNone))
 	case "onRender":
 		helper = lowering.names.registerRender
+		if directServer {
+			helper = lowering.names.directSsrRender
+		}
 	case "own":
 		helper = lowering.names.ownResource
+		if directServer {
+			helper = lowering.names.directSsrOwn
+		}
 	default:
 		return nil
 	}
@@ -128,6 +138,165 @@ func canonicalComponentLogLevel(node *ast.Node) (string, bool) {
 		return "", false
 	}
 	return level, true
+}
+
+// lowerComponentIntlAccess links the authored localization facade directly to the
+// target-specific component frame. This avoids installing the universal component
+// runtime surface for compiler-owned access while retaining a stable facade per owner.
+func (lowering *jsxLowering) lowerComponentIntlAccess(node *ast.Node) *ast.Node {
+	if !ast.IsPropertyAccessExpression(node) || !lowering.insideComponent(node) {
+		return nil
+	}
+	access := node.AsPropertyAccessExpression()
+	if access.QuestionDotToken != nil || access.Name().Text() != "intl" ||
+		access.Expression.Kind != ast.KindThisKeyword {
+		return nil
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.componentIntl),
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewThisExpression()}),
+		ast.NodeFlagsNone,
+	)
+}
+
+// lowerDirectServerRefCall links canonical ref operations to the non-reactive request-local SSR
+// lane. The server never publishes a DOM target, but bindings retain stable identity and authored
+// fulfillment remains observable. Unsupported extraction or dynamic dispatch stays generic.
+func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node {
+	if lowering.target != TargetServer || !ast.IsCallExpression(node) ||
+		!lowering.directServerFrameComponent(node) {
+		return nil
+	}
+	call := node.AsCallExpression()
+	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
+		return nil
+	}
+	method := call.Expression.AsPropertyAccessExpression()
+	helper := ""
+	if method.QuestionDotToken == nil && method.Expression.Kind == ast.KindThisKeyword {
+		switch method.Name().Text() {
+		case "ref":
+			helper = lowering.names.directSsrRef
+		case "readRef":
+			helper = lowering.names.directSsrReadRef
+		}
+	} else if method.QuestionDotToken == nil && ast.IsPropertyAccessExpression(method.Expression) {
+		refs := method.Expression.AsPropertyAccessExpression()
+		if refs.QuestionDotToken == nil && refs.Expression.Kind == ast.KindThisKeyword &&
+			refs.Name().Text() == "refs" {
+			switch method.Name().Text() {
+			case "get":
+				helper = lowering.names.directSsrReadRef
+			case "root":
+				helper = lowering.names.directSsrRoot
+			}
+		}
+	}
+	if helper == "" {
+		return nil
+	}
+	arguments := make([]*ast.Node, 0, len(call.Arguments.Nodes)+1)
+	arguments = append(arguments, lowering.factory.NewThisExpression())
+	for _, argument := range call.Arguments.Nodes {
+		arguments = append(arguments, lowering.visitor.VisitNode(argument))
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(helper), nil, call.TypeArguments,
+		lowering.factory.NewNodeList(arguments), call.Flags,
+	)
+}
+
+// lowerDirectServerSurfaceAccess preserves stable named method extraction without installing the
+// durable component runtime. The compiler selects the focused capability; the frame owns identity.
+func (lowering *jsxLowering) lowerDirectServerSurfaceAccess(node *ast.Node) *ast.Node {
+	if lowering.target != TargetServer || !ast.IsPropertyAccessExpression(node) ||
+		!lowering.directServerFrameComponent(node) {
+		return nil
+	}
+	access := node.AsPropertyAccessExpression()
+	if access.QuestionDotToken != nil {
+		return nil
+	}
+	owner := lowering.factory.NewThisExpression()
+	call := func(helper string, arguments ...*ast.Node) *ast.Node {
+		return lowering.factory.NewCallExpression(
+			lowering.factory.NewIdentifier(helper), nil, nil,
+			lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone,
+		)
+	}
+	if access.Expression.Kind == ast.KindThisKeyword {
+		switch access.Name().Text() {
+		case "ref":
+			return call(lowering.names.directSsrRefMethod, owner)
+		case "readRef":
+			return call(lowering.names.directSsrReadRefMethod, owner)
+		case "refs":
+			return call(lowering.names.directSsrRefs, owner)
+		case "reactive":
+			return call(lowering.names.directSsrReactiveMethod, owner)
+		case "onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own":
+			return call(
+				lowering.names.directSsrLifecycleMethod,
+				owner,
+				lowering.factory.NewStringLiteral(access.Name().Text(), ast.TokenFlagsNone),
+			)
+		}
+	}
+	if ast.IsPropertyAccessExpression(access.Expression) {
+		refs := access.Expression.AsPropertyAccessExpression()
+		if refs.QuestionDotToken == nil && refs.Expression.Kind == ast.KindThisKeyword &&
+			refs.Name().Text() == "refs" &&
+			(access.Name().Text() == "get" || access.Name().Text() == "root") {
+			return lowering.factory.NewPropertyAccessExpression(
+				call(lowering.names.directSsrRefs, owner), nil,
+				lowering.factory.NewIdentifier(access.Name().Text()), ast.NodeFlagsNone,
+			)
+		}
+	}
+	return nil
+}
+
+// lowerDirectServerReactive links the component convenience API to a request-local value whose
+// reads evaluate against the current direct frame. The generated server task plan owns ordering;
+// no runtime dependency graph or effect scope is required for this value.
+func (lowering *jsxLowering) lowerDirectServerReactive(node *ast.Node) *ast.Node {
+	if lowering.target != TargetServer || !lowering.directServerFrameComponent(node) {
+		return nil
+	}
+	var value *ast.Node
+	var typeArguments *ast.NodeList
+	var flags ast.NodeFlags
+	switch {
+	case ast.IsCallExpression(node):
+		call := node.AsCallExpression()
+		if call.QuestionDotToken != nil || !componentReactiveMember(call.Expression) ||
+			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+			return nil
+		}
+		value = call.Arguments.Nodes[0]
+		typeArguments = call.TypeArguments
+		flags = call.Flags
+	case ast.IsTaggedTemplateExpression(node):
+		tagged := node.AsTaggedTemplateExpression()
+		if !componentReactiveMember(tagged.Tag) {
+			return nil
+		}
+		value = tagged.Template
+		typeArguments = tagged.TypeArguments
+		flags = tagged.Flags
+	default:
+		return nil
+	}
+	value = lowering.visitor.VisitNode(value)
+	if !ast.IsArrowFunction(value) && !ast.IsFunctionExpression(value) {
+		value = lowering.arrow(value)
+	}
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.directSsrReactive), nil, typeArguments,
+		lowering.factory.NewNodeList([]*ast.Node{value}), flags,
+	)
 }
 
 // insideComponent prevents the logging ABI from rewriting unrelated objects which

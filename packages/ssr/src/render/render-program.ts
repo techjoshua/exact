@@ -1,51 +1,53 @@
-import {
-	type AnyComponentInstance,
-	isVNode,
-	normalizeRenderResult,
-	type VNode
-} from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive/framework/values';
-import { ServerSlot } from '@exactjs/core/framework/render-structure';
+import { type AnyComponentInstance, normalizeRenderResult } from '@exactjs/core';
 import type { ExactRenderProgramSsrOperations } from '@exactjs/core/framework/render-structure';
-import type { ExactPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
-	readRenderProgramSlot,
-	type ExactRenderProgramInvocation
-} from '@exactjs/core/framework/render-structure';
+	createPreparedServerComponentReference,
+	type ExactPreparedServerRenderProgram
+} from '@exactjs/core/framework/server-render-structure';
+import type { ExactRenderProgramSsrInvocation } from '@exactjs/core/framework/render-structure';
 import { escapeText } from '../html.js';
-import { exactMarkerId, renderAttrs } from '../markup.js';
-import { boundedJoin, countSsrNodes, SsrOutputLimitError } from './limits.js';
+import { renderAttrs, renderCompiledNativeAttribute, renderNativeAttribute } from '../markup.js';
+import { SsrOutputLimitError } from './limits.js';
 import type { Child, SsrContext } from '../types.js';
-import { withRenderProgramOwner } from './render-program-owner-capability.js';
+import type { ServerComponentReference } from './server-component-reference.js';
+import { renderSsrRootAttributes } from './render-program-attributes.js';
+import {
+	beginSsrProgram,
+	prepareSsrAttribute,
+	prepareSsrChild,
+	prepareSsrComponent,
+	prepareSsrComponentProps,
+	prepareSsrText,
+	unpreparedSsrValue
+} from './render-program-values.js';
 
-/** Executes a compiler-closed server invocation without constructing or dispatching a VNode. */
+/** Executes a compiler-closed server invocation directly. */
 export function renderPreparedSsrProgram(
 	context: SsrContext,
 	invocation: ExactPreparedServerRenderProgram,
 	owner?: AnyComponentInstance
-): {
-	readonly segments?: readonly DeferredSsrSegment[];
-	readonly fallback?: VNode;
-} {
-	if (context.reactMarkup) return { fallback: materializeInvocationFallback(invocation, owner) };
+): { readonly segments: readonly DeferredSsrSegment[] } {
+	if (context.reactMarkup)
+		throw new TypeError('React markup cannot execute a native eXact render program');
 	return executeSsrProgram(context, invocation, owner);
 }
 
 function executeSsrProgram(
 	context: SsrContext,
-	invocation: ExactRenderProgramInvocation,
-	owner?: AnyComponentInstance
-): { readonly segments?: readonly DeferredSsrSegment[]; readonly fallback?: VNode } {
+	invocation: ExactRenderProgramSsrInvocation,
+	_owner?: AnyComponentInstance
+): { readonly segments: readonly DeferredSsrSegment[] } {
 	const { program } = invocation;
 	if (program.ssr) {
 		const output = program.ssr(generatedSsrOperations, context, invocation);
-		if (!output) return { fallback: materializeInvocationFallback(invocation, owner) };
+		if (!output)
+			throw new TypeError(`Native server render program ${program.id} rejected its issued values`);
 		return { segments: output as DeferredSsrSegment[] };
 	}
-	return { fallback: materializeInvocationFallback(invocation, owner) };
+	throw new TypeError(`Client-only render program ${program.id} cannot execute during native SSR`);
 }
 
-type DeferredSsrSegment = string | readonly Child[] | VNode;
+type DeferredSsrSegment = string | readonly Child[] | ServerComponentReference;
 
 /**
  * Supplies stateless serialization operations to one compiler-generated server lane.
@@ -54,58 +56,30 @@ type DeferredSsrSegment = string | readonly Child[] | VNode;
  * calls can mutate the SSR context. This preserves local fallback semantics without making the
  * runtime rediscover component topology from an operation table.
  */
-const unpreparedSsrValue = Symbol('exact.ssr.unprepared');
-
 const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	unprepared: unpreparedSsrValue,
 	output: () => [],
-	prepareText(invocation, index) {
-		const value = unwrap(readRenderProgramSlot(invocation, index));
-		return value instanceof Promise || isVNode(value) || Array.isArray(value)
-			? unpreparedSsrValue
-			: value;
-	},
-	prepareChild(invocation, index) {
-		const value = unwrap(readRenderProgramSlot(invocation, index));
-		return value instanceof Promise ? unpreparedSsrValue : value;
-	},
-	prepareComponent(invocation, index) {
-		const value = unwrap(readRenderProgramSlot(invocation, index));
-		return value instanceof Promise ||
-			!isVNode(value) ||
-			(typeof value.type !== 'function' && value.type !== ServerSlot)
-			? unpreparedSsrValue
-			: value;
-	},
-	prepareAttribute(invocation, index) {
-		const value = unwrap(readRenderProgramSlot(invocation, index));
-		return value instanceof Promise ? unpreparedSsrValue : value;
-	},
-	begin(opaqueContext, nodeCount, slotCount, staticCharacters) {
-		const context = opaqueContext as SsrContext;
-		// Intrinsic identities are not serialized as cell comments, but their compiler-owned
-		// positions still occupy the shared request identity space. Nested generic/component
-		// rendering must therefore begin after this finite region so its emitted markers match
-		// the client-side ownership graph.
-		context.nextId += nodeCount;
-		countSsrNodes(context, nodeCount - 1 + slotCount);
-		if (staticCharacters > context.maxOutputBytes)
-			throw new SsrOutputLimitError(context.maxOutputBytes);
+	prepareText: prepareSsrText,
+	prepareChild: prepareSsrChild,
+	prepareComponent: prepareSsrComponent,
+	prepareComponentProps: prepareSsrComponentProps,
+	prepareAttribute: prepareSsrAttribute,
+	begin(opaqueContext, nodeCount, slotCount, staticCharacters, _staticBytes) {
+		beginSsrProgram(opaqueContext as SsrContext, nodeCount, slotCount, staticCharacters);
 	},
 	static(output, value) {
 		if (value !== '') output.push(value);
 	},
-	text(opaqueContext, output, value, id, characters, markerless) {
+	text(opaqueContext, output, value, id, characters, markerless, prefix = '', suffix = '') {
 		const context = opaqueContext as SsrContext;
 		const rendered =
 			value === null || value === undefined || value === false || value === true
 				? ''
 				: escapeText(String(value));
-		const html =
-			context.markers && !markerless
-				? `<!--exact:dynamic:${exactMarkerId(id)}-->${rendered}<!--/exact:dynamic:${exactMarkerId(id)}-->`
-				: rendered;
-		const nextCharacters = characters + html.length;
+		const dynamic =
+			context.markers && !markerless ? `<!--x:${id}-->${rendered}<!--/x:${id}-->` : rendered;
+		const html = `${prefix}${dynamic}${suffix}`;
+		const nextCharacters = characters + dynamic.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
 		if (html !== '') output.push(html);
@@ -114,8 +88,8 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	child(opaqueContext, output, value, id, characters) {
 		const context = opaqueContext as SsrContext;
 		const children = normalizeRenderResult(value as Child | Child[]);
-		const opening = context.markers ? `<!--exact:dynamic:${exactMarkerId(id)}-->` : '';
-		const closing = context.markers ? `<!--/exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const opening = context.markers ? `<!--x:${id}-->` : '';
+		const closing = context.markers ? `<!--/x:${id}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
@@ -129,86 +103,89 @@ const generatedSsrOperations: ExactRenderProgramSsrOperations = Object.freeze({
 	},
 	component(opaqueContext, output, value, id, characters, markerless) {
 		const context = opaqueContext as SsrContext;
-		const opening =
-			context.markers && !markerless ? `<!--exact:dynamic:${exactMarkerId(id)}-->` : '';
-		const closing =
-			context.markers && !markerless ? `<!--/exact:dynamic:${exactMarkerId(id)}-->` : '';
+		const opening = context.markers && !markerless ? `<!--x:${id}-->` : '';
+		const closing = context.markers && !markerless ? `<!--/x:${id}-->` : '';
 		const nextCharacters = characters + opening.length + closing.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
 		if (opening) output.push(opening);
-		output.push(value as VNode);
+		(output as unknown as DeferredSsrSegment[]).push(value as ServerComponentReference);
 		if (closing) output.push(closing);
 		return nextCharacters;
 	},
+	directComponent(opaqueContext, output, component, props, id, characters, markerless) {
+		const reference = createPreparedServerComponentReference(
+			component as Parameters<typeof createPreparedServerComponentReference>[0],
+			props as Record<string, unknown> | null
+		);
+		return generatedSsrOperations.component(
+			opaqueContext,
+			output,
+			reference,
+			id,
+			characters,
+			markerless
+		);
+	},
 	attribute(opaqueContext, output, value, name, tag, characters) {
 		const context = opaqueContext as SsrContext;
-		const html = renderAttrs({ [name]: value }, false, tag, context);
+		const html = renderNativeAttribute(value, name, tag, context);
 		const nextCharacters = characters + html.length;
 		if (nextCharacters > context.maxOutputBytes)
 			throw new SsrOutputLimitError(context.maxOutputBytes);
 		if (html !== '') output.push(html);
 		return nextCharacters;
+	},
+	compiledAttribute(opaqueContext, output, value, kind, name, attributeName, tag, characters) {
+		const context = opaqueContext as SsrContext;
+		const html = renderCompiledNativeAttribute(value, kind, name, attributeName, tag, context);
+		const nextCharacters = characters + html.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (html !== '') output.push(html);
+		return nextCharacters;
+	},
+	attributes(opaqueContext, output, value, tag, characters) {
+		const context = opaqueContext as SsrContext;
+		const props = value !== null && typeof value === 'object' ? value : {};
+		const html = renderAttrs(props as Record<string, unknown>, false, tag, context);
+		const nextCharacters = characters + html.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		if (html !== '') output.push(html);
+		return nextCharacters;
+	},
+	rootOpening(opaqueContext, output, value, tag, prefix, suffix, characters, staticAttributes) {
+		const context = opaqueContext as SsrContext;
+		const rendered = renderSsrRootAttributes(context, value, tag, staticAttributes);
+		const nextCharacters = characters + rendered.length;
+		if (nextCharacters > context.maxOutputBytes)
+			throw new SsrOutputLimitError(context.maxOutputBytes);
+		output.push(`${prefix}${rendered}${suffix}`);
+		return nextCharacters;
 	}
 });
 
-/** Serializes one direct compiler-issued server invocation into a bounded string. */
-export function renderPreparedSsrProgramString(
-	context: SsrContext,
-	invocation: ExactPreparedServerRenderProgram,
-	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => string,
-	renderChildren: (children: readonly Child[]) => string,
-	renderOwnedComponent: (component: VNode) => string
-): string {
-	const planned = renderPreparedSsrProgram(context, invocation, owner);
-	if (planned.fallback) return renderFallback(planned.fallback);
-	return boundedJoin(
-		context,
-		planned.segments!.map((segment) =>
-			typeof segment === 'string'
-				? segment
-				: Array.isArray(segment)
-					? renderChildren(segment)
-					: renderOwnedComponent(segment as VNode)
-		)
-	);
-}
-
-/** Streams one direct compiler-issued server invocation without a RenderProgram VNode. */
+/** Streams one direct compiler-issued server invocation. */
 export function renderPreparedSsrProgramChunks(
 	context: SsrContext,
 	invocation: ExactPreparedServerRenderProgram,
 	owner: AnyComponentInstance | undefined,
-	renderFallback: (fallback: VNode) => Iterable<string>,
 	renderChildren: (children: readonly Child[]) => Iterable<string>,
-	renderOwnedComponent: (component: VNode) => Iterable<string>
+	renderOwnedComponent: (component: ServerComponentReference) => Iterable<string>
 ): Iterable<string> {
 	const planned = renderPreparedSsrProgram(context, invocation, owner);
-	if (planned.fallback) return renderFallback(planned.fallback);
-	return flattenDeferredSegments(planned.segments!, renderChildren, renderOwnedComponent);
+	return flattenDeferredSegments(planned.segments, renderChildren, renderOwnedComponent);
 }
 
 function* flattenDeferredSegments(
 	segments: readonly DeferredSsrSegment[],
 	renderChildren: (children: readonly Child[]) => Iterable<string>,
-	renderOwnedComponent: (component: VNode) => Iterable<string>
+	renderOwnedComponent: (component: ServerComponentReference) => Iterable<string>
 ): Iterable<string> {
 	for (const segment of segments) {
 		if (typeof segment === 'string') yield segment;
 		else if (Array.isArray(segment)) yield* renderChildren(segment);
-		else yield* renderOwnedComponent(segment as VNode);
+		else yield* renderOwnedComponent(segment as ServerComponentReference);
 	}
-}
-
-function materializeInvocationFallback(
-	invocation: ExactRenderProgramInvocation,
-	owner: AnyComponentInstance | undefined
-): VNode {
-	const fallback = withRenderProgramOwner(owner, () => invocation.fallback?.());
-	if (!fallback)
-		throw new Error(
-			`Client-only compiler render program ${invocation.program.id} cannot execute through SSR fallback`
-		);
-	return fallback;
 }

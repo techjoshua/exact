@@ -2,6 +2,7 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"composite": true,
+		"jsx": "react-jsx",
 		"rootDir": "src",
 		"outDir": "dist",
 		"lib": ["ES2022"]

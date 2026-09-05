@@ -1,10 +1,12 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it } from 'vitest';
 import '../runtime/localization.js';
-import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import type { Component } from '../component/contracts.js';
+import type { ComponentLocalizationOwner } from '../component/localization-capability.js';
 import { LocalizationContext } from './context.js';
 import { intl } from './facade.js';
 import { clearIntlFormatterCache } from './formatter-pool.js';
+import { componentIntl } from '../component/runtime-surface-localization.js';
 
 describe('realm Intl formatter facade', () => {
 	it('shares finite formatter configurations through the public helper facade', () => {
@@ -36,6 +38,22 @@ describe('realm Intl formatter facade', () => {
 		);
 
 		expect(child.intl.NumberFormat().format(1234)).toBe(intl.NumberFormat('fr-FR').format(1234));
+	});
+
+	it('resolves localization from a compiler-owned request frame without a durable instance', () => {
+		clearIntlFormatterCache();
+		const owner: ComponentLocalizationOwner = {
+			hasContext(token: unknown) {
+				return token === LocalizationContext;
+			},
+			getContext<T>(token: unknown): T {
+				if (token !== LocalizationContext) throw new Error('unexpected context');
+				return { locale: 'ja-JP', sourceLocale: 'en-US' } as T;
+			}
+		};
+
+		expect(componentIntl(owner).NumberFormat()).toBe(intl.NumberFormat('ja-JP'));
+		expect(componentIntl(owner)).toBe(componentIntl(owner));
 	});
 
 	it('does not cache options with observable accessors', () => {

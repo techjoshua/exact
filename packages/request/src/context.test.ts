@@ -1,5 +1,5 @@
 import { type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { createExactFrameworkFixtureArtifact } from '@exactjs/core/testing';
 import '@exactjs/core/runtime/contexts';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { describe, expect, it } from 'vitest';

@@ -111,7 +111,7 @@ async function validatePackageParticipation(
 	const markerManifest = await readManifest(marker);
 	if (
 		!semver.satisfies(marker.version, markerRange) ||
-		markerManifest.exactComponentLibraryProtocol !== 1
+		markerManifest.exactComponentLibraryProtocol !== 2
 	) {
 		throw new ExactComponentParticipationError(
 			'marker-incompatible',
@@ -119,10 +119,10 @@ async function validatePackageParticipation(
 		);
 	}
 	const declaration = manifest.exactComponentLibrary;
-	if (!declaration || declaration.protocol !== 1 || typeof declaration.build !== 'string') {
+	if (!declaration || declaration.protocol !== 2 || typeof declaration.build !== 'string') {
 		throw new ExactComponentParticipationError(
 			'build-facts-missing',
-			`${instance.name} must publish protocol-1 exactComponentLibrary.build facts`
+			`${instance.name} must publish protocol-2 exactComponentLibrary.build facts`
 		);
 	}
 	const buildFactsPath = packageRelativePath(instance.root, declaration.build, 'build facts');
@@ -148,14 +148,17 @@ function selectComponentParticipation(
 ): ExactComponentParticipation {
 	const { markerVersion, buildFactsPath, buildFacts } = validated;
 	const resolvedModule = packageModulePath(instance.root, candidate.resolvedModuleId);
-	const resolvedModuleFacts = buildFacts.modules.find(
-		(module) => normalizeModulePath(module.path) === resolvedModule
-	);
 	const selected = buildFacts.exports.find(
 		(record) =>
 			normalizeModulePath(record.module) === resolvedModule &&
 			record.exportName === candidate.exportName
 	);
+	const resolvedModuleFacts = selected
+		? buildFacts.modules.find(
+				(module) =>
+					normalizeModulePath(module.path) === normalizeModulePath(selected.componentModule)
+			)
+		: undefined;
 	if (!selected || !resolvedModuleFacts) {
 		throw new ExactComponentParticipationError(
 			'build-facts-invalid',
@@ -169,7 +172,7 @@ function selectComponentParticipation(
 		componentId: selected.componentId,
 		componentBuild: Object.freeze({
 			...resolvedModuleFacts.facts,
-			filename: candidate.resolvedModuleId,
+			filename: path.resolve(instance.root, selected.componentModule),
 			packageName: instance.name
 		})
 	});
@@ -210,7 +213,7 @@ function validatePublishedBuildFacts(
 ): void {
 	if (
 		!facts ||
-		facts.protocol !== 1 ||
+		facts.protocol !== 2 ||
 		facts.package?.name !== instance.name ||
 		facts.package?.version !== instance.version ||
 		!Array.isArray(facts.modules) ||
@@ -235,9 +238,11 @@ function validatePublishedBuildFacts(
 			!nonemptyString(rawRecord.subpath) ||
 			!nonemptyString(rawRecord.condition) ||
 			!nonemptyString(rawRecord.module) ||
+			!nonemptyString(rawRecord.componentModule) ||
 			!nonemptyString(rawRecord.exportName) ||
 			!nonemptyString(rawRecord.componentId) ||
-			normalizeModulePath(rawRecord.module) !== rawRecord.module
+			normalizeModulePath(rawRecord.module) !== rawRecord.module ||
+			normalizeModulePath(rawRecord.componentModule) !== rawRecord.componentModule
 		)
 			invalidBuildFacts(instance, 'export record contains invalid fields');
 		const record = rawRecord as ExactPublishedComponentBuildFacts['exports'][number];
@@ -250,7 +255,7 @@ function validatePublishedBuildFacts(
 		const unique = [record.subpath, record.condition, record.module, record.exportName].join('\0');
 		if (exportsSeen.has(unique)) invalidBuildFacts(instance, 'duplicate export mapping');
 		exportsSeen.add(unique);
-		const module = modules.get(normalizeModulePath(record.module));
+		const module = modules.get(normalizeModulePath(record.componentModule));
 		if (
 			!module ||
 			!module.facts.components.some((component) => component.id === record.componentId)

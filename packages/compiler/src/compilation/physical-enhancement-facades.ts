@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { ExactRendererEnhancementIR } from '../contracts/transform.js';
 import {
 	exactAvailableEnhancementFacadeSource,
@@ -23,7 +22,8 @@ export function materializeExactPhysicalEnhancementFacades(
 	enhancements: readonly ExactRendererEnhancementIR[] | undefined,
 	importer: string,
 	outputRoot: string,
-	activationModule?: string
+	activationModule?: string,
+	outputFile?: string
 ): Readonly<{ code: string; facades: readonly ExactPhysicalEnhancementFacade[] }> {
 	if (!enhancements?.length) return Object.freeze({ code, facades: Object.freeze([]) });
 	const root = path.resolve(outputRoot, '.exact', 'enhancements');
@@ -49,7 +49,7 @@ export function materializeExactPhysicalEnhancementFacades(
 						{
 							version: 1,
 							identity: entry.identity,
-							moduleSpecifier: pathToFileURL(resolved).href,
+							moduleSpecifier: entry.moduleSpecifier,
 							exportName: entry.exportName
 						},
 						activationModule
@@ -60,9 +60,17 @@ export function materializeExactPhysicalEnhancementFacades(
 		facades.push(
 			Object.freeze({ filename, importer: path.resolve(importer), request: entry.moduleSpecifier })
 		);
-		rewritten = rewritten.split(JSON.stringify(request)).join(JSON.stringify(filename));
+		const facadeSpecifier = outputFile
+			? relativeModuleSpecifier(path.dirname(outputFile), filename)
+			: filename;
+		rewritten = rewritten.split(JSON.stringify(request)).join(JSON.stringify(facadeSpecifier));
 	}
 	return Object.freeze({ code: rewritten, facades: Object.freeze(facades) });
+}
+
+function relativeModuleSpecifier(from: string, target: string): string {
+	const relative = path.relative(from, target).replaceAll(path.sep, '/');
+	return relative.startsWith('./') || relative.startsWith('../') ? relative : `./${relative}`;
 }
 
 function isMissingModule(error: unknown, request: string): boolean {

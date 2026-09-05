@@ -1,21 +1,14 @@
+import { type AnyComponentFunction, type Component } from '@exactjs/core';
 import {
-	type AnyComponentFunction,
-	Activity as ExactActivity,
-	Fragment as ExactFragment,
-	Suspense as ExactSuspense,
-	createPortal,
-	createVNode,
-	isVNode,
-	type Child,
-	type Component,
-	type ComponentFunction,
-	type VNode
-} from '@exactjs/core';
+	createCompatibilityContribution,
+	compatibilityContributionKey,
+	isCompatibilityContribution,
+	type ExactCompatibilityContribution
+} from '@exactjs/core/framework/compatibility-contributions';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import '@exactjs/core/runtime/contexts';
 import { isExactComponent } from '@exactjs/core/framework/component-contracts';
-import { currentWorkPriority } from '@exactjs/reactive';
 import {
-	REACT_ACTIVITY_TYPE,
 	REACT_CONSUMER_TYPE,
 	REACT_CONTEXT_TYPE,
 	REACT_FORWARD_REF_TYPE,
@@ -23,24 +16,15 @@ import {
 	REACT_LAZY_TYPE,
 	REACT_MEMO_TYPE,
 	REACT_PORTAL_TYPE,
-	REACT_PROFILER_TYPE,
 	REACT_PROVIDER_TYPE,
-	REACT_REF_PROP,
-	REACT_STRICT_MODE_TYPE,
-	REACT_SUSPENSE_TYPE,
 	ReactRootContext,
 	activeHookHost,
-	adaptReactType,
-	childrenArray,
 	contextForSpecial,
 	currentReactOwnerFrame,
-	currentReactTransitionOwnership,
 	isReactClassType,
-	isReactElement,
 	reactElementSymbol,
 	reactCompatibilityTarget,
 	reactTypeName,
-	routeClassLifecycleError,
 	unsupportedType,
 	type ReactRootRuntime
 } from '../internals.js';
@@ -50,15 +34,10 @@ import type {
 	ReactComponentType,
 	ReactElement,
 	ReactNode,
-	ReactRef,
+	ReactOpaqueValue,
 	ReactSpecialType
 } from '../types.js';
-import { normalizeReactHostProps } from './host-props.js';
-import { envelopeReactRef, reactRefBinding } from './refs.js';
-import {
-	createCompatibilityArtifactVariants,
-	reactCompatibilityArtifactTarget
-} from './adapter-identity.js';
+import { reactIslandArtifact } from './island-artifacts.js';
 
 /** Reads a react root runtime from its source representation. */
 export function readReactRootRuntime(
@@ -71,130 +50,67 @@ export function readReactRootRuntime(
 	}
 }
 
-/** Performs the to exact node domain operation. */
-export function toExactNode(node: ReactNode): Child | Child[] {
-	if (Array.isArray(node)) return node.map(toExactNode).flat() as Child[];
-	if (
-		node === null ||
-		node === undefined ||
-		typeof node === 'string' ||
-		typeof node === 'number' ||
-		typeof node === 'boolean'
-	)
-		return node;
-	if (isVNode(node)) return node;
-	if (isReactPortal(node)) {
-		const children = childrenArray(node.children).map(toExactNode).flat() as Child[];
-		return createPortal(node.containerInfo, ...children);
-	}
-	if (!isReactElement(node))
-		throw new TypeError(
-			`Objects are not valid as a React child (${Object.prototype.toString.call(node)})`
-		);
-	return reactElementToVNode(node);
-}
-
 /**
  * Projects native eXact children into opaque React element records.
  *
- * React-owned wrappers must be able to inspect, clone, and key children before
- * they are lowered back into the native renderer. The element's exact boundary
- * carries the original VNode without invoking its component as React code.
+ * React-owned wrappers may inspect, clone, and key only the private React carrier. The carrier
+ * retains the opaque supplier capability and never contains or materializes the native value.
  */
 export function toReactNode(node: unknown): ReactNode {
 	if (Array.isArray(node)) return node.map(toReactNode);
-	if (!isVNode(node)) return node as ReactNode;
-	const type = ExactVNodeBoundaryType as ReactComponentType<Record<string, unknown>>;
+	if (!isCompatibilityContribution(node)) return node as ReactNode;
+	const type = ExactContributionBoundaryType as ReactComponentType<Record<string, unknown>>;
 	return {
 		$$typeof: reactElementSymbol(),
 		type,
-		key: node.key ?? null,
+		key: compatibilityContributionKey(node) ?? null,
 		ref: null,
-		props: { vnode: node },
+		props: { contribution: node },
 		_owner: currentReactOwnerFrame(),
 		_store: { validated: 0 }
 	};
 }
 
-const ExactVNodeBoundary = function ExactVNodeBoundary(
-	this: Component<Record<string, never>>,
-	props: { vnode: VNode }
-) {
-	return () => props.vnode;
-} as ComponentFunction<Record<string, never>, { vnode: VNode }>;
-const ExactVNodeBoundaries = createCompatibilityArtifactVariants(
-	ExactVNodeBoundary,
-	'@exactjs/react-compat:ExactVNodeBoundary'
-);
+const ExactContributionBoundaryType = function ReactExactContributionBoundary(): never {
+	throw new Error('Opaque native contribution must be placed by @exactjs/react-compat');
+};
 
-const ExactVNodeBoundaryType = Object.defineProperties(
-	function ReactExactVNodeBoundary(): never {
-		throw new Error('Native eXact child boundary must be rendered by @exactjs/react-compat');
-	},
-	{
-		$$typeof: { value: EXACT_COMPONENT_TYPE },
-		exactComponent: {
-			get: () => ExactVNodeBoundaries[reactCompatibilityArtifactTarget()]
-		}
-	}
-);
-
-/** Performs the react element to vnode domain operation. */
-export function reactElementToVNode(element: ReactElement): VNode {
+/** Reads or creates only the opaque native operation carried by a React boundary element. */
+export function reactElementCompatibilityContribution(
+	element: ReactElement<ReactOpaqueValue>
+): ExactCompatibilityContribution | undefined {
 	const elementProps = element.props as Record<string, unknown> & { children?: ReactNode };
-	const keyedProps: Record<string, unknown> = {
-		...elementProps,
-		...(element.key === null ? {} : { key: element.key })
-	};
+	if (element.type === ExactContributionBoundaryType) {
+		const contribution = elementProps.contribution;
+		if (!isCompatibilityContribution(contribution))
+			throw new TypeError('React native-contribution carrier lost its opaque handle');
+		return contribution;
+	}
 	const exactBoundary = exactComponentType(element.type);
-	if (exactBoundary) {
-		if (element.ref !== null && element.ref !== undefined && exactBoundary.refProp !== undefined) {
-			Reflect.set(keyedProps, exactBoundary.refProp, element.ref);
-		}
-		if ('children' in keyedProps)
-			keyedProps.children = toExactNode(elementProps.children as ReactNode);
-		delete keyedProps.ref;
-		return createVNode(exactBoundary.component, keyedProps);
-	}
-	if (typeof element.type === 'string') {
-		normalizeReactHostProps(element.type, keyedProps);
-		if (element.ref !== null && element.ref !== undefined)
-			keyedProps.ref = reactRefBinding(element.ref as ReactRef<Element>);
-		const children = childrenArray(elementProps.children).map(toExactNode).flat() as Child[];
-		delete keyedProps.children;
-		return createVNode(element.type, keyedProps, ...children);
-	}
-	if (element.type === REACT_FRAGMENT_TYPE || element.type === REACT_STRICT_MODE_TYPE) {
-		const children = childrenArray(elementProps.children).map(toExactNode).flat() as Child[];
-		delete keyedProps.children;
-		return createVNode(ExactFragment, keyedProps, ...children);
-	}
-	if (element.type === REACT_SUSPENSE_TYPE) {
-		keyedProps.__exactReactTransition = currentReactTransitionOwnership();
-		return createVNode(ReactSuspenseBoundaries[reactCompatibilityArtifactTarget()], keyedProps);
-	}
-	if (element.type === REACT_ACTIVITY_TYPE) {
-		const children = childrenArray(elementProps.children).map(toExactNode).flat() as Child[];
-		delete keyedProps.children;
-		return createVNode(
-			ExactActivity,
-			{ ...keyedProps, mode: elementProps.mode === 'hidden' ? 'parked' : 'active' },
-			...children
-		);
-	}
-	if (element.type === REACT_PROFILER_TYPE) {
-		return createVNode(ReactProfilerBoundaries[reactCompatibilityArtifactTarget()], keyedProps);
-	}
-	if (typeof element.type === 'symbol')
-		throw unsupportedType(element.type.description ?? String(element.type));
-	// Preserve React element records across component boundaries. Converting
-	// children here would break Children, cloneElement, and wrapper components.
-	if (element.ref !== null && element.ref !== undefined)
-		keyedProps[REACT_REF_PROP] = envelopeReactRef(element.ref);
-	// `ref` is reserved by the eXact VNode runtime and must always be a
-	// RefBinding. Component refs travel through the adapter-owned channel.
-	delete keyedProps.ref;
-	return createVNode(adaptReactType(element.type), keyedProps);
+	if (!exactBoundary) return undefined;
+	const props = { ...elementProps };
+	const children = props.children as ReactNode;
+	delete props.children;
+	if (element.ref !== null && element.ref !== undefined && exactBoundary.refProp !== undefined)
+		Reflect.set(props, exactBoundary.refProp, element.ref);
+	const nativeChildren =
+		children === undefined
+			? []
+			: [
+					createCompiledComponentReceipt(reactIslandArtifact(), {
+						component: REACT_FRAGMENT_TYPE,
+						children
+					})
+				];
+	const operation = createCompiledComponentReceipt(
+		exactBoundary.component,
+		props,
+		...nativeChildren
+	);
+	return createCompatibilityContribution(
+		(target) => target.place(operation),
+		element.key === null ? undefined : String(element.key)
+	);
 }
 
 /** Performs the exact component type domain operation. */
@@ -255,62 +171,6 @@ export function invokeReactType(
 	}
 	throw unsupportedType(reactTypeName(type));
 }
-
-const ReactProfilerBoundary = function ReactProfilerBoundary(
-	this: Component<Record<string, unknown>>,
-	props: Record<string, unknown>
-) {
-	let mounted = false;
-	this.onMount(() => {
-		mounted = true;
-	});
-	this.onRender(({ duration }) => {
-		const callback = props.onRender;
-		if (typeof callback !== 'function') return;
-		const phase = mounted ? 'update' : 'mount';
-		const commitTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
-		queueMicrotask(() => {
-			try {
-				(callback as (...args: unknown[]) => void)(
-					props.id,
-					phase,
-					duration,
-					duration,
-					commitTime - duration,
-					commitTime
-				);
-			} catch (error) {
-				routeClassLifecycleError(this, error, 'profiler');
-			}
-		});
-	});
-	return () => toExactNode(props.children as ReactNode);
-} as ComponentFunction<Record<string, unknown>, Record<string, unknown>>;
-
-const ReactSuspenseBoundary = function ReactSuspenseBoundary(
-	this: Component<Record<string, never>>,
-	props: Record<string, unknown>
-) {
-	return () =>
-		createVNode(
-			ExactSuspense,
-			{
-				fallback: toExactNode(props.fallback as ReactNode),
-				presentation: currentWorkPriority() === 'deferred' ? 'retain' : 'replace',
-				__exactTransition: props.__exactReactTransition
-			},
-			toExactNode(props.children as ReactNode)
-		);
-} as ComponentFunction<Record<string, never>, Record<string, unknown>>;
-
-const ReactProfilerBoundaries = createCompatibilityArtifactVariants(
-	ReactProfilerBoundary,
-	'@exactjs/react-compat:ReactProfilerBoundary'
-);
-const ReactSuspenseBoundaries = createCompatibilityArtifactVariants(
-	ReactSuspenseBoundary,
-	'@exactjs/react-compat:ReactSuspenseBoundary'
-);
 
 /** Reports whether react portal. */
 export function isReactPortal(value: unknown): value is import('../types.js').ReactPortal {

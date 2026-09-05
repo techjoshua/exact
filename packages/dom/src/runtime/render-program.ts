@@ -1,19 +1,31 @@
 /** Compiler-selected direct render-program binding operations. */
 export {
+	applyCompiledComponentReceipt,
+	mountComponentReceipt
+} from '../renderer/mounting/native-component-artifact.js';
+
+export {
+	applyCompiledProgramChild,
 	applyCompiledProgramProperties,
 	applyCompiledProgramText,
 	bindCompiledProgramChild,
+	bindCompiledProgramComponent,
 	bindCompiledProgramKeyedChild,
 	bindCompiledProgramLists,
 	bindCompiledProgramProperties,
+	bindCompiledReactiveProgramProperties,
 	bindCompiledProgramText
 } from '../renderer/render-program-bindings.js';
 
-/** Compatibility binding for pre-component-ABI generated update programs. */
-export { bindCompiledProgramState } from '../renderer/component-update-lanes.js';
-
 /** Compiler-selected component-wide dirty update binding. */
 export { bindCompiledComponentUpdate } from '../renderer/component-update-binding.js';
+/** Compiler-selected wide component dirty update binding. */
+export { bindCompiledWideComponentUpdate } from '../renderer/component-update-wide-binding.js';
+/** Compiler-selected state-only component dirty update bindings. */
+export {
+	bindCompiledStateComponentUpdate,
+	bindCompiledWideStateComponentUpdate
+} from '../renderer/component-state-update-binding.js';
 
 /** Compiler-selected direct render-program claim operations. */
 export {

@@ -1,16 +1,12 @@
-import {
-	createVNode,
-	type Component,
-	type ComponentFunction,
-	type ErrorReport
-} from '@exactjs/core';
-import { createExactCompatibilityArtifact } from '@exactjs/core/framework/component-contracts';
-// React client roots can produce Suspense and Activity VNodes without compiler lowering.
-import '@exactjs/dom/structural-boundaries';
-import { render as renderExact, unmount as unmountExact } from '@exactjs/dom';
-import { hydrate as hydrateExact, type HydrationRoot } from '@exactjs/hydrate';
 import type { ReactNode } from '@exactjs/react-compat';
-import { ReactRootContext, toExactNode, type ReactRootRuntime } from '@exactjs/react-compat/exact';
+import {
+	createReactRendererRoot,
+	disposeReactRoot,
+	hydrateReactRoot,
+	renderReactRoot
+} from './renderer/root.js';
+import type { ReactRendererRoot } from './renderer/types.js';
+import './renderer/native-island.js';
 
 /** Configures root. */
 export interface RootOptions {
@@ -31,50 +27,25 @@ export interface Root {
 
 const roots = new WeakMap<Element, CompatibilityRoot>();
 
-type RootHostProps = { children: ReactNode; options?: RootOptions };
-const RootHost = function ExactReactRoot(
-	this: Component<Record<string, never>>,
-	props: RootHostProps
-) {
-	const runtime: ReactRootRuntime = {
-		identifierPrefix: props.options?.identifierPrefix ?? '',
-		nextComponentId: 0,
-		onCaughtError: props.options?.onCaughtError
-	};
-	this.setContext(ReactRootContext, runtime);
-	return () => {
-		runtime.onCaughtError = props.options?.onCaughtError;
-		return toExactNode(props.children);
-	};
-} as ComponentFunction<Record<string, never>, RootHostProps>;
-createExactCompatibilityArtifact(RootHost, '@exactjs/react-dom-compat:RootHost', 'client');
-
 class CompatibilityRoot implements Root {
 	private active = true;
 
 	constructor(
 		private readonly container: Element,
 		private readonly options?: RootOptions,
-		private hydration?: HydrationRoot
+		private readonly renderer: ReactRendererRoot = createReactRendererRoot(container, options)
 	) {}
 
 	render(children: ReactNode): void {
 		if (!this.active) throw new Error('Cannot update an unmounted React compatibility root');
-		renderExact(createVNode(RootHost, { children, options: this.options }), this.container, {
-			onErrorReport: (report) => reportUncaught(this.options, report)
-		});
+		renderReactRoot(this.renderer, children);
 	}
 
 	unmount(): void {
 		if (!this.active) return;
 		this.active = false;
 		roots.delete(this.container);
-		if (this.hydration) {
-			this.hydration.dispose();
-			this.hydration = undefined;
-		} else {
-			unmountExact(this.container);
-		}
+		disposeReactRoot(this.renderer);
 	}
 }
 
@@ -103,17 +74,9 @@ export function hydrateRoot(
 	}
 	if (roots.has(container))
 		throw new Error('A React compatibility root already owns this container');
-	const vnode = createVNode(RootHost, { children: initialChildren, options });
-	const hydration = hydrateExact(vnode, container, {
-		allowMarkerless: true,
-		onErrorReport: (report) => reportUncaught(options, report),
-		onDiagnostic(diagnostic) {
-			if (diagnostic.code !== 'invalid-patch' && diagnostic.code !== 'stale-response') {
-				options?.onRecoverableError?.(new Error(diagnostic.message), { componentStack: '' });
-			}
-		}
-	});
-	const root = new CompatibilityRoot(container, options, hydration);
+	const renderer = createReactRendererRoot(container, options);
+	hydrateReactRoot(renderer, initialChildren);
+	const root = new CompatibilityRoot(container, options, renderer);
 	roots.set(container, root);
 	return root;
 }
@@ -153,10 +116,5 @@ export function legacyUnmount(container: Element): boolean {
 
 /** Provides the canonical version value. */
 export const version = '19.2.0-exact';
-
-function reportUncaught(options: RootOptions | undefined, report: ErrorReport): void {
-	const componentStack = report.component?.name ? `\n    at ${report.component.name}` : '';
-	options?.onUncaughtError?.(report.error, { componentStack });
-}
 
 export default { createRoot, hydrateRoot, version };

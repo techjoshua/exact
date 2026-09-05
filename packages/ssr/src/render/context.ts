@@ -54,10 +54,13 @@ export async function awaitWithAbort<T>(
 	}
 }
 
-/** Creates a ssr context. */
-export function createSsrContext(options: RenderToStringOptions): SsrContext {
+/** Creates a request-owned SSR context, omitting async scheduling only for proven sync roots. */
+export function createSsrContext(
+	options: RenderToStringOptions,
+	includeAsyncScheduler = true
+): SsrContext {
 	const wallClockSnapshot = Date.now();
-	return {
+	const context: SsrContext = {
 		executionRoot: options.executionRoot ?? 'page',
 		buildKey: options.buildKey,
 		markers: options.markers ?? true,
@@ -97,7 +100,10 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		onComponentAttemptRollback: options.onComponentAttemptRollback,
 		onDirectComponentCreated: options.onDirectComponentCreated,
 		onDirectComponentRendered: options.onDirectComponentRendered,
-		asyncScheduler: new AsyncSsrScheduler(options.maxAsyncSsrConcurrency),
+		resumptionCapture: options.resumptionCapture,
 		asyncFrame: false
 	};
+	if (includeAsyncScheduler)
+		context.asyncScheduler = new AsyncSsrScheduler(options.maxAsyncSsrConcurrency);
+	return context;
 }

@@ -152,7 +152,10 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 				testApi.expect(result.logs).toEqual([]);
 				const output = result.outputs.find((item) => item.kind === 'entry-point');
 				testApi.expect(output).toBeDefined();
-				testApi.expect(await output!.text()).toContain('__exactVNode("button"');
+				const outputText = await output!.text();
+				testApi.expect(outputText).toContain('@exactjs/core/runtime/render-operations');
+				testApi.expect(outputText).not.toContain('@exactjs/dom/runtime/render-program');
+				testApi.expect(outputText).toContain('template: "<button>');
 				const sourceMap = result.outputs.find((item) => item.kind === 'sourcemap');
 				testApi.expect(await sourceMap!.text()).toContain('entry.tsx');
 			} finally {
@@ -258,7 +261,7 @@ async function createAuthorizationFixture() {
 			type: 'module',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
 		})
 	);
 	await writeFile(
@@ -266,7 +269,7 @@ async function createAuthorizationFixture() {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 1
+			exactComponentLibraryProtocol: 2
 		})
 	);
 	await writeFile(
@@ -274,7 +277,7 @@ async function createAuthorizationFixture() {
 		'export function Card() { return () => null; }\n'
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 1,
+		protocol: 2,
 		package: { name: '@acme/cards', version: '1.0.0' },
 		modules: [
 			{
@@ -298,6 +301,7 @@ async function createAuthorizationFixture() {
 				subpath: '.',
 				condition: 'default',
 				module: 'dist/index.js',
+				componentModule: 'dist/index.js',
 				exportName: 'Card',
 				componentId: '@acme/cards:Card'
 			}

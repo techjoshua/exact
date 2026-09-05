@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { performance } from 'node:perf_hooks';
-import {
-	createExactRuntimeInspectionOwner,
-	createVNode,
-	markExactComponent
-} from '../packages/core/dist/index.js';
+import { pathToFileURL } from 'node:url';
+import { createExactRuntimeInspectionOwner } from '../packages/core/dist/index.js';
 import { previewExactValue } from '../packages/devtools-protocol/dist/index.js';
 import { createExactClientEventStore } from '../packages/devtools-runtime/dist/client-events.js';
 import { createExactClientInspectionQueryService } from '../packages/devtools-runtime/dist/query-service.js';
-import { renderToString } from '../packages/ssr/dist/index.js';
 import { transformSource } from '../packages/compiler/dist/index.js';
+import { buildDevToolsPerformanceFixture } from './performance/fixture-build.mjs';
 
 const budgets = {
 	largePreviewMs: 500,
@@ -70,27 +70,26 @@ const measurements = {};
 }
 
 {
-	function LargeList() {
-		return () =>
-			createVNode(
-				'ul',
-				null,
-				...Array.from({ length: 5_000 }, (_, id) =>
-					createVNode('li', { 'data-key': id }, `item-${id}`)
-				)
-			);
+	const temporary = await mkdtemp(path.join(tmpdir(), 'exact-devtools-performance-'));
+	try {
+		const fixture = await buildDevToolsPerformanceFixture(temporary);
+		const { renderLargeList } = await import(pathToFileURL(fixture).href);
+		const started = performance.now();
+		const rendered = renderLargeList(5_000);
+		measurements.ssrMs = performance.now() - started;
+		assert.ok(rendered.html.includes('item-4999'));
+		assert.ok(measurements.ssrMs < budgets.ssrMs);
+	} finally {
+		await rm(temporary, { recursive: true, force: true });
 	}
-	markExactComponent(LargeList, 'benchmark:devtools:LargeList');
-	const started = performance.now();
-	const rendered = renderToString(createVNode(LargeList, {}), { markers: false });
-	measurements.ssrMs = performance.now() - started;
-	assert.ok(rendered.html.includes('item-4999'));
-	assert.ok(measurements.ssrMs < budgets.ssrMs);
 }
 
 {
 	const events = createExactClientEventStore(100, 100_000);
 	events.publish(runtimeEvent('client', undefined, 1));
+	events.publish(runtimeEvent('server', undefined, 1));
+	events.publish(runtimeEvent('server', 'branding', 1));
+	events.publish(runtimeEvent('server', 'billing', 1));
 	const roots = [
 		root(undefined, 'page-build', 'page'),
 		root('branding', 'branding-build', 'branding-root'),
@@ -167,19 +166,15 @@ const measurements = {};
 		assert.ok(!hardened.code.includes(forbidden), `hardened output contains ${forbidden}`);
 }
 
-console.log(
-	JSON.stringify(
-		{
-			scenario: 'server-cooperative-devtools',
-			measurements: Object.fromEntries(
-				Object.entries(measurements).map(([name, value]) => [name, Number(value.toFixed(2))])
-			),
-			budgets
-		},
-		null,
-		2
-	)
-);
+const report = {
+	scenario: 'server-cooperative-devtools',
+	measurements: Object.fromEntries(
+		Object.entries(measurements).map(([name, value]) => [name, Number(value.toFixed(2))])
+	),
+	budgets
+};
+console.log(JSON.stringify(report, null, 2));
+console.log(`DEVTOOLS_BENCHMARK_JSON=${JSON.stringify(report)}`);
 
 function root(binding, buildKey, executionRoot) {
 	return {
@@ -203,7 +198,7 @@ function runtimeEvent(side, binding, sequence) {
 			sessionId: 'benchmark',
 			side,
 			...(binding ? { binding } : {}),
-			buildKey: `${binding ?? side}-build`,
+			buildKey: `${binding ?? 'page'}-build`,
 			executionRoot: binding ? `${binding}-root` : 'page',
 			componentTypeId: 'component:Benchmark',
 			instanceId: `${binding ?? side}-${sequence}`

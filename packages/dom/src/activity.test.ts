@@ -3,6 +3,7 @@
  */
 import './structural-boundaries.js';
 import '@exactjs/core/runtime/refs';
+import './runtime/root-release.js';
 import {
 	Activity,
 	Suspense,
@@ -16,10 +17,11 @@ import {
 	type RootLifecycle
 } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
-import { createCompiledVNode, jsx } from './test-support/native-vnode.js';
+import { createCompiledOperation, jsx } from './test-support/native-operations.js';
 import { flushSync, runWithPriority } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { render, unmount } from './index.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
 import { inspectDomRoot, type DomInspectionNode } from './testing.js';
 
 function findActivity(node: DomInspectionNode): DomInspectionNode | undefined {
@@ -43,7 +45,7 @@ describe('@exactjs/dom native Activity', () => {
 			counterRoot = this.refs.root();
 			this.state.count = 0;
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'button',
 					{ ref: this.ref(buttonRef) },
 					createExpression(() => this.state.count)
@@ -54,10 +56,10 @@ describe('@exactjs/dom native Activity', () => {
 			boundary = this;
 			this.state.mode = 'active';
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					Activity,
 					{ mode: createExpression(() => this.state.mode) },
-					createCompiledVNode(Counter, {})
+					createCompiledOperation(Counter, {})
 				);
 		}
 
@@ -100,7 +102,7 @@ describe('@exactjs/dom native Activity', () => {
 			panel = this;
 			this.state.label = 'before';
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'p',
 					{},
 					createExpression(() => this.state.label)
@@ -111,10 +113,10 @@ describe('@exactjs/dom native Activity', () => {
 			boundary = this;
 			this.state.mode = 'background';
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					Activity,
 					{ mode: createExpression(() => this.state.mode) },
-					createCompiledVNode(Panel, {})
+					createCompiledOperation(Panel, {})
 				);
 		}
 
@@ -151,7 +153,7 @@ describe('@exactjs/dom native Activity', () => {
 				})
 			);
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'p',
 					{},
 					createExpression(() => this.state.label)
@@ -161,13 +163,13 @@ describe('@exactjs/dom native Activity', () => {
 			boundary = this;
 			this.state.mode = 'parked';
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					Suspense,
 					{ fallback: 'loading' },
-					createCompiledVNode(
+					createCompiledOperation(
 						Activity,
 						{ mode: createExpression(() => this.state.mode) },
-						createCompiledVNode(Panel, {})
+						createCompiledOperation(Panel, {})
 					)
 				);
 		}
@@ -195,7 +197,7 @@ describe('@exactjs/dom native Activity', () => {
 	it('rejects unsupported modes at the boundary', () => {
 		const container = document.createElement('div');
 		render(
-			createCompiledVNode(Activity, { mode: 'unknown' }, jsx('span', { children: 'x' })),
+			createCompiledOperation(Activity, { mode: 'unknown' }, jsx('span', { children: 'x' })),
 			container
 		);
 		expect(container.textContent).toContain('Activity mode must be');

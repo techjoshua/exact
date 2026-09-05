@@ -8,7 +8,7 @@ import "github.com/microsoft/typescript-go/internal/ast"
 func (lowering *jsxLowering) lowerCompilerClosedSsrCalls(
 	root *ast.SourceFile,
 ) *ast.SourceFile {
-	if lowering.target != TargetServer || len(lowering.closedServerWriters) == 0 {
+	if lowering.target != TargetServer {
 		return root
 	}
 	var visitor *ast.NodeVisitor
@@ -21,12 +21,15 @@ func (lowering *jsxLowering) lowerCompilerClosedSsrCalls(
 		exportName, supported := lowering.compilerClosedSsrCallee(call.Expression)
 		if !supported || call.Arguments == nil ||
 			len(call.Arguments.Nodes) == 0 ||
-			!lowering.compilerClosedRootVNode(call.Arguments.Nodes[0]) {
+			!lowering.compilerClosedRootOperation(call.Arguments.Nodes[0]) {
 			return updated
 		}
 		helper, safe := lowering.compilerClosedRenderHelper(exportName, call.Arguments.Nodes[1:])
 		if !safe {
 			return updated
+		}
+		if ast.IsIdentifier(call.Expression) {
+			lowering.redirectedRootImports[call.Expression.Text()] = struct{}{}
 		}
 		return lowering.factory.UpdateCallExpression(
 			call,
@@ -48,6 +51,12 @@ func (lowering *jsxLowering) compilerClosedRenderHelper(
 		if exportName == "renderToHydratableStringAsync" {
 			return lowering.names.renderClosedHydratableSsr, true
 		}
+		if exportName == "renderToHydratableString" {
+			return lowering.names.renderClosedSyncHydratable, true
+		}
+		if exportName == "renderToString" {
+			return lowering.names.renderClosedSyncSsr, true
+		}
 		return lowering.names.renderClosedSsr, true
 	}
 	if len(arguments) != 1 {
@@ -59,6 +68,20 @@ func (lowering *jsxLowering) compilerClosedRenderHelper(
 	}
 	unmarked := false
 	for _, property := range options.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsShorthandPropertyAssignment(property) {
+			name := property.Name().Text()
+			switch name {
+			case "reactMarkup", "outputExtensions":
+				// These options can change the root representation. A shorthand value is
+				// not statically narrow enough to retain the compiler-closed renderer.
+				return "", false
+			case "markers":
+				// A runtime marker choice can use the marked entrypoint. Its publisher
+				// already observes the request context's marker policy; only a literal
+				// false earns the smaller unmarked entrypoint below.
+			}
+			continue
+		}
 		if !ast.IsPropertyAssignment(property) {
 			return "", false
 		}
@@ -84,8 +107,17 @@ func (lowering *jsxLowering) compilerClosedRenderHelper(
 	if exportName == "renderToHydratableStringAsync" {
 		return lowering.names.renderClosedHydratableSsr, true
 	}
+	if exportName == "renderToHydratableString" {
+		return lowering.names.renderClosedSyncHydratable, true
+	}
 	if unmarked {
+		if exportName == "renderToString" {
+			return lowering.names.renderClosedSyncUnmarkedSsr, true
+		}
 		return lowering.names.renderClosedUnmarkedSsr, true
+	}
+	if exportName == "renderToString" {
+		return lowering.names.renderClosedSyncSsr, true
 	}
 	return lowering.names.renderClosedSsr, true
 }
@@ -120,14 +152,14 @@ func (lowering *jsxLowering) compilerClosedSsrCallee(expression *ast.Node) (stri
 		return "", false
 	}
 	switch reference.exportName {
-	case "renderToStringAsync", "renderToHydratableStringAsync":
+	case "renderToString", "renderToHydratableString", "renderToStringAsync", "renderToHydratableStringAsync":
 		return reference.exportName, true
 	default:
 		return "", false
 	}
 }
 
-func (lowering *jsxLowering) compilerClosedRootVNode(node *ast.Node) bool {
+func (lowering *jsxLowering) compilerClosedRootOperation(node *ast.Node) bool {
 	if !ast.IsCallExpression(node) {
 		return false
 	}
@@ -135,43 +167,15 @@ func (lowering *jsxLowering) compilerClosedRootVNode(node *ast.Node) bool {
 	if ast.IsIdentifier(call.Expression) &&
 		call.Expression.Text() == lowering.names.issueServerComponent && call.Arguments != nil &&
 		len(call.Arguments.Nodes) == 1 {
-		return lowering.compilerClosedRootVNode(call.Arguments.Nodes[0])
+		return lowering.compilerClosedRootOperation(call.Arguments.Nodes[0])
 	}
 	if !ast.IsIdentifier(call.Expression) ||
-		call.Expression.Text() != lowering.names.componentElement || call.Arguments == nil ||
-		len(call.Arguments.Nodes) == 0 || !ast.IsIdentifier(call.Arguments.Nodes[0]) {
+		call.Expression.Text() != lowering.names.componentReceipt || call.Arguments == nil ||
+		len(call.Arguments.Nodes) == 0 {
 		return false
 	}
-	return lowering.compilerClosedComponentGraph(
-		call.Arguments.Nodes[0].Text(),
-		make(map[string]bool),
-	)
-}
-
-// compilerClosedComponentGraph proves that every statically rendered component reachable from a
-// candidate root has its own direct server writer. A cycle remains closed when every member has a
-// writer; imported, client-owned, or generic descendants keep the universal renderer reachable.
-func (lowering *jsxLowering) compilerClosedComponentGraph(
-	name string,
-	visiting map[string]bool,
-) bool {
-	if visiting[name] {
-		return true
-	}
-	component, exists := lowering.components[name]
-	if !exists || !component.TargetPlan.DirectServer {
-		return false
-	}
-	if _, closed := lowering.closedServerWriters[name]; !closed {
-		return false
-	}
-	visiting[name] = true
-	defer delete(visiting, name)
-	for _, edge := range component.RenderEdges {
-		if edge.Placement == "client" || edge.ModuleSpecifier != "" ||
-			!lowering.compilerClosedComponentGraph(edge.Tag, visiting) {
-			return false
-		}
-	}
+	// The operation itself carries the target artifact selected by the compiler. Imported and
+	// package-published components therefore use the same physical root ABI as local components;
+	// recursive source closure is neither available nor required at this boundary.
 	return true
 }

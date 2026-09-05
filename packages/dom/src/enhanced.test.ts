@@ -1,34 +1,19 @@
 /**
  * @vitest-environment jsdom
  */
-import { createEnhancementNode, type Child, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
+import { render } from './enhanced.js';
 import { registerExactEnhancement } from '@exactjs/core/framework/enhancement-catalog';
 import { describe, expect, it } from 'vitest';
-import { render } from './enhanced.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { CatalogAsideEnhancement, createCatalogEnhancedButtonRoot } from './enhanced.fixtures.js';
 
 describe('enhanced DOM facade', () => {
 	it('supplies the application-bundle catalog by default', () => {
 		const identity = '@exactjs/dom:enhanced-facade';
-		const Enhancement = createExactFrameworkFixtureArtifact(function Enhancement(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			return () => createVNode('aside', null, props.children);
-		}, identity);
-		registerExactEnhancement(identity, Enhancement);
+		registerExactEnhancement(identity, CatalogAsideEnhancement);
 		const container = document.createElement('div');
 
-		render(
-			createVNode(
-				'button',
-				{ __exactEnhancements: createEnhancementNode([{ identity, props: {} }]) },
-				'Save'
-			),
-			container
-		);
+		render(createCatalogEnhancedButtonRoot(identity), container);
 
-		expect(container.innerHTML).toBe('<aside><button>Save</button></aside>');
+		expect(container.querySelector('aside > button')?.textContent).toBe('Save');
 	});
 });

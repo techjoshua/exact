@@ -162,6 +162,18 @@ export function StatePage(this: Component<{}>) {
 					demo form a component-owned graph rather than three pieces of render syntax.
 				</p>
 				<p>
+					A derived read is current immediately after a state write, even through several retained
+					derived values. eXact settles only the upstream graph needed by that read; DOM updates and
+					other reactions remain coalesced until their scheduled turn. If an intermediate result is
+					unchanged, work stops at that equality boundary instead of running downstream
+					calculations.
+				</p>
+				<p>
+					Direct or indirect runtime cycles in explicit reactive values fail with a bounded eXact
+					diagnostic. Cycles the compiler can prove in component setup are still reported at build
+					time.
+				</p>
+				<p>
 					When one reactive expression reads a nullable or union-valued derived declaration more
 					than once, generated code samples its cell once for that evaluation. Ordinary TypeScript
 					narrowing such as <code>point ? point.x : &quot;unavailable&quot;</code> therefore remains

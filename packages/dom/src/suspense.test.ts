@@ -13,8 +13,9 @@ import {
 import { createExpression } from '@exactjs/core/runtime/render';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { render, unmount } from './index.js';
-import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import { createCompiledOperation, createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/dom native Suspense', () => {
 	it('shows fallback until blocking descendant work settles', async () => {
@@ -37,7 +38,7 @@ describe('@exactjs/dom native Suspense', () => {
 				})
 			);
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'p',
 					{},
 					createExpression(() => (this.state.ready ? 'ready' : ''))
@@ -46,10 +47,10 @@ describe('@exactjs/dom native Suspense', () => {
 
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				Suspense,
-				{ fallback: createVNode('span', null, 'loading') },
-				createVNode(AsyncPanel, {})
+				{ fallback: createOperation('span', null, 'loading') },
+				createOperation(AsyncPanel, {})
 			),
 			container
 		);
@@ -81,14 +82,14 @@ describe('@exactjs/dom native Suspense', () => {
 					await props.pending;
 				})
 			);
-			return () => createVNode('p', null, props.label);
+			return () => createOperation('p', null, props.label);
 		}
 
 		const boundary = (label: string, pending: Promise<void>) =>
-			createVNode(
+			createOperation(
 				Suspense,
-				{ fallback: createVNode('span', null, 'loading') },
-				createVNode(Panel, { label, pending })
+				{ fallback: createOperation('span', null, 'loading') },
+				createOperation(Panel, { label, pending })
 			);
 		const container = document.createElement('div');
 		render(boundary('first', first), container);
@@ -132,14 +133,17 @@ describe('@exactjs/dom native Suspense', () => {
 				this.reactive(() => this.state.query)
 			);
 			return () =>
-				createCompiledVNode(
+				createCompiledOperation(
 					'p',
 					{},
 					createExpression(() => this.state.result)
 				);
 		}
 		const container = document.createElement('div');
-		render(createVNode(Suspense, { fallback: 'loading' }, createVNode(Search, {})), container);
+		render(
+			createOperation(Suspense, { fallback: 'loading' }, createOperation(Search, {})),
+			container
+		);
 		await settleMicrotasks();
 		expect(container.textContent).toBe('initial');
 
@@ -164,18 +168,18 @@ describe('@exactjs/dom native Suspense', () => {
 					await never;
 				})
 			);
-			return () => createVNode('strong', null, 'inner ready');
+			return () => createOperation('strong', null, 'inner ready');
 		}
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				Suspense,
 				{ fallback: 'outer loading' },
-				createVNode('h1', null, 'shell'),
-				createVNode(
+				createOperation('h1', null, 'shell'),
+				createOperation(
 					Suspense,
-					{ fallback: createVNode('i', null, 'inner loading') },
-					createVNode(Pending, {})
+					{ fallback: createOperation('i', null, 'inner loading') },
+					createOperation(Pending, {})
 				)
 			),
 			container

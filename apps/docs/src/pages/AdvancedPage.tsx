@@ -88,7 +88,10 @@ export function AdvancedPage(this: Component<{}>) {
 					For request data passed into the root component, <code>publishRootProps</code> and
 					<code>readPublishedRootProps</code> provide one bootstrap copy for both client
 					construction and hydration. State derived directly from those inputs is not serialized a
-					second time.
+					second time. Pass the compiled root component to <code>readPublishedRootProps</code> so a
+					compact component-bound payload can be decoded against the matching client artifact.
+					Compiler-declared fields are read once while constructing that payload, so use data
+					properties rather than side-effecting getters for published inputs.
 				</p>
 			</section>
 

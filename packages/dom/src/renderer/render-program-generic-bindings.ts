@@ -1,7 +1,8 @@
 import type {
 	ExactRenderProgramBinder,
-	ExactRenderProgramBinding
-} from '@exactjs/core/runtime/render';
+	ExactRenderProgramBinding,
+	ExactRenderProgramSlot
+} from '@exactjs/core/runtime/render-operations';
 import {
 	bindCompiledProgramChild,
 	bindCompiledProgramLists,
@@ -11,7 +12,8 @@ import {
 
 /** Builds the table-driven compatibility binder used only by explicit testing/support artifacts. */
 export function createGenericRenderProgramBinder(
-	bindings: readonly ExactRenderProgramBinding[]
+	bindings: readonly ExactRenderProgramBinding[],
+	slots: readonly ExactRenderProgramSlot[]
 ): ExactRenderProgramBinder {
 	return (target) => {
 		let propertyGroup = 0;
@@ -25,10 +27,18 @@ export function createGenericRenderProgramBinder(
 				continue;
 			}
 			if (binding[0] === 'text') {
-				bindCompiledProgramText(target, binding[1]);
+				const slot = slots[binding[1]];
+				bindCompiledProgramText(
+					target,
+					binding[1],
+					undefined,
+					undefined,
+					slot?.[0] === 'text' ? (slot[4] ?? '') : '',
+					slot?.[0] === 'text' ? (slot[5] ?? '') : ''
+				);
 				continue;
 			}
-			bindCompatibleProgramProperties(target, propertyGroup++, binding[1]);
+			bindCompatibleProgramProperties(target, propertyGroup++, binding[1], slots);
 		}
 	};
 }

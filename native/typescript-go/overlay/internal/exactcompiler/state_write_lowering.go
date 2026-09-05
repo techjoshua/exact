@@ -8,8 +8,62 @@ import (
 	"github.com/microsoft/typescript-go/internal/scanner"
 )
 
-func (lowering *jsxLowering) componentReactive(expression *ast.Node) *ast.Node {
-	return lowering.call(lowering.names.derived, []*ast.Node{lowering.arrow(expression)})
+func (lowering *jsxLowering) componentReactive(source *ast.Node, expression *ast.Node) *ast.Node {
+	if indexed := lowering.indexedReactiveDependency(source, expression); indexed != nil {
+		return indexed
+	}
+	return lowering.call(
+		lowering.names.activationDependency,
+		[]*ast.Node{lowering.arrow(expression)},
+	)
+}
+
+// indexedReactiveDependency reuses the receiving component's stable slot source when a task or
+// setup computation depends on exactly one compiler-proven state or prop read. Derived and
+// arbitrary expressions retain their tracked dependency owner and executable reader.
+func (lowering *jsxLowering) indexedReactiveDependency(source *ast.Node, expression *ast.Node) *ast.Node {
+	if read, exists := lowering.stateReadSlots[nodeSpanKey(source)]; exists {
+		if receiver := directStateReadReceiver(source); receiver != nil {
+			return lowering.call(lowering.names.indexedDependency, []*ast.Node{
+				lowering.visitor.VisitNode(receiver),
+				lowering.factory.NewNumericLiteral(fmt.Sprint(read.slot), ast.TokenFlagsNone),
+			})
+		}
+	}
+	if read, exists := lowering.propsReadSlots[nodeSpanKey(source)]; exists {
+		if _, receiver, direct := directPropsRead(source); direct {
+			return lowering.call(lowering.names.indexedDependency, []*ast.Node{
+				lowering.visitor.VisitNode(receiver),
+				lowering.factory.NewNumericLiteral(fmt.Sprint(read.slot), ast.TokenFlagsNone),
+			})
+		}
+	}
+	current := expression
+	for current != nil {
+		switch {
+		case ast.IsParenthesizedExpression(current):
+			current = current.AsParenthesizedExpression().Expression
+		case ast.IsAsExpression(current):
+			current = current.AsAsExpression().Expression
+		case ast.IsSatisfiesExpression(current):
+			current = current.AsSatisfiesExpression().Expression
+		case ast.IsNonNullExpression(current):
+			current = current.AsNonNullExpression().Expression
+		default:
+			if !ast.IsCallExpression(current) {
+				return nil
+			}
+			call := current.AsCallExpression()
+			if !ast.IsIdentifier(call.Expression) ||
+				call.Expression.Text() != lowering.names.readState ||
+				call.Arguments == nil || len(call.Arguments.Nodes) != 2 ||
+				!ast.IsNumericLiteral(call.Arguments.Nodes[1]) {
+				return nil
+			}
+			return lowering.call(lowering.names.indexedDependency, call.Arguments.Nodes)
+		}
+	}
+	return nil
 }
 
 func (lowering *jsxLowering) stateValue(path []string) *ast.Node {
@@ -85,12 +139,17 @@ func (lowering *jsxLowering) lowerStateWrite(
 		}
 		value := lowering.visitor.VisitNode(expression.Right)
 		if expression.OperatorToken.Kind == ast.KindEqualsToken {
+			name, reference := lowering.stateWriteReference(node, write, lowering.names.write, lowering.names.writeState)
+			argument := lowering.arrow(value)
+			if name == lowering.names.writeState {
+				argument = value
+			}
 			return lowering.call(
-				lowering.names.write,
+				name,
 				[]*ast.Node{
 					lowering.stateWriteRoot(write),
-					lowering.stateWritePathNode(write),
-					lowering.arrow(value),
+					reference,
+					argument,
 				},
 			)
 		}
@@ -106,20 +165,22 @@ func (lowering *jsxLowering) lowerStateWrite(
 			lowering.factory.NewToken(operator),
 			value,
 		)
+		name, reference := lowering.stateWriteReference(node, write, lowering.names.update, lowering.names.updateState)
 		return lowering.call(
-			lowering.names.update,
+			name,
 			[]*ast.Node{
 				lowering.stateWriteRoot(write),
-				lowering.stateWritePathNode(write),
+				reference,
 				lowering.arrowWithParameter(previous, updated),
 			},
 		)
 	case "delete":
+		name, reference := lowering.stateWriteReference(node, write, lowering.names.delete, lowering.names.deleteState)
 		return lowering.call(
-			lowering.names.delete,
+			name,
 			[]*ast.Node{
 				lowering.stateWriteRoot(write),
-				lowering.stateWritePathNode(write),
+				reference,
 			},
 		)
 	case "array-mutation":
@@ -253,14 +314,59 @@ func (lowering *jsxLowering) lowerStateUpdate(
 		lowering.factory.NewNodeList([]*ast.Node{declaration, returnValue}),
 		true,
 	)
+	name, reference := lowering.stateWriteReference(node, write, lowering.names.updateResult, lowering.names.updateStateResult)
 	return lowering.call(
-		lowering.names.updateResult,
+		name,
 		[]*ast.Node{
 			lowering.stateWriteRoot(write),
-			lowering.stateWritePathNode(write),
+			reference,
 			lowering.arrowWithParameter(previous, body),
 		},
 	)
+}
+
+func (lowering *jsxLowering) stateWriteReference(
+	node *ast.Node,
+	write StateWrite,
+	pathHelper string,
+	indexedHelper string,
+) (string, *ast.Node) {
+	return lowering.stateWriteReferenceForKey(
+		nodeSpanKey(node),
+		write,
+		pathHelper,
+		indexedHelper,
+	)
+}
+
+func (lowering *jsxLowering) stateWriteReferenceForWrite(
+	write StateWrite,
+	pathHelper string,
+	indexedHelper string,
+) (string, *ast.Node) {
+	return lowering.stateWriteReferenceForKey(
+		fmt.Sprintf("%d:%d", write.Start, write.Length),
+		write,
+		pathHelper,
+		indexedHelper,
+	)
+}
+
+func (lowering *jsxLowering) stateWriteReferenceForKey(
+	key string,
+	write StateWrite,
+	pathHelper string,
+	indexedHelper string,
+) (string, *ast.Node) {
+	if lowering.target == TargetClient {
+		if slot, exists := lowering.stateWriteSlots[key]; exists {
+			return indexedHelper, lowering.factory.NewNumericLiteral(
+				fmt.Sprintf("%d", slot),
+				ast.TokenFlagsNone,
+			)
+		}
+	}
+	return pathHelper, lowering.stateWritePathNode(write)
 }
 
 func (lowering *jsxLowering) arrowWithParameter(

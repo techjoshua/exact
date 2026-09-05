@@ -1,12 +1,11 @@
-import type { VNode } from '@exactjs/core';
 import { markerPair } from '../markup.js';
 import type { SsrContext } from '../types.js';
 import { ssrCapabilities } from './capability-registry.js';
 
 type ResumptionBoundaryCapability = (
 	context: SsrContext,
-	vnode: VNode,
 	id: string,
+	name: string,
 	html: string,
 	props: Record<string, unknown>
 ) => string;
@@ -18,14 +17,14 @@ export function registerResumptionBoundaryCapability(next: ResumptionBoundaryCap
 	ssrCapabilities[capabilityName] = next;
 }
 
-/** Wraps a component in resumption metadata only when that capability was installed. */
-export function renderResumableComponentBoundary(
+/** Wraps a compiler-proven resumable component without reading its contract again. */
+export function renderPreparedResumableComponentBoundary(
 	context: SsrContext,
-	vnode: VNode,
 	id: string,
+	name: string,
 	html: string,
 	props: Record<string, unknown>
 ): string {
 	const capability = ssrCapabilities[capabilityName] as ResumptionBoundaryCapability | undefined;
-	return capability?.(context, vnode, id, html, props) ?? markerPair(context, id, () => html);
+	return capability?.(context, id, name, html, props) ?? markerPair(context, id, () => html);
 }

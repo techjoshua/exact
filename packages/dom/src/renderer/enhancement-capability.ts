@@ -1,10 +1,10 @@
-import type { AnyComponentInstance, VNode } from '@exactjs/core';
+import type { AnyComponentInstance, Child } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted, Root } from '../types.js';
 
 /** Mount operation supplied by the base renderer without importing enhancement implementation code. */
 export type EnhancementMountOperation = (
-	vnode: VNode,
+	value: Child,
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	parentNode: Node | undefined
@@ -13,7 +13,7 @@ export type EnhancementMountOperation = (
 /** Patch operation supplied by the base renderer without importing enhancement implementation code. */
 export type EnhancementPatchOperation = (
 	mounted: Mounted | undefined,
-	vnode: VNode,
+	value: Child,
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined
 ) => Mounted;
@@ -21,11 +21,13 @@ export type EnhancementPatchOperation = (
 /** Complete DOM lifecycle implemented when an enhancement-bearing module is reachable. */
 export type DomEnhancementCapability = Readonly<{
 	abi: 1;
+	/** Reports whether this compiler-selected capability owns the authored operation. */
+	has(value: Child): boolean;
 	install(root: Root, mount: EnhancementMountOperation): void;
 	/** Constructs a direct intrinsic or fragment wrapper before mounting its descendants. */
 	mountDirect?(
 		root: Root,
-		vnode: VNode,
+		value: Child,
 		parentInstance: AnyComponentInstance | undefined,
 		parentScope: EffectScope | undefined,
 		mount: EnhancementMountOperation
@@ -40,7 +42,7 @@ export type DomEnhancementCapability = Readonly<{
 	patch(
 		root: Root,
 		mounted: Mounted,
-		next: VNode,
+		next: Child,
 		parent: Node,
 		parentInstance: AnyComponentInstance | undefined,
 		parentScope: EffectScope | undefined,
@@ -77,7 +79,7 @@ export function registerDomEnhancementCapability(capability: DomEnhancementCapab
 	registry.capability ??= capability;
 }
 
-/** Resolves enhancement behavior at the optional VNode boundary, including late registrations. */
+/** Resolves enhancement behavior at the explicit compatibility boundary, including late registrations. */
 export function domEnhancementCapability(): DomEnhancementCapability | undefined {
 	return capabilityRegistry().capability;
 }

@@ -1,18 +1,16 @@
 export { isFiniteClientBoundary, markFiniteClientBoundary } from '../hydration-boundary.js';
 export { hasIndependentAsyncSiblings, markIndependentAsyncSiblings } from '../ssr-independence.js';
-export {
-	createComponentInstance,
-	createFrameworkFixtureComponentInstance,
-	reparentComponentInstance
-} from '../component/runtime.js';
+export { createFrameworkLogicalOwner } from '../component/logical-owner.js';
+export { createComponentInstance, reparentComponentInstance } from '../component/runtime.js';
 export { renderInstance, renderInstanceOutput } from '../component/render.js';
 export { RenderProgram, ServerBoundary, ServerSlot } from '../symbols.js';
 export {
 	createPreparedRenderProgram,
 	prepareCompiledRenderProgram,
 	readRenderProgram,
+	readRenderProgramReceipt,
+	withoutRenderProgramReceiptEnhancement,
 	readRenderProgramSlot,
-	renderProgramFallback,
 	type ExactRenderProgram,
 	type ExactDirectRenderProgram,
 	type ExactDomRenderProgram,
@@ -20,30 +18,24 @@ export {
 	type ExactRenderProgramBinder,
 	type ExactRenderProgramBindingTarget,
 	type ExactRenderProgramInvocation,
+	type ExactRenderProgramReceipt,
+	type ExactRenderProgramReceiptData,
 	type ExactRenderProgramNode,
 	type ExactRenderProgramSlot,
 	type ExactRenderProgramSsrOperations,
 	type ExactRenderProgramSsrOutput,
 	type ExactRenderProgramSsrWriter,
-	type ExactRenderProgramUpdater,
 	type ExactSsrRenderProgram,
 	type ExactTableRenderProgram
 } from '../render-program.js';
 export {
-	createCompiledFragment,
-	createCompiledComponentVNode,
-	createCompiledTarget,
-	createCompiledVNode,
-	createCellVNode,
-	keyCompiledVNode,
 	createKeyedServerSlot,
 	createServerBoundary,
-	createServerSlot,
-	getCellVNode,
-	isCellVNode
-} from '../vnode.js';
+	createServerSlot
+} from '../component-abi/server-structure-receipts.js';
 export {
 	createDynamicChild,
+	createCompiledChildRangeReceipt,
 	createExpression,
 	createForwardedExpression
-} from '../component/reactive-vnodes.js';
+} from '../component/reactive-expressions.js';

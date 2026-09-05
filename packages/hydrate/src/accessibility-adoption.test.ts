@@ -2,44 +2,42 @@
  * @vitest-environment jsdom
  */
 import '@exactjs/core/runtime/refs';
-import { Accessibility } from '@exactjs/accessibility';
-import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
-import { renderToString } from '@exactjs/ssr';
+import { Accessibility as ServerAccessibility } from '../../accessibility/src/components.js?exact-target=server';
+import { Accessibility as ClientAccessibility } from '../../accessibility/src/components.js';
+import '@exactjs/dom/framework/enhancements';
+import '@exactjs/dom/runtime/target';
+import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
+import { accessibilityPageRoot as serverAccessibilityPageRoot } from './test-support/accessibility-adoption.fixtures.js?exact-target=server';
+import { accessibilityPageRoot as clientAccessibilityPageRoot } from './test-support/accessibility-adoption.fixtures.js';
 import { hydrate } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
 import { noopLogger } from './test-support/responses.js';
 
-const labelKey = createRef<HTMLSpanElement>('hydrated accessibility label');
 const identity = '@exactjs/accessibility/enhancements#labelledBy';
 
 describe('@exactjs/hydrate accessibility identity adoption', () => {
-	it('retains the server relationship and generated target ID while adopting nodes', () => {
-		const Page = createExactFrameworkFixtureArtifact(function Page(this: Component<{}>) {
-			const label = this.ref(labelKey);
-			return () => [
-				createVNode('span', { ref: label }, 'Account email'),
-				createVNode('input', {
-					__exactEnhancements: createEnhancementNode([{ identity, props: { labelledBy: label } }])
-				})
-			];
-		}, '@exactjs/hydrate:accessibility-page');
-		const enhancementCatalog = new Map([[identity, Accessibility]]);
-		const vnode = createVNode(Page, null);
+	it('retains the server relationship and generated target ID while adopting nodes', async () => {
+		const enhancementCatalog = new Map([[identity, ClientAccessibility]]);
+		const serverEnhancementCatalog = new Map([[identity, ServerAccessibility]]);
 		const container = document.createElement('div');
-		container.innerHTML = renderToString(vnode, {
+		const rendered = await renderToHydratableStringAsync(serverAccessibilityPageRoot, {
 			markers: false,
-			enhancementCatalog
-		}).html;
+			enhancementCatalog: serverEnhancementCatalog
+		});
+		container.innerHTML = rendered.html;
 		const serverLabel = container.querySelector('span')!;
 		const serverInput = container.querySelector('input')!;
 		const id = serverLabel.id;
 
-		hydrate(vnode, container, {
+		hydrate(clientAccessibilityPageRoot, container, {
 			allowMarkerless: true,
 			enhancementCatalog,
-			logger: noopLogger
+			logger: noopLogger,
+			onMismatch: 'throw',
+			resumptions: rendered.resumptions,
+			onErrorReport(report) {
+				throw report.error;
+			}
 		});
 
 		expect(container.querySelector('span')).toBe(serverLabel);

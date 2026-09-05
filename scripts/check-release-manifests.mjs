@@ -54,16 +54,16 @@ for (const entry of publishable) {
 		}
 	}
 
-	if (relativePath.startsWith('component-libraries/')) {
+	if (manifest.exactComponentLibrary) {
 		if (manifest.dependencies?.['@exactjs/component-library'] !== '^0.1.0')
 			failures.push(
 				`${relativePath} must declare @exactjs/component-library in production dependencies`
 			);
 		if (
-			manifest.exactComponentLibrary?.protocol !== 1 ||
+			manifest.exactComponentLibrary?.protocol !== 2 ||
 			typeof manifest.exactComponentLibrary?.build !== 'string'
 		)
-			failures.push(`${relativePath} must declare protocol-1 exactComponentLibrary.build`);
+			failures.push(`${relativePath} must declare protocol-2 exactComponentLibrary.build`);
 		else {
 			const buildFactsPath = path.resolve(
 				path.dirname(entry.filename),
@@ -74,20 +74,45 @@ for (const entry of publishable) {
 			else {
 				const facts = JSON.parse(readFileSync(buildFactsPath, 'utf8'));
 				if (
-					facts.protocol !== 1 ||
+					facts.protocol !== 2 ||
 					facts.package?.name !== manifest.name ||
 					facts.package?.version !== manifest.version ||
-					!facts.exports?.length
+					!facts.exports?.length ||
+					facts.exports.some(
+						(record) =>
+							typeof record.module !== 'string' || typeof record.componentModule !== 'string'
+					)
 				)
 					failures.push(`${relativePath} has invalid or empty component build facts`);
+			}
+			const buildFactsRelativeToDist = path.relative(
+				path.join(path.dirname(entry.filename), 'dist'),
+				buildFactsPath
+			);
+			for (const target of ['client', 'server']) {
+				const targetDirectory = manifest.exactTargetDirectories?.[target] ?? target;
+				if (
+					typeof targetDirectory === 'string' &&
+					existsSync(
+						path.join(
+							path.dirname(entry.filename),
+							'dist',
+							targetDirectory,
+							buildFactsRelativeToDist
+						)
+					)
+				)
+					failures.push(
+						`${relativePath} must not copy package-level component build facts into its ${target} module tree`
+					);
 			}
 		}
 	}
 }
 
 const marker = byName.get('@exactjs/component-library')?.manifest;
-if (!marker || marker.exactComponentLibraryProtocol !== 1)
-	failures.push('@exactjs/component-library must publish protocol marker 1');
+if (!marker || marker.exactComponentLibraryProtocol !== 2)
+	failures.push('@exactjs/component-library must publish protocol marker 2');
 else if (marker.main || marker.exports || marker.scripts)
 	failures.push('@exactjs/component-library must remain inert with no executable entry or scripts');
 

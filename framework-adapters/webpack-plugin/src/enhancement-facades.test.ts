@@ -39,7 +39,8 @@ describe('Webpack physical enhancement facades', () => {
 			code,
 			[available, absent],
 			importer,
-			root
+			root,
+			'server'
 		);
 		const files = [...materialized.matchAll(/from "([^"]+\.mjs)"/g)].map((match) => match[1]!);
 		expect(files).toHaveLength(2);

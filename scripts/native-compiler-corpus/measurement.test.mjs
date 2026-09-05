@@ -7,6 +7,7 @@ import {
 	medianNativeCorpusResult,
 	medianNativeProjectElapsedMs,
 	nativeBaselineComparison,
+	nativeCorpusTimingReview,
 	normalizedNativeBaselineElapsedMs,
 	positiveInteger
 } from './measurement.mjs';
@@ -89,4 +90,20 @@ test('normalizes native baselines across corpus sizes and worker counts', () => 
 	assert.equal(normalizedNativeBaselineElapsedMs(baseline, { fileCount: 12, workers: 4 }), 120);
 	assert.equal(normalizedNativeBaselineElapsedMs(baseline, { fileCount: 12, workers: 2 }), 240);
 	assert.equal(normalizedNativeBaselineElapsedMs({}, { fileCount: 12, workers: 2 }), undefined);
+});
+
+test('marks noisy local timing non-publishable without rejecting corpus evidence', () => {
+	assert.deepEqual(nativeCorpusTimingReview(1.68, 1.5), {
+		status: 'warning',
+		publishable: false,
+		guardRatio: 1.68,
+		maxBaselineRatio: 1.5,
+		reason: 'native compiler corpus timing ratio 1.68 exceeded 1.50'
+	});
+	assert.deepEqual(nativeCorpusTimingReview(1.11, 1.5), {
+		status: 'within-baseline',
+		publishable: true,
+		guardRatio: 1.11,
+		maxBaselineRatio: 1.5
+	});
 });

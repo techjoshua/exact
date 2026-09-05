@@ -2,6 +2,8 @@ import { hasChanged as hasStructurallyChanged } from './internal/equality.js';
 import { isPlainObject } from './internal/objects.js';
 import { isReactiveValue, unwrap } from './internal/values.js';
 
+const exactOpaqueOperationIdentity = Symbol.for('@exactjs/opaque-target-operation');
+
 /** Compares values after unwrapping reactive containers. */
 export function hasChanged(previous: unknown, next: unknown): boolean {
 	return hasStructurallyChanged(previous, next, unwrap);
@@ -9,6 +11,12 @@ export function hasChanged(previous: unknown, next: unknown): boolean {
 
 /** Identifies objects whose nested structure can participate in reactive reconciliation. */
 export function isReactiveContainer(value: unknown): value is object {
+	if (
+		value &&
+		typeof value === 'object' &&
+		Object.prototype.hasOwnProperty.call(value, exactOpaqueOperationIdentity)
+	)
+		return false;
 	return (
 		Array.isArray(value) || value instanceof Map || value instanceof Set || isPlainObject(value)
 	);

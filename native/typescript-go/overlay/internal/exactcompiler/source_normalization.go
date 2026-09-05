@@ -118,6 +118,18 @@ func obviouslyCallableReturn(
 	expression *ast.Node,
 	callables map[string]*ast.Node,
 ) bool {
+	return obviouslyCallableReturnWithSeen(expression, callables, make(map[string]struct{}))
+}
+
+// obviouslyCallableReturnWithSeen recognizes statically local setup helpers without
+// requiring the pre-bind normalization pass to invent an extra render closure. The
+// semantic compiler later resolves the call edge and verifies its component surface;
+// this pass only preserves the authored callable boundary.
+func obviouslyCallableReturnWithSeen(
+	expression *ast.Node,
+	callables map[string]*ast.Node,
+	seen map[string]struct{},
+) bool {
 	if ast.IsIdentifier(expression) {
 		return callables[expression.Text()] != nil
 	}
@@ -125,11 +137,54 @@ func obviouslyCallableReturn(
 		return false
 	}
 	call := expression.AsCallExpression()
-	if !ast.IsPropertyAccessExpression(call.Expression) {
+	callee := call.Expression
+	if ast.IsIdentifier(callee) {
+		return callableReturnsCallable(callee.Text(), callables, seen)
+	}
+	if !ast.IsPropertyAccessExpression(callee) {
 		return false
 	}
-	member := call.Expression.AsPropertyAccessExpression()
-	return member.Name() != nil && member.Name().Text() == "bind"
+	member := callee.AsPropertyAccessExpression()
+	if member.Name() == nil {
+		return false
+	}
+	if member.Name().Text() == "bind" {
+		return true
+	}
+	return member.Name().Text() == "call" &&
+		ast.IsIdentifier(member.Expression) &&
+		call.Arguments != nil && len(call.Arguments.Nodes) != 0 &&
+		call.Arguments.Nodes[0].Kind == ast.KindThisKeyword &&
+		callableReturnsCallable(member.Expression.Text(), callables, seen)
+}
+
+// callableReturnsCallable follows local helper returns until it finds a lexical
+// render function. Cycles are not callable evidence and remain subject to the
+// ordinary canonical wrapping and semantic diagnostics.
+func callableReturnsCallable(
+	name string,
+	callables map[string]*ast.Node,
+	seen map[string]struct{},
+) bool {
+	callable := callables[name]
+	if callable == nil {
+		return false
+	}
+	if _, exists := seen[name]; exists {
+		return false
+	}
+	seen[name] = struct{}{}
+	defer delete(seen, name)
+	for _, returned := range directCallableReturns(callable) {
+		expression := unwrapRenderExpression(returned)
+		if expression == nil ||
+			(!ast.IsArrowFunction(expression) &&
+				!ast.IsFunctionExpression(expression) &&
+				!obviouslyCallableReturnWithSeen(expression, callables, seen)) {
+			return false
+		}
+	}
+	return len(directCallableReturns(callable)) != 0
 }
 
 func preprocessComponentComputations(

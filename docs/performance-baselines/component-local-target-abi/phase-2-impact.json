@@ -1,0 +1,80 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 2,
+	"recordedAt": "2026-08-26T16:45:00.0000000-07:00",
+	"mechanisms": [
+		"Lower native child component references to the current client artifact and invoke its construct, attach, receive, and dispose operations directly.",
+		"Replace partial-props and tuple-array receipts with one allocation-free final-value-per-slot batch owned and interpreted by the receiver.",
+		"Remove native component dispatch through the DOM renderer's generic function-component branch while preserving explicitly compiler-selected dynamic range operations."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "native client construction and attachment",
+			"classification": "improve",
+			"metrics": [
+				"static and dynamic component mount latency",
+				"component population creation latency",
+				"mixed-tree mount and teardown latency",
+				"invoked generic renderer function count"
+			],
+			"structuralEvidence": [
+				"native mounts cannot reach the generic function-component branch",
+				"native roots and nested native components enter through the client artifact",
+				"construction, attachment, and disposal are selected by the receiving artifact"
+			],
+			"counterMetrics": [
+				"mounted component count",
+				"lifecycle publication order",
+				"DOM and marker identity",
+				"retained heap after mount/unmount cycles"
+			]
+		},
+		{
+			"name": "prop receipt and receiver-owned dirtiness",
+			"classification": "improve",
+			"metrics": [
+				"unchanged, sparse, repeated-key, and multi-prop receipt latency",
+				"scalar and structural child update latency",
+				"receipt and update allocation counts"
+			],
+			"structuralEvidence": [
+				"parent artifacts contain no child dirty masks or operation routing",
+				"one receipt publishes at most one atomic receiver update",
+				"explicit prop absence remains observable without a partial props object"
+			],
+			"counterMetrics": [
+				"child render and binding invocation counts",
+				"unchanged-prop notification count",
+				"state and prop observability",
+				"batched dependency settlement count"
+			]
+		},
+		{
+			"name": "unrelated execution targets and semantics",
+			"classification": "stable",
+			"metrics": [
+				"Node and Bun SSR latency, throughput, CPU, and payload",
+				"hydration and recovery behavior beyond initial artifact dispatch",
+				"React and plugin boundary behavior",
+				"compiler workflow outside client component-reference lowering"
+			],
+			"structuralEvidence": [
+				"server artifacts and server issue/write/dispose operations are unchanged",
+				"foreign boundaries retain explicit ownership",
+				"focused dynamic interior operations remain compiler-selected until Phase 3"
+			],
+			"counterMetrics": [
+				"SSR response identity",
+				"hydration correctness assertions",
+				"explicit boundary counts",
+				"declined native JSX regions"
+			]
+		}
+	]
+}

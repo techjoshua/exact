@@ -2,6 +2,7 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"composite": true,
+		"jsx": "react-jsx",
 		"rootDir": "src",
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"]
@@ -13,5 +14,5 @@
 		{ "path": "../reactive" }
 	],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-support"]
+	"exclude": ["src/**/*.fixtures.tsx", "src/**/*.test.ts", "src/**/*.test.tsx", "src/test-support"]
 }

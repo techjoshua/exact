@@ -1,13 +1,13 @@
 import { pathToFileURL } from 'node:url';
 import process from 'node:process';
-import { JSDOM } from 'jsdom';
+import { installPerformanceDom } from './dom-environment.mjs';
 
 const scenario = requiredEnvironment('EXACT_PERFORMANCE_SCENARIO');
 const fixture = requiredEnvironment('EXACT_PERFORMANCE_FIXTURE');
 const warmups = positiveInteger(process.env.EXACT_PERFORMANCE_WARMUPS ?? '2', 'warmups');
 const moduleStarted = performance.now();
 
-if (scenario.startsWith('client.') || scenario.startsWith('component.')) installDom();
+if (scenario.startsWith('client.') || scenario.startsWith('component.')) installPerformanceDom();
 
 const module = await import(`${pathToFileURL(fixture).href}?sample=${process.pid}`);
 const moduleEvaluationMs = performance.now() - moduleStarted;
@@ -27,26 +27,6 @@ process.stdout.write(
 		units: result.units
 	})}\n`
 );
-
-function installDom() {
-	const dom = new JSDOM('<!doctype html><body></body>', { url: 'https://performance.exact.test/' });
-	Object.assign(globalThis, {
-		window: dom.window,
-		document: dom.window.document,
-		Node: dom.window.Node,
-		Comment: dom.window.Comment,
-		Text: dom.window.Text,
-		Document: dom.window.Document,
-		DocumentFragment: dom.window.DocumentFragment,
-		Element: dom.window.Element,
-		HTMLElement: dom.window.HTMLElement,
-		CharacterData: dom.window.CharacterData,
-		HTMLInputElement: dom.window.HTMLInputElement,
-		HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
-		Event: dom.window.Event,
-		MouseEvent: dom.window.MouseEvent
-	});
-}
 
 function validateResult(name, result) {
 	if (!result || typeof result !== 'object') throw new Error(`${name} returned no result`);

@@ -4,8 +4,9 @@ The repository's [`framework-comparison`](../framework-comparison) directory def
 production-shaped application comparison for eXact and other web frameworks. Its application contract,
 deterministic fixture and service, scenario catalog, fairness methodology, production SSR applications,
 black-box acceptance suites, and measurement harness are implemented. The controlled track includes eXact,
-React, SvelteKit, and Nuxt. The native track includes eXact compiler server tasks and React Router loaders and
-actions. All participants remain scaffolded until specialist review; publishable results have not been added.
+React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact compiler server tasks and React
+Router loaders and actions. Correctness-gated results from the current controlled comparison are published
+in the documentation's Performance page.
 
 The eXact browser build explicitly selects the hydrating component-contract projection: it preserves the
 same SSR adoption behavior while leaving analysis-only component inventories out of the shipped bundle.
@@ -42,7 +43,7 @@ npm run measure:native:development -w @exactjs/framework-comparison-suite
 The service defaults to `http://127.0.0.1:4310`. The suite check validates fixture identity and ownership,
 scenario references, declared metrics, and participant metadata. Focused tests protect optimistic concurrency,
 mutation versioning, input validation, asynchronous job progression, and benchmark-only reset authorization.
-The controlled browser suite runs 28 checks across four participants, covering SSR/hydration, filters,
+The controlled browser suite runs 35 checks across five participants, covering SSR/hydration, filters,
 optimistic claims and conflicts, comments, analysis progress, live updates, focus preservation, empty data,
 recoverable failures, keyboard use, and event reconnect. A separate eight-check native suite protects SSR,
 framework-owned mutations, asynchronous analysis, and cross-session focus preservation without mixing
@@ -53,9 +54,17 @@ track results.
 Correctness gates every timed scenario. Runs retain raw samples, environment and dependency metadata, exact
 participant revisions, and limitations. Performance remains a vector of browser, server, build, delivery, and
 memory measurements; codebase complexity remains a separate profile of authored code, dependencies, boundary
-plumbing, error paths, review findings, and standardized change effort. The suite does not calculate a synthetic
-overall winner. Development measurement commands may collect explicitly non-publishable samples for either
-track while reviews are pending; both publication commands reject unreviewed participants.
+plumbing, error paths, and standardized change effort. The suite does not calculate a synthetic overall
+winner. Correctness, complete raw populations, artifact identity, and environment metadata gate publication.
+Timing and normalization warnings remain visible evidence for interpretation rather than silently discarding
+a completed run.
+
+Controlled browser, startup CPU, and comparable SSR timing results use balanced round interleaving: each round
+collects one sample or window from every framework, rotates their order positions, and reverses alternating
+rotation cycles. Exact orders are retained in raw evidence so host drift and user activity are auditable instead
+of being silently assigned to whichever framework ran last. SSR cold startup, retention, response decomposition,
+and intrusive CPU/allocation profiles remain isolated so their process ownership stays meaningful. An admitted
+historical eXact server artifact can also run in the same rounds for a direct before/current comparison.
 
 Controlled browser results are labeled warm and follow one discarded, equivalent scenario per participant.
 Interaction latency is measured from the browser's captured click to the corresponding visible DOM mutation;

@@ -125,6 +125,19 @@ test('animates hover and focus preview actions in both directions', async ({ pag
 	expect(settledBounds?.height).toBeCloseTo(restingBounds.height, 1);
 });
 
+test('shows the orb initially and preserves its remove/restore lifecycle', async ({ page }) => {
+	const orb = page.getByRole('button', { name: 'Movable physics orb' });
+	await expect(orb).toBeVisible();
+	await expect.poll(() => orb.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+
+	await page.getByRole('button', { name: 'Remove orb' }).click();
+	await expect(orb).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Restore orb' }).click();
+	await expect(orb).toBeVisible();
+	await expect.poll(() => orb.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+});
+
 test('carries sampled drag velocity into the released orb', async ({ page }) => {
 	await page.getByRole('button', { name: 'Reset position' }).click();
 	const orb = page.getByRole('button', { name: 'Movable physics orb' });

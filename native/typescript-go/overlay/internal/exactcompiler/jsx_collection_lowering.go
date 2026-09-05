@@ -10,7 +10,9 @@ type collectionMapPlan struct {
 	member      string
 	primitive   bool
 	keyed       bool
+	explicitKey *ast.Node
 	declarative bool
+	renderChild bool
 }
 
 var exactKeyArgument = regexp.MustCompile(
@@ -18,7 +20,14 @@ var exactKeyArgument = regexp.MustCompile(
 )
 
 func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
-	if lowering.checker == nil || !insideJSXChildExpression(node) {
+	if lowering.checker == nil {
+		return nil
+	}
+	plan, planned := lowering.collectionMaps[nodeSpanKey(node)]
+	// Materializing a compiler-proven derived value clones its sole render expression into the
+	// retained binding closure. Synthesized parent links no longer lead back to authored JSX, so
+	// retain the source classification recorded before lowering rather than losing keyed identity.
+	if !insideJSXChildExpression(node) && (!planned || !plan.renderChild) {
 		return nil
 	}
 	call := node.AsCallExpression()
@@ -28,7 +37,6 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		len(call.Arguments.Nodes) != 1 {
 		return nil
 	}
-	plan, planned := lowering.collectionMaps[nodeSpanKey(node)]
 	if !planned || plan.declarative {
 		return nil
 	}
@@ -55,15 +63,10 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		lowering.markComponentListCapability(node)
 	}
 	item := lowering.factory.NewIdentifier("__exactItem")
-	var key *ast.Node = item
-	if !plan.primitive {
-		key = lowering.factory.NewPropertyAccessExpression(
-			item,
-			nil,
-			lowering.factory.NewIdentifier(plan.member),
-			ast.NodeFlagsNone,
-		)
+	if plan.explicitKey != nil && ast.IsIdentifier(render.Parameters()[0].Name()) {
+		item = render.Parameters()[0].Name()
 	}
+	key := lowering.collectionMapKeyExpression(plan, item)
 	selector := lowering.factory.NewArrowFunction(
 		nil,
 		nil,
@@ -77,7 +80,7 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	)
 	emittedCollection := lowering.visitor.VisitNode(collection)
 	var provenance *ast.Node
-	if ast.IsIdentifier(collection) {
+	if ast.IsIdentifier(collection) && ast.GetSourceFileOfNode(collection) != nil {
 		if _, derived := lowering.derivedBindingAtReference(collection); derived {
 			provenance = lowering.derivedCollectionProvenance(collection)
 		}
@@ -151,7 +154,7 @@ func (lowering *jsxLowering) directRenderProgramKeyedMap(node *ast.Node) bool {
 		!ast.IsBlock(render.AsArrowFunction().Body) && ast.IsIdentifier(render.Parameters()[0].Name())
 }
 
-// lowerRenderProgramKeyedMap makes compiler-owned structural slots publish keyed item VNodes
+// lowerRenderProgramKeyedMap makes compiler-owned structural slots publish keyed child operations
 // directly. The generated component therefore owns collection evaluation and identity wiring;
 // the universal component list controller remains available only to non-program fallbacks.
 func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
@@ -167,16 +170,48 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 	if !ast.IsIdentifier(parameter) {
 		return nil
 	}
-	key := parameter
-	if !plan.primitive {
-		key = lowering.factory.NewPropertyAccessExpression(
-			parameter,
+	key := lowering.collectionMapKeyExpression(plan, parameter)
+	if _, componentOwned := lowering.componentContaining(node); lowering.target == TargetClient &&
+		componentOwned {
+		lowering.listCapabilityUsed = true
+		lowering.markComponentListCapability(node)
+		selector := lowering.factory.NewArrowFunction(
 			nil,
-			lowering.factory.NewIdentifier(plan.member),
-			ast.NodeFlagsNone,
+			nil,
+			lowering.factory.NewNodeList([]*ast.Node{
+				lowering.factory.NewParameterDeclaration(nil, nil, parameter, nil, nil, nil),
+			}),
+			nil,
+			nil,
+			lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+			key,
 		)
+		collection := call.Expression.AsPropertyAccessExpression().Expression
+		var provenance *ast.Node = lowering.factory.NewIdentifier("undefined")
+		if ast.IsIdentifier(collection) && ast.GetSourceFileOfNode(collection) != nil {
+			if _, derived := lowering.derivedBindingAtReference(collection); derived {
+				provenance = lowering.derivedCollectionProvenance(collection)
+			}
+		}
+		identity := componentMapKeyIdentity(selector)
+		var emittedIdentity *ast.Node = lowering.factory.NewIdentifier("undefined")
+		if identity != "" {
+			emittedIdentity = lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone)
+		}
+		return lowering.call(lowering.names.mapKeyedChildren, []*ast.Node{
+			lowering.factory.NewThisExpression(),
+			lowering.visitor.VisitNode(collection),
+			selector,
+			lowering.visitor.VisitNode(render),
+			lowering.factory.NewStringLiteral(
+				exactStableID(lowering.sourceFile.FileName(), "list", lowering.nodeIDs[node]),
+				ast.TokenFlagsNone,
+			),
+			provenance,
+			emittedIdentity,
+		})
 	}
-	body := lowering.call(lowering.names.keyedElement, []*ast.Node{
+	body := lowering.call(lowering.names.keyedChild, []*ast.Node{
 		lowering.visitor.VisitNode(render.AsArrowFunction().Body),
 		key,
 	})
@@ -241,14 +276,85 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 		}
 		collection := call.Expression.AsPropertyAccessExpression().Expression
 		member, primitive, keyed := lowering.safeCollectionKey(collection)
-		lowering.collectionMaps[nodeSpanKey(node)] = collectionMapPlan{
+		explicitKey := collectionMapExplicitJSXKey(render)
+		if explicitKey != nil {
+			member, primitive, keyed = "", false, true
+		}
+		plan := collectionMapPlan{
 			member:      member,
 			primitive:   primitive,
 			keyed:       keyed,
+			explicitKey: explicitKey,
 			declarative: lowering.moduleDeclarativeCollection(node),
+			renderChild: insideJSXChildExpression(node),
+		}
+		lowering.collectionMaps[nodeSpanKey(node)] = plan
+		if lowering.target == TargetClient && plan.keyed && plan.renderChild && !plan.declarative {
+			lowering.markComponentListCapability(node)
 		}
 		return true
 	})
+}
+
+// collectionMapExplicitJSXKey recognizes authored key identity on the value returned by a map
+// callback. JSX key is structural metadata rather than a host property, so collection lowering
+// must claim it before render-program lowering removes it from the emitted element attributes.
+func collectionMapExplicitJSXKey(render *ast.Node) *ast.Node {
+	if render == nil || len(render.Parameters()) != 1 ||
+		!ast.IsIdentifier(render.Parameters()[0].Name()) {
+		return nil
+	}
+	body := render.Body()
+	if ast.IsBlock(body) {
+		returns := directCallableReturns(render)
+		if len(returns) != 1 {
+			return nil
+		}
+		body = returns[0]
+	}
+	body = unwrapRenderExpression(body)
+	var attributes *ast.Node
+	switch {
+	case ast.IsJsxElement(body):
+		attributes = body.AsJsxElement().OpeningElement.Attributes()
+	case ast.IsJsxSelfClosingElement(body):
+		attributes = body.AsJsxSelfClosingElement().Attributes
+	default:
+		return nil
+	}
+	if attributes == nil {
+		return nil
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if !ast.IsJsxAttribute(property) {
+			continue
+		}
+		attribute := property.AsJsxAttribute()
+		if jsxAttributeText(attribute.Name()) != "key" || attribute.Initializer == nil ||
+			!ast.IsJsxExpression(attribute.Initializer) {
+			continue
+		}
+		return attribute.Initializer.AsJsxExpression().Expression
+	}
+	return nil
+}
+
+func (lowering *jsxLowering) collectionMapKeyExpression(
+	plan collectionMapPlan,
+	parameter *ast.Node,
+) *ast.Node {
+	if plan.explicitKey != nil {
+		return lowering.visitor.VisitNode(plan.explicitKey)
+	}
+	if plan.primitive {
+		return parameter
+	}
+	return lowering.factory.NewPropertyAccessExpression(
+		parameter,
+		nil,
+		lowering.factory.NewIdentifier(plan.member),
+		ast.NodeFlagsNone,
+	)
 }
 
 func (lowering *jsxLowering) safeCollectionKey(
@@ -370,7 +476,7 @@ func (lowering *jsxLowering) lowerComponentMapCall(node *ast.Node) *ast.Node {
 	collection := arguments[0]
 	var provenance *ast.Node
 	emittedCollection := lowering.visitor.VisitNode(collection)
-	if ast.IsIdentifier(collection) {
+	if len(arguments) < 5 && ast.IsIdentifier(collection) && ast.GetSourceFileOfNode(collection) != nil {
 		if _, derived := lowering.derivedBindingAtReference(collection); derived {
 			emittedCollection = lowering.factory.NewIdentifier(collection.Text())
 			provenance = lowering.derivedCollectionProvenance(collection)

@@ -1,14 +1,15 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it, vi } from 'vitest';
 import { computed, currentWorkPriority, flushSync, reactive, watch } from '@exactjs/reactive';
 
 import type { TaskContext } from './contracts.js';
 import type { Component } from '../component/contracts.js';
 import { LoggerContext } from '../component/contexts.js';
-import { createFrameworkFixtureComponentInstance } from '../component/runtime.js';
 import { runTaskFrame } from '../framework/task-frames.js';
 import type { LogEvent, Logger } from '../logging.js';
 import { activateTask } from './activation.js';
 import { activateComputationForHost } from './computation-activation.js';
+import { createTrackedContinuationDependency } from './dependency-source.js';
 import {
 	createTaskOwnerRecord,
 	currentTaskFrameRecord,
@@ -52,6 +53,40 @@ describe('unified task runtime', () => {
 		expect(values).toEqual([1, 2]);
 		expect(owner.frames.size).toBe(0);
 		activation[Symbol.dispose]();
+	});
+
+	it('tracks compiler activation projections without constructing public computed values', () => {
+		const owner = createTaskOwnerRecord('tracked-computation');
+		const host = {};
+		registerTaskOwnerHost(host, owner);
+		const state = reactive({ branch: 'left' as 'left' | 'right', left: 1, right: 2 });
+		const values: number[] = [];
+		const dependency = createTrackedContinuationDependency(() =>
+			state.branch === 'left' ? state.left % 2 : state.right % 2
+		);
+		const activation = activateComputationForHost(
+			host,
+			(value: number, _context) => values.push(value),
+			dependency
+		);
+
+		expect(values).toEqual([1]);
+		state.left = 3;
+		flushSync();
+		expect(values).toEqual([1]);
+		state.branch = 'right';
+		flushSync();
+		expect(values).toEqual([1, 0]);
+		state.left = 4;
+		flushSync();
+		expect(values).toEqual([1, 0]);
+		state.right = 5;
+		flushSync();
+		expect(values).toEqual([1, 0, 1]);
+		activation[Symbol.dispose]();
+		state.right = 6;
+		flushSync();
+		expect(values).toEqual([1, 0, 1]);
 	});
 
 	it('defines thenable tasks and settles attached descendants before the parent', async () => {

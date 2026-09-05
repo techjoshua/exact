@@ -7,7 +7,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.36.0"
+const ProtocolVersion = "1.38.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -27,7 +27,7 @@ const (
 )
 
 const (
-	// TargetDefault compiles an artifact without client/server specialization.
+	// TargetDefault is retained only for analysis and transient check lowering.
 	TargetDefault Target = "default"
 	// TargetClient compiles a browser-owned artifact.
 	TargetClient Target = "client"
@@ -88,13 +88,6 @@ type ModuleExportReplacement struct {
 	SourceExport string `json:"sourceExport"`
 	TargetModule string `json:"targetModule"`
 	TargetExport string `json:"targetExport"`
-}
-
-// JSXInterop identifies the host-owned runtime brand adapter for component
-// values that cannot be proven to be local native eXact components.
-type JSXInterop struct {
-	AdapterModule string `json:"adapterModule"`
-	AdapterExport string `json:"adapterExport"`
 }
 
 // CapabilityPolicy contains application-owned grants for privileged features.
@@ -182,32 +175,40 @@ type Import struct {
 
 // Component identifies a native eXact component declaration.
 type Component struct {
-	ID                  string                    `json:"id"`
-	Name                string                    `json:"name"`
-	Start               int                       `json:"start"`
-	Length              int                       `json:"length"`
-	Exported            bool                      `json:"exported"`
-	Signals             []string                  `json:"signals"`
-	Placement           string                    `json:"placement"`
-	SubgraphPlacement   string                    `json:"subgraphPlacement"`
-	EnvironmentEffect   string                    `json:"environmentEffect"`
-	ArtifactTargets     []string                  `json:"artifactTargets"`
-	RenderEdges         []RenderEdge              `json:"renderEdges"`
-	ClientIslandCount   int                       `json:"clientIslandCount"`
-	Contexts            []ContextEffect           `json:"contexts"`
-	EnhancementContexts EnhancementContextEffects `json:"enhancementContexts"`
-	SplitBoundaries     []string                  `json:"splitBoundaries"`
-	Diagnostics         []string                  `json:"diagnostics"`
-	Execution           ComponentExecution        `json:"execution"`
-	Interactions        bool                      `json:"-"`
-	DynamicComponents   bool                      `json:"-"`
-	StateSlots          []string                  `json:"-"`
-	Collections         bool                      `json:"-"`
-	CompiledRender      bool                      `json:"-"`
-	Lifecycle           bool                      `json:"-"`
-	Lists               bool                      `json:"-"`
-	Surface             ComponentSurfacePlan      `json:"-"`
-	TargetPlan          ComponentTargetPlan       `json:"-"`
+	ID                   string                    `json:"id"`
+	Name                 string                    `json:"name"`
+	Start                int                       `json:"start"`
+	Length               int                       `json:"length"`
+	Exported             bool                      `json:"exported"`
+	Signals              []string                  `json:"signals"`
+	Placement            string                    `json:"placement"`
+	SubgraphPlacement    string                    `json:"subgraphPlacement"`
+	EnvironmentEffect    string                    `json:"environmentEffect"`
+	ArtifactTargets      []string                  `json:"artifactTargets"`
+	RenderEdges          []RenderEdge              `json:"renderEdges"`
+	ClientIslandCount    int                       `json:"clientIslandCount"`
+	Contexts             []ContextEffect           `json:"contexts"`
+	EnhancementContexts  EnhancementContextEffects `json:"enhancementContexts"`
+	SplitBoundaries      []string                  `json:"splitBoundaries"`
+	Diagnostics          []string                  `json:"diagnostics"`
+	Execution            ComponentExecution        `json:"execution"`
+	Interactions         bool                      `json:"-"`
+	DynamicComponents    bool                      `json:"-"`
+	StateSlots           []string                  `json:"-"`
+	PropsSlots           []string                  `json:"-"`
+	PropsSerialization   *ComponentValueSchema     `json:"-"`
+	Collections          bool                      `json:"-"`
+	Targets              bool                      `json:"-"`
+	CompiledRender       bool                      `json:"-"`
+	ClientCompiledRender bool                      `json:"-"`
+	ClientRangeOutput    bool                      `json:"-"`
+	TargetArtifact       bool                      `json:"-"`
+	Lifecycle            bool                      `json:"-"`
+	Lists                bool                      `json:"-"`
+	DirectSurface        ComponentSurfacePlan      `json:"-"`
+	ForwardedSurface     ComponentSurfacePlan      `json:"-"`
+	Surface              ComponentSurfacePlan      `json:"-"`
+	TargetPlan           ComponentTargetPlan       `json:"-"`
 }
 
 // ComponentSurfacePlan records compiler-observed instance capabilities before lowering rewrites
@@ -226,10 +227,13 @@ type ComponentSurfacePlan struct {
 type ComponentTargetPlan struct {
 	ClientExecution      ComponentExecution
 	ServerExecution      ComponentExecution
+	ClientSurface        ComponentSurfacePlan
+	ServerSurface        ComponentSurfacePlan
 	DeferredTaskProps    []string
 	DirectServer         bool
 	DirectServerFrame    bool
-	GenericServerRuntime bool
+	DirectServerExecutor bool
+	UsesCompatibility    bool
 }
 
 // EnhancementContextEffects is the token-identity contract needed before enhancement setup.
@@ -419,6 +423,7 @@ type StateWrite struct {
 	DynamicSegments map[int]*ast.Node `json:"-"`
 	Interaction     bool              `json:"-"`
 	InputPath       string            `json:"-"`
+	Default         *StateDefault     `json:"-"`
 }
 
 // ValueCallbackBinding preserves one authored paired JSX binding across
@@ -673,17 +678,25 @@ type ServerRenderRecord struct {
 
 // ClientResumptionRecord contains the durable browser-visible resume contract.
 type ClientResumptionRecord struct {
-	StatePaths    []string     `json:"statePaths"`
-	StateInputs   []StateInput `json:"stateInputs"`
-	ValueCaptures []string     `json:"valueCaptures"`
-	Contexts      []string     `json:"contexts"`
-	Boundaries    []string     `json:"boundaries"`
+	StatePaths    []string       `json:"statePaths"`
+	StateInputs   []StateInput   `json:"stateInputs"`
+	StateDefaults []StateDefault `json:"stateDefaults"`
+	ValueCaptures []string       `json:"valueCaptures"`
+	Contexts      []string       `json:"contexts"`
+	Boundaries    []string       `json:"boundaries"`
 }
 
 // StateInput identifies state reconstructed by client setup from the published root props.
 type StateInput struct {
 	StatePath string `json:"statePath"`
 	PropPath  string `json:"propPath"`
+}
+
+// StateDefault identifies one unconditional primitive setup value that hydration recreates.
+type StateDefault struct {
+	StatePath string `json:"statePath"`
+	Kind      string `json:"kind"`
+	Value     string `json:"value"`
 }
 
 // ComponentResumption separates server activation from client resume data.
@@ -1080,6 +1093,9 @@ func normalizedResumptions(values []ComponentResumption) []ComponentResumption {
 		values[index].Client.StateInputs = nonNilSlice(
 			values[index].Client.StateInputs,
 		)
+		values[index].Client.StateDefaults = nonNilSlice(
+			values[index].Client.StateDefaults,
+		)
 		values[index].Client.ValueCaptures = nonNilSlice(
 			values[index].Client.ValueCaptures,
 		)
@@ -1154,6 +1170,7 @@ type Response struct {
 	Analysis            Analysis                `json:"analysis"`
 	Timings             Timings                 `json:"timings"`
 	Counters            WorkCounters            `json:"counters"`
+	Structure           ArtifactStructure       `json:"structure"`
 	CacheHit            bool                    `json:"cacheHit,omitempty"`
 	Error               string                  `json:"error,omitempty"`
 	Extension           any                     `json:"extension,omitempty"`

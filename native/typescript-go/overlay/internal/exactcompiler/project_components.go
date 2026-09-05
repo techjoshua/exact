@@ -91,7 +91,7 @@ func linkProjectComponents(
 				return true
 			}
 			tagText := strings.TrimSpace(sourceText(record.sourceFile, tag))
-			if tagText == "_" || jsxIntrinsic(tagText) {
+			if tagText == "_" || tagText == "_target" || jsxIntrinsic(tagText) {
 				return true
 			}
 			symbol := resolvedCallableSymbol(
@@ -190,7 +190,7 @@ func linkProjectComponents(
 					return true
 				}
 				bindings := importBindingsBySource[record.sourceFile]
-				if bindings.bySymbol == nil {
+				if bindings.byName == nil {
 					bindings = collectExternalImportBindings(record.sourceFile, typeChecker)
 					importBindingsBySource[record.sourceFile] = bindings
 				}
@@ -204,6 +204,9 @@ func linkProjectComponents(
 							typeChecker,
 						),
 					)
+					return true
+				}
+				if exactCoreStructuralReference(reference.moduleSpecifier, reference.exportName) {
 					return true
 				}
 				localIdentity := importedProjectComponentIdentity(

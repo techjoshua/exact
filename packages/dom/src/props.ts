@@ -2,25 +2,23 @@ import {
 	batch,
 	createErrorReport,
 	handleComponentError,
-	isVNode,
 	normalizeClassValue,
 	observeComponentAsync,
 	sanitizeUrlAttribute,
-	UnsafeHtml,
 	attachElementIdentity,
 	type RefBinding,
 	unwrap
 } from '@exactjs/core';
+import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-operations';
 import { isReactiveValue, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { watchRetained } from '@exactjs/reactive/framework/watch';
 import { describeNode, domDebug } from './debug.js';
 import {
 	ensureDelegated,
-	closedInteractionKey,
-	directInteractionKey,
 	eventTypeForProp,
 	requiresDirectListener,
-	runEventInteraction
+	runEventInteraction,
+	runInteractiveEvent
 } from './events.js';
 import { preserveFocus } from './focus.js';
 import { getModalBindingCapability } from './modal/capability.js';
@@ -29,6 +27,7 @@ import { directEventHandlers, eventHandlers, propBindings } from './state.js';
 import { clearPropBinding, releasePropBinding, setPropBinding } from './prop-binding-ownership.js';
 import { bindStyle } from './style.js';
 import type { Root } from './types.js';
+import { foreignChildCapability } from './renderer/foreign-child-capability.js';
 
 /** Applies prop changes to a DOM element, including reactive bindings and delegated events. */
 export function updateProps(
@@ -149,8 +148,17 @@ export function setElementProp(
 	const eventKey = authoredEventKey(key);
 	if (/^on[A-Z]/.test(eventKey)) {
 		const { type, capture } = eventTypeForProp(eventKey);
-		if (capture || requiresDirectListener(type)) {
-			setDirectEventHandler(root, element, key, type, value, capture, directInteraction);
+		if (closedInteraction || capture || requiresDirectListener(type)) {
+			setDirectEventHandler(
+				root,
+				element,
+				key,
+				type,
+				value,
+				capture,
+				directInteraction,
+				closedInteraction
+			);
 			return;
 		}
 		let handlers = eventHandlers.get(element);
@@ -161,17 +169,13 @@ export function setElementProp(
 
 		if (typeof value === 'function') {
 			const handler = value as EventListener;
-			handlers.set(type, handler);
-			if (closedInteraction) handlers.set(closedInteractionKey(type), handler);
-			else handlers.delete(closedInteractionKey(type));
-			if (directInteraction && !closedInteraction)
-				handlers.set(directInteractionKey(type), handler);
-			else handlers.delete(directInteractionKey(type));
+			const flags = (directInteraction ? 1 : 0) | (closedInteraction ? 2 : 0);
+			const current = handlers.get(type);
+			if (!current || current[0] !== handler || current[1] !== flags)
+				handlers.set(type, [handler, flags]);
 			ensureDelegated(root, type, eventContainerFor(root, element));
 		} else {
 			handlers.delete(type);
-			handlers.delete(directInteractionKey(type));
-			handlers.delete(closedInteractionKey(type));
 		}
 		return;
 	}
@@ -244,12 +248,7 @@ function applyPropValue(root: Root, element: Element, key: string, value: unknow
 function propMayObserveReactiveValue(key: string, value: unknown): boolean {
 	if (isReactiveValue(value)) return true;
 	if (key === 'class' || key === 'className') return typeof value === 'object' && value !== null;
-	return (
-		(key === 'srcdoc' || key === 'srcDoc') &&
-		isVNode(value) &&
-		value.type === UnsafeHtml &&
-		isReactiveValue(value.props.value)
-	);
+	return (key === 'srcdoc' || key === 'srcDoc') && isReactiveValue(unsafeHtmlValue(value)?.value);
 }
 
 function setDirectEventHandler(
@@ -259,7 +258,8 @@ function setDirectEventHandler(
 	type: string,
 	value: unknown,
 	capture: boolean,
-	directInteraction = false
+	directInteraction = false,
+	closedInteraction = false
 ): void {
 	const previous = directEventHandlers.get(element)?.get(key);
 	if (previous) {
@@ -275,10 +275,12 @@ function setDirectEventHandler(
 			try {
 				const owner = findOwnerInstance(element);
 				const invoke = () =>
-					(handler as (this: Element, event: Event) => unknown).call(element, event);
-				const result = batch(() =>
-					runEventInteraction(root, owner, invoke, undefined, directInteraction)
-				);
+					closedInteraction
+						? (handler as (this: Element) => unknown).call(element)
+						: (handler as (this: Element, event: Event) => unknown).call(element, event);
+				const result = closedInteraction
+					? runInteractiveEvent(root, owner, invoke, true)
+					: batch(() => runEventInteraction(root, owner, invoke, undefined, directInteraction));
 				observeComponentAsync(owner, result, 'event', type);
 			} catch (error) {
 				const owner = findOwnerInstance(element);
@@ -319,7 +321,9 @@ export function applyDomProp(element: Element, key: string, value: unknown): voi
 }
 
 function unsafeHtmlAttribute(root: Root, value: unknown): string {
-	if (!isVNode(value) || value.type !== UnsafeHtml) {
+	const receipt = readUnsafeHtmlReceipt(value);
+	const foreign = receipt ? undefined : unsafeHtmlValue(value);
+	if (!receipt && !foreign) {
 		throw new Error(
 			'Native eXact iframe srcdoc requires unsafeHtml() and explicit allowUnsafeHtml root opt-in.'
 		);
@@ -329,9 +333,14 @@ function unsafeHtmlAttribute(root: Root, value: unknown): string {
 			'unsafeHtml() used for iframe srcdoc requires allowUnsafeHtml: true on the native eXact render or hydration root.'
 		);
 	}
-	const html = String(unwrap(value.props.value) ?? '');
+	const html = String(unwrap(receipt?.value ?? foreign?.value) ?? '');
 	root.onUnsafeHtml?.({ characters: html.length });
 	return html;
+}
+
+/** Reads unsafe HTML only through the explicitly installed compatibility interpreter. */
+function unsafeHtmlValue(value: unknown): Readonly<{ value: unknown }> | undefined {
+	return foreignChildCapability()?.unsafeHtmlValue?.(value as import('@exactjs/core').Child);
 }
 
 function setDomProp(root: Root | undefined, element: Element, key: string, value: unknown): void {

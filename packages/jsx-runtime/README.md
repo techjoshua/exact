@@ -1,6 +1,6 @@
 # @exactjs/jsx
 
-Automatic JSX runtime and TypeScript JSX declarations for eXact.
+Compiler-only automatic JSX surface and TypeScript JSX declarations for eXact.
 
 ## Configuration
 
@@ -21,9 +21,10 @@ JSX accepts regular, direct-view, and async authored component functions. The co
 durable components to the synchronous setup-plus-view runtime contract and lowers setup-local
 micro-component tags to lexical view calls.
 
-The runtime exports `jsx`, `jsxs`, `jsxDEV`, `Fragment`, and the keyed-fragment marker. DOM
-event props preserve eXact interaction typing, and finite registry members remain ordinary JSX
-component values. Namespaced attributes are accepted as compiler-owned source syntax. Use
-`exactc --check` rather than raw `tsc --noEmit` when an application uses syntax such as component
-value/callback bindings; the compiler validates the finite pair and checks its lowered TypeScript
-representation.
+The package exposes the standard `jsx`, `jsxs`, and `jsxDEV` names so TypeScript and build tools can
+resolve the automatic JSX convention, plus `Fragment` and the keyed-fragment marker. Those calls
+are compiler input, not a VNode runtime: an uncompiled call fails immediately. DOM event props
+preserve eXact interaction typing, and finite registry members remain ordinary JSX component
+values. Namespaced attributes are accepted as compiler-owned source syntax. Use `exactc --check`
+rather than raw `tsc --noEmit` when an application uses syntax such as component value/callback
+bindings; the compiler validates the finite pair and checks its lowered TypeScript representation.

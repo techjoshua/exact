@@ -66,18 +66,41 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					A separate cold-start CPU profile disables the browser cache and records JavaScript parse,
 					compile, evaluation, and total script duration through semantic readiness. Unthrottled,
 					4x, and 6x CPU profiles distinguish desktop startup from CPU-constrained behavior without
-					conflating either with network transfer time.
+					conflating either with network transfer time. Diagnostic eXact builds can also attribute
+					shipped and executed bytes to source modules; parsed and compiled function totals remain
+					bundle-level when Chromium does not publish source locations.
 				</p>
 			</section>
 
 			<Callout title="Current status">
 				<p>
-					The controlled track has production SSR implementations for eXact, React, SvelteKit, and
-					Nuxt. A separate native track exercises eXact compiler server tasks and React Router
-					loaders and actions. Both acceptance suites and the controlled measurement harness are
-					implemented. Specialist reviews remain pending, so no results or rankings are published.
+					The controlled track has production SSR implementations for eXact, React, SvelteKit, Nuxt,
+					and TanStack Start. A separate native track exercises eXact compiler server tasks and
+					React Router loaders and actions. Both acceptance suites and the controlled measurement
+					harness are implemented. The latest admitted evidence is published on the Performance
+					results page with current raw framework values, arithmetic means, and percentiles; it
+					deliberately does not collapse the dimensions into one ranking. Historical comparisons
+					remain in the internal engineering evidence.
 				</p>
 			</Callout>
+
+			<section>
+				<h2>Server attribution</h2>
+				<p>
+					The SSR report keeps end-to-end results separate from diagnostic evidence. Its preloaded
+					render lane removes controlled-service loading, while a separate instrumented lane divides
+					that loading into fetch and JSON-decode time. Response accounting separates semantic
+					markup, framework markers, hydration data, comparison data, and the document envelope.
+					These lanes explain a result; they do not replace the production-route comparison.
+				</p>
+				<p>
+					Comparable browser, startup, and SSR timing samples run in balanced interleaved rounds:
+					each framework takes every order position over a complete cycle, and alternating cycles
+					reverse direction. Raw reports retain those orders. Process-owned startup, retention, and
+					instrumented profiling remain isolated so their memory and CPU attribution stays
+					meaningful.
+				</p>
+			</section>
 		</Article>
 	);
 }

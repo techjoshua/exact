@@ -24,6 +24,8 @@ layer, not the native component model. New eXact components should use direct st
 and task APIs rather than React hooks.
 
 Use `ReactHost` or `adaptReactComponent()` from `@exactjs/react-compat/exact` for imperative
-integration outside compiled JSX.
+integration outside compiled JSX. Both names select the package's fixed precompiled client island;
+they do not create an adapter component for each React value. Native children crossing React
+ownership remain opaque compiled contributions rather than React-readable native VNodes.
 
 See [React compatibility](../../docs/react-compatibility.md).

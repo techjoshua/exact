@@ -65,6 +65,27 @@ describe('@exactjs/reactive observation', () => {
 		expect((reactiveScope as unknown as { reactions: Set<unknown> }).reactions.size).toBe(0);
 	});
 
+	it('preserves remaining subscribers when one of several watchers stops', () => {
+		const state = reactive({ value: 0 });
+		const first = vi.fn(() => state.value);
+		const second = vi.fn(() => state.value);
+		const stopFirst = watch(first);
+		const stopSecond = watch(second);
+
+		state.value++;
+		flushSync();
+		expect(first).toHaveBeenCalledTimes(2);
+		expect(second).toHaveBeenCalledTimes(2);
+
+		stopFirst();
+		state.value++;
+		flushSync();
+		expect(first).toHaveBeenCalledTimes(2);
+		expect(second).toHaveBeenCalledTimes(3);
+
+		stopSecond();
+	});
+
 	it('retains a locally mutated keyed item when a later server snapshot has the same hashes', () => {
 		const state = reactive({
 			records: [

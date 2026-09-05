@@ -9,7 +9,7 @@ const samples = 10;
 
 function percentile(values, fraction) {
 	const sorted = [...values].sort((left, right) => left - right);
-	return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))];
+	return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * fraction) - 1))];
 }
 
 function source(revision) {
@@ -37,8 +37,11 @@ function measure(generatedValidation) {
 	const stats = session.stats();
 	session.dispose();
 	return {
-		median: percentile(timings, 0.5),
+		p50: percentile(timings, 0.5),
+		p75: percentile(timings, 0.75),
 		p95: percentile(timings, 0.95),
+		p99: percentile(timings, 0.99),
+		rawTimingsMs: timings,
 		rebuilds: stats.rebuilds,
 		semanticDiagnostics: stats.semanticDiagnostics
 	};
@@ -48,11 +51,12 @@ const semantic = measure('semantic');
 const syntax = measure('syntax');
 
 console.log(
-	`compiler generated semantic validation (${samples} samples): median ${semantic.median.toFixed(1)}ms, p95 ${semantic.p95.toFixed(1)}ms, ${semantic.rebuilds} rebuilds, ${semantic.semanticDiagnostics} semantic diagnostic passes`
+	`compiler generated semantic validation (${samples} samples): median ${semantic.p50.toFixed(1)}ms, p95 ${semantic.p95.toFixed(1)}ms, ${semantic.rebuilds} rebuilds, ${semantic.semanticDiagnostics} semantic diagnostic passes`
 );
 console.log(
-	`compiler generated syntax validation (${samples} samples): median ${syntax.median.toFixed(1)}ms, p95 ${syntax.p95.toFixed(1)}ms, ${syntax.rebuilds} rebuilds, ${syntax.semanticDiagnostics} semantic diagnostic passes`
+	`compiler generated syntax validation (${samples} samples): median ${syntax.p50.toFixed(1)}ms, p95 ${syntax.p95.toFixed(1)}ms, ${syntax.rebuilds} rebuilds, ${syntax.semanticDiagnostics} semantic diagnostic passes`
 );
+console.log(`compiler syntax/semantic median ratio: ${(syntax.p50 / semantic.p50).toFixed(2)}x`);
 console.log(
-	`compiler syntax/semantic median ratio: ${(syntax.median / semantic.median).toFixed(2)}x`
+	`COMPILER_BENCHMARK_JSON=${JSON.stringify({ environment: { node: process.version, warmups, samples }, semantic, syntax })}`
 );

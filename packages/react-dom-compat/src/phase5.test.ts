@@ -6,7 +6,7 @@ import {
 	renderToReadableStream,
 	renderToStaticMarkup,
 	renderToString
-} from './server-node.js';
+} from './server/node.js';
 import { prerender, prerenderToNodeStream, resumeToPipeableStream } from './static-node.js';
 
 async function webText(stream: ReadableStream<Uint8Array>): Promise<string> {

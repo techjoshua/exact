@@ -2,8 +2,9 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { render, unmount } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { unmount } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('failure-complete DOM teardown', () => {
 	it('removes the complete owned DOM after a ref teardown failure', () => {
@@ -15,11 +16,11 @@ describe('failure-complete DOM teardown', () => {
 		};
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				'section',
 				null,
-				createVNode('span', { ref: failingRef }, 'first'),
-				createVNode('span', { ref: { fulfill: later } }, 'second')
+				createOperation('span', { ref: failingRef }, 'first'),
+				createOperation('span', { ref: { fulfill: later } }, 'second')
 			),
 			container
 		);

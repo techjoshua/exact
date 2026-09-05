@@ -10,7 +10,7 @@ import {
 import { RenderProgram } from './symbols.js';
 
 const program = (id: string) => ({
-	version: 4 as const,
+	version: 8 as const,
 	id,
 	namespace: 'html' as const,
 	template: '<p></p>',
@@ -68,17 +68,21 @@ describe('compiled render programs', () => {
 				['text', 1]
 			] as const
 		});
-		const prepared = createPreparedServerRenderProgram(descriptor, ['first', 'second']);
+		const values = ['first', 'second'];
+		const prepared = createPreparedServerRenderProgram(descriptor, values);
 		const invocation = readPreparedServerRenderProgram(prepared)!;
+		expect(prepared).not.toBe(values);
 		expect(prepared).not.toHaveProperty('type');
-		expect(readRenderProgramSlot(invocation, 0)).toBe('first');
-		expect(readRenderProgramSlot(invocation, 1)).toBe('second');
+		expect(invocation.eagerValues).toBe(values);
+		expect(invocation).not.toHaveProperty('readers');
+		expect(invocation.eagerValues[0]).toBe('first');
+		expect(invocation.eagerValues[1]).toBe('second');
 	});
 
 	it('rejects precompiled render programs from an incompatible ABI', () => {
 		expect(() =>
 			prepareCompiledRenderProgram({ ...program('obsolete'), version: 3 } as never)
-		).toThrow('expected version 4');
+		).toThrow('expected version 8');
 	});
 
 	it('carries a compiler-emitted property-group writer without evaluating slot readers', () => {
@@ -104,7 +108,6 @@ describe('compiled render programs', () => {
 				}
 			],
 			{},
-			undefined,
 			writer
 		);
 		const invocation = readRenderProgram(vnode)!;

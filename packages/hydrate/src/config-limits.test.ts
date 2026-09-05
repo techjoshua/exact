@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { bootstrapReadyRoot, treeLimitRoot } from './test-support/config-limits.fixtures.js';
 
 describe('bounded hydration bootstrap and adoption', () => {
 	it('uses the document id index before falling back to bounded traversal', () => {
@@ -81,7 +81,7 @@ describe('bounded hydration bootstrap and adoption', () => {
 		});
 		container.appendChild(script);
 
-		const client = hydrate(createVNode('p', null, 'ready'), container);
+		const client = hydrate(bootstrapReadyRoot, container);
 
 		expect(reads).toBe(1);
 		client.dispose();
@@ -89,12 +89,7 @@ describe('bounded hydration bootstrap and adoption', () => {
 
 	it('passes the DOM work budget through hydration fallback rendering', () => {
 		const container = document.createElement('div');
-		const vnode = createVNode(
-			'main',
-			null,
-			...Array.from({ length: 20 }, (_, index) => createVNode('span', null, String(index)))
-		);
-		expect(() => hydrate(vnode, container, { maxTreeNodes: 8 })).toThrow(
+		expect(() => hydrate(treeLimitRoot, container, { maxTreeNodes: 8 })).toThrow(
 			'eXact DOM traversal exceeds the configured maximum of 8 nodes'
 		);
 		expect(container.childNodes).toHaveLength(0);

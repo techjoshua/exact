@@ -67,6 +67,7 @@
 		"src/internal.ts",
 		"src/names.ts",
 		"src/native/executable.ts",
+		"src/native/jsx-interop-classification.ts",
 		"src/native/async-language-client.ts",
 		"src/native/bounded-lines.ts",
 		"src/native/module-analysis.ts",

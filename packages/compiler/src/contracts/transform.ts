@@ -38,10 +38,12 @@ export type TransformOptions = {
 	buildKey?: string;
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
+	/** Executable artifact target; omitted transforms compile a specialized client artifact. */
 	target?: TransformTarget;
 	/**
 	 * Projects the complete compiler-owned component contract for a concrete runtime bundle.
-	 * Omit this for rendering-mode-neutral output; bundler adapters set it from their render mode.
+	 * Omit this to retain the complete contract for the selected executable target; bundler adapters
+	 * narrow it from their render mode.
 	 */
 	componentContractProjection?: ComponentContractProjection;
 	serverComponents?: boolean;
@@ -113,6 +115,8 @@ export type ExactJsxInteropCandidate = {
 export type ExactJsxInterop = {
 	readonly adapterModule: string;
 	readonly adapterExport: string;
+	/** Browser renderer capability loaded only when this module emits a foreign component boundary. */
+	readonly clientRendererModule?: string;
 	readonly cacheKey: string;
 	/**
 	 * Retained for host diagnostics and compatibility analysis. Lowering does not
@@ -138,8 +142,8 @@ export type ModuleTransform = (
 	map?: unknown;
 }>;
 
-/** Defines the transform target type contract. */
-export type TransformTarget = 'default' | 'client' | 'server';
+/** Defines the executable transform target type contract. */
+export type TransformTarget = ExactArtifactTarget;
 
 /** Selects the runtime component-contract subset retained by a physical bundle. */
 export type ComponentContractProjection = 'complete' | 'hydrate' | 'client' | 'server-render';
@@ -231,9 +235,9 @@ export type ExactComponentBuildFacts = Readonly<{
 	}>[];
 }>;
 
-/** Static protocol-1 build facts published by a precompiled eXact component library. */
+/** Static protocol-2 build facts published by a precompiled eXact component library. */
 export type ExactPublishedComponentBuildFacts = Readonly<{
-	protocol: 1;
+	protocol: 2;
 	package: Readonly<{ name: string; version: string }>;
 	modules: readonly Readonly<{
 		path: string;
@@ -242,7 +246,10 @@ export type ExactPublishedComponentBuildFacts = Readonly<{
 	exports: readonly Readonly<{
 		subpath: string;
 		condition: string;
+		/** Package-export facade selected by the consumer's resolver. */
 		module: string;
+		/** Target-local compiler artifact that owns the component and its relative dependency edges. */
+		componentModule: string;
 		exportName: string;
 		componentId: string;
 	}>[];

@@ -1,11 +1,13 @@
-import { batch } from './internal/deps.js';
+import { batch, hasActiveReactiveTransaction } from './internal/deps.js';
 
-import {
-	releaseKeyedCollectionMetadata,
-	seedKeyedCollectionMetadata
-} from './internal/keyed-collections.js';
+import { releaseKeyedCollectionMetadata } from './internal/keyed-collections.js';
 
 import { unwrap } from './internal/values.js';
+import {
+	deleteIndexedReactiveSlot,
+	peekIndexedReactiveSlot,
+	setIndexedReactiveSlot
+} from './indexed-base.js';
 
 import { conflictingListKeyError, listKeyExtractors } from './proxy/state.js';
 
@@ -94,6 +96,70 @@ export function deleteReactiveValue(target: object, path: readonly PropertyKey[]
 	return Reflect.deleteProperty(parent, key);
 }
 
+/** Compiler hook that assigns a value to one proven top-level state slot. */
+export function writeIndexedReactiveValue(target: object, index: number, next: unknown): unknown {
+	// The target expression is evaluated before `next` at the generated call site. The numeric slot
+	// is compiler-proven, and the commit owns previous-value comparison and validation.
+	commitIndexedReactiveWrite(target, index, next);
+	return next;
+}
+
+/** Compiler hook for a compound update of one proven top-level state slot. */
+export function updateIndexedReactiveValue(
+	target: object,
+	index: number,
+	operation: ReactiveUpdateOperation<unknown>
+): unknown {
+	const previous = peekIndexedReactiveSlot(target, index);
+	const next = operation(previous);
+	commitIndexedReactiveWrite(target, index, next);
+	return next;
+}
+
+/** Compiler hook for a top-level update whose expression result differs from its stored value. */
+export function updateIndexedReactiveValueWithResult(
+	target: object,
+	index: number,
+	operation: ReactiveUpdateOperation<readonly [next: unknown, result: unknown]>
+): unknown {
+	const previous = peekIndexedReactiveSlot(target, index);
+	const [next, result] = operation(previous);
+	commitIndexedReactiveWrite(target, index, next);
+	return result;
+}
+
+/** Compiler hook for deleting one proven top-level state slot. */
+export function deleteIndexedReactiveValue(target: object, index: number): boolean {
+	return deleteIndexedReactiveSlot(target, index);
+}
+
+function commitIndexedReactiveWrite(target: object, index: number, next: unknown): void {
+	const previous = peekIndexedReactiveSlot(target, index);
+	const rawPrevious = unwrap(previous);
+	const rawNext = unwrap(next);
+	if (Object.is(rawPrevious, rawNext)) return;
+
+	// Primitive and first-value writes cannot perform a multi-key reconciliation. Commit them
+	// directly so component initialization and compiler-local event writes allocate no transaction
+	// callback. An enclosing event or optimistic transaction still receives the normal trigger.
+	if (
+		rawPrevious === null ||
+		rawNext === null ||
+		typeof rawPrevious !== 'object' ||
+		typeof rawNext !== 'object'
+	) {
+		setIndexedReactiveSlot(target, index, next);
+		return;
+	}
+
+	const reconcile = () => {
+		if (!reconcileReactiveValue(previous, next, createReconcilePairs()))
+			setIndexedReactiveSlot(target, index, next);
+	};
+	if (hasActiveReactiveTransaction()) reconcile();
+	else batch(reconcile);
+}
+
 /** Compiler runtime hook for standard array mutators. */
 export function mutateReactiveArray(
 	target: object,
@@ -176,7 +242,6 @@ export function registerReactiveListKey(
 	} else {
 		listKeyExtractors.set(raw, { key, signature, site, references: 1 });
 	}
-	seedKeyedCollectionMetadata(raw, key);
 	let active = true;
 	return () => {
 		if (!active) return;

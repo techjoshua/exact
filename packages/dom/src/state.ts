@@ -2,30 +2,66 @@ import type { AnyComponentInstance, ExactRuntimeInspectionOwner, StopHandle } fr
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import type { Mounted, Root } from './types.js';
 
-/** Provides the canonical roots value. */
-export const roots = new WeakMap<Element, Root>();
-/** Provides the canonical event handlers value. */
-export const eventHandlers = new WeakMap<Element, Map<string, EventListener>>();
-/** Provides the canonical direct event handlers value. */
-export const directEventHandlers = new WeakMap<
-	Element,
-	Map<string, { type: string; listener: EventListener; capture: boolean }>
->();
-/** Provides the canonical element owners value. */
-export const elementOwners = new WeakMap<Element, AnyComponentInstance>();
-/** Provides ownership for framework marker and text nodes. */
-export const nodeOwners = new WeakMap<Node, AnyComponentInstance>();
-/** Provides the canonical prop bindings value. */
-export const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
-/** Provides the canonical component mounts value. */
-export const componentMounts = new WeakMap<AnyComponentInstance, Mounted>();
-
-const inspectableRoots = new Set<WeakRef<Root>>();
-const rootInspectionReferences = new WeakMap<Root, WeakRef<Root>>();
 type ExactDomInspectionOwnerFactory = (
 	options: Readonly<{ buildKey?: string; executionRoot?: string; binding?: string }>
 ) => ExactRuntimeInspectionOwner | undefined;
-let inspectionOwnerFactory: ExactDomInspectionOwnerFactory | undefined;
+
+/** Delegated callback and compiler-selected interaction policy bits. */
+export type DelegatedEventBinding = readonly [
+	handler: EventListener,
+	/** Bit 0 selects direct interaction; bit 1 selects the closed argument-free call. */
+	flags: number
+];
+
+type ExactDomRuntimeState = {
+	roots: WeakMap<Element, Root>;
+	eventHandlers: WeakMap<Element, Map<string, DelegatedEventBinding>>;
+	directEventHandlers: WeakMap<
+		Element,
+		Map<string, { type: string; listener: EventListener; capture: boolean }>
+	>;
+	elementOwners: WeakMap<Element, AnyComponentInstance>;
+	nodeOwners: WeakMap<Node, AnyComponentInstance>;
+	propBindings: WeakMap<Element, Map<string, StopHandle>>;
+	componentMounts: WeakMap<AnyComponentInstance, Mounted>;
+	inspectableRoots: Set<WeakRef<Root>>;
+	rootInspectionReferences: WeakMap<Root, WeakRef<Root>>;
+	inspectionOwnerFactory?: ExactDomInspectionOwnerFactory;
+};
+
+const exactDomRuntimeStateKey = Symbol.for('@exactjs/dom.runtime-state');
+const runtimeState: ExactDomRuntimeState = (() => {
+	const scope = globalThis as typeof globalThis & {
+		[exactDomRuntimeStateKey]?: ExactDomRuntimeState;
+	};
+	const initial: ExactDomRuntimeState = {
+		roots: new WeakMap(),
+		eventHandlers: new WeakMap(),
+		directEventHandlers: new WeakMap(),
+		elementOwners: new WeakMap(),
+		nodeOwners: new WeakMap(),
+		propBindings: new WeakMap(),
+		componentMounts: new WeakMap(),
+		inspectableRoots: new Set(),
+		rootInspectionReferences: new WeakMap()
+	};
+	return (scope[exactDomRuntimeStateKey] ??= initial);
+})();
+
+/** Renderer roots shared by every loaded copy of the DOM package in this JavaScript realm. */
+export const roots = runtimeState.roots;
+/** Delegated event handlers shared by every loaded copy of the DOM package. */
+export const eventHandlers = runtimeState.eventHandlers;
+/** Direct event handlers shared by every loaded copy of the DOM package. */
+export const directEventHandlers = runtimeState.directEventHandlers;
+/** Element ownership shared with inspection and compatibility package copies. */
+export const elementOwners = runtimeState.elementOwners;
+/** Marker and text ownership shared with inspection and compatibility package copies. */
+export const nodeOwners = runtimeState.nodeOwners;
+/** Reactive property bindings shared by every loaded copy of the DOM package. */
+export const propBindings = runtimeState.propBindings;
+/** Component mount ranges shared with inspection and compatibility package copies. */
+export const componentMounts = runtimeState.componentMounts;
 
 /** Sets the optional owner inherited by subsequently created application roots. */
 export function setExactDomInspectionOwner(
@@ -38,9 +74,10 @@ export function setExactDomInspectionOwner(
 export function setExactDomInspectionOwnerFactory(
 	factory: ExactDomInspectionOwnerFactory | undefined
 ): () => void {
-	inspectionOwnerFactory = factory;
+	runtimeState.inspectionOwnerFactory = factory;
 	return () => {
-		if (inspectionOwnerFactory === factory) inspectionOwnerFactory = undefined;
+		if (runtimeState.inspectionOwnerFactory === factory)
+			runtimeState.inspectionOwnerFactory = undefined;
 	};
 }
 
@@ -48,35 +85,35 @@ export function setExactDomInspectionOwnerFactory(
 export function exactDomInspectionOwner(
 	options: Readonly<{ buildKey?: string; executionRoot?: string; binding?: string }> = {}
 ): ExactRuntimeInspectionOwner | undefined {
-	return inspectionOwnerFactory?.(options);
+	return runtimeState.inspectionOwnerFactory?.(options);
 }
 
 /** Registers one active root for bounded late-attachment inspection. */
 export function registerInspectableRoot(root: Root): void {
-	if (rootInspectionReferences.has(root)) return;
+	if (runtimeState.rootInspectionReferences.has(root)) return;
 	const reference = new WeakRef(root);
-	rootInspectionReferences.set(root, reference);
-	inspectableRoots.add(reference);
+	runtimeState.rootInspectionReferences.set(root, reference);
+	runtimeState.inspectableRoots.add(reference);
 }
 
 /** Removes one disposed root from future late-attachment snapshots. */
 export function unregisterInspectableRoot(root: Root): void {
-	const reference = rootInspectionReferences.get(root);
+	const reference = runtimeState.rootInspectionReferences.get(root);
 	if (!reference) return;
-	inspectableRoots.delete(reference);
-	rootInspectionReferences.delete(root);
+	runtimeState.inspectableRoots.delete(reference);
+	runtimeState.rootInspectionReferences.delete(root);
 }
 
 /** Materializes only live instrumented roots and prunes collected references. */
 export function activeInspectableRoots(): readonly Root[] {
 	const active: Root[] = [];
-	for (const reference of inspectableRoots) {
+	for (const reference of runtimeState.inspectableRoots) {
 		const root = reference.deref();
 		if (!root) {
-			inspectableRoots.delete(reference);
+			runtimeState.inspectableRoots.delete(reference);
 			continue;
 		}
-		if (root.current.domain && componentDomainInspection(root.current.domain)) active.push(root);
+		if (root.domain && componentDomainInspection(root.domain)) active.push(root);
 	}
 	return Object.freeze(active);
 }

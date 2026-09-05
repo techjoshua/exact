@@ -670,12 +670,14 @@ func componentResumptionMetadata(
 	component Component,
 	resumptions []ComponentResumption,
 	boundaries []Boundary,
+	includeStateInputs bool,
 ) *ast.Node {
 	record := ComponentResumption{
 		ComponentID: component.ID,
 		Client: ClientResumptionRecord{
 			StatePaths:    []string{},
 			StateInputs:   []StateInput{},
+			StateDefaults: []StateDefault{},
 			ValueCaptures: []string{},
 			Contexts:      []string{},
 			Boundaries:    []string{},
@@ -703,7 +705,13 @@ func componentResumptionMetadata(
 		}
 		record.Client.Boundaries = filtered
 	}
-	return contractObject(factory, true,
+	// State-input paths authorize server-side omission only. Hydration receives finalized props and
+	// consumes state paths, so shipping the source paths would retain descriptive build facts.
+	if !includeStateInputs {
+		record.Client.StateInputs = []StateInput{}
+		record.Client.StateDefaults = []StateDefault{}
+	}
+	properties := []*ast.Node{
 		contractProperty(
 			factory,
 			"componentId",
@@ -734,7 +742,44 @@ func componentResumptionMetadata(
 			"boundaries",
 			stringMetadata(factory, record.Client.Boundaries),
 		),
-	)
+	}
+	if includeStateInputs && len(record.Client.StateDefaults) != 0 {
+		properties = append(properties, contractProperty(
+			factory,
+			"stateDefaults",
+			stateDefaultMetadata(factory, record.Client.StateDefaults),
+		))
+	}
+	return contractObject(factory, true, properties...)
+}
+
+func stateDefaultMetadata(factory *printer.NodeFactory, values []StateDefault) *ast.Node {
+	entries := make([]*ast.Node, 0, len(values))
+	for _, value := range values {
+		var literal *ast.Node
+		switch value.Kind {
+		case "string":
+			literal = contractString(factory, value.Value)
+		case "boolean":
+			if value.Value == "true" {
+				literal = factory.NewTrueExpression()
+			} else {
+				literal = factory.NewFalseExpression()
+			}
+		case "null":
+			literal = factory.NewKeywordExpression(ast.KindNullKeyword)
+		case "number":
+			literal = factory.NewNumericLiteral(value.Value, ast.TokenFlagsNone)
+		}
+		if literal != nil {
+			entries = append(entries, contractArray(
+				factory,
+				contractString(factory, value.StatePath),
+				literal,
+			))
+		}
+	}
+	return contractArray(factory, entries...)
 }
 
 func stateInputMetadata(factory *printer.NodeFactory, values []StateInput) *ast.Node {

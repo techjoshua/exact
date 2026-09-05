@@ -5,6 +5,10 @@ export { dispatchComponentContinuation } from '../component/domain.js';
 export { activateTaskForHost } from '../tasks/activation.js';
 export { activateComputationForHost } from '../tasks/computation-activation.js';
 export {
+	createIndexedContinuationDependency,
+	createTrackedContinuationDependency
+} from '../tasks/dependency-source.js';
+export {
 	activateCompiledClientLatestTaskForHost,
 	bindCompiledClientLatestTaskForHost
 } from '../tasks/compiled-latest.js';

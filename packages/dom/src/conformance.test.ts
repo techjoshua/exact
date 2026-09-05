@@ -4,41 +4,32 @@
 import '@exactjs/core/runtime/lists';
 import '@exactjs/core/runtime/refs';
 import {
-	ErrorContext,
 	LoggerContext,
 	createContext,
-	createErrorContext,
-	createRef,
-	type Child,
 	type Component,
-	type ErrorReport,
 	type LogEvent,
 	type Logger
 } from '@exactjs/core';
-import { jsx } from './test-support/native-vnode.js';
+import { jsx } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	CompiledBrokenButton,
+	CompiledErrorBoundary,
+	CompiledRefDemo,
+	ConformanceButton,
+	compiledErrorBoundaryInstance,
+	compiledRefDemoInstance,
+	conformanceButtonInstance,
+	conformanceButtonRef
+} from './dom-behavior.fixtures.js';
 
 describe('eXact conformance', () => {
 	it('updates reactive text and props at their DOM binding points', () => {
-		let instance!: Component<{ label: string; enabled: boolean }>;
-
-		function Button(this: Component<{ label: string; enabled: boolean }>) {
-			instance = this;
-			this.state.label = 'Save';
-			this.state.enabled = true;
-
-			return () =>
-				jsx('button', {
-					title: this.state.label,
-					disabled: this.state.enabled == false,
-					children: this.state.label
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Button, {}), container);
+		render(jsx(ConformanceButton, {}), container);
+		const instance = conformanceButtonInstance();
 		const button = container.querySelector('button')!;
 
 		instance.state.label = 'Saved';
@@ -106,36 +97,10 @@ describe('eXact conformance', () => {
 
 	it('routes errors to nearest ErrorContext boundary', () => {
 		const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-		let boundary!: Component<{ errors: ErrorReport[] }>;
-
-		function Boundary(
-			this: Component<{ errors: ErrorReport[] }>,
-			props: { children?: Child | Child[] }
-		) {
-			boundary = this;
-			this.state.errors = [];
-			const errors = createErrorContext(this.state.errors);
-			this.setContext(ErrorContext, errors);
-
-			return () =>
-				this.state.errors.length
-					? jsx('section', { role: 'alert', children: 'Recovered' })
-					: props.children;
-		}
-
-		function Broken() {
-			return () =>
-				jsx('button', {
-					onClick: () => {
-						throw new Error('event failed');
-					},
-					children: 'Break'
-				});
-		}
-
 		try {
 			const container = document.createElement('div');
-			render(jsx(Boundary, { children: jsx(Broken, {}) }), container);
+			render(jsx(CompiledErrorBoundary, { children: jsx(CompiledBrokenButton, {}) }), container);
+			const boundary = compiledErrorBoundaryInstance();
 
 			container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 			flushSync();
@@ -174,27 +139,15 @@ describe('eXact conformance', () => {
 	});
 
 	it('fulfills and clears DOM refs', () => {
-		const buttonRef = createRef<HTMLButtonElement>('button');
-		let instance!: Component<{ show: boolean }>;
-
-		function RefDemo(this: Component<{ show: boolean }>) {
-			instance = this;
-			this.state.show = true;
-
-			return () =>
-				this.state.show == true
-					? jsx('button', { ref: this.ref(buttonRef), children: 'Action' })
-					: jsx('span', { children: 'gone' });
-		}
-
 		const container = document.createElement('div');
-		render(jsx(RefDemo, {}), container);
-		expect(instance.refs.get(buttonRef)).toBe(container.querySelector('button'));
+		render(jsx(CompiledRefDemo, {}), container);
+		const instance = compiledRefDemoInstance();
+		expect(instance.refs.get(conformanceButtonRef)).toBe(container.querySelector('button'));
 
 		instance.state.show = false;
 		flushSync();
 
-		expect(instance.refs.get(buttonRef)).toBeUndefined();
+		expect(instance.refs.get(conformanceButtonRef)).toBeUndefined();
 		expect(container.textContent).toBe('gone');
 	});
 });

@@ -17,6 +17,28 @@ import type {
 } from '../types.js';
 import { type ContextCell } from './hook-slots.js';
 
+const reactErrorOwner = Symbol.for('@exactjs/react-error-owner');
+
+/** Attaches the React owner name before native error routing can dispose its island instance. */
+export function markReactErrorOwner(error: unknown, type: unknown): void {
+	if ((typeof error !== 'object' && typeof error !== 'function') || error === null) return;
+	try {
+		Object.defineProperty(error, reactErrorOwner, {
+			configurable: true,
+			value: reactTypeName(type)
+		});
+	} catch {
+		// Frozen foreign errors still route normally; only the optional stack label is unavailable.
+	}
+}
+
+/** Reads the React owner recorded at the point an island render failed. */
+export function reactErrorOwnerName(error: unknown): string | undefined {
+	return (typeof error === 'object' || typeof error === 'function') && error !== null
+		? ((error as { [reactErrorOwner]?: unknown })[reactErrorOwner] as string | undefined)
+		: undefined;
+}
+
 import { readReactRef } from './refs.js';
 import {
 	LegacyReactContext,
@@ -24,7 +46,6 @@ import {
 	REACT_MEMO_TYPE,
 	REACT_REF_PROP
 } from './shared.js';
-export { toExactNode } from './nodes.js';
 export { assignReactRef } from './refs.js';
 export * from './shared.js';
 

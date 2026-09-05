@@ -1,5 +1,7 @@
-import { createVNode, type Child } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
+import { unwrap } from '@exactjs/core';
+import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { readPreparedServerComponentReference } from '@exactjs/core/framework/server-render-structure';
 import type { IntlRuntimeDescriptorV1 } from './contracts.js';
 import { canonicalizeIntlValue } from './canonical.js';
 import { createIntlEnvironment } from './environment.js';
@@ -9,6 +11,7 @@ import { registerIntlArtifacts } from './artifacts.js';
 import { validateIntlCatalog, validateIntlRuntimeDescriptor } from './validation.js';
 import { validateIntlPackageMetadata } from './package-metadata.js';
 import { measurementDescriptor } from './test-support/measurement-descriptor.js';
+import { strongStructure } from './intl.fixtures.js';
 
 const messageKey = '47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU';
 const descriptor: IntlRuntimeDescriptorV1 = {
@@ -202,13 +205,15 @@ describe('intl protocol', () => {
 			descriptors: [descriptor],
 			catalogs: [catalog]
 		});
-		const activation = prepareIntlActivation(
-			descriptor,
-			['Ada', 1],
-			[(children: readonly Child[]) => createVNode('strong', null, ...children)]
-		);
+		const activation = prepareIntlActivation(descriptor, ['Ada', 1], [strongStructure]);
 		const output = renderIntlActivation(activation, environment);
-		expect(output[0]).toMatchObject({ type: 'strong', children: ['boîte'] });
+		const receipt =
+			readCompiledComponentReceipt(output[0]) ?? readPreparedServerComponentReference(output[0]);
+		expect(receipt).toBeDefined();
+		const structuralChildren = unwrap(receipt!.children[0]);
+		expect(Array.isArray(structuralChildren) ? structuralChildren : [structuralChildren]).toEqual([
+			'boîte'
+		]);
 		expect(output.slice(1)).toEqual([' : ', 'Ada', ', ', 'un message']);
 	});
 
@@ -278,11 +283,7 @@ describe('intl protocol', () => {
 			]
 		});
 		const output = renderIntlActivation(
-			prepareIntlActivation(
-				descriptor,
-				['Ada', 2],
-				[(children: readonly Child[]) => createVNode('strong', null, ...children)]
-			),
+			prepareIntlActivation(descriptor, ['Ada', 2], [strongStructure]),
 			environment
 		);
 		expect(output[1]).toBe('override:');
@@ -296,11 +297,7 @@ describe('intl protocol', () => {
 			catalogs: []
 		});
 		const output = renderIntlActivation(
-			prepareIntlActivation(
-				descriptor,
-				['Ada', 1],
-				[(children: readonly Child[]) => createVNode('strong', null, ...children)]
-			),
+			prepareIntlActivation(descriptor, ['Ada', 1], [strongStructure]),
 			pseudo
 		);
 		expect(output.some((value) => typeof value === 'string' && value.includes('~'))).toBe(true);
@@ -311,11 +308,7 @@ describe('intl protocol', () => {
 			catalogs: [],
 			onMissingMessage: (message) => missing.push(message)
 		});
-		const activation = prepareIntlActivation(
-			descriptor,
-			['Ada', 1],
-			[(children: readonly Child[]) => createVNode('strong', null, ...children)]
-		);
+		const activation = prepareIntlActivation(descriptor, ['Ada', 1], [strongStructure]);
 		renderIntlActivation(activation, fallback);
 		renderIntlActivation(activation, fallback);
 		expect(missing).toEqual([

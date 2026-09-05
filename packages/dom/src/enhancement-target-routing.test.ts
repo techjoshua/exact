@@ -6,36 +6,50 @@ import './framework/enhancements.js';
 import '@exactjs/core/runtime/refs';
 import {
 	Activity,
-	createContext,
 	createEnhancementNode,
-	createPortal,
-	Fragment,
 	Target,
-	markExactEnhancementContexts,
-	type Child,
-	type Component,
 	type LogEvent,
 	type Logger,
 	type RootLifecycle
 } from '@exactjs/core';
-import { createDynamicChild } from '@exactjs/core/runtime/render';
-import { markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	createCompiledComponentOperation,
+	createOperation
+} from './test-support/native-operations.js';
+import {
+	getRoutingCardOwner,
+	getRoutingSelectorOwner,
+	RoutingBoundary,
+	RoutingCycleLeft,
+	RoutingCycleRight,
+	RoutingDualBoundary,
+	RoutingDynamicCard,
+	RoutingLeftShell,
+	RoutingNearCard,
+	RoutingOrderingConsumer,
+	RoutingOrderingProvider,
+	RoutingPortalCard,
+	RoutingPortalMotion,
+	RoutingRightShell,
+	RoutingSelectorBoundary,
+	RoutingToneMotion
+} from './test-support/enhancements/enhancement-behavior.fixtures.js';
+import { motion as RoutingMotion } from './test-support/enhancements/enhancement-routing-motion.fixtures.js';
 
-const identity = '@test/motion#motion';
+const identity = './enhancement-routing.fixtures.js#motion';
 
 describe('renderer enhancement target routing', () => {
 	it('retains target identity and contributions while Activity parks and restores output', () => {
 		const state = reactive({ mode: 'active' as 'active' | 'parked' });
 		const container = document.createElement('div');
 		render(
-			createVNode(
+			createOperation(
 				Activity,
 				{ mode: computed(() => state.mode) },
-				createVNode(Target, { className: 'owned' }, createVNode('button', null, 'Retained'))
+				createOperation(Target, { className: 'owned' }, createOperation('button', null, 'Retained'))
 			),
 			container
 		);
@@ -55,42 +69,19 @@ describe('renderer enhancement target routing', () => {
 
 	it('forwards declarations through components and merges nearest props at an explicit target', () => {
 		const setup = vi.fn();
-		const Motion = markTestComponent(function Motion(
-			this: Component<{}>,
-			props: { children?: Child; tone?: string }
-		) {
-			setup(props.tone);
-			return () => createVNode('div', { className: props.tone }, props.children);
-		});
-		const Card = markTestComponent(function Card(this: Component<{}>) {
-			return () =>
-				createVNode(
-					'section',
-					null,
-					createVNode(
-						'button',
-						{
-							__exactEnhancements: createEnhancementNode([
-								{ identity, props: { tone: 'near' }, root: true }
-							])
-						},
-						'Save'
-					)
-				);
-		});
 		const container = document.createElement('div');
 
 		render(
-			createVNode(Card, {
-				__exactEnhancements: createEnhancementNode([{ identity, props: { tone: 'far' } }])
+			createCompiledComponentOperation(RoutingNearCard, {
+				__exactEnhancements: createEnhancementNode([
+					{ identity, props: { tone: 'far', onSetup: setup } }
+				])
 			}),
 			container,
-			{ enhancementCatalog: new Map([[identity, Motion]]) }
+			{ enhancementCatalog: new Map([[identity, RoutingToneMotion]]) }
 		);
 
-		expect(container.innerHTML).toBe(
-			'<section><div class="near"><button>Save</button></div></section>'
-		);
+		expect(container.querySelector('section > div.near > button')?.textContent).toBe('Save');
 		expect(setup).toHaveBeenCalledOnce();
 		expect(setup).toHaveBeenCalledWith('near');
 	});
@@ -98,43 +89,34 @@ describe('renderer enhancement target routing', () => {
 	it('reroutes a reactive explicit target without activating root-only selector entries', async () => {
 		const roots: RootLifecycle<HTMLElement>[] = [];
 		const released = vi.fn();
-		const Motion = markTestComponent(function Motion(
-			this: Component<{}>,
-			props: { children?: Child; preset?: string }
-		) {
-			roots.push(this.refs.root<HTMLElement>());
-			this.onUnmount(released);
-			return () => props.children;
-		});
-		const marker = (root: boolean) => createEnhancementNode([{ identity, props: {}, root }]);
-		const Boundary = markTestComponent(function Boundary(
-			this: Component<{}>,
-			props: { left: boolean }
-		) {
-			return () =>
-				createVNode(
-					Fragment,
-					null,
-					createVNode('button', { id: 'left', __exactEnhancements: marker(props.left) }, 'Left'),
-					createVNode('button', { id: 'right', __exactEnhancements: marker(!props.left) }, 'Right')
-				);
-		});
 		const tree = (left: boolean) =>
-			createVNode(Boundary, {
+			createCompiledComponentOperation(RoutingBoundary, {
 				left,
-				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
+				__exactEnhancements: createEnhancementNode([
+					{
+						identity,
+						props: {
+							preset: 'fade',
+							onRoot: (root: RootLifecycle<HTMLElement>) => roots.push(root),
+							onUnmount: released
+						}
+					}
+				])
 			});
 		const container = document.createElement('div');
-		const options = { enhancementCatalog: new Map([[identity, Motion]]) };
+		const options = { enhancementCatalog: new Map([[identity, RoutingMotion]]) };
 
 		render(tree(true), container, options);
 		expect(roots).toHaveLength(1);
 		expect(roots[0]?.current?.id).toBe('left');
 
 		render(tree(false), container, options);
-		expect(container.innerHTML).toBe(
-			'<button id="left">Left</button><button id="right">Right</button>'
-		);
+		expect(
+			Array.from(container.querySelectorAll('button'), (button) => [button.id, button.textContent])
+		).toEqual([
+			['left', 'Left'],
+			['right', 'Right']
+		]);
 		expect(roots.map((root) => root.current?.id)).toEqual([undefined, 'right']);
 		expect(roots[0]?.release?.reason).toBe('enhancement-target-rerouted');
 		await vi.waitFor(() => expect(released).toHaveBeenCalledOnce());
@@ -142,43 +124,26 @@ describe('renderer enhancement target routing', () => {
 
 	it('observes root selector slots without requiring a component rerender', () => {
 		const roots: RootLifecycle<HTMLElement>[] = [];
-		const Motion = markTestComponent(function Motion(
-			this: Component<{}>,
-			props: { children?: Child; preset?: string }
-		) {
-			roots.push(this.refs.root<HTMLElement>());
-			return () => props.children;
-		});
-		const state = reactive({ left: true });
-		const left = computed(() => state.left);
-		const right = computed(() => !state.left);
 		const container = document.createElement('div');
-		const Boundary = markTestComponent(function Boundary(this: Component<{}>) {
-			return () =>
-				createVNode(
-					Fragment,
-					null,
-					createVNode('button', {
-						id: 'left',
-						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: left }])
-					}),
-					createVNode('button', {
-						id: 'right',
-						__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: right }])
-					})
-				);
-		});
 
 		render(
-			createVNode(Boundary, {
-				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
+			createCompiledComponentOperation(RoutingSelectorBoundary, {
+				__exactEnhancements: createEnhancementNode([
+					{
+						identity,
+						props: {
+							preset: 'fade',
+							onRoot: (root: RootLifecycle<HTMLElement>) => roots.push(root)
+						}
+					}
+				])
 			}),
 			container,
-			{ enhancementCatalog: new Map([[identity, Motion]]) }
+			{ enhancementCatalog: new Map([[identity, RoutingMotion]]) }
 		);
 		expect(roots[0]?.current?.id).toBe('left');
 
-		state.left = false;
+		getRoutingSelectorOwner().state.left = false;
 		flushSync();
 
 		expect(roots).toHaveLength(2);
@@ -186,52 +151,41 @@ describe('renderer enhancement target routing', () => {
 	});
 
 	it('leaves unavailable enhancements inert and warns once per root identity', () => {
+		const unavailableIdentity = '@test/unavailable-motion#motion';
 		const events: LogEvent[] = [];
 		const logger: Logger = { log: (event) => events.push(event) };
-		const marker = createEnhancementNode([{ identity, props: { preset: 'fade' } }]);
+		const marker = createEnhancementNode([
+			{ identity: unavailableIdentity, props: { preset: 'fade' } }
+		]);
 		const container = document.createElement('div');
 
-		render(createVNode('button', { __exactEnhancements: marker }, 'Save'), container, { logger });
-		render(createVNode('button', { __exactEnhancements: marker }, 'Save'), container, { logger });
+		render(createOperation('button', { __exactEnhancements: marker }, 'Save'), container, {
+			logger
+		});
+		render(createOperation('button', { __exactEnhancements: marker }, 'Save'), container, {
+			logger
+		});
 
 		expect(container.innerHTML).toBe('<button>Save</button>');
 		const warnings = events.filter((event) => event.level === 'warn');
 		expect(warnings).toHaveLength(1);
-		expect(warnings[0]?.message).toContain(identity);
+		expect(warnings[0]?.message).toContain(unavailableIdentity);
 	});
 
 	it('orders co-targeted components from context token effects before setup', () => {
-		const token = createContext<string>('enhancement-order', true);
 		const observed: string[] = [];
-		const Provider = markTestComponent(function Provider(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			observed.push('provider');
-			this.setContext(token, 'ready');
-			return () => props.children;
-		});
-		markExactEnhancementContexts(Provider, { provides: [token] });
-		const Consumer = markTestComponent(function Consumer(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			observed.push(`consumer:${this.getContext(token)}`);
-			return () => props.children;
-		});
-		markExactEnhancementContexts(Consumer, { requires: [token] });
 		const providerIdentity = '@test/z-provider#default';
 		const consumerIdentity = '@test/a-consumer#default';
 		const marker = createEnhancementNode([
-			{ identity: consumerIdentity, props: {} },
-			{ identity: providerIdentity, props: {} }
+			{ identity: consumerIdentity, props: { onSetup: (value: string) => observed.push(value) } },
+			{ identity: providerIdentity, props: { onSetup: (value: string) => observed.push(value) } }
 		]);
 		const container = document.createElement('div');
 
-		render(createVNode('button', { __exactEnhancements: marker }), container, {
+		render(createOperation('button', { __exactEnhancements: marker }), container, {
 			enhancementCatalog: new Map([
-				[consumerIdentity, Consumer],
-				[providerIdentity, Provider]
+				[consumerIdentity, RoutingOrderingConsumer],
+				[providerIdentity, RoutingOrderingProvider]
 			])
 		});
 
@@ -239,34 +193,19 @@ describe('renderer enhancement target routing', () => {
 	});
 
 	it('rejects context ordering cycles before enhancement setup', () => {
-		const leftToken = createContext<string>('enhancement-cycle-left', true);
-		const rightToken = createContext<string>('enhancement-cycle-right', true);
 		const setup = vi.fn();
-		const Left = markTestComponent(function Left(this: Component<{}>, props: { children?: Child }) {
-			setup();
-			return () => props.children;
-		});
-		const Right = markTestComponent(function Right(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			setup();
-			return () => props.children;
-		});
-		markExactEnhancementContexts(Left, { provides: [leftToken], requires: [rightToken] });
-		markExactEnhancementContexts(Right, { provides: [rightToken], requires: [leftToken] });
 		const marker = createEnhancementNode([
-			{ identity: '@test/left#default', props: {} },
-			{ identity: '@test/right#default', props: {} }
+			{ identity: '@test/left#default', props: { onSetup: setup } },
+			{ identity: '@test/right#default', props: { onSetup: setup } }
 		]);
 		const container = document.createElement('div');
 		const reported = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 		try {
-			render(createVNode('button', { __exactEnhancements: marker }), container, {
+			render(createOperation('button', { __exactEnhancements: marker }), container, {
 				enhancementCatalog: new Map([
-					['@test/left#default', Left],
-					['@test/right#default', Right]
+					['@test/left#default', RoutingCycleLeft],
+					['@test/right#default', RoutingCycleRight]
 				])
 			});
 			expect(reported).toHaveBeenCalledOnce();
@@ -280,34 +219,11 @@ describe('renderer enhancement target routing', () => {
 	});
 
 	it('lets different enhancements select and structurally wrap different logical targets', () => {
-		const leftIdentity = '@test/left-target#default';
-		const rightIdentity = '@test/right-target#default';
-		const wrapper = (className: string) =>
-			markTestComponent(function Wrapper(this: Component<{}>, props: { children?: Child }) {
-				return () => createVNode('div', { className }, props.children);
-			});
+		const leftIdentity = './enhancement-routing-left.fixtures.js#left';
+		const rightIdentity = './enhancement-routing-right.fixtures.js#right';
 		const container = document.createElement('div');
-		const Boundary = markTestComponent(function Boundary(this: Component<{}>) {
-			return () =>
-				createVNode(
-					Fragment,
-					null,
-					createVNode('button', {
-						id: 'left',
-						__exactEnhancements: createEnhancementNode([
-							{ identity: leftIdentity, props: {}, root: true }
-						])
-					}),
-					createVNode('button', {
-						id: 'right',
-						__exactEnhancements: createEnhancementNode([
-							{ identity: rightIdentity, props: {}, root: true }
-						])
-					})
-				);
-		});
 		render(
-			createVNode(Boundary, {
+			createCompiledComponentOperation(RoutingDualBoundary, {
 				__exactEnhancements: createEnhancementNode([
 					{ identity: leftIdentity, props: {} },
 					{ identity: rightIdentity, props: {} }
@@ -316,59 +232,37 @@ describe('renderer enhancement target routing', () => {
 			container,
 			{
 				enhancementCatalog: new Map([
-					[leftIdentity, wrapper('left-shell')],
-					[rightIdentity, wrapper('right-shell')]
+					[leftIdentity, RoutingLeftShell],
+					[rightIdentity, RoutingRightShell]
 				])
 			}
 		);
 
-		expect(container.innerHTML).toBe(
-			'<div class="left-shell"><button id="left"></button></div><div class="right-shell"><button id="right"></button></div>'
-		);
+		expect(container.querySelector('.left-shell > #left')).not.toBeNull();
+		expect(container.querySelector('.right-shell > #right')).not.toBeNull();
 	});
 
 	it('reroutes an ancestor declaration when a dynamic branch introduces an explicit target', () => {
 		const roots: RootLifecycle<HTMLElement>[] = [];
-		let owner!: Component<{ explicit: boolean }>;
-		const Motion = markTestComponent(function Motion(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			roots.push(this.refs.root<HTMLElement>());
-			return () => props.children;
-		});
-		const Card = markTestComponent(function Card(this: Component<{ explicit: boolean }>) {
-			owner = this;
-			this.state.explicit = false;
-			return () =>
-				createVNode(
-					'section',
-					null,
-					createDynamicChild(() =>
-						createVNode('button', {
-							id: 'dynamic',
-							...(this.state.explicit
-								? {
-										__exactEnhancements: createEnhancementNode([
-											{ identity, props: {}, root: true }
-										])
-									}
-								: {})
-						})
-					)
-				);
-		});
 		const container = document.createElement('div');
 		render(
-			createVNode(Card, {
-				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
+			createCompiledComponentOperation(RoutingDynamicCard, {
+				__exactEnhancements: createEnhancementNode([
+					{
+						identity,
+						props: {
+							preset: 'fade',
+							onRoot: (root: RootLifecycle<HTMLElement>) => roots.push(root)
+						}
+					}
+				])
 			}),
 			container,
-			{ enhancementCatalog: new Map([[identity, Motion]]) }
+			{ enhancementCatalog: new Map([[identity, RoutingMotion]]) }
 		);
 		expect(roots[0]?.current).toBe(container.querySelector('section'));
 
-		owner.state.explicit = true;
+		getRoutingCardOwner().state.explicit = true;
 		flushSync();
 
 		expect(roots).toHaveLength(2);
@@ -379,34 +273,19 @@ describe('renderer enhancement target routing', () => {
 	it('resolves explicit targets through logical portal children', () => {
 		const portal = document.createElement('div');
 		let target!: RootLifecycle<HTMLElement>;
-		const Motion = markTestComponent(function Motion(
-			this: Component<{}>,
-			props: { children?: Child }
-		) {
-			target = this.refs.root<HTMLElement>();
-			return () => props.children;
-		});
-		const Card = markTestComponent(function Card(this: Component<{}>) {
-			return () =>
-				createVNode(
-					'section',
-					null,
-					createPortal(
-						portal,
-						createVNode('button', {
-							id: 'portal-target',
-							__exactEnhancements: createEnhancementNode([{ identity, props: {}, root: true }])
-						})
-					)
-				);
-		});
 		const container = document.createElement('div');
 		render(
-			createVNode(Card, {
-				__exactEnhancements: createEnhancementNode([{ identity, props: { preset: 'fade' } }])
+			createCompiledComponentOperation(RoutingPortalCard, {
+				portal,
+				__exactEnhancements: createEnhancementNode([
+					{
+						identity,
+						props: { onRoot: (root: RootLifecycle<HTMLElement>) => (target = root) }
+					}
+				])
 			}),
 			container,
-			{ enhancementCatalog: new Map([[identity, Motion]]) }
+			{ enhancementCatalog: new Map([[identity, RoutingPortalMotion]]) }
 		);
 
 		expect(target.current).toBe(portal.querySelector('#portal-target'));

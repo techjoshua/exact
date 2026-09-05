@@ -50,11 +50,13 @@ record instead of shipping a second application-data script:
 
 ```tsx
 const container = document.getElementById('app')!;
-const props = readPublishedRootProps<AppProps>(container);
+const props = readPublishedRootProps<AppProps>(App, container);
 hydrateAfterNavigation(<App {...props} />, container);
 ```
 
-The later hydration call reuses that decoded configuration.
+Passing the compiled root binds any compiler-proven compact positional payload to the matching
+client artifact. Named payloads from older or structurally open roots remain supported. The later
+hydration call reuses the same decoded object graph.
 
 `hydrateAfterNavigation()` gives visible SSR content one rendering opportunity after
 `DOMContentLoaded`, then schedules activation as user-visible work. If a pointer, keyboard, input,

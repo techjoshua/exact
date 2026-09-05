@@ -1,4 +1,5 @@
-import { createContext, createVNode, type Child, type Component } from '@exactjs/core';
+import { createContext, type Child, type Component } from '@exactjs/core';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
 import type { MotionConfigProps, MotionSettings } from './contracts.js';
 
 /** Package defaults used outside a `MotionConfig` boundary. */
@@ -38,7 +39,11 @@ export function MotionConfig(this: Component<{}>, props: MotionConfigProps) {
 	return () => props.children as Child;
 }
 
-/** Wraps children in a `MotionConfig` VNode for programmatic callers. */
+/** Issues a compiled `MotionConfig` operation for programmatic callers. */
 export function createMotionConfig(props: MotionConfigProps) {
-	return createVNode(MotionConfig, props as Record<string, unknown>, props.children);
+	return createCompiledComponentReceipt(
+		MotionConfig,
+		props as Record<string, unknown>,
+		props.children
+	);
 }

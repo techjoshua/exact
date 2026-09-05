@@ -41,19 +41,11 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		if len(signals) == 0 {
 			continue
 		}
-		surface := ComponentSurfacePlan{
-			Logging:      componentUsesProtocolMember(candidate.node, "log"),
-			Localization: componentUsesProtocolMember(candidate.node, "intl"),
-			Refs:         componentUsesProtocolMember(candidate.node, "ref", "readRef", "refs"),
-			Contexts: componentUsesProtocolMember(
-				candidate.node,
-				"hasContext", "getContext", "setContext",
-			),
-			Reactivity: componentUsesProtocolMember(candidate.node, "reactive"),
-			ServerLifecycle: componentUsesProtocolMember(
-				candidate.node,
-				"onUnmount", "onRender", "own",
-			),
+		surface := componentSurfacePlan(candidate.node)
+		targetArtifact := componentCandidateAcceptsProps(candidate.node)
+		artifactTargets := []string{}
+		if targetArtifact {
+			artifactTargets = []string{"client", "server"}
 		}
 		components = append(components, Component{
 			ID:                nativeComponentIDForNode(sourceFile, candidate.node),
@@ -65,7 +57,7 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			Placement:         "isomorphic",
 			SubgraphPlacement: "isomorphic",
 			EnvironmentEffect: "neutral",
-			ArtifactTargets:   []string{"client", "server"},
+			ArtifactTargets:   artifactTargets,
 			RenderEdges:       []RenderEdge{},
 			Contexts:          []ContextEffect{},
 			EnhancementContexts: EnhancementContextEffects{
@@ -73,21 +65,73 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 				Requires:           []string{},
 				OptionallyConsumes: []string{},
 			},
-			SplitBoundaries: []string{},
-			Diagnostics:     []string{},
-			CompiledRender:  componentHasCompiledRender(candidate.node),
+			SplitBoundaries:      []string{},
+			Diagnostics:          []string{},
+			CompiledRender:       componentHasCompiledRender(candidate.node),
+			ClientCompiledRender: componentReturnsRenderFunction(candidate.node),
+			TargetArtifact:       targetArtifact,
 			Lifecycle: componentUsesProtocolMember(
 				candidate.node,
 				"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
 			),
-			Lists:   componentUsesProtocolMember(candidate.node, "map"),
-			Surface: surface,
+			Lists:         componentUsesProtocolMember(candidate.node, "map"),
+			Targets:       componentContainsTarget(candidate.node),
+			DirectSurface: surface,
+			Surface:       surface,
 		})
 	}
 	sort.Slice(components, func(left int, right int) bool {
 		return components[left].Start < components[right].Start
 	})
 	return components
+}
+
+// componentContainsTarget records that server enhancement execution must preserve a live child
+// operation until the component's target receipt can contribute to it.
+func componentContainsTarget(node *ast.Node) bool {
+	found := false
+	walkNode(node, func(candidate *ast.Node) bool {
+		tag := jsxTagNode(candidate)
+		if tag != nil && ast.IsIdentifier(tag) && tag.Text() == "_target" {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+// componentCandidateAcceptsProps separates durable component entry points from module-level setup
+// helpers that forward a Component receiver. JSX supplies at most one ordinary props argument;
+// helpers with additional runtime parameters participate in their caller's lowering and surface
+// analysis but must not receive an independently callable target artifact.
+func componentCandidateAcceptsProps(node *ast.Node) bool {
+	ordinary := 0
+	for _, parameter := range node.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() == "this" {
+			continue
+		}
+		ordinary++
+	}
+	return ordinary <= 1
+}
+
+func componentSurfacePlan(node *ast.Node) ComponentSurfacePlan {
+	return ComponentSurfacePlan{
+		Logging:      componentUsesProtocolMember(node, "log"),
+		Localization: componentUsesProtocolMember(node, "intl"),
+		Refs:         componentUsesProtocolMember(node, "ref", "readRef", "refs"),
+		Contexts: componentUsesProtocolMember(
+			node,
+			"hasContext", "getContext", "setContext",
+		),
+		Reactivity: componentUsesProtocolMember(node, "reactive"),
+		ServerLifecycle: componentUsesProtocolMember(
+			node,
+			"onUnmount", "onRender", "own",
+		),
+	}
 }
 
 func componentHasCompiledRender(node *ast.Node) bool {
@@ -97,6 +141,18 @@ func componentHasCompiledRender(node *ast.Node) bool {
 	for _, returned := range directCallableReturns(node) {
 		callable := unwrapRenderExpression(returned)
 		if ast.IsArrowFunction(callable) && containsJSX(callable) {
+			return true
+		}
+	}
+	return false
+}
+
+// componentReturnsRenderFunction recognizes the durable setup-plus-view shape even when the view
+// forwards children or another already-authored value and therefore contains no JSX syntax itself.
+func componentReturnsRenderFunction(node *ast.Node) bool {
+	for _, returned := range directCallableReturns(node) {
+		callable := unwrapRenderExpression(returned)
+		if ast.IsArrowFunction(callable) || ast.IsFunctionExpression(callable) {
 			return true
 		}
 	}
@@ -121,6 +177,121 @@ func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
 		return true
 	})
 	return found
+}
+
+// propagateComponentSurfacePlans carries instance requirements through statically resolved
+// helpers only when the caller forwards its component receiver. A helper invoked with another
+// receiver must not widen the component ABI merely because it happens to use similarly named
+// methods on its own `this` value.
+func propagateComponentSurfacePlans(
+	sourceFile *ast.SourceFile,
+	components []Component,
+	callables callableAnalysis,
+) {
+	factsByID := make(map[string]int, len(callables.facts))
+	for index := range callables.facts {
+		factsByID[callables.facts[index].summary.ID] = index
+	}
+	renderRoots := make(map[int][]int)
+	for _, render := range resolveComponentRenders(sourceFile) {
+		for factIndex := range callables.facts {
+			if callables.facts[factIndex].node == render.callable {
+				renderRoots[render.component.node.Pos()] = append(
+					renderRoots[render.component.node.Pos()],
+					factIndex,
+				)
+				break
+			}
+		}
+	}
+	for componentIndex := range components {
+		root := -1
+		for factIndex := range callables.facts {
+			fact := &callables.facts[factIndex]
+			if fact.sourceFile == sourceFile && fact.node.Pos() == components[componentIndex].Start {
+				root = factIndex
+				break
+			}
+		}
+		if root < 0 {
+			continue
+		}
+		pending := append([]int{root}, renderRoots[components[componentIndex].Start]...)
+		visited := make(map[int]struct{})
+		for len(pending) != 0 {
+			factIndex := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			if _, exists := visited[factIndex]; exists {
+				continue
+			}
+			visited[factIndex] = struct{}{}
+			mergeComponentSurfaceFromCallable(&components[componentIndex], callables.facts[factIndex].node)
+			for _, edge := range callables.facts[factIndex].summary.Calls {
+				if !edge.Resolved || !edgeForwardsComponentReceiver(edge) {
+					continue
+				}
+				if target, exists := factsByID[edge.TargetID]; exists {
+					pending = append(pending, target)
+				}
+			}
+		}
+	}
+}
+
+func edgeForwardsComponentReceiver(edge CallEdge) bool {
+	for _, binding := range edge.ReceiverBindings {
+		if binding.Source == "component" {
+			return true
+		}
+	}
+	return false
+}
+
+func mergeComponentSurfaceFromCallable(component *Component, node *ast.Node) {
+	surface := componentSurfacePlan(node)
+	mergeComponentSurface(&component.Surface, surface)
+	if node.Pos() < component.Start || node.End() > component.Start+component.Length {
+		mergeComponentSurface(&component.ForwardedSurface, surface)
+	}
+	component.Lifecycle = component.Lifecycle || componentUsesProtocolMember(
+		node,
+		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own",
+	)
+	component.Lists = component.Lists || componentUsesProtocolMember(node, "map") ||
+		componentUsesAuthoredJSXKey(node)
+}
+
+// componentUsesAuthoredJSXKey selects durable keyed-list ownership during component analysis.
+// Lowering later removes JSX key attributes, so constructor ABI planning cannot defer this fact to
+// the transformed tree or rely only on an authored this.map() call.
+func componentUsesAuthoredJSXKey(node *ast.Node) bool {
+	usesKey := false
+	walkNode(node, func(candidate *ast.Node) bool {
+		if usesKey || (candidate != node && ast.IsFunctionDeclaration(candidate)) {
+			return false
+		}
+		if !ast.IsCallExpression(candidate) || !insideJSXChildExpression(candidate) {
+			return true
+		}
+		call := candidate.AsCallExpression()
+		if !ast.IsPropertyAccessExpression(call.Expression) ||
+			call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
+			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+			return true
+		}
+		usesKey = collectionMapExplicitJSXKey(call.Arguments.Nodes[0]) != nil
+		return !usesKey
+	})
+	return usesKey
+}
+
+func mergeComponentSurface(target *ComponentSurfacePlan, source ComponentSurfacePlan) {
+	target.Logging = target.Logging || source.Logging
+	target.Localization = target.Localization || source.Localization
+	target.Refs = target.Refs || source.Refs
+	target.Contexts = target.Contexts || source.Contexts
+	target.Reactivity = target.Reactivity || source.Reactivity
+	target.ServerLifecycle = target.ServerLifecycle || source.ServerLifecycle
 }
 
 // componentProtocolMember identifies direct and computed access to the authored component view.
@@ -457,6 +628,10 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 	signals := make(map[string]struct{}, 3)
 	if componentName(candidate.name) && containsJSX(candidate.node) {
 		signals["named-jsx"] = struct{}{}
+	}
+	if componentName(candidate.name) && componentReturnsRenderFunction(candidate.node) &&
+		!looksLikeTaskPolicy(candidate.node, sourceFile) {
+		signals["named-render"] = struct{}{}
 	}
 	if hasComponentReceiver(candidate.node, sourceFile) {
 		signals["typed-receiver"] = struct{}{}

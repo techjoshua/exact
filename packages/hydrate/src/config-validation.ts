@@ -1,4 +1,5 @@
 import type { ComponentResumptionActivation } from '@exactjs/core';
+import type { IndexedComponentResumptionActivation } from '@exactjs/core/framework/component-domains';
 import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import {
 	isExactContinuationDependency,
@@ -59,15 +60,17 @@ export function normalizeComponentResumptionRegistrations(
 /** Validates the single compact representation accepted across the document boundary. */
 export function normalizeSerializedComponentResumptions(
 	value: unknown
-): readonly ComponentResumptionActivation[] | undefined {
+): readonly IndexedComponentResumptionActivation[] | undefined {
 	if (value === undefined) return undefined;
 	if (!Array.isArray(value)) throw new TypeError('Malformed eXact component resumptions');
 	if (!value.length) return emptyList;
-	return value.map((item, index) => {
+	for (let index = 0; index < value.length; index++) {
+		const item = value[index];
 		if (!isIndexedComponentResumption(item))
 			throw new TypeError(`Malformed eXact component resumption ${index}`);
-		return normalizeIndexedResumption(item);
-	});
+	}
+	// Compiler-issued tuples remain positional until the ordered component cursor claims them.
+	return value as readonly IndexedComponentResumptionActivation[];
 }
 
 type IndexedComponentResumption = readonly [
@@ -76,28 +79,6 @@ type IndexedComponentResumption = readonly [
 	contexts?: readonly (readonly [field: number | string, value: unknown])[],
 	settledContinuations?: readonly string[]
 ];
-
-/** Restores an indexed wire tuple while deferring contract-index expansion to component adoption. */
-function normalizeIndexedResumption(
-	item: IndexedComponentResumption
-): ComponentResumptionActivation {
-	return {
-		componentId: item[0],
-		values: indexedRecord(item[1]),
-		contexts: indexedRecord(item[2]),
-		settledContinuations: item[3] ?? emptyList
-	};
-}
-
-function indexedRecord(
-	entries: readonly (readonly [field: number | string, value: unknown])[] | undefined
-): Readonly<Record<string, unknown>> {
-	if (!entries?.length) return emptyRecord;
-	const output = createProtocolRecord<unknown>();
-	for (const [field, value] of entries)
-		output[typeof field === 'number' ? `@${field}` : field] = value;
-	return output;
-}
 
 /** Narrows an unknown protocol value to a plain record shape. */
 export function isRecord(value: unknown): value is Record<string, unknown> {

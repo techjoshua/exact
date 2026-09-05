@@ -45,3 +45,20 @@ test('participant metadata cannot claim an unknown track', () => {
 		/invalid track/
 	);
 });
+
+test('participant metadata is validated without mutable approval metadata', () => {
+	assert.doesNotThrow(() =>
+		validateParticipant({
+			schemaVersion: 1,
+			id: 'measured',
+			framework: 'Measured framework',
+			frameworkVersion: '1.0.0',
+			tracks: ['controlled-service'],
+			runtime: 'node-24',
+			ssrTransports: { node: 'node-http', bun: 'node-http-compat' },
+			commands: { build: 'build', start: 'start' },
+			baseUrl: 'http://127.0.0.1:1',
+			sourceRoots: ['src']
+		})
+	);
+});

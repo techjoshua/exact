@@ -4,35 +4,23 @@
 import './framework/enhancements.js';
 import '@exactjs/core/runtime/refs';
 import { Accessibility } from '@exactjs/accessibility';
-import { createEnhancementNode, createRef, type Component } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
-import { render } from './index.js';
-import { createVNode } from './test-support/native-vnode.js';
+import { renderTestTree as render } from './testing.js';
+import { createCompiledComponentOperation } from './test-support/native-operations.js';
+import { AccessibilityPage } from './accessibility-enhancement.fixtures.js';
 
-const helpKey = createRef<HTMLSpanElement>('accessibility DOM help');
 const identity = '@exactjs/accessibility/enhancements#describedBy';
 
 describe('@exactjs/dom accessibility enhancement integration', () => {
 	it('publishes a ref relationship without wrapper markup and keeps generated identity', () => {
-		const Page = createExactFrameworkFixtureArtifact(function Page(this: Component<{}>) {
-			const help = this.ref(helpKey);
-			return () => [
-				createVNode(
-					'button',
-					{
-						__exactEnhancements: createEnhancementNode([{ identity, props: { describedBy: help } }])
-					},
-					'Delete'
-				),
-				createVNode('span', { ref: help }, 'Cannot be undone')
-			];
-		}, '@exactjs/dom:accessibility-page');
 		const container = document.createElement('div');
 
-		render(createVNode(Page, null), container, {
-			enhancementCatalog: new Map([[identity, Accessibility]])
+		render(createCompiledComponentOperation(AccessibilityPage, null), container, {
+			enhancementCatalog: new Map([[identity, Accessibility]]),
+			onErrorReport(report) {
+				throw report.error;
+			}
 		});
 		flushSync();
 		const button = container.querySelector('button')!;

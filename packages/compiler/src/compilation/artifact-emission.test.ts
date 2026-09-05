@@ -23,7 +23,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const output = await readFile(result.outputFile!, 'utf8');
 
 		expect(result.outputFile).toBe(path.join(outDir, 'view.ts'));
-		expect(output).toContain('__exactVNode("span"');
+		expect(output).toContain('__exactPreparedRenderProgram(__exact_render_program_1');
 	});
 
 	it('writes source maps beside compiled files', async () => {
@@ -239,13 +239,13 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('lane: "direct"');
 		expect(server).not.toContain('deferredTaskProps: [');
 		expect(server).not.toContain('slices: [');
-		expect(server).not.toContain('execution: {');
+		expect(server).not.toContain('transitions: [');
 		expect(client).not.toContain('classification: "scheduled"');
 		expect(server).toMatch(
 			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
 		);
 		expect(server).toMatch(/__exactComponent_\d+\.state\.count = 1/);
-		expect(server).not.toContain('__exactWrite');
+		expect(server).not.toContain('__exactWriteState');
 	});
 
 	it('preserves awaited server task value flow in both client and executor artifacts', async () => {
@@ -292,7 +292,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('__exactExecution_');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
+		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).not.toContain('__exactUpdateResult');
 	});
 
 	it('infers a server continuation from an ordinary async component assignment', async () => {
@@ -339,7 +340,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).not.toContain('__exactStageTaskMutation');
 		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
 		expect(server).toMatch(/__exactComponent_\d+\.state\.settled = true/);
-		expect(server).not.toContain('__exactWrite');
+		expect(server).not.toContain('__exactWriteState');
 	});
 
 	it('keeps direct server-context dependencies out of client activation records', async () => {
@@ -365,7 +366,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(client).toContain(
 			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'
 		);
-		expect(client).toContain('__exactDerived(() => this.state.id)');
+		expect(client).toContain('__exactActivationDependency(() => this.state.id)');
 		expect(server).toMatch(
 			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
 		);
@@ -490,17 +491,18 @@ describe('@exactjs/compiler: artifacts', () => {
 		await writeFile(
 			path.join(components, 'workspace.tsx'),
 			`
-      import type { Component } from '@exactjs/core';
-      import { renderWorkspace } from './workspace-view.js';
-      export function Workspace(this: Component<{ count: number }>) {
-        this.state.count = 0;
-        return () => renderWorkspace(() => this.state.count++);
-      }
-    `
+			import type { Component } from '@exactjs/core';
+			import { renderWorkspace } from './workspace-view.js';
+			export function Workspace(this: Component<{ count: number; items: string[] }>) {
+				this.state.count = 0;
+				this.state.items = ['one', 'two'];
+				return () => renderWorkspace(this.state, () => this.state.count++);
+			}
+		`
 		);
 		await writeFile(
 			path.join(components, 'workspace-view.tsx'),
-			`export function renderWorkspace(click: () => void) { return <div>{(['one', 'two'] as const).map(value => <button onClick={click}>{value}</button>)}</div>; }`
+			`export function renderWorkspace(state: { items: string[] }, click: () => void) { const visible = state.items.filter(value => value.length !== 0); return <div>{visible.map(value => <button onClick={click}>{value}</button>)}</div>; }`
 		);
 
 		const results = await compileProjectArtifacts([path.join(srcDir, 'App.tsx')], {
@@ -536,7 +538,11 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(pageServer).not.toContain('./workspace.js');
 		expect(workspaceServer).toContain('./workspace-view.exact.server.js');
 		expect(workspaceClient).toContain('./workspace-view.exact.client.js');
-		expect(workspaceViewClient).toContain('__exactClaimProgramKeyedChild');
+		expect(workspaceClient).not.toMatch(/abi: (?:32|48),/);
+		expect(workspaceViewClient).toContain('const __exact_visible_1 = state.items.filter(');
+		expect(workspaceViewClient).not.toContain('const visible = state.items.filter(');
+		expect(workspaceViewClient).toContain('[7, 0, 0]');
+		expect(workspaceViewClient).not.toContain('__exactClaimProgramKeyedChild');
 		expect(workspaceViewClient).toContain('directClaims: true');
 		expect(workspaceViewClient).not.toContain(
 			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
@@ -545,7 +551,7 @@ describe('@exactjs/compiler: artifacts', () => {
 			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
 		);
 		expect(workspaceViewClient).not.toContain('() => __exactVNode("div"');
-		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
+		expect(workspaceViewClient).toContain('__exact_visible_1.map(');
 		expect(workspaceViewClient).not.toContain('this.map(');
 		expect(workspaceViewClient).not.toContain('Anonymous_ExactClient');
 		expect(artifactAnalysis(workspaceView).components).toEqual([]);

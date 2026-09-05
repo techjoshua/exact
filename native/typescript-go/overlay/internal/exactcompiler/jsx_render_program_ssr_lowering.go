@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"html"
 	"strconv"
 
 	"github.com/microsoft/typescript-go/internal/ast"
@@ -54,6 +55,8 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 			method = "prepareText"
 		} else if slot.kind == "child" {
 			method = "prepareChild"
+		} else if slot.kind == "component" && slot.serverComponent != nil {
+			method = "prepareComponentProps"
 		} else if slot.kind == "component" {
 			method = "prepareComponent"
 		}
@@ -89,8 +92,19 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		))
 	}
 	staticCharacters := 0
+	staticBytes := 0
 	for _, segment := range build.serverSegments {
 		staticCharacters += utf16Length(segment)
+		staticBytes += len(segment)
+	}
+	for _, slot := range build.slots {
+		if slot.kind != "text" {
+			continue
+		}
+		prefix := html.EscapeString(slot.textPrefix)
+		suffix := html.EscapeString(slot.textSuffix)
+		staticCharacters += utf16Length(prefix) + utf16Length(suffix)
+		staticBytes += len(prefix) + len(suffix)
 	}
 	call(
 		"begin",
@@ -98,6 +112,7 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 		numberLiteral(len(build.nodes)),
 		numberLiteral(len(build.slots)),
 		numberLiteral(staticCharacters),
+		numberLiteral(staticBytes),
 	)
 	statements = append(statements, lowering.factory.NewVariableStatement(
 		nil,
@@ -127,17 +142,31 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 			ast.NodeFlagsLet,
 		),
 	))
+	skipStaticPosition := -1
 	for position, slotIndex := range build.serverSlots {
-		if part := build.serverSegments[position]; part != "" {
+		slot := build.slots[slotIndex]
+		if part := build.serverSegments[position]; part != "" &&
+			position != skipStaticPosition && slot.kind != "root-attributes" {
 			call("static", output, stringLiteral(part))
 		}
-		slot := build.slots[slotIndex]
 		value := values[slotIndex]
 		switch slot.kind {
 		case "text":
 			arguments := []*ast.Node{context, output, value, stringLiteral(slot.id), characters}
-			if build.markerlessTextSlot(slotIndex) {
-				arguments = append(arguments, lowering.factory.NewTrueExpression())
+			markerless := build.markerlessTextSlot(slotIndex)
+			if markerless || slot.textPrefix != "" || slot.textSuffix != "" {
+				if markerless {
+					arguments = append(arguments, lowering.factory.NewTrueExpression())
+				} else {
+					arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
+				}
+			}
+			if slot.textPrefix != "" || slot.textSuffix != "" {
+				arguments = append(
+					arguments,
+					stringLiteral(html.EscapeString(slot.textPrefix)),
+					stringLiteral(html.EscapeString(slot.textSuffix)),
+				)
 			}
 			assignCall("text", arguments...)
 		case "child":
@@ -147,25 +176,68 @@ func (lowering *jsxLowering) directRenderProgramSsrWriter(build *renderProgramBu
 				assignCall("child", context, output, value, stringLiteral(slot.id), characters)
 			}
 		case "component":
+			method := "component"
 			arguments := []*ast.Node{context, output, value, stringLiteral(slot.id), characters}
-			if slot.markerlessTail {
+			if slot.serverComponent != nil {
+				method = "directComponent"
+				arguments = []*ast.Node{context, output, slot.serverComponent, value, stringLiteral(slot.id), characters}
+			}
+			if _, bounded := boundedComponentEndPath(build, slotIndex); slot.markerlessTail || bounded {
 				arguments = append(arguments, lowering.factory.NewTrueExpression())
 			}
-			assignCall("component", arguments...)
-		default:
+			assignCall(method, arguments...)
+		case "spread":
 			assignCall(
-				"attribute",
+				"attributes",
+				context,
+				output,
+				value,
+				stringLiteral(build.nodes[slot.node].tag),
+				characters,
+			)
+		case "root-attributes":
+			skipStaticPosition = position + 1
+			assignCall(
+				"rootOpening",
 				context,
 				output,
 				value,
 				stringLiteral(slot.name),
+				stringLiteral(build.serverSegments[position]),
+				stringLiteral(build.serverSegments[skipStaticPosition]),
+				characters,
+				lowering.factory.NewPropertyAccessExpression(
+					lowering.factory.NewPropertyAccessExpression(
+						invocation,
+						nil,
+						lowering.factory.NewIdentifier("program"),
+						ast.NodeFlagsNone,
+					),
+					nil,
+					lowering.factory.NewIdentifier("ssrRootStatic"),
+					ast.NodeFlagsNone,
+				),
+			)
+		default:
+			attribute := compiledSsrAttribute(build.nodes[slot.node].tag, slot.name)
+			assignCall(
+				"compiledAttribute",
+				context,
+				output,
+				value,
+				numberLiteral(attribute.kind),
+				stringLiteral(slot.name),
+				stringLiteral(attribute.attribute),
 				stringLiteral(build.nodes[slot.node].tag),
 				characters,
 			)
 		}
 	}
-	if last := build.serverSegments[len(build.serverSegments)-1]; last != "" {
-		call("static", output, stringLiteral(last))
+	if lastPosition := len(build.serverSegments) - 1; lastPosition != skipStaticPosition {
+		last := build.serverSegments[lastPosition]
+		if last != "" {
+			call("static", output, stringLiteral(last))
+		}
 	}
 	statements = append(statements, lowering.factory.NewReturnStatement(output))
 	parameters := lowering.factory.NewNodeList([]*ast.Node{

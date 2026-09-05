@@ -5,6 +5,10 @@ import type {
 	ExactComponentContinuationExecutorContract,
 	ExactComponentResumptionContract
 } from '../component-contracts.js';
+import {
+	hasConsistentStatelessServerExecution,
+	isExactServerExecutionMetadata
+} from './server-execution-validation.js';
 import { isExactComponentBoundaryContract } from './boundary-validation.js';
 import {
 	isExactContinuationDependency,
@@ -17,6 +21,8 @@ import {
 	isContractString,
 	isSafeContractStringList
 } from './metadata-validation.js';
+import { allCompiledComponentABI } from '../component/compiled-abi.js';
+import { isExactValueSerializationSchema } from '../component-abi/value-serialization.js';
 
 /** Validates all required metadata before a generated artifact gains runtime authority. */
 export function isExactComponentContract(
@@ -35,9 +41,9 @@ export function isExactComponentContract(
 			'boundaries',
 			'resumption',
 			'execution',
-			'definition'
+			'artifact'
 		]) &&
-		value.version === 2 &&
+		value.version === 3 &&
 		(value.placement === 'client' ||
 			value.placement === 'server' ||
 			value.placement === 'isomorphic' ||
@@ -61,93 +67,179 @@ export function isExactComponentContract(
 		(value.resumption === undefined ||
 			(isResumption(value.resumption) && value.resumption.componentId === componentId)) &&
 		(value.execution === undefined || isExecution(value.execution)) &&
-		(value.definition === undefined || isDefinition(value.definition))
+		isExecutableArtifact(value.artifact, componentId, value.role) &&
+		hasConsistentServerPublication(value)
 	);
 }
 
-function isDefinition(value: unknown): boolean {
+function hasConsistentServerPublication(value: Record<PropertyKey, unknown>): boolean {
+	if (!isContractRecord(value.artifact) || !isContractRecord(value.artifact.execution)) return true;
+	const resumable =
+		value.resumption !== undefined &&
+		Array.isArray(value.continuations) &&
+		value.continuations.length !== 0;
+	return (value.artifact.execution.publication !== undefined) === resumable;
+}
+
+function isExecutableArtifact(value: unknown, componentId: string, role: unknown): boolean {
+	if (!isContractRecord(value) || value.version !== 1 || value.id !== componentId) return false;
+	if (!hasCommonArtifactFields(value)) return false;
+	if (value.target === 'client') return role === 'client' && isClientArtifact(value);
+	if (value.target === 'server')
+		return (role === 'render' || role === 'executor') && isServerArtifact(value);
+	return false;
+}
+
+function hasCommonArtifactFields(value: Record<PropertyKey, unknown>): boolean {
 	return (
-		isContractRecord(value) &&
-		hasOnlyContractKeys(value, [
-			'version',
-			'instantiate',
-			'abi',
-			'updates',
-			'state',
-			'tasks',
-			'reactive',
-			'render',
-			'capabilities',
-			'server'
-		]) &&
-		value.version === 1 &&
 		typeof value.instantiate === 'function' &&
+		typeof value.construct === 'function' &&
 		typeof value.abi === 'number' &&
 		Number.isSafeInteger(value.abi) &&
 		value.abi >= 0 &&
-		value.abi <= 15 &&
-		(value.updates === undefined || isComponentUpdates(value.updates)) &&
-		(value.state === undefined || isSafeContractStringList(value.state)) &&
+		(value.abi & ~allCompiledComponentABI) === 0 &&
+		isSafeContractStringList(value.state) &&
+		isSafeContractStringList(value.props) &&
+		(value.opaqueProps === undefined || isSafeContractStringList(value.opaqueProps)) &&
+		(value.identityProps === undefined || isSafeContractStringList(value.identityProps)) &&
+		(value.serialization === undefined || isExactValueSerializationSchema(value.serialization)) &&
 		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&
 		(value.reactive === undefined ||
 			(Array.isArray(value.reactive) && value.reactive.every(isReactiveAllocation))) &&
 		(value.render === undefined || value.render === 'returned-function') &&
-		(value.server === undefined || isServerExecution(value.server)) &&
 		Array.isArray(value.capabilities) &&
-		value.capabilities.every((capability) =>
-			[
-				'tasks',
-				'continuations',
-				'resumption',
-				'inspection',
-				'registry',
-				'enhancements',
-				'interactions',
-				'compatibility',
-				'dynamic-components',
-				'collections'
-			].includes(capability)
-		)
+		value.capabilities.every(isCapability)
+	);
+}
+
+function isClientArtifact(value: Record<PropertyKey, unknown>): boolean {
+	return (
+		hasOnlyContractKeys(value, [
+			'version',
+			'target',
+			'id',
+			'template',
+			'construct',
+			'attach',
+			'receive',
+			'dispose',
+			'instantiate',
+			'abi',
+			'updates',
+			'state',
+			'props',
+			'serialization',
+			'opaqueProps',
+			'identityProps',
+			'tasks',
+			'reactive',
+			'render',
+			'capabilities'
+		]) &&
+		(value.template === undefined || isContractRecord(value.template)) &&
+		typeof value.attach === 'function' &&
+		typeof value.receive === 'function' &&
+		typeof value.dispose === 'function' &&
+		(value.updates === undefined || isComponentUpdates(value.updates))
+	);
+}
+
+function isServerArtifact(value: Record<PropertyKey, unknown>): boolean {
+	return (
+		hasOnlyContractKeys(value, [
+			'version',
+			'target',
+			'id',
+			'issue',
+			'write',
+			'dispose',
+			'execute',
+			'instantiate',
+			'construct',
+			'abi',
+			'state',
+			'props',
+			'serialization',
+			'opaqueProps',
+			'tasks',
+			'reactive',
+			'render',
+			'capabilities',
+			'execution',
+			'selection'
+		]) &&
+		typeof value.issue === 'function' &&
+		typeof value.write === 'function' &&
+		typeof value.dispose === 'function' &&
+		(value.execute === undefined || typeof value.execute === 'function') &&
+		(value.selection === undefined || isServerSelection(value.selection)) &&
+		isServerExecution(value.execution, value.selection !== undefined) &&
+		hasConsistentStatelessServerExecution(value)
+	);
+}
+
+/** Validates the finite registry resolver retained by a lazy server facade. */
+function isServerSelection(value: unknown): boolean {
+	return (
+		isContractRecord(value) &&
+		hasOnlyContractKeys(value, ['key', 'resolve']) &&
+		isContractString(value.key) &&
+		typeof value.resolve === 'function'
+	);
+}
+
+function isCapability(value: unknown): boolean {
+	return (
+		typeof value === 'string' &&
+		[
+			'tasks',
+			'continuations',
+			'resumption',
+			'inspection',
+			'registry',
+			'enhancements',
+			'interactions',
+			'compatibility',
+			'dynamic-components',
+			'collections',
+			'contexts',
+			'targets'
+		].includes(value)
 	);
 }
 
 /** Validates the closed server projection without accepting executable data from foreign input. */
-function isServerExecution(value: unknown): boolean {
-	if (!isContractRecord(value)) return false;
-	return (
-		hasOnlyContractKeys(value, [
-			'version',
-			'classification',
-			'lane',
-			'deferredTaskProps',
-			'render'
-		]) &&
-		value.version === 1 &&
-		(value.classification === 'synchronous' ||
-			value.classification === 'scheduled' ||
-			value.classification === 'dynamic') &&
-		(value.lane === 'direct' || value.lane === 'generic') &&
-		(value.deferredTaskProps === undefined || isSafeContractStringList(value.deferredTaskProps)) &&
-		(value.lane === 'direct'
-			? value.classification !== 'dynamic' && typeof value.render === 'function'
-			: value.render === undefined)
-	);
+function isServerExecution(value: unknown, selection = false): boolean {
+	return isExactServerExecutionMetadata(value, selection);
 }
 
 function isComponentUpdates(value: unknown): boolean {
+	if (
+		!isContractRecord(value) ||
+		!hasOnlyContractKeys(value, ['bindings', 'props', 'words', 'apply'])
+	)
+		return false;
+	const words = value.words === undefined ? 2 : value.words;
 	return (
-		isContractRecord(value) &&
-		hasOnlyContractKeys(value, ['bindings', 'apply']) &&
+		typeof words === 'number' &&
+		Number.isSafeInteger(words) &&
+		words >= 2 &&
+		(value.words === undefined || words >= 3) &&
 		Array.isArray(value.bindings) &&
+		(value.props === undefined ||
+			(typeof value.props === 'number' &&
+				Number.isSafeInteger(value.props) &&
+				value.props > 0 &&
+				value.props <= value.bindings.length)) &&
 		value.bindings.every(
 			(binding) =>
 				Array.isArray(binding) &&
-				binding.length === 3 &&
-				isContractString(binding[0]) &&
-				Number.isSafeInteger(binding[1]) &&
-				binding[1] >= 0 &&
-				Number.isSafeInteger(binding[2]) &&
-				binding[2] >= 0
+				binding.length === words + 1 &&
+				Number.isSafeInteger(binding[0]) &&
+				binding[0] >= 0 &&
+				binding
+					.slice(1)
+					.every((mask) => Number.isSafeInteger(mask) && mask >= 0 && mask <= 0xffff_ffff)
 		) &&
 		typeof value.apply === 'function'
 	);
@@ -221,6 +313,7 @@ function isResumption(value: unknown): value is ExactComponentResumptionContract
 			'componentId',
 			'statePaths',
 			'stateInputs',
+			'stateDefaults',
 			'valueCaptures',
 			'contexts',
 			'boundaries'
@@ -235,6 +328,18 @@ function isResumption(value: unknown): value is ExactComponentResumptionContract
 				isContractString(input[0]) &&
 				isContractString(input[1])
 		) &&
+		(value.stateDefaults === undefined ||
+			(Array.isArray(value.stateDefaults) &&
+				value.stateDefaults.every(
+					(input) =>
+						Array.isArray(input) &&
+						input.length === 2 &&
+						isContractString(input[0]) &&
+						(input[1] === null ||
+							typeof input[1] === 'string' ||
+							typeof input[1] === 'boolean' ||
+							(typeof input[1] === 'number' && Number.isFinite(input[1])))
+				))) &&
 		isSafeContractStringList(value.valueCaptures) &&
 		isSafeContractStringList(value.contexts) &&
 		isSafeContractStringList(value.boundaries)

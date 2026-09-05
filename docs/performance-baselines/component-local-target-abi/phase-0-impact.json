@@ -1,0 +1,57 @@
+{
+	"schemaVersion": 1,
+	"proposal": "component-local-target-abi",
+	"phase": 0,
+	"recordedAt": "2026-08-26T12:25:54.4919329-07:00",
+	"mechanisms": [
+		"Every target compilation emits complete zero-inclusive artifact-structure counters.",
+		"The compiler corpus aggregates deterministic structural evidence in a separate untimed pass.",
+		"Checkpoint validation and comparison run outside application execution."
+	],
+	"materiality": {
+		"timingNoiseRatio": 0.1,
+		"sizeBytes": 1,
+		"memoryBytes": 1048576
+	},
+	"areas": [
+		{
+			"name": "native compiler structural reporting",
+			"classification": "stable",
+			"metrics": ["compiler transform latency", "compiler emitted raw, gzip, and Brotli bytes"],
+			"structuralEvidence": [
+				"zero-inclusive client and server artifact counters",
+				"structure collection executes outside timed corpus samples"
+			],
+			"counterMetrics": ["compiled file count", "client and server target artifact count"]
+		},
+		{
+			"name": "checkpoint infrastructure",
+			"classification": "stable",
+			"metrics": ["application startup and interaction timing", "Node and Bun SSR timing"],
+			"structuralEvidence": [
+				"checkpoint modules are build-script-only",
+				"no checkpoint module is imported by a production package"
+			],
+			"counterMetrics": ["decoded and executed JavaScript", "retained heap", "SSR response hashes"]
+		},
+		{
+			"name": "framework runtime behavior",
+			"classification": "stable",
+			"metrics": [
+				"DOM ownership and lifecycle",
+				"hydration behavior",
+				"SSR response bytes and scheduling",
+				"React compatibility behavior"
+			],
+			"structuralEvidence": [
+				"Phase 0 adds observation only",
+				"native fallback counts are recorded without changing dispatch"
+			],
+			"counterMetrics": [
+				"browser correctness assertions",
+				"Node and Bun response hashes",
+				"mount and unmount ownership counts"
+			]
+		}
+	]
+}

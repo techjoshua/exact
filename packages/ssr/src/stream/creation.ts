@@ -118,8 +118,9 @@ export function createDocumentEventStream(
 ): ReadableStream<Uint8Array> {
 	const encoder = new TextEncoder();
 	const ownerController = new AbortController();
-	const unlink = forwardAbort(options.signal, ownerController);
+	let unlink: () => void = () => undefined;
 	let closed = false;
+	let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
 	let resume: (() => void) | undefined;
 	let demand = 0;
 	const maxEvents = positiveLimit(options.maxEvents, 100_000);
@@ -131,12 +132,32 @@ export function createDocumentEventStream(
 		resume = undefined;
 		ready?.();
 	};
-	ownerController.signal.addEventListener('abort', wake, { once: true });
+	const abortStream = () => {
+		wake();
+		if (closed) return;
+		closed = true;
+		const reason =
+			ownerController.signal.reason ?? new DOMException('SSR stream aborted', 'AbortError');
+		try {
+			cleanup();
+		} catch (cleanupError) {
+			attachSuppressedCleanupFailure(reason, cleanupError);
+		}
+		streamController?.error(reason);
+	};
 	const cleanup = () =>
-		cleanupAll(() => ownerController.signal.removeEventListener('abort', wake), unlink);
+		cleanupAll(() => ownerController.signal.removeEventListener('abort', abortStream), unlink);
+	ownerController.signal.addEventListener('abort', abortStream, { once: true });
+	unlink = forwardAbort(options.signal, ownerController);
+	if (ownerController.signal.aborted) abortStream();
 	return new ReadableStream<Uint8Array>(
 		{
 			start(controller) {
+				streamController = controller;
+				if (ownerController.signal.aborted) {
+					controller.error(ownerController.signal.reason);
+					return;
+				}
 				const emit = async (event: ExactDocumentStreamEvent): Promise<void> => {
 					const chunk = encoder.encode(`${JSON.stringify(event)}\n`);
 					if (++events > maxEvents) throw new Error('SSR stream event limit exceeded');

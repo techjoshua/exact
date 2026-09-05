@@ -230,7 +230,7 @@ function createViteFixture() {
 				'.': { types: './capability.d.ts', default: './dist/index.js' }
 			},
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(
@@ -238,7 +238,7 @@ function createViteFixture() {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 1
+			exactComponentLibraryProtocol: 2
 		})
 	);
 	writeFileSync(
@@ -254,7 +254,7 @@ function createViteFixture() {
 		"export { Card } from './dist/index.js'; export { default } from './dist/index.js' with { type: 'exact-enhancement' };\n"
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 1,
+		protocol: 2,
 		package: { name: '@acme/cards', version: '1.0.0' },
 		modules: [
 			{
@@ -278,6 +278,7 @@ function createViteFixture() {
 				subpath: '.',
 				condition: 'default',
 				module: 'dist/index.js',
+				componentModule: 'dist/index.js',
 				exportName: 'Card',
 				componentId: '@acme/cards:Card'
 			},
@@ -285,6 +286,7 @@ function createViteFixture() {
 				subpath: '.',
 				condition: 'default',
 				module: 'dist/index.js',
+				componentModule: 'dist/index.js',
 				exportName: 'default',
 				componentId: '@acme/cards:Card'
 			}

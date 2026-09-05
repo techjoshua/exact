@@ -1,4 +1,4 @@
-import type { ComponentInstance } from '../component/contracts.js';
+import type { ComponentLocalizationOwner } from '../component/localization-capability.js';
 import { LocalizationContext } from './context.js';
 import type { IntlFacade, LocalizationContextValue } from './contracts.js';
 import { cachedDurationFormatter, cachedIntlFormatter } from './formatter-pool.js';
@@ -9,15 +9,15 @@ type LocalizationResolver = () => LocalizationContextValue | undefined;
 export const intl: IntlFacade = /* @__PURE__ */ createIntlFacade(() => undefined);
 
 /** Creates a stable facade whose implicit source policy resolves through the nearest provider. */
-export function createComponentIntlFacade(instance: ComponentInstance<object>): IntlFacade {
-	return createIntlFacade(() => componentLocalization(instance));
+export function createComponentIntlFacade(owner: ComponentLocalizationOwner): IntlFacade {
+	return createIntlFacade(() => componentLocalization(owner));
 }
 
 function componentLocalization(
-	instance: ComponentInstance<object>
+	owner: ComponentLocalizationOwner
 ): LocalizationContextValue | undefined {
-	if (!instance.hasContext(LocalizationContext)) return undefined;
-	return instance.getContext(LocalizationContext);
+	if (!owner.hasContext(LocalizationContext)) return undefined;
+	return owner.getContext(LocalizationContext);
 }
 
 function createIntlFacade(resolveLocalization: LocalizationResolver): IntlFacade {

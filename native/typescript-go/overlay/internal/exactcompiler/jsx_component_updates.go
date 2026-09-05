@@ -14,36 +14,36 @@ type componentUpdateOperation struct {
 }
 
 type componentUpdateBuild struct {
-	component  Component
-	name       string
-	bindings   map[string]renderProgramDirtyMask
-	targets    int
-	operations []componentUpdateOperation
+	component    Component
+	name         string
+	bindings     map[string][]uint32
+	dependencies map[string]componentUpdateDependency
+	binders      []*ast.Node
+	targets      int
+	operations   []componentUpdateOperation
 }
 
 // registerComponentUpdates assigns component-wide target and dirty-bit identities to one region.
 func (lowering *jsxLowering) registerComponentUpdates(
 	identityNode *ast.Node,
 	updates []renderProgramDirectUpdate,
-) (int, string, bool) {
+) (int, string, *componentUpdateBuild, bool) {
 	if len(updates) == 0 {
-		return 0, "", false
+		return 0, "", nil, false
 	}
 	component, exists := lowering.componentContaining(identityNode)
 	if !exists {
-		return 0, "", false
+		return 0, "", nil, false
 	}
 	build := lowering.componentUpdates[component.Name]
 	if build == nil {
 		build = &componentUpdateBuild{
-			component: component,
-			name:      lowering.materializedName("component_updates", component.Start),
-			bindings:  make(map[string]renderProgramDirtyMask),
+			component:    component,
+			name:         lowering.materializedName("component_updates", component.Start),
+			bindings:     make(map[string][]uint32),
+			dependencies: make(map[string]componentUpdateDependency),
 		}
 		lowering.componentUpdates[component.Name] = build
-	}
-	if len(build.operations)+len(updates) > 64 {
-		return 0, "", false
 	}
 	target := build.targets
 	build.targets++
@@ -54,17 +54,19 @@ func (lowering *jsxLowering) registerComponentUpdates(
 			bit:    bit,
 			update: update,
 		})
-		for _, key := range update.keys {
-			mask := build.bindings[key]
-			if bit < 32 {
-				mask.low |= uint32(1) << bit
-			} else {
-				mask.high |= uint32(1) << (bit - 32)
+		for _, dependency := range update.dependencies {
+			key := dependency.source + "\x00" + strconv.Itoa(dependency.slot)
+			word := bit / 32
+			masks := build.bindings[key]
+			for len(masks) <= word {
+				masks = append(masks, 0)
 			}
-			build.bindings[key] = mask
+			masks[word] |= uint32(1) << (bit % 32)
+			build.bindings[key] = masks
+			build.dependencies[key] = dependency
 		}
 	}
-	return target, build.name, true
+	return target, build.name, build, true
 }
 
 // componentContaining returns the narrowest durable component span that owns a JSX region.
@@ -128,29 +130,80 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	bindings := make([]*ast.Node, 0, len(keys))
-	for _, key := range keys {
-		mask := build.bindings[key]
-		bindings = append(bindings, array([]*ast.Node{
-			lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask.low), 10), ast.TokenFlagsNone),
-			lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask.high), 10), ast.TokenFlagsNone),
-		}))
+	wordCount := (len(build.operations) + 31) / 32
+	if wordCount < 2 {
+		wordCount = 2
 	}
-	return lowering.factory.NewObjectLiteralExpression(
-		lowering.factory.NewNodeList([]*ast.Node{
-			lowering.property(
-				lowering.factory.NewIdentifier("bindings"),
-				lowering.factory.NewAsExpression(
-					array(bindings),
-					lowering.factory.NewTypeReferenceNode(
-						lowering.factory.NewIdentifier("const"),
-						nil,
-					),
+	stateOnly := true
+	for _, dependency := range build.dependencies {
+		if dependency.source != "state" {
+			stateOnly = false
+			break
+		}
+	}
+	binderName := lowering.names.bindComponentUpdate
+	if stateOnly {
+		binderName = lowering.names.bindStateComponentUpdate
+	}
+	if wordCount > 2 {
+		binderName = lowering.names.bindWideComponentUpdate
+		if stateOnly {
+			binderName = lowering.names.bindWideStateUpdate
+		}
+	}
+	for _, binder := range build.binders {
+		binder.AsIdentifier().Text = binderName
+	}
+	bindings := make([]*ast.Node, 0, len(keys))
+	propBindings := 0
+	for _, key := range keys {
+		masks := build.bindings[key]
+		dependency := build.dependencies[key]
+		if dependency.source == "props" {
+			propBindings++
+		}
+		values := make([]*ast.Node, 1, wordCount+1)
+		values[0] = lowering.factory.NewNumericLiteral(strconv.Itoa(dependency.slot), ast.TokenFlagsNone)
+		for word := 0; word < wordCount; word++ {
+			var mask uint32
+			if word < len(masks) {
+				mask = masks[word]
+			}
+			values = append(values,
+				lowering.factory.NewNumericLiteral(strconv.FormatUint(uint64(mask), 10), ast.TokenFlagsNone),
+			)
+		}
+		bindings = append(bindings, array(values))
+	}
+	properties := []*ast.Node{
+		lowering.property(
+			lowering.factory.NewIdentifier("bindings"),
+			lowering.factory.NewAsExpression(
+				array(bindings),
+				lowering.factory.NewTypeReferenceNode(
+					lowering.factory.NewIdentifier("const"),
+					nil,
 				),
 			),
-			lowering.property(lowering.factory.NewIdentifier("apply"), lowering.componentUpdateApply(build)),
-		}),
+		),
+	}
+	if propBindings != 0 {
+		properties = append(properties, lowering.property(
+			lowering.factory.NewIdentifier("props"),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(propBindings), ast.TokenFlagsNone),
+		))
+	}
+	if wordCount > 2 {
+		properties = append(properties, lowering.property(
+			lowering.factory.NewIdentifier("words"),
+			lowering.factory.NewNumericLiteral(strconv.Itoa(wordCount), ast.TokenFlagsNone),
+		))
+	}
+	properties = append(properties,
+		lowering.property(lowering.factory.NewIdentifier("apply"), lowering.componentUpdateApply(build)),
+	)
+	return lowering.factory.NewObjectLiteralExpression(
+		lowering.factory.NewNodeList(properties),
 		false,
 	)
 }
@@ -160,6 +213,7 @@ func (lowering *jsxLowering) componentUpdateApply(build *componentUpdateBuild) *
 	targets := lowering.factory.NewIdentifier("__exactTargets")
 	dirtyLow := lowering.factory.NewIdentifier("__exactDirtyLow")
 	dirtyHigh := lowering.factory.NewIdentifier("__exactDirtyHigh")
+	dirtyWords := lowering.factory.NewIdentifier("__exactDirtyWords")
 	statements := make([]*ast.Node, 0, build.targets)
 	for targetIndex := 0; targetIndex < build.targets; targetIndex++ {
 		target := lowering.factory.NewIdentifier("__exactTarget" + strconv.Itoa(targetIndex))
@@ -187,7 +241,7 @@ func (lowering *jsxLowering) componentUpdateApply(build *componentUpdateBuild) *
 				continue
 			}
 			operations = append(operations,
-				lowering.directUpdateStatement(target, dirtyLow, dirtyHigh, operation.bit, operation.update),
+				lowering.directUpdateStatement(target, dirtyLow, dirtyHigh, dirtyWords, operation.bit, operation.update),
 			)
 		}
 		body = append(body, lowering.factory.NewIfStatement(
@@ -224,6 +278,19 @@ func (lowering *jsxLowering) componentUpdateApply(build *componentUpdateBuild) *
 			lowering.factory.NewKeywordTypeNode(ast.KindNumberKeyword),
 			nil,
 		),
+	}
+	if len(build.operations) > 64 {
+		declarations = append(declarations, lowering.factory.NewParameterDeclaration(
+			nil,
+			nil,
+			dirtyWords,
+			nil,
+			lowering.factory.NewTypeReferenceNode(
+				lowering.factory.NewIdentifier("Uint32Array"),
+				nil,
+			),
+			nil,
+		))
 	}
 	return lowering.factory.NewArrowFunction(
 		nil, nil, lowering.factory.NewNodeList(declarations), nil, nil,

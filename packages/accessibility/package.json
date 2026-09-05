@@ -28,11 +28,28 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": [
-		"Accessibility"
-	],
+	"exactCompiledComponents": {
+		".": [
+			"Accessibility"
+		],
+		"./enhancements": [
+			"activeDescendant",
+			"controls",
+			"describedBy",
+			"details",
+			"errorMessage",
+			"flowTo",
+			"focusScope",
+			"initialFocus",
+			"labelledBy",
+			"navigate",
+			"owns",
+			"returnFocus",
+			"default"
+		]
+	},
 	"exactComponentLibrary": {
-		"protocol": 1,
+		"protocol": 2,
 		"build": "./dist/exact-component-build.json"
 	},
 	"exact": {
@@ -72,7 +89,7 @@
 	"scripts": {
 		"generate:aria": "node scripts/generate-aria-data.mjs",
 		"check:aria": "node scripts/generate-aria-data.mjs --check",
-		"build": "npm run check:aria && tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "npm run check:aria && tsc -b && node ../../scripts/compile-exact-package.mjs .",
 		"test": "npm run check:aria && vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

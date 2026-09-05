@@ -11,7 +11,6 @@ import type {
 } from '../types.js';
 import { type ContextCell } from './hook-slots.js';
 
-export { toExactNode } from './nodes.js';
 export { assignReactRef } from './refs.js';
 
 /** Provides the canonical react element 18 value. */
@@ -65,6 +64,35 @@ export type ReactTransitionOwnership = {
 	retain(): () => void;
 	finish(): void;
 };
+
+const rendererTransitions = new WeakMap<
+	object,
+	Readonly<{ transition?: ReactTransitionOwnership; finish(): void }>
+>();
+
+/** Publishes transition ownership until the renderer commits the component's output. */
+export function recordReactRendererTransition(
+	instance: object,
+	transition: ReactTransitionOwnership | undefined,
+	finish: () => void
+): void {
+	rendererTransitions.set(instance, { transition, finish });
+}
+
+/** Reads transition ownership captured by the component update being reconciled. */
+export function readReactRendererTransition(
+	instance: object
+): ReactTransitionOwnership | undefined {
+	return rendererTransitions.get(instance)?.transition;
+}
+
+/** Releases a component update's transition hold after renderer commit. */
+export function finishReactRendererTransition(instance: object): void {
+	const pending = rendererTransitions.get(instance);
+	if (!pending) return;
+	rendererTransitions.delete(instance);
+	pending.finish();
+}
 
 /** Allocates an identifier shared by contexts and hook hosts. */
 export function nextReactCompatibilityId(): number {

@@ -10,167 +10,289 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+			"browser": "./dist/client/index.js",
+			"default": "./dist/server/index.js"
 		},
 		"./tasks": {
 			"types": "./dist/tasks/v1.d.ts",
-			"default": "./dist/tasks/v1.js"
+			"browser": "./dist/client/tasks/v1.js",
+			"default": "./dist/server/tasks/v1.js"
 		},
 		"./tasks/v1": {
 			"types": "./dist/tasks/v1.d.ts",
-			"default": "./dist/tasks/v1.js"
+			"browser": "./dist/client/tasks/v1.js",
+			"default": "./dist/server/tasks/v1.js"
 		},
 		"./framework/task-frames": {
 			"types": "./dist/framework/task-frames.d.ts",
-			"default": "./dist/framework/task-frames.js"
+			"browser": "./dist/client/framework/task-frames.js",
+			"default": "./dist/server/framework/task-frames.js"
 		},
 		"./framework/component-domains": {
 			"types": "./dist/framework/component-domains.d.ts",
-			"default": "./dist/framework/component-domains.js"
+			"browser": "./dist/client/framework/component-domains.js",
+			"default": "./dist/server/framework/component-domains.js"
 		},
 		"./framework/component-roots": {
 			"types": "./dist/framework/component-roots.d.ts",
-			"default": "./dist/framework/component-roots.js"
+			"browser": "./dist/client/framework/component-roots.js",
+			"default": "./dist/server/framework/component-roots.js"
 		},
 		"./framework/publication": {
 			"types": "./dist/framework/publication.d.ts",
-			"default": "./dist/framework/publication.js"
+			"browser": "./dist/client/framework/publication.js",
+			"default": "./dist/server/framework/publication.js"
 		},
 		"./framework/enhancement-catalog": {
 			"types": "./dist/framework/enhancement-catalog.d.ts",
-			"default": "./dist/framework/enhancement-catalog.js"
+			"browser": "./dist/client/framework/enhancement-catalog.js",
+			"default": "./dist/server/framework/enhancement-catalog.js"
 		},
 		"./framework/async-values": {
 			"types": "./dist/framework/async-values.d.ts",
-			"default": "./dist/framework/async-values.js"
+			"browser": "./dist/client/framework/async-values.js",
+			"default": "./dist/server/framework/async-values.js"
 		},
 		"./framework/component-contract-validation": {
 			"types": "./dist/framework/component-contract-validation.d.ts",
-			"default": "./dist/framework/component-contract-validation.js"
+			"browser": "./dist/client/framework/component-contract-validation.js",
+			"default": "./dist/server/framework/component-contract-validation.js"
 		},
 		"./framework/component-contracts": {
 			"types": "./dist/framework/component-contracts.d.ts",
-			"default": "./dist/framework/component-contracts.js"
+			"browser": "./dist/client/framework/component-contracts.js",
+			"default": "./dist/server/framework/component-contracts.js"
+		},
+		"./testing": {
+			"types": "./dist/testing.d.ts",
+			"browser": "./dist/client/testing.js",
+			"default": "./dist/server/testing.js"
 		},
 		"./framework/component-execution": {
 			"types": "./dist/framework/component-execution.d.ts",
-			"default": "./dist/framework/component-execution.js"
+			"browser": "./dist/client/framework/component-execution.js",
+			"default": "./dist/server/framework/component-execution.js"
 		},
 		"./framework/server-component-execution": {
 			"types": "./dist/framework/server-component-execution.d.ts",
-			"default": "./dist/framework/server-component-execution.js"
+			"browser": "./dist/client/framework/server-component-execution.js",
+			"default": "./dist/server/framework/server-component-execution.js"
 		},
 		"./framework/render-structure": {
 			"types": "./dist/framework/render-structure.d.ts",
-			"default": "./dist/framework/render-structure.js"
+			"browser": "./dist/client/framework/render-structure.js",
+			"default": "./dist/server/framework/render-structure.js"
 		},
 		"./framework/server-render-structure": {
 			"types": "./dist/framework/server-render-structure.d.ts",
-			"default": "./dist/framework/server-render-structure.js"
+			"browser": "./dist/client/framework/server-render-structure.js",
+			"default": "./dist/server/framework/server-render-structure.js"
 		},
 		"./framework/server-task-helpers": {
 			"types": "./dist/framework/server-task-helpers.d.ts",
-			"default": "./dist/framework/server-task-helpers.js"
+			"browser": "./dist/client/framework/server-task-helpers.js",
+			"default": "./dist/server/framework/server-task-helpers.js"
 		},
 		"./framework/component-lifecycle": {
 			"types": "./dist/framework/component-lifecycle.d.ts",
-			"default": "./dist/framework/component-lifecycle.js"
+			"browser": "./dist/client/framework/component-lifecycle.js",
+			"default": "./dist/server/framework/component-lifecycle.js"
+		},
+		"./framework/server-component-contexts": {
+			"types": "./dist/framework/server-component-contexts.d.ts",
+			"browser": "./dist/client/framework/server-component-contexts.js",
+			"default": "./dist/server/framework/server-component-contexts.js"
 		},
 		"./framework/protocol-records": {
 			"types": "./dist/framework/protocol-records.d.ts",
-			"default": "./dist/framework/protocol-records.js"
+			"browser": "./dist/client/framework/protocol-records.js",
+			"default": "./dist/server/framework/protocol-records.js"
 		},
 		"./framework/target-contributions": {
 			"types": "./dist/framework/target-contributions.d.ts",
-			"default": "./dist/framework/target-contributions.js"
+			"browser": "./dist/client/framework/target-contributions.js",
+			"default": "./dist/server/framework/target-contributions.js"
+		},
+		"./framework/compatibility-contributions": {
+			"types": "./dist/framework/compatibility-contributions.d.ts",
+			"browser": "./dist/client/framework/compatibility-contributions.js",
+			"default": "./dist/server/framework/compatibility-contributions.js"
 		},
 		"./framework/error-view": {
 			"types": "./dist/framework/error-view.d.ts",
-			"default": "./dist/framework/error-view.js"
+			"browser": "./dist/client/framework/error-view.js",
+			"default": "./dist/server/framework/error-view.js"
+		},
+		"./framework/error-format": {
+			"types": "./dist/framework/error-format.d.ts",
+			"browser": "./dist/client/framework/error-format.js",
+			"default": "./dist/server/framework/error-format.js"
 		},
 		"./framework/operation-protocol": {
 			"types": "./dist/framework/operation-protocol.d.ts",
-			"default": "./dist/framework/operation-protocol.js"
+			"browser": "./dist/client/framework/operation-protocol.js",
+			"default": "./dist/server/framework/operation-protocol.js"
 		},
 		"./framework/inspection-transport": {
 			"types": "./dist/framework/inspection-transport.d.ts",
-			"default": "./dist/framework/inspection-transport.js"
+			"browser": "./dist/client/framework/inspection-transport.js",
+			"default": "./dist/server/framework/inspection-transport.js"
 		},
 		"./runtime/render": {
 			"types": "./dist/runtime/render.d.ts",
-			"default": "./dist/runtime/render.js"
+			"browser": "./dist/client/runtime/render.js",
+			"default": "./dist/server/runtime/render.js"
+		},
+		"./runtime/render-operations": {
+			"types": "./dist/runtime/render-operations.d.ts",
+			"browser": "./dist/client/runtime/render-operations.js",
+			"default": "./dist/server/runtime/render-operations.js"
+		},
+		"./runtime/component-construction/render": {
+			"types": "./dist/runtime/component-construction/render.d.ts",
+			"browser": "./dist/client/runtime/component-construction/render.js",
+			"default": "./dist/server/runtime/component-construction/render.js"
+		},
+		"./runtime/component-construction/task": {
+			"types": "./dist/runtime/component-construction/task.d.ts",
+			"browser": "./dist/client/runtime/component-construction/task.js",
+			"default": "./dist/server/runtime/component-construction/task.js"
+		},
+		"./runtime/component-construction/durable": {
+			"types": "./dist/runtime/component-construction/durable.d.ts",
+			"browser": "./dist/client/runtime/component-construction/durable.js",
+			"default": "./dist/server/runtime/component-construction/durable.js"
+		},
+		"./runtime/component-construction/direct-server": {
+			"types": "./dist/runtime/component-construction/direct-server.d.ts",
+			"browser": "./dist/client/runtime/component-construction/direct-server.js",
+			"default": "./dist/server/runtime/component-construction/direct-server.js"
+		},
+		"./runtime/component-abi": {
+			"types": "./dist/runtime/component-abi.d.ts",
+			"browser": "./dist/client/runtime/component-abi.js",
+			"default": "./dist/server/runtime/component-abi.js"
+		},
+		"./runtime/component-operations": {
+			"types": "./dist/runtime/component-operations.d.ts",
+			"browser": "./dist/client/runtime/component-operations.js",
+			"default": "./dist/server/runtime/component-operations.js"
+		},
+		"./runtime/compatibility-component-abi": {
+			"types": "./dist/runtime/compatibility-component-abi.d.ts",
+			"browser": "./dist/client/runtime/compatibility-component-abi.js",
+			"default": "./dist/server/runtime/compatibility-component-abi.js"
 		},
 		"./runtime/reactivity": {
 			"types": "./dist/runtime/reactivity.d.ts",
-			"default": "./dist/runtime/reactivity.js"
+			"browser": "./dist/client/runtime/reactivity.js",
+			"default": "./dist/server/runtime/reactivity.js"
 		},
 		"./runtime/component-reactivity": {
 			"types": "./dist/runtime/component-reactivity.d.ts",
-			"default": "./dist/runtime/component-reactivity.js"
+			"browser": "./dist/client/runtime/component-reactivity.js",
+			"default": "./dist/server/runtime/component-reactivity.js"
 		},
 		"./runtime/lifecycle": {
 			"types": "./dist/runtime/lifecycle.d.ts",
-			"default": "./dist/runtime/lifecycle.js"
+			"browser": "./dist/client/runtime/lifecycle.js",
+			"default": "./dist/server/runtime/lifecycle.js"
 		},
 		"./runtime/tasks": {
 			"types": "./dist/runtime/tasks.d.ts",
-			"default": "./dist/runtime/tasks.js"
+			"browser": "./dist/client/runtime/tasks.js",
+			"default": "./dist/server/runtime/tasks.js"
 		},
 		"./runtime/component-tasks": {
 			"types": "./dist/runtime/component-tasks.d.ts",
-			"default": "./dist/runtime/component-tasks.js"
+			"browser": "./dist/client/runtime/component-tasks.js",
+			"default": "./dist/server/runtime/component-tasks.js"
 		},
 		"./runtime/component-execution": {
 			"types": "./dist/runtime/component-execution.d.ts",
-			"default": "./dist/runtime/component-execution.js"
+			"browser": "./dist/client/runtime/component-execution.js",
+			"default": "./dist/server/runtime/component-execution.js"
 		},
 		"./runtime/inspection": {
 			"types": "./dist/runtime/inspection.d.ts",
-			"default": "./dist/runtime/inspection.js"
+			"browser": "./dist/client/runtime/inspection.js",
+			"default": "./dist/server/runtime/inspection.js"
 		},
 		"./runtime/registry": {
 			"types": "./dist/runtime/registry.d.ts",
-			"default": "./dist/runtime/registry.js"
+			"browser": "./dist/client/runtime/registry.js",
+			"default": "./dist/server/runtime/registry.js"
 		},
 		"./runtime/enhancements": {
 			"types": "./dist/runtime/enhancements.d.ts",
-			"default": "./dist/runtime/enhancements.js"
+			"browser": "./dist/client/runtime/enhancements.js",
+			"default": "./dist/server/runtime/enhancements.js"
 		},
 		"./runtime/dynamic-components": {
 			"types": "./dist/runtime/dynamic-components.d.ts",
-			"default": "./dist/runtime/dynamic-components.js"
+			"browser": "./dist/client/runtime/dynamic-components.js",
+			"default": "./dist/server/runtime/dynamic-components.js"
 		},
 		"./runtime/logging": {
 			"types": "./dist/runtime/logging.d.ts",
-			"default": "./dist/runtime/logging.js"
+			"browser": "./dist/client/runtime/logging.js",
+			"default": "./dist/server/runtime/logging.js"
 		},
 		"./runtime/collections": {
 			"types": "./dist/runtime/collections.d.ts",
-			"default": "./dist/runtime/collections.js"
+			"browser": "./dist/client/runtime/collections.js",
+			"default": "./dist/server/runtime/collections.js"
 		},
 		"./runtime/contexts": {
 			"types": "./dist/runtime/contexts.d.ts",
-			"default": "./dist/runtime/contexts.js"
+			"browser": "./dist/client/runtime/contexts.js",
+			"default": "./dist/server/runtime/contexts.js"
 		},
 		"./runtime/localization": {
 			"types": "./dist/runtime/localization.d.ts",
-			"default": "./dist/runtime/localization.js"
+			"browser": "./dist/client/runtime/localization.js",
+			"default": "./dist/server/runtime/localization.js"
 		},
 		"./runtime/lists": {
 			"types": "./dist/runtime/lists.d.ts",
-			"default": "./dist/runtime/lists.js"
+			"browser": "./dist/client/runtime/lists.js",
+			"default": "./dist/server/runtime/lists.js"
 		},
 		"./runtime/refs": {
 			"types": "./dist/runtime/refs.d.ts",
-			"default": "./dist/runtime/refs.js"
+			"browser": "./dist/client/runtime/refs.js",
+			"default": "./dist/server/runtime/refs.js"
 		},
 		"./localization": {
 			"types": "./dist/localization.d.ts",
-			"default": "./dist/localization.js"
+			"browser": "./dist/client/localization.js",
+			"default": "./dist/server/localization.js"
 		}
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"sideEffects": [
+		"./dist/**/component/*-capability-integration.js",
+		"./dist/**/component/runtime-surface-*.js",
+		"./dist/**/framework/server-task-helpers.js",
+		"./dist/**/runtime/collections.js",
+		"./dist/**/runtime/component-execution.js",
+		"./dist/**/runtime/component-reactivity.js",
+		"./dist/**/runtime/component-tasks.js",
+		"./dist/**/runtime/contexts.js",
+		"./dist/**/runtime/lifecycle.js",
+		"./dist/**/runtime/lists.js",
+		"./dist/**/runtime/localization.js",
+		"./dist/**/runtime/logging.js",
+		"./dist/**/runtime/refs.js",
+		"./dist/**/runtime/tasks.js"
+	],
+	"exactCompileModules": [
+		"src/component/error-boundary.tsx"
+	],
+	"exactCompiledComponents": [
+		"ErrorBoundary"
+	],
 	"dependencies": {
 		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/reactive": "^0.1.0"

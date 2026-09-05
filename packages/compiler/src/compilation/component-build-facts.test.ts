@@ -82,4 +82,25 @@ describe('@exactjs/compiler: component build facts', () => {
 		expect(ordinary.componentBuild).not.toHaveProperty('packageName');
 		expect(JSON.stringify(packaged.componentBuild)).not.toMatch(/trust|authoriz|marker/i);
 	});
+
+	it('projects lazy registry imports for target-local bundler selection', () => {
+		const result = transformSource(
+			`
+				const View = createComponentRegistry(({ lazy }) => ({
+					card: lazy(() => import('./Card.js').then(({ Card }) => Card))
+				}));
+				export const root = <View.card />;
+			`,
+			{ filename: '/app/Page.tsx' }
+		);
+
+		expect(result.componentBuild.componentImports).toEqual([
+			expect.objectContaining({
+				moduleSpecifier: './Card.js',
+				exportName: 'Card',
+				artifactTargets: ['client', 'server'],
+				reason: 'registry'
+			})
+		]);
+	});
 });

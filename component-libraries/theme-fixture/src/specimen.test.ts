@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 import '@exactjs/dom/framework/enhancements';
-import { type AnyComponentFunction, createVNode } from '@exactjs/core';
-import { render } from '@exactjs/dom';
+import { type AnyComponentFunction } from '@exactjs/core';
+import { renderTestTree as render } from '@exactjs/dom/testing';
 import { flushSync } from '@exactjs/reactive';
 import {
 	action,
 	field,
-	scope,
 	selection,
 	separator,
 	status,
@@ -14,7 +13,7 @@ import {
 	text
 } from '@exactjs/theme/enhancements';
 import { describe, expect, it } from 'vitest';
-import { ThemeSpecimen } from './specimen.js';
+import { themeSpecimenRoot } from './specimen.fixtures.js';
 
 describe('independent theme component-library fixture', () => {
 	it('renders every semantic role and a derived accessible chart without fixture CSS', () => {
@@ -26,15 +25,7 @@ describe('independent theme component-library fixture', () => {
 			])
 		);
 		const container = document.createElement('div');
-		render(
-			createVNode(
-				scope,
-				{ scope: true, tonic: 'teal', appearance: 'light', depth: 'elevated' },
-				createVNode(ThemeSpecimen, { label: 'Fixture' })
-			),
-			container,
-			{ enhancementCatalog: catalog }
-		);
+		render(themeSpecimenRoot, container, { enhancementCatalog: catalog });
 		for (const role of Object.keys(entries))
 			expect(container.querySelector(`[data-exact-theme-role="${role}"]`)).not.toBeNull();
 		expect(container.querySelector('section')?.dataset.exactThemeRole).toBe('surface');

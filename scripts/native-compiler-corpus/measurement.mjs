@@ -100,6 +100,30 @@ export function nativeBaselineComparison(baseline, current) {
 	};
 }
 
+/** Classifies local timing evidence without turning workstation variance into a build failure. */
+export function nativeCorpusTimingReview(guardRatio, maxBaselineRatio) {
+	if (!Number.isFinite(guardRatio) || !Number.isFinite(maxBaselineRatio))
+		return {
+			status: 'unavailable',
+			publishable: false,
+			reason: 'native compiler timing has no comparable tracked baseline'
+		};
+	if (guardRatio <= maxBaselineRatio)
+		return {
+			status: 'within-baseline',
+			publishable: true,
+			guardRatio,
+			maxBaselineRatio
+		};
+	return {
+		status: 'warning',
+		publishable: false,
+		guardRatio,
+		maxBaselineRatio,
+		reason: `native compiler corpus timing ratio ${guardRatio.toFixed(2)} exceeded ${maxBaselineRatio.toFixed(2)}`
+	};
+}
+
 /** Returns the middle elapsed-time observation without averaging warm and noisy runs. */
 export function medianNativeCorpusResult(results) {
 	if (results.length === 0) throw new Error('native corpus measurement requires a sample');
@@ -159,12 +183,14 @@ export async function writeNativeCompilerCorpusBaseline(root, record) {
 				outputBytes: record.outputBytes,
 				phaseMicroseconds: record.phaseMicroseconds,
 				counters: record.counters,
+				structure: record.structure,
 				projects: record.projects.map((project) => ({
 					config: project.config,
 					fileCount: project.fileCount,
 					elapsedMs: project.elapsedMs,
 					phaseMicroseconds: project.phaseMicroseconds,
 					counters: project.counters,
+					structure: project.structure,
 					incrementalElapsedMs: project.incrementalElapsedMs,
 					incrementalPhaseMicroseconds: project.incrementalPhaseMicroseconds,
 					incrementalCounters: project.incrementalCounters

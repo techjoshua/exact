@@ -3,35 +3,23 @@
  */
 import { type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
-import { jsx } from './test-support/native-vnode.js';
+import { jsx } from './test-support/native-operations.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { percent, px, rem, render } from './index.js';
+import { percent, px, rem } from './index.js';
+import { renderTestTree as render } from './testing.js';
+import {
+	StyleButton,
+	StylePanel,
+	styleButtonInstance,
+	stylePanelInstance
+} from './dom-behavior.fixtures.js';
 
 describe('@exactjs/dom styles', () => {
 	it('updates className, boolean properties, and style props', () => {
-		let instance!: Component<{ disabled: boolean; tone: string; compact: boolean }>;
-
-		function Button(this: Component<{ disabled: boolean; tone: string; compact: boolean }>) {
-			instance = this;
-			this.state.disabled = true;
-			this.state.tone = 'red';
-			this.state.compact = false;
-
-			return () =>
-				jsx('button', {
-					className: this.state.compact == true ? 'compact' : 'spacious',
-					disabled: this.state.disabled,
-					style: {
-						color: this.state.tone,
-						backgroundColor: this.state.compact == true ? 'black' : undefined
-					},
-					children: 'Save'
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Button, {}), container);
+		render(jsx(StyleButton, {}), container);
+		const instance = styleButtonInstance();
 		const button = container.querySelector('button')!;
 
 		expect(button.className).toBe('spacious');
@@ -53,21 +41,9 @@ describe('@exactjs/dom styles', () => {
 	});
 
 	it('normalizes className strings, arrays, and truthy maps', () => {
-		let instance!: Component<{ active: boolean; hidden: boolean }>;
-
-		function Panel(this: Component<{ active: boolean; hidden: boolean }>) {
-			instance = this;
-			this.state.active = true;
-			this.state.hidden = false;
-
-			return () =>
-				jsx('section', {
-					className: ['panel', { active: this.state.active, hidden: this.state.hidden }]
-				});
-		}
-
 		const container = document.createElement('div');
-		render(jsx(Panel, {}), container);
+		render(jsx(StylePanel, {}), container);
+		const instance = stylePanelInstance();
 		const section = container.querySelector('section')!;
 
 		expect(section.className).toBe('panel active');

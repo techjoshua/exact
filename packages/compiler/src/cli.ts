@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { compileProjectArtifacts } from './compilation/compiler.js';
-import { compileProject } from './compilation/file-compilation.js';
+import { checkProject, compileProject } from './compilation/file-compilation.js';
 import { createCompilerSession } from './expression/session.js';
 import { resolveNativeCompilerExecutable } from './native/executable.js';
 import type { TransformTarget } from './types.js';
@@ -33,14 +33,12 @@ async function main(argv: string[]): Promise<void> {
 	try {
 		if (options.check) {
 			const configFile = checkConfigFile(options.project);
-			await compileProject(options.inputs, {
+			await checkProject(options.inputs, {
 				rootDir: options.rootDir,
 				root: configFile ? path.dirname(configFile) : process.cwd(),
 				configFile,
 				target: options.target,
 				serverComponents: options.serverComponents,
-				generatedValidation: 'semantic',
-				includeAllModules: true,
 				session
 			});
 			return;
@@ -142,7 +140,7 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printUsage(): void {
 	console.log(
-		'Usage: exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target default|client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
+		'Usage: exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
 	);
 }
 
@@ -153,7 +151,7 @@ function checkConfigFile(configFile: string | undefined): string | undefined {
 }
 
 function parseTarget(value: string | undefined): TransformTarget {
-	if (value === 'default' || value === 'client' || value === 'server') return value;
+	if (value === 'client' || value === 'server') return value;
 	throw new Error(`Invalid --target ${value ?? ''}`);
 }
 

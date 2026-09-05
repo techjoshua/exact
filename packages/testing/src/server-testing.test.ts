@@ -6,7 +6,7 @@ import { readExactHydrationConfig } from '@exactjs/hydrate';
 import { describe, expect, it } from 'vitest';
 
 import { ExactProtocolRecorder, mountClientServerTest, testServerComponent } from './index.js';
-import { createTestVNode as createVNode, markTestComponent } from './internal/fixtures.js';
+import { createTestOperation as createOperation, markTestComponent } from './internal/fixtures.js';
 
 describe('server component testing', () => {
 	it('captures settled state and inherited, provided, application, and request contexts', async () => {
@@ -20,7 +20,7 @@ describe('server component testing', () => {
 			this.state.summary = `${this.getContext(ApplicationName)}:${this.getContext(
 				RequestName
 			)}:${this.getContext(Theme)}`;
-			return () => createVNode('span', null, this.state.summary);
+			return () => createOperation('span', null, this.state.summary);
 		}
 		function Page(this: Component<{ ready: boolean }>, props: { label: string }) {
 			this.state.ready = false;
@@ -33,7 +33,12 @@ describe('server component testing', () => {
 				})
 			);
 			return () =>
-				createVNode('main', null, props.label, this.state.ready ? createVNode(Child, {}) : null);
+				createOperation(
+					'main',
+					null,
+					props.label,
+					this.state.ready ? createOperation(Child, {}) : null
+				);
 		}
 
 		const view = await testServerComponent(markTestComponent(Page))
@@ -57,7 +62,7 @@ describe('server component testing', () => {
 		const ClientTheme = createContext<string>('test.client-theme');
 		function ServerPage() {
 			return () =>
-				createVNode('div', {
+				createOperation('div', {
 					'data-exact-client-boundary': 'island-opaque',
 					'data-exact-client-name': 'ClientIsland',
 					'data-exact-client-props': JSON.stringify({ props: {} })
@@ -65,11 +70,11 @@ describe('server component testing', () => {
 		}
 		function ClientChild(this: Component<{}>) {
 			const theme = this.getContext(ClientTheme);
-			return () => createVNode('button', { 'data-theme': theme }, 'Save');
+			return () => createOperation('button', { 'data-theme': theme }, 'Save');
 		}
 		function ClientIsland(this: Component<{}>) {
 			this.setContext(ClientTheme, 'ocean');
-			return () => createVNode(ClientChild, {});
+			return () => createOperation(ClientChild, {});
 		}
 		markTestComponent(ClientIsland);
 		const server = await testServerComponent(markTestComponent(ServerPage)).render({
@@ -146,7 +151,7 @@ describe('server component testing', () => {
 
 	it('exposes the exact public SSR resumption activations emitted to hydration', async () => {
 		function Page() {
-			return () => createVNode('main', null, 'Ready');
+			return () => createOperation('main', null, 'Ready');
 		}
 		const activation = {
 			componentId: 'component:Page',

@@ -40,8 +40,8 @@
 	},
 	"scripts": {
 		"build": "tsc6 -b",
-		"test": "npm run typecheck:test && bun test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
-		"test:bun": "npm run typecheck:test && bun test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
+		"test": "npm run typecheck:test && bun --conditions=browser test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
+		"test:bun": "npm run typecheck:test && bun --conditions=browser test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
 		"typecheck:test": "tsc6 -p tsconfig.test.json"
 	},
 	"publishConfig": {

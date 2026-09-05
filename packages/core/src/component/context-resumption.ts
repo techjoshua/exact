@@ -3,11 +3,13 @@ import type {
 	AnyComponentInstance,
 	AnyContextToken,
 	ComponentContinuationContextBinding,
-	ComponentResumptionActivation
+	ComponentResumptionSource
 } from './contracts.js';
 
+type IndexedContextField = readonly [field: string, value: unknown];
+
 const bindingsByInstance = new WeakMap<AnyComponentInstance, Map<string, AnyContextToken>>();
-const resumptionsByInstance = new WeakMap<AnyComponentInstance, ComponentResumptionActivation>();
+const resumptionsByInstance = new WeakMap<AnyComponentInstance, ComponentResumptionSource>();
 const appliedByInstance = new WeakMap<AnyComponentInstance, Set<string>>();
 
 /**
@@ -16,7 +18,7 @@ const appliedByInstance = new WeakMap<AnyComponentInstance, Set<string>>();
  */
 export function prepareComponentContextResumption(
 	instance: AnyComponentInstance,
-	resumption: ComponentResumptionActivation
+	resumption: ComponentResumptionSource
 ): void {
 	resumptionsByInstance.set(instance, resumption);
 }
@@ -41,6 +43,11 @@ export function registerComponentContinuationContexts(
 		appliedByInstance.set(instance, applied);
 	}
 	const resumption = resumptionsByInstance.get(instance);
+	const resumedContexts = resumption
+		? 'componentId' in resumption
+			? resumption.contexts
+			: (resumption[2] ?? [])
+		: undefined;
 	for (const binding of bindings) {
 		if (!safeContextName(binding.name) || typeof binding.token?.id !== 'symbol') {
 			throw new Error('Malformed eXact continuation context binding');
@@ -50,12 +57,22 @@ export function registerComponentContinuationContexts(
 			throw new Error(`Conflicting eXact continuation context binding ${binding.name}`);
 		}
 		registered.set(binding.name, binding.token);
-		if (
-			resumption &&
-			!applied.has(binding.name) &&
-			Object.prototype.hasOwnProperty.call(resumption.contexts, binding.name)
-		) {
-			instance.setContext(binding.token, resumption.contexts[binding.name]);
+		if (!resumedContexts || applied.has(binding.name)) continue;
+		let found = false;
+		let resumed: unknown;
+		if (Array.isArray(resumedContexts)) {
+			for (const [field, value] of resumedContexts as unknown as readonly IndexedContextField[])
+				if (field === binding.name) {
+					found = true;
+					resumed = value;
+					break;
+				}
+		} else if (Object.prototype.hasOwnProperty.call(resumedContexts, binding.name)) {
+			found = true;
+			resumed = (resumedContexts as Readonly<Record<string, unknown>>)[binding.name];
+		}
+		if (found) {
+			instance.setContext(binding.token, resumed);
 			applied.add(binding.name);
 		}
 	}

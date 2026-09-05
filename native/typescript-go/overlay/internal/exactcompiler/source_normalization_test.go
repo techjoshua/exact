@@ -119,6 +119,28 @@ func TestNormalizeAuthoredSourceCanonicalizesDirectComponentsButNotMicroComponen
 	}
 }
 
+func TestNormalizeAuthoredSourcePreservesBoundSetupHelperRenderReturn(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "input.tsx"),
+		`
+			interface Component {}
+			function control(this: Component, type: string) {
+				return () => <input type={type} />;
+			}
+			export function Input(this: Component) {
+				return control.call(this, "text");
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(normalized.text, `return control.call(this, "text");`) ||
+		strings.Contains(normalized.text, `return () => (control.call(this, "text"));`) {
+		t.Fatalf("setup helper render return gained an extra callable layer:\n%s", normalized.text)
+	}
+}
+
 func TestNormalizeAuthoredSourceOwnsAsyncComponentContinuation(t *testing.T) {
 	normalized, err := normalizeAuthoredSource(
 		normalizationTestFile(t, "customer.tsx"),

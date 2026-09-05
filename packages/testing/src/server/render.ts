@@ -1,13 +1,13 @@
 import {
-	createVNode,
 	type AnyComponentFunction,
 	type AnyComponentInstance,
 	type AnyContextToken,
 	type ComponentFunction,
 	type ComponentResumptionActivation,
 	type ContextToken,
-	type VNode
+	type Child
 } from '@exactjs/core';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { snapshot, unwrap } from '@exactjs/reactive';
 import {
 	createExactContextRuntime,
@@ -20,7 +20,6 @@ import {
 	type HydrationScriptOptions,
 	type RenderToStringOptions
 } from '@exactjs/ssr';
-import '@exactjs/ssr/runtime/generic-components';
 
 import type { PropsOf, StateOf } from '../contracts.js';
 
@@ -242,7 +241,10 @@ export class ServerTestComponentBuilder<C extends AnyComponentFunction> {
 		options: ServerTestRenderOptions = {}
 	): Promise<ServerTestView<StateOf<C>, PropsOf<C>>> {
 		return renderServerTest(
-			createVNode(this.component, this.componentProps as Record<string, unknown>),
+			createCompiledComponentReceipt(
+				this.component,
+				this.componentProps as Record<string, unknown>
+			),
 			options,
 			{
 				componentContexts: this.componentContexts,
@@ -270,9 +272,9 @@ type ServerContextSetup = {
 	requestOverrides?: readonly (readonly [AnyContextToken, unknown])[];
 };
 
-/** Renders an arbitrary server vnode while preserving inspectable component snapshots. */
+/** Renders an arbitrary compiler-issued server operation while preserving inspectable snapshots. */
 export async function renderServerTest(
-	vnode: VNode,
+	operation: Child,
 	options: ServerTestRenderOptions = {},
 	setup: ServerContextSetup = {}
 ): Promise<ServerTestView> {
@@ -319,13 +321,13 @@ export async function renderServerTest(
 	} = options;
 	try {
 		const result = hydration
-			? await renderToHydratableStringAsync(vnode, {
+			? await renderToHydratableStringAsync(operation, {
 					...renderOptions,
 					...hydration,
 					contexts,
 					onComponentRendered: capture
 				})
-			: await renderToStringAsync(vnode, {
+			: await renderToStringAsync(operation, {
 					...renderOptions,
 					contexts,
 					onComponentRendered: capture

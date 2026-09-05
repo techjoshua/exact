@@ -1,31 +1,41 @@
-import type { AnyComponentInstance, VNode } from '@exactjs/core';
-import type { Mounted } from '../../types.js';
+import type { AnyComponentInstance, Child } from '@exactjs/core';
+import type { Mounted, Root } from '../../types.js';
+
+/** One scoped replacement transaction that can reclaim foreign-domain descendants. */
+export type ReplacementParking = NonNullable<Root['replacementParking']>;
+
+/** Parks every descendant outside the replaced component's immutable domain. */
+export function createForeignReplacementParking(
+	owner: Mounted,
+	fallbackParent: Node
+): ReplacementParking {
+	const parking: ReplacementParking = {
+		mounts: new Map(),
+		commits: []
+	};
+	if (owner.instance)
+		parkForeignMounts(owner, owner.instance.domain, parking.mounts, fallbackParent);
+	return parking;
+}
 
 /** Detaches descendants from foreign component domains so a replacement can reclaim them. */
 export function parkForeignMounts(
 	owner: Mounted,
 	replacedDomain: AnyComponentInstance['domain'],
-	parking: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>,
-	ownerSnapshots: Map<Mounted, Mounted[]>,
+	parking: Map<Child, Array<{ mounted: Mounted; parent: Node }>>,
 	fallbackParent: Node
 ): void {
-	ownerSnapshots.set(owner, owner.children);
 	const retained: Mounted[] = [];
 	for (const child of owner.children) {
-		const domain = child.instance?.domain ?? child.vnode.domain;
-		if (domain && domain !== replacedDomain) {
-			const candidates = parking.get(child.vnode) ?? [];
+		const domain = child.instance?.domain ?? child.componentReceipt?.domain;
+		const operation = child.operation ?? (child.componentReceipt as unknown as Child | undefined);
+		if (operation && domain && domain !== replacedDomain) {
+			const candidates = parking.get(operation) ?? [];
 			candidates.push({ mounted: child, parent: child.dom.parentNode ?? fallbackParent });
-			parking.set(child.vnode, candidates);
+			parking.set(operation, candidates);
 			continue;
 		}
-		parkForeignMounts(
-			child,
-			replacedDomain,
-			parking,
-			ownerSnapshots,
-			child.portalTarget ?? fallbackParent
-		);
+		parkForeignMounts(child, replacedDomain, parking, child.portalTarget ?? fallbackParent);
 		retained.push(child);
 	}
 	owner.children = retained;

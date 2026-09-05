@@ -28,8 +28,12 @@ and serializable.
 
 For a component root whose request data arrives through props, set `publishRootProps: true` and
 read those props with `readPublishedRootProps()` from `@exactjs/hydrate/root` before constructing
-the client root. Compiler-proven state initialized directly from those props is then published only
-once; derived or subsequently changed state remains in its component resumption record.
+the client root, passing the compiled root component as the first argument. Finite nested prop
+shapes may use a component-bound positional payload; structurally open or mismatched values retain
+the named-object format. Compiler-proven state initialized directly from those props is then
+published only once; derived or subsequently changed state remains in its component resumption
+record. Positional publication reads each compiler-declared field once with ordinary JavaScript
+property semantics, so serializable input getters must be deterministic and free of side effects.
 
 Generated server entries pass their bundle-local enhancement catalog through render
 options. Available declarations run as ordinary server components; absent optional capabilities

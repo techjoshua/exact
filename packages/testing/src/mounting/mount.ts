@@ -1,13 +1,11 @@
 import {
-	createVNode,
 	withTaskObserver,
 	type AnyComponentFunction,
 	type AnyComponentInstance,
 	type Child,
 	type Component,
 	type ContextToken,
-	type TaskObserver,
-	type VNode
+	type TaskObserver
 } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { inspectDomRoot } from '@exactjs/dom/testing';
@@ -16,6 +14,7 @@ import { flushSync } from '@exactjs/reactive';
 import type { ContextEntry, PropsOf, StateOf, TestConfiguration } from '../contracts.js';
 import { attachCleanupError } from '../control/settling.js';
 import { TestView, type AnyTestView } from './views.js';
+import { createTestComponentReceipt } from '../internal/fixtures.js';
 
 /** Defines the task tracker class contract. */
 export class TaskTracker implements TaskObserver {
@@ -90,10 +89,10 @@ export type MountTestOptions = TestConfiguration & {
 
 /** Performs the mount test domain operation. */
 export async function mountTest(
-	vnode: VNode,
+	operation: Child,
 	options: MountTestOptions = {}
 ): Promise<AnyTestView> {
-	return mountVNode(vnode, options);
+	return mountOperation(operation, options);
 }
 
 type InternalMountOptions = Omit<MountTestOptions, 'contexts'> & { contexts?: ContextEntry[] };
@@ -103,8 +102,8 @@ async function mountComponent<C extends AnyComponentFunction>(
 	props: PropsOf<C>,
 	options: InternalMountOptions
 ): Promise<TestView<StateOf<C>, PropsOf<C>>> {
-	const vnode = createVNode(component, props as Record<string, unknown>);
-	const view = await mountVNode(vnode, options, component);
+	const operation = createTestComponentReceipt(component, props as Record<string, unknown>);
+	const view = await mountOperation(operation, options, component);
 	return view as TestView<StateOf<C>, PropsOf<C>>;
 }
 
@@ -112,8 +111,8 @@ type MountVNodeOptions = Omit<MountTestOptions, 'contexts'> & {
 	contexts?: MountTestOptions['contexts'] | ContextEntry[];
 };
 
-async function mountVNode(
-	vnode: VNode,
+async function mountOperation(
+	operation: Child,
 	options: MountVNodeOptions,
 	targetType?: AnyComponentFunction
 ): Promise<AnyTestView> {
@@ -123,7 +122,7 @@ async function mountVNode(
 	const attached = !options.container && options.attachToDocument !== false;
 	if (attached) document.body.appendChild(container);
 	const entries = normalizeContexts(options.contexts);
-	const rendered = createVNode(TestMountHost, { entries }, vnode);
+	const rendered = createTestComponentReceipt(TestMountHost, { entries }, operation);
 	const tracker = new TaskTracker();
 	try {
 		if (options.enhancementCatalog) await import('@exactjs/dom/framework/enhancements');

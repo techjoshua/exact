@@ -34,18 +34,37 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": [
-		"IntlProvider",
-		"IntlLocale",
-		"IntlMessage",
-		"IntlPlural",
-		"IntlSelect",
-		"IntlCurrency",
-		"IntlUnit",
-		"IntlAttributes"
-	],
+	"exactCompiledComponents": {
+		".": [
+			"IntlProvider",
+			"IntlLocale",
+			"IntlMessage",
+			"IntlPlural",
+			"IntlSelect",
+			"IntlCurrency",
+			"IntlUnit",
+			"IntlAttributes"
+		],
+		"./enhancements": [
+			"alt",
+			"ariaDescription",
+			"ariaLabel",
+			"ariaRoledescription",
+			"ariaValuetext",
+			"cldr",
+			"currency",
+			"default",
+			"locale",
+			"message",
+			"placeholder",
+			"plural",
+			"select",
+			"title",
+			"unit"
+		]
+	},
 	"exactComponentLibrary": {
-		"protocol": 1,
+		"protocol": 2,
 		"build": "./dist/exact-component-build.json"
 	},
 	"exact": {
@@ -92,7 +111,7 @@
 	"scripts": {
 		"generate:cldr": "node scripts/generate-cldr-unit-data.mjs",
 		"check:cldr": "node scripts/generate-cldr-unit-data.mjs --check",
-		"build": "npm run check:cldr && tsc -b && node ../../scripts/compile-exact-package.mjs . && node ../../scripts/generate-component-library-build-facts.mjs .",
+		"build": "npm run check:cldr && tsc -b && node ../../scripts/compile-exact-package.mjs .",
 		"test": "npm run check:cldr && vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

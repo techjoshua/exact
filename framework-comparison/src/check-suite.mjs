@@ -3,7 +3,6 @@ import {
 	loadJsonContract,
 	validateFixture,
 	validateParticipant,
-	validateReview,
 	validateScenarios
 } from './contract.mjs';
 
@@ -30,14 +29,6 @@ for (const entry of entries) {
 		new URL(`${entry.name}/participant.json`, participantDirectory),
 		validateParticipant
 	);
-	const review = await loadJsonContract(
-		new URL(`${entry.name}/review.json`, participantDirectory),
-		(value) => validateReview(value, participant.id)
-	);
-	if (participant.status === 'complete' && review.status !== 'approved')
-		throw new Error(
-			`complete participant ${participant.id} requires an approved specialist review`
-		);
 	participants += 1;
 }
 

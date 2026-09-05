@@ -1,49 +1,45 @@
 import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
-import { generalComponentABI } from '../component/compiled-abi.js';
+import { compiledComponentRenderABI } from '../component/compiled-abi.js';
+import { createCompiledDynamicComponent } from '../dynamic-component/runtime.js';
 import {
 	exactComponentContract,
 	exactComponentType,
+	readPreparedExactClientExecutableComponentContract,
+	readPreparedExactServerExecutableComponentContract,
+	type ExactComponentExecutableArtifact,
 	type ExactComponentContract
 } from '../component-contracts.js';
-import { createVNode } from '../vnode.js';
+import { constructRenderComponentInstance } from '../component/render-instance-construction.js';
+import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
+import {
+	attachExactCompiledClientComponent,
+	disposeExactClientComponent,
+	receiveExactDynamicClientComponentProps
+} from '../component-abi/compiled-runtime.js';
+import {
+	disposeExactServerComponent,
+	issueExactServerComponent,
+	writeExactServerComponent
+} from '../component-abi/server-runtime.js';
 import type {
-	AnyComponentRegistry,
 	ComponentRegistry,
 	ComponentRegistryBuilder,
 	ComponentRegistryDefinition,
 	ComponentRegistryEntryRuntime,
-	ComponentRegistryInspection,
 	ComponentRegistryRuntime,
-	ComponentSelection,
 	LazyRegistryEntry,
 	RegistryFacadeInstance
 } from './contracts.js';
-import {
-	assertSafeRegistryKey,
-	invalidRegistryEntry,
-	unsafeComponentRegistryKeys
-} from './errors.js';
-import { loadRegistryEntry, registerRegistryFacade, registryEntryFor } from './loading.js';
+import { assertSafeRegistryKey, invalidRegistryEntry } from './errors.js';
+import { loadRegistryEntry, registerRegistryFacade } from './loading.js';
+import { componentRegistryValues } from './storage.js';
 
 const lazyDescriptor = Symbol('exact.lazy-registry-entry');
-const registryValues = new WeakMap<object, ComponentRegistryRuntime>();
 
 type RuntimeLazyEntry = {
 	readonly [lazyDescriptor]: true;
 	readonly load: () => Promise<AnyAuthoredComponentFunction>;
 };
-
-/**
- * Creates an immutable finite component registry from one declarative definition callback.
- *
- * The callback executes once. Its scoped `lazy()` function becomes invalid immediately after the
- * callback returns, and the returned definition is copied into a frozen null-prototype record.
- */
-export function createComponentRegistry<const Definition extends ComponentRegistryDefinition>(
-	define: (builder: ComponentRegistryBuilder) => Definition
-): ComponentRegistry<Definition> {
-	return createRegistry(undefined, undefined, define);
-}
 
 /**
  * Creates a registry with compiler-derived identity.
@@ -67,10 +63,10 @@ export function createCompiledComponentRegistry<
 }
 
 function createRegistry<const Definition extends ComponentRegistryDefinition>(
-	id: string | undefined,
-	name: string | undefined,
+	id: string,
+	name: string,
 	define: (builder: ComponentRegistryBuilder) => Definition,
-	target?: 'client' | 'server'
+	target: 'client' | 'server'
 ): ComponentRegistry<Definition> {
 	if (typeof define !== 'function')
 		throw new TypeError('createComponentRegistry() requires a definition callback');
@@ -116,22 +112,29 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			this: RegistryFacadeInstance,
 			props: Record<string, unknown>
 		) {
-			return () => {
+			const renderSelection = () => {
 				const component = entry.resolved ?? entry.eager;
 				if (!component) throw loadRegistryEntry(entry);
 				// Registry keys are selection identity even when two entries
 				// intentionally resolve to the same underlying component.
-				return createVNode(component, {
+				return createCompiledComponentReceipt(component, {
 					...props,
 					key: `exact-registry:${entry.key}`
 				});
 			};
+			if (target !== 'client') return renderSelection;
+			const selection = createCompiledDynamicComponent({
+				id: `${id}:${key}`,
+				source: () => entry.resolved ?? entry.eager ?? loadRegistryEntry(entry),
+				props,
+				finiteRegistry: true
+			});
+			return () => selection;
 		} as AnyComponentFunction;
 		Object.defineProperty(facade, 'name', {
 			configurable: true,
-			value: `${name ?? 'ComponentRegistry'}.${key}${id ? `#${id}` : ''}`
+			value: `${name}.${key}#${id}`
 		});
-		if (id && target) attachRegistryFacadeArtifact(facade, id, key, target);
 		const entry: ComponentRegistryEntryRuntime = {
 			registry: runtime,
 			key,
@@ -141,6 +144,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 			loadGeneration: 0
 		};
 		if (entry.eager) entry.resolved = entry.eager;
+		attachRegistryFacadeArtifact(facade, entry, target);
 		entries.set(key, entry);
 		registerRegistryFacade(entry);
 		Object.defineProperty(value, key, {
@@ -149,21 +153,73 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 		});
 	}
 	Object.freeze(value);
-	registryValues.set(value, runtime);
+	componentRegistryValues.set(value, runtime);
 	return value as ComponentRegistry<Definition>;
 }
 
-/** Attaches the complete compiler-selected runtime contract for one finite registry key. */
+/** Attaches the target-local render and loader lane selected for one finite registry key. */
 function attachRegistryFacadeArtifact(
 	facade: AnyComponentFunction,
-	registryId: string,
-	key: string,
+	entry: ComponentRegistryEntryRuntime,
 	target: 'client' | 'server'
 ): void {
-	const identity = `${registryId}:${key}`;
+	const identity = `${entry.registry.id}:${entry.key}`;
 	const implementationId = `${identity}:implementation`;
+	let artifact: ExactComponentExecutableArtifact;
+	if (entry.eager) {
+		const selected =
+			target === 'client'
+				? readPreparedExactClientExecutableComponentContract(entry.eager).artifact
+				: readPreparedExactServerExecutableComponentContract(entry.eager).artifact;
+		artifact = Object.freeze({
+			...selected,
+			id: identity,
+			capabilities: Object.freeze([...selected.capabilities, 'registry'] as const)
+		}) as ExactComponentExecutableArtifact;
+	} else if (target === 'client') {
+		artifact = Object.freeze({
+			version: 1,
+			target,
+			id: identity,
+			instantiate: facade,
+			construct: constructRenderComponentInstance,
+			abi: compiledComponentRenderABI,
+			state: Object.freeze([]),
+			props: Object.freeze([]),
+			tasks: Object.freeze([]),
+			reactive: Object.freeze([]),
+			render: 'returned-function',
+			capabilities: Object.freeze(['registry', 'dynamic-components'] as const),
+			attach: attachExactCompiledClientComponent,
+			receive: receiveExactDynamicClientComponentProps,
+			dispose: disposeExactClientComponent
+		});
+	} else {
+		artifact = Object.freeze({
+			version: 1,
+			target,
+			id: identity,
+			instantiate: facade,
+			construct: constructRenderComponentInstance,
+			abi: compiledComponentRenderABI,
+			state: Object.freeze([]),
+			props: Object.freeze([]),
+			tasks: Object.freeze([]),
+			reactive: Object.freeze([]),
+			render: 'returned-function',
+			capabilities: Object.freeze(['registry', 'dynamic-components'] as const),
+			issue: issueExactServerComponent,
+			write: writeExactServerComponent,
+			dispose: disposeExactServerComponent,
+			execution: Object.freeze({ version: 1, classification: 'synchronous', lane: 'direct' }),
+			selection: Object.freeze({
+				key: entry.key,
+				resolve: () => entry.resolved ?? entry.eager ?? loadRegistryEntry(entry)
+			})
+		});
+	}
 	const contract: ExactComponentContract = Object.freeze({
-		version: 2,
+		version: 3,
 		placement: target,
 		role: target === 'client' ? 'client' : 'executor',
 		implementations: Object.freeze([
@@ -178,87 +234,12 @@ function attachRegistryFacadeArtifact(
 		executors: Object.freeze([]),
 		boundaries: Object.freeze([]),
 		execution: Object.freeze({ version: 1, ports: [], transitions: [], reactive: [] }),
-		definition: Object.freeze({
-			version: 1,
-			instantiate: facade,
-			abi: generalComponentABI,
-			state: Object.freeze([]),
-			tasks: Object.freeze([]),
-			reactive: Object.freeze([]),
-			render: 'returned-function',
-			capabilities: Object.freeze(['registry', 'dynamic-components'] as const)
-		})
+		artifact
 	});
 	Object.defineProperties(facade, {
 		[exactComponentType]: { configurable: false, enumerable: false, value: identity },
 		[exactComponentContract]: { configurable: false, enumerable: false, value: contract }
 	});
-}
-
-/** Returns a frozen diagnostic snapshot without exposing loaders or component functions. */
-export function inspectComponentRegistry(
-	registry: AnyComponentRegistry
-): ComponentRegistryInspection {
-	const runtime = registryValues.get(registry as object);
-	if (!runtime) throw new TypeError('inspectComponentRegistry() requires a component registry');
-	return Object.freeze({
-		...(runtime.id ? { id: runtime.id } : {}),
-		...(runtime.name ? { name: runtime.name } : {}),
-		entries: Object.freeze(
-			[...runtime.entries.values()].map((entry) =>
-				Object.freeze({
-					key: entry.key,
-					mode: entry.load ? ('lazy' as const) : ('eager' as const),
-					status: entry.resolved
-						? ('ready' as const)
-						: entry.pending
-							? ('loading' as const)
-							: entry.error
-								? ('failed' as const)
-								: ('idle' as const),
-					generation: entry.loadGeneration
-				})
-			)
-		)
-	});
-}
-
-/** Narrows an untrusted string to the finite keys owned by a branded registry. */
-export function hasComponent<Registry extends AnyComponentRegistry>(
-	registry: Registry,
-	value: string
-): value is Extract<keyof Registry, string> {
-	return (
-		registryValues.has(registry as object) &&
-		!unsafeComponentRegistryKeys.has(value) &&
-		Object.prototype.hasOwnProperty.call(registry, value)
-	);
-}
-
-/**
- * Preloads a lazy registry facade without constructing a component instance.
- *
- * Eager components and ordinary component functions resolve immediately.
- */
-export async function preloadComponent(component: AnyAuthoredComponentFunction): Promise<void> {
-	if (typeof component !== 'function')
-		throw new TypeError('preloadComponent() requires a component');
-	const entry = registryEntryFor(component as AnyComponentFunction);
-	if (!entry) return;
-	await loadRegistryEntry(entry);
-}
-
-/** Renders one correlated heterogeneous registry selection as an ordinary component vnode. */
-export function renderComponent<Registry extends AnyComponentRegistry>(
-	registry: Registry,
-	selection: ComponentSelection<Registry>
-) {
-	if (!registryValues.has(registry as object))
-		throw new TypeError('renderComponent() requires a component registry');
-	const selected = selection as { component: string; props: Record<string, unknown> };
-	if (!hasComponent(registry, selected.component))
-		throw invalidRegistryEntry(selected.component, 'key is not present in this registry');
-	return createVNode(registry[selected.component] as AnyComponentFunction, selected.props);
 }
 
 function isRuntimeLazyEntry(value: unknown): value is RuntimeLazyEntry {

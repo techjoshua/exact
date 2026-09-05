@@ -44,6 +44,10 @@ func TestDynamicComponentHelperLowersOnlyClientCapability(t *testing.T) {
 		strings.Contains(server.Code, "createCompiledDynamicComponent") {
 		t.Fatalf("server dynamic helper did not lower to its inert projection:\n%s", server.Code)
 	}
+	if !strings.Contains(server.Code, `classification: "synchronous"`) ||
+		strings.Contains(server.Code, `classification: "dynamic"`) {
+		t.Fatalf("inert direct server projection did not retain synchronous execution:\n%s", server.Code)
+	}
 }
 
 func TestDynamicComponentAnnotationAcknowledgesOpaqueBinding(t *testing.T) {

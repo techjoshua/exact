@@ -3,8 +3,12 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [
-		exactVitest({ compiler: { include: /src[\\/]components\.ts$/, reactCompatibility: false } })
+		exactVitest({
+			compiler: {
+				include: /src[\\/](?:components\.ts|.*\.fixtures\.tsx)$/,
+				reactCompatibility: false
+			}
+		})
 	],
-	resolve: { conditions: ['browser'] },
-	test: { environment: 'node' }
+	resolve: { conditions: ['browser'] }
 });

@@ -1,30 +1,18 @@
 /**
  * @vitest-environment jsdom
  */
-import { createComponentDomain, withComponentDomain, type Component } from '@exactjs/core';
-import { createVNode } from './test-support/native-vnode.js';
+import { createComponentDomain } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { describe, expect, it, vi } from 'vitest';
 import { applyPatches } from './patches.js';
+import { confinedLabelsRoot, foreignShellRoot } from './test-support/root-confinement.fixtures.js';
 
 describe('execution-root patch confinement', () => {
 	it('selects only targets owned by the issuing root when local ids collide', () => {
 		const container = document.createElement('div');
 		const page = createComponentDomain({ executionRoot: 'page' });
 		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
-		function Label(this: Component<{}>, props: { value: string }) {
-			return () => createVNode('span', { 'data-exact-id': 'title' }, props.value);
-		}
-		function Host() {
-			return () =>
-				createVNode(
-					'section',
-					null,
-					withComponentDomain(page, () => createVNode(Label, { value: 'Page' })),
-					withComponentDomain(remote, () => createVNode(Label, { value: 'Remote' }))
-				);
-		}
-		render(createVNode(Host, null), container);
+		render(confinedLabelsRoot(page, remote), container);
 
 		expect(
 			applyPatches(container, [{ type: 'text', id: 'title', value: 'Updated' }], {
@@ -42,15 +30,7 @@ describe('execution-root patch confinement', () => {
 		const container = document.createElement('div');
 		const page = createComponentDomain({ executionRoot: 'page' });
 		const remote = createComponentDomain({ executionRoot: '@company/brand#./Shell' });
-		function PageChild() {
-			return () => createVNode('strong', { 'data-page-child': '' }, 'Page');
-		}
-		const pageChild = withComponentDomain(page, () => createVNode(PageChild, null));
-		function Shell() {
-			return () => createVNode('section', { 'data-exact-id': 'shell' }, pageChild);
-		}
-		const tree = withComponentDomain(remote, () => createVNode(Shell, null));
-		render(tree, container);
+		render(foreignShellRoot(page, remote), container);
 		const onCrossRootReplacement = vi.fn();
 
 		expect(

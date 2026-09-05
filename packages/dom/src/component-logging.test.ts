@@ -3,8 +3,8 @@
  */
 import type { Component, LogEvent, Logger } from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
-import { jsx } from './test-support/native-vnode.js';
+import { renderTestTree as render } from './testing.js';
+import { jsx } from './test-support/native-operations.js';
 
 describe('@exactjs/dom component logging', () => {
 	it('uses the root logger for framework diagnostics', () => {
@@ -21,7 +21,7 @@ describe('@exactjs/dom component logging', () => {
 		expect(events).toContainEqual(
 			expect.objectContaining({
 				level: 'trace',
-				message: 'replace node',
+				message: 'patch children',
 				scope: {
 					source: 'framework',
 					packageName: 'dom',

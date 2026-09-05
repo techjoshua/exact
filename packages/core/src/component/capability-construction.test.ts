@@ -1,17 +1,28 @@
+import { createFrameworkFixtureComponentInstance } from '../testing.js';
 import { describe, expect, it } from 'vitest';
 import '../runtime/lifecycle.js';
 import '../runtime/collections.js';
 
+import { exactComponentContract, exactComponentType } from '../component-contracts.js';
+import { createExactCompatibilityArtifact } from '../testing/runtime-artifacts.js';
 import {
-	createExactCompatibilityArtifact,
-	exactComponentContract,
-	exactComponentType
-} from '../component-contracts.js';
+	attachExactCompiledClientComponent,
+	disposeExactClientComponent,
+	receiveExactClientComponentProps
+} from '../component-abi/compiled-runtime.js';
 import { createFrameworkComponentDomain } from './domain.js';
 import { taskOwnerForHost } from '../tasks/owner-hosts.js';
 import '../tasks/runtime.js';
 import type { Component, ComponentFunction } from './contracts.js';
-import { createComponentInstance, createFrameworkFixtureComponentInstance } from './runtime.js';
+import { ComponentInstanceImpl, createComponentInstance } from './runtime.js';
+import { RenderComponentInstance } from './render-instance.js';
+import { constructRenderComponentInstance } from './render-instance-construction.js';
+import { TaskComponentInstance } from './task-instance.js';
+import { constructTaskComponentInstance } from './task-instance-construction.js';
+import {
+	readIndexedReactiveSlot,
+	setIndexedReactiveSlot
+} from '@exactjs/reactive/framework/runtime';
 
 describe('compiled component capability construction', () => {
 	it('releases component-owned resources with the durable instance', () => {
@@ -38,7 +49,7 @@ describe('compiled component capability construction', () => {
 		const StaticPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:StaticPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -53,11 +64,18 @@ describe('compiled component capability construction', () => {
 				executors: [],
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
-				definition: {
+				artifact: {
 					version: 1 as const,
+					target: 'client' as const,
+					id: 'component:StaticPanel',
+					attach: attachExactCompiledClientComponent,
+					receive: receiveExactClientComponentProps,
+					dispose: disposeExactClientComponent,
 					instantiate: implementation,
+					construct: constructRenderComponentInstance,
 					abi: 0,
 					state: [],
+					props: [],
 					tasks: [],
 					reactive: [],
 					render: 'returned-function' as const,
@@ -68,7 +86,77 @@ describe('compiled component capability construction', () => {
 
 		const instance = createComponentInstance(StaticPanel, {});
 		expect(instance.runtimeABI).toBe(0);
+		expect(instance).toBeInstanceOf(RenderComponentInstance);
 		expect(taskOwnerForHost(instance)).toBeUndefined();
+		instance.unmount();
+	});
+
+	it('applies receiver-owned indexed input updates once per finalized prop batch', () => {
+		let applications = 0;
+		let initialLoading: unknown;
+		const implementation = function InputPanel(this: Component<{ loading: boolean }>) {
+			inputs.apply(this as unknown as Readonly<{ state: object; props: object }>, 1, 0);
+			initialLoading = this.state.loading;
+			return () => null;
+		};
+		const inputs = {
+			bindings: [[0, 1, 0]] as const,
+			apply(
+				instance: Readonly<{ state: object; props: object }>,
+				dirtyLow: number,
+				_dirtyHigh: number
+			) {
+				if ((dirtyLow & 1) === 0) return;
+				applications++;
+				const value = readIndexedReactiveSlot(instance.props, 0);
+				setIndexedReactiveSlot(instance.state, 0, !value);
+				if (value === 'throw') throw new Error('projection failed');
+			}
+		};
+		const artifact = {
+			version: 1 as const,
+			target: 'client' as const,
+			id: 'component:InputPanel',
+			attach: attachExactCompiledClientComponent,
+			receive: receiveExactClientComponentProps,
+			dispose: disposeExactClientComponent,
+			instantiate: implementation,
+			construct: constructRenderComponentInstance,
+			abi: 0,
+			inputs,
+			state: ['loading'],
+			props: ['initialData'],
+			capabilities: []
+		};
+		const InputPanel = Object.assign(implementation, {
+			[exactComponentType]: 'component:InputPanel',
+			[exactComponentContract]: {
+				version: 3 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				artifact
+			}
+		}) as ComponentFunction<{ loading: boolean }, { initialData?: object | string }>;
+
+		const instance = createComponentInstance(InputPanel, {});
+		expect(initialLoading).toBe(true);
+		expect(applications).toBe(1);
+
+		artifact.receive.call(artifact, instance, { initialData: {} });
+		expect(instance.state.loading).toBe(false);
+		expect(applications).toBe(2);
+		artifact.receive.call(artifact, instance, { initialData: instance.props.initialData });
+		expect(applications).toBe(2);
+
+		expect(() => artifact.receive.call(artifact, instance, { initialData: 'throw' })).toThrow(
+			'projection failed'
+		);
+		expect(instance.state.loading).toBe(false);
+		expect(instance.props.initialData).not.toBe('throw');
 		instance.unmount();
 	});
 
@@ -98,7 +186,7 @@ describe('compiled component capability construction', () => {
 			createFrameworkComponentDomain({ executionRoot: 'server-test', target: 'server' })
 		);
 
-		expect(instance.runtimeABI).toBe(15);
+		expect(instance.runtimeABI).toBe(31);
 		instance.unmount();
 	});
 
@@ -110,14 +198,14 @@ describe('compiled component capability construction', () => {
 		).toThrow('compiled component artifact');
 	});
 
-	it('allocates ownership when the canonical definition declares task capability', () => {
+	it('allocates ownership when the target artifact declares task capability', () => {
 		const implementation = function TaskPanel(this: Component<{}>) {
 			return () => null;
 		};
 		const TaskPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:TaskPanel',
 			[exactComponentContract]: {
-				version: 2 as const,
+				version: 3 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -125,11 +213,18 @@ describe('compiled component capability construction', () => {
 				executors: [],
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
-				definition: {
+				artifact: {
 					version: 1 as const,
+					target: 'client' as const,
+					id: 'component:TaskPanel',
+					attach: attachExactCompiledClientComponent,
+					receive: receiveExactClientComponentProps,
+					dispose: disposeExactClientComponent,
 					instantiate: implementation,
+					construct: constructTaskComponentInstance,
 					abi: 8,
 					state: [],
+					props: [],
 					tasks: ['setup'],
 					reactive: [],
 					render: 'returned-function' as const,
@@ -139,8 +234,52 @@ describe('compiled component capability construction', () => {
 		}) as ComponentFunction<{}, Record<string, unknown>>;
 
 		const instance = createComponentInstance(TaskPanel, {});
+		expect(instance).toBeInstanceOf(TaskComponentInstance);
+		expect(instance).not.toBeInstanceOf(ComponentInstanceImpl);
 		expect(taskOwnerForHost(instance)).toBeDefined();
 		instance.unmount();
+	});
+
+	it('releases task ownership when task-only construction fails', () => {
+		let constructing: Component<{}> | undefined;
+		const implementation = function FailingTaskPanel(this: Component<{}>) {
+			constructing = this;
+			throw new Error('setup failed');
+		};
+		const FailingTaskPanel = Object.assign(implementation, {
+			[exactComponentType]: 'component:FailingTaskPanel',
+			[exactComponentContract]: {
+				version: 3 as const,
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: [],
+				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
+				artifact: {
+					version: 1 as const,
+					target: 'client' as const,
+					id: 'component:FailingTaskPanel',
+					attach: attachExactCompiledClientComponent,
+					receive: receiveExactClientComponentProps,
+					dispose: disposeExactClientComponent,
+					instantiate: implementation,
+					construct: constructTaskComponentInstance,
+					abi: 8,
+					state: [],
+					props: [],
+					tasks: ['setup'],
+					reactive: [],
+					render: 'returned-function' as const,
+					capabilities: ['tasks'] as const
+				}
+			}
+		}) as ComponentFunction<{}, Record<string, unknown>>;
+
+		expect(() => createComponentInstance(FailingTaskPanel, {})).toThrow('setup failed');
+		expect(constructing).toBeDefined();
+		expect(taskOwnerForHost(constructing!)?.disposed).toBe(true);
 	});
 });
 import '../runtime/component-tasks.js';

@@ -530,7 +530,7 @@ build, and verify package-local agent guides/readmes are present where required.
 **Status:** Confirmed
 
 Double-encoded sequences occur in `docs/theme.md`,
-`docs/proposals/semantic-generative-theming.md`,
+`docs/history/semantic-generative-theming.md`,
 `docs/history/javascript-performance-improvements.md`, and
 `packages/intl/src/intl.test.ts` (for example, a corrupted French “Chargé tardivement”). This is
 especially undesirable in internationalization coverage because a broken fixture can normalize an

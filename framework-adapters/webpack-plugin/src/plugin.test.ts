@@ -34,7 +34,8 @@ describe('@exactjs/webpack-plugin', () => {
 	it('transforms matching TSX sources through the shared compiler', () => {
 		const result = transformExactWebpackSource('const view = <span />;', '/src/view.tsx');
 
-		expect(result?.code).toContain('__exactVNode("span"');
+		expect(result?.code).toContain('__exactPreparedRenderProgram(__exact_render_program_1');
+		expect(result?.code).toContain('directClaims: true');
 		expect(result?.map).toMatchObject({
 			version: 3,
 			sources: ['/src/view.tsx'],

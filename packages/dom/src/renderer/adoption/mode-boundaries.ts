@@ -3,9 +3,12 @@ import {
 	normalizeActivityMode,
 	normalizeRenderResult,
 	unwrap,
-	type Child,
-	type VNode
+	type Child
 } from '@exactjs/core';
+import type {
+	ExactActivityReceiptData,
+	ExactSuspenseReceiptData
+} from '@exactjs/core/runtime/component-operations';
 import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { placeMountedBefore } from '../../placement.js';
 import type { Mounted, Root } from '../../types.js';
@@ -19,19 +22,19 @@ type AdoptChildren = (
 	root: Root,
 	children: Child[],
 	nodes: readonly Node[],
-	parentInstance: AnyComponentInstance,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	start?: number,
 	end?: number
 ) => Mounted[] | undefined;
 
 /** Adopts one SSR-emitted native Activity marker range. */
-export function adoptActivityBoundary(
+export function adoptActivityReceiptBoundary(
 	root: Root,
-	vnode: VNode,
+	receipt: ExactActivityReceiptData,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: AnyComponentInstance,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	end: number,
 	adoptChildren: AdoptChildren
@@ -48,9 +51,9 @@ export function adoptActivityBoundary(
 		return undefined;
 	}
 	const contentScope = createEffectScope(scope);
-	const mode = normalizeActivityMode(unwrap(vnode.props.mode));
+	const mode = normalizeActivityMode(unwrap(receipt.props.mode));
 	const mounted: Mounted = {
-		vnode,
+		activityReceipt: receipt,
 		dom: start,
 		end: nodes[endIndex]!,
 		scope,
@@ -61,7 +64,7 @@ export function adoptActivityBoundary(
 	if (mode === 'active') {
 		const children = adoptChildren(
 			root,
-			vnode.children,
+			[...receipt.children],
 			nodes,
 			activityOwner,
 			contentScope,
@@ -79,7 +82,13 @@ export function adoptActivityBoundary(
 			return undefined;
 		}
 		const fragment = document.createDocumentFragment();
-		mounted.children = mountChildren(root, fragment, vnode.children, activityOwner, contentScope);
+		mounted.children = mountChildren(
+			root,
+			fragment,
+			[...receipt.children],
+			activityOwner,
+			contentScope
+		);
 		const parent = start.parentNode;
 		if (!parent) {
 			scope.stop();
@@ -93,12 +102,12 @@ export function adoptActivityBoundary(
 }
 
 /** Adopts one SSR-emitted native Suspense content or fallback marker range. */
-export function adoptSuspenseBoundary(
+export function adoptSuspenseReceiptBoundary(
 	root: Root,
-	vnode: VNode,
+	receipt: ExactSuspenseReceiptData,
 	nodes: readonly Node[],
 	cursor: number,
-	parentInstance: AnyComponentInstance,
+	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	end: number,
 	adoptChildren: AdoptChildren
@@ -119,7 +128,7 @@ export function adoptSuspenseBoundary(
 		return undefined;
 	}
 	const mounted: Mounted = {
-		vnode,
+		suspenseReceipt: receipt,
 		dom: start,
 		end: nodes[endIndex]!,
 		scope,
@@ -130,7 +139,7 @@ export function adoptSuspenseBoundary(
 	if (start.data.startsWith('exact:suspense-content:')) {
 		const children = adoptChildren(
 			root,
-			vnode.children,
+			[...receipt.children],
 			nodes,
 			suspense.owner,
 			scope,
@@ -146,7 +155,7 @@ export function adoptSuspenseBoundary(
 	} else {
 		const candidate = mountDetachedChildren(
 			root,
-			vnode.children,
+			[...receipt.children],
 			suspense.owner,
 			scope,
 			start.parentNode ?? undefined
@@ -157,7 +166,7 @@ export function adoptSuspenseBoundary(
 		};
 		const fallback = adoptChildren(
 			root,
-			normalizeRenderResult(unwrap(vnode.props.fallback) as Child | Child[]),
+			normalizeRenderResult(unwrap(receipt.props.fallback) as Child | Child[]),
 			nodes,
 			parentInstance,
 			scope,

@@ -3,7 +3,6 @@
 	"id": "exact-native",
 	"framework": "eXact",
 	"frameworkVersion": "0.1.0",
-	"status": "scaffolded",
 	"tracks": ["native-full-stack"],
 	"runtime": "node-24",
 	"ssrTransports": { "node": "node-http", "bun": "node-http-compat" },

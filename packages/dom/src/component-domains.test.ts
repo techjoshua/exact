@@ -1,45 +1,45 @@
 /**
  * @vitest-environment jsdom
  */
+import './runtime/target.js';
 import {
 	createComponentDomain,
-	createContext,
 	createExactRuntimeInspectionOwner,
-	currentComponentDomain,
-	Target,
-	withComponentDomain,
-	type Component
+	withComponentDomain
 } from '@exactjs/core';
-import { createExactFrameworkFixtureArtifact } from '@exactjs/core/framework/component-contracts';
-import { createCompiledDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
+import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactDomInspectionHost,
+	findComponentDomNode,
 	findNodeOwnerInstance,
 	render,
 	setExactDomInspectionOwner,
 	unmount
 } from './index.js';
 import { inspectDomRoot } from './testing.js';
-import { createCompiledVNode, createVNode } from './test-support/native-vnode.js';
+import { createCompiledComponentOperation } from './test-support/native-operations.js';
+import {
+	DomainArea,
+	DomainButtonHost,
+	DomainDynamicHost,
+	DomainInspectedPanel,
+	DomainInspectionField,
+	DomainOwnedPanel,
+	DomainPageChild,
+	DomainShell,
+	domainOwnedPanelInstance,
+	domainPageChildInstance
+} from './test-support/components/component-domains.fixtures.js';
 
 describe('component domain rendering', () => {
-	it('instantiates the same component function under the VNode owner domain', () => {
+	it('instantiates the same compiled component under the operation owner domain', () => {
 		const container = document.createElement('div');
 		const page = createComponentDomain({ executionRoot: 'page' });
 		const remote = createComponentDomain({ executionRoot: '@company/branding#./Button' });
-		function Button(this: Component<{}>) {
-			const executionRoot = currentComponentDomain()!.executionRoot;
-			return () => createVNode('button', null, executionRoot);
-		}
-		function Host() {
-			const pageButton = withComponentDomain(page, () => createVNode(Button, null));
-			const remoteButton = withComponentDomain(remote, () => createVNode(Button, null));
-			return () => createVNode('section', null, pageButton, remoteButton);
-		}
-
-		render(createVNode(Host, null), container);
+		render(createCompiledComponentOperation(DomainButtonHost, { page, remote }), container);
 		const buttons = Array.from(container.querySelectorAll('button'));
 		expect(buttons.map((button) => button.textContent)).toEqual([
 			'page',
@@ -53,18 +53,15 @@ describe('component domain rendering', () => {
 		const unmounted = vi.fn();
 		const page = createComponentDomain({ executionRoot: 'page' });
 		const remote = createComponentDomain({ executionRoot: '@company/billing#./Area' });
-		function Area(this: Component<{}>) {
-			this.onUnmount(unmounted);
-			const executionRoot = currentComponentDomain()!.executionRoot;
-			return () => createVNode('span', null, executionRoot);
-		}
-		const vnode = (domain: typeof page) =>
-			withComponentDomain(domain, () => createVNode(Area, { key: 'area' }));
+		const operation = (domain: typeof page) =>
+			withComponentDomain(domain, () =>
+				createCompiledComponentOperation(DomainArea, { key: 'area', onUnmount: unmounted })
+			);
 
-		render(vnode(page), container);
-		const first = inspectDomRoot(container)?.children[0]?.instance;
-		render(vnode(remote), container);
-		const second = inspectDomRoot(container)?.children[0]?.instance;
+		render(operation(page), container);
+		const first = inspectDomRoot(container)?.instance;
+		render(operation(remote), container);
+		const second = inspectDomRoot(container)?.instance;
 		expect(second).not.toBe(first);
 		expect(container.textContent).toBe('@company/billing#./Area');
 		expect(unmounted).toHaveBeenCalledOnce();
@@ -73,51 +70,34 @@ describe('component domain rendering', () => {
 
 	it('reparents a parked page instance while preserving captured context handles', () => {
 		const container = document.createElement('div');
-		const Tone = createContext<{ name: string }>('cross-root-tone');
 		const page = createComponentDomain({ executionRoot: 'page' });
 		const firstRemote = createComponentDomain({ executionRoot: '@company/branding#./Shell' });
 		const secondRemote = createComponentDomain({ executionRoot: '@company/branding#./Shell' });
 		const mounted = vi.fn();
 		const unmounted = vi.fn();
-		let pageChild!: Component<{ showDescendant: boolean }>;
-		function Descendant(this: Component<{}>) {
-			const current = this.getContext(Tone);
-			return () => createVNode('i', null, current.name);
-		}
-		function PageChild(this: Component<{ showDescendant: boolean }>) {
-			pageChild = this;
-			this.state.showDescendant = false;
-			const captured = this.getContext(Tone);
-			this.onMount(mounted);
-			this.onUnmount(unmounted);
-			return () =>
-				createVNode(
-					'strong',
-					null,
-					captured.name,
-					this.state.showDescendant ? createVNode(Descendant, null) : null
-				);
-		}
-		const pageVNode = withComponentDomain(page, () => createVNode(PageChild, null));
-		function Shell(this: Component<{}>, props: { tone: string }) {
-			this.setContext(Tone, { name: props.tone });
-			return () => createVNode('section', null, pageVNode);
-		}
+		const pageOperation = withComponentDomain(page, () =>
+			createCompiledComponentOperation(DomainPageChild, { onMount: mounted, onUnmount: unmounted })
+		);
 		const shell = (domain: typeof firstRemote, tone: string) =>
-			withComponentDomain(domain, () => createVNode(Shell, { tone }));
+			withComponentDomain(domain, () =>
+				createCompiledComponentOperation(DomainShell, { tone, children: pageOperation })
+			);
 
 		render(shell(firstRemote, 'first'), container);
-		const before = inspectDomRoot(container)?.children[0]?.instance;
-		const pageBefore = pageChild;
+		const before = inspectDomRoot(container)?.instance;
+		const pageBefore = domainPageChildInstance();
+		expect(findComponentDomNode(pageBefore)).toBe(container.querySelector('strong'));
 		render(shell(secondRemote, 'second'), container);
-		const after = inspectDomRoot(container)?.children[0]?.instance;
+		const after = inspectDomRoot(container)?.instance;
 		expect(after).not.toBe(before);
-		expect(pageChild).toBe(pageBefore);
+		expect(domainPageChildInstance()).toBe(pageBefore);
+		expect(findComponentDomNode(pageBefore)).toBe(container.querySelector('strong'));
 		expect(container.textContent).toBe('first');
 		expect(mounted).toHaveBeenCalledOnce();
 		expect(unmounted).not.toHaveBeenCalled();
 
-		pageChild.state.showDescendant = true;
+		domainPageChildInstance().state.showDescendant = true;
+		flushSync();
 		expect(container.textContent).toBe('firstsecond');
 		expect(mounted).toHaveBeenCalledOnce();
 		expect(unmounted).not.toHaveBeenCalled();
@@ -127,36 +107,27 @@ describe('component domain rendering', () => {
 
 	it('resolves logical ownership through host ancestors and releases it on unmount', () => {
 		const container = document.createElement('div');
-		let panel!: Component<{}>;
-		function Panel(this: Component<{}>) {
-			panel = this;
-			return () =>
-				createVNode(
-					'section',
-					null,
-					createVNode('button', null, createVNode('span', null, 'Save'))
-				);
-		}
-
-		render(createVNode(Panel, null), container);
+		render(createCompiledComponentOperation(DomainOwnedPanel, null), container);
 		const text = container.querySelector('span')!.firstChild!;
-		expect(findNodeOwnerInstance(text)).toBe(panel);
+		expect(findNodeOwnerInstance(text)).toBe(domainOwnedPanelInstance());
 
 		expect(unmount(container)).toBe(true);
 		expect(findNodeOwnerInstance(text)).toBeUndefined();
 	});
 
-	it('carries a root inspection domain through a compiled VNode cell', () => {
+	it('carries a root inspection domain through a compiled operation', () => {
 		const container = document.createElement('div');
 		const inspection = createExactRuntimeInspectionOwner({
 			buildKey: 'compiled-root',
 			executionRoot: 'page'
 		});
-		function Panel() {
-			return () => createVNode('button', null, 'Inspect');
-		}
-
-		render(createCompiledVNode(Panel, null), container, { inspection });
+		render(
+			createCompiledComponentOperation(DomainInspectedPanel, { label: 'Inspect' }),
+			container,
+			{
+				inspection
+			}
+		);
 
 		const button = container.querySelector('button')!;
 		const instance = findNodeOwnerInstance(button);
@@ -170,14 +141,14 @@ describe('component domain rendering', () => {
 			buildKey: 'stable-inspected-root',
 			executionRoot: 'page'
 		});
-		function Panel(this: Component<{}>, props: { label: string }) {
-			return () => createVNode('button', null, props.label);
-		}
 		const restoreInspection = setExactDomInspectionOwner(inspection);
 		try {
-			render(createCompiledVNode(Panel, { label: 'first' }), container);
+			render(createCompiledComponentOperation(DomainInspectedPanel, { label: 'first' }), container);
 			const first = findNodeOwnerInstance(container.querySelector('button')!);
-			render(createCompiledVNode(Panel, { label: 'second' }), container);
+			render(
+				createCompiledComponentOperation(DomainInspectedPanel, { label: 'second' }),
+				container
+			);
 			expect(findNodeOwnerInstance(container.querySelector('button')!)).toBe(first);
 			expect(container.textContent).toBe('second');
 		} finally {
@@ -193,22 +164,17 @@ describe('component domain rendering', () => {
 			buildKey: 'target-inspection',
 			executionRoot: 'page'
 		});
-		function Field(this: Component<{}>) {
-			return () =>
-				createVNode(
-					Target,
-					{ title: 'contributed', className: 'layer' },
-					createVNode('button', { className: 'authored' }, 'Inspect')
-				);
-		}
-
 		const restoreInspection = setExactDomInspectionOwner(inspection);
-		render(createCompiledVNode(Field, null), container);
+		render(createCompiledComponentOperation(DomainInspectionField, null), container);
 		const host = createExactDomInspectionHost();
 		host.attach('target-inspection-session', { publish() {} });
 		const snapshot = host.snapshot();
-		expect(snapshot.components.map((candidate) => candidate.name)).toContain('Field');
-		const component = snapshot.components.find((candidate) => candidate.name === 'Field')!;
+		expect(snapshot.components.map((candidate) => candidate.name)).toContain(
+			'DomainInspectionField'
+		);
+		const component = snapshot.components.find(
+			(candidate) => candidate.name === 'DomainInspectionField'
+		)!;
 		const contribution = component.targetContributions?.[0];
 
 		expect(contribution?.active).toBe(true);
@@ -227,22 +193,8 @@ describe('component domain rendering', () => {
 			buildKey: 'dynamic-inspection',
 			executionRoot: 'page'
 		});
-		function Panel() {
-			return () => createVNode('p', null, 'dynamic');
-		}
-		function Host() {
-			const boundary = createCompiledDynamicComponent({
-				id: 'fixture:dynamic-inspection',
-				source: () => Panel,
-				props: { label: 'visible' }
-			});
-			return () => boundary;
-		}
-		createExactFrameworkFixtureArtifact(Panel, 'fixture:inspection-panel');
-		createExactFrameworkFixtureArtifact(Host, 'fixture:inspection-host');
-
 		const restoreInspection = setExactDomInspectionOwner(inspection);
-		render(createCompiledVNode(Host, null), container);
+		render(createCompiledComponentOperation(DomainDynamicHost, null), container);
 		const host = createExactDomInspectionHost();
 		host.attach('dynamic-inspection-session', { publish() {} });
 		const dynamic = host
@@ -252,10 +204,10 @@ describe('component domain rendering', () => {
 		expect(dynamic?.name).toBe('DynamicComponent');
 		expect(dynamic?.synthetic).toMatchObject({
 			boundaryId: 'fixture:dynamic-inspection',
-			availability: 'available',
-			adoptedComponentId: 'fixture:inspection-panel'
+			availability: 'available'
 		});
-		expect(dynamic?.parent?.componentTypeId).toBe('fixture:inspection-host');
+		expect(dynamic?.synthetic?.adoptedComponentId).toBeTruthy();
+		expect(dynamic?.parent?.componentTypeId).toBe(exactComponentIdentity(DomainDynamicHost));
 		host.detach();
 		unmount(container);
 		restoreInspection();

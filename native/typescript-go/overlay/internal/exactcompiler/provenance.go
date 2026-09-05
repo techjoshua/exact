@@ -53,7 +53,12 @@ func collectReactiveBindings(
 ) []ReactiveBinding {
 	var output []ReactiveBinding
 	for _, candidate := range componentCandidates(sourceFile) {
-		if len(componentSignals(candidate, sourceFile)) == 0 {
+		// JSX-returning helpers participate in the same dependency analysis as durable component
+		// render closures. Their parameters are live inputs supplied by the owning component, and
+		// any shared locals derived from those inputs must remain reactive when the helper's finite
+		// render program is constructed only once.
+		if len(componentSignals(candidate, sourceFile)) == 0 &&
+			!directlyReturnsRenderedValue(candidate.node) {
 			continue
 		}
 		states := collectComponentReactiveStates(

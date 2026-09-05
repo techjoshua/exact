@@ -104,6 +104,7 @@ export async function runWithExactRequestScope<T>(
 	const opened = await openExactRequestScope(request, server, platformRequest);
 	let value: T;
 	let releaseAttempted = false;
+	let retainedBody: ReturnType<typeof exactResponseBodyOf>;
 	try {
 		value = await work(opened.context);
 	} catch (error) {
@@ -112,8 +113,15 @@ export async function runWithExactRequestScope<T>(
 	}
 	try {
 		if (isResponse(value) && exactResponseBodyOf(value)) {
-			releaseAttempted = true;
-			await opened.dispose('eXact buffered response complete');
+			const body = exactResponseBodyOf(value)!;
+			if (body.retainRequestScope) {
+				body.retainRequestScope(opened.dispose, opened.context.signal);
+				retainedBody = body;
+				releaseAttempted = true;
+			} else {
+				releaseAttempted = true;
+				await opened.dispose('eXact buffered response complete');
+			}
 		} else if (isResponse(value) && value.stream) {
 			value = {
 				...value,
@@ -126,7 +134,8 @@ export async function runWithExactRequestScope<T>(
 		if (isResponse(value)) applyResponseState(value, opened.response);
 		return value;
 	} catch (error) {
-		if (!releaseAttempted) await disposePreservingPrimary(opened.dispose, error);
+		if (retainedBody) await disposePreservingPrimary(retainedBody.cancel.bind(retainedBody), error);
+		else if (!releaseAttempted) await disposePreservingPrimary(opened.dispose, error);
 		throw error;
 	}
 }

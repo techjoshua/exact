@@ -3,6 +3,9 @@
 		"render": 1,
 		"lifecycle": 2,
 		"lists": 4,
-		"tasks": 8
+		"tasks": 8,
+		"collections": 16,
+		"rangeOutput": 32,
+		"contexts": 64
 	}
 }

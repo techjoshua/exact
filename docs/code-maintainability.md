@@ -97,3 +97,16 @@ Each architectural change must:
 - avoid new dependency cycles and platform-boundary violations;
 - pass type checking, package tests, package-content checks, and relevant
   performance guards.
+
+## Development process ownership
+
+Long-lived repository development commands must retain and release every server, watcher, compiler,
+and child process they start. Ordinary Vite applications use
+`scripts/start-owned-vite-dev-server.mjs`; custom in-process servers install
+`scripts/development-process-lifecycle.mjs`; development tools that require a separate child process
+use `scripts/start-owned-development-command.mjs`.
+
+These owners handle normal termination signals and monitor the launching parent process. The parent
+monitor is required because Windows terminal hosts can terminate npm or its command shell without
+forwarding a console signal, leaving Vite and `exactc` descendants alive. New package scripts must
+not invoke long-lived Vite, Nuxt, or equivalent development servers directly.

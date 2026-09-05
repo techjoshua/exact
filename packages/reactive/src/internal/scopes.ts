@@ -147,12 +147,12 @@ export function releaseEffectScopeReaction(scope: EffectScopeImpl, reaction: Rea
 }
 
 /** Registers one cleanup against a live scope using first-use ownership storage. */
-export function registerEffectScopeCleanup(scope: EffectScopeImpl, cleanup: () => void): void {
+export function registerEffectScopeCleanup(scope: EffectScope, cleanup: () => void): void {
 	(scope as EffectScopeRecord).cleanups.add(cleanup);
 }
 
 /** Releases one cleanup and its empty scope storage after external disposal. */
-export function releaseEffectScopeCleanup(scope: EffectScopeImpl, cleanup: () => void): void {
+export function releaseEffectScopeCleanup(scope: EffectScope, cleanup: () => void): void {
 	(scope as EffectScopeRecord).removeCleanup(cleanup);
 }
 
@@ -167,6 +167,11 @@ export function createEffectScope(
 		throw new Error('Cannot create an effect scope beneath an inactive parent scope');
 	}
 	return new EffectScopeRecord(parentScope, onError, onProfile);
+}
+
+/** Returns the current ownership parent for framework integrations that preserve nested scope identity. */
+export function effectScopeParent(scope: EffectScope): EffectScope | undefined {
+	return (scope as EffectScopeRecord).parent;
 }
 
 /** Creates an effect scope whose owned scheduler work emits profiling events. */

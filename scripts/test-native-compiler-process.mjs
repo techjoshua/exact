@@ -14,6 +14,10 @@ if (!executable) {
 const compilerModule = await import(
 	pathToFileURL(path.join(repositoryRoot, 'packages/compiler/dist/native/process.js')).href
 );
+const compilerContracts = await import(
+	pathToFileURL(path.join(repositoryRoot, 'packages/compiler/dist/native/process-contracts.js'))
+		.href
+);
 const compiler = new compilerModule.NativeCompilerProcess({
 	executable: path.resolve(executable)
 });
@@ -26,7 +30,7 @@ try {
 		diagnostics: 'syntax'
 	};
 	const first = compiler.request(request);
-	assert.equal(first.protocolVersion, '1.31.0');
+	assert.equal(first.protocolVersion, compilerContracts.nativeCompilerProtocolVersion);
 	assert.match(first.typescriptVersion, /^7\./);
 	assert.equal(first.backendVersion, first.protocolVersion);
 	assert.equal(first.cacheHit, undefined);
@@ -39,13 +43,26 @@ try {
 			start: 0,
 			length: request.source.length,
 			exported: true,
-			signals: ['named-jsx'],
+			signals: ['named-jsx', 'named-render'],
 			placement: 'isomorphic',
 			subgraphPlacement: 'isomorphic',
 			environmentEffect: 'neutral',
 			artifactTargets: ['client', 'server'],
 			renderEdges: [],
 			clientIslandCount: 0,
+			execution: {
+				version: 1,
+				ports: [],
+				transitions: [],
+				reactive: [
+					{
+						name: 'value',
+						provenance: 'unknown',
+						allocation: 'constant',
+						dependencies: []
+					}
+				]
+			},
 			contexts: [],
 			enhancementContexts: { provides: [], requires: [], optionallyConsumes: [] },
 			splitBoundaries: [],
@@ -152,7 +169,9 @@ try {
 	assert.equal(invalid.diagnostics[0]?.code, 'TS2322');
 	assert.throws(
 		() => compiler.request({ kind: 'unsupported' }),
-		/unsupported native compiler request kind.*TypeScript 7\..*eXact native backend 1\.32\.0/
+		new RegExp(
+			`unsupported native compiler request kind.*TypeScript 7\\..*eXact native backend ${compilerContracts.nativeCompilerProtocolVersion.replaceAll('.', '\\.')}`
+		)
 	);
 } finally {
 	compiler.dispose();
@@ -182,7 +201,8 @@ try {
 		'export function NativePanel() { return () => <button onClick={() => alert(1)}>Go</button>; }',
 		{ filename: 'native-panel.tsx', serverComponents: true, session }
 	);
-	assert.match(result.code, /createCompiledVNode/);
+	assert.match(result.code, /createPreparedRenderProgram/);
+	assert.doesNotMatch(result.code, /createCompiledVNode/);
 	assert.equal(resultAnalysis.components[0]?.name, 'NativePanel');
 	assert.equal(
 		resultAnalysis.symbols.some((symbol) => symbol.role === 'root'),

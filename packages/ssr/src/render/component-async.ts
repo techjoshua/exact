@@ -1,114 +1,70 @@
-import { type AnyComponentFunction, normalizeRenderResult, type VNode } from '@exactjs/core';
-import { markerPair } from '../markup.js';
-import type { AnyComponentInstance, SsrContext } from '../types.js';
-import { renderChildrenAsync, renderVNodeAsync } from './async-tree.js';
+import type { AnyComponentInstance } from '@exactjs/core';
+import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-abi';
+import type { SsrContext } from '../types.js';
+import { renderChildrenAsync } from './async-children.js';
 import { componentMarkerId } from './component-markers.js';
-import { componentName, getComponentProps } from './component-vnode.js';
-import { componentHtml } from './component-output.js';
-import { handleSsrConstructionError } from './construction-error-capability.js';
-import { renderDirectSsrComponentOutput } from './direct-component.js';
+import { directComponentHtml } from './direct-component-output.js';
+import type { DirectSsrComponentPublisher } from './direct-component-contracts.js';
 import type { SsrRenderOptions } from './entrypoints.js';
-import { renderGenericSsrComponent } from './generic-component-capability.js';
-import { resetDocumentProbe } from './host.js';
-import { isSsrRenderInterruption } from './limits.js';
-import { resolveSsrComponentExecution } from './root-execution-cache.js';
+import { renderServerComponentArtifactOutput } from './server-component-abi-execution.js';
 
-type DirectComponentPublication = Readonly<{
+type ComponentPublication = Readonly<{
 	componentId: string;
 	documentProbe: boolean;
-	enhancement: boolean;
 	hasComponentAncestor: boolean;
 	omitCompilerOwnedBoundary?: boolean;
+	omitRootBoundary?: boolean;
 }>;
 
-function publishDirectComponent(
-	context: SsrContext,
-	vnode: VNode,
-	_parent: AnyComponentInstance | undefined,
-	html: string,
-	props: Record<string, unknown>,
-	publication: DirectComponentPublication
-): string {
-	return componentHtml(context, vnode, publication.componentId, html, props, publication);
-}
+const publishComponent: DirectSsrComponentPublisher<ComponentPublication> = (
+	context,
+	component,
+	_parent,
+	html,
+	props,
+	snapshot,
+	publication
+) =>
+	directComponentHtml(
+		context,
+		publication.componentId,
+		html,
+		props,
+		snapshot.contract.artifact.execution.publication,
+		false,
+		publication.documentProbe,
+		publication.hasComponentAncestor,
+		publication.omitCompilerOwnedBoundary,
+		publication.omitRootBoundary
+	);
 
-/** Renders a direct compiler artifact or delegates an explicitly selected generic component. */
-export async function renderComponentAsync(
+/** Renders one opaque component operation through its server artifact. */
+export async function renderComponentReferenceAsync(
 	context: SsrContext,
-	vnode: VNode,
+	component: ExactComponentReceiptData,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
 	hasComponentAncestor: boolean,
-	omitCompilerOwnedBoundary = false
+	omitCompilerOwnedBoundary = false,
+	omitRootBoundary = false
 ): Promise<string> {
-	const componentId = componentMarkerId(context, vnode);
-	const enhancement = context.enhancementVNodes?.has(vnode) ?? false;
-	const documentProbe = context.documentProbe && context.hostStack.length === 0;
-	try {
-		const prepared = context.preparedEnhancementComponents?.get(vnode);
-		if (prepared) {
-			if (documentProbe) resetDocumentProbe(context);
-			const html = await renderChildrenAsync(
-				context,
-				prepared.children,
-				prepared.failed ? parent : (prepared.instance ?? parent),
-				options,
-				true
-			);
-			return componentHtml(context, vnode, componentId, html, prepared.props, {
-				enhancement,
-				documentProbe,
-				hasComponentAncestor
-			});
+	const output = await renderServerComponentArtifactOutput(
+		context,
+		component,
+		parent,
+		options,
+		(children, owner) => renderChildrenAsync(context, children, owner, options, true),
+		(child, owner) => renderComponentReferenceAsync(context, child, owner, options, true, true),
+		publishComponent,
+		{
+			componentId: componentMarkerId(context, component),
+			documentProbe: context.documentProbe && context.hostStack.length === 0,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary,
+			omitRootBoundary
 		}
-		const direct = await renderDirectSsrComponentOutput(
-			context,
-			vnode,
-			parent,
-			options,
-			async (children, owner) => {
-				if (documentProbe) resetDocumentProbe(context);
-				return renderChildrenAsync(context, children, owner, options, true);
-			},
-			(component, owner) => renderVNodeAsync(context, component, owner, options, true, true),
-			publishDirectComponent,
-			{
-				componentId,
-				enhancement,
-				documentProbe,
-				hasComponentAncestor,
-				omitCompilerOwnedBoundary
-			}
-		);
-		if (direct !== undefined) return direct;
-		const blueprint = resolveSsrComponentExecution(context, vnode.type as AnyComponentFunction);
-		const rawProps = getComponentProps(vnode);
-		return await renderGenericSsrComponent({
-			context,
-			vnode,
-			parent,
-			options,
-			blueprint,
-			rawProps,
-			componentId,
-			enhancement,
-			documentProbe,
-			hasComponentAncestor
-		});
-	} catch (error) {
-		if (isSsrRenderInterruption(error, options.signal)) throw error;
-		const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
-		const html = fallback
-			? await renderChildrenAsync(
-					context,
-					normalizeRenderResult(fallback()),
-					parent,
-					options,
-					hasComponentAncestor
-				)
-			: '';
-		return enhancement || (documentProbe && context.documentRootSeen)
-			? html
-			: markerPair(context, componentId, () => html);
-	}
+	);
+	if (output === undefined)
+		throw new TypeError('Native component operation selected a non-direct server artifact');
+	return output;
 }

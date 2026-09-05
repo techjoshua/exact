@@ -25,6 +25,10 @@
 			"types": "./dist/framework/indexed-objects.d.ts",
 			"default": "./dist/framework/indexed-objects.js"
 		},
+		"./framework/indexed-collections": {
+			"types": "./dist/framework/indexed-collections.d.ts",
+			"default": "./dist/framework/indexed-collections.js"
+		},
 		"./framework/runtime": {
 			"types": "./dist/framework/runtime.d.ts",
 			"default": "./dist/framework/runtime.js"

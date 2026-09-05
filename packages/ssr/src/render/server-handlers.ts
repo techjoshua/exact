@@ -42,7 +42,7 @@ import { createSsrContext } from './context.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { normalizeExactServerRuntimeOptions } from './runtime-configuration.js';
 import { renderSignal } from './signals.js';
-import { renderVNode } from './sync-tree.js';
+import { renderChildren } from './sync-children.js';
 
 /** Creates a boundary refresh handler. */
 export function createBoundaryRefreshHandler(
@@ -50,8 +50,8 @@ export function createBoundaryRefreshHandler(
 	options: BoundaryRefreshOptions
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
 	return markExactFrameworkInvocationHandler(async (input, context) => {
-		const vnode = await render(input, context);
-		const result = await renderToStringAsync(vnode, {
+		const operation = await render(input, context);
+		const result = await renderToStringAsync(operation, {
 			...options,
 			contexts: context.contexts?.componentValues ?? options.contexts,
 			signal: renderSignal(context.signal, options.signal)
@@ -81,8 +81,8 @@ export function createInvocationRefreshHandler(
 		let state = invocationResult.state;
 
 		for (const boundary of options.boundaries) {
-			const vnode = await boundary.render(input, context);
-			const result = await renderToStringAsync(vnode, {
+			const operation = await boundary.render(input, context);
+			const result = await renderToStringAsync(operation, {
 				...boundary,
 				contexts: context.contexts?.componentValues ?? boundary.contexts,
 				signal: renderSignal(context.signal, boundary.signal)
@@ -235,7 +235,7 @@ export function renderKeyedListSnapshotOwned<T>(
 		keys.add(key);
 		const child = options.render(item);
 		const itemHtml = markerPair(context, keyedItemMarkerId(key), () =>
-			renderVNode(context, { ...child, key }, undefined)
+			renderChildren(context, [child], undefined)
 		);
 		items.push({ key, html: itemHtml });
 		html.push(itemHtml);
@@ -302,26 +302,49 @@ export function parseKeyedListSnapshotHtml(
 		if (end < 0) return undefined;
 		cursor = end + 3;
 		const comment = html.slice(start + 4, end);
-		if (!comment.startsWith('exact:') && !comment.startsWith('/exact:')) continue;
+		const itemOpening = comment.startsWith('i:');
+		const itemClosing = comment.startsWith('/i:');
+		if (
+			!itemOpening &&
+			!itemClosing &&
+			!comment.startsWith('exact:') &&
+			!comment.startsWith('/exact:')
+		)
+			continue;
 		if (++markers > maxMarkers) return undefined;
+		if (itemOpening) {
+			const encodedKey = comment.slice('i:'.length);
+			if (!encodedKey) return undefined;
+			activeItemMarkers++;
+			const topLevelItem = activeItemMarkers === 1;
+			stack.push({
+				id: comment,
+				start,
+				item: true,
+				...(topLevelItem ? { key: decodeMarkerKey(encodedKey) } : {})
+			});
+			continue;
+		}
+		if (itemClosing) {
+			const frame = stack.pop();
+			if (!frame || frame.id !== comment.slice(1) || !frame.item) return undefined;
+			activeItemMarkers--;
+			if (frame.key === undefined) continue;
+			if (keys.has(frame.key) || items.length >= maxItems) return undefined;
+			keys.add(frame.key);
+			items.push({ key: frame.key, html: html.slice(frame.start, end + 3) });
+			continue;
+		}
 		if (comment.startsWith('exact:')) {
 			const id = comment.slice('exact:'.length);
 			if (!id) return undefined;
-			const item = id.startsWith('item:');
-			const topLevelItem = item && activeItemMarkers === 0;
-			const key = topLevelItem ? decodeMarkerKey(id.slice('item:'.length)) : undefined;
-			if (item) activeItemMarkers++;
-			stack.push({ id, start, item, ...(key === undefined ? {} : { key }) });
+			stack.push({ id, start, item: false });
 			continue;
 		}
 		const id = comment.slice('/exact:'.length);
 		const frame = stack.pop();
 		if (!frame || frame.id !== id) return undefined;
-		if (frame.item) activeItemMarkers--;
-		if (frame.key === undefined) continue;
-		if (keys.has(frame.key) || items.length >= maxItems) return undefined;
-		keys.add(frame.key);
-		items.push({ key: frame.key, html: html.slice(frame.start, end + 3) });
+		if (frame.item) return undefined;
 	}
 	if (stack.length || !items.length) return undefined;
 	const snapshotHtml = markerPair(

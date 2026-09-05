@@ -23,7 +23,7 @@ import {
 } from './dependency-watcher.js';
 import { componentExecutionSliceAllows } from './component-execution-slice.js';
 
-type ActivationInput<T> = T | ReactiveValue<T>;
+type ActivationInput<T> = T | ReactiveValue<T> | ContinuationDependencySource<T>;
 
 /**
  * Activates a task during durable host setup and reruns it when one of its
