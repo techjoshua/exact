@@ -1,6 +1,11 @@
 .exact-chart {
-	--exact-chart-axis: color-mix(in srgb, currentColor 65%, transparent);
-	--exact-chart-grid: color-mix(in srgb, currentColor 18%, transparent);
+	--exact-chart-foreground: var(--exact-theme-surface-foreground, currentColor);
+	--exact-chart-foreground-muted: var(
+		--exact-theme-surface-foreground-muted,
+		var(--exact-chart-foreground)
+	);
+	--exact-chart-axis: color-mix(in srgb, var(--exact-chart-foreground) 65%, transparent);
+	--exact-chart-grid: color-mix(in srgb, var(--exact-chart-foreground) 18%, transparent);
 	--exact-chart-series-1: #2563eb;
 	--exact-chart-series-2: #dc2626;
 	--exact-chart-series-3: #059669;
@@ -103,6 +108,14 @@
 
 .exact-chart__grid {
 	stroke: var(--exact-chart-grid);
+}
+
+.exact-chart__ticks {
+	fill: var(--exact-chart-foreground-muted);
+}
+
+.exact-chart__axis-labels {
+	fill: var(--exact-chart-foreground);
 }
 
 .exact-chart__series {
