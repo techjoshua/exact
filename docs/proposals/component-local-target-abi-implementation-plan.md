@@ -70,20 +70,22 @@ that cannot be accepted.
 ## Evidence locations
 
 Phase 0 establishes the concrete result schema and automation before implementation begins. The
-series should use these repository-owned locations:
+series uses these evidence locations:
 
-- `docs/performance-baselines/component-local-target-abi/phase-<n>.json` for the accepted,
-  machine-readable checkpoint, including environment, revisions, harness identity, raw samples,
-  summaries, and structural counters;
+- `docs/performance-baselines/component-local-target-abi/phase-<n>-impact.json` for compact accepted
+  impact and counter-metric summaries when a phase changes the measured result;
 - `docs/performance-baselines/component-local-target-abi.md` for the human-readable checkpoint
-  ledger and full tables; and
-- `.tmp/component-local-target-abi/` for provisional and invalid runs that have not been accepted.
+  ledger, accepted conclusions, and relevant comparison tables; and
+- a local evidence directory, normally `.tmp/component-local-target-abi/`, for complete
+  machine-readable checkpoints, raw sample populations, and mechanically generated full reports.
 
-Accepted JSON must be sufficient to regenerate the Markdown tables. The generator must fail on a
-missing metric, percentile, participant, sample population, environment field, or structural
-counter instead of silently producing a partial report. Existing tracked baselines remain the
-general release reference; this series preserves the more granular before/after history for this
-proposal.
+Accepted local JSON must be sufficient to regenerate the local Markdown tables. The generator must
+fail on a missing metric, percentile, participant, sample population, environment field, or
+structural counter instead of silently producing a partial report. Raw populations and expanded
+reports do not belong in source control; preserve immutable copies outside the repository when an
+investigation requires longer retention. Existing tracked baselines remain the general release
+reference, while the ledger and compact impact records preserve the proposal's accepted
+before/after history.
 
 ## Checkpoint identity and comparison lineage
 

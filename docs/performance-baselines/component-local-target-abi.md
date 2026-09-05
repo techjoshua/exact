@@ -2,23 +2,25 @@
 
 This ledger records the accepted phase checkpoints required by the
 [component-local target ABI implementation plan](../proposals/component-local-target-abi-implementation-plan.md).
-Machine-readable evidence lives in the adjacent `component-local-target-abi` directory. Raw or
-invalid attempts remain under `.tmp/component-local-target-abi` and never enter this ledger.
+This ledger preserves accepted statuses, conclusions, and relevant comparison tables. Compact
+machine-readable impact summaries live in the adjacent `component-local-target-abi` directory.
+Raw populations, complete checkpoints, and mechanically generated full reports remain local and
+are not source-controlled.
 
 ## Checkpoints
 
-| Phase | Revision                     | Status   | Correctness gate | Structural gate | Environment            | Result artifact                                                                                   |
-| ----- | ---------------------------- | -------- | ---------------- | --------------- | ---------------------- | ------------------------------------------------------------------------------------------------- |
-| P0    | `40aaa84` + patch `37854855` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-0.json) / [tables](component-local-target-abi/phase-0.md) |
-| P1    | `40aaa84` + patch `eebe4ad6` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-1.json) / [tables](component-local-target-abi/phase-1.md) |
-| P2    | `40aaa84` + patch `d0168266` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-2.json) / [tables](component-local-target-abi/phase-2.md) |
-| P3    | `40aaa84` + patch `e741135f` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-3.json) / [tables](component-local-target-abi/phase-3.md) |
-| P4    | `40aaa84` + patch `49b0372c` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-4.json) / [tables](component-local-target-abi/phase-4.md) |
-| P5    | `40aaa84` + patch `68c923bd` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-5.json) / [tables](component-local-target-abi/phase-5.md) |
-| P6    | `40aaa84`                    | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-6.json) / [tables](component-local-target-abi/phase-6.md) |
-| P7    | `40aaa84` + patch `96ba3106` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-7.json) / [tables](component-local-target-abi/phase-7.md) |
-| P8    | `40aaa84` + patch `9256eae5` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-8.json) / [tables](component-local-target-abi/phase-8.md) |
-| P9    | `40aaa84` + patch `5ea13353` | accepted | passed           | passed          | `windows-2026-08-26-a` | [JSON](component-local-target-abi/phase-9.json) / [tables](component-local-target-abi/phase-9.md) |
+| Phase | Revision                     | Status   | Correctness gate | Structural gate | Environment            |
+| ----- | ---------------------------- | -------- | ---------------- | --------------- | ---------------------- |
+| P0    | `40aaa84` + patch `37854855` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P1    | `40aaa84` + patch `eebe4ad6` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P2    | `40aaa84` + patch `d0168266` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P3    | `40aaa84` + patch `e741135f` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P4    | `40aaa84` + patch `49b0372c` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P5    | `40aaa84` + patch `68c923bd` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P6    | `40aaa84`                    | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P7    | `40aaa84` + patch `96ba3106` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P8    | `40aaa84` + patch `9256eae5` | accepted | passed           | passed          | `windows-2026-08-26-a` |
+| P9    | `40aaa84` + patch `5ea13353` | accepted | passed           | passed          | `windows-2026-08-26-a` |
 
 Phase 0 established the structural schema, compiler-owned artifact inventory,
 corpus aggregation, complete participant/percentile validation, control-framework normalization,
@@ -426,7 +428,7 @@ The final diagnostic evidence is:
 - browser: `.tmp/framework-comparison/raw-1788044661046.json`;
 - startup CPU and function inventory:
   `.tmp/framework-comparison/startup-cpu-1788044778779.json`; and
-- SSR: `framework-comparison/results/raw/ssr-2026-08-29T23-12-05-529Z.json`.
+- SSR: local raw capture `ssr-2026-08-29T23-12-05-529Z.json`.
 
 The working tree is intentionally dirty, so each comparison capture is correctness-gated but marked
 non-publishable by the comparison project's review policy. That label does not invalidate the raw
@@ -549,7 +551,7 @@ reused one admitted framework-comparison build. The immutable evidence is:
 
 - browser: `.tmp/task-invocation-reuse/browser-accepted.json`;
 - startup CPU and function inventory: `.tmp/task-invocation-reuse/startup-accepted.json`;
-- SSR: `framework-comparison/results/raw/ssr-2026-08-30T18-30-37-329Z.json`; and
+- SSR: local raw capture `ssr-2026-08-30T18-30-37-329Z.json`; and
 - the complete current and control-normalized report:
   `.tmp/task-invocation-reuse/complete-framework-report.md`.
 
@@ -623,7 +625,7 @@ compatibility, and the 335-file native compiler corpus. The immutable focused ev
 - startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
   `.tmp/component-operands/startup-restored-complete-50.json`;
 - unchanged-server SSR evidence, 50 ordinary concurrent waves:
-  `framework-comparison/results/raw/ssr-2026-08-30T18-30-37-329Z.json`; and
+  local raw capture `ssr-2026-08-30T18-30-37-329Z.json`; and
 - the complete current, historical, and control-normalized report:
   `.tmp/component-operands/complete-framework-report.md`.
 
@@ -731,7 +733,7 @@ corpus now has 36 compiler paths and 35 normative tests. The immutable evidence 
 - unchanged startup CPU/function population, 50 samples per framework at 1x, 4x, and 6x:
   `.tmp/sync-relationships/startup-complete-50.json`;
 - final SSR population, 50 sequential samples and 50 ordinary concurrent waves:
-  `framework-comparison/results/raw/ssr-2026-08-30T23-46-11-315Z.json`; and
+  local raw capture `ssr-2026-08-30T23-46-11-315Z.json`; and
 - the complete current and immediate-prior control-normalized report:
   `.tmp/direct-server-executor/complete-framework-report.md`.
 
@@ -806,7 +808,7 @@ corpus now has 37 compiler paths and 36 normative tests. The immutable evidence 
 - current startup CPU/function population, 50 samples per framework at 1x, 4x, and 6x:
   `.tmp/output-byte-accounting/accepted/startup-50.json`;
 - current SSR population, 50 sequential samples and 50 ordinary concurrent waves:
-  `framework-comparison/results/raw/ssr-2026-08-31T01-23-33-332Z.json`;
+  local raw capture `ssr-2026-08-31T01-23-33-332Z.json`;
 - 25 clean alternating fresh-process focused profile pairs, whose candidate evidence is under
   `.tmp/output-byte-accounting` and whose accepted-checkout counterparts are preserved under
   `.tmp/output-byte-accounting/accepted/focused-baseline`; and
@@ -896,7 +898,7 @@ compiler acceptance. The immutable evidence is:
 - startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
   `.tmp/indexed-resumption-capture/accepted/startup-50.json`;
 - SSR, 50 sequential samples and 50 ordinary concurrent waves:
-  `framework-comparison/results/raw/ssr-2026-08-31T02-30-18-618Z.json`;
+  local raw capture `ssr-2026-08-31T02-30-18-618Z.json`;
 - the pre-implementation gate: `.tmp/indexed-resumption-capture/expected-metrics.md`; and
 - the complete current and immediate-prior control-normalized report:
   `.tmp/indexed-resumption-capture/complete-framework-report.md`.
@@ -986,7 +988,7 @@ checkpoint changes server publication rather than compiler acceptance. The immut
 - the unchanged accepted startup CPU and function population, 50 samples per framework at 1x, 4x,
   and 6x: `.tmp/indexed-resumption-capture/accepted/startup-50.json`;
 - current SSR, 50 sequential samples and 50 ordinary concurrent waves:
-  `framework-comparison/results/raw/ssr-2026-08-31T03-28-05-551Z.json`;
+  local raw capture `ssr-2026-08-31T03-28-05-551Z.json`;
 - five current and five immediate-prior focused render profiles under
   `.tmp/output-byte-accounting/focused-render-profile-hydration-publication-*.json` and
   `.tmp/output-byte-accounting/focused-render-profile-indexed-resumption-nosnapshot-*.json`;
@@ -1082,7 +1084,7 @@ composition corpus now records 38 compiler paths and 37 normative tests. Immutab
 - startup CPU and function inventory, 50 samples per framework at 1x, 4x, and 6x:
   `.tmp/ssr-attribute-specialization/accepted/startup-50.json`;
 - SSR, 50 sequential samples and 50 ordinary concurrent waves:
-  `framework-comparison/results/raw/ssr-2026-08-31T05-25-56-996Z.json`;
+  local raw capture `ssr-2026-08-31T05-25-56-996Z.json`;
 - five current focused profiles under `.tmp/ssr-attribute-specialization/focused-final-*.json`;
 - the pre-implementation gate: `.tmp/ssr-attribute-specialization/expected-metrics.md`; and
 - the complete current and immediate-prior control-normalized report:
@@ -2000,8 +2002,8 @@ Current four-framework Node saturation c32 is 1,714/1,799/1,883/1,883 RPS for Ex
 heap is 12.55 MB for Exact versus 13.15 MB for React, 14.15 MB for SvelteKit, and 18.00 MB for Nuxt;
 the fitted Exact heap slope is 3,288 bytes per request versus React at 3,036. Client code,
 function inventory, and retained browser heap were unchanged by this server-only experiment. The
-complete [metrics report](component-local-target-abi-shape-aware-resumption-validation.md) remains
-tracked as rejected evidence rather than accepted history. Its immutable raw evidence remains under
+complete local metrics report remains rejected evidence rather than accepted history. Its
+immutable raw evidence remains under
 `.tmp/resumption-structural-trust`.
 
 ### Compact direct resumption shape-state checkpoint
@@ -2040,7 +2042,7 @@ The complete release prerequisite and `npm run performance:check` passed. Becaus
 server-only and the production client asset is SHA-256-identical, the complete report reuses the
 same 50-sample browser and startup captures and measures a new 50-sample Node/Bun SSR population
 from the rebuilt admitted server artifacts. The complete
-[metrics report](component-local-target-abi-compact-resumption-shape-state.md) includes every
+local metrics report includes every
 browser, startup CPU, function-inventory, artifact, Node SSR, allocation, response-decomposition,
 equal-payload, preloaded, saturation, retention, and Bun diagnostic table.
 
@@ -2288,12 +2290,12 @@ cannot be removed merely because the surrounding envelope is compiler-created. E
 
 The accepted artifact was measured with 50 balanced, round-interleaved samples in each browser,
 startup, Node SSR, and Bun diagnostic population. The admitted participants were built once and
-reused. The [complete grouped-percentile report](component-local-target-abi/accounted-attributes.md)
+reused. The complete local grouped-percentile report
 keeps frameworks in Exact, React, SvelteKit, Nuxt order and includes raw current values, eligible
 control-normalized Exact-before values with their raw historical values, every browser and startup
 population, function and artifact inventories, Node SSR lanes, allocation and response
 decomposition, equal-payload and saturation lanes, and Bun separately. The immutable SSR evidence
-is `framework-comparison/results/raw/ssr-2026-09-02T02-55-43-715Z.json`. Browser and startup source
+is local raw capture `ssr-2026-09-02T02-55-43-715Z.json`. Browser and startup source
 captures remain under `.tmp/final-accounted-checkpoint`.
 
 The current browser transfers 194,374 script bytes, down from the deterministic 194,840-byte
@@ -2375,13 +2377,13 @@ mean ratio with 31 wins. The complete focused evidence and written counter-metri
 The accepted artifact was measured with 50 balanced, round-interleaved samples in every browser
 and controlled-startup population, plus the complete fresh Node SSR and Bun diagnostic suite. The
 four admitted participants were built once and reused. The
-[complete grouped-percentile report](component-local-target-abi/direct-indexed-resumption.md) keeps
+complete local grouped-percentile report keeps
 frameworks in Exact, React, SvelteKit, Nuxt order and includes raw current values, eligible
 control-normalized Exact-before values with raw history in parentheses, every browser and startup
 population, function and artifact inventories, Node SSR, render-only and allocation evidence,
 response decomposition, equal-payload, preloaded and saturation lanes, and Bun separately. The
 immutable SSR evidence is
-`framework-comparison/results/raw/ssr-2026-09-02T05-11-08-579Z.json`; browser and startup captures
+local raw capture `ssr-2026-09-02T05-11-08-579Z.json`; browser and startup captures
 are under `.tmp/direct-indexed-resumption-checkpoint`.
 
 The current browser transfers 194,340 script bytes, 34 fewer than the preceding accepted artifact.
@@ -2413,14 +2415,14 @@ root props use matching immutable client/server schemas. The hydration safety tr
 authored descriptors and constructs the final positional cells in the same pass; open shapes,
 accessors, runtime mismatches, output extensions, and unsupported values retain the named path.
 
-The [complete grouped-percentile report](component-local-target-abi/positional-root-publication.md)
+The complete local grouped-percentile report
 contains the 50-sample balanced browser and 1x/4x/6x startup populations, complete fresh Node SSR
 and Bun diagnostics, every function and artifact counter, response decomposition, render/allocation,
 payload, preloaded, equal-payload, retention, and saturation lane. It keeps framework columns in
 Exact, React, SvelteKit, Nuxt order and reports eligible control-normalized Exact-before values with
 raw history in parentheses. The same admitted participant builds were reused throughout. Immutable
 evidence is `.tmp/positional-root-publication/checkpoint` and
-`framework-comparison/results/raw/ssr-2026-09-02T07-03-49-539Z.json`.
+local raw capture `ssr-2026-09-02T07-03-49-539Z.json`.
 
 The Exact response falls from 4,314 to 4,033 bytes, a 281-byte or 6.5% reduction. Directly
 interleaved accepted/current ordinary Node c16 is neutral at 2,093.9/2,097.8 RPS p50. The five-window
@@ -2518,13 +2520,13 @@ The retained conclusion is a deterministic payload reduction, neutral direct-ren
 consistent modest Node-capacity gain. Gates, immutable artifacts, and focused evidence are under
 `.tmp/anonymous-direct-ranges`.
 
-The [complete grouped-percentile report](component-local-target-abi/anonymous-direct-ranges.md)
+The complete local grouped-percentile report
 contains 50 balanced browser samples, 50 samples at each 1x/4x/6x startup rate, the complete fresh
 Node SSR and Bun diagnostic populations, response decomposition, allocation sites, every payload
 and saturation lane, and the directly interleaved positional-root Exact-before artifact. The four
 participants were built once by the browser capture and those admitted artifacts were reused by
 startup and SSR. Immutable SSR evidence is
-`framework-comparison/results/raw/ssr-2026-09-02T09-30-23-614Z.json`; browser and startup captures
+local raw capture `ssr-2026-09-02T09-30-23-614Z.json`; browser and startup captures
 remain under `.tmp/anonymous-direct-ranges/checkpoint`.
 
 The complete client population retains the focused heap result: warm used heap is 2,580,240 bytes,
@@ -2727,7 +2729,7 @@ The corrected Bun diagnostic has Exact and React effectively tied in ordinary co
 Exact uses native `Bun.serve` while the other participants use Bun's `node:http` compatibility path.
 Its historical column is therefore raw-only and marked `environment-changed`.
 
-The [complete grouped-percentile report](component-local-target-abi/positional-hydration-publication.md)
+The complete local grouped-percentile report
 contains all 49 browser, startup, function-inventory, artifact, Node SSR, allocation, response,
 equal-payload, preloaded, saturation, retention, and Bun diagnostic suites. Immutable raw evidence
 is retained under `.tmp/final-positional-envelope-checkpoint`; Node and Bun source files remain
@@ -2778,7 +2780,7 @@ c32 while reducing c64 by 0.9%.
 
 The specialization is accepted for its deterministic 52-byte response reduction, unchanged client
 artifact, lower sampled allocation, and neutral sustained Node capacity. The
-[complete grouped-percentile report](component-local-target-abi/compact-anonymous-ranges.md) includes
+complete local grouped-percentile report includes
 the browser, startup, function-inventory, artifact, Node SSR, allocation, response, equal-payload,
 preloaded, saturation, retention, and separate Bun diagnostic tables. Focused and complete raw
 evidence is under `.tmp/compact-anonymous-ranges`; the rejected generalized result remains beside
@@ -2848,7 +2850,7 @@ history to 20.648 ms, while optimistic feedback remains in the same 1.6 ms timer
 history. No client performance gain beyond the deterministic 9-byte parser reduction is attributed
 to the server marker change.
 
-The [complete grouped-percentile report](component-local-target-abi/compact-keyed-ranges.md) includes
+The complete local grouped-percentile report includes
 all browser, startup, function-inventory, artifact, Node SSR, allocation, response decomposition,
 equal-payload, preloaded, saturation, retention, same-run Exact-before, adjacent paired verification,
 and separate Bun diagnostic tables. Written gates and immutable raw evidence are under
@@ -2910,7 +2912,7 @@ The committed artifact was subsequently measured with 50 balanced, round-interle
 the browser and at each 1x, 4x, and 6x startup CPU rate, followed by the complete 50-sample Node SSR
 and separate Bun diagnostic suites. All 28 shared browser correctness scenarios passed before the
 admitted builds were reused. The
-[complete grouped-percentile report](component-local-target-abi/keyed-property-operands.md) includes
+complete local grouped-percentile report includes
 every browser, startup, function-inventory, artifact, Node SSR, allocation, response-decomposition,
 equal-payload, preloaded, service-phase, retention, saturation, and Bun table. Raw evidence and the
 control-normalization results are under `.tmp/keyed-property-operands-checkpoint`.
@@ -2987,7 +2989,7 @@ allocation point moves from 3.303 to 3.330 MB while React moves from 7.006 to 6.
 client-only change emits identical server code, those server movements are retained as environmental
 counter-metrics and are not attributed to the candidate.
 
-The [complete grouped-percentile report](component-local-target-abi/nested-property-operands.md)
+The complete local grouped-percentile report
 contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
 Bun diagnostic table. Raw evidence and normalization output are preserved under
@@ -3023,7 +3025,7 @@ The full-run tail did not reproduce under adjacent pairing and is retained as en
 counter-evidence, not attributed to the implementation.
 
 `npm run performance:check` passed after its full release prerequisite. The
-[complete grouped-percentile report](component-local-target-abi/shared-reactive-proxy-traps.md)
+complete local grouped-percentile report
 contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and Bun
 diagnostic table. Raw evidence and normalization output are preserved under
@@ -3061,7 +3063,7 @@ normalization is not available for that two-participant diagnostic. Larger servi
 movements track React and are environmental because the server bytes are identical.
 
 `npm run performance:check` passed after the full release prerequisite. The
-[complete grouped-percentile report](component-local-target-abi/mixed-reader-dispatch.md) contains
+complete local grouped-percentile report contains
 every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
 Bun diagnostic table. Raw evidence and normalization output are preserved under
@@ -3094,7 +3096,7 @@ equal-payload runs move much more sharply. Those unchanged-artifact server movem
 environmental counter-evidence rather than attributed to this client-only slice.
 
 `npm run performance:check` passed after its full release prerequisite. The
-[complete grouped-percentile report](component-local-target-abi/direct-child-slot-storage.md)
+complete local grouped-percentile report
 contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
 Bun diagnostic table. Raw evidence and normalization output are preserved under
@@ -3128,7 +3130,7 @@ React. Exact's 3,794-byte response and server implementation are unchanged.
 `npm run performance:check` passed after its full release prerequisite, followed by all 28 shared
 browser correctness scenarios and 50 balanced round-interleaved browser, startup, Node SSR, and Bun
 diagnostic populations. The
-[complete grouped-percentile report](component-local-target-abi/single-peek-indexed-writes.md)
+complete local grouped-percentile report
 contains every required framework table. Raw evidence and normalization output are under
 `.tmp/indexed-write-single-peek`.
 
@@ -3169,7 +3171,7 @@ and React implement that diagnostic lane.
 report, the SSR comparison adapter was found to omit preloaded saturation data already present in
 the raw evidence. It now emits the c8, c32, and c64 preloaded suites for supporting participants;
 unsupported SvelteKit and Nuxt cells remain explicit em dashes. The
-[complete grouped-percentile report](component-local-target-abi/computed-owner-source-fusion.md)
+complete local grouped-percentile report
 contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and separate
 Bun diagnostic table. Raw full-run and normalization evidence is under
@@ -3211,7 +3213,7 @@ implementation effect.
 `npm run performance:check` passed after its complete release prerequisite, including 1,967 package
 tests, the 335-file native compiler corpus, every application build, all 28 shared browser scenarios,
 and the balanced 50-round browser, startup, Node SSR, and Bun diagnostic populations. The
-[complete grouped-percentile report](component-local-target-abi/indexed-task-dependency-sources.md)
+complete local grouped-percentile report
 contains every required framework table. Raw full-run and normalization evidence is under
 `.tmp/indexed-task-dependency-accepted`; focused alternating evidence is under
 `.tmp/property-operands-combined/indexed-task-direct-source-browser-50`.
@@ -3245,7 +3247,7 @@ an implementation claim.
 `npm run performance:check` passed after its complete release prerequisite, including 1,968 package
 tests, the native compiler corpus, every application build, all shared browser scenarios, and the
 balanced 50-round browser, startup, Node SSR, and Bun diagnostic populations. The
-[complete grouped-percentile report](component-local-target-abi/compact-dependency-ownership.md)
+complete local grouped-percentile report
 contains every required framework table. Raw full-run and normalization evidence is under
 `.tmp/compact-dependency-owner`; focused alternating evidence is preserved alongside it.
 
@@ -3292,7 +3294,7 @@ shared browser correctness scenarios and balanced 50-round browser, startup, Nod
 diagnostic populations. The untimed startup source-attribution pass could not load the omitted
 production source map; timed startup, precise coverage, function inventory, heap, and all SSR lanes
 are complete. The
-[complete grouped-percentile report](component-local-target-abi/compiler-owned-hydration-reads.md)
+complete local grouped-percentile report
 contains every required framework table and the direct interleaved prior/current capacity tables.
 Immutable raw evidence and normalization output are under `.tmp/hydration-generated-trust`.
 
@@ -3356,7 +3358,7 @@ heap slope is slightly higher (3,232 versus 3,036 bytes) and is retained as a co
 moderate advisory discovered by that gate was resolved by constraining `three-stdlib` to patched
 `fflate` 0.6.11; comparison framework versions were unchanged. All 35 five-framework browser
 correctness scenarios passed. The
-[complete grouped-percentile report](component-local-target-abi/explicit-sync-ranges-fixed-reactions.md)
+complete local grouped-percentile report
 contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and
 separate Bun diagnostic table. Raw evidence and normalization output are under
@@ -3426,7 +3428,7 @@ evidence is under `.tmp/bounded-markerless-components`, `.tmp/marker-pair-cache`
 package tests, the 335-file native compiler corpus, every application build, and all focused
 architecture and security checks. All 35 five-framework browser correctness scenarios passed.
 The
-[complete grouped-percentile report](component-local-target-abi/bounded-native-ranges-shared-marker-pairs.md)
+complete local grouped-percentile report
 contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, and
 separate Bun diagnostic table. Immutable raw evidence and normalization output are under
@@ -3500,7 +3502,7 @@ package tests, the 335-file native compiler corpus, all application builds, shar
 correctness, architecture, security, formatting, and maintainability gates. All 35 five-framework
 browser correctness scenarios passed, followed by balanced 50-round browser, 750-startup, Node SSR,
 and separate Bun diagnostic populations. The
-[complete grouped-percentile report](component-local-target-abi/compact-client-slot-event-dispatch.md)
+complete local grouped-percentile report
 contains every required table. Raw full-run and normalization evidence is under
 `.tmp/compact-client-dispatch-checkpoint`; focused accepted and rejected experiments are under
 `.tmp/property-operands-combined`, `.tmp/direct-closed-dom-listeners`, and
@@ -3553,7 +3555,7 @@ regression. No server source change is accepted in this phase; the response rema
 package tests, the 335-file native compiler corpus, all application builds, correctness,
 architecture, security, formatting, and maintainability gates. The composition corpus now covers
 57 compiler paths, 11 scenarios, and 57 normative tests. The
-[complete grouped-percentile report](component-local-target-abi/indexed-state-alias-reads.md)
+complete local grouped-percentile report
 contains every browser, startup, function-inventory, artifact, Node SSR, allocation,
 response-decomposition, equal-payload, preloaded, service-phase, retention, saturation, direct
 interleaved Exact-before, and separate Bun diagnostic table. Raw full-run and normalization evidence
@@ -3603,6 +3605,6 @@ per 100-render profile batch.
 production artifacts then passed all 35 browser equivalence scenarios and were reused for 50
 balanced browser rounds, 750 startup captures, and the complete Node and separate Bun SSR matrices.
 The
-[complete grouped-percentile report](component-local-target-abi/conditional-react-renderer-integration.md)
+complete local grouped-percentile report
 contains every required table. Raw evidence and normalization output are under
 `.tmp/react-renderer-final-checkpoint`.
