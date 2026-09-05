@@ -38,10 +38,19 @@ export function summarizeHeapDominators(snapshot, limit = 30) {
 		const parent = immediate[node];
 		if (parent > 0) dominators.find((entry) => entry.node === parent).dominatedNodes++;
 	}
+	const selfBytesByType = {};
+	const nodeCountByType = {};
+	for (let node = 0; node < graph.types.length; node++) {
+		const type = graph.types[node];
+		selfBytesByType[type] = (selfBytesByType[type] ?? 0) + graph.selfSizes[node];
+		nodeCountByType[type] = (nodeCountByType[type] ?? 0) + 1;
+	}
 	return {
 		nodeCount: graph.selfSizes.length,
 		reachableNodeCount: reversePostorder.length,
 		selfBytes: graph.selfSizes.reduce((sum, size) => sum + size, 0),
+		selfBytesByType,
+		nodeCountByType,
 		rootRetainedBytes: retained[0],
 		topDominators: dominators
 			.filter((entry) => entry.retainedBytes > 0)

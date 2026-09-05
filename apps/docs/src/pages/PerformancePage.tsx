@@ -96,7 +96,7 @@ export function PerformancePage(this: Component<{}>) {
 
 			<MetricSection
 				title="Browser experience"
-				description="In this application, eXact combines the fastest mean navigation with 1.51 ms mean optimistic feedback. First paint is competitive across the group. Its 2.50 MB warm post-GC heap is higher than React, SvelteKit, and Nuxt, but lower than TanStack Start. Snapshot analysis attributes that bounded footprint to a mix of V8 function and bytecode metadata, retained framework closures and generator state, and runtime objects—not solely to live application data, and not to heap growth over time."
+				description="In this application, eXact combines the fastest mean navigation with 1.51 ms mean optimistic feedback. First paint is competitive across the group. Its 2.50 MB warm post-GC heap is higher than React, SvelteKit, and Nuxt, but lower than TanStack Start. A focused eXact-versus-React heap snapshot attributes 205 KB, or 79%, of its 260 KB self-byte difference to V8 code nodes associated with eXact's larger compiled-function population. eXact's dominant retained bundle script/source entry was actually about 3 KB smaller than React's; ordinary arrays, object shapes, objects, and closures accounted for the much smaller remainder."
 				charts={report.browserCharts}
 			/>
 			<section>
