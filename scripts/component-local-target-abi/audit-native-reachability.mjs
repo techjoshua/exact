@@ -1,8 +1,35 @@
 import { build } from 'esbuild';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const sourcePackageRoots = new Map(
+	[
+		'core',
+		'devtools-protocol',
+		'instrumentation',
+		'plugin-api',
+		'plugin-host',
+		'reactive',
+		'request',
+		'server'
+	].map((name) => [name, path.join(repositoryRoot, 'packages', name, 'src')])
+);
+const workspaceSourcePlugin = {
+	name: 'exact-workspace-source',
+	setup(buildApi) {
+		buildApi.onResolve({ filter: /^@exactjs\// }, ({ path: specifier }) => {
+			const match = /^@exactjs\/([^/]+)(?:\/(.+))?$/.exec(specifier);
+			const sourceRoot = match && sourcePackageRoots.get(match[1]);
+			if (!sourceRoot) return;
+			const source = path.join(sourceRoot, match[2] ? `${match[2]}.ts` : 'index.ts');
+			if (!existsSync(source))
+				throw new Error(`Native reachability audit cannot resolve ${specifier} to source`);
+			return { path: source };
+		});
+	}
+};
 const result = await build({
 	absWorkingDir: repositoryRoot,
 	stdin: {
@@ -24,7 +51,8 @@ const result = await build({
 	platform: 'browser',
 	target: 'es2022',
 	treeShaking: true,
-	tsconfig: path.join(repositoryRoot, 'tsconfig.json')
+	tsconfig: path.join(repositoryRoot, 'tsconfig.json'),
+	plugins: [workspaceSourcePlugin]
 });
 
 const forbidden = [
@@ -76,7 +104,8 @@ const ssrResult = await build({
 	platform: 'node',
 	target: 'node22',
 	treeShaking: true,
-	tsconfig: path.join(repositoryRoot, 'tsconfig.json')
+	tsconfig: path.join(repositoryRoot, 'tsconfig.json'),
+	plugins: [workspaceSourcePlugin]
 });
 const ssrForbidden = [
 	/packages\/core\/src\/vnode\.ts$/,
