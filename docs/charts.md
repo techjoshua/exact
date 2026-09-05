@@ -14,6 +14,7 @@ import { Axis, AxisLabel, Chart, Data, Legend, Series, SeriesLabel } from '@exac
 	id="latency"
 	title="Response latency"
 	description="Latency percentiles by framework. Lower is better."
+	motion
 >
 	<Axis id="sample" position="bottom" scale="category" />
 	<Axis id="duration" position="left" scale="linear">
@@ -48,6 +49,12 @@ the bounds, Escape dismisses a pinned tooltip, and activating an interactive leg
 one series. One delegated handler set serves the complete plot and one delegated handler serves the
 legend. The semantic figure, associated labels, chart-owned tooltip, non-color series cues, and
 structured HTML data view expose the same information without requiring pointer hover.
+
+Line and area charts use a transparent delegated hit region to select the nearest datum along the
+visible path. Tooltips are positioned inside the plot region and change sides near its edges, so
+they do not enlarge the document or create page scrollbars. Set `motion` on `Chart` to fade tooltip
+visibility through the active theme's duration and easing tokens. Reduced-motion themes resolve
+those durations to zero. Without `motion`, tooltip visibility changes immediately.
 
 Charts consume the active public theme and surface contexts. Applications may override the
 `--exact-chart-*` custom properties in the default stylesheet, but must preserve focus indication

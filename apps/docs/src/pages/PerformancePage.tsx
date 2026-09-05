@@ -48,13 +48,10 @@ const report = reportJson as unknown as {
 		readonly context: string;
 	}[];
 	readonly browserCharts: readonly DistributionChart[];
-	readonly clientFootprint: readonly ValueChart[];
 	readonly server: {
 		readonly ordinary: DistributionChart;
 		readonly sequential: DistributionChart;
 		readonly saturationCharts: readonly DistributionChart[];
-		readonly equalPayloadCharts: readonly DistributionChart[];
-		readonly renderOnly: DistributionChart;
 		readonly retention: DistributionChart;
 		readonly bars: readonly ValueChart[];
 		readonly responseComposition: {
@@ -64,11 +61,6 @@ const report = reportJson as unknown as {
 			readonly series: readonly { readonly name: string; readonly values: readonly number[] }[];
 			readonly comment: string;
 		};
-	};
-	readonly diagnostics: {
-		readonly bun: DistributionChart;
-		readonly preloaded: DistributionChart;
-		readonly excluded: readonly string[];
 	};
 };
 
@@ -103,37 +95,24 @@ export function PerformancePage(this: Component<{}>) {
 			</Callout>
 
 			<MetricSection title="Browser experience" charts={report.browserCharts} />
-			<ValueSection title="Client footprint diagnostics" charts={report.clientFootprint} />
-			<MetricSection
-				title="Node SSR capacity"
-				charts={[
-					report.server.ordinary,
-					...report.server.saturationCharts,
-					...report.server.equalPayloadCharts
-				]}
-			/>
-			<MetricSection
-				title="Server latency and memory diagnostics"
-				charts={[report.server.sequential, report.server.renderOnly, report.server.retention]}
-			/>
-			<ValueSection title="Server payload and allocation" charts={report.server.bars} />
-			<ResponseComposition />
-
 			<section>
-				<h2>Diagnostic lanes</h2>
+				<h2>Node SSR capacity</h2>
 				<p>
-					Preloaded rendering removes normal task and data-readiness work, while Bun participants
-					use different HTTP paths. They help attribute costs but are not overall framework
-					rankings.
+					The application-level lane shows complete responses at a representative concurrency, while
+					the scaling chart shows how sustained throughput changes as concurrent demand grows.
+					Higher throughput is better.
 				</p>
-				<Distribution figure={report.diagnostics.preloaded} index={100} />
-				<Distribution figure={report.diagnostics.bun} index={101} />
-				<ul>
-					{report.diagnostics.excluded.map((reason) => (
-						<li key={reason}>{reason}</li>
-					))}
-				</ul>
+				<div className="performance-chart-grid">
+					<Distribution figure={report.server.ordinary} index={50} />
+					<SaturationChart />
+				</div>
 			</section>
+			<MetricSection
+				title="Server response time and memory"
+				charts={[report.server.sequential, report.server.retention]}
+			/>
+			<ValueSection title="Response payload" charts={report.server.bars} />
+			<ResponseComposition />
 
 			<p className="performance-evidence-note">
 				Evidence commit <code>{report.metadata.commit}</code>, captured{' '}
@@ -142,6 +121,49 @@ export function PerformancePage(this: Component<{}>) {
 				{report.metadata.startupSamples}, and {report.metadata.ssrSamples} balanced samples.
 			</p>
 		</Article>
+	);
+}
+
+function SaturationChart(this: Component<{}>) {
+	const figures = report.server.saturationCharts;
+	const first = figures[0];
+	const series = (first?.series ?? []).map((framework) => ({
+		id: chartId(framework.name, 0),
+		label: framework.name,
+		xAxis: 'concurrency',
+		yAxis: 'throughput',
+		data: figures.flatMap((figure) => {
+			const current = figure.series.find((candidate) => candidate.name === framework.name);
+			if (!current) return [];
+			const concurrency = figure.title.match(/(\d+)$/u)?.[1] ?? '?';
+			return [
+				{
+					id: `c${concurrency}`,
+					label: `Concurrency ${concurrency}`,
+					x: concurrency,
+					value: current.stats.mean,
+					description: distributionDescription(framework.name, current.stats, figure.precision)
+				}
+			];
+		})
+	}));
+	return () => (
+		<div theme:surface="raised" className="performance-chart-card">
+			<Chart
+				type="line"
+				id="performance-node-throughput-scaling"
+				title="Sustained Node throughput by concurrency"
+				description="Mean requests per second at each concurrency level. Hover or focus a point for the full distribution."
+				motion
+				axes={[
+					{ id: 'concurrency', position: 'bottom', scale: 'category', label: 'Concurrency' },
+					{ id: 'throughput', position: 'left', scale: 'linear', label: 'Requests/s' }
+				]}
+				series={series}
+			>
+				<Legend />
+			</Chart>
+		</div>
 	);
 }
 
@@ -326,4 +348,13 @@ function chartId(value: string, index: number): string {
 /** Formats admitted display values without changing the report's fixed units. @exact pure */
 function formatMetric(value: number, precision: number): string {
 	return new Intl.NumberFormat('en-US', { maximumFractionDigits: precision }).format(value);
+}
+
+/** Formats the complete admitted distribution for pointer and keyboard inspection. @exact pure */
+function distributionDescription(
+	framework: string,
+	stats: DistributionStatistics,
+	precision: number
+): string {
+	return `${framework}. Mean ${formatMetric(stats.mean, precision)}; P50 ${formatMetric(stats.p50, precision)}; P75 ${formatMetric(stats.p75, precision)}; P95 ${formatMetric(stats.p95, precision)}; P99 ${formatMetric(stats.p99, precision)} requests/s.`;
 }

@@ -40,7 +40,11 @@ export function Chart(this: Component<{}>, props: ChartProps) {
 		<figure
 			id={id}
 			ref={root}
-			className={joinClasses('exact-chart', props.className)}
+			className={joinClasses(
+				'exact-chart',
+				props.motion ? 'exact-chart--motion' : undefined,
+				props.className
+			)}
 			aria-labelledby={`${id}-title`}
 			aria-describedby={props.description || props.children ? `${id}-description` : undefined}
 		>

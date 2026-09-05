@@ -3,7 +3,11 @@
  */
 import { testComponent } from '@exactjs/testing';
 import { describe, expect, it } from 'vitest';
-import { ChartFixture, CompactChartFixture } from './chart-behavior.fixtures.js';
+import {
+	ChartFixture,
+	CompactChartFixture,
+	MotionChartFixture
+} from './chart-behavior.fixtures.js';
 
 describe('native chart composition', () => {
 	it('renders registered geometry and an equivalent semantic data view', async () => {
@@ -53,6 +57,43 @@ describe('native chart composition', () => {
 		second.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 		await view.flush();
 		expect(tooltip.hidden).toBe(true);
+		view.unmount();
+	});
+
+	it('selects the nearest datum from a line and clears inspection after leaving its hit region', async () => {
+		const view = await testComponent(ChartFixture).mount();
+		const svg = view.container.querySelector<SVGSVGElement>('svg')!;
+		const line = view.container.querySelector<SVGPathElement>('.exact-chart__line-hit')!;
+		const tooltip = view.container.querySelector<HTMLElement>('[role="tooltip"]')!;
+		svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 640, height: 320 }) as DOMRect;
+
+		line.dispatchEvent(
+			new MouseEvent('pointermove', { bubbles: true, clientX: 600, clientY: 100 })
+		);
+		await view.flush();
+		expect(tooltip.textContent).toContain('Concurrency 32: 6900');
+
+		line.dispatchEvent(new MouseEvent('pointerout', { bubbles: true, relatedTarget: svg }));
+		await view.flush();
+		expect(tooltip.hidden).toBe(true);
+		view.unmount();
+	});
+
+	it('retains tooltip placement for an opt-in CSS exit transition', async () => {
+		const view = await testComponent(MotionChartFixture).mount();
+		const figure = view.container.querySelector('figure')!;
+		const mark = view.container.querySelector<SVGElement>('[data-chart-index="0"]')!;
+		const tooltip = view.container.querySelector<HTMLElement>('[role="tooltip"]')!;
+		expect(figure.classList.contains('exact-chart--motion')).toBe(true);
+
+		mark.dispatchEvent(new Event('focusin', { bubbles: true }));
+		await view.flush();
+		expect(tooltip.dataset.visible).toBe('true');
+		mark.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+		await view.flush();
+		expect(tooltip.hidden).toBe(false);
+		expect(tooltip.dataset.visible).toBe('false');
+		expect(tooltip.textContent).toContain('First: 1');
 		view.unmount();
 	});
 

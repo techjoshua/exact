@@ -3,6 +3,14 @@ import { dirname, resolve } from 'node:path';
 import { format } from 'prettier';
 import prettierConfig from '../../prettier.config.mjs';
 
+const publicBrowserMetrics = new Set([
+	'Navigation completion',
+	'First contentful paint',
+	'Optimistic feedback',
+	'Authoritative settlement',
+	'Warm browser used heap'
+]);
+
 const [inputArgument, outputArgument = 'apps/docs/src/data/performance-report.json'] =
 	process.argv.slice(2);
 if (!inputArgument)
@@ -10,7 +18,9 @@ if (!inputArgument)
 
 const input = resolve(inputArgument);
 const output = resolve(outputArgument);
-const report = omitInternalComparisons(JSON.parse(await readFile(input, 'utf8')));
+const report = selectPublicMetrics(
+	omitInternalComparisons(JSON.parse(await readFile(input, 'utf8')))
+);
 validateReport(report);
 await mkdir(dirname(output), { recursive: true });
 await writeFile(
@@ -53,8 +63,36 @@ function isInternalComparison(value) {
 function omitInternalComparisonSentences(value) {
 	return value
 		.split(/(?<=[.!?])\s+/u)
-		.filter((sentence) => !/(?:Exact before|normalized history|before\/current)/iu.test(sentence))
+		.filter(
+			(sentence) =>
+				!/(?:Exact before|normalized history|before\/current|artificial preloaded path|fitted per-request slope)/iu.test(
+					sentence
+				)
+		)
 		.join(' ');
+}
+
+/** Keeps the public report centered on user experience, server capacity, memory, and payload. */
+function selectPublicMetrics(report) {
+	const { clientFootprint: _clientFootprint, diagnostics: _diagnostics, ...current } = report;
+	if (!current.server)
+		return {
+			...current,
+			browserCharts: (current.browserCharts ?? []).filter((chart) =>
+				publicBrowserMetrics.has(chart.title)
+			)
+		};
+	const { equalPayloadCharts: _equalPayload, renderOnly: _renderOnly, ...server } = current.server;
+	return {
+		...current,
+		browserCharts: (current.browserCharts ?? []).filter((chart) =>
+			publicBrowserMetrics.has(chart.title)
+		),
+		server: {
+			...server,
+			bars: (server.bars ?? []).filter((chart) => chart.title === 'SSR response size')
+		}
+	};
 }
 
 /** Rejects incomplete or invented summaries before they enter the public docs artifact. */

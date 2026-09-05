@@ -73,3 +73,25 @@ export function CompactChartFixture(this: Component<{}>) {
 		</Chart>
 	);
 }
+
+/** Opt-in tooltip motion fixture retaining the last placement during its CSS exit transition. */
+export function MotionChartFixture(this: Component<{}>) {
+	return () => (
+		<Chart
+			type="line"
+			id="motion-chart"
+			title="Motion chart"
+			description="Tooltip motion behavior."
+			motion
+			series={[
+				{
+					id: 'current',
+					data: [
+						{ id: 'first', label: 'First', x: '1', value: 1 },
+						{ id: 'second', label: 'Second', x: '2', value: 2 }
+					]
+				}
+			]}
+		/>
+	);
+}

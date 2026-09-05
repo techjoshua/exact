@@ -29,6 +29,7 @@ import {
 import {
 	formatChartCoordinate,
 	formatChartValue,
+	estimateRowLabelWidth,
 	presentHorizontalTicks,
 	presentHorizontalValueTicks,
 	presentRowCategories,
@@ -53,14 +54,17 @@ export function createChartPresentation(
 	validateChartModel(chart, allSeries);
 	const hidden = new Set(_hiddenSeries ? _hiddenSeries.split('\u0000') : []);
 	const series = allSeries.filter((entry) => !hidden.has(entry.props.id));
-	const layout = resolveChartLayout(chart.props);
-	const measurement = resolveChartMeasurement(chart, series, environment);
-	const domain = resolveChartDomains(chart, series, measurement);
-	const styles = resolveChartSeriesStyles(allSeries, theme, surface);
 	const orientation =
 		chart.props.type === 'horizontal-bar' || chart.props.type === 'range'
 			? ('horizontal' as const)
 			: ('vertical' as const);
+	const layout = resolveChartLayout(
+		chart.props,
+		orientation === 'horizontal' ? estimateRowLabelWidth(series, environment) : undefined
+	);
+	const measurement = resolveChartMeasurement(chart, series, environment);
+	const domain = resolveChartDomains(chart, series, measurement);
+	const styles = resolveChartSeriesStyles(allSeries, theme, surface);
 	const ticks =
 		orientation === 'horizontal'
 			? presentHorizontalValueTicks(chart, domain, layout, measurement, environment)
