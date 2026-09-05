@@ -331,6 +331,19 @@ The package generates and drift-checks a compact projection of the supported CLD
 `cldr-core` data set remains a development dependency and is not included in application bundles;
 the derived projection carries the Unicode data license.
 
+Component libraries can consume the same decision through
+`resolveIntlMeasurementPresentation(environment, request)`. The request supplies semantic quantity
+and usage, an explicit source unit, representative values, conversion policy, and number options.
+The returned immutable presentation fixes the effective locale and destination units; the public
+convert, restore, value-format, and range-format functions apply it. Consumers must not reproduce
+locale parsing, CLDR selection, conversion, unit placement, precision, or formatter caches.
+
+An existing prepared scalar message may also publish a bounded value through
+`IntlScalarPresentationContext`. A receiving component owns the reactive consumer slot and can read
+the current text, authored-source fallback, effective locale, and direction while the message keeps
+rendering through its normal enhancement boundary. Structural messages containing element or opaque
+component bindings cannot publish a scalar; their canonical rendered range remains authoritative.
+
 Conversions include multiplicative, offset-safe Celsius/Fahrenheit/Kelvin, and reciprocal
 MPG/L-per-100-kilometer formulas. Source labels are bounded rather than parsed as arbitrary prose;
 case remains significant where it carries meaning, such as `Mb` (megabits) versus `MB`

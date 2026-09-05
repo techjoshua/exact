@@ -63,7 +63,23 @@ export {
 	type IntlUnitPreferences
 } from './environment.js';
 export type { IntlLocaleLanguage, IntlLocaleString } from './cldr-locale-types.js';
+export {
+	convertIntlMeasurementValue,
+	formatIntlMeasurementRange,
+	formatIntlMeasurementValue,
+	resolveIntlMeasurementPresentation,
+	restoreIntlMeasurementValue,
+	type IntlMeasurementNumberOptions,
+	type IntlMeasurementPresentation,
+	type IntlMeasurementPresentationRequest
+} from './measurement-presentation.js';
+export {
+	IntlScalarPresentationContext,
+	type IntlScalarPresentation,
+	type IntlScalarPresentationConsumer
+} from './scalar-presentation.js';
 export type { IntlUnitForDimension, IntlUnitName } from './unit-definitions.js';
+export { formatIntlDateTimeValue, formatIntlNumberValue } from './value-presentation.js';
 export { validateIntlPackageMetadata } from './package-metadata.js';
 export {
 	materializeIntlTranslation,

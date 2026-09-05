@@ -29,7 +29,9 @@ export function createSuite({
 				if (!Number.isFinite(reported?.[percentile]))
 					throw new Error(`${name} ${participantName} omitted ${metricName}.${percentile}`);
 			}
-			summary[metricName] = Object.freeze({ unit: unitFor(metricName), ...reported });
+			const mean =
+				samples.reduce((total, sample) => total + sample[metricName], 0) / samples.length;
+			summary[metricName] = Object.freeze({ unit: unitFor(metricName), mean, ...reported });
 		}
 		const artifact = artifactHash(participantName, entry);
 		const response = responseHash(participantName, entry);
@@ -80,17 +82,20 @@ export function completeSampleSummaries(entries, metrics) {
 
 function summarize(values) {
 	const finite = values.filter(Number.isFinite).sort((left, right) => left - right);
-	return Object.fromEntries(
-		[
-			['p50', 0.5],
-			['p75', 0.75],
-			['p95', 0.95],
-			['p99', 0.99]
-		].map(([name, quantile]) => [
-			name,
-			finite[Math.min(finite.length - 1, Math.ceil(finite.length * quantile) - 1)]
-		])
-	);
+	return {
+		mean: finite.reduce((sum, value) => sum + value, 0) / finite.length,
+		...Object.fromEntries(
+			[
+				['p50', 0.5],
+				['p75', 0.75],
+				['p95', 0.95],
+				['p99', 0.99]
+			].map(([name, quantile]) => [
+				name,
+				finite[Math.min(finite.length - 1, Math.ceil(finite.length * quantile) - 1)]
+			])
+		)
+	};
 }
 
 /** Builds one named raw population for a suite with several sampling lanes. */
@@ -109,13 +114,20 @@ export function samplePopulation(name, metrics, sampleCount, warmupCount, rawSam
 export function withUnit(summary, unit) {
 	if (!summary || ['p50', 'p75', 'p95', 'p99'].some((name) => !Number.isFinite(summary[name])))
 		throw new Error('SSR measurement omitted a complete percentile summary');
-	return { unit, p50: summary.p50, p75: summary.p75, p95: summary.p95, p99: summary.p99 };
+	return {
+		unit,
+		...(Number.isFinite(summary.mean) ? { mean: summary.mean } : {}),
+		p50: summary.p50,
+		p75: summary.p75,
+		p95: summary.p95,
+		p99: summary.p99
+	};
 }
 
 /** Projects a single aggregate into the required complete percentile shape. */
 export function repeated(value, unit) {
 	if (!Number.isFinite(value)) throw new Error('SSR measurement omitted a finite aggregate');
-	return { unit, p50: value, p75: value, p95: value, p99: value };
+	return { unit, mean: value, p50: value, p75: value, p95: value, p99: value };
 }
 
 /** Capitalizes one metric-path segment. */

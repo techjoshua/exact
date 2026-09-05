@@ -150,7 +150,7 @@ export const intlUnitDefinitions: typeof finiteIntlUnitDefinitions &
 /** Canonical unit identifiers accepted by the analyzer and runtime. */
 export const intlUnitIdentifiers = Object.freeze(Object.keys(intlUnitDefinitions));
 
-/** Converts between units only when both belong to the same physical dimension. */
+/** Converts between units only when both belong to the same physical dimension. @exact pure */
 export function convertIntlUnit(value: number, source: string, destination: string): number {
 	if (source === destination) return value;
 	const from = intlUnitDefinitions[source];

@@ -34,7 +34,10 @@ describe('composition corpus server behavior', () => {
 		);
 		expect(renderToString(stateRoot('count'), { markers: false }).html).toContain('count:1');
 		expect(renderToString(structureRoot, { markers: false }).html).toContain('visible');
-		expect(renderToString(capabilitiesRoot, { markers: false }).html).toContain('provided');
+		const capabilities = renderToString(capabilitiesRoot, { markers: false }).html;
+		expect(capabilities).toContain('provided');
+		expect(capabilities).toContain('a:mean');
+		expect(capabilities).toContain('b:mean');
 		expect(renderToString(registryRoot('second'), { markers: false }).html).toContain('second');
 	});
 

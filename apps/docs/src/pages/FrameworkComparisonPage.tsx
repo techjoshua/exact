@@ -77,8 +77,10 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					The controlled track has production SSR implementations for eXact, React, SvelteKit, Nuxt,
 					and TanStack Start. A separate native track exercises eXact compiler server tasks and
 					React Router loaders and actions. Both acceptance suites and the controlled measurement
-					harness are implemented. Specialist reviews remain pending, so no results or rankings are
-					published.
+					harness are implemented. The latest admitted evidence is published on the Performance
+					results page with raw framework values, arithmetic means, percentiles, and eligible
+					control-normalized Exact history; it deliberately does not collapse the dimensions into
+					one ranking.
 				</p>
 			</Callout>
 

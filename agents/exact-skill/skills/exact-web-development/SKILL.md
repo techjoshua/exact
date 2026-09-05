@@ -129,6 +129,10 @@ that omitted its catalog or runtime hooks.
   token patches; use `ThemeContext` and a deriver when specialized palettes must react to source
   changes. Read [theme.md](references/theme.md) before adding theme scopes, controls, charts, or
   package-wide theme enhancement configuration.
+- When `@exactjs/charts` is installed, compose semantic labels through `Chart`, `Axis`, `Series`,
+  and `Data`, give every registration a stable ID, keep the structured data view available, and use
+  ordinary `intl:*` enhancements inside chart label components. Read the installed chart package's
+  `AGENTS.md` and `README.md`; do not introduce a chart VNode tree or duplicate intl/theme policy.
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.

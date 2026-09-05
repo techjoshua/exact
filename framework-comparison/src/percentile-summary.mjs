@@ -12,14 +12,17 @@ export const comparisonPercentiles = Object.freeze([
  */
 export function summarizePercentiles(values) {
 	const finite = values.filter(Number.isFinite).sort((left, right) => left - right);
-	return Object.fromEntries(
-		comparisonPercentiles.map(([label, quantile]) => [
-			label,
-			finite.length
-				? finite[Math.min(finite.length - 1, Math.ceil(finite.length * quantile) - 1)]
-				: null
-		])
-	);
+	return {
+		mean: finite.length ? finite.reduce((sum, value) => sum + value, 0) / finite.length : null,
+		...Object.fromEntries(
+			comparisonPercentiles.map(([label, quantile]) => [
+				label,
+				finite.length
+					? finite[Math.min(finite.length - 1, Math.ceil(finite.length * quantile) - 1)]
+					: null
+			])
+		)
+	};
 }
 
 /** Summarizes one field selected from every sample. */

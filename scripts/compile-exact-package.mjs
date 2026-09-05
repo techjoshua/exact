@@ -70,12 +70,22 @@ try {
 			await mkdir(path.dirname(outputFile), { recursive: true });
 			await writeFile(outputFile, emitted.code);
 		}
+		await copyGeneratedEnhancementFacades(generatedRoot, path.join(outputRoot, targetDirectory));
 		validateRuntimeDependencies();
 		await verifyCompiledExports(target, targetDirectory);
 	}
 	await writeComponentLibraryBuildFacts();
 } finally {
 	await rm(stageRoot, { recursive: true, force: true });
+}
+
+async function copyGeneratedEnhancementFacades(generatedRoot, targetRoot) {
+	const source = path.join(generatedRoot, '.exact');
+	try {
+		await cp(source, path.join(targetRoot, '.exact'), { recursive: true, force: true });
+	} catch (error) {
+		if (error?.code !== 'ENOENT') throw error;
+	}
 }
 
 function packageNameForSpecifier(specifier) {

@@ -17,6 +17,7 @@ These documents describe behavior that exists in the repository today:
 | [component-composition-corpus.md](component-composition-corpus.md)               | Normative compiler-path and cross-renderer component acceptance corpus.                                   |
 | [component-library-trust.md](component-library-trust.md)                         | Bundler-enforced server component package authorization.                                                  |
 | [component-registries.md](component-registries.md)                               | Branched, finite-registry, and open dynamic component selection.                                          |
+| [charts.md](charts.md)                                                           | Accessible native chart components, compact data, intl, theme, interaction, and SSR.                      |
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.                                              |
 | [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.                                  |
 | [exact-for-react-developers.md](exact-for-react-developers.md)                   | Side-by-side native eXact and idiomatic React component authoring guide.                                  |

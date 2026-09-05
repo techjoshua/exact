@@ -34,16 +34,35 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": [
-		"IntlProvider",
-		"IntlLocale",
-		"IntlMessage",
-		"IntlPlural",
-		"IntlSelect",
-		"IntlCurrency",
-		"IntlUnit",
-		"IntlAttributes"
-	],
+	"exactCompiledComponents": {
+		".": [
+			"IntlProvider",
+			"IntlLocale",
+			"IntlMessage",
+			"IntlPlural",
+			"IntlSelect",
+			"IntlCurrency",
+			"IntlUnit",
+			"IntlAttributes"
+		],
+		"./enhancements": [
+			"alt",
+			"ariaDescription",
+			"ariaLabel",
+			"ariaRoledescription",
+			"ariaValuetext",
+			"cldr",
+			"currency",
+			"default",
+			"locale",
+			"message",
+			"placeholder",
+			"plural",
+			"select",
+			"title",
+			"unit"
+		]
+	},
 	"exactComponentLibrary": {
 		"protocol": 2,
 		"build": "./dist/exact-component-build.json"

@@ -1,5 +1,63 @@
 @import '@exactjs/theme/styles.css';
 @import '@exactjs/app-theme-preference/styles.css';
+@import '@exactjs/charts/styles.css';
+
+.performance-summary {
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.performance-summary__item,
+.performance-chart-card {
+	border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+	border-radius: 0.75rem;
+	padding: 1rem;
+}
+
+.performance-summary__item {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.performance-summary__item strong {
+	font-size: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.performance-chart-grid {
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+}
+
+.performance-chart-card {
+	min-inline-size: 0;
+}
+
+.performance-table-scroll {
+	overflow-x: auto;
+}
+
+.performance-table-scroll table {
+	border-collapse: collapse;
+	inline-size: 100%;
+}
+
+.performance-table-scroll :is(th, td) {
+	border-block-end: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+	padding: 0.35rem 0.5rem;
+	text-align: end;
+	white-space: nowrap;
+}
+
+.performance-table-scroll :is(th, td):first-child {
+	text-align: start;
+}
+
+.performance-evidence-note {
+	font-size: 0.875rem;
+	opacity: 0.78;
+}
 
 :root {
 	--page: var(--exact-theme-canvas);
