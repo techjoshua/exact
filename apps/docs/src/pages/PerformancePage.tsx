@@ -94,13 +94,20 @@ export function PerformancePage(this: Component<{}>) {
 				</p>
 			</Callout>
 
-			<MetricSection title="Browser experience" charts={report.browserCharts} />
+			<MetricSection
+				title="Browser experience"
+				description="In this application, eXact combines the fastest mean navigation with 1.51 ms mean optimistic feedback. First paint is competitive across the group. Its 2.50 MB warm post-GC heap is higher than React, SvelteKit, and Nuxt, but lower than TanStack Start; the snapshot describes this page after readiness, not heap growth over time."
+				charts={report.browserCharts}
+			/>
 			<section>
 				<h2>Node SSR capacity</h2>
 				<p>
-					The application-level lane shows complete responses at a representative concurrency, while
-					the scaling chart shows how sustained throughput changes as concurrent demand grows.
-					Higher throughput is better.
+					The application-level lane measures complete responses at concurrency 16. Exact and React
+					are effectively tied there: Exact records 2,065 mean requests per second and React records
+					2,024. Across the sustained scaling curve, React leads by less than 2% at concurrency 1
+					through 8; Exact reaches parity at 16 and leads the measured means by 1.2% at 32 and 2.8%
+					at 64. Higher throughput is better, and differences this small should be read as practical
+					parity on this machine rather than a universal ranking.
 				</p>
 				<div className="performance-chart-grid">
 					<Distribution figure={report.server.ordinary} index={50} />
@@ -109,16 +116,22 @@ export function PerformancePage(this: Component<{}>) {
 			</section>
 			<MetricSection
 				title="Server response time and memory"
+				description="React has the lowest mean warm sequential response time at 1.25 ms, followed by eXact at 1.43 ms. Under the bounded post-GC retention run, eXact has the lowest absolute Node heap at 12.67 MB—about 0.63 MB below React and substantially below the full-stack participants."
 				charts={[report.server.sequential, report.server.retention]}
 			/>
-			<ValueSection title="Response payload" charts={report.server.bars} />
+			<ValueSection
+				title="Response payload"
+				description="The eXact response is 3,710 bytes: 326 bytes larger than React, but smaller than SvelteKit, Nuxt, and TanStack Start. The composition chart shows that the remaining gap to React comes from framework markers, identity attributes, and hydration data rather than application markup."
+				charts={report.server.bars}
+			/>
 			<ResponseComposition />
 
 			<p className="performance-evidence-note">
 				Evidence commit <code>{report.metadata.commit}</code>, captured{' '}
 				<time dateTime={report.metadata.createdAt}>{report.metadata.createdAt}</time>. Browser,
 				startup, and SSR populations contain {report.metadata.browserSamples},{' '}
-				{report.metadata.startupSamples}, and {report.metadata.ssrSamples} balanced samples.
+				{report.metadata.startupSamples} per CPU rate, and {report.metadata.ssrSamples} balanced
+				samples or sustained windows.
 			</p>
 		</Article>
 	);
@@ -169,11 +182,16 @@ function SaturationChart(this: Component<{}>) {
 
 function MetricSection(
 	this: Component<{}>,
-	props: { readonly title: string; readonly charts: readonly DistributionChart[] }
+	props: {
+		readonly title: string;
+		readonly description?: string;
+		readonly charts: readonly DistributionChart[];
+	}
 ) {
 	return () => (
 		<section>
 			<h2>{props.title}</h2>
+			{props.description ? <p>{props.description}</p> : null}
 			<div className="performance-chart-grid">
 				{props.charts.map((figure, index) => (
 					<Distribution figure={figure} index={index} />
@@ -185,11 +203,16 @@ function MetricSection(
 
 function ValueSection(
 	this: Component<{}>,
-	props: { readonly title: string; readonly charts: readonly ValueChart[] }
+	props: {
+		readonly title: string;
+		readonly description?: string;
+		readonly charts: readonly ValueChart[];
+	}
 ) {
 	return () => (
 		<section>
 			<h2>{props.title}</h2>
+			{props.description ? <p>{props.description}</p> : null}
 			<div className="performance-chart-grid">
 				{props.charts.map((figure, index) => (
 					<Values figure={figure} index={index} />
