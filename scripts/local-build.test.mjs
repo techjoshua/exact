@@ -184,3 +184,20 @@ test('Pages publishes Puzzle Foundry without advertising its hosted entry point'
 	assert.doesNotMatch(samplesPage, /puzzle-foundry\.html/);
 	assert.doesNotMatch(samplesPage, /Puzzle Foundry/);
 });
+
+test('pull requests build Pages applications without publishing them', async () => {
+	const workflow = await readFile(
+		path.resolve('.github/workflows/native-compiler-packages.yml'),
+		'utf8'
+	);
+	const pagesJob = workflow.slice(workflow.indexOf('  publish-pages:'));
+
+	assert.doesNotMatch(
+		pagesJob.slice(0, pagesJob.indexOf('    steps:')),
+		/github\.event_name != 'pull_request'/
+	);
+	assert.match(
+		pagesJob,
+		/- name: Publish gh-pages branch\n\s+if: \$\{\{ github\.event_name != 'pull_request' \}\}/
+	);
+});
