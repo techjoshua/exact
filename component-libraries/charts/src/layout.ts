@@ -13,7 +13,7 @@ export interface ChartLayout {
 }
 
 /** Resolves finite chart dimensions and the initial Cartesian plot rectangle. */
-export function resolveChartLayout(dimensions: ChartDimensions): ChartLayout {
+export function resolveChartLayout(dimensions: ChartDimensions, rowLabelWidth = 48): ChartLayout {
 	const width = dimensions.width ?? 640;
 	const height = dimensions.height ?? 360;
 	const padding = dimensions.padding ?? 16;
@@ -26,7 +26,9 @@ export function resolveChartLayout(dimensions: ChartDimensions): ChartLayout {
 			throw new RangeError(`Chart ${name} must be a finite non-negative number`);
 	if (width < 160 || height < 120)
 		throw new RangeError('Chart dimensions must be at least 160 by 120');
-	const left = padding + 48;
+	if (!Number.isFinite(rowLabelWidth) || rowLabelWidth < 0)
+		throw new RangeError('Chart row-label width must be a finite non-negative number');
+	const left = padding + Math.max(48, Math.min(width * 0.32, rowLabelWidth));
 	const right = width - padding;
 	const top = padding;
 	const bottom = height - padding - 36;
@@ -45,4 +47,24 @@ export function resolveChartLayout(dimensions: ChartDimensions): ChartLayout {
 /** Determines whether zero is semantically part of the default vertical domain. */
 export function chartTypeUsesZeroBaseline(type: ChartType): boolean {
 	return type === 'bar' || type === 'horizontal-bar' || type === 'stacked-bar';
+}
+
+/** Places a visible axis label on the horizontal SVG coordinate. @exact pure */
+export function chartAxisLabelX(
+	position: 'top' | 'right' | 'bottom' | 'left',
+	layout: Pick<ChartLayout, 'left' | 'right'>
+): number {
+	if (position === 'left') return 14;
+	if (position === 'right') return layout.right + 28;
+	return (layout.left + layout.right) / 2;
+}
+
+/** Places a visible axis label on the vertical SVG coordinate. @exact pure */
+export function chartAxisLabelY(
+	position: 'top' | 'right' | 'bottom' | 'left',
+	layout: Pick<ChartLayout, 'top' | 'bottom'>
+): number {
+	if (position === 'top') return layout.top - 6;
+	if (position === 'bottom') return layout.bottom + 44;
+	return (layout.top + layout.bottom) / 2;
 }

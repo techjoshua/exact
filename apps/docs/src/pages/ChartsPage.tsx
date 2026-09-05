@@ -13,6 +13,7 @@ import { _ } from '@exactjs/jsx';
   id="latency"
   title="Response latency"
   description="Latency percentiles by framework. Lower is better."
+  motion
 >
   <Axis id="sample" position="bottom" scale="category" />
   <Axis id="latency" position="left" scale="linear">
@@ -55,13 +56,16 @@ export function ChartsPage(this: Component<{}>) {
 					Marks respond to pointer, touch, focus, arrow keys, Home, End, and Escape through one
 					chart-owned delegated interaction surface. The structured data view exposes the same
 					presented values, while patterns and line styles preserve series distinction without
-					color.
+					color. Line hovers resolve the nearest datum, and tooltips remain bounded by the plot. The
+					optional <code>motion</code> prop uses theme timing and respects reduced-motion
+					preferences.
 				</p>
 				<Chart
 					type="line"
 					id="chart-guide-example"
 					title="Response latency"
 					description="Latency percentiles by framework. Lower is better."
+					motion
 					width={720}
 					height={340}
 				>

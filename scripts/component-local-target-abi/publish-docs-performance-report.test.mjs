@@ -28,7 +28,7 @@ test('publishes complete current distributions without internal before compariso
 				},
 				browserCharts: [
 					{
-						title: 'Fixture',
+						title: 'Navigation completion',
 						unit: 'ms',
 						comment:
 							'Exact improves against its normalized history. Exact is currently the fastest.',
@@ -36,8 +36,15 @@ test('publishes complete current distributions without internal before compariso
 							{ name: 'Exact before - normalized', before: true, stats },
 							{ name: 'Exact', stats }
 						]
+					},
+					{
+						title: 'JavaScript evaluation - 1x CPU',
+						unit: 'ms',
+						comment: 'Internal attribution.',
+						series: [{ name: 'Exact', stats }]
 					}
 				],
+				diagnostics: { preloaded: { title: 'Internal lane' } },
 				clientFootprint: [
 					{
 						title: 'Bytes',
@@ -57,11 +64,10 @@ test('publishes complete current distributions without internal before compariso
 			published.browserCharts[0].series.map((series) => series.name),
 			['Exact']
 		);
-		assert.deepEqual(
-			published.clientFootprint[0].values.map((value) => value.name),
-			['Exact']
-		);
 		assert.equal(JSON.stringify(published).includes('before'), false);
+		assert.equal('clientFootprint' in published, false);
+		assert.equal('diagnostics' in published, false);
+		assert.equal(published.browserCharts.length, 1);
 		assert.equal(published.browserCharts[0].series[0].stats.mean, 2);
 		assert.equal(published.browserCharts[0].comment, 'Exact is currently the fastest.');
 	} finally {
@@ -86,7 +92,7 @@ test('rejects a percentile-only summary', async () => {
 				},
 				browserCharts: [
 					{
-						title: 'Fixture',
+						title: 'Navigation completion',
 						unit: 'ms',
 						comment: 'No mean.',
 						series: [{ name: 'Exact', stats: { p50: 1, p75: 2, p95: 3, p99: 4 } }]

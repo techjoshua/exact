@@ -21,6 +21,8 @@ export interface ChartProps extends ChartDimensions {
 	readonly className?: string;
 	readonly title?: string;
 	readonly description?: string;
+	/** Fades tooltip visibility through theme motion tokens; reduced-motion themes remain immediate. */
+	readonly motion?: boolean;
 	/** Compact already-localized axis declarations for data-first callers. */
 	readonly axes?: readonly ChartAxisInput[];
 	/** Compact already-localized series normalized into the same chart-local model as children. */

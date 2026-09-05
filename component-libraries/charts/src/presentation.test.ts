@@ -49,7 +49,11 @@ describe('chart presentation', () => {
 		);
 
 		expect(presentation.ticks.every((tick) => tick.x >= presentation.layout.left)).toBe(true);
-		expect(presentation.categories.map((category) => category.value)).toEqual(['Exact', 'React']);
+		expect(presentation.categories.map((category) => category.value)).toEqual([
+			'Exact',
+			'TanStack Start'
+		]);
+		expect(presentation.layout.left).toBeGreaterThan(100);
 		expect(presentation.ranges[0]?.marks.map((mark) => mark.name)).toEqual(['P75', 'P95']);
 		expect(presentation.ranges[0]?.label).toContain('P75:');
 		expect(presentation.rows[0]?.value).toContain('P95:');
@@ -137,8 +141,8 @@ function coordinator(
 					},
 					{
 						id: 'react',
-						label: 'React',
-						x: 'React',
+						label: 'TanStack Start',
+						x: 'TanStack Start',
 						value: 41,
 						minimum: 37,
 						maximum: 49,

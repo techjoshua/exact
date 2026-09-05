@@ -13,6 +13,7 @@ import { Chart, Data, Series } from '@exactjs/charts';
 	id="requests-chart"
 	title="Concurrent SSR capacity"
 	description="Requests completed per second by framework. Higher is better."
+	motion
 >
 	<Series id="requests" name="Requests per second">
 		<Data id="exact" x="eXact" value={6200} />
@@ -32,7 +33,8 @@ The root surface includes semantic title and description components, axes and la
 labels, keyed data and descriptions, and `Legend`. Supported types are `line`, `area`, `bar`,
 `horizontal-bar`, `stacked-bar`, and `range`. Every chart includes a chart-owned tooltip and a
 discoverable structured data view; `Legend interactive` adds keyboard-operable series visibility
-controls. Import `@exactjs/charts/scales` when only the pure scale helpers are needed.
+controls. Set `motion` to fade tooltip visibility through theme motion tokens; reduced-motion
+themes remain immediate. Import `@exactjs/charts/scales` when only the pure scale helpers are needed.
 
 See the [framework reference](../../docs/charts.md) for compact inputs, localization, accessibility,
 theming, SSR, and behavior details.

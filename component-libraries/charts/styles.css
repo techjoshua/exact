@@ -84,7 +84,14 @@
 .exact-chart__plot {
 	block-size: auto;
 	inline-size: 100%;
-	overflow: visible;
+	overflow: hidden;
+}
+
+.exact-chart__plot-region {
+	isolation: isolate;
+	min-inline-size: 0;
+	overflow: clip;
+	position: relative;
 }
 
 .exact-chart__axis,
@@ -106,6 +113,13 @@
 	stroke-width: 2;
 }
 
+.exact-chart__line-hit {
+	fill: none;
+	pointer-events: stroke;
+	stroke: transparent;
+	stroke-width: 16;
+}
+
 .exact-chart__datum:focus {
 	outline: none;
 	stroke: CanvasText;
@@ -113,17 +127,31 @@
 }
 
 .exact-chart__tooltip {
+	--exact-chart-tooltip-x: -50%;
+	--exact-chart-tooltip-y: calc(-100% - 0.5rem);
 	background: Canvas;
 	border: 1px solid var(--exact-chart-axis);
 	border-radius: 0.375rem;
 	box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, CanvasText 16%, transparent);
 	color: CanvasText;
 	inline-size: max-content;
-	max-inline-size: min(24rem, 90vw);
+	max-inline-size: min(24rem, calc(100% - 1rem));
 	padding: 0.5rem 0.75rem;
 	position: absolute;
-	transform: translate(0.5rem, calc(-100% - 0.5rem));
+	transform: translate(var(--exact-chart-tooltip-x), var(--exact-chart-tooltip-y));
 	z-index: 1;
+}
+
+.exact-chart__tooltip--start {
+	--exact-chart-tooltip-x: 0;
+}
+
+.exact-chart__tooltip--end {
+	--exact-chart-tooltip-x: -100%;
+}
+
+.exact-chart__tooltip--after {
+	--exact-chart-tooltip-y: 0.5rem;
 }
 
 .exact-chart__tooltip > * {
@@ -132,6 +160,23 @@
 
 .exact-chart__tooltip[hidden] {
 	display: none;
+}
+
+.exact-chart--motion .exact-chart__tooltip {
+	display: block;
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		opacity var(--exact-theme-duration-fast, 120ms) var(--exact-theme-easing-standard, ease-out),
+		visibility 0s linear var(--exact-theme-duration-fast, 120ms);
+	visibility: hidden;
+}
+
+.exact-chart--motion .exact-chart__tooltip[data-visible='true'] {
+	opacity: 1;
+	pointer-events: auto;
+	transition-delay: 0s;
+	visibility: visible;
 }
 
 .exact-chart__data-view table {

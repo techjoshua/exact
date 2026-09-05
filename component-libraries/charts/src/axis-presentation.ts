@@ -145,6 +145,24 @@ export function presentRowCategories(
 	}));
 }
 
+/** Reserves deterministic SVG space for localized row labels without client-only measurement. */
+export function estimateRowLabelWidth(
+	series: readonly ChartSeriesRegistration[],
+	environment: IntlEnvironment | undefined
+): number {
+	let longest = 0;
+	for (const entry of series)
+		for (const datum of entry.data.values()) {
+			if (datum.props.defined === false) continue;
+			const label =
+				datum.label?.presentation?.value ??
+				datum.props.label ??
+				formatChartCoordinate(datum.props.x, environment);
+			longest = Math.max(longest, Array.from(label).length);
+		}
+	return longest * 7 + 12;
+}
+
 /** Formats one source-domain value without taking locale or unit ownership into charts. */
 export function formatChartValue(
 	value: number,
