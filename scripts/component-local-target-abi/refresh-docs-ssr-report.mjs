@@ -17,11 +17,13 @@ const participants = [
 ];
 
 /**
- * Refreshes public Node SSR charts from complete v2 evidence while preserving independently
- * captured browser evidence and its date. Aggregate throughput never replaces a window mean.
+ * Refreshes public SSR charts for the selected runtime from complete v2 evidence while
+ * preserving independently captured browser evidence and its date. Aggregate throughput never replaces a window mean.
  * Recomputes throughput from raw windows and rejects inconsistent recorded summaries.
  */
-export function refreshDocsSsrReport(previous, raw) {
+export function refreshDocsSsrReport(previous, raw, runtimeId = 'node') {
+	if (!['node', 'bun'].includes(runtimeId)) throw new Error(`Unsupported SSR runtime ${runtimeId}`);
+	const runtimeName = runtimeId === 'node' ? 'Node' : 'Bun';
 	validateRaw(raw, 'framework-comparison-ssr-run');
 	if (
 		raw.complete !== true ||
@@ -29,9 +31,9 @@ export function refreshDocsSsrReport(previous, raw) {
 		raw.harness.throughputMethod !== 'deferred-validation-aggregate-v2'
 	)
 		throw new Error('Docs SSR refresh requires complete publishable v2 throughput evidence');
-	const entries = raw.runtimes.node;
+	const entries = raw.runtimes[runtimeId];
 	const saturationCharts = raw.harness.saturationConcurrency.map((level) => ({
-		title: `Sustained Node throughput - c${level}`,
+		title: `Sustained ${runtimeName} throughput - c${level}`,
 		unit: 'RPS',
 		precision: 0,
 		comment: `Aggregate completed requests per second across ${raw.harness.saturationWindows} balanced ${raw.harness.saturationWindowMs} ms windows, including final drain. The mean and percentiles describe individual window rates; response validation runs outside each timed window. Higher is better.`,
@@ -57,7 +59,7 @@ export function refreshDocsSsrReport(previous, raw) {
 	const sustained = saturationCharts.find((chart) => chart.title.endsWith('c32'));
 	if (!sustained) throw new Error('Docs throughput headline requires concurrency 32');
 	const burst = {
-		title: `${raw.harness.concurrency}-request Node burst completion`,
+		title: `${raw.harness.concurrency}-request ${runtimeName} burst completion`,
 		unit: 'ms',
 		precision: 2,
 		comment: `Elapsed time for all ${raw.harness.concurrency} requests in each finite burst to complete, without replacement requests. Response validation follows the timer. Lower is better.`,
@@ -66,8 +68,14 @@ export function refreshDocsSsrReport(previous, raw) {
 			stats: summarizeSsrSamples(entries[id].concurrent.burstElapsedSamples)
 		}))
 	};
+	const phases = entries.exact.sequential.worker?.phases;
 	const sequential = {
 		...previous.server.sequential,
+		comment:
+			'Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better.' +
+			(phases
+				? ` In this capture, eXact mean data loading was ${phases.dataLoadMs.mean.toFixed(2)} ms and rendering was ${phases.renderMs.mean.toFixed(2)} ms.`
+				: ''),
 		series: participants.map(([name, id]) => ({
 			name,
 			stats: entries[id].sequential.client.totalMs
@@ -84,6 +92,12 @@ export function refreshDocsSsrReport(previous, raw) {
 			)
 		}))
 	};
+	if (runtimeId === 'bun') {
+		sequential.title = 'Warm sequential response latency (Bun)';
+		retention.title = 'Retained server heap (Bun)';
+		retention.comment =
+			'Absolute Bun JavaScriptCore heap after garbage collection at bounded request checkpoints. Lower is better; this does not measure allocation volume.';
+	}
 	const bars = previous.server.bars
 		.filter((chart) => chart.title === 'SSR response size')
 		.map((chart) => ({
@@ -124,7 +138,7 @@ export function refreshDocsSsrReport(previous, raw) {
 			{
 				label: 'Exact c32 aggregate RPS',
 				value: Math.round(sustained.series[0].aggregate).toLocaleString('en-US'),
-				context: 'sustained Node throughput'
+				context: `sustained ${runtimeName} throughput`
 			},
 			...previous.summary.slice(1)
 		],
@@ -132,11 +146,14 @@ export function refreshDocsSsrReport(previous, raw) {
 	};
 }
 
-/** Refreshes latency, memory, and payload evidence without replacing independent capacity metrics. */
-export function refreshDocsSsrDiagnostics(previous, raw) {
-	const refreshed = refreshDocsSsrReport(previous, raw);
+/**
+ * Refreshes latency, memory, and payload evidence without replacing independent capacity metrics.
+ * Defaults to Node and includes Bun when present, with independent capture provenance for each.
+ */
+export function refreshDocsSsrDiagnostics(previous, raw, runtimeId = 'node') {
+	const refreshed = refreshDocsSsrReport(previous, raw, runtimeId);
 	const { burst, sequential, retention, bars, responseComposition } = refreshed.server;
-	for (const [id, entry] of Object.entries(raw.runtimes.node)) {
+	for (const [id, entry] of Object.entries(raw.runtimes[runtimeId])) {
 		if (
 			entry.sequential.samples?.length !== raw.harness.sampleCount ||
 			entry.concurrent.burstElapsedSamples?.length !== raw.harness.concurrencyWaves ||
@@ -160,7 +177,26 @@ export function refreshDocsSsrDiagnostics(previous, raw) {
 			ssrRetentionCheckpoints: raw.harness.retentionBatches,
 			ssrDiagnosticsEnvironment: raw.environment
 		},
-		server: { ...previous.server, burst, sequential, retention, bars, responseComposition }
+		server: {
+			...(runtimeId === 'node' ? previous.server : {}),
+			burst,
+			sequential,
+			retention,
+			bars,
+			responseComposition,
+			...(runtimeId === 'node' && raw.runtimes.bun
+				? {
+						bun: {
+							...refreshDocsSsrDiagnostics(previous, raw, 'bun').server,
+							runtime: raw.environment.runtimes.bun,
+							createdAt: raw.createdAt,
+							sequentialSamples: raw.harness.sampleCount,
+							burstSamples: raw.harness.concurrencyWaves,
+							retentionCheckpoints: raw.harness.retentionBatches
+						}
+					}
+				: {})
+		}
 	};
 }
 

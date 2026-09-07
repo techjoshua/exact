@@ -181,6 +181,17 @@ export function RuntimesPage(this: Component<{}>) {
 			</Callout>
 
 			<section>
+				<p>
+					The default development and CI runtimes are Node.js 26 and Bun 1.4.2. Node.js 24 remains
+					supported and is included in the compatibility matrix.
+				</p>
+				<p>
+					Node 26.8.1 bundles Undici 8.10.0. Its fetch client schedules idle HTTP/1.1 socket
+					validation through a zero-delay timer. On Windows hosts with coarse timer resolution, this
+					can add roughly 15 ms to sequential keep-alive requests. Bun's native fetch client does
+					not use that Undici path. See the{' '}
+					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>.
+				</p>
 				<h2>Compiler and bundler integrations</h2>
 				<p>
 					Every eXact application must run the compiler. A first-class or supported plugin embeds it

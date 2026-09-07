@@ -45,6 +45,7 @@ export function createSsrCapacityReport(preloaded, normal) {
 	const requestErrors = arrivals.reduce((sum, row) => sum + row.requestErrors, 0);
 	return {
 		createdAt: preloaded.multi.createdAt,
+		runtime: `Node ${normal.environment.runtimes.node}`,
 		normalCreatedAt: normal.createdAt,
 		arrivalsCreatedAt: preloaded.arrivals.createdAt,
 		method: `Preloaded sweep: ${describeStages(preloaded.multi)}. Normal loading: ${describeStages(normal)}. Arrivals: ${describeStages(preloaded.arrivals)}. Each capture uses two reversed process populations on ${normal.environment.platform}, ${normal.environment.runtimes.node}, ${normal.environment.cpu.model.trim()}`,

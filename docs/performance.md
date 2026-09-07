@@ -1,5 +1,14 @@
 # JavaScript performance measurement
 
+The [current-runtime chart refresh](performance-baselines/current-runtimes-2026-09-07.md)
+updates the public server charts and isolates the Node 26 idle-socket fetch delay.
+
+The default measurement runtimes are Node.js 26 and Bun 1.4.2. The public server charts
+identify their measured runtime versions; browser charts retain their independent Chromium
+capture dates. Node.js 24 compatibility is maintained separately from current-runtime performance.
+The Node SSR capacity chart uses the sustained two-driver protocol; Bun server latency and heap
+charts use the five-framework interleaved diagnostic protocol, not short-window capacity estimates.
+
 The [SSR follow-through](performance-baselines/ssr-followthrough-2026-09-07.md) completes the
 synchronous-promise, concurrency-profile, and repeated-setup investigations. It retains shallow
 hydration ancestry with native-Set promotion for depth and existing compiled projectors, rejects

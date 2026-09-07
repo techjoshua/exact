@@ -17,8 +17,8 @@
 				"sha256": "713b1d591a249992d1b3f73e5b36e2b5b6af16c30259a522c4b31003e27dc7b8"
 			},
 			"ssrDiagnostics": {
-				"path": "docs/performance-baselines/post-restart-2026-09-07-ssr.json",
-				"sha256": "f4fd75b065e8687717fce9638db0afcfbde025d07cd96373bf4e64f709b1e449"
+				"path": "docs/performance-baselines/current-runtimes-2026-09-07-ssr.json",
+				"sha256": "5fb2d70cab4abbc0d6d1341d35444deb8c48f7a3eca75ef38fc9bf6f7ad65010"
 			},
 			"startupCpu": {
 				"path": "docs/performance-baselines/post-restart-2026-09-07-startup.json",
@@ -26,7 +26,7 @@
 			}
 		},
 		"browserCreatedAt": "2026-09-07T17:30:16.052Z",
-		"ssrCreatedAt": "2026-09-07T17:30:31.508Z",
+		"ssrCreatedAt": "2026-09-07T20:09:29.673Z",
 		"throughputMethod": "deferred-validation-aggregate-v2",
 		"saturationWindowMs": 500,
 		"browserMethod": "captured-production-http-replay",
@@ -411,10 +411,14 @@
 			},
 			"totalMemoryBytes": 27704659968,
 			"runtimes": {
-				"node": "v24.11.1"
+				"node": "v26.8.1",
+				"bun": "1.4.2"
 			},
 			"workerNetworkEnvironment": {
-				"node": {}
+				"node": {},
+				"bun": {
+					"BUN_CONFIG_MAX_HTTP_REQUESTS": "64"
+				}
 			}
 		},
 		"startupCreatedAt": "2026-09-07T17:35:50.182Z"
@@ -801,51 +805,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 11.040086600000068,
-						"p50": 11.023199999995995,
-						"p75": 12.57340000000113,
-						"p95": 14.977200000001176,
-						"p99": 18.888599999998405
+						"mean": 11.311623600000138,
+						"p50": 11.162599999996019,
+						"p75": 12.229200000001583,
+						"p95": 14.179199999998673,
+						"p99": 19.84330000000773
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 9.516526999999957,
-						"p50": 9.953199999996286,
-						"p75": 10.9887000000017,
-						"p95": 12.108000000000175,
-						"p99": 15.196499999998196
+						"mean": 11.34311919999952,
+						"p50": 11.213200000012876,
+						"p75": 12.250599999999395,
+						"p95": 15.140500000008615,
+						"p99": 18.25230000000738
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 14.424747399999992,
-						"p50": 15.226199999997334,
-						"p75": 16.5795999999973,
-						"p95": 18.350299999998242,
-						"p99": 23.066600000005565
+						"mean": 17.32138480000055,
+						"p50": 17.306999999986147,
+						"p75": 18.449900000006892,
+						"p95": 21.464500000001863,
+						"p99": 23.977899999998044
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 20.610226199999946,
-						"p50": 21.675799999997253,
-						"p75": 23.301999999996042,
-						"p95": 29.462400000000343,
-						"p99": 32.25859999999375
+						"mean": 21.580079599999824,
+						"p50": 21.547200000000885,
+						"p75": 23.109700000000885,
+						"p95": 26.834800000011455,
+						"p99": 29.288799999994808
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 18.684489199999998,
-						"p50": 19.62890000000334,
-						"p75": 21.473799999999756,
-						"p95": 23.80899999999383,
-						"p99": 27.779999999998836
+						"mean": 20.916601999999838,
+						"p50": 20.940600000001723,
+						"p75": 22.414099999994505,
+						"p95": 25.192799999989802,
+						"p99": 27.100699999995413
 					}
 				}
 			]
@@ -854,56 +858,56 @@
 			"title": "Warm sequential response latency",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "Measured warm sequential response latency in this capture. Compare the full distribution alongside its arithmetic mean.",
+			"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 13.25 ms and rendering was 0.41 ms.",
 			"series": [
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 1.4012031999999526,
-						"p50": 1.2947000000003754,
-						"p75": 1.6351999999988038,
-						"p95": 2.212499999999636,
-						"p99": 2.639600000000428
+						"mean": 14.168983000000066,
+						"p50": 15.110099999998056,
+						"p75": 15.552499999997963,
+						"p95": 16.006000000001222,
+						"p99": 16.47230000000127
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 1.423019400000001,
-						"p50": 1.3000999999994747,
-						"p75": 1.672500000000582,
-						"p95": 2.2049999999999272,
-						"p99": 2.9160000000001673
+						"mean": 14.16042919999981,
+						"p50": 15.163000000000466,
+						"p75": 15.519000000000233,
+						"p95": 15.985700000004726,
+						"p99": 16.325599999996484
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 1.8932691999999807,
-						"p50": 1.7381999999997788,
-						"p75": 2.23109999999906,
-						"p95": 2.9481000000005224,
-						"p99": 4.07759999999962
+						"mean": 14.667476600000052,
+						"p50": 15.46179999999731,
+						"p75": 15.894200000002456,
+						"p95": 16.38760000000184,
+						"p99": 16.768700000000536
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 2.4671283999999907,
-						"p50": 2.251100000000406,
-						"p75": 2.9100999999991473,
-						"p95": 3.7782999999999447,
-						"p99": 5.584000000000742
+						"mean": 14.327571200000035,
+						"p50": 15.405099999999948,
+						"p75": 15.820299999999406,
+						"p95": 16.44499999999971,
+						"p99": 17.155000000006112
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 2.3517735999999894,
-						"p50": 2.149999999999636,
-						"p75": 2.791400000000067,
-						"p95": 3.5901999999996406,
-						"p99": 4.608799999999974
+						"mean": 15.106737399999984,
+						"p50": 15.878799999998591,
+						"p75": 16.323499999998603,
+						"p95": 16.858200000002398,
+						"p99": 17.363099999998667
 					}
 				}
 			]
@@ -1297,51 +1301,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 13.0739568,
-						"p50": 13.05848,
-						"p75": 13.223464,
-						"p95": 13.25124,
-						"p99": 13.25124
+						"mean": 13.843099200000001,
+						"p50": 13.82584,
+						"p75": 13.974768,
+						"p95": 14.014176,
+						"p99": 14.014176
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 13.668028799999998,
-						"p50": 13.642928,
-						"p75": 13.81376,
-						"p95": 13.861952,
-						"p99": 13.861952
+						"mean": 14.2541536,
+						"p50": 14.221712,
+						"p75": 14.39456,
+						"p95": 14.4474,
+						"p99": 14.4474
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 14.650299200000001,
-						"p50": 14.675624,
-						"p75": 14.786248,
-						"p95": 14.860288,
-						"p99": 14.860288
+						"mean": 15.493356799999997,
+						"p50": 15.496568,
+						"p75": 15.672816,
+						"p95": 15.719496,
+						"p99": 15.719496
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 18.3976816,
-						"p50": 18.325024,
-						"p75": 18.584016,
-						"p95": 18.613104,
-						"p99": 18.613104
+						"mean": 18.9739152,
+						"p50": 18.91964,
+						"p75": 19.150416,
+						"p95": 19.200128,
+						"p99": 19.200128
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 17.373438400000005,
-						"p50": 17.308528,
-						"p75": 17.602584,
-						"p95": 17.74572,
-						"p99": 17.74572
+						"mean": 18.2427392,
+						"p50": 18.192576,
+						"p75": 18.53708,
+						"p95": 18.547152,
+						"p99": 18.547152
 					}
 				}
 			]
@@ -1398,6 +1402,240 @@
 				}
 			],
 			"comment": "Disjoint categories of complete SSR response bytes, including semantic markup, document envelope, framework markers, identity attributes, hydration scripts, and controlled comparison data."
+		},
+		"bun": {
+			"burst": {
+				"title": "16-request Bun burst completion",
+				"unit": "ms",
+				"precision": 2,
+				"comment": "Elapsed time for all 16 requests in each finite burst to complete, without replacement requests. Response validation follows the timer. Lower is better.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 5.726657999999356,
+							"p50": 5.658800000004703,
+							"p75": 6.271299999993062,
+							"p95": 6.9663999999756925,
+							"p99": 7.542300000000978
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 5.739138400000462,
+							"p50": 5.652299999987008,
+							"p75": 6.240799999999581,
+							"p95": 6.955500000010943,
+							"p99": 7.74220000000787
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 7.492926599999482,
+							"p50": 7.301399999996647,
+							"p75": 8.432099999976344,
+							"p95": 10.486700000008568,
+							"p99": 11.301399999996647
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 9.985634199999565,
+							"p50": 9.725600000005215,
+							"p75": 10.961999999999534,
+							"p95": 12.906199999997625,
+							"p99": 14.959499999997206
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 10.766902000000176,
+							"p50": 10.56930000000284,
+							"p75": 11.738799999991897,
+							"p95": 13.480500000005122,
+							"p99": 16.233299999992596
+						}
+					}
+				]
+			},
+			"sequential": {
+				"title": "Warm sequential response latency (Bun)",
+				"unit": "ms",
+				"precision": 2,
+				"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.43 ms and rendering was 0.27 ms.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 0.9802618000003859,
+							"p50": 0.9455000000016298,
+							"p75": 1.1355000000039581,
+							"p95": 1.4862000000139233,
+							"p99": 1.8673999999882653
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 1.037948400000052,
+							"p50": 1.0086000000010245,
+							"p75": 1.2082000000227708,
+							"p95": 1.6104000000050291,
+							"p99": 1.9537000000127591
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 1.5529761999993934,
+							"p50": 1.4902000000001863,
+							"p75": 1.719100000016624,
+							"p95": 2.4208999999973457,
+							"p99": 3.991299999994226
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 2.0186033999993813,
+							"p50": 1.9619000000238884,
+							"p75": 2.373699999996461,
+							"p95": 3.0869999999995343,
+							"p99": 3.7668000000121538
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 2.105305600000138,
+							"p50": 1.9720000000088476,
+							"p75": 2.501399999979185,
+							"p95": 3.133399999991525,
+							"p99": 4.816400000010617
+						}
+					}
+				]
+			},
+			"retention": {
+				"title": "Retained server heap (Bun)",
+				"unit": "MB",
+				"precision": 2,
+				"comment": "Absolute Bun JavaScriptCore heap after garbage collection at bounded request checkpoints. Lower is better; this does not measure allocation volume.",
+				"series": [
+					{
+						"name": "Exact",
+						"stats": {
+							"mean": 3.9709326,
+							"p50": 3.999173,
+							"p75": 4.022579,
+							"p95": 4.028989,
+							"p99": 4.028989
+						}
+					},
+					{
+						"name": "React",
+						"stats": {
+							"mean": 5.7888572,
+							"p50": 5.79956,
+							"p75": 5.841695,
+							"p95": 5.938674,
+							"p99": 5.938674
+						}
+					},
+					{
+						"name": "SvelteKit",
+						"stats": {
+							"mean": 7.5236718,
+							"p50": 7.538293,
+							"p75": 7.540037,
+							"p95": 7.664845,
+							"p99": 7.664845
+						}
+					},
+					{
+						"name": "Nuxt",
+						"stats": {
+							"mean": 12.1795802,
+							"p50": 12.192168,
+							"p75": 12.370631,
+							"p95": 12.375771,
+							"p99": 12.375771
+						}
+					},
+					{
+						"name": "TanStack Start",
+						"stats": {
+							"mean": 11.051488599999999,
+							"p50": 11.132771,
+							"p75": 11.137843,
+							"p95": 11.354083,
+							"p99": 11.354083
+						}
+					}
+				]
+			},
+			"bars": [
+				{
+					"title": "SSR response size",
+					"unit": "bytes",
+					"precision": 0,
+					"values": [
+						{
+							"name": "Exact",
+							"value": 3611
+						},
+						{
+							"name": "React",
+							"value": 3384
+						},
+						{
+							"name": "SvelteKit",
+							"value": 4063
+						},
+						{
+							"name": "Nuxt",
+							"value": 4462
+						},
+						{
+							"name": "TanStack Start",
+							"value": 5193
+						}
+					],
+					"comment": "Complete SSR document bytes for the same incident page. This includes framework resumption and controlled comparison data."
+				}
+			],
+			"responseComposition": {
+				"title": "Where the response bytes come from",
+				"unit": "bytes",
+				"categories": [
+					"Semantic markup",
+					"Envelope",
+					"Markers",
+					"Identity attributes",
+					"Hydration",
+					"Comparison data"
+				],
+				"series": [
+					{
+						"name": "Exact",
+						"values": [null, null, null, null, null, null]
+					},
+					{
+						"name": "React",
+						"values": [2383, 214, 56, 0, 0, 731]
+					}
+				],
+				"comment": "Disjoint categories of complete SSR response bytes, including semantic markup, document envelope, framework markers, identity attributes, hydration scripts, and controlled comparison data."
+			},
+			"runtime": "1.4.2",
+			"createdAt": "2026-09-07T20:09:29.673Z",
+			"sequentialSamples": 500,
+			"burstSamples": 500,
+			"retentionCheckpoints": 5
 		}
 	}
 }

@@ -21,14 +21,14 @@ const series = ['eXact', 'React'].map((name, index) => ({
 export const ssrCapacityHighlight = {
 	label: 'eXact fixed-concurrency SSR',
 	value: `${Math.round(Math.max(...report.preloaded.filter((row) => row.name === 'eXact').map((row) => row.rps))).toLocaleString('en-US')} RPS`,
-	context: 'best point in the concurrency sweep; data already loaded'
+	context: `${report.runtime}; best concurrency point with data already loaded`
 };
 
 /** Presents sustained HTTP capacity with explicit data-loading and offered-demand conditions. */
 export function SsrCapacity(this: Component<{}>) {
 	return () => (
 		<section>
-			<h2>Node SSR capacity</h2>
+			<h2>{report.runtime} SSR capacity</h2>
 			<p>
 				These sustained measurements compare eXact and React using two independent load-driver
 				processes and one server process per active framework. Two fresh process populations reverse
