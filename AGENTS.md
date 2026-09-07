@@ -279,3 +279,8 @@ Before adding or retaining a test, identify:
 The goal is not maximum test count or coverage. Use the minimum restraint that makes the expected
 journey acceptably safe, with additional independent protection where failure would be unusually
 costly.
+
+## Writing style
+
+Do not use em dashes in assistant responses, documentation, or user-interface text. Use sentence
+breaks, commas, colons, or parentheses instead.

@@ -1,4 +1,4 @@
-# Current runtime chart refresh ? September 7, 2026
+# Current runtime chart refresh: September 7, 2026
 
 Node 26.8.1 and Bun 1.4.2 are installed as machine-wide defaults under Program Files.
 The machine PATH resolves these versions; no PowerShell profile override is required.
@@ -39,7 +39,7 @@ Normal-loading c32: eXact 1,927 valid RPS, React 1,945 valid RPS.
 
 ## Why Node sequential latency differs from Bun
 
-The Node 26 capture had about 14?15 ms mean sequential latency across all five frameworks.
+The Node 26 capture had about 14–15 ms mean sequential latency across all five frameworks.
 eXact phase accounting attributed 13.25 ms to data loading and 0.41 ms to rendering.
 A controlled follow-up used the same fixture and minimal static servers, separately owned
 clients, repeated fetch/HTTP ordering, twenty warmups, and one hundred samples per lane.
@@ -47,9 +47,9 @@ The minimal static server produced:
 
 | Client             | Mean range, ms |
 | ------------------ | -------------: |
-| Node 24.11.1 fetch |      0.39?0.42 |
-| Node 26.8.1 fetch  |    14.12?14.41 |
-| Node 26.8.1 HTTP   |      0.27?0.34 |
+| Node 24.11.1 fetch |      0.39–0.42 |
+| Node 26.8.1 fetch  |    14.12–14.41 |
+| Node 26.8.1 HTTP   |      0.27–0.34 |
 | Bun 1.4.2 fetch    |           0.10 |
 
 Both Node versions showed roughly 15.5 ms medians for nominal one-millisecond timers.
