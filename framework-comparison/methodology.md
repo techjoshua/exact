@@ -341,3 +341,14 @@ Shared-PC activity remains part of local benchmark uncertainty. Balanced rounds 
 but cannot make instantaneous interruptions affect every participant equally. Do not discard slow
 samples after the fact, pool different warmup regimes, or claim a small P99 change is a runtime
 regression without repeated evidence and phase attribution.
+
+### Runtime versions in published results
+
+The default local and CI runtimes are Node.js 26 and Bun 1.4.2. Record the exact runtime
+versions in each capture and show them with public server charts. Node 24 remains a supported
+compatibility target; historical Node 24 measurements must not be relabeled as Node 26 evidence.
+Five-framework server diagnostics publish Node and Bun populations separately. eXact's Bun
+participant uses native `Bun.serve`; the other participants use Bun's Node HTTP compatibility
+transport. Bun retained heap covers JavaScriptCore and Node retained heap covers V8, so their
+absolute heap measurements are not equivalent engine accounting. Browser charts retain their
+independent Chromium capture provenance when only server runtimes change.

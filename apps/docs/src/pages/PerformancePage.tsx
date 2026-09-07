@@ -47,6 +47,9 @@ const report = reportJson as unknown as {
 		readonly ssrSequentialSamples: number;
 		readonly ssrBurstSamples: number;
 		readonly ssrRetentionCheckpoints: number;
+		readonly ssrDiagnosticsEnvironment: {
+			readonly runtimes: { readonly node: string; readonly bun: string };
+		};
 	};
 	readonly summary: readonly {
 		readonly label: string;
@@ -55,6 +58,16 @@ const report = reportJson as unknown as {
 	}[];
 	readonly browserCharts: readonly DistributionChart[];
 	readonly server: {
+		readonly bun: {
+			readonly runtime: string;
+			readonly createdAt: string;
+			readonly sequentialSamples: number;
+			readonly burstSamples: number;
+			readonly retentionCheckpoints: number;
+			readonly burst: DistributionChart;
+			readonly sequential: DistributionChart;
+			readonly retention: DistributionChart;
+		};
 		readonly burst: DistributionChart;
 		readonly sequential: DistributionChart;
 		readonly retention: DistributionChart;
@@ -111,10 +124,31 @@ export function PerformancePage(this: Component<{}>) {
 			<HeapComposition />
 			<SsrCapacity />
 			<MetricSection
-				title="Server response time and memory"
+				title={`Server response time and memory ? Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}`}
 				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection; it is distinct from the amount allocated while handling requests."
 				charts={[report.server.burst, report.server.sequential, report.server.retention]}
 			/>
+			<p>
+				Sequential results include the runtime's HTTP client behavior. See
+				<a href="#/runtimes">runtime compatibility notes</a> for the Node 26.8.1 idle-socket timer
+				delay reproduced on this Windows host.
+			</p>
+			<MetricSection
+				title={`Server response time and memory ? Bun ${report.server.bun.runtime}`}
+				description="The same five-framework workload runs on Bun. eXact uses native Bun.serve; the other participants use Bun?s Node HTTP compatibility transport. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node?s V8 heap accounting."
+				charts={[
+					report.server.bun.burst,
+					report.server.bun.sequential,
+					report.server.bun.retention
+				]}
+			/>
+			<p className="performance-evidence-note">
+				Bun server evidence captured{' '}
+				<time dateTime={report.server.bun.createdAt}>{report.server.bun.createdAt}</time>, with{' '}
+				{report.server.bun.sequentialSamples} sequential requests, {report.server.bun.burstSamples}{' '}
+				bursts, and {report.server.bun.retentionCheckpoints} retained-heap checkpoints per
+				framework.
+			</p>
 			<ValueSection
 				title="Response payload"
 				description="Complete response sizes include application markup and framework data. The composition chart separates semantic markup, document overhead, framework markers, identity attributes, and hydration data."

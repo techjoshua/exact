@@ -103,3 +103,32 @@ test('diagnostic refresh preserves capacity and browser evidence and recomputes 
 	raw.runtimes.node.exact.sequential.samples.pop();
 	assert.throws(() => refreshDocsSsrDiagnostics(previous, raw), /incomplete latency/);
 });
+
+test('publishes distinct Bun populations and rejects incomplete Bun evidence', () => {
+	const { previous, raw } = fixture();
+	raw.harness.sampleCount = 2;
+	raw.harness.concurrencyWaves = 2;
+	for (const entry of Object.values(raw.runtimes.node))
+		entry.sequential.samples = [{ totalMs: 2 }, { totalMs: 4 }];
+	raw.environment = { runtimes: { node: 'v26.8.1', bun: '1.4.2' } };
+	raw.runtimes.bun = structuredClone(raw.runtimes.node);
+	for (const entry of Object.values(raw.runtimes.bun))
+		entry.sequential.samples = [{ totalMs: 6 }, { totalMs: 8 }];
+	const report = refreshDocsSsrDiagnostics(previous, raw);
+	assert.equal(report.server.sequential.series[0].stats.mean, 3);
+	assert.equal(report.server.bun.sequential.series[0].stats.mean, 7);
+	assert.equal(report.server.bun.sequential.series.length, 5);
+	assert.match(report.server.bun.burst.title, /Bun/);
+	assert.equal(report.server.bun.runtime, '1.4.2');
+	assert.equal(report.server.bun.createdAt, 'server-date');
+	const nodeOnly = structuredClone(raw);
+	delete nodeOnly.runtimes.bun;
+	nodeOnly.createdAt = 'later-node-date';
+	const refreshed = refreshDocsSsrDiagnostics(report, nodeOnly);
+	assert.equal(refreshed.server.bun.createdAt, 'server-date');
+	assert.equal(refreshed.metadata.ssrCreatedAt, 'later-node-date');
+	assert.match(report.server.bun.retention.comment, /JavaScriptCore/);
+	assert.deepEqual(report.browserCharts, previous.browserCharts);
+	raw.runtimes.bun.exact.sequential.samples.pop();
+	assert.throws(() => refreshDocsSsrDiagnostics(previous, raw), /incomplete latency/);
+});
