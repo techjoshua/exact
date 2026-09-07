@@ -54,6 +54,12 @@ after its final build or watch generation.
 Webpack and Bun expose optional `onRemoteEntries` and `onRemoteDevelopmentEntries` callbacks for a
 deployment or development host that needs the immutable exposure-to-entry map.
 
+Bun virtual entry specifiers use portable generated filenames so Windows writes ordinary files,
+not NTFS alternate data streams. Output classification keeps CSS separate from executable entry
+metadata, including Bun versions that attach an entry point to CSS output. `exactBuild()` normalizes
+nonempty `publicPath` prefixes with a trailing slash so emitted chunk URLs share the published
+entry URL base. Generated filenames and virtual IDs remain opaque implementation details.
+
 The page publishes explicitly configured provided-package instances before
 hydration. Remote builds externalize those packages and the compiler-selected
 eXact runtime capability subpaths used by their generated artifacts, then

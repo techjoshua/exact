@@ -196,6 +196,11 @@ export function RuntimesPage(this: Component<{}>) {
 				</p>
 				<IntegrationTable caption="Build integrations" integrations={buildIntegrations} />
 				<p>
+					Bun remote builds publish their actual entry URLs through <code>onRemoteEntries</code>.
+					Use those URLs instead of predicting filenames. <code>exactBuild()</code> normalizes an
+					asset prefix such as <code>/assets</code> to <code>/assets/</code> for linked chunks.
+				</p>
+				<p>
 					An SSR-only server entry can set <code>renderMode: 'server-render'</code> to omit
 					continuation-dispatch executors. Keep the default server mode when the same bundle also
 					handles continuation requests.
@@ -228,6 +233,11 @@ export function RuntimesPage(this: Component<{}>) {
 					<code>@exactjs/server</code> instead of being reimplemented by every framework.
 				</p>
 				<IntegrationTable caption="Runtime integrations" integrations={runtimeIntegrations} />
+				<p>
+					Precompiled Node applications can load the React compatibility adapter with{' '}
+					<code>node --import @exactjs/react-compat/register</code>. It uses synchronous module
+					hooks when available, with an asynchronous fallback for older Node hosts.
+				</p>
 			</section>
 
 			<section>
