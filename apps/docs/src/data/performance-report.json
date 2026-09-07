@@ -445,7 +445,7 @@
 			"title": "Navigation completion",
 			"unit": "ms",
 			"precision": 1,
-			"comment": "Navigation load completion, not hydration readiness. Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. Lower is better.",
+			"comment": "Time until the browser's load event. Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. Lower is better.",
 			"series": [
 				{
 					"name": "Exact",

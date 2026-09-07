@@ -118,7 +118,7 @@ export function PerformancePage(this: Component<{}>) {
 
 			<MetricSection
 				title="Browser experience"
-				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures the load event, not hydration readiness. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
+				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures time until the browser's load event. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
 				charts={report.browserCharts}
 			/>
 			<HeapComposition />
