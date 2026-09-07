@@ -92,6 +92,12 @@ export function CompilerTourPage(this: Component<{}>) {
 					function.
 				</p>
 				<p>
+					When a keyed row compiles to one intrinsic root, synchronous server rendering can use that
+					element as the row boundary. Hydration preserves the element, the row&apos;s key, and its
+					reactive ownership without adding item comments. Rows that need a wider range retain
+					explicit boundaries.
+				</p>
+				<p>
 					An application may have several independent mount or hydration roots. The build adapter
 					derives each root&apos;s reachable artifacts from the bundler graph; no component is
 					marked as the one global application root, and compiler build inventories are not shipped

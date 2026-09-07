@@ -226,7 +226,7 @@ describe('@exactjs/node-adapter', () => {
 		expect(() => result.stream).toThrow('already claimed');
 	});
 
-	it('hands a produced SSR rope to one terminal Node write', async () => {
+	it('assembles produced spans before one terminal Node write', async () => {
 		const writes: string[] = [];
 		const response = Object.assign(new EventEmitter(), {
 			statusCode: 0,
@@ -254,12 +254,14 @@ describe('@exactjs/node-adapter', () => {
 			environmentByteLengths.push(environment?.encodedByteLength?.('\ud83d\ude80') ?? -1);
 			write('<main>');
 			write('ready');
+			write('\ud83d');
+			write('\ude80');
 			write('</main>');
 		});
 
 		const completion = writeNodeResponse(response, result);
 		expect(writes).toEqual([]);
-		expect(response.body).toBe('<main>ready</main>');
+		expect(response.body).toBe('<main>ready\ud83d\ude80</main>');
 		expect(environmentByteLengths).toEqual([4]);
 		await completion;
 	});
@@ -306,6 +308,7 @@ describe('@exactjs/node-adapter', () => {
 	});
 
 	it('publishes an internal error when a produced body fails before commitment', async () => {
+		const logger = { log: vi.fn() };
 		const response = Object.assign(new EventEmitter(), {
 			statusCode: 0,
 			destroyed: false,
@@ -342,7 +345,14 @@ describe('@exactjs/node-adapter', () => {
 			}
 		);
 
-		await writeNodeResponse(response, result);
+		await writeNodeResponse(response, result, undefined, logger);
+		expect(logger.log).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({
+				level: 'error',
+				error: expect.objectContaining({ message: 'render failed' }),
+				scope: { source: 'framework', packageName: 'node-adapter', category: 'response' }
+			})
+		);
 
 		expect(response.statusCode).toBe(500);
 		expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8');

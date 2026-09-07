@@ -43,7 +43,7 @@ import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-
 import type { ExactPreparedServerChildRange } from '@exactjs/core/framework/server-render-structure';
 import type { ExactPreparedServerKeyedChild } from '@exactjs/core/framework/server-render-structure';
 import type { Child, SsrContext } from '../types.js';
-import { exactMarkerId, keyedItemMarkerId, markerId, markerPair } from '../markup.js';
+import { exactMarkerId, markerId, markerPair } from '../markup.js';
 import { renderIntrinsicReceipt } from './intrinsic-receipt.js';
 import { renderPreparedSsrProgramString } from './sync-render-program.js';
 import { registerDynamicComponentPreload } from './resource-hints.js';
@@ -118,7 +118,7 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 		);
 	}
 
-	/** Serializes one keyed child while preserving marker identity. */
+	/** Serializes one keyed child while preserving its item ownership boundary. */
 	[exactKeyedChildOperation](_operation: object, data: ExactKeyedChildReceiptData): string {
 		return this.renderKeyedChild(data);
 	}
@@ -128,14 +128,12 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 		return this.renderKeyedChild(data);
 	}
 
+	/** Compiler-prepared programs own one intrinsic root; generic children retain paired ranges. */
 	private renderKeyedChild(
 		data: ExactPreparedServerKeyedChild | ExactKeyedChildReceiptData
 	): string {
 		const program = readPreparedServerRenderProgram(data.value);
-		if (program)
-			return markerPair(this.context, keyedItemMarkerId(data.key), () =>
-				renderPreparedSsrProgramString(this.context, program, this.parent, this)
-			);
+		if (program) return renderPreparedSsrProgramString(this.context, program, this.parent, this);
 		this.context.outputSink?.invalidateAccounting();
 		return renderKeyedChildReceipt(
 			this.context,
@@ -234,15 +232,19 @@ export class SyncSsrOperationTarget implements SyncComponentOperations {
 			(data.markerId
 				? `dynamic:${exactMarkerId(data.markerId)}`
 				: markerId(this.context, 'dynamic'));
-		return markerPair(this.context, rangeIdentity, () =>
-			dynamicComponent
-				? ''
-				: this.renderChildList(
-						this.context,
-						normalizeRenderResult(unwrap(data.value) as Child | Child[]),
-						this.parent,
-						this.hasComponentAncestor
-					)
+		return markerPair(
+			this.context,
+			rangeIdentity,
+			() =>
+				dynamicComponent
+					? ''
+					: this.renderChildList(
+							this.context,
+							normalizeRenderResult(unwrap(data.value) as Child | Child[]),
+							this.parent,
+							this.hasComponentAncestor
+						),
+			true
 		);
 	}
 

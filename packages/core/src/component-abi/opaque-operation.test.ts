@@ -88,6 +88,15 @@ describe('opaque target operations', () => {
 			mayReplaceSubtree: true
 		});
 		expect(readPreparedServerChildRange(range)?.value).toBe(value);
+
+		const unmarked = createPreparedServerChildRange(value, undefined, false);
+		expect(isOpaqueOperation(unmarked)).toBe(false);
+		expect(readPreparedServerChildRange(unmarked)).toMatchObject({
+			value,
+			mayReplaceSubtree: false
+		});
+		expect(unmarked).not.toHaveProperty('markerId');
+		expect(readPreparedServerChildRange(unmarked)?.value).toBe(value);
 	});
 
 	it('keeps compiler-closed keyed children off the opaque client operation path', () => {

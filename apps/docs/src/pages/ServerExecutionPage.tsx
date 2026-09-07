@@ -96,6 +96,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 					The browser and server share a neutral Core protocol contract. Hydration validates and
 					applies those responses without taking a production dependency on the server runtime.
 				</p>
+				<p>
+					For repeated records with a known shape, the compiler can generate server-only hydration
+					validation code. It preserves the same serialization checks and payload format, while
+					older compiled components continue through the standard validator. This adds no browser
+					code or application configuration.
+				</p>
 			</section>
 			<section>
 				<h2>Server context stays on the server</h2>
@@ -104,6 +110,11 @@ export function ServerExecutionPage(this: Component<{}>) {
 					The server runtime supplies the base context for each request. The compiler sends the
 					product ID and returns the shared product data to component state. The server context
 					stays private.
+				</p>
+				<p>
+					Use a factory-backed context when the server should own a resource's lifetime and cleanup.
+					A supplied context value keeps its existing owner. Request contexts remain isolated. When
+					a scope closes, factory-owned resources are released before the dependencies they consume.
 				</p>
 			</section>
 			<section>
@@ -130,9 +141,16 @@ export function ServerExecutionPage(this: Component<{}>) {
 			<section>
 				<h2>Server rendering uses the same work</h2>
 				<p>
+					The renderer counts compiler-known markup and dynamic output as it is produced. Buffered
+					ranges reuse that accounting when it remains valid, with exact UTF-8 byte limits and
+					rollback preserved before output is committed.
+				</p>
+				<p>
 					During SSR, the server can resolve context and finish server tasks before sending HTML.
 					Hydration adopts that HTML and restores the browser component without repeating settled
-					work. Later dependency changes run the server task again and update the same component.
+					work. Its payload is validated before publication, and collection-encoding bookkeeping is
+					allocated only when registered collections require it. Later dependency changes run the
+					server task again and update the same component.
 				</p>
 				<p>
 					The compiler starts independently ready component tasks through a bounded request
@@ -148,6 +166,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 					resource-limit policy from one configuration. Its request signal remains authoritative
 					through rendering and operation dispatch. A narrower render signal may stop work early,
 					but it cannot detach work from a disconnected request or a shutting-down runtime.
+				</p>
+				<p>
+					The Node adapter reports unexpected request, response-production, and cleanup failures
+					through the server runtime&apos;s logger, falling back to the server console when none is
+					configured. Clients receive a generic error before response commitment; a failed stream is
+					closed after commitment. Error details stay in server logs.
 				</p>
 			</section>
 			<Callout title="Compiler errors protect the boundary">

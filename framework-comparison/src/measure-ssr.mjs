@@ -48,7 +48,7 @@ const saturationConcurrency = parseSsrConcurrencyLevels(
 	process.env.COMPARISON_SSR_SATURATION_CONCURRENCY
 );
 const saturationWindows = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WINDOWS, 50);
-const saturationWindowMs = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WINDOW_MS, 100);
+const saturationWindowMs = positiveInteger(process.env.COMPARISON_SSR_SATURATION_WINDOW_MS, 500);
 const serviceProbeRequests = positiveInteger(
 	process.env.COMPARISON_SSR_SERVICE_PROBE_REQUESTS,
 	100
@@ -138,6 +138,7 @@ try {
 		publishable: true,
 		environment: ssrEnvironmentMetadata(runtimes),
 		harness: {
+			throughputMethod: 'deferred-validation-aggregate-v2',
 			sampleCount,
 			warmupCount,
 			startupSampleCount,
@@ -167,6 +168,10 @@ try {
 		runtimes: results,
 		interleaved,
 		limitations: [
+			'Throughput v2 excludes response hashing and semantic validation from load intervals; historical v1 rates are not directly comparable.',
+			'Aggregate RPS divides total completed requests by total actual window time including drain; percentiles and mean describe window rates.',
+			'Finite concurrency waves report burst completion time and are not sustained capacity measurements.',
+			'The load client retains response bodies for each window until deferred validation; local client, service, and server resource contention remains part of this setup.',
 			'Latency uses warm keep-alive requests over unthrottled local loopback.',
 			'Every SSR route loads the same fixture through the controlled service before rendering.',
 			'Saturation levels use sustained closed-loop local windows rather than an external open-loop load generator.',
@@ -457,7 +462,7 @@ function printSummary(report) {
 	for (const [runtimeId, runtime] of Object.entries(report.runtimes)) {
 		for (const [participantId, result] of Object.entries(runtime)) {
 			process.stdout.write(
-				`${runtimeId}/${participantId}: warm total p50=${format(result.sequential.client.totalMs.p50)}ms p95=${format(result.sequential.client.totalMs.p95)}ms, concurrent p50=${format(result.concurrent.client.totalMs.p50)}ms, concurrent p50=${format(result.concurrent.requestsPerSecond.p50)} rps, heap slope=${format(result.retention.bytesPerRequest.heapUsed)} B/request\n`
+				`${runtimeId}/${participantId}: sustained c32 aggregate=${format(result.saturation[32]?.aggregateRequestsPerSecond)} rps, burst completion p50=${format(result.concurrent.burstElapsedMs.p50)}ms, warm total p50=${format(result.sequential.client.totalMs.p50)}ms p95=${format(result.sequential.client.totalMs.p95)}ms, heap slope=${format(result.retention.bytesPerRequest.heapUsed)} B/request\n`
 			);
 		}
 	}

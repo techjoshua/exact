@@ -18,10 +18,9 @@ type RootState = {
 };
 
 type ComponentRootRecord = {
-	readonly lifecycle: RootLifecycle<object>;
-	readonly state: RootState;
+	lifecycle: RootLifecycle<object> | undefined;
+	state: RootState;
 	explicit?: RefBinding<object>;
-	observed: boolean;
 };
 
 const componentRoots = new WeakMap<AnyComponentInstance, ComponentRootRecord>();
@@ -32,8 +31,7 @@ export function componentRootLifecycle<T extends object>(
 	instance: AnyComponentInstance
 ): RootLifecycle<T> {
 	const record = rootRecord(instance);
-	record.observed = true;
-	return record.lifecycle as RootLifecycle<T>;
+	return observeRoot(record) as RootLifecycle<T>;
 }
 
 /** Selects one stable element ref as the component's explicit intrinsic root. */
@@ -44,13 +42,12 @@ export function bindComponentRoot<T extends object>(
 	if (binding.owner !== instance)
 		throw new Error('A component root binding must be owned by the component selecting it');
 	const record = rootRecord(instance);
-	record.observed = true;
+	const lifecycle = observeRoot(record);
 	if (record.explicit && record.explicit !== binding)
 		throw new Error('A component may select only one explicit root binding');
 	record.explicit = binding as RefBinding<object>;
 	const existing = augmentedBindings.get(binding as RefBinding<object>);
 	if (existing) return existing as RootBinding<T>;
-	const lifecycle = record.lifecycle;
 	const augmented = Object.defineProperties(binding, {
 		generation: { enumerable: true, get: () => lifecycle.generation },
 		introduction: { enumerable: true, get: () => lifecycle.introduction },
@@ -90,7 +87,7 @@ export function publishComponentRootPresentation(
 
 /** Reports whether authored component work observes this root lifecycle. */
 export function componentRootReleaseObserved(instance: AnyComponentInstance): boolean {
-	return componentRoots.get(instance)?.observed === true;
+	return componentRoots.get(instance)?.lifecycle !== undefined;
 }
 
 /** Publishes structural loss of the current root generation without discarding its target. */
@@ -100,7 +97,7 @@ export function publishComponentRootRelease(
 ): RootRelease<object> | undefined {
 	const record = componentRoots.get(instance);
 	const target = record?.state.current;
-	if (!record?.observed || !target) return undefined;
+	if (!record?.lifecycle || !target) return undefined;
 	const release = Object.freeze({
 		target,
 		generation: record.state.generation,
@@ -148,21 +145,32 @@ export function disposeComponentRoot(instance: AnyComponentInstance): void {
 	componentRoots.delete(instance);
 }
 
-/** Creates the component-owned reactive record on first observation or renderer publication. */
+/** Retains root history on first publication, deferring reactive machinery until observation. */
 function rootRecord(instance: AnyComponentInstance): ComponentRootRecord {
 	const existing = componentRoots.get(instance);
 	if (existing) return existing;
-	const state = reactiveObjects(
-		{
+	const record: ComponentRootRecord = {
+		lifecycle: undefined,
+		state: {
 			current: undefined,
 			generation: 0,
 			introduction: undefined,
 			presented: false,
 			release: undefined
-		} satisfies RootState,
-		{ passthroughKeys: ['current', 'release'] }
-	);
-	const lifecycle: RootLifecycle<object> = Object.freeze({
+		}
+	};
+	componentRoots.set(instance, record);
+	return record;
+}
+
+/** Promotes retained root history to reactive state only when an author observes the lifecycle. */
+function observeRoot(record: ComponentRootRecord): RootLifecycle<object> {
+	if (record.lifecycle) return record.lifecycle;
+	// Preserve earlier renderer publications so a late observer sees the current generation.
+	const state = (record.state = reactiveObjects(record.state, {
+		passthroughKeys: ['current', 'release']
+	}));
+	return (record.lifecycle = Object.freeze({
 		get current() {
 			return state.current;
 		},
@@ -178,8 +186,5 @@ function rootRecord(instance: AnyComponentInstance): ComponentRootRecord {
 		get release() {
 			return state.release;
 		}
-	});
-	const record = { lifecycle, state, observed: false };
-	componentRoots.set(instance, record);
-	return record;
+	}));
 }

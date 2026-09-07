@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+	aggregateSsrThroughput,
 	cpuMillisecondsPerRequest,
 	parseSsrConcurrencyLevels,
 	retainedBytesPerRequest,
@@ -10,6 +11,20 @@ import {
 } from '../src/ssr-benchmark-statistics.mjs';
 
 describe('SSR benchmark statistics', () => {
+	it('weights throughput by actual elapsed time including final drain', () => {
+		assert.deepEqual(
+			aggregateSsrThroughput([
+				{ requests: 10, elapsedMs: 100 },
+				{ requests: 10, elapsedMs: 300 }
+			]),
+			{ requests: 20, elapsedMs: 400, aggregateRequestsPerSecond: 50 }
+		);
+		assert.throws(() => aggregateSsrThroughput([]), /measured windows/);
+		assert.throws(
+			() => aggregateSsrThroughput([{ requests: 1, elapsedMs: 0 }]),
+			/positive elapsed/
+		);
+	});
 	it('reports the common nearest-rank percentile set', () => {
 		assert.deepEqual(summarizeSsrSamples([1, 2, 3, 4, 5]), {
 			mean: 3,

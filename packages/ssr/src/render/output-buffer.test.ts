@@ -105,4 +105,47 @@ describe('SSR output buffering', () => {
 		expect(output.encodedBytes()).toBe(2);
 		expect(published).toEqual(['ok']);
 	});
+
+	it('retains fully accounted range bytes without encoding the completed string again', () => {
+		const encode = vi.fn(utf8ByteLength);
+		const published: string[] = [];
+		const output = new SsrOutputBuffer(5, (value) => published.push(value), encode);
+		const checkpoint = output.beginBufferedRange();
+		output.accountKnown('caf\u00e9', 5);
+		output.publishAccounted('caf\u00e9');
+		output.publishAccounted(output.commitBufferedRange(checkpoint, 'caf\u00e9', true));
+		expect(output.encodedBytes()).toBe(5);
+		expect(published).toEqual(['caf\u00e9']);
+		expect(encode).not.toHaveBeenCalled();
+		expect(() => output.account('!')).toThrow('maximum of 5 bytes');
+	});
+
+	it('rescans a fully accounted range if foreign output invalidated its byte provenance', () => {
+		const output = new SsrOutputBuffer(4, () => {});
+		const checkpoint = output.beginBufferedRange();
+		output.accountKnown('ab', 2);
+		output.invalidateAccounting();
+		expect(() => output.commitBufferedRange(checkpoint, 'abc\u00e9', true)).toThrow(
+			'maximum of 4 bytes'
+		);
+		expect(output.encodedBytes()).toBe(0);
+		expect(output.publishesDirectly()).toBe(true);
+	});
+
+	it('rescans late-delimited surrogate output even after the pending surrogate was flushed', () => {
+		const output = new SsrOutputBuffer(100, () => {});
+		output.accountKnown('\ud83d', 3);
+		const checkpoint = output.beginBufferedRange();
+		output.accountKnown('\ude80', 3);
+		output.accountKnown('<b>', 3);
+		output.accountKnown('</b>', 4);
+		output.commitBufferedRange(checkpoint, '<b>\ude80</b>', true);
+		expect(output.encodedBytes()).toBe(13);
+
+		const next = output.beginBufferedRange();
+		output.accountKnown('\ud83d', 3);
+		output.accountKnown('</b>', 4);
+		output.commitBufferedRange(next, '\ud83d</b>', true);
+		expect(output.encodedBytes()).toBe(20);
+	});
 });

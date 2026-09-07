@@ -1,5 +1,26 @@
 import { summarizePercentiles } from './percentile-summary.mjs';
 
+/** Calculates elapsed-weighted throughput; window-rate percentiles remain a separate population. */
+export function aggregateSsrThroughput(windows) {
+	if (windows.length === 0) throw new TypeError('SSR throughput requires measured windows');
+	let requests = 0;
+	let elapsedMs = 0;
+	for (const window of windows) {
+		if (
+			!Number.isInteger(window.requests) ||
+			window.requests < 0 ||
+			!Number.isFinite(window.elapsedMs) ||
+			window.elapsedMs <= 0
+		)
+			throw new TypeError(
+				'SSR windows require non-negative request counts and positive elapsed milliseconds'
+			);
+		requests += window.requests;
+		elapsedMs += window.elapsedMs;
+	}
+	return { requests, elapsedMs, aggregateRequestsPerSecond: (requests / elapsedMs) * 1_000 };
+}
+
 /** Summarizes the complete percentile contract for one finite SSR sample lane. */
 export function summarizeSsrSamples(values) {
 	return summarizePercentiles(values);

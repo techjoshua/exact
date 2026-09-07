@@ -1,10 +1,128 @@
 # JavaScript performance measurement
 
+The [SSR follow-through](performance-baselines/ssr-followthrough-2026-09-07.md) completes the
+synchronous-promise, concurrency-profile, and repeated-setup investigations. It retains shallow
+hydration ancestry with native-Set promotion for depth and existing compiled projectors, rejects
+the other candidates, and refreshes public sustained capacity using the rebuilt artifact.
+
+The [sustained SSR load runner](ssr-load-testing.md) adds independent driver/service processes,
+fixed-concurrency and scheduled-arrival stages, bounded telemetry, explicit overload accounting,
+and counterbalanced process populations. Its time series and protocol remain separate from the
+historical short-window captures. The public RPS charts now use admitted sustained captures;
+preloaded capacity, normal-loading throughput, and scheduled demand remain separately labeled.
+The old short-window RPS headline is superseded, while browser, response-time, payload, and memory
+charts retain their own dated evidence.
+
+The [response-path experiment ledger](performance-baselines/ssr-next-experiments-2026-09-07.md)
+records four rejected candidates and the fresh normal-loading capture. It also documents replacement
+of the public RPS headline and curve with admitted sustained evidence, while keeping load conditions
+explicit and preserving historical measurements.
+
+The [first sustained SSR capture](performance-baselines/sustained-ssr-load-2026-09-06.md) compares
+frozen old/current eXact and React over two counterbalanced populations. Current eXact improves
+c32 throughput by 2.9% over old eXact and is near React. A same-worker data-loading ablation
+removes and restores the large queue under scheduled pressure with identical response bytes.
+
+The [preloaded capacity follow-up](performance-baselines/preloaded-ssr-capacity-2026-09-07.md)
+compares current eXact and React through concurrency sweeps and scheduled arrivals. Two independent
+drivers remove the initial generator bottleneck; both frameworks reach roughly 9,100 RPS at their
+best measured fixed concurrency and saturate nearer 7,600 RPS under the tested arrival pattern.
+
 The repository's opt-in performance profile separates correctness checks from repeatable framework
 measurements. The tracked
 [`javascript-framework.json`](performance-baselines/javascript-framework.json) baseline records the
 current client, server, wire, heap, and production-fixture build evidence. It is a comparison point,
 not a machine-independent release budget.
+
+The [runtime object shape experiments](performance-baselines/runtime-object-shape-experiments-2026-09-06.md)
+record a small retained mount/hydration field-order improvement and two rejected render-program
+normalizations, with interleaved startup, update, and heap evidence. Fewer V8 maps alone did not
+translate into lower total heap or a demonstrated timing benefit.
+
+The [lazy root observation followup](performance-baselines/lazy-root-observation-2026-09-06.md)
+avoids constructing reactive root facades until application code observes them, while retaining root
+history from the first renderer publication. It reduced the controlled fixture's post-claim heap by
+20,092 bytes and repeated-filter burst time by approximately 8–11% in paired captures. Startup timing
+remained inconclusive; applications observing every root still acquire the full lifecycle machinery.
+
+The [full comparison refresh](performance-baselines/framework-comparison-lazy-root-2026-09-06.md)
+publishes the subsequent 50-round browser, startup, and SSR measurements plus the new five-round heap
+composition capture. It preserves the earlier browser and heap charts, with matching client artifact identities
+across browser lanes and separately recorded Node/Bun evidence.
+
+The [sustained-throughput refresh](performance-baselines/ssr-throughput-v2-2026-09-06.md) introduced the
+server charts with aggregate RPS, separate burst completion time, deferred response validation, and
+500 ms capacity windows selected through a four-population duration study. This changes the measurement
+method, so older throughput numbers are historical context rather than a runtime before/after comparison.
+
+The [keyed-boundary full comparison](performance-baselines/framework-comparison-keyed-2026-09-06.md)
+supplies the browser, heap, and non-capacity Node server charts. Its short-window RPS charts have
+since been superseded by the independent-driver sustained captures described above.
+It also records a four-population interleaved old/new audit with identical-code controls, separating
+the small three-row fixture's gain from the larger row-heavy experiments.
+
+The [SSR allocation experiments](performance-baselines/ssr-allocation-experiments-2026-09-06.md)
+compare shared lazy response accessors and native ASCII-prefix scanning against frozen pre-change
+artifacts. Renderer timing, response-object retention, and paired HTTP capacity are reported separately;
+these focused experiments do not replace the five-framework chart capture.
+
+The [request-scope followup](performance-baselines/request-scope-experiments-2026-09-06.md) retains
+a cheaper disposal path for scopes without owned resources. It records native Node protocol
+measurements separately from page SSR and rejects lazy bookkeeping maps after factory-context
+throughput concerns despite their retained-memory savings.
+
+The [focused eXact / React SSR check](performance-baselines/exact-react-ssr-2026-09-06.md) measures
+the current production builds across four fresh Node process populations. Aggregate c32 throughput
+is closely matched (2,427 versus 2,448 RPS), with a small React mean-latency advantage. This newer
+two-framework evidence is separate from the complete five-framework chart capture.
+
+The [buffered-accounting experiments](performance-baselines/buffered-accounting-2026-09-06.md)
+retain valid byte accounting through compiler-owned recoverable ranges. The refined implementation
+reduced render-plus-encoding time and sampled allocation; two three-way HTTP captures keep its
+effect separate from React comparisons and do not establish a sustained-throughput win.
+
+The [matched-artifact React gap audit](performance-baselines/exact-react-gap-audit-2026-09-06.md)
+compares the verified earlier renderer, current renderer, and unchanged React across fresh process
+populations. It separates modest old/new gains from a variable cross-framework gap and explains why
+window percentiles within one process population cannot establish a consistent framework ranking.
+
+The [hydration and request-path followup](performance-baselines/hydration-request-path-2026-09-06.md)
+records six further experiments and full-request CPU attribution. Only lazy hydration collection
+bookkeeping is retained; three-way HTTP throughput is unchanged, and the evidence does not establish
+a consistent lead over React.
+
+The [Node output and deferred hydration experiments](performance-baselines/node-output-and-hydration-2026-09-06.md)
+separate response assembly from serializing captured hydration records at the footer. They preserve
+the native transport diagnostics and distinguish isolated renderer gains from complete HTTP results;
+the focused captures do not replace the public comparison charts.
+
+The [immediate-response-write correction](performance-baselines/immediate-response-writes-2026-09-06.md)
+tests direct forwarding of every published span and hydration callbacks registered during rendering,
+with explicit checks that those callbacks execute only at the document's hydration position. The
+earlier footer experiment buffered HTML and must not be treated as evidence for this distinct path.
+
+The [single hydration write followup](performance-baselines/single-hydration-write-2026-09-06.md)
+checks the existing shared-record collection and whole-payload serialization, then isolates writing
+that JSON once directly between script tags while HTML writes continue immediately to Node.
+
+The [SSR projection study](performance-baselines/ssr-projection-study-2026-09-06.md) profiles small,
+list-heavy, and comment-heavy pages, rejects several smaller runtime changes, and measures generated
+positional projection with code-size and cold-process tradeoffs. The
+[native compiler follow-up](performance-baselines/ssr-native-projection-2026-09-06.md) integrates
+selective versioned projectors and confirms their workload-dependent HTTP gains across four fresh
+interleaved populations. It retains the separate projected-array loop, preserves older compiled
+components and the client bundle, and records the additional server code and memory cost. These
+focused synthetic captures do not replace the public framework comparison charts.
+
+The [hydration marker study](performance-baselines/hydration-marker-study-2026-09-06.md) tests keyed
+element boundaries, scalar text-length markers, and broad identity-attribute removal separately.
+It retains the keyed element boundary, measures compressed response size and retained DOM nodes,
+and records the browser costs and protocol counterexample behind the rejected candidates.
+
+A [larger paired confirmation](performance-baselines/lazy-root-confirmation-2026-09-06.md) found a
+reproducible 0.082 ms (5.4%) increase in mean first-claim feedback with lazy root observation, alongside
+its heap savings. The large c16 server drop in the full capture did not reproduce across four fresh
+worker populations; eXact's server artifact was unchanged.
 
 `npm run benchmark:server` complements the isolated framework scenarios with sustained production
 HTTP load against the compiler-closed SSR artifact. Node uses `node:http`; Bun is measured both
@@ -28,7 +146,15 @@ Its bounded, participant-owned `node:http` keep-alive agent is closed between pa
 client ephemeral-port churn from contaminating the capacity curve.
 A discarded two-second c32 capacity prime runs before concurrent measurement, followed by a telemetry reset,
 so engine tier-up does not appear as a framework throughput discontinuity in the recorded curve.
-The ordinary concurrent lane uses 50 waves. Its reports always place the raw before/current movement
+The finite concurrent lane uses 50 waves and reports burst completion time. Sustained c32 aggregate RPS
+is that historical profile's capacity metric: total completed requests divided by total actual window
+seconds, including drain. The public capacity headline now comes from the separately admitted
+independent-driver captures rather than this short-window lane.
+Window-rate means and percentiles remain separate. Hashing and semantic validation run after each timed
+interval; the client retains response bodies until that validation completes. The v2 method therefore
+starts a new throughput baseline rather than implying a runtime improvement over v1. A four-population,
+balanced window-duration study is available as `framework-comparison/src/measure-ssr-window-sensitivity.mjs`.
+For captures using the same measurement method, reports place the raw before/current movement
 beside any control-normalized movement. Control normalization answers whether a movement can be
 attributed across environments; it neither excuses a large raw regression nor erases a reproducible
 raw improvement. A primary metric with an adverse raw movement of 10% or more blocks checkpoint
@@ -593,6 +719,11 @@ measuring two unrelated CLI startups would obscure compiler and emission work.
 
 ## Scenario coverage
 
+The reactive suite includes subtree disposal while unrelated paused computations remain queued.
+It measures removal separately from queue setup and verifies that unrelated work survives and runs
+on resumption. The [focused experiment record](performance-baselines/scope-disposal-and-compiler-traversal-2026-09-05.md)
+retains the empty-queue counter-metrics and the compiler-traversal experiment's inconclusive timings.
+
 | Area                 | Scenarios                                                                                                                                                                      |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Startup and mounting | Static and dynamic mount, compiled module evaluation, production fixture build, and raw/gzip/Brotli artifact sizes.                                                            |
@@ -622,6 +753,13 @@ retain the bundler's actual per-module rendered lengths. Parsed and compiled fun
 when Chromium omits source locations. An optional post-GC strong-edge dominator snapshot supports retained-heap
 investigation without embedding its large raw snapshot. Profiler overhead is intentionally excluded from latency populations, and
 sampled heap bytes are not treated as exact retained-heap accounting.
+
+The separate `measure:heap` collector produces balanced, unprofiled post-claim snapshot categories
+for the documentation's stacked heap chart. Its arithmetic category means reconcile to mean snapshot
+self-bytes, including native nodes; they do not partition the separately measured JavaScript heap
+scalar. Capture and publication instructions are in [framework comparison](framework-comparison.md).
+The [2026-09-06 capture](performance-baselines/framework-comparison-heap-composition-2026-09-06.md)
+retains the raw rounds, classification rules, and interpretation.
 
 The hydration scenario intentionally measures adoption separately from SSR generation. SSR output
 size and generation cost have their own scenarios, which keeps the two costs attributable.
@@ -859,3 +997,39 @@ representative counter-metric median may regress by more than 3%, p95 by more th
 emitted bytes by more than 1%. Correctness, cleanup, cancellation, security, and deterministic
 output remain unconditional gates. The dominant `Mounted` experiment instead uses its explicit 5%
 mixed-tree/keyed-workload, neutral-teardown, and at-most-10%-heap-growth gate.
+
+The controlled client runners now isolate browser work by replaying captured production HTML and
+assets through the same HTTP implementation after stopping framework servers. Browser charts and
+heap composition use separate replay captures; SSR data keeps its independent date and method.
+See [captured-page client measurements](../framework-comparison/methodology.md#captured-page-client-measurements).
+
+The September 7 framework audit refreshes all five frameworks' sequential response latency,
+16-request burst completion, retained server heap checkpoints, and response payload diagnostics.
+These are separate from independent-driver sustained capacity. Use
+`scripts/component-local-target-abi/refresh-docs-ssr-report.mjs` with `--diagnostics-only` to refresh
+those fields without replacing capacity or browser evidence. Public metadata records sequential,
+burst, and retention sample counts separately. The audit retains alternate warmup runs as
+diagnostics rather than merging their populations or assigning host drift to a runtime change.
+
+The [framework audit](performance-baselines/framework-audit-2026-09-07.md) records the latency
+replications, interaction-phase analysis, heap experiments, and acceptance decisions.
+
+The follow-up [reactive subscription experiments](performance-baselines/reactivity-hypotheses-2026-09-07.md)
+retain unchanged dynamic-watcher memberships, document the accepted code-metadata cost, and fix
+observation retained by callbacks that read state after disposing their scope. The report separates
+synthetic CPU gains from paired browser timing and records the descriptor, mutation-version, and
+initial-collection allocation candidates that were not integrated.
+
+The public charts use the [post-restart capture](performance-baselines/post-restart-2026-09-07.md),
+with scheduled arrivals subsequently refreshed from the first same-plan diagnostic rerun.
+The [subsequent concurrency refresh](performance-baselines/concurrency-refresh-2026-09-07.md)
+updates the preloaded concurrency curve and its headline using the current build. Other metric
+groups retain their separately dated captures.
+It refreshes all five frameworks' browser, heap, sequential, burst, server-memory and payload data,
+plus the existing eXact/React sustained-capacity lanes. Scheduled-arrival tables now retain explicit
+request-error counts and rates; concurrency capacity captures still require zero request errors.
+
+The [arrival-error investigation](performance-baselines/arrival-errors-2026-09-07.md) records
+the unrecoverable historical error codes, three diagnostic sequences, and the driver and Node
+adapter logging fixes. It identifies the error-free rerun now used for the scheduled-arrival
+charts; the original error counts remain in the historical evidence.
