@@ -69,7 +69,7 @@ export function refreshClientReport(previous, raw) {
 		if (!metric) throw new Error(`Unsupported browser chart: ${chart.title}`);
 		return {
 			...chart,
-			comment: `${chart.title === 'Navigation completion' ? 'Navigation load completion, not hydration readiness. ' : ''}Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. ${chart.title === 'Warm browser used heap' ? 'Post-interaction, post-GC retained JavaScript heap, including V8 code and metadata.' : 'Lower is better.'}`,
+			comment: `${chart.title === 'Navigation completion' ? "Time until the browser's load event. " : ''}Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. ${chart.title === 'Warm browser used heap' ? 'Post-interaction, post-GC retained JavaScript heap, including V8 code and metadata.' : 'Lower is better.'}`,
 			series: chart.series.map((series) => ({
 				...series,
 				stats: Object.fromEntries(
