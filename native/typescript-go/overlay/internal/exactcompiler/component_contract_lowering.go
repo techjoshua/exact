@@ -47,6 +47,7 @@ func lowerComponentContracts(
 		directServerName:       allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
 		directLoggingFrameName: allocateGeneratedName(used, "__exactDirectSsrLoggingFrame"),
 		directLifecycleName:    allocateGeneratedName(used, "__exactDirectSsrLifecycle"),
+		projectorName:          allocateGeneratedName(used, "__exactRegisterPositionalProjector"),
 		clientAttachName:       allocateGeneratedName(used, "__exactAttachClientComponent"),
 		clientReceiveName:      allocateGeneratedName(used, "__exactReceiveClientProps"),
 		clientDisposeName:      allocateGeneratedName(used, "__exactDisposeClientComponent"),
@@ -203,6 +204,8 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
+	projectorName          string
+	projectorUsed          bool
 	renderName             string
 	taskName               string
 	durableName            string
@@ -364,6 +367,9 @@ func (imports *componentConstructorImports) declarations(factory *printer.NodeFa
 			imports.directLifecycleName,
 			"@exactjs/ssr/runtime/direct-lifecycle",
 		))
+	}
+	if imports.projectorUsed {
+		declarations = append(declarations, componentConstructorImport(factory, "registerPositionalProjector", imports.projectorName, "@exactjs/ssr/runtime/positional-projection"))
 	}
 	return declarations
 }
@@ -820,7 +826,7 @@ func rootComponentContractAttachment(
 		component.TargetPlan.DeferredTaskProps,
 		component.StateSlots,
 		propsSlots,
-		component.PropsSerialization,
+		componentPropsSerializationMetadata(factory, component.PropsSerialization, target, constructors),
 		runtimeContinuations,
 		hasResumption,
 		serverPublicationName,

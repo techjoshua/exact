@@ -169,6 +169,12 @@ export function StatePage(this: Component<{}>) {
 					calculations.
 				</p>
 				<p>
+					Dynamic reactive expressions follow the branch they actually read. When that branch
+					changes, obsolete dependencies are released. Disposing their component or effect scope
+					also releases observation, even if a synchronous callback continues reading state before
+					it returns.
+				</p>
+				<p>
 					Direct or indirect runtime cycles in explicit reactive values fail with a bounded eXact
 					diagnostic. Cycles the compiler can prove in component setup are still reported at build
 					time.

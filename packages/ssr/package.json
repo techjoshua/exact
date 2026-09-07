@@ -25,6 +25,10 @@
 			"types": "./dist/runtime/direct-context-frame.d.ts",
 			"default": "./dist/runtime/direct-context-frame.js"
 		},
+		"./runtime/positional-projection": {
+			"types": "./dist/runtime/positional-projection.d.ts",
+			"default": "./dist/runtime/positional-projection.js"
+		},
 		"./runtime/direct-logging-frame": {
 			"types": "./dist/runtime/direct-logging-frame.d.ts",
 			"default": "./dist/runtime/direct-logging-frame.js"

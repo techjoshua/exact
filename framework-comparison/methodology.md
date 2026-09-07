@@ -2,6 +2,13 @@
 
 ## Purpose
 
+The public performance page now uses independent-driver sustained SSR capacity evidence, with
+preloaded and normal-loading requests explicitly separated. Its scheduled-arrival tables include
+missed admission and latency. Earlier short-window RPS figures are historical diagnostics, not the
+current capacity headline. The current sustained comparison covers eXact and React only. See
+[`docs/ssr-load-testing.md`](../docs/ssr-load-testing.md) for the protocol; browser, response-time,
+payload, and retained-memory captures remain separately dated.
+
 The suite answers two different questions without conflating them:
 
 1. How does each framework behave when only its browser-facing implementation varies?
@@ -23,7 +30,7 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
 6. Warm and cold measurements are labeled and reported separately. Comparable timing populations use balanced
    round interleaving: every round measures one sample or window from each participant, rotations distribute
    order positions, and alternating cycle direction counters monotonic host drift. The controlled browser runner
-   records warm samples after one equivalent discarded scenario per participant.
+   uses fresh cache-disabled contexts in a warm browser process, after one discarded scenario per participant.
 7. Raw samples, environment metadata, participant commit, dependency lockfile, and harness version accompany
    every summary.
 8. Participant implementations must pass the shared observable-behavior contract. Architecture notes and
@@ -78,8 +85,9 @@ process-wide footprint or proof by themselves that an application does or does n
 First contentful paint is read only after a buffered paint observer or a subsequent rendering opportunity confirms
 that Chromium published the entry. A missing paint entry fails the sample instead of silently reducing the
 population used for percentile calculation. The standard `PerformancePaintTiming.startTime` is the sole FCP
-measurement. Measured document requests navigate directly from Chromium to the participant server; browser-route
-interception or another harness proxy must not become part of `PerformanceNavigationTiming`. Heap collection
+measurement. Measured document requests use real HTTP to a common replay server serving captured production HTML and assets.
+Framework servers stop after capture; there is no browser-route interception or proxy in the measured path.
+`COMPARISON_CLIENT_MODE=live` retains direct participant-server navigation as a separate full-application test. Heap collection
 occurs after interaction timing so forced garbage collection cannot turn optimistic feedback into a cold-allocation
 benchmark.
 
@@ -162,8 +170,9 @@ React's renderer and would otherwise give correlated React behavior double weigh
 SSR evidence captures the repository-dirty flag once before starting services or creating raw output. The
 evidence files produced by the run therefore cannot cause the run to mark itself dirty.
 
-The bounded concurrent lane remains a fixed request population. Saturation levels instead use 50
-fixed-duration, closed-loop windows; each client immediately replaces a completed request until the window
+The bounded concurrent lane reports **16-request burst completion time** across 50 finite waves;
+it is not the capacity headline. Saturation levels instead use 50
+500 ms target, closed-loop windows; each client immediately replaces a completed request until the window
 closes, then outstanding requests settle. Throughput therefore has the same window population for every
 participant, while request-latency observation counts legitimately differ. Those distributions retain every
 published percentile and report each participant's count rather than truncating faster participants to a
@@ -172,9 +181,26 @@ throughput-window samples and finite-lane raw observations remain in the result.
 Before either concurrent lane, every participant receives one discarded two-second capacity prime at c32.
 The worker then resets telemetry. Startup and sequential lanes therefore retain their lighter warm-up
 contract, while concurrent and saturation results do not mix V8 tier-up work with steady-state capacity.
-Concurrent results are reported as individual latency percentiles and per-window throughput percentiles;
+The capacity headline is sustained c32 **aggregate RPS**: total completed requests divided by total actual
+window elapsed seconds, including final drain. The arithmetic mean and percentiles of individual window
+rates remain separate statistics. Response bodies are buffered for one window and hashed and validated
+after its timer stops, so validation does not delay replacement requests. This temporarily retains client
+body buffers; local client, service, and worker resource contention remains part of the measured setup.
+The `deferred-validation-aggregate-v2` method is not directly comparable with earlier rates that included
+validation in the load loop. Individual latency percentiles remain available;
 aggregate process CPU is normalized by completed requests because overlapping requests cannot be assigned
 independent process-CPU intervals safely.
+
+`node framework-comparison/src/measure-ssr-window-sensitivity.mjs` compares 100, 250, 500, and 1000 ms
+windows at c16 and c32 across four fresh Node worker populations. Duration, concurrency, and framework
+order are balanced; all ordered window counts and elapsed times are retained. Set
+`COMPARISON_SSR_WINDOW_STUDY_OUTPUT` to select its output file. Production builds must already exist.
+This closed-loop capacity test does not estimate latency under a fixed external arrival rate.
+The main capacity default is 500 ms; attribution diagnostics retain 100 ms windows and record their
+own duration. Override these independently with `COMPARISON_SSR_SATURATION_WINDOW_MS` and
+`COMPARISON_SSR_ATTRIBUTION_WINDOW_MS`.
+Client concurrency is limited to 128, matching the owned keep-alive agent's socket capacity; larger
+requested values are rejected instead of silently queueing behind that limit.
 
 Every Node integration records participant work from handler entry through the response `finish` event;
 native Fetch integrations record handler entry through immutable `Response` readiness. The directly hosted
@@ -226,6 +252,22 @@ be described as native Bun support.
 The collector writes an immutable timed checkpoint after each runtime. A later runtime or optional diagnostic
 may mark the complete run unsuccessful, but it cannot erase a completed Node or Bun population.
 
+## Browser heap composition evidence
+
+The dedicated heap composition lane is an untimed diagnostic: no CPU, allocation, or coverage profiler
+runs in its pages. After one discarded scenario round, fresh cache-disabled contexts execute the same
+incident load and authoritative claim in balanced interleaved rounds. Explicit collection precedes
+each snapshot. Keep raw node-type self-byte totals, sample orders, browser version, and artifact hashes.
+Category means must add to the mean snapshot self-byte total; category medians need not add and must
+not be presented as a partition of the median total. The public chart retains separate capture provenance.
+
+Classify `code` as V8 code/metadata, `hidden` and `object shape` as internals/shapes, and report ordinary
+objects/arrays/closures/regexps, strings, native nodes, and remaining types separately. Internal nodes
+are not all compiled-code metadata, and ordinary node types do not establish application ownership.
+Count self-bytes once per node. Snapshot totals include native representations and differ from both
+`JSHeapUsedSize` and total browser process memory. Never splice snapshot categories into a separately
+measured heap scalar or reuse an old category proportion to explain a new measurement.
+
 ## Complexity dimensions
 
 Complexity is reported as a profile rather than one synthetic score:
@@ -247,3 +289,55 @@ are disclosed but excluded from authored-line comparisons.
 No overall winner is calculated. Results describe tradeoffs for named scenarios and environments. Differences
 inside the run's noise interval are reported as indistinguishable. A result report must name limitations,
 failed or skipped scenarios, framework-specific optimizations, and any contract variance.
+
+## Captured-page client measurements
+
+The controlled client runners default to `COMPARISON_CLIENT_MODE=replay`. Before timed work,
+the harness resets the shared fixture and captures `/incidents/inc-100` from each production
+framework server. It freezes that HTML and the matching client assets in memory, then stops all
+framework servers and serves those bytes at the original origins through one Node HTTP implementation.
+Hydration data and document security headers are preserved. Capture-time connection/framing headers
+are regenerated; all replay responses use `no-store`, no compression, and no browser interception.
+No missing resource may fall back to SSR: a missing request invalidates the capture.
+
+Each sample creates a fresh browser context with the HTTP cache disabled. The browser process is
+warm, not a fresh browser process per visit; one complete scenario per framework is discarded before
+the ordinary browser and heap rounds. Balanced rotating rounds counter host drift. API actions and
+SSE updates still reach the live shared service, reset before every scenario. Request-time hydration
+timestamps are frozen with the HTML, not rewritten. Any resulting client revalidation remains real
+client work. This is a client isolation experiment, not a simulation of production CDN caching or
+streaming SSR. Navigation completion is the load event, not hydration readiness.
+
+Raw evidence records the delivery mode, per-resource SHA-256 and byte size, retained document
+headers, document request counts, sample orders, and build identity. The browser runner defaults to
+30 rounds; public replay refreshes require at least 30 rounds, balanced across all five positions.
+Heap snapshots and startup tracing run separately from ordinary browser timing.
+
+Set `COMPARISON_CLIENT_MODE=live` to retain framework-generated HTTP navigation for a separate
+full-application run. Never merge live and replay populations or interpret the method change as a
+framework optimization. The shared correctness suite continues to test real framework servers.
+
+From `framework-comparison`, run `npm run measure`, `npm run measure:heap`, and
+`npm run measure:startup-cpu` for correctness-gated captures. Each command captures one page per
+framework and reuses it throughout that command. To refresh public browser charts from repository root:
+
+```sh
+node framework-comparison/src/publish-client-report.mjs <raw-browser.json>
+node scripts/component-local-target-abi/publish-docs-heap-report.mjs <raw-heap.json>
+```
+
+These publishers preserve independent server evidence. Keep immutable raw captures in
+`docs/performance-baselines` and describe their sample counts and method there.
+
+### Diagnostic server chart refresh
+
+The docs publisher's `--diagnostics-only` mode refreshes sequential latency, finite burst
+completion, retained-memory checkpoints, and payload composition from a complete SSR capture.
+It leaves independent-driver capacity and browser evidence untouched, recomputes sequential
+statistics from raw requests, and rejects incomplete or nonfinite latency populations. Counts for
+sequential requests, bursts, and retention checkpoints are distinct in public metadata.
+
+Shared-PC activity remains part of local benchmark uncertainty. Balanced rounds distribute drift
+but cannot make instantaneous interruptions affect every participant equally. Do not discard slow
+samples after the fact, pool different warmup regimes, or claim a small P99 change is a runtime
+regression without repeated evidence and phase attribution.

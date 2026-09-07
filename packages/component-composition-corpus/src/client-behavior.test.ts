@@ -26,6 +26,7 @@ import {
 	stateRoot
 } from './scenarios/state.fixtures.js';
 import { structureOwner, structureRoot } from './scenarios/structure.fixtures.js';
+import { indexedOuterListRoot } from './scenarios/structure.fixtures.js?exact-target=client';
 import { indexedTaskDependenciesRoot, taskRoot } from './scenarios/tasks.fixtures.js';
 
 const containers: Element[] = [];
@@ -115,6 +116,18 @@ describe('composition corpus client behavior', () => {
 		flushSync();
 
 		expect(groups()).toEqual(['2ab', '0']);
+	});
+
+	it('keeps inner keyed cells distinct beneath native map callbacks with an index', () => {
+		const container = mount(indexedOuterListRoot);
+		expect(
+			[...container.querySelectorAll('tr')].map((row) =>
+				[...row.querySelectorAll('td')].map((cell) => cell.textContent)
+			)
+		).toEqual([
+			['11', '12'],
+			['21', '22']
+		]);
 	});
 
 	it('updates a conditional range without replacing adjacent siblings', () => {

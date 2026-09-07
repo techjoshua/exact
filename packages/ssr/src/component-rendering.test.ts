@@ -17,6 +17,7 @@ import {
 } from './compiler-closed.js';
 import { createOperation } from './test-support/native-operations.js';
 import {
+	BufferedAccountingRows,
 	ObservedServerComponent,
 	ParallelSettledSiblings,
 	ParentWithSettledChild,
@@ -30,6 +31,42 @@ import {
 } from './component-rendering.fixtures.test.js';
 
 describe('@exactjs/ssr component and server contracts', () => {
+	it.each([false, true])('counts buffered Unicode rows exactly with markers=%s', (markers) => {
+		const operation = createOperation(BufferedAccountingRows, {
+			values: [
+				'',
+				'plain<&>',
+				'caf\u00e9',
+				'\u4e16\u754c',
+				'\ud83d',
+				'\ude80',
+				'\ud83d\ude80',
+				'a\ud83d',
+				'\ude80z'
+			]
+		});
+		const encoder = new TextEncoder();
+		const reference: string[] = [];
+		renderCompilerClosedToHydratableSink(operation, (chunk) => reference.push(chunk), { markers });
+		const expected = reference.join('');
+		const maxOutputBytes = encoder.encode(
+			expected.slice(0, expected.indexOf('<script type="application/json"'))
+		).length;
+		const chunks: string[] = [];
+		const bytes = renderCompilerClosedToHydratableSink(operation, (chunk) => chunks.push(chunk), {
+			markers,
+			maxOutputBytes
+		});
+		expect(chunks.join('')).toBe(expected);
+		expect(bytes).toBe(encoder.encode(chunks.join('')).length);
+		expect(() =>
+			renderCompilerClosedToHydratableSink(operation, () => {}, {
+				markers,
+				maxOutputBytes: maxOutputBytes - 1
+			})
+		).toThrow('output exceeds');
+	});
+
 	it('renders component output without marking components as mounted', () => {
 		resetComponentRenderingFixtureState();
 		const result = renderToString(createOperation(ServerCard, { title: 'Server' }));

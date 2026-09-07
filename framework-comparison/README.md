@@ -5,6 +5,22 @@ idiomatically in eXact and other frameworks. Every participant presents the same
 experience, receives the same deterministic data, and passes the same observable behavior tests.
 Presentation code, routing, state ownership, and client/server integration remain participant-owned.
 
+For sustained server load, run the shared correctness suite, then use existing production builds:
+
+```sh
+npm run measure:ssr:load --workspace @exactjs/framework-comparison-suite -- load-plans/ssr.json results/ssr-load.json
+```
+
+This opt-in diagnostic owns separate Node processes for the load driver, controlled service, and
+participants. Its plan specifies warmup, fixed concurrency, linear arrival-rate ramps, steady arrival
+rates, and fresh process populations. The example uses 60-second warmup and 120-second measured stages;
+calibrate arrival rates for the test host. See [sustained-load testing](../docs/ssr-load-testing.md) for
+frozen baselines, remote driver operation, demand/error accounting, and telemetry interpretation.
+Admitted sustained captures now supply the public RPS charts, with preloaded, normal-loading, and
+scheduled-arrival conditions labeled separately. Historical short-window RPS remains archived;
+browser, response-time, payload, and memory evidence retains its own capture dates. The load guide
+also documents the validated capacity publisher.
+
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
 seven applications use production SSR and hydration and pass their track's black-box acceptance suite.
@@ -36,6 +52,7 @@ npm run test:e2e -w @exactjs/framework-comparison-suite
 npm run test:native -w @exactjs/framework-comparison-suite
 npm run measure -w @exactjs/framework-comparison-suite
 npm run measure:startup-cpu -w @exactjs/framework-comparison-suite
+npm run measure:heap -w @exactjs/framework-comparison-suite
 npm run measure:ssr -w @exactjs/framework-comparison-suite
 npm run measure:native -w @exactjs/framework-comparison-suite
 ```
@@ -52,10 +69,20 @@ Set `COMPARISON_HEAP_DOMINATORS=1` for the untimed diagnostic pass to report ret
 node counts and self bytes grouped by V8 heap-node type. These category totals distinguish compiled-code
 metadata from ordinary objects and closures without affecting the timed sample population.
 
+`measure:heap` captures a separate, unprofiled post-claim heap composition lane. It uses one discarded
+warmup round and five balanced interleaved rounds by default, with fresh cache-disabled contexts.
+`COMPARISON_HEAP_SAMPLES` selects the round count and `COMPARISON_HEAP_OUTPUT` selects the raw JSON path
+(default `framework-comparison/results/browser-heap.json`). Category means add to the mean snapshot
+self-byte total; they are not a partition of `JSHeapUsedSize`. Publish this separate diagnostic chart with
+`node scripts/component-local-target-abi/publish-docs-heap-report.mjs <raw-json>` from the repository root.
+
 The SSR profile gives every participant an independently owned worker. Comparable workers start concurrently,
 then latency and throughput samples are collected one participant at a time in balanced round-interleaved order
 while all workers remain warm; cold startup, retention, response decomposition, and intrusive CPU/allocation
-profiles remain isolated. Sustained throughput lanes use 50 windows by default so their published percentiles
+profiles remain isolated. This older profile's capacity metric is aggregate sustained RPS (total completed requests divided
+by total window time including drain); finite c16 waves report burst completion time. Response hashing runs
+after each timed interval. Main capacity lanes use 50 windows targeting 500 ms by default; attribution
+diagnostics retain 100 ms windows. Their published percentiles
 describe a real population rather than repeating the maximum of a few samples.
 The runner writes a `.timed.json` checkpoint after each completed runtime before later diagnostics can fail,
 so a valid Node population is not discarded by a subsequent Bun transport error.
@@ -111,3 +138,9 @@ test/           contract-level regression protection
 Code may be shared through `fixtures`, `specification`, and domain contracts. Native participants share the
 canonical domain semantics but own their server integration. Participants must not share UI components or a
 client state abstraction because doing so would bias their architecture.
+
+Client measurement commands default to captured production HTML and assets served over real HTTP,
+with the framework servers stopped during measurement. Fresh cache-disabled contexts run in balanced
+rounds; actions and live updates keep using the shared service. Set `COMPARISON_CLIENT_MODE=live`
+for a separate full-application navigation run. See the
+[captured-page methodology](methodology.md#captured-page-client-measurements) for limits and publication.

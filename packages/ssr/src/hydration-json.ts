@@ -2,6 +2,10 @@ import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework
 import type { ExactValueSerializationSchema } from '@exactjs/core/framework/component-contracts';
 import type { SsrSerializedResumption } from './resumption.js';
 import type { PositionalRootPublication } from './render/root-props.js';
+import {
+	readPositionalProjector,
+	type PositionalProjectionContext
+} from './runtime/positional-projection.js';
 
 /**
  * Compiler-owned container shape carried only until traversal reaches an authored value.
@@ -12,8 +16,8 @@ import type { PositionalRootPublication } from './render/root-props.js';
  */
 type DirectHydrationShape = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-type ValidationState = {
-	readonly active: Set<object>;
+type ValidationState = Omit<PositionalProjectionContext, 'active'> & {
+	active: Set<object> | HydrationAncestors;
 	readonly onValidatedArray?: (value: unknown[]) => void;
 	readonly path?: ValidationPath;
 	readonly positionalRoot?: PositionalRootPublication;
@@ -29,6 +33,28 @@ type ValidationPath = {
 	readonly arrays: boolean[];
 	readonly keys: string[];
 };
+
+/** Tracks shallow request-local ancestry without allocating and rehashing a Set's buckets. */
+class HydrationAncestors {
+	readonly values: object[] = [];
+
+	/** Tests only the active traversal path; shared siblings are not cycles. */
+	has(value: object): boolean {
+		return this.values.includes(value);
+	}
+
+	/** Records a container after the validator has excluded active-path duplicates. */
+	add(value: object): void {
+		this.values.push(value);
+	}
+
+	/** Unwinds the most recently entered container, including early validation failures. */
+	delete(value: object): boolean {
+		if (this.values.at(-1) !== value) throw new Error('Unbalanced hydration ancestor');
+		this.values.pop();
+		return true;
+	}
+}
 
 /**
  * Validates a hydration graph without invoking accessors.
@@ -49,13 +75,17 @@ export function validateJsonSafeHydrationValue(
 	}
 ): string | undefined {
 	const state: ValidationState = {
-		active: new Set(),
+		active: new HydrationAncestors(),
 		directResumptions: limits.directResumptions,
 		positionalRoot: limits.positionalRoot,
 		structurallyKnown: limits.structurallyKnown,
 		structurallyKnownRoot: limits.structurallyKnownRoot,
 		maxDepth: positiveLimit(limits.maxDepth, 100),
 		maxNodes: positiveLimit(limits.maxNodes, 100_000),
+		validate: validateValue,
+		project: projectPositionalField,
+		mismatch: positionalMismatch,
+		unsafe: positionalUnsafe,
 		onValidatedArray: limits.onValidatedArray,
 		nodes: 0
 	};
@@ -64,7 +94,7 @@ export function validateJsonSafeHydrationValue(
 			return undefined;
 		const diagnostic: ValidationState = {
 			...state,
-			active: new Set(),
+			active: new HydrationAncestors(),
 			onValidatedArray: undefined,
 			path: { arrays: [], keys: [] },
 			nodes: 0
@@ -94,6 +124,9 @@ function validateValue(
 		Object.getPrototypeOf(value) !== Object.prototype
 	)
 		return false;
+	// Bound linear ancestor lookup for deeper graphs while preserving the complete active path.
+	if (state.active instanceof HydrationAncestors && state.active.values.length >= 16)
+		state.active = new Set(state.active.values);
 	state.active.add(value);
 	try {
 		return validateContainer(value, depth, state, shape);
@@ -229,6 +262,22 @@ function validateDirectEnvelope(source: unknown[], depth: number, state: Validat
 const positionalMismatch = Symbol('positional-mismatch');
 const positionalUnsafe = Symbol('positional-unsafe');
 
+/** Dispatches a generated field through its compiler-owned nested schema. */
+function projectPositionalField(
+	value: unknown,
+	schema: readonly unknown[],
+	index: number,
+	depth: number,
+	state: PositionalProjectionContext
+): unknown {
+	return validatePositionalValue(
+		value,
+		schema[index] as ExactValueSerializationSchema,
+		depth,
+		state
+	);
+}
+
 /**
  * Reads compiler-declared fields once while constructing their final positional cells.
  *
@@ -245,6 +294,8 @@ function validatePositionalValue(
 	if (schema === 0) return validateValue(value, depth, state) ? value : positionalUnsafe;
 	if (++state.nodes > state.maxNodes || depth > state.maxDepth) return positionalUnsafe;
 	if (!value || typeof value !== 'object' || state.active.has(value)) return positionalMismatch;
+	if (state.active instanceof HydrationAncestors && state.active.values.length >= 16)
+		state.active = new Set(state.active.values);
 	state.active.add(value);
 	try {
 		if (schema[0] === 2) {
@@ -255,6 +306,26 @@ function validatePositionalValue(
 			)
 				return positionalMismatch;
 			const output = new Array<unknown>(value.length);
+			const projector =
+				value.length >= 16 && !state.path ? readPositionalProjector(schema[1]) : undefined;
+			if (projector) {
+				// Version-one projectors retain their native Set contract, including existing ancestors.
+				if (state.active instanceof HydrationAncestors) state.active = new Set(state.active.values);
+				for (let index = 0; index < value.length; index++) {
+					if (!Object.hasOwn(value, index)) return positionalMismatch;
+					const encoded = projector(
+						value[index],
+						depth + 1,
+						state as PositionalProjectionContext,
+						schema[1] as readonly unknown[],
+						Object,
+						Array
+					);
+					if (encoded === positionalMismatch || encoded === positionalUnsafe) return encoded;
+					output[index] = encoded;
+				}
+				return output;
+			}
 			for (let index = 0; index < value.length; index++) {
 				if (!Object.hasOwn(value, index)) return positionalMismatch;
 				if (state.path) pushValidationPath(state.path, String(index), true);
@@ -272,6 +343,7 @@ function validatePositionalValue(
 		const output = new Array<unknown>(fieldCount);
 		for (let schemaIndex = 1, outputIndex = 0; schemaIndex < schema.length; schemaIndex += 2) {
 			const field = schema[schemaIndex] as string;
+			// Earlier field getters can change ownership after the shape's keys were enumerated.
 			if (!Object.hasOwn(value, field)) return positionalMismatch;
 			if (state.path) pushValidationPath(state.path, field, false);
 			const encoded = validatePositionalValue(

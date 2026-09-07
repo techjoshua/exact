@@ -112,6 +112,11 @@ export class ContextScope implements ExactContextScope {
 	async dispose(reason?: unknown): Promise<void> {
 		if (this.disposed) return;
 		this.disposed = true;
+		// Plain-value scopes have no owned resources or dependency order to unwind.
+		if (this.owned.size === 0) {
+			this.values.clear();
+			return;
+		}
 		const failures: unknown[] = [];
 		for (const owned of this.disposalOrder()) {
 			try {
@@ -203,6 +208,7 @@ export class ContextScope implements ExactContextScope {
 		return value;
 	}
 
+	/** Orders factory resources after dispose establishes that ownership is nonempty. */
 	private disposalOrder(): OwnedValue[] {
 		const initialized = new Set(this.owned.keys());
 		const visited = new Set<symbol>();

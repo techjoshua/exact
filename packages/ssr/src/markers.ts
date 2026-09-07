@@ -11,8 +11,16 @@ export function withMarker(
 	return markerPair(context, markerId(context, kind, undefined, key), render);
 }
 
-/** Renders a stable exact marker pair around sync or async HTML content. */
-export function markerPair(context: SsrContext, id: string, render: () => string): string;
+/**
+ * Renders a stable exact marker pair around sync or async HTML content.
+ * fullyAccounted is an internal proof that the synchronous callback accounts every returned span.
+ */
+export function markerPair(
+	context: SsrContext,
+	id: string,
+	render: () => string,
+	fullyAccounted?: boolean
+): string;
 export function markerPair(
 	context: SsrContext,
 	id: string,
@@ -21,7 +29,8 @@ export function markerPair(
 export function markerPair(
 	context: SsrContext,
 	id: string,
-	render: () => string | Promise<string>
+	render: () => string | Promise<string>,
+	fullyAccounted = false
 ): string | Promise<string> {
 	if (!context.markers) return render();
 	const itemKey = id.startsWith('item:') ? id.slice('item:'.length) : undefined;
@@ -34,6 +43,8 @@ export function markerPair(
 		const checkpoint = output.beginBufferedRange();
 		let rendered: string | Promise<string>;
 		try {
+			// Both delimiters are byte-closed ASCII; charge their immutable total once.
+			if (fullyAccounted) output.accountClosedBytes(opening.length + closing.length);
 			rendered = render();
 			if (rendered instanceof Promise)
 				throw new TypeError('Synchronous direct SSR range selected asynchronous content');
@@ -41,7 +52,11 @@ export function markerPair(
 			output.rollbackBufferedRange(checkpoint);
 			throw error;
 		}
-		return output.commitBufferedRange(checkpoint, `${opening}${rendered}${closing}`);
+		return output.commitBufferedRange(
+			checkpoint,
+			`${opening}${rendered}${closing}`,
+			fullyAccounted
+		);
 	}
 	context.outputSink?.accountKnown(opening, opening.length);
 	const rendered = render();

@@ -58,6 +58,19 @@ export type ExactResponseWithBody = ExactResponseLike & {
 	[exactResponseBody]: ExactResponseBody;
 };
 
+const responseTextDescriptor: PropertyDescriptor = { enumerable: true, get: readResponseText };
+const responseStreamDescriptor: PropertyDescriptor = { enumerable: true, get: readResponseStream };
+
+/** Shares lazy accessors across responses while each receiver retains its own single-consumer body. */
+function readResponseText(this: ExactResponseWithBody): string {
+	return this[exactResponseBody].toText();
+}
+
+/** Claims only the receiving response's stream, without allocating a getter closure per response. */
+function readResponseStream(this: ExactResponseWithBody): ReadableStream<Uint8Array> {
+	return this[exactResponseBody].toReadableStream();
+}
+
 /** Creates a response whose buffered render is claimed only by the selected adapter path. */
 export function createExactBufferedResponse(
 	status: number,
@@ -70,14 +83,8 @@ export function createExactBufferedResponse(
 		headers
 	} as ExactResponseWithBody;
 	Object.defineProperty(response, exactResponseBody, { value: source });
-	Object.defineProperty(response, 'body', {
-		enumerable: true,
-		get: () => source.toText()
-	});
-	Object.defineProperty(response, 'stream', {
-		enumerable: true,
-		get: () => source.toReadableStream()
-	});
+	Object.defineProperty(response, 'body', responseTextDescriptor);
+	Object.defineProperty(response, 'stream', responseStreamDescriptor);
 	return response;
 }
 
@@ -93,14 +100,8 @@ export function createExactProducedResponse(
 		headers
 	} as ExactResponseWithBody;
 	Object.defineProperty(response, exactResponseBody, { value: source });
-	Object.defineProperty(response, 'body', {
-		enumerable: true,
-		get: () => source.toText()
-	});
-	Object.defineProperty(response, 'stream', {
-		enumerable: true,
-		get: () => source.toReadableStream()
-	});
+	Object.defineProperty(response, 'body', responseTextDescriptor);
+	Object.defineProperty(response, 'stream', responseStreamDescriptor);
 	return response;
 }
 
@@ -117,10 +118,7 @@ export function createExactAsyncProducedResponse(
 		body: ''
 	} as ExactResponseWithBody;
 	Object.defineProperty(response, exactResponseBody, { value: source });
-	Object.defineProperty(response, 'stream', {
-		enumerable: true,
-		get: () => source.toReadableStream()
-	});
+	Object.defineProperty(response, 'stream', responseStreamDescriptor);
 	return response;
 }
 

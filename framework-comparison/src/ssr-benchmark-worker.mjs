@@ -3,6 +3,9 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { writeNodeResponse } from '@exactjs/node-adapter';
 import { createExactProducedResponse } from '@exactjs/server';
+import { SsrPhaseTotals } from './ssr-load-statistics.mjs';
+import { createLoadErrorLog } from './ssr-load-errors.mjs';
+import { installDevelopmentProcessLifecycle } from '../../scripts/development-process-lifecycle.mjs';
 import { startSsrBenchmarkHost } from './ssr-benchmark-host.mjs';
 import { comparisonDocumentHtml, responseByteBreakdown } from './ssr-response-breakdown.mjs';
 import { usesNativeBunServer } from './ssr-benchmark-transport.mjs';
@@ -41,6 +44,8 @@ const statistics = {
 	responseBytes: [],
 	participantWorkMs: []
 };
+if (process.env.COMPARISON_SSR_BOUNDED_TELEMETRY === '1')
+	for (const name of Object.keys(statistics)) statistics[name] = new SsrPhaseTotals();
 const eventLoopDelay =
 	typeof monitorEventLoopDelay === 'function'
 		? monitorEventLoopDelay({ resolution: 1 })
@@ -48,6 +53,12 @@ const eventLoopDelay =
 const garbageCollection = { count: 0, durationMs: 0 };
 const garbageCollectionObserver = createGarbageCollectionObserver();
 let shuttingDown = false;
+const requestErrors = createLoadErrorLog();
+const responseLogger = {
+	log(event) {
+		recordRequestError(event.error, event.scope.category);
+	}
+};
 
 if (!participantId || !runtimeId || !transport)
 	throw new Error('SSR benchmark worker requires participant, runtime, and transport identities');
@@ -60,6 +71,9 @@ const participant = await createParticipantHandler(participantId);
 const host = await startSsrBenchmarkHost({
 	transport,
 	port: requestedPort,
+	onSocketError(error) {
+		recordRequestError(error, 'socket');
+	},
 	handleNodeControl: handleNodeControlRequest,
 	handleFetchControl: handleFetchControlRequest,
 	handleFetchRequest: measureFetchRequest,
@@ -75,6 +89,11 @@ publish({ type: 'ready', participantId, pid: process.pid, port: host.port, trans
 
 process.once('SIGINT', () => void shutdown('SIGINT'));
 process.once('SIGTERM', () => void shutdown('SIGTERM'));
+if (process.env.COMPARISON_SSR_BOUNDED_TELEMETRY === '1')
+	installDevelopmentProcessLifecycle({
+		label: `SSR load worker ${participantId}`,
+		close: () => shutdown('load-owner-ended')
+	});
 
 /** Creates the production SSR request handler without starting a descendant process. */
 async function createParticipantHandler(id) {
@@ -131,7 +150,7 @@ async function createParticipantHandler(id) {
 						renderParticipantToSink
 					);
 					await measureAsyncPhase('renderMs', () =>
-						writeNodeResponse(response, result, request.signal)
+						writeNodeResponse(response, result, request.signal, responseLogger)
 					);
 					return;
 				}
@@ -351,6 +370,7 @@ async function measureFetchRequest(request) {
 		return response;
 	} catch (error) {
 		recordRequestStatistics(startedAt, cpuStarted);
+		recordRequestError(error, 'handler');
 		return new Response(errorMessage(error), {
 			status: 500,
 			headers: { 'content-type': 'text/plain; charset=utf-8' }
@@ -471,6 +491,7 @@ function resetTelemetry() {
 /** Reads cumulative process counters without injecting collection work into a measured lane. */
 function telemetry() {
 	return {
+		requestErrors: requestErrors.snapshot(),
 		pid: process.pid,
 		cpu: process.cpuUsage(),
 		memory: process.memoryUsage(),
@@ -486,7 +507,12 @@ function telemetry() {
 			: null,
 		garbageCollection: { ...garbageCollection },
 		statistics: {
-			...Object.fromEntries(Object.entries(statistics).map(([name, values]) => [name, [...values]]))
+			...Object.fromEntries(
+				Object.entries(statistics).map(([name, values]) => [
+					name,
+					values instanceof SsrPhaseTotals ? values.snapshot() : [...values]
+				])
+			)
 		}
 	};
 }
@@ -549,9 +575,30 @@ function nanosecondsToMilliseconds(value) {
 }
 
 function failNodeResponse(response, error) {
+	recordRequestError(error, 'handler');
+	if (response.destroyed || response.writableEnded) return;
+	if (response.headersSent) {
+		response.destroy(
+			error instanceof Error ? error : new Error('SSR handler failed', { cause: error })
+		);
+		return;
+	}
 	if (!response.headersSent)
 		response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
 	response.end(errorMessage(error));
+}
+
+/** Preserves worker-side failures in bounded telemetry and emits sampled server diagnostics. */
+function recordRequestError(error, phase) {
+	const details = {
+		code: error?.code ?? error?.name ?? 'UNKNOWN',
+		at: new Date().toISOString(),
+		phase,
+		message: errorMessage(error).slice(0, 2048)
+	};
+	requestErrors.record(details);
+	if (requestErrors.snapshot().total <= 32)
+		console.error(JSON.stringify({ type: 'ssr-request-error', participantId, ...details }));
 }
 
 function writeJson(response, value) {

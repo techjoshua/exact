@@ -49,26 +49,21 @@ function renderHydrationScriptValue(
 	const compacted = directMetadata
 		? createDirectHydrationMetadata(options, directResumptions!)
 		: createExtensibleHydrationMetadata(options, resumptionLayouts);
-	const reactiveCollections = new WeakMap<unknown[], unknown>();
-	let hasReactiveCollections = false;
+	let reactiveCollections: WeakMap<unknown[], unknown> | undefined;
 	const unsafePath = validateJsonSafeHydrationValue(compacted, {
 		maxDepth: options.maxHydrationDepth,
 		maxNodes: options.maxHydrationNodes,
 		onValidatedArray(value) {
 			const encoded = encodeValidatedReactiveCollection(value, value);
 			if (encoded === value) return;
-			reactiveCollections.set(value, encoded);
-			hasReactiveCollections = true;
+			(reactiveCollections ??= new WeakMap()).set(value, encoded);
 		},
 		directResumptions,
 		positionalRoot: readPositionalRootPublication(options.state),
 		structurallyKnownRoot: directMetadata ? compacted : undefined
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
-	const payload = serializeValidatedHydrationPayload(
-		compacted,
-		hasReactiveCollections ? reactiveCollections : undefined
-	);
+	const payload = serializeValidatedHydrationPayload(compacted, reactiveCollections);
 	const payloadBytes = utf8ByteLength(payload);
 	if (payloadBytes > positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)) {
 		throw new Error('Hydration payload exceeded maxHydrationBytes');

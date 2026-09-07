@@ -124,7 +124,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Performance results',
 				summary: 'Explore admitted browser experience and Node server capacity evidence.',
 				keywords:
-					'performance results charts mean percentile p50 p75 p95 p99 browser heap evaluation optimistic SSR Node throughput requests per second payload allocation normalization',
+					'performance results charts aggregate mean percentile p50 p75 p95 p99 browser heap evaluation optimistic SSR Node sustained throughput requests per second burst completion closed loop payload allocation normalization',
 				component: PerformanceDocsRoute
 			}
 		]

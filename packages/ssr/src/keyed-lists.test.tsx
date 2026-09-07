@@ -10,12 +10,10 @@ import { createOperation } from './test-support/native-operations.js';
 import { KeyedList, NamedKeyedList } from './keyed-lists.fixtures.test.js';
 
 describe('@exactjs/ssr keyed-lists', () => {
-	it('renders keyed list fragments with item markers', () => {
+	it('renders single-element keyed rows within the list boundary', () => {
 		const result = renderToString(createOperation('ul', null, createOperation(KeyedList, {})));
 
-		expect(result.html).toContain('<!--i:');
-		expect(result.html).toContain(':a');
-		expect(result.html).toContain(':b');
+		expect(result.html).not.toContain('<!--i:');
 		expect(result.html).toContain('<li>A</li>');
 		expect(result.html).toContain('<li>B</li>');
 	});
@@ -25,7 +23,7 @@ describe('@exactjs/ssr keyed-lists', () => {
 
 		expect(result.html).toMatch(/<!--exact:fragment:\d+:tasks-->/);
 		expect(result.html).toMatch(/<!--\/exact:fragment:\d+:tasks-->/);
-		expect(result.html).toContain('<!--i:');
+		expect(result.html).toContain('<li>A</li>');
 	});
 
 	it('uses an LIS so a keyed rotation emits only one move', () => {

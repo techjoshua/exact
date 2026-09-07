@@ -7,6 +7,7 @@ import type {
 	WorkPriority
 } from './types.js';
 import {
+	createScheduledScopePurge,
 	discardScheduledScopeWork,
 	isHigherWorkPriority,
 	resumeScheduledWork
@@ -203,14 +204,17 @@ export function transferEffectScope(scope: EffectScope, parent?: EffectScope): v
 
 function stopEffectScope(root: EffectScopeRecord): void {
 	if (!root.active) return;
-	const pending: Array<{ readonly scope: EffectScopeRecord; readonly complete: boolean }> = [
-		{ scope: root, complete: false }
-	];
+	const stopped = createScheduledScopePurge();
+	const pending: Array<EffectScopeRecord | undefined> = [root];
 	let firstError: unknown;
 	let failed = false;
 
 	while (pending.length) {
-		const { scope, complete } = pending.pop()!;
+		const entry = pending.pop();
+		// An undefined marker above a scope schedules its exit after its children, without
+		// allocating separate entry/exit records for every scope in the subtree.
+		const complete = entry === undefined;
+		const scope = complete ? pending.pop()! : entry;
 		if (!complete) {
 			if (!scope.active) continue;
 			// Mark first so teardown callbacks cannot create more owned work or
@@ -218,12 +222,19 @@ function stopEffectScope(root: EffectScopeRecord): void {
 			scope.active = false;
 			for (const resume of scope.ownedResumeWaiters()) resume();
 			scope.releaseResumeWaiters();
-			pending.push({ scope, complete: true });
-			const children = [...scope.ownedChildren()] as EffectScopeRecord[];
-			for (let index = children.length - 1; index >= 0; index--) {
-				pending.push({ scope: children[index]!, complete: false });
+			const children = scope.ownedChildren();
+			if (children.size) {
+				pending.push(scope, undefined);
+				const childStart = pending.length;
+				for (const child of children) pending.push(child as EffectScopeRecord);
+				// Preserve insertion-order teardown using the work stack itself as the snapshot.
+				for (let left = childStart, right = pending.length - 1; left < right; left++, right--) {
+					const child = pending[left];
+					pending[left] = pending[right];
+					pending[right] = child;
+				}
+				continue;
 			}
-			continue;
 		}
 
 		for (const reaction of [...scope.ownedReactions()]) {
@@ -242,14 +253,16 @@ function stopEffectScope(root: EffectScopeRecord): void {
 				failed = true;
 			}
 		}
-		// Cleanup callbacks may synchronously enqueue final work. Purge ownership only after every
-		// callback has run so an inactive paused scope cannot become globally retained again.
-		discardScheduledScopeWork(scope);
+		if (stopped) stopped.add(scope);
+		else discardScheduledScopeWork(scope);
 		scope.parent?.removeChild(scope);
 		scope.parent = undefined;
 		scope.releaseCollections();
 	}
 
+	// Cleanup callbacks may enqueue final work for an already stopped descendant. Purge once
+	// after the entire subtree settles, without rescanning unrelated queued work for each scope.
+	if (stopped) discardScheduledScopeWork(undefined, stopped);
 	resumeScheduledWork();
 	if (failed) throw firstError;
 }

@@ -40,6 +40,7 @@ async function startNodeHost(options) {
 	});
 	server.on('connection', (socket) => {
 		sockets.add(socket);
+		socket.on('error', (error) => options.onSocketError?.(error));
 		socket.once('close', () => sockets.delete(socket));
 	});
 	await new Promise((resolveListen, reject) => {

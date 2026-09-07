@@ -279,8 +279,8 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 		startupSamplesMs: [1],
 		startupMs: percentile(1),
 		sequential: lane(),
-		concurrent: lane(true),
-		saturation: { 1: lane(true) },
+		concurrent: { ...lane(true), burstElapsedSamples: [200], burstElapsedMs: percentile(200) },
+		saturation: { 1: { ...lane(true), aggregateRequestsPerSecond: 4 } },
 		diagnostics: { preloadedSaturation: { supported: true, saturation: { 1: lane(true) } } },
 		retention: {
 			checkpoints: [
@@ -336,6 +336,14 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 	assert.deepEqual(
 		result[5].table.participants.map((participant) => participant.name),
 		['exact', 'react']
+	);
+	assert.equal(result[3].table.participants[0].metrics.burstElapsedMs.p50, 200);
+	assert.equal(result[4].table.participants[0].metrics.aggregateRequestsPerSecond.p50, 4);
+	assert.equal(result[4].table.participants[0].metrics.requestsPerSecond.p50, 5);
+	assert.equal(
+		result[4].populations.find((population) => population.name === 'lane aggregates').rawSamples[0]
+			.samples[0].aggregateRequestsPerSecond,
+		4
 	);
 	assert.equal(
 		result[2].populations.find((population) => population.kind === 'reported').rawSummaries[0]
