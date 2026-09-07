@@ -23,6 +23,10 @@
 			"startupCpu": {
 				"path": "docs/performance-baselines/post-restart-2026-09-07-startup.json",
 				"sha256": "f4e9a9b0562bd6a6ac43b40f87dd501b17d67c0ee9f2b98e8c19c2d1fa76f9bd"
+			},
+			"ssrBunDiagnostics": {
+				"path": "docs/performance-baselines/native-bun-2026-09-07-ssr.json",
+				"sha256": "d8801a437d6007e94dbb3cc317ddcba9f83a377e028ad8d8c0e5ea0f0fa0d34a"
 			}
 		},
 		"browserCreatedAt": "2026-09-07T17:30:16.052Z",
@@ -1413,51 +1417,51 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 5.726657999999356,
-							"p50": 5.658800000004703,
-							"p75": 6.271299999993062,
-							"p95": 6.9663999999756925,
-							"p99": 7.542300000000978
+							"mean": 4.626796199999939,
+							"p50": 4.500400000000809,
+							"p75": 4.743399999999383,
+							"p95": 5.439099999999598,
+							"p99": 6.536699999996927
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 5.739138400000462,
-							"p50": 5.652299999987008,
-							"p75": 6.240799999999581,
-							"p95": 6.955500000010943,
-							"p99": 7.74220000000787
+							"mean": 4.668810799999941,
+							"p50": 4.533400000000256,
+							"p75": 4.783400000000256,
+							"p95": 5.46140000000014,
+							"p99": 6.898800000002666
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 7.492926599999482,
-							"p50": 7.301399999996647,
-							"p75": 8.432099999976344,
-							"p95": 10.486700000008568,
-							"p99": 11.301399999996647
+							"mean": 5.241436599999994,
+							"p50": 5.131499999999505,
+							"p75": 5.4078000000008615,
+							"p95": 6.317299999998795,
+							"p99": 7.236499999999069
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 9.985634199999565,
-							"p50": 9.725600000005215,
-							"p75": 10.961999999999534,
-							"p95": 12.906199999997625,
-							"p99": 14.959499999997206
+							"mean": 7.589548999999992,
+							"p50": 7.333699999999226,
+							"p75": 7.854299999999057,
+							"p95": 9.726800000000367,
+							"p99": 12.949300000000221
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 10.766902000000176,
-							"p50": 10.56930000000284,
-							"p75": 11.738799999991897,
-							"p95": 13.480500000005122,
-							"p99": 16.233299999992596
+							"mean": 8.64182,
+							"p50": 8.382300000004761,
+							"p75": 8.900499999999738,
+							"p95": 11.267799999997806,
+							"p99": 14.349699999998847
 						}
 					}
 				]
@@ -1466,56 +1470,56 @@
 				"title": "Warm sequential response latency (Bun)",
 				"unit": "ms",
 				"precision": 2,
-				"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.43 ms and rendering was 0.27 ms.",
+				"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.35 ms and rendering was 0.18 ms.",
 				"series": [
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 0.9802618000003859,
-							"p50": 0.9455000000016298,
-							"p75": 1.1355000000039581,
-							"p95": 1.4862000000139233,
-							"p99": 1.8673999999882653
+							"mean": 0.7305700000000361,
+							"p50": 0.7014999999992142,
+							"p75": 0.8186000000005151,
+							"p95": 1.0684000000001106,
+							"p99": 1.2065000000002328
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 1.037948400000052,
-							"p50": 1.0086000000010245,
-							"p75": 1.2082000000227708,
-							"p95": 1.6104000000050291,
-							"p99": 1.9537000000127591
+							"mean": 0.7925602000000727,
+							"p50": 0.7626000000000204,
+							"p75": 0.8588999999992666,
+							"p95": 1.1216999999996915,
+							"p99": 1.4047000000009575
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 1.5529761999993934,
-							"p50": 1.4902000000001863,
-							"p75": 1.719100000016624,
-							"p95": 2.4208999999973457,
-							"p99": 3.991299999994226
+							"mean": 0.9260498000000116,
+							"p50": 0.8901999999998225,
+							"p75": 1.0174999999999272,
+							"p95": 1.2910999999985506,
+							"p99": 1.7791000000015629
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 2.0186033999993813,
-							"p50": 1.9619000000238884,
-							"p75": 2.373699999996461,
-							"p95": 3.0869999999995343,
-							"p99": 3.7668000000121538
+							"mean": 1.4182338000000054,
+							"p50": 1.3661000000010972,
+							"p75": 1.5828999999994267,
+							"p95": 1.9786999999996624,
+							"p99": 2.7804999999989377
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 2.105305600000138,
-							"p50": 1.9720000000088476,
-							"p75": 2.501399999979185,
-							"p95": 3.133399999991525,
-							"p99": 4.816400000010617
+							"mean": 1.3889625999999917,
+							"p50": 1.3425999999999476,
+							"p75": 1.548400000001493,
+							"p95": 1.8596999999990658,
+							"p99": 2.373300000001109
 						}
 					}
 				]
@@ -1529,58 +1533,58 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 3.9709326,
-							"p50": 3.999173,
-							"p75": 4.022579,
-							"p95": 4.028989,
-							"p99": 4.028989
+							"mean": 3.9737044,
+							"p50": 4.0034,
+							"p75": 4.024302,
+							"p95": 4.032616,
+							"p99": 4.032616
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 5.7888572,
-							"p50": 5.79956,
-							"p75": 5.841695,
-							"p95": 5.938674,
-							"p99": 5.938674
+							"mean": 4.1955498,
+							"p50": 4.206256,
+							"p75": 4.246807,
+							"p95": 4.292073,
+							"p99": 4.292073
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 7.5236718,
-							"p50": 7.538293,
-							"p75": 7.540037,
-							"p95": 7.664845,
-							"p99": 7.664845
+							"mean": 5.5127694,
+							"p50": 5.518,
+							"p75": 5.534117,
+							"p95": 5.571043,
+							"p99": 5.571043
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 12.1795802,
-							"p50": 12.192168,
-							"p75": 12.370631,
-							"p95": 12.375771,
-							"p99": 12.375771
+							"mean": 11.192032000000001,
+							"p50": 11.19747,
+							"p75": 11.359569,
+							"p95": 11.374394,
+							"p99": 11.374394
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 11.051488599999999,
-							"p50": 11.132771,
-							"p75": 11.137843,
-							"p95": 11.354083,
-							"p99": 11.354083
+							"mean": 8.785386800000001,
+							"p50": 8.838335,
+							"p75": 8.848364,
+							"p95": 9.031212,
+							"p99": 9.031212
 						}
 					}
 				]
 			},
 			"bars": [
 				{
-					"title": "SSR response size",
+					"title": "SSR response size (Bun)",
 					"unit": "bytes",
 					"precision": 0,
 					"values": [
@@ -1590,7 +1594,7 @@
 						},
 						{
 							"name": "React",
-							"value": 3384
+							"value": 3386
 						},
 						{
 							"name": "SvelteKit",
@@ -1609,7 +1613,7 @@
 				}
 			],
 			"responseComposition": {
-				"title": "Where the response bytes come from",
+				"title": "Where the response bytes come from (Bun)",
 				"unit": "bytes",
 				"categories": [
 					"Semantic markup",
@@ -1622,20 +1626,44 @@
 				"series": [
 					{
 						"name": "Exact",
-						"values": [null, null, null, null, null, null]
+						"values": [2392, 214, 286, 160, 559, 0]
 					},
 					{
 						"name": "React",
-						"values": [2383, 214, 56, 0, 0, 731]
+						"values": [2383, 216, 56, 0, 0, 731]
 					}
 				],
 				"comment": "Disjoint categories of complete SSR response bytes, including semantic markup, document envelope, framework markers, identity attributes, hydration scripts, and controlled comparison data."
 			},
 			"runtime": "1.4.2",
-			"createdAt": "2026-09-07T20:09:29.673Z",
+			"createdAt": "2026-09-07T21:11:46.773Z",
 			"sequentialSamples": 500,
 			"burstSamples": 500,
-			"retentionCheckpoints": 5
+			"retentionCheckpoints": 5,
+			"environment": {
+				"platform": "win32",
+				"platformRelease": "10.0.26200",
+				"cpu": {
+					"model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics     ",
+					"logicalCount": 16
+				},
+				"totalMemoryBytes": 27704659968,
+				"runtimes": {
+					"bun": "1.4.2"
+				},
+				"workerNetworkEnvironment": {
+					"bun": {
+						"BUN_CONFIG_MAX_HTTP_REQUESTS": "64"
+					}
+				}
+			},
+			"transports": {
+				"exact": "bun-fetch",
+				"tanstack-start": "bun-fetch",
+				"nuxt": "bun-fetch",
+				"sveltekit": "bun-fetch",
+				"react": "bun-fetch"
+			}
 		}
 	}
 }

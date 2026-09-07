@@ -1,40 +1,53 @@
 import { Chart, Legend } from '@exactjs/charts';
 import type { Component } from '@exactjs/core';
-import report from '../data/ssr-capacity-report.json' with { type: 'json' };
-
-const series = ['eXact', 'React'].map((name, index) => ({
-	id: `ssr-capacity-${index}`,
-	label: name,
-	xAxis: 'concurrency',
-	yAxis: 'rps',
-	data: report.preloaded
-		.filter((row) => row.name === name)
-		.map((row) => ({
-			id: `c${row.concurrency}`,
-			label: `Concurrency ${row.concurrency}`,
-			x: String(row.concurrency),
-			value: row.rps
-		}))
-}));
+import nodeReport from '../data/ssr-capacity-report.json' with { type: 'json' };
+import bunReport from '../data/ssr-bun-capacity-report.json' with { type: 'json' };
 
 /** Summary drawn from the same admitted preloaded capture as the capacity chart. */
-export const ssrCapacityHighlight = {
-	label: 'eXact fixed-concurrency SSR',
+export const ssrCapacityHighlights = [nodeReport, bunReport].map((report) => ({
+	label: `eXact fixed-concurrency SSR (${report.runtime})`,
 	value: `${Math.round(Math.max(...report.preloaded.filter((row) => row.name === 'eXact').map((row) => row.rps))).toLocaleString('en-US')} RPS`,
 	context: `${report.runtime}; best concurrency point with data already loaded`
-};
+}));
 
 /** Presents sustained HTTP capacity with explicit data-loading and offered-demand conditions. */
 export function SsrCapacity(this: Component<{}>) {
+	return () => (
+		<>
+			<RuntimeCapacity report={nodeReport} runtimeId="node" />
+			<RuntimeCapacity report={bunReport} runtimeId="bun" />
+		</>
+	);
+}
+
+function RuntimeCapacity(
+	this: Component<{}>,
+	props: { readonly report: typeof nodeReport; readonly runtimeId: string }
+) {
+	const report = props.report;
+	const series = ['eXact', 'React'].map((name, index) => ({
+		id: `ssr-capacity-${index}`,
+		label: name,
+		xAxis: 'concurrency',
+		yAxis: 'rps',
+		data: report.preloaded
+			.filter((row) => row.name === name)
+			.map((row) => ({
+				id: `c${row.concurrency}`,
+				label: `Concurrency ${row.concurrency}`,
+				x: String(row.concurrency),
+				value: row.rps
+			}))
+	}));
+
 	return () => (
 		<section>
 			<h2>{report.runtime} SSR capacity</h2>
 			<p>
 				These sustained measurements compare eXact and React using two independent load-driver
 				processes and one server process per active framework. Two fresh process populations reverse
-				framework order. Valid responses are counted over elapsed time, including final drain. The
-				earlier short-window RPS charts have been superseded; their values are not mixed into this
-				capture. Other frameworks have not yet been measured with this protocol.
+				framework order. Valid responses are counted over elapsed time, including final drain. Other
+				frameworks have not yet been measured with this protocol.
 			</p>
 			<h3>Rendering and response handling with data preloaded</h3>
 			<p>
@@ -46,8 +59,8 @@ export function SsrCapacity(this: Component<{}>) {
 			<div theme:surface="raised" className="performance-chart-card">
 				<Chart
 					type="line"
-					id="performance-sustained-preloaded"
-					title="Preloaded SSR throughput"
+					id={`performance-sustained-preloaded-${props.runtimeId}`}
+					title={`Preloaded SSR throughput: ${report.runtime}`}
 					description="Aggregate valid requests per second at each total concurrency, using two load drivers."
 					axes={[
 						{
@@ -64,7 +77,7 @@ export function SsrCapacity(this: Component<{}>) {
 				</Chart>
 				<div className="performance-table-scroll">
 					<table>
-						<caption>Preloaded capacity by concurrency</caption>
+						<caption>Preloaded capacity by concurrency: {report.runtime}</caption>
 						<thead>
 							<tr>
 								<th scope="col">Framework</th>
@@ -92,7 +105,7 @@ export function SsrCapacity(this: Component<{}>) {
 			</p>
 			<div className="performance-table-scroll">
 				<table>
-					<caption>Normal-loading sustained throughput</caption>
+					<caption>Normal-loading sustained throughput: {report.runtime}</caption>
 					<thead>
 						<tr>
 							<th scope="col">Framework</th>
@@ -124,7 +137,7 @@ export function SsrCapacity(this: Component<{}>) {
 			</p>
 			<div className="performance-table-scroll">
 				<table>
-					<caption>Preloaded throughput under scheduled demand</caption>
+					<caption>Preloaded throughput under scheduled demand: {report.runtime}</caption>
 					<thead>
 						<tr>
 							<th scope="col">Framework</th>

@@ -7,7 +7,11 @@ import { SsrPhaseTotals } from './ssr-load-statistics.mjs';
 import { createLoadErrorLog } from './ssr-load-errors.mjs';
 import { installDevelopmentProcessLifecycle } from '../../scripts/development-process-lifecycle.mjs';
 import { startSsrBenchmarkHost } from './ssr-benchmark-host.mjs';
-import { comparisonDocumentHtml, responseByteBreakdown } from './ssr-response-breakdown.mjs';
+import {
+	comparisonDocumentHtml,
+	responseByteBreakdown,
+	responseDocumentByteBreakdown
+} from './ssr-response-breakdown.mjs';
 import { usesNativeBunServer } from './ssr-benchmark-transport.mjs';
 import {
 	benchmarkPayloadTarget,
@@ -70,6 +74,8 @@ eventLoopDelay?.enable();
 const participant = await createParticipantHandler(participantId);
 const host = await startSsrBenchmarkHost({
 	transport,
+	loadEntry: participant.loadEntry,
+	installFetchHandler: participant.installFetchHandler,
 	port: requestedPort,
 	onSocketError(error) {
 		recordRequestError(error, 'socket');
@@ -98,11 +104,25 @@ if (process.env.COMPARISON_SSR_BOUNDED_TELEMETRY === '1')
 /** Creates the production SSR request handler without starting a descendant process. */
 async function createParticipantHandler(id) {
 	if (usesNativeBunServer(transport)) {
-		if (id !== 'exact')
-			throw new Error(`Participant ${id} declares bun-fetch without a native benchmark entry`);
-		const entry = process.env.COMPARISON_EXACT_SERVER_ENTRY
-			? resolve(process.env.COMPARISON_EXACT_SERVER_ENTRY)
-			: resolve(suiteRoot, 'participants', 'exact', 'dist-bun-server', 'bun-server-entry.js');
+		if (['sveltekit', 'nuxt', 'tanstack-start'].includes(id)) {
+			const entry = id === 'sveltekit' ? 'build-bun/index.js' : '.output-bun/server/index.mjs';
+			let fetchHandler;
+			return {
+				loadEntry: () => import(pathToFileURL(resolve(suiteRoot, 'participants', id, entry)).href),
+				installFetchHandler(handler) {
+					fetchHandler = handler;
+				},
+				handle(request, server) {
+					return measureAsyncPhase('participantWorkMs', () => fetchHandler(request, server));
+				},
+				async close() {}
+			};
+		}
+		if (!['exact', 'react'].includes(id)) throw new Error(`Unknown native Bun participant ${id}`);
+		const entry =
+			id === 'exact' && process.env.COMPARISON_EXACT_SERVER_ENTRY
+				? resolve(process.env.COMPARISON_EXACT_SERVER_ENTRY)
+				: resolve(suiteRoot, 'participants', id, 'dist-bun-server', 'bun-server-entry.js');
 		const { renderParticipantBunResponse } = await import(pathToFileURL(entry).href);
 		let diagnosticData;
 		return {
@@ -114,11 +134,21 @@ async function createParticipantHandler(id) {
 						: await measureAsyncPhase('dataLoadMs', () =>
 								loadInitialData(url.searchParams.has('__benchmarkServicePhases'))
 							);
-					const response = measureSyncPhase('renderMs', () =>
-						renderParticipantBunResponse(initialData, url.pathname)
-					);
+					const response =
+						id === 'react'
+							? await measureAsyncPhase('renderMs', () =>
+									renderParticipantBunResponse(initialData, url.pathname, request.signal)
+								)
+							: measureSyncPhase('renderMs', () =>
+									renderParticipantBunResponse(initialData, url.pathname)
+								);
 					return equalizeFetchResponsePayload(response, benchmarkPayloadTarget(url));
 				});
+			},
+			async responseBreakdown() {
+				diagnosticData ??= await loadInitialData();
+				const response = await renderParticipantBunResponse(diagnosticData, '/incidents/inc-101');
+				return responseDocumentByteBreakdown(id, await response.text(), diagnosticData);
 			},
 			async close() {}
 		};
@@ -361,11 +391,11 @@ function responseFinished(response) {
 }
 
 /** Measures native Fetch handler work through creation of its immutable Response. */
-async function measureFetchRequest(request) {
+async function measureFetchRequest(request, server) {
 	const startedAt = performance.now();
 	const cpuStarted = process.cpuUsage();
 	try {
-		const response = await participant.handle(request);
+		const response = await participant.handle(request, server);
 		recordRequestStatistics(startedAt, cpuStarted);
 		return response;
 	} catch (error) {

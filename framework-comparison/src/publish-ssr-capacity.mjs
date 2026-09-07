@@ -6,8 +6,22 @@ import { summarizeSsrCapacityCapture } from './ssr-capacity-report.mjs';
 
 /** Builds the public report only when preloaded and normal captures use identical target artifacts. */
 export function createSsrCapacityReport(preloaded, normal) {
+	const runtimeId = normal.runtimeId ?? 'node';
+	assert.ok(['node', 'bun'].includes(runtimeId), 'Unknown target runtime');
+	const runtimeName = `${runtimeId === 'bun' ? 'Bun' : 'Node'} ${normal.environment.runtimes[runtimeId]}`;
 	assert.equal(normal.plan.preloaded, false, 'Normal-loading evidence must be explicit');
 	for (const capture of [preloaded.multi, preloaded.arrivals, normal]) {
+		assert.equal(
+			capture.runtimeId ?? 'node',
+			runtimeId,
+			'Captures must share their target runtime'
+		);
+		if (runtimeId === 'bun')
+			assert.deepEqual(
+				capture.transports,
+				{ exact: 'bun-fetch', react: 'bun-fetch' },
+				'Bun captures must use native transports'
+			);
 		assert.deepEqual([...new Set(capture.blocks.map((block) => block.id))].sort(), [
 			'exact',
 			'react'
@@ -37,7 +51,7 @@ export function createSsrCapacityReport(preloaded, normal) {
 		assert.equal(normal.artifacts[id].sha256, preloaded.multi.artifacts[id].sha256);
 		assert.equal(preloaded.arrivals.artifacts[id].sha256, preloaded.multi.artifacts[id].sha256);
 	}
-	for (const key of ['server', 'nodeAdapter']) {
+	for (const key of ['server', runtimeId === 'bun' ? 'bunAdapter' : 'nodeAdapter']) {
 		assert.equal(normal.artifacts[key].hash, preloaded.multi.artifacts[key].hash);
 		assert.equal(preloaded.arrivals.artifacts[key].hash, preloaded.multi.artifacts[key].hash);
 	}
@@ -45,10 +59,10 @@ export function createSsrCapacityReport(preloaded, normal) {
 	const requestErrors = arrivals.reduce((sum, row) => sum + row.requestErrors, 0);
 	return {
 		createdAt: preloaded.multi.createdAt,
-		runtime: `Node ${normal.environment.runtimes.node}`,
+		runtime: runtimeName,
 		normalCreatedAt: normal.createdAt,
 		arrivalsCreatedAt: preloaded.arrivals.createdAt,
-		method: `Preloaded sweep: ${describeStages(preloaded.multi)}. Normal loading: ${describeStages(normal)}. Arrivals: ${describeStages(preloaded.arrivals)}. Each capture uses two reversed process populations on ${normal.environment.platform}, ${normal.environment.runtimes.node}, ${normal.environment.cpu.model.trim()}`,
+		method: `Preloaded sweep: ${describeStages(preloaded.multi)}. Normal loading: ${describeStages(normal)}. Arrivals: ${describeStages(preloaded.arrivals)}. Each capture uses two reversed process populations on ${normal.environment.platform}, target ${runtimeName}, Node ${normal.environment.runtimes.node} load drivers, ${normal.environment.cpu.model.trim()}`,
 		validation: requestErrors
 			? `${requestErrors} request errors in scheduled arrivals; zero in concurrency captures. Response identities and accounting validated; RPS counts valid responses only`
 			: 'Zero request errors in these captures; response identities and accounting validated',

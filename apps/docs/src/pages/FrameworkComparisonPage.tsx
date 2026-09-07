@@ -97,6 +97,12 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 			<section>
 				<h2>Server attribution</h2>
 				<p>
+					Node and Bun results use separate production targets. All five Bun participants use native
+					Bun serving: eXact's Bun adapter, React's streaming renderer, SvelteKit's Bun adapter, and
+					Nitro's Bun preset for Nuxt and TanStack Start. Each target passes the shared SSR,
+					hydration, and interaction checks before measurement.
+				</p>
+				<p>
 					The performance page uses sustained capacity captures with independent load-driver
 					processes and counterbalanced fresh server populations. Preloaded rendering/response
 					throughput, normal data-loading requests, and independently scheduled arrivals are labeled

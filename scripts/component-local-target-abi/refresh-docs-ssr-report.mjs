@@ -200,6 +200,34 @@ export function refreshDocsSsrDiagnostics(previous, raw, runtimeId = 'node') {
 	};
 }
 
+/** Refreshes Bun diagnostics while preserving independently captured Node and browser evidence. */
+export function refreshDocsBunSsrDiagnostics(previous, raw) {
+	for (const [, id] of participants)
+		if (raw.runtimes.bun?.[id]?.transport !== 'bun-fetch')
+			throw new Error(`${id}: native Bun diagnostics require bun-fetch evidence`);
+	const selected = refreshDocsSsrDiagnostics(previous, raw, 'bun').server;
+	selected.bars = selected.bars.map((chart) => ({ ...chart, title: `${chart.title} (Bun)` }));
+	selected.responseComposition.title += ' (Bun)';
+	return {
+		...previous,
+		server: {
+			...previous.server,
+			bun: {
+				...selected,
+				runtime: raw.environment.runtimes.bun,
+				createdAt: raw.createdAt,
+				sequentialSamples: raw.harness.sampleCount,
+				burstSamples: raw.harness.concurrencyWaves,
+				retentionCheckpoints: raw.harness.retentionBatches,
+				environment: raw.environment,
+				transports: Object.fromEntries(
+					Object.entries(raw.runtimes.bun).map(([id, entry]) => [id, entry.transport])
+				)
+			}
+		}
+	};
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 	const [previousPath, rawPath, output] = process.argv.slice(2);
 	if (!output)
@@ -208,14 +236,16 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 		);
 	const bytes = await readFile(rawPath);
 	const refresh = process.argv.includes('--diagnostics-only')
-		? refreshDocsSsrDiagnostics
+		? process.argv.includes('--runtime=bun')
+			? refreshDocsBunSsrDiagnostics
+			: refreshDocsSsrDiagnostics
 		: refreshDocsSsrReport;
 	const report = refresh(JSON.parse(await readFile(previousPath, 'utf8')), JSON.parse(bytes));
 	report.metadata.sources = {
 		...report.metadata.sources,
 		...(process.argv.includes('--diagnostics-only')
 			? {
-					ssrDiagnostics: {
+					[process.argv.includes('--runtime=bun') ? 'ssrBunDiagnostics' : 'ssrDiagnostics']: {
 						path: rawPath,
 						sha256: createHash('sha256').update(bytes).digest('hex')
 					}

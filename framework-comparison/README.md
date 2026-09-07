@@ -105,17 +105,41 @@ The SSR report is written under `results/raw/`. Treat its Node and Bun rows as s
 profiles, compare framework results only within the same row and benchmark run, and retain the
 reported transport identity when interpreting a framework's runtime support.
 
-### Bun-native comparison follow-up
+### Native Bun production targets
 
-The current Bun profile exercises eXact through its native `Bun.serve` adapter while React,
-SvelteKit, Nuxt, and TanStack Start retain their Node-oriented production artifacts under Bun's `node:http`
-compatibility layer. Preserve that transport identity when reporting the current results.
+All five controlled-service participants use native `Bun.serve` in the Bun lane:
 
-A future comparison update should add a separately labeled best-native-Bun lane rather than
-silently changing this one. That lane should evaluate React with `Bun.serve` and its Bun streaming
-renderer, SvelteKit with its Bun adapter once an accepted production release is available, and Nuxt
-with Nitro's Bun preset. Its harness must measure streamed response completion consistently before
-the native lane is compared across frameworks.
+| Participant    | Production integration                                |
+| -------------- | ----------------------------------------------------- |
+| eXact          | `@exactjs/bun-adapter`                                |
+| React          | React 19 `renderToReadableStream` with Bun's renderer |
+| SvelteKit 2    | `svelte-adapter-bun` 1.0.1                            |
+| Nuxt           | Nitro `bun` preset                                    |
+| TanStack Start | Nitro `bun` preset                                    |
+
+`npm run build:bun -w @exactjs/framework-comparison-suite` builds separate peer artifacts.
+eXact's ordinary build already emits both server targets. Run
+`npm run test:e2e:bun -w @exactjs/framework-comparison-suite` against those existing builds.
+`measure:ssr` prepares and validates Bun targets automatically when Bun is selected and installed.
+The Node-only workflow remains available through `COMPARISON_SSR_RUNTIMES=node`.
+
+The shared browser contracts exercise native SSR, hydration, actions, error recovery, and live updates.
+Browser-only frontends attach client assets to the renderer fixtures; timed load drivers connect directly
+to the native listeners and measure complete response bodies. Generated adapter listeners retain their
+fetch callback, server context, and options. A temporary worker-local `Bun.serve` hook inserts telemetry
+and control routes during entry import, then restores the original function. Startup failure closes any
+listener it created. Bun and Node builds remain in separate output directories.
+
+The official prerelease Svelte Bun adapter requires SvelteKit 3. The Kit 2 fixture uses the adapter
+recommended by Bun's SvelteKit guide. Its TypeScript peer range predates TypeScript 6; a scoped npm
+override resolves that peer to the suite's TypeScript 6.0.3. The adapter executes JavaScript without a
+TypeScript runtime dependency. Build, type checking, and shared browser contracts validate this setup.
+Historical Bun captures retain their original Node HTTP compatibility transport identity.
+
+References: [React on Bun](https://bun.com/guides/ecosystem/ssr-react),
+[SvelteKit on Bun](https://bun.com/guides/ecosystem/sveltekit),
+[Nitro's Bun preset](https://nitro.build/deploy/runtimes/bun), and
+[TanStack Start hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting).
 
 The service listens on `http://127.0.0.1:4310` by default. `PORT` may select another port. Its state can
 be restored with `POST /__benchmark/reset` and the `x-benchmark-control: fixture-reset` header.

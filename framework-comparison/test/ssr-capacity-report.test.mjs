@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { summarizeSsrCapacityCapture } from '../src/ssr-capacity-report.mjs';
+import { createSsrCapacityReport } from '../src/publish-ssr-capacity.mjs';
 
 function fixture() {
 	return {
@@ -36,6 +37,62 @@ function fixture() {
 		}))
 	};
 }
+
+function publicationFixture(runtimeId) {
+	const capture = fixture();
+	capture.runtimeId = runtimeId;
+	capture.transports = { exact: 'bun-fetch', react: 'bun-fetch' };
+	capture.environment = {
+		platform: 'win32',
+		runtimes: { node: 'v26.8.1', bun: '1.4.2' },
+		cpu: { model: 'Test CPU' }
+	};
+	capture.artifacts = {
+		exact: { sha256: 'exact' },
+		react: { sha256: 'react' },
+		server: { hash: 'server' },
+		nodeAdapter: { hash: 'node' },
+		bunAdapter: { hash: 'bun' }
+	};
+	capture.plan = { preloaded: true, stages: [{ durationMs: 1000 }] };
+	capture.blocks.push(
+		...structuredClone(capture.blocks).map((block) => ({ ...block, id: 'react' }))
+	);
+	for (const block of capture.blocks)
+		for (const result of block.results)
+			result.plan = { url: 'http://localhost/?__benchmarkPreloaded=true' };
+	const multi = structuredClone(capture),
+		arrivals = structuredClone(capture),
+		normal = structuredClone(capture);
+	normal.plan.preloaded = false;
+	for (const block of normal.blocks)
+		for (const result of block.results) result.plan.url = 'http://localhost/';
+	for (const block of arrivals.blocks)
+		for (const result of block.results) {
+			result.stages[0].mode = 'arrival';
+			result.stages[0].rate = 100;
+		}
+	return { preloaded: { multi, arrivals }, normal };
+}
+
+test('capacity publication labels target runtimes and rejects mixed runtime or adapter evidence', () => {
+	for (const runtimeId of ['node', 'bun']) {
+		const { preloaded, normal } = publicationFixture(runtimeId);
+		assert.equal(
+			createSsrCapacityReport(preloaded, normal).runtime,
+			runtimeId === 'bun' ? 'Bun 1.4.2' : 'Node v26.8.1'
+		);
+	}
+	const { preloaded, normal } = publicationFixture('bun');
+	preloaded.multi.runtimeId = 'node';
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /target runtime/);
+	preloaded.multi.runtimeId = 'bun';
+	preloaded.multi.artifacts.bunAdapter.hash = 'different';
+	assert.throws(() => createSsrCapacityReport(preloaded, normal));
+	preloaded.multi.artifacts.bunAdapter.hash = 'bun';
+	preloaded.multi.transports.react = 'node-http';
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /native transports/);
+});
 
 test('capacity report counts simultaneous drivers over their combined time span', () => {
 	const [row] = summarizeSsrCapacityCapture(fixture());

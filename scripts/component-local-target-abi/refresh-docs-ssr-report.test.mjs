@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { refreshDocsSsrReport, refreshDocsSsrDiagnostics } from './refresh-docs-ssr-report.mjs';
+import {
+	refreshDocsSsrReport,
+	refreshDocsSsrDiagnostics,
+	refreshDocsBunSsrDiagnostics
+} from './refresh-docs-ssr-report.mjs';
 
 function fixture() {
 	const stats = { mean: 200 / 3, p50: 100 / 3, p75: 100, p95: 100, p99: 100 };
@@ -61,6 +65,29 @@ function fixture() {
 	};
 	return { previous, raw };
 }
+
+test('Bun-only refresh preserves Node and browser charts and capture dates', () => {
+	const { previous, raw } = fixture();
+	previous.metadata.ssrCreatedAt = 'node-date';
+	raw.harness.sampleCount = 2;
+	raw.harness.concurrencyWaves = 2;
+	raw.environment = { runtimes: { bun: '1.4.2' } };
+	raw.runtimes.bun = raw.runtimes.node;
+	delete raw.runtimes.node;
+	for (const entry of Object.values(raw.runtimes.bun)) {
+		entry.sequential.samples = [{ totalMs: 6 }, { totalMs: 8 }];
+		entry.transport = 'bun-fetch';
+	}
+	const report = refreshDocsBunSsrDiagnostics(previous, raw);
+	assert.deepEqual(report.metadata, previous.metadata);
+	assert.deepEqual(report.browserCharts, previous.browserCharts);
+	assert.deepEqual(report.server.sequential, previous.server.sequential);
+	assert.equal(report.server.bun.createdAt, 'server-date');
+	assert.equal(report.server.bun.sequential.series[0].stats.mean, 7);
+	assert.equal(report.server.bun.transports.react, 'bun-fetch');
+	raw.runtimes.bun.exact.sequential.samples.pop();
+	assert.throws(() => refreshDocsBunSsrDiagnostics(previous, raw), /incomplete latency/);
+});
 
 test('publishes weighted throughput separately from window statistics and preserves browser provenance', () => {
 	const { previous, raw } = fixture();

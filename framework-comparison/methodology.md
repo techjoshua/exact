@@ -347,8 +347,10 @@ regression without repeated evidence and phase attribution.
 The default local and CI runtimes are Node.js 26 and Bun 1.4.2. Record the exact runtime
 versions in each capture and show them with public server charts. Node 24 remains a supported
 compatibility target; historical Node 24 measurements must not be relabeled as Node 26 evidence.
-Five-framework server diagnostics publish Node and Bun populations separately. eXact's Bun
-participant uses native `Bun.serve`; the other participants use Bun's Node HTTP compatibility
-transport. Bun retained heap covers JavaScriptCore and Node retained heap covers V8, so their
+Five-framework server diagnostics publish Node and Bun populations separately. All five Bun
+participants use native `Bun.serve`: eXact's Bun adapter, React's streaming renderer, the
+SvelteKit 2 Bun adapter, and Nitro's Bun preset for Nuxt and TanStack Start. Separate production
+builds pass the shared browser contracts before measurement. Historical Bun compatibility captures
+retain their original transport identity. Bun retained heap covers JavaScriptCore and Node retained heap covers V8, so their
 absolute heap measurements are not equivalent engine accounting. Browser charts retain their
 independent Chromium capture provenance when only server runtimes change.
