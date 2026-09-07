@@ -4,7 +4,7 @@ import reportJson from '../data/performance-report.json' with { type: 'json' };
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
 import { HeapComposition } from './HeapComposition.jsx';
-import { SsrCapacity, ssrCapacityHighlight } from './SsrCapacity.jsx';
+import { SsrCapacity, ssrCapacityHighlights } from './SsrCapacity.jsx';
 
 interface DistributionStatistics {
 	readonly mean: number;
@@ -37,6 +37,14 @@ interface ValueChart {
 	}[];
 }
 
+interface ResponseCompositionChart {
+	readonly title: string;
+	readonly unit: string;
+	readonly categories: readonly string[];
+	readonly series: readonly { readonly name: string; readonly values: readonly number[] }[];
+	readonly comment: string;
+}
+
 const report = reportJson as unknown as {
 	readonly metadata: {
 		readonly commit: string;
@@ -64,6 +72,8 @@ const report = reportJson as unknown as {
 			readonly sequentialSamples: number;
 			readonly burstSamples: number;
 			readonly retentionCheckpoints: number;
+			readonly bars: readonly ValueChart[];
+			readonly responseComposition: ResponseCompositionChart;
 			readonly burst: DistributionChart;
 			readonly sequential: DistributionChart;
 			readonly retention: DistributionChart;
@@ -72,13 +82,7 @@ const report = reportJson as unknown as {
 		readonly sequential: DistributionChart;
 		readonly retention: DistributionChart;
 		readonly bars: readonly ValueChart[];
-		readonly responseComposition: {
-			readonly title: string;
-			readonly unit: string;
-			readonly categories: readonly string[];
-			readonly series: readonly { readonly name: string; readonly values: readonly number[] }[];
-			readonly comment: string;
-		};
+		readonly responseComposition: ResponseCompositionChart;
 	};
 };
 
@@ -94,7 +98,7 @@ export function PerformancePage(this: Component<{}>) {
 		>
 			<section className="performance-summary" aria-label="Current Exact highlights">
 				{[
-					ssrCapacityHighlight,
+					...ssrCapacityHighlights,
 					...report.summary.filter((item) => !item.label.includes('RPS'))
 				].map((item) => (
 					<div theme:surface="raised" className="performance-summary__item" key={item.label}>
@@ -135,7 +139,7 @@ export function PerformancePage(this: Component<{}>) {
 			</p>
 			<MetricSection
 				title={`Server response time and memory: Bun ${report.server.bun.runtime}`}
-				description="The same five-framework workload runs on Bun. eXact uses native Bun.serve; the other participants use Bun's Node HTTP compatibility transport. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
+				description="The same five-framework workload runs on Bun. All five participants use native Bun.serve: eXact's Bun adapter, React's Bun streaming renderer, SvelteKit's Bun adapter, and Nitro's Bun preset for Nuxt and TanStack Start. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
 				charts={[
 					report.server.bun.burst,
 					report.server.bun.sequential,
@@ -150,16 +154,22 @@ export function PerformancePage(this: Component<{}>) {
 				framework.
 			</p>
 			<ValueSection
-				title="Response payload"
+				title="Response payload: Node"
 				description="Complete response sizes include application markup and framework data. The composition chart separates semantic markup, document overhead, framework markers, identity attributes, and hydration data."
 				charts={report.server.bars}
 			/>
-			<ResponseComposition />
+			<ResponseComposition figure={report.server.responseComposition} runtimeId="node" />
+			<ValueSection
+				title="Response payload: Bun"
+				description="Complete native Bun response sizes, including application markup and framework data."
+				charts={report.server.bun.bars}
+			/>
+			<ResponseComposition figure={report.server.bun.responseComposition} runtimeId="bun" />
 
 			<p className="performance-evidence-note">
 				Evidence commit <code>{report.metadata.commit}</code>. Browser evidence captured{' '}
 				<time dateTime={report.metadata.browserCreatedAt}>{report.metadata.browserCreatedAt}</time>;
-				Response-time, payload, and server-memory evidence captured{' '}
+				Node response-time, payload, and server-memory evidence captured{' '}
 				<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>. Browser
 				charts contain {report.metadata.browserSamples} samples per framework. Server latency charts
 				contain {report.metadata.ssrSequentialSamples} sequential requests and
@@ -305,13 +315,16 @@ function DistributionTable(this: Component<{}>, props: { readonly figure: Distri
 	);
 }
 
-function ResponseComposition(this: Component<{}>) {
-	const figure = report.server.responseComposition;
+function ResponseComposition(
+	this: Component<{}>,
+	props: { readonly figure: ResponseCompositionChart; readonly runtimeId: string }
+) {
+	const figure = props.figure;
 	return () => (
 		<section>
 			<Chart
 				type="stacked-bar"
-				id="performance-response-composition"
+				id={`performance-response-composition-${props.runtimeId}`}
 				title={figure.title}
 				description={figure.comment}
 				axes={[

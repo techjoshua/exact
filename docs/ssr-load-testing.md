@@ -154,3 +154,26 @@ valid responses over the union of simultaneous driver stage spans and retains pe
 It does not infer a pooled p99 or turn a preloaded result into normal-loading application throughput.
 The multi-driver orchestrator and exact plans are preserved in the experiment archives; the ordinary
 `measure:ssr:load` coordinator still uses one driver per participant block.
+
+## Native Bun captures
+
+The Bun lane uses native production handlers for all five controlled-service participants. React uses
+its Bun streaming renderer; SvelteKit 2 uses `svelte-adapter-bun`; Nuxt and TanStack Start use Nitro's
+`bun` preset. See the [suite workflow](../framework-comparison/README.md#native-bun-production-targets)
+for separate builds and the shared browser correctness checks.
+
+Sustained eXact/React capacity captures record `runtimeId: "bun"`, both `bun-fetch` transport identities,
+and the Bun adapter artifact hash. The publisher rejects a mixture of Node and Bun target evidence.
+Node load drivers measure complete HTTP response bodies from the native listener, including streamed
+output. Worker-local Fetch timings end when the handler returns its Response; they are phase diagnostics
+and must not replace the driver's response-completion timings.
+
+The docs page reads `ssr-bun-capacity-report.json` beside the independent Node capacity report.
+Bun-only latency, retention, and response-size refreshes preserve Node and browser capture provenance:
+
+```sh
+node scripts/component-local-target-abi/refresh-docs-ssr-report.mjs apps/docs/src/data/performance-report.json <bun-raw.json> apps/docs/src/data/performance-report.json --diagnostics-only --runtime=bun
+```
+
+The new native capture supersedes the earlier Bun compatibility capture in public charts. Historical
+raw evidence keeps its original transport labels and is not combined with native populations.

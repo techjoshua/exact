@@ -5,7 +5,10 @@
 	"frameworkVersion": "1.168.49",
 	"tracks": ["controlled-service"],
 	"runtime": "node-24",
-	"ssrTransports": { "node": "node-http", "bun": "node-http-compat" },
+	"ssrTransports": {
+		"node": "node-http",
+		"bun": "bun-fetch"
+	},
 	"commands": {
 		"build": "npm run build:tanstack-start -w @exactjs/framework-comparison-suite",
 		"start": "npm run dev:tanstack-start -w @exactjs/framework-comparison-suite"

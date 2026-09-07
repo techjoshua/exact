@@ -1045,3 +1045,11 @@ The [arrival-error investigation](performance-baselines/arrival-errors-2026-09-0
 the unrecoverable historical error codes, three diagnostic sequences, and the driver and Node
 adapter logging fixes. It identifies the error-free rerun now used for the scheduled-arrival
 charts; the original error counts remain in the historical evidence.
+
+The [native Bun comparison](performance-baselines/native-bun-2026-09-07.md) replaces the peers'
+compatibility serving with React's Bun streaming renderer, SvelteKit's Bun adapter, and Nitro's Bun
+preset for Nuxt and TanStack Start. All five production targets pass the shared browser contracts.
+The docs page now includes separate Bun sustained-capacity, response-size, and payload-composition
+charts, with refreshed five-framework Bun diagnostics. Node and Chromium evidence retain their
+independent capture dates. The two-driver Bun sweep and scheduled-demand captures completed without
+request errors; the report preserves capacity misses separately.

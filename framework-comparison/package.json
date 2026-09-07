@@ -25,7 +25,7 @@
 		"measure:startup-cpu": "npm run test:e2e && node src/measure-startup-cpu.mjs --correctness-passed",
 		"measure:startup-cpu:development": "npm run measure:startup-cpu",
 		"measure:heap": "npm run test:e2e && node src/measure-heap.mjs --correctness-passed",
-		"measure:ssr": "npm run test:e2e && node src/measure-ssr.mjs --correctness-passed",
+		"measure:ssr": "npm run test:e2e && node src/prepare-bun-measurement.mjs && node src/measure-ssr.mjs --correctness-passed",
 		"measure:ssr:development": "npm run measure:ssr",
 		"measure:ssr:load": "node src/measure-ssr-load.mjs",
 		"measure:native": "npm run test:native && node src/measure-native.mjs --correctness-passed",
@@ -34,7 +34,9 @@
 		"test": "node --test test/*.test.mjs",
 		"test:e2e": "npm run build && playwright test -c playwright.config.ts",
 		"test:native": "npm run build:exact-native && npm run build:react-native && playwright test -c playwright.native.config.ts",
-		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/tanstack-start/tsconfig.json --noEmit && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck"
+		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/tanstack-start/tsconfig.json --noEmit && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck",
+		"build:bun": "node src/build-bun.mjs",
+		"test:e2e:bun": "node src/test-bun-browser.mjs"
 	},
 	"dependencies": {
 		"@exactjs/bun-adapter": "^0.1.0",
@@ -60,7 +62,8 @@
 		"react": "19.2.0",
 		"react-dom": "19.2.0",
 		"react-router": "^7.18.2",
-		"svelte": "^5.56.8"
+		"svelte": "^5.56.8",
+		"svelte-adapter-bun": "1.0.1"
 	},
 	"devDependencies": {
 		"@jridgewell/trace-mapping": "^0.3.31",
