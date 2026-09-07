@@ -16,7 +16,12 @@ import {
 	whenEffectScopeResumed,
 	withEffectScope
 } from './index.js';
-import { inspectScheduledWork } from './internal/scheduler.js';
+import {
+	inspectScheduledWork,
+	queueComputation,
+	setScheduledWorkContextCapture
+} from './internal/scheduler.js';
+import { registerEffectScopeCleanup } from './internal/scopes.js';
 
 describe('@exactjs/reactive scopes', () => {
 	it('profiles scheduler work owned by an explicit effect scope', () => {
@@ -274,6 +279,96 @@ describe('@exactjs/reactive scopes', () => {
 			computations: { normal: 0 },
 			reactions: { normal: 0 }
 		});
+	});
+
+	it('purges a stopped subtree after cleanup without cancelling unrelated paused work', () => {
+		const root = createEffectScope();
+		const child = createEffectScope(root);
+		const unrelated = createEffectScope();
+		const state = reactive({ value: 0 });
+		const seen: number[] = [];
+		const cancelled = vi.fn();
+		const lateWork = vi.fn();
+		try {
+			withEffectScope(child, () => watch(() => void state.value));
+			withEffectScope(unrelated, () => watch(() => seen.push(state.value)));
+			root.pause();
+			unrelated.pause();
+			setScheduledWorkContextCapture(() => ({ run: (work) => work(), cancel: cancelled }));
+			state.value = 1;
+			registerEffectScopeCleanup(root, () => {
+				// A later ancestor cleanup can enqueue work against an already stopped child.
+				queueComputation(lateWork, undefined, 'deferred', child);
+				throw new Error('cleanup failed');
+			});
+			expect(() => root.stop()).toThrow('cleanup failed');
+			expect(cancelled).toHaveBeenCalledTimes(1);
+			expect(inspectScheduledWork()).toMatchObject({
+				computations: { deferred: 0 },
+				reactions: { normal: 1 }
+			});
+			unrelated.resume();
+			flushSync();
+			expect(seen).toEqual([0, 1]);
+			expect(lateWork).not.toHaveBeenCalled();
+		} finally {
+			setScheduledWorkContextCapture(undefined);
+			root.stop();
+			unrelated.stop();
+			flushSync();
+		}
+	});
+
+	it('preserves child-first insertion order when cleanup stops a pending sibling', () => {
+		const root = createEffectScope();
+		const first = createEffectScope(root);
+		const firstChild = createEffectScope(first);
+		const second = createEffectScope(root);
+		const secondChild = createEffectScope(second);
+		const third = createEffectScope(root);
+		const order: string[] = [];
+		for (const [scope, name] of [
+			[firstChild, 'first child'],
+			[first, 'first'],
+			[secondChild, 'second child'],
+			[second, 'second'],
+			[third, 'third'],
+			[root, 'root']
+		] as const)
+			registerEffectScopeCleanup(scope, () => order.push(name));
+		registerEffectScopeCleanup(first, () => second.stop());
+		try {
+			root.stop();
+			expect(order).toEqual(['first child', 'first', 'second child', 'second', 'third', 'root']);
+		} finally {
+			root.stop();
+		}
+	});
+
+	it('settles reentrant subtree disposal while a sibling keeps its queued work', () => {
+		const root = createEffectScope();
+		const nested = createEffectScope();
+		const sibling = createEffectScope();
+		const ran = vi.fn();
+		try {
+			nested.pause();
+			sibling.pause();
+			queueComputation(ran, undefined, 'normal', sibling);
+			queueComputation(() => {}, undefined, 'normal', nested);
+			registerEffectScopeCleanup(root, () => {
+				nested.stop();
+				expect(inspectScheduledWork().computations.normal).toBe(1);
+			});
+			root.stop();
+			sibling.resume();
+			flushSync();
+			expect(ran).toHaveBeenCalledOnce();
+		} finally {
+			root.stop();
+			nested.stop();
+			sibling.stop();
+			flushSync();
+		}
 	});
 
 	it('does not let first-use scope teardown own a computed created outside that scope', () => {

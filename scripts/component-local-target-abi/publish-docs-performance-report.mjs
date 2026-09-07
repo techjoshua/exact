@@ -97,7 +97,12 @@ function selectPublicMetrics(report) {
 
 /** Rejects incomplete or invented summaries before they enter the public docs artifact. */
 function validateReport(report) {
-	if (!report || report.schemaVersion !== 1) throw new Error('Unsupported docs performance schema');
+	if (!report || ![1, 2].includes(report.schemaVersion))
+		throw new Error('Unsupported docs performance schema');
+	if (report.schemaVersion === 2 && (!report.server?.sustained || !report.server?.burst))
+		throw new Error(
+			'Docs performance v2 requires sustained throughput and burst completion charts'
+		);
 	for (const key of ['commit', 'createdAt', 'browserSamples', 'startupSamples', 'ssrSamples'])
 		if (report.metadata?.[key] === undefined)
 			throw new Error(`Docs performance report omitted metadata.${key}`);
@@ -106,6 +111,8 @@ function validateReport(report) {
 		...(report.server?.saturationCharts ?? []),
 		...(report.server?.equalPayloadCharts ?? []),
 		report.server?.ordinary,
+		report.server?.sustained,
+		report.server?.burst,
 		report.server?.sequential,
 		report.server?.renderOnly,
 		report.server?.retention,
@@ -117,6 +124,11 @@ function validateReport(report) {
 		if (!chart.title || !chart.unit || !chart.comment || !chart.series?.length)
 			throw new Error(`Incomplete docs performance chart ${chart.title ?? '<unknown>'}`);
 		for (const series of chart.series) {
+			if (
+				chart.series.some((entry) => entry.aggregate !== undefined) &&
+				!Number.isFinite(series.aggregate)
+			)
+				throw new Error(`${chart.title}/${series.name} omitted finite aggregate`);
 			for (const statistic of ['mean', 'p50', 'p75', 'p95', 'p99'])
 				if (!Number.isFinite(series.stats?.[statistic]))
 					throw new Error(`${chart.title}/${series.name} omitted finite ${statistic}`);

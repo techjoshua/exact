@@ -82,9 +82,14 @@ export async function exactBuild(options: ExactBunBuildOptions): Promise<unknown
 
 	const { exact: _exactOptions, plugins = [], entrypoints = [], ...buildOptions } = options;
 	const exactPlugin = exact({ ...options.exact, __exactRemoteBuild: remote });
+	const outputPublicPath = publicPath(options);
 	try {
 		return await runtime.Bun.build({
 			...buildOptions,
+			// Bun concatenates this prefix with chunk names; entry publication uses the same base.
+			...(outputPublicPath === undefined
+				? {}
+				: { publicPath: outputPublicPath ? outputPublicPath.replace(/\/?$/, '/') : '' }),
 			...(banner === undefined ? {} : { banner }),
 			entrypoints: [...entrypoints, ...remoteEntrypoints],
 			plugins: [exactPlugin, ...plugins]

@@ -28,3 +28,6 @@ framework-comparison/results/raw/
 docs/performance-baselines/component-local-target-abi/*.md
 docs/performance-baselines/component-local-target-abi-compact-resumption-shape-state.md
 docs/performance-baselines/component-local-target-abi-shape-aware-resumption-validation.md
+
+framework-comparison/participants/*/build-bun/
+framework-comparison/participants/*/.output-bun/

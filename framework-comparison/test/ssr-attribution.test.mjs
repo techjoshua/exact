@@ -5,6 +5,7 @@ import {
 	measureSsrRequest,
 	resetSsrClientConnections,
 	runConcurrentSsrRequests,
+	runSsrBurst,
 	runSustainedSsrWindow
 } from '../src/ssr-benchmark-client.mjs';
 import { profileNodeAllocations, profileNodeCpu } from '../src/ssr-allocation-profiler.mjs';
@@ -45,10 +46,19 @@ describe('SSR attribution diagnostics', () => {
 		const sample = await measureSsrRequest(url);
 		assert.equal(sample.meaningful, true);
 		assert.equal((await runConcurrentSsrRequests(url, 4, 2)).length, 4);
+		const burst = await runSsrBurst(url, 4, 2);
+		assert.equal(burst.samples.length, 4);
+		assert.ok(burst.elapsedMs >= Math.max(...burst.samples.map((entry) => entry.totalMs)));
+		assert.ok(burst.samples.every((entry) => entry.hash === sample.hash && entry.meaningful));
 		const sustained = await runSustainedSsrWindow(url, 2, 20);
 		assert.ok(sustained.samples.length >= 2);
 		assert.ok(sustained.elapsedMs >= 20);
 		assert.ok(sustained.requestsPerSecond > 0);
+		assert.equal(
+			sustained.requestsPerSecond,
+			(sustained.samples.length / sustained.elapsedMs) * 1000
+		);
+		assert.ok(sustained.samples.every((entry) => entry.hash === sample.hash && entry.meaningful));
 		assert.ok(
 			connectionCount <= 2,
 			`expected socket reuse, observed ${connectionCount} connections`

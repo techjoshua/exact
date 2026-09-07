@@ -25,7 +25,7 @@ export class ExactBunMicrofrontendIntegration {
 			if (scope) this.#paths.set(normalizeRemotePath(filename), scope);
 			return { path: filename };
 		});
-		build.onResolve({ filter: /^(?:virtual:exact-provided-packages|exact-remote:)/ }, (args) =>
+		build.onResolve({ filter: /^(?:virtual:exact-provided-packages|exact-remote-)/ }, (args) =>
 			this.#remote.onResolve(args.path)
 		);
 		build.onLoad({ filter: /.*/, namespace: this.#remote.namespace }, (args) =>
@@ -132,7 +132,9 @@ function bunRemoteOutputs(
 	return (result?.outputs ?? []).map((output) => {
 		const metadata = bunOutputMetadata(result?.metafile?.outputs, output.path);
 		const extension = path.extname(output.path).toLowerCase();
-		const isEntry = metadata?.entryPoint !== undefined || output.kind === 'entry-point';
+		const isEntry =
+			/\.[cm]?js$/.test(extension) &&
+			(metadata?.entryPoint !== undefined || output.kind === 'entry-point');
 		const kind = isEntry
 			? 'entry'
 			: extension === '.css'

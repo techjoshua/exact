@@ -11,15 +11,17 @@ const participant = async (directory) =>
 		)
 	);
 
-test('eXact declares its native Bun transport while compatibility-only peers remain explicit', async () => {
+test('controlled participants declare native Bun transports', async () => {
 	const exact = await participant('exact');
 	const react = await participant('react');
 
 	assert.equal(ssrTransportFor(exact, 'node'), 'node-http');
 	assert.equal(ssrTransportFor(exact, 'bun'), 'bun-fetch');
-	assert.equal(ssrTransportFor(react, 'bun'), 'node-http-compat');
+	assert.equal(ssrTransportFor(react, 'bun'), 'bun-fetch');
+	for (const id of ['sveltekit', 'nuxt', 'tanstack-start'])
+		assert.equal(ssrTransportFor(await participant(id), 'bun'), 'bun-fetch');
 	assert.equal(usesNativeBunServer(ssrTransportFor(exact, 'bun')), true);
-	assert.equal(usesNativeBunServer(ssrTransportFor(react, 'bun')), false);
+	assert.equal(usesNativeBunServer(ssrTransportFor(react, 'bun')), true);
 });
 
 test('transport selection fails closed for missing or cross-runtime declarations', () => {

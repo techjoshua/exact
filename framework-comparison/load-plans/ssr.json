@@ -1,0 +1,40 @@
+{
+	"populations": 2,
+	"participants": [
+		{ "id": "exact", "participantId": "exact" },
+		{ "id": "react", "participantId": "react" }
+	],
+	"driver": {
+		"maxInFlight": 512,
+		"maxLagMs": 50,
+		"timeoutMs": 10000,
+		"stages": [
+			{
+				"name": "warmup",
+				"mode": "concurrency",
+				"concurrency": 32,
+				"durationMs": 60000,
+				"discard": true
+			},
+			{ "name": "capacity-c32", "mode": "concurrency", "concurrency": 32, "durationMs": 120000 },
+			{
+				"name": "ramp-1500",
+				"mode": "arrival",
+				"rate": 500,
+				"endRate": 1500,
+				"durationMs": 15000,
+				"discard": true
+			},
+			{ "name": "arrivals-1500", "mode": "arrival", "rate": 1500, "durationMs": 120000 },
+			{
+				"name": "ramp-3000",
+				"mode": "arrival",
+				"rate": 1500,
+				"endRate": 3000,
+				"durationMs": 15000,
+				"discard": true
+			},
+			{ "name": "arrivals-3000", "mode": "arrival", "rate": 3000, "durationMs": 120000 }
+		]
+	}
+}

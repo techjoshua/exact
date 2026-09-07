@@ -27,6 +27,7 @@ export class SsrOutputBuffer {
 
 	private directPublicationDepth = 0;
 	private bufferedValuesLength = 0;
+	private bufferedAccountingReusable = false;
 
 	constructor(
 		private readonly maxBytes: number,
@@ -52,12 +53,27 @@ export class SsrOutputBuffer {
 	beginBufferedRange(): SsrOutputCheckpoint {
 		const checkpoint = this.checkpoint();
 		this.bufferedValuesLength = this.values.length;
+		this.bufferedAccountingReusable = this.accountingValid && !this.pendingHighSurrogate;
 		this.directPublicationDepth--;
 		return checkpoint;
 	}
 
-	/** Restores the outer ledger and charges one successfully completed buffered range. */
-	commitBufferedRange(checkpoint: SsrOutputCheckpoint, value: string): string {
+	/**
+	 * Commits a completed range, retaining proven accounting only when encoding boundaries permit it.
+	 * fullyAccounted requires every returned span to be represented in the current ledger; opaque
+	 * callbacks keep the default rescan. Invalidated provenance and uncertain surrogate ordering
+	 * also restore and recount, preserving the outer checkpoint if the completed range exceeds limits.
+	 */
+	commitBufferedRange(
+		checkpoint: SsrOutputCheckpoint,
+		value: string,
+		fullyAccounted = false
+	): string {
+		if (fullyAccounted && this.bufferedAccountingReusable && this.accountingValid) {
+			this.values.length = this.bufferedValuesLength;
+			this.directPublicationDepth++;
+			return value;
+		}
 		this.restoreBufferedRange(checkpoint);
 		try {
 			this.account(value);
@@ -106,6 +122,8 @@ export class SsrOutputBuffer {
 		if (isHighSurrogate(value.charCodeAt(value.length - 1))) {
 			bytes -= 3;
 			this.pendingHighSurrogate = true;
+			// Late-added delimiters can change pairing, so such ranges retain the exact rescan.
+			this.bufferedAccountingReusable = false;
 		}
 		this.addBytes(bytes);
 	}
@@ -205,6 +223,7 @@ export class SsrOutputBuffer {
 			else if (isHighSurrogate(code)) {
 				if (index + 1 === value.length) {
 					this.pendingHighSurrogate = true;
+					this.bufferedAccountingReusable = false;
 					continue;
 				}
 				if (isLowSurrogate(value.charCodeAt(index + 1))) {

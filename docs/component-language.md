@@ -455,6 +455,14 @@ stale upstream graph. DOM bindings and other consequences remain coalesced at th
 scheduler priority. Equal intermediate results are propagation barriers, so a downstream
 calculation or binding does not run merely because a more distant source was written.
 
+Dynamic watchers reconcile the dependencies read by each execution. Unchanged memberships remain
+attached while the watcher runs, and dependencies absent from the new execution are released on
+exit. An old dependency that has not yet been reread cannot invalidate that execution. This avoids
+subscriber-set churn without changing branch-sensitive notification or adding compiler ABI methods.
+Disposal releases both previous memberships and reads made before a running callback returns,
+including callbacks that stop their own scope and then continue executing. First-class computed
+values retain their separate evaluation and source-lifecycle rules.
+
 The runtime reports a direct or indirect first-class computed cycle as
 `eXact reactive computation cycle detected` before exhausting the JavaScript stack. Compiler
 diagnostics still reject setup-derived state cycles that are visible statically; runtime detection
@@ -1066,6 +1074,9 @@ an exact release reversal. Pass an element-valued binding to
 `this.refs.root(binding)` when that ref, rather than the first intrinsic output,
 defines the component root. The binding must belong to the same component.
 
+Root observation may start after mounting: the first read exposes the current root,
+generation, introduction phase, and presentation state, then follows subsequent changes.
+
 Before a renderer-owned root generation is structurally removed or replaced,
 `release` publishes its retained target, generation, presentation state, and a
 namespaced structural reason. Tasks activated synchronously from that release
@@ -1130,6 +1141,11 @@ removal, and reordering. Array indexes are appropriate only when position
 really is the item's identity. Inferred keyed lowering applies only when the
 map produces JSX children; ordinary data transformations keep native
 `Array.map()` semantics even when their item type has an `@exact key` field.
+
+Nested JSX maps retain their enclosing callback values, including an outer array index. When an
+outer callback remains a native map, its inner keyed children are emitted per iteration instead of
+sharing a component-wide list-site cache. Equal inner keys in different outer rows do not share
+captured values.
 
 ### Portals
 

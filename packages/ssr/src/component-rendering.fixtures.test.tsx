@@ -42,6 +42,24 @@ export function ServerCard(this: Component<{ title: string }>, props: { title: s
 	return () => <article>{this.state.title}</article>;
 }
 
+/** Exercises nested component and keyed-range accounting with dynamic Unicode text. */
+export function BufferedAccountingRows(
+	this: Component<{ values: string[] }>,
+	props: { values: string[] }
+) {
+	this.state.values = props.values;
+	return () => (
+		<section>
+			{this.state.values.map((value, index) => (
+				<article key={String(index)}>
+					<ServerCard title={value} />
+					<span>{value}</span>
+				</article>
+			))}
+		</section>
+	);
+}
+
 /** Compiled component with blocking setup work and owned teardown. */
 export function ObservedServerComponent(this: Component<{ value: number }>) {
 	this.state.value = 1;

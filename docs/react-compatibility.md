@@ -27,6 +27,11 @@ React DOM client/server/static, and supported scheduler imports resolve to the
 matching eXact compatibility packages. Already-compiled dependencies do not
 need the eXact compiler.
 
+For precompiled Node applications, `node --import @exactjs/react-compat/register` installs
+synchronous `module.registerHooks()` when available, covering both ESM and CommonJS module
+loads without Node 26's deprecated async registration API. Older Node hosts retain the async
+registration fallback. The explicit async `node-loader` hook remains available for existing hosts.
+
 Import-free automatic-runtime source is ambiguous by syntax alone. It needs an
 explicit directive, React import, or configured source filter.
 

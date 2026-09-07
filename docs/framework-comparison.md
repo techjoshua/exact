@@ -8,6 +8,14 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
+The public server capacity charts use independent-driver sustained captures for eXact and React,
+with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals
+labeled separately. Aggregate RPS divides valid responses by elapsed time, including drain. The
+earlier v2 short-window RPS presentation is superseded; its historical reports remain available.
+Other frameworks have not yet been admitted under the new protocol. Response-time, payload, and
+memory charts use separately dated diagnostic captures, with per-lane sample counts. See the [load guide](ssr-load-testing.md)
+and [methodology](../framework-comparison/methodology.md) for measurement limits.
+
 The eXact browser build explicitly selects the hydrating component-contract projection: it preserves the
 same SSR adoption behavior while leaving analysis-only component inventories out of the shipped bundle.
 
@@ -66,18 +74,37 @@ of being silently assigned to whichever framework ran last. SSR cold startup, re
 and intrusive CPU/allocation profiles remain isolated so their process ownership stays meaningful. An admitted
 historical eXact server artifact can also run in the same rounds for a direct before/current comparison.
 
-Controlled browser results are labeled warm and follow one discarded, equivalent scenario per participant.
+Controlled browser results use captured production pages over real HTTP, with framework servers stopped.
+Each sample uses a fresh cache-disabled context in a warm browser process, after one discarded scenario per participant.
+Actions and live updates still use the shared service. `COMPARISON_CLIENT_MODE=live` retains a separate
+full-application measurement; live and replay results must not be merged. The [methodology](../framework-comparison/methodology.md#captured-page-client-measurements)
+documents capture identity, framing, cache policy, and publication checks.
 Interaction latency is measured from the browser's captured click to the corresponding visible DOM mutation;
 automation actionability waits and assertion polling are therefore excluded, while interaction-triggered
 hydration remains included.
 
 Controlled FCP samples use the standard paint entry `startTime`. Measured documents navigate directly from
-Chromium to each participant server so harness interception is not included in browser navigation timing. The
+Chromium to the common HTTP replay server, without browser interception; live mode instead uses each participant server. The
 suite does not collect Chromium's experimental render-completion or frame-presentation timestamps.
 
 Heap samples are taken after semantic readiness, one rendering opportunity, and explicit garbage collection.
 They are labeled as post-GC retained heap so ordinary allocation and collection timing is not mistaken for
 cross-sample growth. Dedicated repeated-lifecycle profiling is still required to diagnose an actual leak.
+
+The separate `measure:heap` lane captures unprofiled snapshots after an incident claim settles. One
+discarded warmup round precedes five balanced interleaved rounds by default. Every sample uses a fresh,
+cache-disabled browser context. Raw evidence retains browser version, build hashes, sample order,
+post-GC memory counters, and snapshot self-bytes by node type. The docs heap chart is independently
+published from this evidence with `scripts/component-local-target-abi/publish-docs-heap-report.mjs`.
+It has its own capture date and does not replace the timing report.
+
+The chart uses arithmetic means so category segments add to the mean total. `code` nodes are V8 code
+and metadata; `hidden` and `object shape` nodes are a separate internal/shape category. Objects,
+arrays, closures and regexps, strings (including source text), native nodes, and remaining node types
+complete the partition. These categories describe node representation, not application ownership.
+Unknown future types remain in Other. Sum self-bytes once per node, never overlapping dominator
+retained sizes. Snapshot self-bytes include native nodes and must not be rescaled or subtracted from
+the separately captured `JSHeapUsedSize` metric. The totals do not represent whole-browser memory.
 
 The normative fairness and reporting rules live in
 [`framework-comparison/methodology.md`](../framework-comparison/methodology.md). The detailed experience and

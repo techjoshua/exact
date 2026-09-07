@@ -305,7 +305,7 @@ func componentArtifactMetadata(
 	deferredTaskProps []string,
 	stateSlots []string,
 	propsSlots []string,
-	propsSerialization *ComponentValueSchema,
+	propsSerialization *ast.Node,
 	continuations []Continuation,
 	hasResumption bool,
 	serverPublicationName string,
@@ -381,7 +381,7 @@ func componentArtifactMetadata(
 	}
 	if propsSerialization != nil {
 		properties = append(properties,
-			contractProperty(factory, "serialization", componentValueSchemaMetadata(factory, propsSerialization)),
+			contractProperty(factory, "serialization", propsSerialization),
 		)
 	}
 	if target == TargetClient {

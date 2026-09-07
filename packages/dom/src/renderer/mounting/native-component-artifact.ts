@@ -73,6 +73,8 @@ function mountNativeComponentArtifact(
 	const mounted: Mounted = {
 		componentReceipt: receipt,
 		dom: createMarker(root, 'component'),
+		// Match the boundary-slot position used by marked hydration.
+		end: undefined,
 		scope,
 		children: [],
 		clientArtifact: artifact

@@ -181,6 +181,17 @@ export function RuntimesPage(this: Component<{}>) {
 			</Callout>
 
 			<section>
+				<p>
+					The default development and CI runtimes are Node.js 26 and Bun 1.4.2. Node.js 24 remains
+					supported and is included in the compatibility matrix.
+				</p>
+				<p>
+					Node 26.8.1 bundles Undici 8.10.0. Its fetch client schedules idle HTTP/1.1 socket
+					validation through a zero-delay timer. On Windows hosts with coarse timer resolution, this
+					can add roughly 15 ms to sequential keep-alive requests. Bun's native fetch client does
+					not use that Undici path. See the{' '}
+					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>.
+				</p>
 				<h2>Compiler and bundler integrations</h2>
 				<p>
 					Every eXact application must run the compiler. A first-class or supported plugin embeds it
@@ -195,6 +206,11 @@ export function RuntimesPage(this: Component<{}>) {
 					of guessing that generated and authored line numbers still correspond.
 				</p>
 				<IntegrationTable caption="Build integrations" integrations={buildIntegrations} />
+				<p>
+					Bun remote builds publish their actual entry URLs through <code>onRemoteEntries</code>.
+					Use those URLs instead of predicting filenames. <code>exactBuild()</code> normalizes an
+					asset prefix such as <code>/assets</code> to <code>/assets/</code> for linked chunks.
+				</p>
 				<p>
 					An SSR-only server entry can set <code>renderMode: 'server-render'</code> to omit
 					continuation-dispatch executors. Keep the default server mode when the same bundle also
@@ -228,6 +244,11 @@ export function RuntimesPage(this: Component<{}>) {
 					<code>@exactjs/server</code> instead of being reimplemented by every framework.
 				</p>
 				<IntegrationTable caption="Runtime integrations" integrations={runtimeIntegrations} />
+				<p>
+					Precompiled Node applications can load the React compatibility adapter with{' '}
+					<code>node --import @exactjs/react-compat/register</code>. It uses synchronous module
+					hooks when available, with an asynchronous fallback for older Node hosts.
+				</p>
 			</section>
 
 			<section>

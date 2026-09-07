@@ -1,5 +1,9 @@
 # Component-local target ABI performance ledger
 
+The focused [scope-disposal and compiler-traversal experiments](scope-disposal-and-compiler-traversal-2026-09-05.md)
+record retained queue-teardown and compiler-traversal changes separately from
+the complete application checkpoints below.
+
 This ledger records the accepted phase checkpoints required by the
 [component-local target ABI implementation plan](../proposals/component-local-target-abi-implementation-plan.md).
 This ledger preserves accepted statuses, conclusions, and relevant comparison tables. Compact

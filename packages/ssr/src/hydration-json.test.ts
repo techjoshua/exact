@@ -1,7 +1,73 @@
 import { describe, expect, it } from 'vitest';
 import { validateJsonSafeHydrationValue } from './hydration-json.js';
+import { registerPositionalProjector } from './runtime/positional-projection.js';
 
 describe('hydration JSON validation', () => {
+	it('preserves active ancestors and native Set operations in version-one projectors', () => {
+		const props = { rows: Array.from({ length: 16 }, (_, value) => ({ value })) };
+		let calls = 0;
+		const item = registerPositionalProjector(
+			[1, 'value', 0] as const,
+			1,
+			(value, _depth, state) => {
+				calls++;
+				expect(state.active).toBeInstanceOf(Set);
+				expect(Set.prototype.has.call(state.active, props)).toBe(true);
+				expect(Set.prototype.has.call(state.active, props.rows)).toBe(true);
+				return [value.value];
+			}
+		);
+		const payload = { state: null };
+		expect(
+			validateJsonSafeHydrationValue(payload, {
+				structurallyKnownRoot: payload,
+				positionalRoot: { componentId: 'test:ancestors', props, schema: [1, 'rows', [2, item]] }
+			})
+		).toBeUndefined();
+		expect(calls).toBe(16);
+	});
+
+	it('keeps deep cycles distinct from shared siblings across ancestor promotion', () => {
+		const root: Record<string, unknown> = {};
+		let cursor = root;
+		for (let depth = 0; depth < 24; depth++) {
+			const next: Record<string, unknown> = {};
+			cursor.next = next;
+			cursor = next;
+		}
+		const shared = { value: 'safe' };
+		cursor.rows = [shared, shared];
+		expect(validateJsonSafeHydrationValue(root, {})).toBeUndefined();
+		cursor.cycle = root;
+		expect(validateJsonSafeHydrationValue(root, {})).toBe(`$${'.next'.repeat(24)}.cycle`);
+		delete cursor.cycle;
+		expect(validateJsonSafeHydrationValue(root, {})).toBeUndefined();
+	});
+
+	it('rechecks positional field ownership after earlier authored getters run', () => {
+		const props: Record<string, unknown> = {};
+		Object.defineProperty(props, 'first', {
+			enumerable: true,
+			get() {
+				delete props.second;
+				Object.setPrototypeOf(props, { second: 'inherited' });
+				return 'first';
+			}
+		});
+		props.second = 'owned';
+		const payload = { state: null };
+		expect(
+			validateJsonSafeHydrationValue(payload, {
+				structurallyKnownRoot: payload,
+				positionalRoot: {
+					componentId: 'test:ownership',
+					props,
+					schema: [1, 'first', 0, 'second', 0]
+				}
+			})
+		).toBeDefined();
+	});
+
 	it('trusts framework tuple structure without trusting nested authored values', () => {
 		let accessorInvoked = false;
 		const authored: Record<string, unknown> = {};

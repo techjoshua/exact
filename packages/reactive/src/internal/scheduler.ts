@@ -106,21 +106,30 @@ export function removeQueuedComputation(computation: () => void): void {
 }
 
 /**
- * Releases every scheduler entry owned directly by a stopped scope.
+ * Releases queued work for one stopped scope or a completed subtree in one queue traversal.
  *
  * Paused work is deliberately ineligible for ordinary draining, so scope teardown must remove it
  * explicitly rather than relying on a later flush to observe that the scope is inactive.
  */
-export function discardScheduledScopeWork(scope: EffectScopeImpl): void {
+export function discardScheduledScopeWork(
+	scope: EffectScopeImpl | undefined,
+	scopes?: ReadonlySet<EffectScopeImpl>
+): void {
 	for (const reaction of queuedReactions.keys()) {
-		if (reaction.scope === scope) {
+		if (scopes ? reaction.scope && scopes.has(reaction.scope) : reaction.scope === scope) {
 			queuedReactions.get(reaction)?.context?.cancel();
 			queuedReactions.delete(reaction);
 		}
 	}
 	for (const [computation, queued] of queuedComputations) {
-		if (queued.scope === scope) queuedComputations.delete(computation);
+		if (scopes ? queued.scope && scopes.has(queued.scope) : queued.scope === scope)
+			queuedComputations.delete(computation);
 	}
+}
+
+/** Allocates a subtree purge batch only when queue scanning can repeat across descendants. */
+export function createScheduledScopePurge(): Set<EffectScopeImpl> | undefined {
+	return queuedReactions.size || queuedComputations.size ? new Set() : undefined;
 }
 
 /** Returns the priority inherited by work scheduled in the current synchronous execution scope. */

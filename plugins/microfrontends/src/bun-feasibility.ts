@@ -31,6 +31,7 @@ export function createExactRemoteBunAdapter(options: {
 	for (const exposure of options.plan.exposures) {
 		entrypoints.push(bunVirtualId(exposure.entryId));
 		exposureByEntry.set(bunVirtualId(exposure.entryId), exposure.exposure);
+		exposureByEntry.set(bunVirtualId(exposure.entryId).slice(0, -3), exposure.exposure);
 		modules.set(exposure.entryId, exposure.entrySource);
 		modules.set(
 			exposure.componentFacadeId,
@@ -99,7 +100,8 @@ export function createExactRemoteBunAdapter(options: {
 				throw new Error('Cannot accept a stale Bun remote generation');
 			const emitted: Record<string, string> = {};
 			for (const output of outputs) {
-				const exposure = output.entrypoint ? exposureByEntry.get(output.entrypoint) : undefined;
+				const entrypoint = output.entrypoint?.replace(/^exact-remote-artifact:/, '');
+				const exposure = entrypoint ? exposureByEntry.get(entrypoint) : undefined;
 				if (exposure && output.kind === 'entry') emitted[exposure] = output.path;
 			}
 			accepted = acceptExactRemoteArtifactGeneration(options.plan, {
@@ -154,8 +156,9 @@ function scopedComponent(root: string, component: string, scope: string): string
 	return `${path.resolve(root, component).replaceAll('\\', '/')}?exact-remote-scope=${encodeURIComponent(scope)}`;
 }
 
+/** Bun derives output names from entry specifiers, which must remain ordinary Windows filenames. */
 function bunVirtualId(id: string): string {
-	return `exact-remote:${Buffer.from(id).toString('base64url')}`;
+	return `exact-remote-${Buffer.from(id).toString('base64url')}.js`;
 }
 
 /**

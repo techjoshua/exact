@@ -1,3 +1,4 @@
+import { startClientBenchmarkHarness } from './client-benchmark-harness.mjs';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { cpus, platform, release, totalmem } from 'node:os';
@@ -18,7 +19,9 @@ if (!process.argv.includes('--correctness-passed')) {
 
 const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');
-const sampleCount = Number(process.env.COMPARISON_SAMPLES ?? 7);
+const sampleCount = Number(process.env.COMPARISON_SAMPLES ?? 30);
+if (!Number.isSafeInteger(sampleCount) || sampleCount < 1)
+	throw new Error('Invalid COMPARISON_SAMPLES');
 const browserWarmupCount = 1;
 const measurementRound = nonNegativeInteger(process.env.COMPARISON_MEASUREMENT_ROUND, 0);
 const participants = [
@@ -63,10 +66,11 @@ const buildOrder = balancedRoundOrder(participants, measurementRound);
 const builds = Object.fromEntries(
 	buildOrder.map((participant) => [participant.id, measureBuild(participant.directory)])
 );
-const harness = await import('./e2e-server.mjs');
-const browser = await chromium.launch();
+const harness = await startClientBenchmarkHarness(participants);
+let browser;
 
 try {
+	browser = await chromium.launch();
 	const samples = Object.fromEntries(participants.map((participant) => [participant.id, []]));
 	const warmupOrders = [];
 	for (let round = 0; round < browserWarmupCount; round++) {
@@ -76,6 +80,7 @@ try {
 	}
 	const sampleOrders = [];
 	for (let round = 0; round < sampleCount; round++) {
+		console.log(`Browser round ${round + 1}/${sampleCount}`);
 		const order = balancedRoundOrder(participants, round, measurementRound);
 		sampleOrders.push(order.map((participant) => participant.id));
 		for (const participant of order)
@@ -106,6 +111,7 @@ try {
 			sampleOrders,
 			order: balancedRoundNames(participants, 0, measurementRound),
 			measurementTopology: 'balanced-round-interleaved',
+			clientDelivery: harness.evidence(),
 			paintTiming: { canonical: 'first-contentful-paint.startTime' }
 		},
 		browser: browserResults,
@@ -115,7 +121,7 @@ try {
 		limitations: [
 			'Browser samples use local loopback without network or CPU throttling.',
 			'Every timed round measures one fresh sample from each participant in balanced rotating order.',
-			'Browser samples are warm: each participant completes one equivalent discarded scenario before measurement.',
+			'Every sample uses a fresh context with HTTP cache disabled, after one discarded scenario per participant; the shared browser process is warm.',
 			'Chromium heap is an experimental post-GC retained point-in-time signal, not a repeated-lifecycle leak measurement.',
 			'Controlled-service requests are sequential loopback probes and do not measure framework SSR.'
 		]
@@ -125,8 +131,11 @@ try {
 	await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
 	console.log(`Raw comparison run written to ${relative(repositoryRoot, output)}`);
 } finally {
-	await browser.close();
-	await harness.close();
+	try {
+		await browser?.close();
+	} finally {
+		await harness.close();
+	}
 }
 
 function createParticipantResult(participant, samples) {
@@ -134,7 +143,7 @@ function createParticipantResult(participant, samples) {
 	if (responseHashes.size !== 1)
 		throw new Error(`${participant.id} produced unstable semantic browser responses`);
 	return {
-		temperature: 'warm',
+		temperature: 'warm-process-cold-context',
 		warmupCount: browserWarmupCount,
 		heapMeasurement: 'post-interaction-post-gc-retained',
 		samples,
@@ -167,11 +176,14 @@ async function measureBrowserSample(browserInstance, participant) {
 		await page.addInitScript(installInteractionTiming);
 		await page.addInitScript(installBrowserVitals);
 		const session = await context.newCDPSession(page);
+		await session.send('Network.enable');
+		await session.send('Network.setCacheDisabled', { cacheDisabled: true });
 		await session.send('Performance.enable');
 		// EventSource intentionally keeps the network active, so semantic readiness gates the sample.
 		await page.goto(`${participant.url}/incidents/inc-100`, { waitUntil: 'domcontentloaded' });
 		await page.getByRole('heading', { name: 'Checkout authorization failures' }).waitFor();
 		const firstContentfulPaintMs = await page.evaluate(waitForFirstContentfulPaint);
+		await page.waitForLoadState('load');
 		const navigation = await page.evaluate(() => {
 			const entry = performance.getEntriesByType('navigation')[0];
 			const scripts = performance
@@ -213,6 +225,8 @@ async function measureBrowserSample(browserInstance, participant) {
 			owner: document.querySelector('.facts > div:first-child strong')?.textContent?.trim() ?? null,
 			version: document.querySelector('.version')?.textContent?.trim() ?? null
 		}));
+		if (browserErrors.length || failedRequests.length)
+			throw new Error(`${participant.id}: ${[...browserErrors, ...failedRequests].join(' | ')}`);
 		return {
 			navigation,
 			vitals,

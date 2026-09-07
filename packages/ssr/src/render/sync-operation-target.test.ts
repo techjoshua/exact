@@ -23,7 +23,7 @@ describe('synchronous SSR operation target', () => {
 		).toBe('<!--x-->ready<!--/x-->');
 	});
 
-	it('uses the stable key without a request-global id for compiler-prepared rows', () => {
+	it('uses the compiler-prepared element itself as the keyed row boundary', () => {
 		const context = createSsrContext({ markers: true });
 		const target = new SyncSsrOperationTarget(context, undefined, false, (_context, children) =>
 			children.join('')
@@ -44,7 +44,7 @@ describe('synchronous SSR operation target', () => {
 		);
 
 		expect(target.renderDirectServerKeyedChild({ key: 'incident-101', value: program })).toBe(
-			'<!--i:incident-101--><span>row</span><!--/i:incident-101-->'
+			'<span>row</span>'
 		);
 	});
 });

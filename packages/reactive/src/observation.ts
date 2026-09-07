@@ -111,7 +111,7 @@ class RetainedReaction implements Reaction {
 	active = true;
 	scheduled = false;
 	pendingPriority: Reaction['pendingPriority'];
-	readonly deps: Dep[] = [];
+	deps: Dep[] = [];
 	readonly order: number;
 
 	constructor(

@@ -1,7 +1,12 @@
+const requiresUtf8Counting = /[\u0080-\uffff]/;
+
 /** Counts a string's encoded UTF-8 length without constructing an encoded buffer. */
 export function utf8ByteLength(value: string): number {
-	let bytes = 0;
-	for (let index = 0; index < value.length; index++) {
+	// Native scanning skips the ASCII prefix once; short values avoid the search overhead.
+	const firstNonAscii = value.length >= 32 ? value.search(requiresUtf8Counting) : 0;
+	if (firstNonAscii === -1) return value.length;
+	let bytes = firstNonAscii;
+	for (let index = firstNonAscii; index < value.length; index++) {
 		const code = value.charCodeAt(index);
 		if (code <= 0x7f) bytes++;
 		else if (code <= 0x7ff) bytes += 2;

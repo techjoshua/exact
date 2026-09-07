@@ -74,6 +74,11 @@ func componentNeedsCollections(
 	var stateType *checker.Type
 	var componentNode *ast.Node
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		// Ancestors lead to the component, but disjoint subtrees cannot contribute
+		// state types or its parameter owner. Do not revisit their interiors per component.
+		if node.End() <= component.Start || node.Pos() >= component.Start+component.Length {
+			return false
+		}
 		if node.Pos() == component.Start && node.End() == component.Start+component.Length {
 			componentNode = node
 		}

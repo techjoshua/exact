@@ -111,7 +111,8 @@ export async function captureClientProfile(browser, participant, resetService) {
 	}
 }
 
-function waitForSemanticReady(page) {
+/** Waits for the shared incident and live-service readiness contract. */
+export function waitForSemanticReady(page) {
 	return page.evaluate(
 		() =>
 			new Promise((resolve, reject) => {
@@ -134,7 +135,8 @@ function waitForSemanticReady(page) {
 	);
 }
 
-function runProfiledInteraction(page) {
+/** Claims the incident and waits for the authoritative owner and version to settle. */
+export function runProfiledInteraction(page) {
 	return page.evaluate(
 		() =>
 			new Promise((resolve, reject) => {

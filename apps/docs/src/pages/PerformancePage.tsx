@@ -3,6 +3,8 @@ import type { Component } from '@exactjs/core';
 import reportJson from '../data/performance-report.json' with { type: 'json' };
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
+import { HeapComposition } from './HeapComposition.jsx';
+import { SsrCapacity, ssrCapacityHighlights } from './SsrCapacity.jsx';
 
 interface DistributionStatistics {
 	readonly mean: number;
@@ -20,6 +22,7 @@ interface DistributionChart {
 	readonly series: readonly {
 		readonly name: string;
 		readonly stats: DistributionStatistics;
+		readonly aggregate?: number;
 	}[];
 }
 
@@ -34,13 +37,27 @@ interface ValueChart {
 	}[];
 }
 
+interface ResponseCompositionChart {
+	readonly title: string;
+	readonly unit: string;
+	readonly categories: readonly string[];
+	readonly series: readonly { readonly name: string; readonly values: readonly number[] }[];
+	readonly comment: string;
+}
+
 const report = reportJson as unknown as {
 	readonly metadata: {
 		readonly commit: string;
 		readonly createdAt: string;
+		readonly browserCreatedAt: string;
+		readonly ssrCreatedAt: string;
 		readonly browserSamples: number;
-		readonly startupSamples: number;
-		readonly ssrSamples: number;
+		readonly ssrSequentialSamples: number;
+		readonly ssrBurstSamples: number;
+		readonly ssrRetentionCheckpoints: number;
+		readonly ssrDiagnosticsEnvironment: {
+			readonly runtimes: { readonly node: string; readonly bun: string };
+		};
 	};
 	readonly summary: readonly {
 		readonly label: string;
@@ -49,18 +66,23 @@ const report = reportJson as unknown as {
 	}[];
 	readonly browserCharts: readonly DistributionChart[];
 	readonly server: {
-		readonly ordinary: DistributionChart;
+		readonly bun: {
+			readonly runtime: string;
+			readonly createdAt: string;
+			readonly sequentialSamples: number;
+			readonly burstSamples: number;
+			readonly retentionCheckpoints: number;
+			readonly bars: readonly ValueChart[];
+			readonly responseComposition: ResponseCompositionChart;
+			readonly burst: DistributionChart;
+			readonly sequential: DistributionChart;
+			readonly retention: DistributionChart;
+		};
+		readonly burst: DistributionChart;
 		readonly sequential: DistributionChart;
-		readonly saturationCharts: readonly DistributionChart[];
 		readonly retention: DistributionChart;
 		readonly bars: readonly ValueChart[];
-		readonly responseComposition: {
-			readonly title: string;
-			readonly unit: string;
-			readonly categories: readonly string[];
-			readonly series: readonly { readonly name: string; readonly values: readonly number[] }[];
-			readonly comment: string;
-		};
+		readonly responseComposition: ResponseCompositionChart;
 	};
 };
 
@@ -70,12 +92,15 @@ export function PerformancePage(this: Component<{}>) {
 		<Article
 			eyebrow="Accepted performance evidence"
 			title="Browser experience and server capacity"
-			description="Decision-useful current results from the balanced framework comparison, including arithmetic means and distribution percentiles."
+			description="Current results from the balanced framework comparison, including aggregate server throughput, arithmetic means, and distribution percentiles."
 			previous={{ path: '/framework-comparison', label: 'Read the benchmark methodology' }}
 			next={{ path: '/components/charts', label: 'Explore the chart components' }}
 		>
 			<section className="performance-summary" aria-label="Current Exact highlights">
-				{report.summary.map((item) => (
+				{[
+					...ssrCapacityHighlights,
+					...report.summary.filter((item) => !item.label.includes('RPS'))
+				].map((item) => (
 					<div theme:surface="raised" className="performance-summary__item" key={item.label}>
 						<span>{item.label}</span>
 						<strong>{item.value}</strong>
@@ -86,97 +111,73 @@ export function PerformancePage(this: Component<{}>) {
 
 			<Callout title="How to read these charts">
 				<p>
-					The horizontal range spans P50 through P99. Its primary marker is the arithmetic mean; P75
-					and P95 are retained as named marks. The table below every chart gives the exact current
-					values without expanding each percentile into a separate metric row. Historical and
-					control-normalized comparisons remain part of the internal engineering evidence rather
-					than this public framework comparison.
+					The horizontal range spans P50 through P99, with P75 and P95 as named marks. The
+					throughput charts below use separate sustained captures and report total valid responses
+					divided by elapsed time, including drain. Distribution charts use the arithmetic mean as
+					their primary marker. The tables give exact values without expanding each percentile into
+					a separate metric row. Historical and control-normalized comparisons remain part of the
+					internal engineering evidence rather than this public framework comparison.
 				</p>
 			</Callout>
 
 			<MetricSection
 				title="Browser experience"
-				description="In this application, eXact combines the fastest mean navigation with 1.51 ms mean optimistic feedback. First paint is competitive across the group. Its 2.50 MB warm post-GC heap is higher than React, SvelteKit, and Nuxt, but lower than TanStack Start. A focused eXact-versus-React heap snapshot attributes 205 KB, or 79%, of its 260 KB self-byte difference to V8 code nodes associated with eXact's larger compiled-function population. eXact's dominant retained bundle script/source entry was actually about 3 KB smaller than React's; ordinary arrays, object shapes, objects, and closures accounted for the much smaller remainder."
+				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures time until the browser's load event. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
 				charts={report.browserCharts}
 			/>
-			<section>
-				<h2>Node SSR capacity</h2>
-				<p>
-					The application-level lane measures complete responses at concurrency 16. Exact and React
-					are effectively tied there: Exact records 2,065 mean requests per second and React records
-					2,024. Across the sustained scaling curve, React leads by less than 2% at concurrency 1
-					through 8; Exact reaches parity at 16 and leads the measured means by 1.2% at 32 and 2.8%
-					at 64. Higher throughput is better, and differences this small should be read as practical
-					parity on this machine rather than a universal ranking.
-				</p>
-				<div className="performance-chart-grid">
-					<Distribution figure={report.server.ordinary} index={50} />
-					<SaturationChart />
-				</div>
-			</section>
+			<HeapComposition />
+			<SsrCapacity />
 			<MetricSection
-				title="Server response time and memory"
-				description="React has the lowest mean warm sequential response time at 1.25 ms, followed by eXact at 1.43 ms. Under the bounded post-GC retention run, eXact has the lowest absolute Node heap at 12.67 MB—about 0.63 MB below React and substantially below the full-stack participants."
-				charts={[report.server.sequential, report.server.retention]}
+				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}`}
+				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection; it is distinct from the amount allocated while handling requests."
+				charts={[report.server.burst, report.server.sequential, report.server.retention]}
 			/>
+			<p>
+				Sequential results include the runtime's HTTP client behavior. See
+				<a href="#/runtimes">runtime compatibility notes</a> for the Node 26.8.1 idle-socket timer
+				delay reproduced on this Windows host.
+			</p>
+			<MetricSection
+				title={`Server response time and memory: Bun ${report.server.bun.runtime}`}
+				description="The same five-framework workload runs on Bun. All five participants use native Bun.serve: eXact's Bun adapter, React's Bun streaming renderer, SvelteKit's Bun adapter, and Nitro's Bun preset for Nuxt and TanStack Start. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
+				charts={[
+					report.server.bun.burst,
+					report.server.bun.sequential,
+					report.server.bun.retention
+				]}
+			/>
+			<p className="performance-evidence-note">
+				Bun server evidence captured{' '}
+				<time dateTime={report.server.bun.createdAt}>{report.server.bun.createdAt}</time>, with{' '}
+				{report.server.bun.sequentialSamples} sequential requests, {report.server.bun.burstSamples}{' '}
+				bursts, and {report.server.bun.retentionCheckpoints} retained-heap checkpoints per
+				framework.
+			</p>
 			<ValueSection
-				title="Response payload"
-				description="The eXact response is 3,710 bytes: 326 bytes larger than React, but smaller than SvelteKit, Nuxt, and TanStack Start. The composition chart shows that the remaining gap to React comes from framework markers, identity attributes, and hydration data rather than application markup."
+				title="Response payload: Node"
+				description="Complete response sizes include application markup and framework data. The composition chart separates semantic markup, document overhead, framework markers, identity attributes, and hydration data."
 				charts={report.server.bars}
 			/>
-			<ResponseComposition />
+			<ResponseComposition figure={report.server.responseComposition} runtimeId="node" />
+			<ValueSection
+				title="Response payload: Bun"
+				description="Complete native Bun response sizes, including application markup and framework data."
+				charts={report.server.bun.bars}
+			/>
+			<ResponseComposition figure={report.server.bun.responseComposition} runtimeId="bun" />
 
 			<p className="performance-evidence-note">
-				Evidence commit <code>{report.metadata.commit}</code>, captured{' '}
-				<time dateTime={report.metadata.createdAt}>{report.metadata.createdAt}</time>. Browser,
-				startup, and SSR populations contain {report.metadata.browserSamples},{' '}
-				{report.metadata.startupSamples} per CPU rate, and {report.metadata.ssrSamples} balanced
-				samples or sustained windows.
+				Evidence commit <code>{report.metadata.commit}</code>. Browser evidence captured{' '}
+				<time dateTime={report.metadata.browserCreatedAt}>{report.metadata.browserCreatedAt}</time>;
+				Node response-time, payload, and server-memory evidence captured{' '}
+				<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>. Browser
+				charts contain {report.metadata.browserSamples} samples per framework. Server latency charts
+				contain {report.metadata.ssrSequentialSamples} sequential requests and
+				{report.metadata.ssrBurstSamples} bursts per framework. Server memory uses
+				{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework. Sustained
+				capacity charts state their own measurement durations.
 			</p>
 		</Article>
-	);
-}
-
-function SaturationChart(this: Component<{}>) {
-	const figures = report.server.saturationCharts;
-	const first = figures[0];
-	const series = (first?.series ?? []).map((framework) => ({
-		id: chartId(framework.name, 0),
-		label: framework.name,
-		xAxis: 'concurrency',
-		yAxis: 'throughput',
-		data: figures.flatMap((figure) => {
-			const current = figure.series.find((candidate) => candidate.name === framework.name);
-			if (!current) return [];
-			const concurrency = figure.title.match(/(\d+)$/u)?.[1] ?? '?';
-			return [
-				{
-					id: `c${concurrency}`,
-					label: `Concurrency ${concurrency}`,
-					x: concurrency,
-					value: current.stats.mean,
-					description: distributionDescription(framework.name, current.stats, figure.precision)
-				}
-			];
-		})
-	}));
-	return () => (
-		<div theme:surface="raised" className="performance-chart-card">
-			<Chart
-				type="line"
-				id="performance-node-throughput-scaling"
-				title="Sustained Node throughput by concurrency"
-				description="Mean requests per second at each concurrency level. Hover or focus a point for the full distribution."
-				motion
-				axes={[
-					{ id: 'concurrency', position: 'bottom', scale: 'category', label: 'Concurrency' },
-					{ id: 'throughput', position: 'left', scale: 'linear', label: 'Requests/s' }
-				]}
-				series={series}
-			>
-				<Legend />
-			</Chart>
-		</div>
 	);
 }
 
@@ -288,7 +289,8 @@ function DistributionTable(this: Component<{}>, props: { readonly figure: Distri
 				<thead>
 					<tr>
 						<th>Framework</th>
-						<th>Mean</th>
+						{props.figure.series[0]?.aggregate !== undefined ? <th>Aggregate</th> : null}
+						<th>{props.figure.series[0]?.aggregate !== undefined ? 'Window mean' : 'Mean'}</th>
 						<th>P50</th>
 						<th>P75</th>
 						<th>P95</th>
@@ -299,6 +301,9 @@ function DistributionTable(this: Component<{}>, props: { readonly figure: Distri
 					{props.figure.series.map((series) => (
 						<tr key={series.name}>
 							<th>{series.name}</th>
+							{series.aggregate !== undefined ? (
+								<td>{formatMetric(series.aggregate, props.figure.precision)}</td>
+							) : null}
 							{(['mean', 'p50', 'p75', 'p95', 'p99'] as const).map((key) => (
 								<td key={key}>{formatMetric(series.stats[key], props.figure.precision)}</td>
 							))}
@@ -310,13 +315,16 @@ function DistributionTable(this: Component<{}>, props: { readonly figure: Distri
 	);
 }
 
-function ResponseComposition(this: Component<{}>) {
-	const figure = report.server.responseComposition;
+function ResponseComposition(
+	this: Component<{}>,
+	props: { readonly figure: ResponseCompositionChart; readonly runtimeId: string }
+) {
+	const figure = props.figure;
 	return () => (
 		<section>
 			<Chart
 				type="stacked-bar"
-				id="performance-response-composition"
+				id={`performance-response-composition-${props.runtimeId}`}
 				title={figure.title}
 				description={figure.comment}
 				axes={[
@@ -354,7 +362,7 @@ function distributionSeries(figure: DistributionChart): readonly ChartSeriesInpu
 				id: 'distribution',
 				label: series.name,
 				x: series.name,
-				value: series.stats.mean,
+				value: series.aggregate ?? series.stats.mean,
 				minimum: series.stats.p50,
 				maximum: series.stats.p99,
 				marks: { P75: series.stats.p75, P95: series.stats.p95 }
@@ -371,13 +379,4 @@ function chartId(value: string, index: number): string {
 /** Formats admitted display values without changing the report's fixed units. @exact pure */
 function formatMetric(value: number, precision: number): string {
 	return new Intl.NumberFormat('en-US', { maximumFractionDigits: precision }).format(value);
-}
-
-/** Formats the complete admitted distribution for pointer and keyboard inspection. @exact pure */
-function distributionDescription(
-	framework: string,
-	stats: DistributionStatistics,
-	precision: number
-): string {
-	return `${framework}. Mean ${formatMetric(stats.mean, precision)}; P50 ${formatMetric(stats.p50, precision)}; P75 ${formatMetric(stats.p75, precision)}; P95 ${formatMetric(stats.p95, precision)}; P99 ${formatMetric(stats.p99, precision)} requests/s.`;
 }

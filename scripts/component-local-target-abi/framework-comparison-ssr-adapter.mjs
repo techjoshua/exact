@@ -2,7 +2,6 @@ import {
 	capitalize,
 	createDeterministicSuite,
 	repeated,
-	samplePopulation,
 	validateRaw,
 	withSourcePublication,
 	withUnit
@@ -11,7 +10,7 @@ import { batchedCpuPerRequest } from '../../framework-comparison/src/ssr-benchma
 import { createSsrDiagnosticSuites } from './framework-comparison-ssr-diagnostic-adapter.mjs';
 import { createSsrRetentionSuite } from './framework-comparison-ssr-retention-adapter.mjs';
 import { createSsrStartupSuite } from './framework-comparison-ssr-startup-adapter.mjs';
-import { requestDistributionPopulation } from './framework-comparison-reported-population.mjs';
+import { requestPopulations } from './framework-comparison-ssr-populations.mjs';
 
 /** Adapts SSR startup and every request lane while preserving distinct raw populations. */
 export function adaptFrameworkComparisonSsr(raw) {
@@ -136,6 +135,12 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 	const workerCpuCounts = [];
 	const participantWorkCounts = [];
 	let throughputCount;
+	const hasAggregateThroughput = Object.values(entries).every((entry) =>
+		Number.isFinite(selectLane(entry)?.aggregateRequestsPerSecond)
+	);
+	const hasBurstElapsed = Object.values(entries).every((entry) =>
+		Array.isArray(selectLane(entry)?.burstElapsedSamples)
+	);
 	const memoryFields = ['rss', 'heapTotal', 'heapUsed', 'external', 'arrayBuffers'];
 	const hasMemory = Object.values(entries).every((entry) => {
 		const lane = selectLane(entry);
@@ -155,6 +160,7 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 		'garbageCollectionCount',
 		'garbageCollectionDurationMs'
 	];
+	if (hasAggregateThroughput) aggregateMetrics.push('aggregateRequestsPerSecond');
 	if (hasMemory)
 		for (const field of memoryFields)
 			aggregateMetrics.push(
@@ -180,6 +186,16 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 			? batchedCpuPerRequest(lane.workerSamples, 5)
 			: undefined;
 		const metrics = requestMetrics(lane);
+		if (hasAggregateThroughput)
+			metrics.aggregateRequestsPerSecond = repeated(
+				lane.aggregateRequestsPerSecond,
+				'requests/second'
+			);
+		if (hasBurstElapsed) {
+			if (lane.burstElapsedSamples.length !== lane.throughputSamples.length)
+				throw new Error(`${runtime} ${laneName} changed its burst population`);
+			metrics.burstElapsedMs = withUnit(lane.burstElapsedMs, 'ms');
+		}
 		if (Array.isArray(lane.throughputSamples)) {
 			throughputCount ??= lane.throughputSamples.length;
 			if (lane.throughputSamples.length !== throughputCount)
@@ -187,7 +203,10 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 			metrics.requestsPerSecond = withUnit(lane.requestsPerSecond, 'requests/second');
 			throughputRaw.push({
 				name: participantName,
-				samples: lane.throughputSamples.map((requestsPerSecond) => ({ requestsPerSecond }))
+				samples: lane.throughputSamples.map((requestsPerSecond, index) => ({
+					requestsPerSecond,
+					...(hasBurstElapsed ? { burstElapsedMs: lane.burstElapsedSamples[index] } : {})
+				}))
 			});
 		}
 		if (hasMemory) addMemoryMetrics(metrics, lane, memoryFields);
@@ -275,6 +294,7 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 		workerCpuCounts,
 		participantWorkCounts,
 		throughputCount,
+		hasBurstElapsed,
 		aggregateMetrics,
 		clientRaw,
 		clientReported,
@@ -325,6 +345,9 @@ function addMemoryMetrics(metrics, lane, fields) {
 
 function aggregateSample(lane, memoryFields) {
 	const sample = {
+		...(Number.isFinite(lane.aggregateRequestsPerSecond)
+			? { aggregateRequestsPerSecond: lane.aggregateRequestsPerSecond }
+			: {}),
 		processUserCpuPerRequestMs: lane.cpuPerRequest.userMs,
 		processSystemCpuPerRequestMs: lane.cpuPerRequest.systemMs,
 		processTotalCpuPerRequestMs: lane.cpuPerRequest.totalMs,
@@ -336,60 +359,6 @@ function aggregateSample(lane, memoryFields) {
 		sample[`memoryAfter${capitalize(field)}Bytes`] = lane.memoryAfter[field];
 	}
 	return sample;
-}
-
-function requestPopulations(lanes) {
-	const populations = [
-		requestDistributionPopulation(
-			'client requests',
-			['clientTtfbMs', 'clientTotalMs', 'responseBytes'],
-			lanes.clientCounts,
-			lanes.clientRaw,
-			lanes.clientReported
-		),
-		requestDistributionPopulation(
-			'worker requests',
-			['workerFirstByteMs', 'workerTotalMs', 'workerDeliveryMs'],
-			lanes.workerCounts,
-			lanes.workerRaw,
-			lanes.workerReported
-		),
-		requestDistributionPopulation(
-			'worker CPU batches',
-			['workerUserCpuPerRequestMs', 'workerSystemCpuPerRequestMs', 'workerTotalCpuPerRequestMs'],
-			lanes.workerCpuCounts,
-			lanes.workerCpuRaw,
-			lanes.workerCpuReported
-		),
-		{
-			name: 'event-loop histogram',
-			kind: 'reported',
-			metrics: ['eventLoopDelayMs'],
-			rawSummaries: lanes.eventLoopRaw
-		},
-		samplePopulation('lane aggregates', lanes.aggregateMetrics, 1, 0, lanes.aggregateRaw)
-	];
-	if (lanes.participantWorkReported.length)
-		populations.push(
-			requestDistributionPopulation(
-				'participant work',
-				['workerParticipantWorkMs'],
-				lanes.participantWorkCounts,
-				lanes.participantWorkRaw,
-				lanes.participantWorkReported
-			)
-		);
-	if (lanes.throughputRaw.length)
-		populations.push(
-			samplePopulation(
-				'throughput waves',
-				['requestsPerSecond'],
-				lanes.throughputCount,
-				0,
-				lanes.throughputRaw
-			)
-		);
-	return populations;
 }
 
 function reportedEntry(name, observationCount, metrics) {

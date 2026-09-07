@@ -3,6 +3,12 @@ import type { Dep, Reaction } from './types.js';
 const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
 const depObservationHooks = new WeakMap<object, Map<PropertyKey, DependencyObservationHooks>>();
 const reactionStack: Reaction[] = [];
+
+/** Owns old memberships until a rerun has collected its replacement dependency set. */
+type TrackingPass = { reaction: Reaction; previous: Dep[]; seen: Set<Dep> };
+
+/** Contains only synchronous reruns; popped passes cannot retain disposed reactions. */
+const trackingPasses: TrackingPass[] = [];
 const trackingPauseFloors: number[] = [];
 const pendingObservationTransitions: Array<() => void> = [];
 let publishingObservationTransitions = false;
@@ -51,7 +57,16 @@ export function linkReaction(reaction: Reaction, target: object, key: PropertyKe
 /** Adds a reaction to an existing dependency set while preserving observer-count transitions. */
 export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
 	const subscribers = dep.subscribers;
-	if (subscribers === reaction || (subscribers instanceof Set && subscribers.has(reaction))) return;
+	const pass = trackingPasses[trackingPasses.length - 1];
+	const collecting = pass?.reaction === reaction;
+	if (subscribers === reaction || (subscribers instanceof Set && subscribers.has(reaction))) {
+		if (collecting && !pass.seen.has(dep)) {
+			pass.seen.add(dep);
+			reaction.deps.push(dep);
+		}
+		return;
+	}
+	if (collecting) pass.seen.add(dep);
 	const wasEmpty = subscribers === undefined;
 	dep.subscribers =
 		subscribers === undefined
@@ -83,16 +98,24 @@ export function getDep(target: object, key: PropertyKey): Dep {
 
 /** Removes a reaction from all dependency sets it currently belongs to. */
 export function cleanupReaction(reaction: Reaction): void {
-	for (const dep of reaction.deps) {
-		const subscribers = dep.subscribers;
-		if (subscribers === reaction) dep.subscribers = undefined;
-		else if (subscribers instanceof Set && subscribers.delete(reaction)) {
-			if (subscribers.size === 1) dep.subscribers = subscribers.values().next().value;
-			else if (subscribers.size === 0) dep.subscribers = undefined;
-		} else continue;
-		if (dep.subscribers === undefined) releaseEmptyDependency(dep);
-	}
+	for (const pass of trackingPasses)
+		if (pass.reaction === reaction) {
+			for (const dep of pass.previous) detachDependency(reaction, dep);
+			pass.previous = [];
+		}
+	for (const dep of reaction.deps) detachDependency(reaction, dep);
 	reaction.deps.length = 0;
+}
+
+/** Removes a single membership and publishes a real last-observer transition. */
+function detachDependency(reaction: Reaction, dep: Dep): void {
+	const subscribers = dep.subscribers;
+	if (subscribers === reaction) dep.subscribers = undefined;
+	else if (subscribers instanceof Set && subscribers.delete(reaction)) {
+		if (subscribers.size === 1) dep.subscribers = subscribers.values().next().value;
+		else if (subscribers.size === 0) dep.subscribers = undefined;
+	} else return;
+	if (dep.subscribers === undefined) releaseEmptyDependency(dep);
 }
 
 /** Schedules one stable snapshot of the reactions subscribed to a dependency. */
@@ -100,8 +123,9 @@ export function scheduleDependencyReactions(target: object, key: PropertyKey): v
 	const dep = deps.get(target)?.get(key);
 	const subscribers = dep?.subscribers;
 	if (subscribers instanceof Set) {
-		for (const reaction of [...subscribers]) reaction.schedule();
-	} else subscribers?.schedule();
+		for (const reaction of [...subscribers])
+			if (observesDuringTracking(reaction, dep!)) reaction.schedule();
+	} else if (subscribers && observesDuringTracking(subscribers, dep!)) subscribers.schedule();
 }
 
 /** Schedules subscribers for an atomic trigger collection through the coalescing scheduler. */
@@ -115,8 +139,10 @@ export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey
 			const dep = targetDeps.get(key);
 			const subscribers = dep?.subscribers;
 			if (subscribers instanceof Set) {
-				for (const reaction of subscribers) reactions.add(reaction);
-			} else if (subscribers) reactions.add(subscribers);
+				for (const reaction of subscribers)
+					if (observesDuringTracking(reaction, dep!)) reactions.add(reaction);
+			} else if (subscribers && observesDuringTracking(subscribers, dep!))
+				reactions.add(subscribers);
 		}
 	}
 	// A custom scheduler may run synchronously and replace its own watcher. Snapshotting every
@@ -125,14 +151,33 @@ export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey
 	for (const reaction of reactions) reaction.schedule();
 }
 
-/** Runs a function while collecting all reactive reads into the supplied reaction. */
+/** Old memberships remain retained until exit but cannot invalidate an unread branch during execution. */
+function observesDuringTracking(reaction: Reaction, dep: Dep): boolean {
+	for (let i = trackingPasses.length - 1; i >= 0; i--) {
+		const pass = trackingPasses[i]!;
+		if (pass.reaction === reaction) return pass.seen.has(dep);
+	}
+	return true;
+}
+
+/**
+ * Collects replacement dependencies without tearing down memberships that the reaction rereads.
+ * Old memberships are ineligible to notify this execution until read again. Unused memberships
+ * are released on exit, including exceptional exits; disposal also releases reads made afterward.
+ */
 export function runTracked(reaction: Reaction, fn: () => void): void {
-	cleanupReaction(reaction);
+	const pass = { reaction, previous: reaction.deps, seen: new Set<Dep>() };
+	reaction.deps = [];
+	trackingPasses.push(pass);
 	reactionStack.push(reaction);
 	try {
 		fn();
 	} finally {
 		reactionStack.pop();
+		trackingPasses.pop();
+		for (const dep of pass.previous) if (!pass.seen.has(dep)) detachDependency(reaction, dep);
+		// Disposal can occur inside fn(), followed by additional reads before it returns.
+		if (!reaction.active) cleanupReaction(reaction);
 	}
 }
 

@@ -1,3 +1,4 @@
+import { startBunEntryHost } from './ssr-bun-entry-host.mjs';
 import { usesNativeBunServer } from './ssr-benchmark-transport.mjs';
 
 /**
@@ -5,7 +6,9 @@ import { usesNativeBunServer } from './ssr-benchmark-transport.mjs';
  * Native Fetch and Node compatibility callbacks remain transport-specific by design.
  */
 export async function startSsrBenchmarkHost(options) {
-	return usesNativeBunServer(options.transport) ? startBunHost(options) : startNodeHost(options);
+	if (usesNativeBunServer(options.transport))
+		return options.loadEntry ? startBunEntryHost(options) : startBunHost(options);
+	return startNodeHost(options);
 }
 
 /** Starts Bun's native Fetch server without importing Node's HTTP compatibility module. */
@@ -40,6 +43,7 @@ async function startNodeHost(options) {
 	});
 	server.on('connection', (socket) => {
 		sockets.add(socket);
+		socket.on('error', (error) => options.onSocketError?.(error));
 		socket.once('close', () => sockets.delete(socket));
 	});
 	await new Promise((resolveListen, reject) => {

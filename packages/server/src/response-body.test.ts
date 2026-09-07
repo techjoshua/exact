@@ -7,6 +7,16 @@ import {
 } from './response-body.js';
 
 describe('buffered eXact response bodies', () => {
+	it('keeps lazy body views enumerable, receiver-owned, and independently consumable', async () => {
+		const first = createExactBufferedResponse(200, {}, 'first');
+		const second = createExactProducedResponse(201, {}, (write) => write('second'));
+		expect(Object.keys(first)).toEqual(['status', 'headers', 'body', 'stream']);
+		expect(Object.keys(second)).toEqual(['status', 'headers', 'body', 'stream']);
+		expect(first.body).toBe('first');
+		expect(await new Response(second.stream).text()).toBe('second');
+		expect(() => first.stream).toThrow('already claimed');
+		expect(() => second.body).toThrow('already claimed');
+	});
 	it('joins chunks only when a direct consumer reads body', () => {
 		const response = createExactBufferedResponse(200, {}, ['<main>', 'rendered', '</main>']);
 

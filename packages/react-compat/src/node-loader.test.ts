@@ -35,14 +35,17 @@ describe('Node React compatibility loader', () => {
 		);
 	});
 
-	it('registers through Node --import before application modules', async () => {
-		const register = path.resolve(import.meta.dirname, '../dist/register.js');
-		await expect(
-			execFileAsync(
-				process.execPath,
-				['--import', pathToFileURL(register).href, path.join(fixtureRoot, 'node-entry.mjs')],
-				{ cwd: fixtureRoot }
-			)
-		).resolves.toMatchObject({ stderr: '' });
-	});
+	it.each(['node-entry.mjs', 'node-entry.cjs'])(
+		'registers through Node --import before %s',
+		async (entry) => {
+			const register = path.resolve(import.meta.dirname, '../dist/register.js');
+			await expect(
+				execFileAsync(
+					process.execPath,
+					['--import', pathToFileURL(register).href, path.join(fixtureRoot, entry)],
+					{ cwd: fixtureRoot }
+				)
+			).resolves.toMatchObject({ stderr: '' });
+		}
+	);
 });

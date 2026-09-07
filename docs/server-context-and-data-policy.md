@@ -28,6 +28,13 @@ The portable `RequestContext` exposes normalized URL, method, headers, abort
 signal, response status/headers, and redirect control. Adapters establish it
 before instantiating the root component state machine.
 
+Plain supplied context values remain externally owned. Closing a scope with no
+factory-owned values skips dependency traversal, but still closes its lifetime
+and clears its resolved-value lookup. Factory
+initialization remains eager and deterministic; owned resources retain dependency
+ordering, cancellation, and reverse-order cleanup. This optimization does not
+change context residency or the compiled-component ABI.
+
 The application may configure a trusted `publicOrigin` on its server context.
 eXact combines that origin with the incoming path and query, but never infers
 public authority from `Host` or `X-Forwarded-Proto`. A resolver may consult the
@@ -94,6 +101,17 @@ The application owns its trust decision. Package allowlists are guardrails,
 not dependency sandboxing.
 
 ## Rendering safety
+
+The Node adapter owns reporting for failures it handles while accepting an endpoint request or
+writing its response. `createExactNodeHandler()` passes the configured runtime logger into response
+writing; direct `writeNodeResponse()` calls accept an optional fourth logger argument. Events use
+framework scope `node-adapter` and categories `request`, `response`, or `cleanup`, preserving the
+original thrown value. Without a logger, errors go to the server console. Logger failures fall back
+to the console and do not suppress the original error or interrupt cleanup. The handler observes
+both dispatch rejection and rejection from writing an otherwise successful response. Normal
+disconnect cancellation is identified by the request signal's exact abort reason, not by suppressing
+every failure that occurs after a disconnect. Custom owners of `writeNodeResponseBody()` must handle
+and report its rejections themselves. This does not install a process-wide uncaught-error handler.
 
 Structured JSX is the normal rendering boundary. Native SSR centralizes URL
 sanitization and blocks `javascript:` URLs. Opaque markup requires

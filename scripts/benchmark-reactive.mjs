@@ -9,6 +9,7 @@ const {
 	flushSync,
 	reactive,
 	registerReactiveListKey,
+	scheduleWork,
 	watch,
 	withEffectScope,
 	writeReactive
@@ -267,6 +268,33 @@ const scenarios = [
 				throw new Error('Protocol roundtrip changed keyed collection data');
 			}
 			return { elapsed, bytes: Buffer.byteLength(json) };
+		}
+	},
+	{
+		name: 'subtree disposal with unrelated paused backlog',
+		run: () => {
+			const root = createEffectScope();
+			const unrelated = createEffectScope();
+			let unrelatedRuns = 0;
+			const count = Math.min(size, 4_000);
+			try {
+				unrelated.pause();
+				for (let index = 0; index < count; index++) {
+					createEffectScope(root);
+					scheduleWork(() => unrelatedRuns++, 'deferred', undefined, unrelated);
+				}
+				const start = performance.now();
+				root.stop();
+				const elapsed = performance.now() - start;
+				if (unrelatedRuns !== 0) throw new Error('Disposal ran unrelated paused work');
+				unrelated.resume();
+				flushSync();
+				if (unrelatedRuns !== count) throw new Error('Disposal removed unrelated queued work');
+				return elapsed;
+			} finally {
+				root.stop();
+				unrelated.stop();
+			}
 		}
 	},
 	{

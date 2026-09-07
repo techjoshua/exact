@@ -1,5 +1,15 @@
 /** Captures and summarizes one post-GC Chromium heap snapshot without retaining its raw JSON. */
 export async function captureHeapDominators(session, limit = 30) {
+	return summarizeHeapDominators(await captureSnapshot(session), limit);
+}
+
+/** Captures disjoint snapshot self-byte totals without constructing a dominator graph. */
+export async function captureHeapComposition(session) {
+	return summarizeHeapComposition(await captureSnapshot(session));
+}
+
+/** Collects garbage and releases the CDP chunk listener even when snapshot capture fails. */
+async function captureSnapshot(session) {
 	await session.send('HeapProfiler.collectGarbage');
 	const chunks = [];
 	const collect = ({ chunk }) => chunks.push(chunk);
@@ -12,7 +22,28 @@ export async function captureHeapDominators(session, limit = 30) {
 	} finally {
 		session.off('HeapProfiler.addHeapSnapshotChunk', collect);
 	}
-	return summarizeHeapDominators(JSON.parse(chunks.join('')), limit);
+	return JSON.parse(chunks.join(''));
+}
+
+/** Counts every snapshot node once; self-bytes include native nodes and are not JSHeapUsedSize. */
+export function summarizeHeapComposition(snapshot) {
+	const fields = snapshot.snapshot.meta.node_fields;
+	const typeOffset = fields.indexOf('type');
+	const sizeOffset = fields.indexOf('self_size');
+	const types = snapshot.snapshot.meta.node_types[typeOffset];
+	if (typeOffset < 0 || sizeOffset < 0 || snapshot.nodes.length % fields.length !== 0)
+		throw new Error('Unsupported heap snapshot node layout');
+	const selfBytesByType = {};
+	let selfBytes = 0;
+	for (let offset = 0; offset < snapshot.nodes.length; offset += fields.length) {
+		const type = types[snapshot.nodes[offset + typeOffset]];
+		const bytes = snapshot.nodes[offset + sizeOffset];
+		if (typeof type !== 'string' || !Number.isSafeInteger(bytes) || bytes < 0)
+			throw new Error('Invalid heap snapshot node');
+		selfBytesByType[type] = (selfBytesByType[type] ?? 0) + bytes;
+		selfBytes += bytes;
+	}
+	return { nodeCount: snapshot.nodes.length / fields.length, selfBytes, selfBytesByType };
 }
 
 /** Computes strong-edge immediate dominators and retained sizes from a V8 heap snapshot. */

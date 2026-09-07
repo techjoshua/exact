@@ -2,6 +2,13 @@
 
 Status: implemented foundation with the explicit limits listed below.
 
+Hydration validation keeps shallow active ancestry in a request-local stack, promoting it to a
+native `Set` at 16 active containers. Only the active path participates in cycle detection; shared
+sibling references remain valid. Promotion preserves every active ancestor and also occurs before
+calling any version-one compiled positional projector, retaining that projector's native `Set`
+contract. Error-path validation starts with independent ancestry. Serialization checks, depth/node
+limits, wire format, and compiled projector ABI are unchanged.
+
 ## Package ownership
 
 - `@exactjs/ssr` renders strings, documents, event streams, progressive HTML,
@@ -81,6 +88,12 @@ paired `x:` comments with dense artifact-local base-36 ordinals. Client and serv
 derive those ordinals from the same marker-only sequence even when their complete slot tables
 differ. The program root scopes the identities; they are not durable application or transport
 identifiers.
+
+A synchronously rendered keyed item whose value is a compiler-prepared single-intrinsic-root
+program uses that element as its item boundary. The receiving keyed receipt supplies the key and
+owns the item scope; hydration does not need an additional pair of item comments. Generic items,
+multi-node ranges, and server keyed-list patch snapshots retain explicit item boundaries. The client
+continues to accept the older paired item markers.
 
 A client program places a statically resolved native component in an explicit component lifecycle
 slot. Server and complete artifacts retain the component's recursive execution and add the same
