@@ -1025,6 +1025,9 @@ with scheduled arrivals subsequently refreshed from the first same-plan diagnost
 The [subsequent concurrency refresh](performance-baselines/concurrency-refresh-2026-09-07.md)
 updates the preloaded concurrency curve and its headline using the current build. Other metric
 groups retain their separately dated captures.
+The [runtime upgrade verification](performance-baselines/runtime-upgrade-2026-09-07.md) separately
+compares old and current Node/Bun releases, records compatibility fixes, and leaves the framework
+comparison charts unchanged.
 It refreshes all five frameworks' browser, heap, sequential, burst, server-memory and payload data,
 plus the existing eXact/React sustained-capacity lanes. Scheduled-arrival tables now retain explicit
 request-error counts and rates; concurrency capacity captures still require zero request errors.

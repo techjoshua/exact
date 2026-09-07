@@ -96,10 +96,23 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 					else process.env.EXACT_BUILD_KEY = previousBuildKey;
 				}
 				testApi.expect(entries?.['./Area']).toMatch(/^\/assets\/.+\.js$/);
-				const emitted = await readdir(path.join(root, 'dist'));
+				const emitted = await readdir(path.join(root, 'dist'), { recursive: true });
+				const entry = entries!['./Area']!.slice('/assets/'.length);
+				testApi.expect(entry).not.toContain(':');
+				testApi.expect(emitted).toContain(entry);
+				testApi
+					.expect((await readFile(path.join(root, 'dist', entry), 'utf8')).length)
+					.toBeGreaterThan(0);
 				testApi.expect(emitted.some((file) => file.endsWith('.css'))).toBe(true);
 				testApi.expect(emitted.some((file) => file.endsWith('.svg'))).toBe(true);
 				testApi.expect(emitted.filter((file) => file.endsWith('.js')).length).toBeGreaterThan(2);
+				for (const filename of emitted.filter((file) => file.endsWith('.js'))) {
+					const source = await readFile(path.join(root, 'dist', filename), 'utf8');
+					for (const match of source.matchAll(/["'](\/assets[^"']+)["']/g)) {
+						testApi.expect(match[1]).toMatch(/^\/assets\//);
+						testApi.expect(emitted).toContain(match[1]!.slice('/assets/'.length));
+					}
+				}
 			} finally {
 				await rm(root, { recursive: true, force: true });
 			}
