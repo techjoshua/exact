@@ -1,3 +1,4 @@
+import { startClientBenchmarkHarness } from './client-benchmark-harness.mjs';
 import { execFileSync } from 'node:child_process';
 import { cpus, platform, release, totalmem } from 'node:os';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -59,10 +60,11 @@ const artifacts = Object.fromEntries(
 	)
 );
 
-const harness = await import('./e2e-server.mjs');
-const browser = await chromium.launch();
+const harness = await startClientBenchmarkHarness(participants);
+let browser;
 
 try {
+	browser = await chromium.launch();
 	const profiles = {};
 	const sampleOrders = {};
 	for (const rate of throttleRates) {
@@ -139,6 +141,7 @@ try {
 				measurementRound,
 				sampleOrders,
 				measurementTopology: 'balanced-round-interleaved',
+				clientDelivery: harness.evidence(),
 				cache: 'disabled',
 				network: 'local-loopback-unthrottled'
 			},
@@ -159,8 +162,11 @@ try {
 		};
 	}
 } finally {
-	await browser.close();
-	await harness.close();
+	try {
+		await browser?.close();
+	} finally {
+		await harness.close();
+	}
 }
 
 /** Joins the diagnostic Exact coverage and trace inventory to its emitted source map. */

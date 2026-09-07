@@ -50,6 +50,9 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if !plan.keyed {
 		return nil
 	}
+	if lowering.target == TargetClient && lowering.insideNativeMapCallback(node) {
+		return lowering.lowerRenderProgramKeyedMap(node, plan)
+	}
 	if lowering.renderProgramListDepth > 0 && lowering.directRenderProgramKeyedMap(node) {
 		if emitted := lowering.lowerRenderProgramKeyedMap(node, plan); emitted != nil {
 			return emitted
@@ -173,7 +176,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 	}
 	key := lowering.collectionMapKeyExpression(plan, parameter)
 	if _, componentOwned := lowering.componentContaining(node); lowering.target == TargetClient &&
-		componentOwned {
+		componentOwned && !lowering.insideNativeMapCallback(node) {
 		lowering.listCapabilityUsed = true
 		lowering.markComponentListCapability(node)
 		selector := lowering.factory.NewArrowFunction(
@@ -240,6 +243,27 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 		lowering.factory.NewNodeList([]*ast.Node{emittedRender}),
 		call.Flags,
 	)
+}
+
+// insideNativeMapCallback prevents component-wide site caches from sharing closures across
+// native map iterations that do not establish compiler-owned keyed item scopes.
+func (lowering *jsxLowering) insideNativeMapCallback(node *ast.Node) bool {
+	for parent := node.Parent; parent != nil; parent = parent.Parent {
+		if !ast.IsArrowFunction(parent) && !ast.IsFunctionExpression(parent) {
+			continue
+		}
+		call := parent.Parent
+		if call == nil || !ast.IsCallExpression(call) {
+			continue
+		}
+		expression := call.AsCallExpression().Expression
+		if ast.IsPropertyAccessExpression(expression) &&
+			expression.AsPropertyAccessExpression().Name().Text() == "map" &&
+			len(parent.Parameters()) != 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // Key inference removes authored list ceremony only for maps that produce JSX

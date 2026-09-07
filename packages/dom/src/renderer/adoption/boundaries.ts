@@ -189,6 +189,37 @@ export function adoptStaticChildrenRange(
 		const keyedReceipt = readCompiledKeyedChildReceipt(child);
 		if (keyedReceipt) {
 			const opening = nodes[cursor];
+			// A prepared program owns exactly one intrinsic root. Its element bounds the item,
+			// while the keyed receipt retains the authored key and the item's effect scope.
+			if (opening instanceof Element && readRenderProgramReceipt(keyedReceipt.value)) {
+				const itemScope = keyedReceipt.ownerScope ?? createEffectScope(parentScope);
+				if (keyedReceipt.ownerScope) transferEffectScope(itemScope, parentScope);
+				const adopted = adoptStaticChildrenRange(
+					root,
+					[keyedReceipt.value as Child],
+					nodes,
+					parentInstance,
+					itemScope,
+					true,
+					cursor,
+					cursor + 1
+				);
+				if (!adopted || adopted.mounts.length !== 1) {
+					itemScope.stop();
+					unmountMany(mounts);
+					return undefined;
+				}
+				mounts.push({
+					operation: child,
+					operationKey: keyedReceipt.key,
+					range: 'item',
+					dom: opening,
+					scope: itemScope,
+					children: adopted.mounts
+				});
+				cursor++;
+				continue;
+			}
 			if (!(opening instanceof Comment) || !opening.data.startsWith('i:')) {
 				unmountMany(mounts);
 				return undefined;

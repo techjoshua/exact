@@ -29,3 +29,7 @@ they do not create an adapter component for each React value. Native children cr
 ownership remain opaque compiled contributions rather than React-readable native VNodes.
 
 See [React compatibility](../../docs/react-compatibility.md).
+
+Precompiled Node applications can install the import adapter with
+`node --import @exactjs/react-compat/register`. It uses synchronous Node module hooks when
+available, with the asynchronous registration fallback retained for older hosts.

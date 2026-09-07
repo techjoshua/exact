@@ -41,6 +41,8 @@ await exactBuild({
 `onRemoteEntries` only after a complete successful generation and offers stable development IDs
 through `onRemoteDevelopmentEntries`. Direct `Bun.build({ plugins: [exact()] })` remains supported
 for ordinary builds and reports an actionable error if exposures require the coordinator.
+Nonempty `publicPath` prefixes such as `/assets` are normalized to `/assets/` for linked chunks;
+use the published entry map instead of predicting generated filenames.
 `exactBuild()` always releases its compiler resources after the build settles. A host that installs
 `exact()` directly must retain the plugin and call its idempotent `dispose()` after the final build
 or watch generation, including when `Bun.build()` rejects.

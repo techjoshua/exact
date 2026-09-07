@@ -43,6 +43,36 @@ import {
 } from './adoption-modes.fixtures.js';
 
 describe('DOM adoption modes', () => {
+	it('adopts element-bounded keyed rows and retains identity, focus, and cleanup across edits', () => {
+		const container = document.createElement('div');
+		document.body.append(container);
+		container.innerHTML =
+			'<!--exact:dynamic:list--><!--exact:dynamic:tasks--><li tabindex="0">A</li><li tabindex="0">B</li><!--/exact:dynamic:tasks--><!--/exact:dynamic:list-->';
+		try {
+			const originalB = container.querySelectorAll('li')[1] as HTMLElement;
+			expect(
+				adoptMarkerlessComponentRoot(createTestComponentReceipt(KeyedAdoptionList, {}), container)
+			).toBe(true);
+			const list = keyedAdoptionListInstance();
+			originalB.focus();
+			list.state.items.reverse();
+			flushSync();
+			expect(container.querySelectorAll('li')[0]).toBe(originalB);
+			expect(document.activeElement).toBe(originalB);
+			list.state.items[0]!.label = 'Updated';
+			list.state.items.splice(1, 1, { id: 'c', label: 'C' });
+			flushSync();
+			expect(container.textContent).toBe('UpdatedC');
+			expect(container.querySelectorAll('li')[0]).toBe(originalB);
+			expect(unmount(container)).toBe(true);
+			list.state.items[0]!.label = 'After disposal';
+			flushSync();
+			expect(container.textContent).toBe('');
+		} finally {
+			unmount(container);
+			container.remove();
+		}
+	});
 	it('adopts a component boundary and keeps it live for later renders', () => {
 		const container = document.createElement('div');
 		const vnode = createTestComponentReceipt(HydratedGreeting, {});

@@ -227,7 +227,9 @@ npm test
 4. generates application artifacts; and
 5. builds every referenced package, integration, component library, and sample application.
 
-The initial build requires Node.js 24, npm 11, Git, and Go 1.26.2. Native source and successful
+The default development runtime is Node.js 26 (pinned in `.node-version` and `.nvmrc`), with
+Bun 1.4.2 for Bun integration tests. Node.js 24 remains supported. The initial build requires
+npm 11, Git, and Go 1.26.2. Native source and successful
 compiler builds are retained under `.tmp`, so later builds reuse them until the pinned revision,
 native overlay, target platform, or build host changes. Use
 `npm run build:native-compiler -- --force` to deliberately rebuild it. Pass `--source <path>` or

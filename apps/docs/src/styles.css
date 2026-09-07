@@ -38,6 +38,10 @@
 	overflow-x: auto;
 }
 
+.performance-heap-chart {
+	min-inline-size: 36rem;
+}
+
 .performance-table-scroll table {
 	border-collapse: collapse;
 	inline-size: 100%;

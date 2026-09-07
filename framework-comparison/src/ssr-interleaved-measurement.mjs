@@ -1,11 +1,6 @@
-import { performance } from 'node:perf_hooks';
-
+import { measureSsrRequest, runSsrBurst, runSustainedSsrWindow } from './ssr-benchmark-client.mjs';
 import {
-	measureSsrRequest,
-	runConcurrentSsrRequests,
-	runSustainedSsrWindow
-} from './ssr-benchmark-client.mjs';
-import {
+	aggregateSsrThroughput,
 	cpuMillisecondsPerRequest,
 	summarizeSsrSamples,
 	summarizeWorkerRequests
@@ -157,15 +152,14 @@ async function measureConcurrentPopulation(entries, options) {
 		const order = balancedRoundOrder(entries, round, options.orderOffset);
 		recordOrder(options, order);
 		for (const entry of order) {
-			const startedAt = performance.now();
-			const samples = await runConcurrentSsrRequests(
-				options.url(entry),
-				options.level,
-				options.level
-			);
+			const measured = await runSsrBurst(options.url(entry), options.level, options.level);
 			const participant = state.get(entry.key);
-			participant.samples.push(...samples);
-			participant.throughput.push((samples.length / (performance.now() - startedAt)) * 1_000);
+			participant.samples.push(...measured.samples);
+			participant.throughput.push((measured.samples.length / measured.elapsedMs) * 1_000);
+			participant.windows.push({
+				requests: measured.samples.length,
+				elapsedMs: measured.elapsedMs
+			});
 		}
 	}
 	return finishConcurrentLane(entries, state, options.level, options.count);
@@ -226,7 +220,7 @@ async function measurePayloadSweep(entries, config, orders) {
 	const result = Object.fromEntries(entries.map((entry) => [entry.key, {}]));
 	for (const [payloadIndex, bytes] of config.payloadSweepBytes.entries()) {
 		const state = Object.fromEntries(
-			entries.map((entry) => [entry.key, { samples: [], throughput: [] }])
+			entries.map((entry) => [entry.key, { samples: [], throughput: [], windows: [] }])
 		);
 		const orderKey = `payload-${bytes}`;
 		for (let round = 0; round < config.attributionWindows; round++) {
@@ -241,11 +235,17 @@ async function measurePayloadSweep(entries, config, orders) {
 				);
 				state[entry.key].samples.push(...measured.samples);
 				state[entry.key].throughput.push(measured.requestsPerSecond);
+				state[entry.key].windows.push({
+					requests: measured.samples.length,
+					elapsedMs: measured.elapsedMs
+				});
 			}
 		}
 		for (const entry of entries) {
 			const participant = state[entry.key];
 			result[entry.key][bytes] = {
+				...aggregateSsrThroughput(participant.windows),
+				windows: participant.windows,
 				concurrency: 32,
 				requests: participant.samples.length,
 				observations: { client: participant.samples.length },
@@ -290,6 +290,9 @@ async function finishConcurrentLane(entries, state, level, waves) {
 		const after = await controlSsrWorker(entry.worker, 'telemetry');
 		validateResponses(entry, participant.samples);
 		result[entry.key] = {
+			mode: 'finite-burst',
+			burstElapsedSamples: participant.windows.map((window) => window.elapsedMs),
+			burstElapsedMs: summarizeSsrSamples(participant.windows.map((window) => window.elapsedMs)),
 			concurrency: level,
 			waves,
 			requests: participant.samples.length,
@@ -319,6 +322,7 @@ async function finishSustainedLane(entries, state, options) {
 		validateResponses(entry, participant.samples);
 		result[entry.key] = {
 			mode: 'sustained-closed-loop',
+			...aggregateSsrThroughput(participant.windows),
 			concurrency: options.level,
 			windowCount: options.count,
 			windowTargetMs: options.durationMs,

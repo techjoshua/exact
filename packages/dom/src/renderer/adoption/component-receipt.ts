@@ -107,6 +107,8 @@ function adoptMarkerlessReceipt(
 	const mounted: Mounted = {
 		componentReceipt: receipt,
 		dom: document.createTextNode(''),
+		// Match marked hydration's field order without allocating a boundary node.
+		end: undefined,
 		scope,
 		children: [],
 		clientArtifact: receiptClientArtifact(receipt)

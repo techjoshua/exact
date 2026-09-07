@@ -40,12 +40,12 @@ describe('Webpack and Bun remote artifact adapters', () => {
 		});
 
 		const entrypoint = mapping.entrypoints[0]!;
-		expect(entrypoint).toMatch(/^exact-remote:/);
-		expect(mapping.onResolve(entrypoint)).toEqual({
-			path: entrypoint,
-			namespace: 'exact-remote-artifact'
-		});
-		expect(mapping.onLoad(entrypoint)).toMatchObject({
+		expect(entrypoint).not.toMatch(/[:\\/]/);
+		const resolved = mapping.onResolve(entrypoint)!;
+		expect(resolved.namespace).toBe('exact-remote-artifact');
+		expect(resolved.path).not.toMatch(/[:\\/]/);
+		expect(resolved.path).toMatch(/\.js$/);
+		expect(mapping.onLoad(resolved.path)).toMatchObject({
 			loader: 'js',
 			contents: expect.stringContaining('export default __exactRemoteModule')
 		});

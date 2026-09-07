@@ -161,7 +161,7 @@ function renderSyncComponent(
 				output.rollbackBufferedRange(checkpoint);
 				throw error;
 			}
-			return output.commitBufferedRange(checkpoint, rendered);
+			return output.commitBufferedRange(checkpoint, rendered, true);
 		}
 		return executeSyncComponentOutput(
 			context,

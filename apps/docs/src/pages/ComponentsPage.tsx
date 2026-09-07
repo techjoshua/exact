@@ -321,6 +321,12 @@ export function ComponentsPage(this: Component<{}>) {
 					owned by the renderer&apos;s release frame, allowing the old range to remain until
 					attached tasks and cleanup settle. The retained subtree deactivates after release
 					observers attach and reactivates only when exact-generation reversal restores it.
+					Observation may start after mounting; the first read exposes the current root and its
+					generation, introduction phase, and presentation state.
+				</p>
+				<p>
+					Final disposal also releases the subtree&apos;s queued reactive work, including work
+					paused while parked. Other mounted or parked subtrees keep their own pending updates.
 				</p>
 				<div theme:surface="raised" className="definition-grid">
 					<code>this.state</code>
@@ -328,7 +334,11 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.reactive()</code>
 					<p>An explicit derived reactive value.</p>
 					<code>this.map()</code>
-					<p>Explicit stable-key collection rendering.</p>
+					<p>
+						Explicit stable-key collection rendering. Nested JSX maps can also read enclosing
+						callback values, including the outer array index; equal keys in different rows remain
+						independent.
+					</p>
 					<code>this.setContext()</code>
 					<p>Publishes a typed value to descendant components.</p>
 					<code>this.getContext()</code>

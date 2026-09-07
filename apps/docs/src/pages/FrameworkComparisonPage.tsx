@@ -48,19 +48,29 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					being collapsed into one score.
 				</p>
 				<p>
-					Controlled browser samples are labeled warm after one equivalent discarded scenario per
-					participant. Interaction timings run from the captured browser event to the visible DOM
-					mutation, excluding automation waits while retaining any interaction-triggered hydration.
+					Client samples reuse each framework?s captured production HTML and assets over HTTP.
+					Framework servers stop before measurement. Each sample uses a fresh cache-disabled context
+					in a warm browser process, after one discarded scenario per participant. Interaction
+					timings run from the captured browser event to the visible DOM mutation, excluding
+					automation waits while retaining any interaction-triggered hydration.
 				</p>
 				<p>
-					Paint samples use the standard first-contentful-paint start time. Measured documents
-					navigate directly to each participant server so harness interception does not become part
-					of browser navigation timing.
+					Paint samples use the standard first-contentful-paint start time. Measured documents load
+					from the same static HTTP implementation, without browser interception. Actions and live
+					updates still use the shared HTTP service. These client timings exclude SSR generation;
+					live-server and SSR measurements remain separate.
 				</p>
 				<p>
 					Heap samples follow semantic readiness, one rendering opportunity, and explicit garbage
 					collection. Results label this as post-GC retained heap rather than treating live
 					allocation noise as evidence of a leak.
+				</p>
+				<p>
+					A separate heap-composition diagnostic collects snapshots after an incident claim settles,
+					without running CPU or allocation profilers. Balanced rounds produce additive mean
+					self-byte categories for V8 code and metadata, internal nodes, objects, strings, and
+					native nodes. These snapshot totals differ from the retained JavaScript heap metric and do
+					not measure total browser process memory.
 				</p>
 				<p>
 					A separate cold-start CPU profile disables the browser cache and records JavaScript parse,
@@ -87,11 +97,33 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 			<section>
 				<h2>Server attribution</h2>
 				<p>
+					Node and Bun results use separate production targets. All five Bun participants use native
+					Bun serving: eXact's Bun adapter, React's streaming renderer, SvelteKit's Bun adapter, and
+					Nitro's Bun preset for Nuxt and TanStack Start. Each target passes the shared SSR,
+					hydration, and interaction checks before measurement.
+				</p>
+				<p>
+					The performance page uses sustained capacity captures with independent load-driver
+					processes and counterbalanced fresh server populations. Preloaded rendering/response
+					throughput, normal data-loading requests, and independently scheduled arrivals are labeled
+					separately. Aggregate RPS divides valid responses by elapsed time, including drain. Driver
+					CPU, scheduling lag, missed arrivals, and errors help distinguish generator limits from
+					server saturation. The earlier short-window throughput charts are superseded.
+					Response-time, payload, and memory charts retain their separately dated captures.
+				</p>
+				<p>
 					The SSR report keeps end-to-end results separate from diagnostic evidence. Its preloaded
 					render lane removes controlled-service loading, while a separate instrumented lane divides
 					that loading into fetch and JSON-decode time. Response accounting separates semantic
 					markup, framework markers, hydration data, comparison data, and the document envelope.
-					These lanes explain a result; they do not replace the production-route comparison.
+					Preloaded capacity is published separately from normal-loading capacity and native
+					full-stack results.
+				</p>
+				<p>
+					Focused runtime experiments also compare unchanged and optimized builds in interleaved
+					rounds. Reduced response allocation or faster rendering may have a smaller effect on
+					complete requests that load data. Published framework charts retain their capture dates
+					and are refreshed from complete comparison runs.
 				</p>
 				<p>
 					Comparable browser, startup, and SSR timing samples run in balanced interleaved rounds:

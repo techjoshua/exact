@@ -109,3 +109,23 @@ function matchingByteLength(value, expression) {
 	for (const match of value.matchAll(expression)) bytes += Buffer.byteLength(match[0]);
 	return bytes;
 }
+
+/** Decomposes the actual native document while retaining the framework marker categories. */
+export function responseDocumentByteBreakdown(id, document, initialData) {
+	const prefix = '<div id="app" data-render-mode="ssr">';
+	const start = document.indexOf(prefix);
+	const dataStart = document.indexOf('<script id="comparison-data"');
+	const end = document.lastIndexOf('</div>', dataStart < 0 ? document.length : dataStart);
+	if (start < 0 || end < start) throw new Error('Native document is missing the comparison root');
+	const breakdown = responseByteBreakdown(
+		id,
+		document.slice(start + prefix.length, end),
+		initialData
+	);
+	const documentBytes = Buffer.byteLength(document);
+	return {
+		...breakdown,
+		documentBytes,
+		documentEnvelopeBytes: breakdown.documentEnvelopeBytes + documentBytes - breakdown.documentBytes
+	};
+}

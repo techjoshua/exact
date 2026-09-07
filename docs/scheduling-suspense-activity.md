@@ -119,6 +119,16 @@ Dirty work accumulated while parked publishes when the range becomes active.
 Context writes outside a parked ownership scope retain their normal behavior;
 the framework does not silently suppress an application-wide context update.
 
+Final disposal releases queued work belonging to the removed scopes, including paused work,
+without draining or discarding unrelated scopes. When disposal begins with a scheduler backlog,
+the scope traversal collects completed owners and purges their entries in one queue pass after
+cleanup. Empty-queue disposal retains its allocation-free queue-purge path. Cleanup failures are
+reported after owned teardown completes; reentrant disposal has its own completed-owner batch.
+Traversal stores scope references and exit markers in one work stack, reusing that stack for
+the child snapshot. Leaves finish directly. This preserves child-first insertion order without
+allocating entry/exit records and a separate child array for every scope; reaction and cleanup
+snapshots remain because their callbacks may mutate ownership.
+
 ## React compatibility
 
 React-owned source retains React semantics. The compatibility runtime maps

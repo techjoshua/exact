@@ -5,6 +5,7 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { reportNodeError } from './error-reporting.js';
 
 /** Node-owned immutable encoding capabilities used while consuming produced response bodies. */
 const nodeSynchronousResponseEnvironment = Object.freeze({
@@ -41,13 +42,20 @@ export function createExactNodeHandler(
 				platformRequest: request
 			},
 			context
-		).then(
-			(result) => writeNodeResponse(response, result, disconnect.signal).finally(cleanup),
-			(error) => {
+		)
+			.then((result) =>
+				writeNodeResponse(response, result, disconnect.signal, context.logger).finally(cleanup)
+			)
+			.catch((error) => {
 				cleanup();
-				writeNodeError(response, error);
-			}
-		);
+				if (disconnect.signal.aborted && error === disconnect.signal.reason) return;
+				try {
+					writeNodeError(response, error, context.logger);
+				} catch (writeError) {
+					reportNodeError(writeError, 'response', context.logger);
+					if (!response.destroyed) response.destroy();
+				}
+			});
 	};
 }
 
@@ -101,11 +109,15 @@ function requestLimit(context: ExactServerContext): number {
 		: 4 * 1024 * 1024;
 }
 
-/** Writes an eXact response object to a Node ServerResponse. */
+/**
+ * Writes an eXact response, reporting production, transport and cleanup failures through the
+ * supplied logger or console. Error details never enter the generic failure response body.
+ */
 export async function writeNodeResponse(
 	response: ServerResponse,
 	result: ExactResponseLike,
-	signal?: AbortSignal
+	signal?: AbortSignal,
+	logger?: ExactServerContext['logger']
 ): Promise<void> {
 	response.statusCode = result.status;
 	for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
@@ -117,10 +129,11 @@ export async function writeNodeResponse(
 			throwIfAborted(signal);
 			response.end(output);
 		} catch (error) {
+			if (!signal?.aborted || error !== signal.reason) reportNodeError(error, 'response', logger);
 			try {
 				await body.cancel(error);
-			} catch {
-				/* preserve the production or request-scope failure */
+			} catch (cleanupError) {
+				if (cleanupError !== error) reportNodeError(cleanupError, 'cleanup', logger);
 			}
 			if (!response.headersSent) {
 				for (const name of response.getHeaderNames()) response.removeHeader(name);
@@ -141,7 +154,12 @@ export async function writeNodeResponse(
 		throwIfAborted(signal);
 		response.end();
 	} catch (error) {
-		await cancelNodeResponseBody(result, error);
+		if (!signal?.aborted || error !== signal.reason) reportNodeError(error, 'response', logger);
+		try {
+			await cancelNodeResponseBody(result, error);
+		} catch (cleanupError) {
+			if (cleanupError !== error) reportNodeError(cleanupError, 'cleanup', logger);
+		}
 		if (body?.kind === 'produced' && !response.headersSent) {
 			for (const name of response.getHeaderNames()) response.removeHeader(name);
 			response.statusCode = 500;
@@ -180,6 +198,7 @@ export async function writeNodeResponseBody(
 	response.write(result.body ?? '');
 }
 
+/** Collects output before response commitment, preserving cross-span UTF-16 pairs. */
 function collectProducedBody(
 	body: NonNullable<ReturnType<typeof exactResponseBodyOf>>,
 	signal?: AbortSignal
@@ -202,11 +221,24 @@ export async function cancelNodeResponseBody(
 	else if (result.stream) await result.stream.cancel(reason);
 }
 
-function writeNodeError(response: ServerResponse, error: unknown): void {
+/** Reports an uncaught handler failure and terminates the response without exposing its details. */
+function writeNodeError(
+	response: ServerResponse,
+	error: unknown,
+	logger?: ExactServerContext['logger']
+): void {
+	reportNodeError(error, 'request', logger);
+	if (response.destroyed || response.writableEnded) return;
+	if (response.headersSent) {
+		response.destroy(
+			error instanceof Error ? error : new Error('eXact request failed', { cause: error })
+		);
+		return;
+	}
+	for (const name of response.getHeaderNames()) response.removeHeader(name);
 	response.statusCode = 500;
 	response.setHeader('content-type', 'application/json; charset=utf-8');
 	response.end(JSON.stringify({ error: 'internal_error' }));
-	if (error instanceof Error) process.emitWarning(error);
 }
 
 async function pipeReadableStream(

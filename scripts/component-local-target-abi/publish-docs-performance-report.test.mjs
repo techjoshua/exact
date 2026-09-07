@@ -18,7 +18,7 @@ test('publishes complete current distributions without internal before compariso
 		await writeFile(
 			input,
 			JSON.stringify({
-				schemaVersion: 1,
+				schemaVersion: 2,
 				metadata: {
 					commit: 'fixture',
 					createdAt: '2026-09-04T00:00:00.000Z',
@@ -44,6 +44,20 @@ test('publishes complete current distributions without internal before compariso
 						series: [{ name: 'Exact', stats }]
 					}
 				],
+				server: {
+					sustained: {
+						title: 'Sustained',
+						unit: 'RPS',
+						comment: 'Aggregate throughput and window distribution.',
+						series: [{ name: 'Exact', stats, aggregate: 1.5 }]
+					},
+					burst: {
+						title: 'Burst',
+						unit: 'ms',
+						comment: 'Finite completion time.',
+						series: [{ name: 'Exact', stats }]
+					}
+				},
 				diagnostics: { preloaded: { title: 'Internal lane' } },
 				clientFootprint: [
 					{
@@ -69,6 +83,9 @@ test('publishes complete current distributions without internal before compariso
 		assert.equal('diagnostics' in published, false);
 		assert.equal(published.browserCharts.length, 1);
 		assert.equal(published.browserCharts[0].series[0].stats.mean, 2);
+		assert.equal(published.server.sustained.series[0].aggregate, 1.5);
+		assert.equal(published.server.sustained.series[0].stats.mean, 2);
+		assert.equal(published.server.burst.unit, 'ms');
 		assert.equal(published.browserCharts[0].comment, 'Exact is currently the fastest.');
 	} finally {
 		await rm(root, { recursive: true, force: true });

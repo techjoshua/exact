@@ -606,9 +606,13 @@ operation and current component-local adoption position select the range; stable
 recovery-addressable, asynchronous, and capability-specific boundaries retain their explicit
 identities.
 
-A keyed item retains its encoded authored key as stable range identity while using the compact
-paired comments `<!--i:key-->` and `<!--/i:key-->`. The keyed operation selects this grammar; the
-marker writer does not classify arbitrary output or infer keyed ownership at runtime.
+A synchronous keyed item containing a compiler-prepared single-intrinsic-root program uses that
+element as its item boundary. Its receiving keyed receipt supplies the authored key and retains
+the item scope. Generic items and server keyed-list patch snapshots retain the compact paired
+comments `<!--i:key-->` and `<!--/i:key-->`; hydration continues to accept that grammar. The keyed
+operation and prepared program contract select the representation; the marker writer does not
+classify arbitrary output or infer keyed ownership at runtime. No additional compiled ABI method
+is required.
 
 A compiler-closed hydratable application root omits its outer component comment pair and publishes
 the compact hydration proof `m: 1`. That proof selects markerless root attachment even when nested
