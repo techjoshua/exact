@@ -124,7 +124,7 @@ export function PerformancePage(this: Component<{}>) {
 			<HeapComposition />
 			<SsrCapacity />
 			<MetricSection
-				title={`Server response time and memory ? Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}`}
+				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}`}
 				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection; it is distinct from the amount allocated while handling requests."
 				charts={[report.server.burst, report.server.sequential, report.server.retention]}
 			/>
@@ -134,8 +134,8 @@ export function PerformancePage(this: Component<{}>) {
 				delay reproduced on this Windows host.
 			</p>
 			<MetricSection
-				title={`Server response time and memory ? Bun ${report.server.bun.runtime}`}
-				description="The same five-framework workload runs on Bun. eXact uses native Bun.serve; the other participants use Bun?s Node HTTP compatibility transport. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node?s V8 heap accounting."
+				title={`Server response time and memory: Bun ${report.server.bun.runtime}`}
+				description="The same five-framework workload runs on Bun. eXact uses native Bun.serve; the other participants use Bun's Node HTTP compatibility transport. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
 				charts={[
 					report.server.bun.burst,
 					report.server.bun.sequential,
