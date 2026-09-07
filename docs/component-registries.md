@@ -46,6 +46,9 @@ declaration with its target-specific client or server artifact.
 `KeyOf<typeof Registry>` derives the exact key union. Use `hasComponent()` to
 narrow an untrusted string before indexing:
 
+The key type may be exported from its registry module, including when entries are lazy. Navigation
+or other metadata modules can import that type without importing component implementations at runtime.
+
 ```tsx
 if (!hasComponent(Widget, requested)) return <NotFound />;
 const CurrentWidget = Widget[requested];

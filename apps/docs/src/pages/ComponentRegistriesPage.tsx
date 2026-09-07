@@ -97,6 +97,10 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					<code>hasComponent()</code> to narrow an untrusted string before indexing instead of
 					casting or maintaining a second allowlist.
 				</p>
+				<p>
+					Export the derived key type when navigation or other metadata needs the same finite
+					selection. A type-only import keeps those modules independent of the component imports.
+				</p>
 				<CodeBlock source={narrowingSource} language="tsx" title="selection.tsx" />
 			</section>
 			<section>

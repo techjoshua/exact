@@ -1053,3 +1053,8 @@ The docs page now includes separate Bun sustained-capacity, response-size, and p
 charts, with refreshed five-framework Bun diagnostics. Node and Chromium evidence retain their
 independent capture dates. The two-driver Bun sweep and scheduled-demand captures completed without
 request errors; the report preserves capacity misses separately.
+
+The [docs development startup investigation](performance-baselines/docs-development-startup-2026-09-07.md)
+traces the slow first Vite navigation to eager article loading and synchronous transforms. A finite
+lazy article registry reduces the measured first visit from 25.8 seconds to roughly 7 seconds while
+preserving the standalone single-HTML production build. Production benchmark charts are unaffected.
