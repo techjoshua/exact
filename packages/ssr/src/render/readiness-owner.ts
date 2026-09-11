@@ -1,7 +1,7 @@
 import {
-	type AnyComponentInstance,
 	ReadinessContext,
 	SuspensionContext,
+	type AnyComponentInstance,
 	type ReadinessCoordinator
 } from '@exactjs/core';
 import { createFrameworkLogicalOwner } from '@exactjs/core/runtime/render';

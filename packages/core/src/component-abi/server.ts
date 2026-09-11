@@ -42,6 +42,10 @@ export type ExactServerComponentExecution = Readonly<{
 	version: 1;
 	classification: 'synchronous' | 'scheduled' | 'dynamic';
 	lane: 'direct' | 'generic' | 'compatibility';
+	/** Compiler-known authored document view, discoverable before pending task values are read. */
+	documentRoot?: true;
+	/** Static head and effect-free intrinsic body permit task settlement at the body boundary. */
+	streamingDocument?: true;
 	deferredTaskProps?: readonly string[];
 	render?: AnyExactComponentCallable;
 	/** Compiler-proven setup entry without a returned render closure; stateless mode also omits a frame. */

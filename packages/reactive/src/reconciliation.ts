@@ -253,7 +253,7 @@ function reconcileKeyedArray(
 	current: Record<PropertyKey, unknown>,
 	oldValue: unknown[],
 	nextValue: unknown[],
-	key: (item: unknown) => string,
+	key: (item: unknown) => string | number,
 	seen: ReconcilePairs,
 	depth: number
 ): boolean {

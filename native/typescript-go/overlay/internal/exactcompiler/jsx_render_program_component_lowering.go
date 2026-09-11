@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // visitRenderProgramComponent preserves component-child planning while the ordinary JSX visitor
 // lowers the selected child invocation.

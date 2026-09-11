@@ -31,7 +31,7 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 						name: '@fixture/bun-remote',
 						private: true,
 						type: 'module',
-						dependencies: { '@exactjs/microfrontends': '^0.1.0' }
+						dependencies: { '@exactjs/microfrontends': '^0.5.0' }
 					})
 				);
 				await writeFile(
@@ -274,7 +274,7 @@ async function createAuthorizationFixture() {
 			type: 'module',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	await writeFile(
@@ -282,7 +282,7 @@ async function createAuthorizationFixture() {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 2
+			exactComponentLibraryProtocol: 1
 		})
 	);
 	await writeFile(
@@ -290,7 +290,7 @@ async function createAuthorizationFixture() {
 		'export function Card() { return () => null; }\n'
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 2,
+		protocol: 1,
 		package: { name: '@acme/cards', version: '1.0.0' },
 		modules: [
 			{

@@ -3,9 +3,9 @@ package exactcompiler
 import (
 	"sort"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
-	"github.com/microsoft/typescript-go/internal/printer"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 type jsxLowering struct {
@@ -75,6 +75,8 @@ type jsxLowering struct {
 	serverClientFallbackDepth    int
 	renderProgramContexts        map[int]renderProgramContext
 	renderProgramDefinitions     map[int]string
+	staticServerInvocations      map[int]string
+	staticServerInvocationNames  map[string]struct{}
 	renderProgramDefinitionNodes []namedRenderProgramDefinition
 	componentUpdates             map[string]*componentUpdateBuild
 	componentInputUpdates        map[string]*componentInputUpdateBuild
@@ -120,8 +122,9 @@ func (lowering *jsxLowering) omitsComponentFromClient(component Component) bool 
 }
 
 type namedRenderProgramDefinition struct {
-	name string
-	node *ast.Node
+	name         string
+	node         *ast.Node
+	dependencies []string
 }
 
 type timeAdoptedRange struct {
@@ -219,11 +222,8 @@ func (lowering *jsxLowering) prepareDefinitions(
 	transformed *ast.SourceFile,
 ) (*ast.SourceFile, map[string]string, map[string]string, int) {
 	lowering.advancePhase(jsxLoweringProjected, jsxLoweringDefinitionsReady)
-	for _, definition := range lowering.renderProgramDefinitionNodes {
-		if containsIdentifier(transformed.AsNode(), definition.name) {
-			lowering.clientDefinitions = append(lowering.clientDefinitions, definition.node)
-		}
-	}
+	lowering.clientDefinitions = append(lowering.clientDefinitions,
+		reachableRenderProgramDefinitions(transformed.AsNode(), lowering.renderProgramDefinitionNodes)...)
 	componentUpdateNames := lowering.emitComponentUpdateDefinitions()
 	componentInputUpdateNames := lowering.emitComponentInputUpdateDefinitions()
 	sourceStatementCount := len(transformed.Statements.Nodes)

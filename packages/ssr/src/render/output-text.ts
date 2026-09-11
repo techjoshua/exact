@@ -6,6 +6,11 @@ import { isHighSurrogate, isLowSurrogate } from './utf8.js';
 export function escapeSsrText(context: SsrContext, value: string): string {
 	const output = context.outputSink;
 	if (!output) return escapeText(value);
+	// Native scanning and the sink's adapter counter avoid a JavaScript UTF-16 walk for long text.
+	if (value.length >= 32 && !/[&<>]/.test(value)) {
+		output.account(value);
+		return value;
+	}
 	let bytes = 0;
 	let html = '';
 	let span = 0;

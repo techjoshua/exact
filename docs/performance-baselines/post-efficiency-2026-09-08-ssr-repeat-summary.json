@@ -1,0 +1,623 @@
+{
+  "createdAt": "2026-09-08T16:55:21.826Z",
+  "sources": {
+    "node-multi": {
+      "path": "docs/performance-baselines/post-efficiency-2026-09-08-node-multi-repeat.json",
+      "sha256": "9b2836572d7794962fbfd68dba061ea5a0b685234c7acf45df8523cb4339f4c8",
+      "artifactsMatchPrior": true
+    },
+    "node-normal": {
+      "path": "docs/performance-baselines/post-efficiency-2026-09-08-node-normal-repeat.json",
+      "sha256": "e57afccb94df49fbbb6c2b2f1e32f0b3d93fdcd1bb87a04f3fd7e2803c1317f5",
+      "artifactsMatchPrior": true
+    },
+    "node-arrivals": {
+      "path": "docs/performance-baselines/post-efficiency-2026-09-08-node-arrivals-repeat.json",
+      "sha256": "509f900b66e95c544e0df9b75e7870891a590e15ae20865540acb10acf4e4aac",
+      "artifactsMatchPrior": true
+    },
+    "bun-multi": {
+      "path": "docs/performance-baselines/post-efficiency-2026-09-08-bun-multi-repeat.json",
+      "sha256": "caca303afd9a4caf1827199c0a36ffea9e1afea4d421e1cb1e017cb575609bf5",
+      "artifactsMatchPrior": true
+    },
+    "bun-normal": {
+      "path": "docs/performance-baselines/post-efficiency-2026-09-08-bun-normal-repeat.json",
+      "sha256": "dcb92308261b71adc603061c5c8c13fe8d5ef70c7a5a09f2f496dec223b491d7",
+      "artifactsMatchPrior": true
+    },
+    "bun-arrivals": {
+      "path": "docs/performance-baselines/post-efficiency-2026-09-08-bun-arrivals-repeat.json",
+      "sha256": "9b86648441e7702d4eb1dffcf37a549c878c9d110c6aa042816c554415b7be56",
+      "artifactsMatchPrior": true
+    },
+    "ssr": {
+      "path": "docs/performance-baselines/post-efficiency-2026-09-08-ssr-repeat.json",
+      "sha256": "4d7a24df0744c00960cc9bb9a21ad7cddd96caac7872cdb801f74e48f5bc56f3",
+      "artifactsMatchPrior": true
+    }
+  },
+  "capacity": {
+    "node": {
+      "createdAt": "2026-09-08T16:35:10.257Z",
+      "runtime": "Node v26.8.1",
+      "normalCreatedAt": "2026-09-08T16:39:53.361Z",
+      "arrivalsCreatedAt": "2026-09-08T16:00:34.602Z",
+      "method": "Preloaded sweep: 10 s warmup and 15 s per measured stage. Normal loading: 10 s warmup and 20 s per measured stage. Arrivals: 10 s warmup and 20 s per measured stage. Each capture uses two reversed process populations on win32, target Node v26.8.1, Node v26.8.1 load drivers, AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+      "validation": "Zero request errors in these captures; response identities and accounting validated",
+      "preloaded": [
+        {
+          "name": "eXact",
+          "concurrency": 16,
+          "rate": null,
+          "rps": 11151.423761309201,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 2.026,
+          "p99Max": 2.391
+        },
+        {
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 10380.15307662918,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 4.587,
+          "p99Max": 11.327
+        },
+        {
+          "name": "eXact",
+          "concurrency": 64,
+          "rate": null,
+          "rps": 10172.13741981228,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.359,
+          "p99Max": 14.783
+        },
+        {
+          "name": "eXact",
+          "concurrency": 128,
+          "rate": null,
+          "rps": 9718.967409774445,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 18.575,
+          "p99Max": 23.071
+        },
+        {
+          "name": "React",
+          "concurrency": 16,
+          "rate": null,
+          "rps": 11220.745705280027,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 1.908,
+          "p99Max": 2.971
+        },
+        {
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 10894.95276602006,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 3.975,
+          "p99Max": 5.167
+        },
+        {
+          "name": "React",
+          "concurrency": 64,
+          "rate": null,
+          "rps": 10950.993803269674,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.383,
+          "p99Max": 10.647
+        },
+        {
+          "name": "React",
+          "concurrency": 128,
+          "rate": null,
+          "rps": 10372.990228478167,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 15.111,
+          "p99Max": 22.047
+        }
+      ],
+      "normal": [
+        {
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 2837.7734576567414,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 16.543,
+          "p99Max": 17.199
+        },
+        {
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 2878.3537093275318,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 16.751,
+          "p99Max": 17.535
+        }
+      ],
+      "arrivals": [
+        {
+          "name": "eXact",
+          "concurrency": null,
+          "rate": 8000,
+          "rps": 7995.734953572326,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 43,
+          "p99Min": 15.175,
+          "p99Max": 15.423
+        },
+        {
+          "name": "eXact",
+          "concurrency": null,
+          "rate": 10000,
+          "rps": 9785.3078698358,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 1.89175,
+          "lagMisses": 0,
+          "deadlineMisses": 9,
+          "p99Min": 59.903,
+          "p99Max": 61.439
+        },
+        {
+          "name": "React",
+          "concurrency": null,
+          "rate": 8000,
+          "rps": 7997.179213531331,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 6,
+          "p99Min": 14.799,
+          "p99Max": 15.023
+        },
+        {
+          "name": "React",
+          "concurrency": null,
+          "rate": 10000,
+          "rps": 9945.704245677623,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0.48650000000000004,
+          "lagMisses": 0,
+          "deadlineMisses": 6,
+          "p99Min": 26.975,
+          "p99Max": 58.943
+        }
+      ]
+    },
+    "bun": {
+      "createdAt": "2026-09-08T16:41:56.373Z",
+      "runtime": "Bun 1.4.2",
+      "normalCreatedAt": "2026-09-08T16:46:38.873Z",
+      "arrivalsCreatedAt": "2026-09-08T16:48:41.343Z",
+      "method": "Preloaded sweep: 10 s warmup and 15 s per measured stage. Normal loading: 10 s warmup and 20 s per measured stage. Arrivals: 10 s warmup and 20 s per measured stage. Each capture uses two reversed process populations on win32, target Bun 1.4.2, Node v26.8.1 load drivers, AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+      "validation": "Zero request errors in these captures; response identities and accounting validated",
+      "preloaded": [
+        {
+          "name": "eXact",
+          "concurrency": 16,
+          "rate": null,
+          "rps": 9694.912830783163,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 3.077,
+          "p99Max": 3.901
+        },
+        {
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 9616.310773425532,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 5.023,
+          "p99Max": 5.491
+        },
+        {
+          "name": "eXact",
+          "concurrency": 64,
+          "rate": null,
+          "rps": 9370.715513557941,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 9.687,
+          "p99Max": 13.287
+        },
+        {
+          "name": "eXact",
+          "concurrency": 128,
+          "rate": null,
+          "rps": 9228.181721963438,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 16.975,
+          "p99Max": 21.199
+        },
+        {
+          "name": "React",
+          "concurrency": 16,
+          "rate": null,
+          "rps": 6422.357008018926,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 4.303,
+          "p99Max": 4.463
+        },
+        {
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 6336.150122398252,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.271,
+          "p99Max": 8.303
+        },
+        {
+          "name": "React",
+          "concurrency": 64,
+          "rate": null,
+          "rps": 6169.589021357606,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 13.967,
+          "p99Max": 17.151
+        },
+        {
+          "name": "React",
+          "concurrency": 128,
+          "rate": null,
+          "rps": 6037.321276752331,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 24.015,
+          "p99Max": 29.247
+        }
+      ],
+      "normal": [
+        {
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 4349.839649530321,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 8.967,
+          "p99Max": 9.487
+        },
+        {
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 4299.824950408879,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 9.575,
+          "p99Max": 10.759
+        }
+      ],
+      "arrivals": [
+        {
+          "name": "eXact",
+          "concurrency": null,
+          "rate": 8000,
+          "rps": 7976.516297232854,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0.1340625,
+          "lagMisses": 0,
+          "deadlineMisses": 3,
+          "p99Min": 63.743,
+          "p99Max": 63.935
+        },
+        {
+          "name": "eXact",
+          "concurrency": null,
+          "rate": 10000,
+          "rps": 8203.03893706926,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 17.72475,
+          "lagMisses": 0,
+          "deadlineMisses": 16,
+          "p99Min": 65.855,
+          "p99Max": 66.239
+        },
+        {
+          "name": "React",
+          "concurrency": null,
+          "rate": 8000,
+          "rps": 6222.573663175082,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 21.9040625,
+          "lagMisses": 0,
+          "deadlineMisses": 15,
+          "p99Min": 85.887,
+          "p99Max": 110.015
+        },
+        {
+          "name": "React",
+          "concurrency": null,
+          "rate": 10000,
+          "rps": 6187.149823121635,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 37.872749999999996,
+          "lagMisses": 0,
+          "deadlineMisses": 20,
+          "p99Min": 103.103,
+          "p99Max": 103.871
+        }
+      ]
+    }
+  },
+  "diagnostics": {
+    "node": {
+      "sveltekit": {
+        "sequentialMeanMs": 15.172763800000103,
+        "burstRequestMeanMs": 7.737853287500109,
+        "startupMeanMs": 231.93592000000064,
+        "postGcHeapMeanBytes": 15452385.333333334,
+        "retainedHeapBytesPerRequest": 2656.726857142857
+      },
+      "react": {
+        "sequentialMeanMs": 14.559451200000163,
+        "burstRequestMeanMs": 8.385460000000142,
+        "startupMeanMs": 248.96712000000116,
+        "postGcHeapMeanBytes": 14233002.666666666,
+        "retainedHeapBytesPerRequest": 1993.92
+      },
+      "exact": {
+        "sequentialMeanMs": 14.608219599999924,
+        "burstRequestMeanMs": 7.720399062499941,
+        "startupMeanMs": 224.41485999999858,
+        "postGcHeapMeanBytes": 13833094.666666666,
+        "retainedHeapBytesPerRequest": 1836.6582857142857
+      },
+      "tanstack-start": {
+        "sequentialMeanMs": 15.125213799999917,
+        "burstRequestMeanMs": 9.591655437499966,
+        "startupMeanMs": 231.91800000000222,
+        "postGcHeapMeanBytes": 18182861.333333332,
+        "retainedHeapBytesPerRequest": 3636.1417142857144
+      },
+      "nuxt": {
+        "sequentialMeanMs": 14.63647099999983,
+        "burstRequestMeanMs": 12.114498275000017,
+        "startupMeanMs": 225.00442000000038,
+        "postGcHeapMeanBytes": 18959485.333333332,
+        "retainedHeapBytesPerRequest": 2194.112
+      }
+    },
+    "bun": {
+      "nuxt": {
+        "sequentialMeanMs": 1.303696399999433,
+        "burstRequestMeanMs": 7.380263112500103,
+        "startupMeanMs": 71.5295999999973,
+        "postGcHeapMeanBytes": 11122390.333333334,
+        "retainedHeapBytesPerRequest": 2563.501714285714
+      },
+      "sveltekit": {
+        "sequentialMeanMs": 0.8362806000008132,
+        "burstRequestMeanMs": 4.555696262500081,
+        "startupMeanMs": 77.92881999999517,
+        "postGcHeapMeanBytes": 5461082.166666667,
+        "retainedHeapBytesPerRequest": 1293.4771428571428
+      },
+      "react": {
+        "sequentialMeanMs": 0.6826853999999585,
+        "burstRequestMeanMs": 4.346478162500112,
+        "startupMeanMs": 71.87158000000053,
+        "postGcHeapMeanBytes": 4175077.6666666665,
+        "retainedHeapBytesPerRequest": 981.5702857142857
+      },
+      "exact": {
+        "sequentialMeanMs": 0.6476864000012865,
+        "burstRequestMeanMs": 4.330348150000137,
+        "startupMeanMs": 67.58797999998788,
+        "postGcHeapMeanBytes": 3932672.8333333335,
+        "retainedHeapBytesPerRequest": 1240.509142857143
+      },
+      "tanstack-start": {
+        "sequentialMeanMs": 1.2762468000007794,
+        "burstRequestMeanMs": 5.925109662500054,
+        "startupMeanMs": 66.95917999999946,
+        "postGcHeapMeanBytes": 8709555.5,
+        "retainedHeapBytesPerRequest": 2999.5902857142855
+      }
+    }
+  },
+  "execution": [
+    {
+      "name": "node-multi-repeat",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/capacity-runner.mjs",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/multi-plan.json",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/node-multi-repeat.json",
+        "node"
+      ],
+      "cwd": "C:\\Users\\techj\\Projects\\eXact",
+      "env": {},
+      "startedAt": "2026-09-08T16:35:09.770Z",
+      "pid": 18904,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-08T16:39:52.935Z"
+    },
+    {
+      "name": "node-normal-repeat",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/capacity-runner.mjs",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/normal-plan.json",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/node-normal-repeat.json",
+        "node"
+      ],
+      "cwd": "C:\\Users\\techj\\Projects\\eXact",
+      "env": {},
+      "startedAt": "2026-09-08T16:39:52.935Z",
+      "pid": 22028,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-08T16:41:55.955Z"
+    },
+    {
+      "name": "bun-multi-repeat",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/capacity-runner.mjs",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/multi-plan.json",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/bun-multi-repeat.json",
+        "bun"
+      ],
+      "cwd": "C:\\Users\\techj\\Projects\\eXact",
+      "env": {},
+      "startedAt": "2026-09-08T16:41:55.955Z",
+      "pid": 20844,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-08T16:46:38.458Z"
+    },
+    {
+      "name": "bun-normal-repeat",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/capacity-runner.mjs",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/normal-plan.json",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/bun-normal-repeat.json",
+        "bun"
+      ],
+      "cwd": "C:\\Users\\techj\\Projects\\eXact",
+      "env": {},
+      "startedAt": "2026-09-08T16:46:38.458Z",
+      "pid": 7640,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-08T16:48:40.919Z"
+    },
+    {
+      "name": "bun-arrivals-repeat",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/capacity-runner.mjs",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/arrivals-plan.json",
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/bun-arrivals-repeat.json",
+        "bun"
+      ],
+      "cwd": "C:\\Users\\techj\\Projects\\eXact",
+      "env": {},
+      "startedAt": "2026-09-08T16:48:40.919Z",
+      "pid": 11560,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-08T16:52:03.721Z"
+    },
+    {
+      "name": "ssr-repeat",
+      "args": [
+        "src/measure-ssr.mjs",
+        "--correctness-passed"
+      ],
+      "cwd": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison",
+      "env": {
+        "COMPARISON_SSR_OUTPUT": "C:\\Users\\techj\\Projects\\eXact\\.tmp\\post-efficiency-performance/ssr-repeat.json",
+        "COMPARISON_SSR_SAMPLES": "500",
+        "COMPARISON_SSR_WARMUPS": "100",
+        "COMPARISON_SSR_CONCURRENCY_WAVES": "500",
+        "COMPARISON_SSR_SATURATION_WINDOWS": "1",
+        "COMPARISON_SSR_SATURATION_WINDOW_MS": "1000",
+        "COMPARISON_SSR_SATURATION_CONCURRENCY": "32",
+        "COMPARISON_SSR_ATTRIBUTION_WINDOWS": "1",
+        "COMPARISON_SSR_ATTRIBUTION_CONCURRENCY": "32",
+        "COMPARISON_SSR_MEASUREMENT_ROUND": "7"
+      },
+      "startedAt": "2026-09-08T16:52:03.722Z",
+      "pid": 11328,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-08T16:55:15.482Z"
+    }
+  ],
+  "validation": {
+    "complete": true,
+    "zeroCapacityRequestErrors": true,
+    "artifactIdentitiesMatchPrior": true,
+    "diagnosticsPublishable": true
+  }
+}

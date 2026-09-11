@@ -5,14 +5,14 @@ import {
 	type ExactServerContext
 } from '@exactjs/server';
 
-/** Converts an eXact response through Bun's native Blob-backed response body lane. */
+/** Converts buffered text and produced streams through Bun's native Fetch response body lanes. */
 export function exactResponseToBunResponse(result: ExactResponseLike): Response {
 	const body = exactResponseBodyOf(result);
 	return new Response(
 		body
 			? body.kind === 'produced'
 				? body.toReadableStream()
-				: body.toBlob()
+				: body.toText()
 			: (result.stream ?? result.body ?? ''),
 		{
 			status: result.status,

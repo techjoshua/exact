@@ -1,0 +1,3457 @@
+{
+  "description": "Frozen eXact artifact experiments; methodology and interpretation in adjacent Markdown.",
+  "main": {
+    "createdAt": "2026-09-06T18:14:31.267Z",
+    "browserVersion": "149.0.7827.55",
+    "artifacts": {
+      "baseline": {
+        "file": "index-rH9c3b9t.js",
+        "bytes": 196984,
+        "sha256": "5ecc889dd680bc345c8f64971bf450c8287f3d8b55c7ee00ef8ec9b82977b38f"
+      },
+      "program": {
+        "file": "index-DoPXUQ2i.js",
+        "bytes": 197341,
+        "sha256": "8c6a4b3191679a935573243f9c4ede61793446f9fd432a1c2f9d73b2221addaf"
+      },
+      "mounted": {
+        "file": "index-Dlx7n2Ya.js",
+        "bytes": 197006,
+        "sha256": "f8ea91a10b746e1c73497ad61061d835e5ecef672b0548d778b888301ac84f4c"
+      }
+    },
+    "diagnostics": [
+      {
+        "round": 0,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "program": {
+            "heapBytes": 1643792,
+            "snapshotSelfBytes": 2214232,
+            "codeBytes": 723792,
+            "shapeBytes": 167236,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 508
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 1,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "program": {
+            "heapBytes": 1643792,
+            "snapshotSelfBytes": 2214232,
+            "codeBytes": 723792,
+            "shapeBytes": 167236,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 508
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 2,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "program": {
+            "heapBytes": 1643792,
+            "snapshotSelfBytes": 2214232,
+            "codeBytes": 723792,
+            "shapeBytes": 167236,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 508
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 3,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "program": {
+            "heapBytes": 1643792,
+            "snapshotSelfBytes": 2214232,
+            "codeBytes": 723792,
+            "shapeBytes": 167236,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 508
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 4,
+        "order": [
+          "baseline",
+          "mounted",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "program": {
+            "heapBytes": 1643792,
+            "snapshotSelfBytes": 2214232,
+            "codeBytes": 723792,
+            "shapeBytes": 167236,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 508
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212558,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      }
+    ],
+    "timings": [
+      {
+        "round": 0,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 128.721,
+            "evaluationMs": 143.56000000000003,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 126.81600000000002,
+            "evaluationMs": 138.306,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 122.124,
+            "evaluationMs": 136.819,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 1,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 169.68,
+            "evaluationMs": 186.19099999999997,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 146.711,
+            "evaluationMs": 164.25699999999998,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 127.33500000000001,
+            "evaluationMs": 139.242,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 2,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 122.488,
+            "evaluationMs": 137.01,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 121.412,
+            "evaluationMs": 135.07099999999997,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 123.86999999999999,
+            "evaluationMs": 138.00199999999995,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 3,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 122.817,
+            "evaluationMs": 137.86,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 157.671,
+            "evaluationMs": 172.43500000000003,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 122.854,
+            "evaluationMs": 134.85500000000002,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 4,
+        "order": [
+          "baseline",
+          "mounted",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 158.622,
+            "evaluationMs": 183.00799999999998,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 141.666,
+            "evaluationMs": 154.914,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 122.179,
+            "evaluationMs": 134.695,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 5,
+        "order": [
+          "program",
+          "baseline",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 121.112,
+            "evaluationMs": 135.67100000000002,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 122.181,
+            "evaluationMs": 134.82099999999997,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 137.584,
+            "evaluationMs": 157.69000000000003,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 6,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 125.01499999999999,
+            "evaluationMs": 139.15500000000003,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 160.87199999999999,
+            "evaluationMs": 180.60499999999996,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 119.4,
+            "evaluationMs": 132.911,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 7,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 125.28800000000001,
+            "evaluationMs": 139.77400000000003,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 128.25300000000001,
+            "evaluationMs": 141.76199999999994,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 125.109,
+            "evaluationMs": 136.58299999999997,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 8,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 122.07,
+            "evaluationMs": 134.778,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 174.843,
+            "evaluationMs": 188.94199999999998,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 148.068,
+            "evaluationMs": 164.31300000000002,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 9,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 152.48700000000002,
+            "evaluationMs": 164.98899999999998,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 144.648,
+            "evaluationMs": 159.54700000000003,
+            "heapBytes": 2358320
+          },
+          "mounted": {
+            "scriptMs": 120.483,
+            "evaluationMs": 134.967,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 10,
+        "order": [
+          "baseline",
+          "mounted",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 149.59300000000002,
+            "evaluationMs": 162.35999999999999,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 125.467,
+            "evaluationMs": 137.81300000000002,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 126.059,
+            "evaluationMs": 143.11399999999998,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 11,
+        "order": [
+          "program",
+          "baseline",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 124.58800000000001,
+            "evaluationMs": 138.88,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 149.668,
+            "evaluationMs": 168.798,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 162.398,
+            "evaluationMs": 187.49499999999995,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 12,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 122.825,
+            "evaluationMs": 135.93200000000004,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 121.697,
+            "evaluationMs": 136.244,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 123.065,
+            "evaluationMs": 135.733,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 13,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 123.34,
+            "evaluationMs": 137.62600000000003,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 124.577,
+            "evaluationMs": 138.027,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 150.741,
+            "evaluationMs": 166.452,
+            "heapBytes": 2357628
+          }
+        }
+      },
+      {
+        "round": 14,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 126.63499999999999,
+            "evaluationMs": 141.36899999999997,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 125.668,
+            "evaluationMs": 143.021,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 171.354,
+            "evaluationMs": 187.22,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 15,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 132.889,
+            "evaluationMs": 144.53099999999998,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 124.762,
+            "evaluationMs": 138.18900000000005,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 158.482,
+            "evaluationMs": 172.22799999999995,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 16,
+        "order": [
+          "baseline",
+          "mounted",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 123.283,
+            "evaluationMs": 139.72,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 128.41,
+            "evaluationMs": 140.734,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 154.74099999999999,
+            "evaluationMs": 173.858,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 17,
+        "order": [
+          "program",
+          "baseline",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 129.156,
+            "evaluationMs": 146.09599999999998,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 165.238,
+            "evaluationMs": 189.095,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 137.402,
+            "evaluationMs": 150.76500000000001,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 18,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 121.615,
+            "evaluationMs": 136.28200000000004,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 123.558,
+            "evaluationMs": 137.69,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 148.458,
+            "evaluationMs": 165.39000000000001,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 19,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 118.59,
+            "evaluationMs": 135.16699999999997,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 123.21300000000001,
+            "evaluationMs": 137.55499999999998,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 174.178,
+            "evaluationMs": 187.08399999999997,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 20,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 128.14800000000002,
+            "evaluationMs": 140.07200000000003,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 117.325,
+            "evaluationMs": 130.414,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 120.574,
+            "evaluationMs": 133.865,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 21,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 163.58800000000002,
+            "evaluationMs": 185.94699999999997,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 143.153,
+            "evaluationMs": 158.208,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 158.09400000000002,
+            "evaluationMs": 173.68300000000002,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 22,
+        "order": [
+          "baseline",
+          "mounted",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 120.62599999999999,
+            "evaluationMs": 134.09,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 121.965,
+            "evaluationMs": 136.77,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 123.231,
+            "evaluationMs": 136.947,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 23,
+        "order": [
+          "program",
+          "baseline",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 151.366,
+            "evaluationMs": 168.571,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 125.093,
+            "evaluationMs": 139.796,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 130.175,
+            "evaluationMs": 141.204,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 24,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 167.525,
+            "evaluationMs": 182.631,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 122.083,
+            "evaluationMs": 136.197,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 123.045,
+            "evaluationMs": 138.78300000000002,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 25,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 179.427,
+            "evaluationMs": 196.62099999999998,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 121.65299999999999,
+            "evaluationMs": 134.55299999999997,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 126.12100000000001,
+            "evaluationMs": 140.013,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 26,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 167.343,
+            "evaluationMs": 183.24,
+            "heapBytes": 2358144
+          },
+          "program": {
+            "scriptMs": 123.456,
+            "evaluationMs": 136.92600000000002,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 126.26299999999999,
+            "evaluationMs": 140.351,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 27,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 121.09100000000001,
+            "evaluationMs": 136.374,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 123.033,
+            "evaluationMs": 135.906,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 158.889,
+            "evaluationMs": 181.695,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 28,
+        "order": [
+          "baseline",
+          "mounted",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 121.142,
+            "evaluationMs": 136.464,
+            "heapBytes": 2363064
+          },
+          "program": {
+            "scriptMs": 150.46699999999998,
+            "evaluationMs": 164.97999999999996,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 127.04099999999998,
+            "evaluationMs": 139.50900000000001,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 29,
+        "order": [
+          "program",
+          "baseline",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 173.873,
+            "evaluationMs": 186.79499999999993,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 122.476,
+            "evaluationMs": 137.81199999999995,
+            "heapBytes": 2358336
+          },
+          "mounted": {
+            "scriptMs": 125.281,
+            "evaluationMs": 139.82799999999997,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 30,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 124.016,
+            "evaluationMs": 138.14000000000001,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 121.00099999999999,
+            "evaluationMs": 138.34500000000003,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 127.529,
+            "evaluationMs": 140.63900000000004,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 31,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 165.756,
+            "evaluationMs": 183.71100000000004,
+            "heapBytes": 2358096
+          },
+          "program": {
+            "scriptMs": 142.10999999999999,
+            "evaluationMs": 158.45399999999998,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 122.352,
+            "evaluationMs": 136.648,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 32,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 176.157,
+            "evaluationMs": 207.711,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 125.24,
+            "evaluationMs": 138.37099999999998,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 123.564,
+            "evaluationMs": 136.33999999999997,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 33,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 201.713,
+            "evaluationMs": 221.57699999999994,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 182.284,
+            "evaluationMs": 203.542,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 119.987,
+            "evaluationMs": 134.10600000000002,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 34,
+        "order": [
+          "baseline",
+          "mounted",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 120.886,
+            "evaluationMs": 135.18800000000005,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 157.419,
+            "evaluationMs": 174.08599999999996,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 125.636,
+            "evaluationMs": 138.521,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 35,
+        "order": [
+          "program",
+          "baseline",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 163.28300000000002,
+            "evaluationMs": 186.73000000000002,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 125.277,
+            "evaluationMs": 136.80000000000004,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 123.079,
+            "evaluationMs": 137.398,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 36,
+        "order": [
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 124.581,
+            "evaluationMs": 138.96600000000004,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 120.89800000000001,
+            "evaluationMs": 135.131,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 120.612,
+            "evaluationMs": 138.57999999999998,
+            "heapBytes": 2357644
+          }
+        }
+      },
+      {
+        "round": 37,
+        "order": [
+          "program",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 153.787,
+            "evaluationMs": 168.94000000000005,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 157.806,
+            "evaluationMs": 176.469,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 118.945,
+            "evaluationMs": 132.866,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 38,
+        "order": [
+          "mounted",
+          "baseline",
+          "program"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 120.75,
+            "evaluationMs": 136.589,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 123.89500000000001,
+            "evaluationMs": 145.709,
+            "heapBytes": 2363288
+          },
+          "mounted": {
+            "scriptMs": 122.192,
+            "evaluationMs": 134.985,
+            "heapBytes": 2362596
+          }
+        }
+      },
+      {
+        "round": 39,
+        "order": [
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "scriptMs": 122.989,
+            "evaluationMs": 137.397,
+            "heapBytes": 2358112
+          },
+          "program": {
+            "scriptMs": 157.729,
+            "evaluationMs": 172.54999999999998,
+            "heapBytes": 2363272
+          },
+          "mounted": {
+            "scriptMs": 135.042,
+            "evaluationMs": 148.74500000000003,
+            "heapBytes": 2362596
+          }
+        }
+      }
+    ]
+  },
+  "refined": {
+    "createdAt": "2026-09-06T18:17:04.886Z",
+    "browserVersion": "149.0.7827.55",
+    "artifacts": {
+      "baseline": {
+        "file": "index-rH9c3b9t.js",
+        "bytes": 196984,
+        "sha256": "5ecc889dd680bc345c8f64971bf450c8287f3d8b55c7ee00ef8ec9b82977b38f"
+      },
+      "mounted": {
+        "file": "index-Dlx7n2Ya.js",
+        "bytes": 197006,
+        "sha256": "f8ea91a10b746e1c73497ad61061d835e5ecef672b0548d778b888301ac84f4c"
+      },
+      "refined": {
+        "file": "index-DLfO_mnK.js",
+        "bytes": 197195,
+        "sha256": "fbd8c4e3530f395e06ca43df5402ad12d83dc162f9283533d43e5cf8ed8fdecf"
+      }
+    },
+    "diagnostics": [
+      {
+        "round": 0,
+        "order": [
+          "baseline",
+          "mounted",
+          "refined"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "refined": {
+            "heapBytes": 1644188,
+            "snapshotSelfBytes": 2214336,
+            "codeBytes": 724224,
+            "shapeBytes": 167100,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 1,
+        "order": [
+          "mounted",
+          "refined",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "refined": {
+            "heapBytes": 1644188,
+            "snapshotSelfBytes": 2214336,
+            "codeBytes": 724224,
+            "shapeBytes": 167100,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 2,
+        "order": [
+          "refined",
+          "baseline",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "refined": {
+            "heapBytes": 1644188,
+            "snapshotSelfBytes": 2214336,
+            "codeBytes": 724224,
+            "shapeBytes": 167100,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 3,
+        "order": [
+          "refined",
+          "mounted",
+          "baseline"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "refined": {
+            "heapBytes": 1644188,
+            "snapshotSelfBytes": 2214336,
+            "codeBytes": 724224,
+            "shapeBytes": 167100,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      },
+      {
+        "round": 4,
+        "order": [
+          "baseline",
+          "refined",
+          "mounted"
+        ],
+        "samples": {
+          "baseline": {
+            "heapBytes": 1643584,
+            "snapshotSelfBytes": 2213310,
+            "codeBytes": 723436,
+            "shapeBytes": 167436,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "mounted": {
+            "heapBytes": 1643116,
+            "snapshotSelfBytes": 2212886,
+            "codeBytes": 723388,
+            "shapeBytes": 166992,
+            "families": {
+              "Mounted": {
+                "mapCount": 5,
+                "selfBytes": 1124
+              },
+              "RenderProgramState": {
+                "mapCount": 7,
+                "selfBytes": 576
+              }
+            }
+          },
+          "refined": {
+            "heapBytes": 1644188,
+            "snapshotSelfBytes": 2214336,
+            "codeBytes": 724224,
+            "shapeBytes": 167100,
+            "families": {
+              "Mounted": {
+                "mapCount": 6,
+                "selfBytes": 1100
+              },
+              "RenderProgramState": {
+                "mapCount": 3,
+                "selfBytes": 576
+              }
+            }
+          }
+        }
+      }
+    ],
+    "timings": []
+  },
+  "updates": {
+    "artifacts": {
+      "baseline": {
+        "file": "index-rH9c3b9t.js",
+        "sha256": "5ecc889dd680bc345c8f64971bf450c8287f3d8b55c7ee00ef8ec9b82977b38f"
+      },
+      "program": {
+        "file": "index-DoPXUQ2i.js",
+        "sha256": "8c6a4b3191679a935573243f9c4ede61793446f9fd432a1c2f9d73b2221addaf"
+      },
+      "mounted": {
+        "file": "index-Dlx7n2Ya.js",
+        "sha256": "f8ea91a10b746e1c73497ad61061d835e5ecef672b0548d778b888301ac84f4c"
+      },
+      "refined": {
+        "file": "index-DLfO_mnK.js",
+        "sha256": "fbd8c4e3530f395e06ca43df5402ad12d83dc162f9283533d43e5cf8ed8fdecf"
+      }
+    },
+    "rounds": [
+      {
+        "round": 0,
+        "order": [
+          "baseline",
+          "program",
+          "mounted",
+          "refined"
+        ],
+        "baseline": {
+          "durationMs": 59.59999996423721,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 646136,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 34.39999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431424,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.30000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 36.40000003576279,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432936,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 1,
+        "order": [
+          "program",
+          "mounted",
+          "refined",
+          "baseline"
+        ],
+        "program": {
+          "durationMs": 35.39999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 32.80000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 33,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432936,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 32.90000003576279,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430736,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 2,
+        "order": [
+          "mounted",
+          "refined",
+          "baseline",
+          "program"
+        ],
+        "mounted": {
+          "durationMs": 33,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430568,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 34,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432836,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 33.30000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431680,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 33.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 3,
+        "order": [
+          "refined",
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "refined": {
+          "durationMs": 33.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432936,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 35.39999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 3407872,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 35.39999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431328,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 34.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 4,
+        "order": [
+          "refined",
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "refined": {
+          "durationMs": 33.200000047683716,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432832,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 32.60000002384186,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431672,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 32,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 33.40000003576279,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430736,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 5,
+        "order": [
+          "baseline",
+          "refined",
+          "mounted",
+          "program"
+        ],
+        "baseline": {
+          "durationMs": 32.69999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431680,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 33.59999996423721,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2433880,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.80000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 33.69999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 6,
+        "order": [
+          "program",
+          "baseline",
+          "refined",
+          "mounted"
+        ],
+        "program": {
+          "durationMs": 33.90000003576279,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 33.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431684,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 34.40000003576279,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432936,
+            "jsHeapTotalBytes": 3407872,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 3407872,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 7,
+        "order": [
+          "mounted",
+          "program",
+          "baseline",
+          "refined"
+        ],
+        "mounted": {
+          "durationMs": 32.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431512,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 31.599999964237213,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431364,
+            "jsHeapTotalBytes": 3407872,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 32.19999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 32.799999952316284,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432932,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 8,
+        "order": [
+          "baseline",
+          "program",
+          "mounted",
+          "refined"
+        ],
+        "baseline": {
+          "durationMs": 33.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430736,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 35.19999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431328,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430568,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 32.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432836,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 9,
+        "order": [
+          "program",
+          "mounted",
+          "refined",
+          "baseline"
+        ],
+        "program": {
+          "durationMs": 31.80000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 31.30000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430568,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 32.39999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432932,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 33.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 10,
+        "order": [
+          "mounted",
+          "refined",
+          "baseline",
+          "program"
+        ],
+        "mounted": {
+          "durationMs": 31.900000035762787,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 35.200000047683716,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432936,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 34.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430736,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 32.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 11,
+        "order": [
+          "refined",
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "refined": {
+          "durationMs": 33.40000003576279,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432936,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 32.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430736,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 33.80000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.200000047683716,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430568,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 12,
+        "order": [
+          "refined",
+          "mounted",
+          "program",
+          "baseline"
+        ],
+        "refined": {
+          "durationMs": 33.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432936,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.19999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431668,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 34.39999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 35,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 13,
+        "order": [
+          "baseline",
+          "refined",
+          "mounted",
+          "program"
+        ],
+        "baseline": {
+          "durationMs": 32.69999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 33.80000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432932,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.60000002384186,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 33.69999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 14,
+        "order": [
+          "program",
+          "baseline",
+          "refined",
+          "mounted"
+        ],
+        "program": {
+          "durationMs": 33,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 36.299999952316284,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 33.39999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2433880,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.60000002384186,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430716,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 15,
+        "order": [
+          "mounted",
+          "program",
+          "baseline",
+          "refined"
+        ],
+        "mounted": {
+          "durationMs": 33.90000003576279,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 34.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 49.10000002384186,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 951000,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 37,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2433820,
+            "jsHeapTotalBytes": 3670016,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 16,
+        "order": [
+          "baseline",
+          "program",
+          "mounted",
+          "refined"
+        ],
+        "baseline": {
+          "durationMs": 31.900000035762787,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 35.10000002384186,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431332,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430568,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 33.59999996423721,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432928,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 17,
+        "order": [
+          "program",
+          "mounted",
+          "refined",
+          "baseline"
+        ],
+        "program": {
+          "durationMs": 35.80000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 34.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 34.59999996423721,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432836,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 35.09999996423721,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430580,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 18,
+        "order": [
+          "mounted",
+          "refined",
+          "baseline",
+          "program"
+        ],
+        "mounted": {
+          "durationMs": 36.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431672,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "refined": {
+          "durationMs": 32.10000002384186,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432836,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 645736,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 32,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430580,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 860040,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 42.80000001192093,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431424,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 645776,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      },
+      {
+        "round": 19,
+        "order": [
+          "refined",
+          "baseline",
+          "program",
+          "mounted"
+        ],
+        "refined": {
+          "durationMs": 33.69999998807907,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2432932,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198329,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "baseline": {
+          "durationMs": 33.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430740,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198118,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "program": {
+          "durationMs": 37.5,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2431428,
+            "jsHeapTotalBytes": 2883584,
+            "embedderHeapUsedBytes": 856224,
+            "backingStorageBytes": 198475,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        },
+        "mounted": {
+          "durationMs": 33.89999997615814,
+          "changes": 200,
+          "allRows": 3,
+          "criticalRows": 1,
+          "memory": {
+            "jsHeapUsedBytes": 2430728,
+            "jsHeapTotalBytes": 3145728,
+            "embedderHeapUsedBytes": 855792,
+            "backingStorageBytes": 198140,
+            "documents": 2,
+            "nodes": 238,
+            "eventListeners": 17
+          }
+        }
+      }
+    ],
+    "completed": true
+  },
+  "summaries": {
+    "main": {
+      "completed": true,
+      "rounds": 40,
+      "artifacts": {
+        "baseline": {
+          "file": "index-rH9c3b9t.js",
+          "bytes": 196984,
+          "sha256": "5ecc889dd680bc345c8f64971bf450c8287f3d8b55c7ee00ef8ec9b82977b38f"
+        },
+        "program": {
+          "file": "index-DoPXUQ2i.js",
+          "bytes": 197341,
+          "sha256": "8c6a4b3191679a935573243f9c4ede61793446f9fd432a1c2f9d73b2221addaf"
+        },
+        "mounted": {
+          "file": "index-Dlx7n2Ya.js",
+          "bytes": 197006,
+          "sha256": "f8ea91a10b746e1c73497ad61061d835e5ecef672b0548d778b888301ac84f4c"
+        }
+      },
+      "diagnostics": {
+        "baseline": {
+          "heap": 1643584,
+          "selfBytes": 2213310,
+          "code": 723436,
+          "shapeBytes": 167436,
+          "families": {
+            "Mounted": {
+              "maps": [
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "selfBytes": [
+                1100,
+                1100,
+                1100,
+                1100,
+                1100
+              ]
+            },
+            "RenderProgramState": {
+              "maps": [
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "selfBytes": [
+                576,
+                576,
+                576,
+                576,
+                576
+              ]
+            }
+          }
+        },
+        "program": {
+          "heap": 1643792,
+          "selfBytes": 2214232,
+          "code": 723792,
+          "shapeBytes": 167236,
+          "families": {
+            "Mounted": {
+              "maps": [
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "selfBytes": [
+                1100,
+                1100,
+                1100,
+                1100,
+                1100
+              ]
+            },
+            "RenderProgramState": {
+              "maps": [
+                3,
+                3,
+                3,
+                3,
+                3
+              ],
+              "selfBytes": [
+                508,
+                508,
+                508,
+                508,
+                508
+              ]
+            }
+          }
+        },
+        "mounted": {
+          "heap": 1643116,
+          "selfBytes": 2212820.4,
+          "code": 723388,
+          "shapeBytes": 166992,
+          "families": {
+            "Mounted": {
+              "maps": [
+                5,
+                5,
+                5,
+                5,
+                5
+              ],
+              "selfBytes": [
+                1124,
+                1124,
+                1124,
+                1124,
+                1124
+              ]
+            },
+            "RenderProgramState": {
+              "maps": [
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "selfBytes": [
+                576,
+                576,
+                576,
+                576,
+                576
+              ]
+            }
+          }
+        }
+      },
+      "timing": {
+        "scriptMs": {
+          "baseline": {
+            "p50": 125.28800000000001,
+            "p95": 176.157,
+            "ratio": 1,
+            "bootstrap95": [
+              1,
+              1
+            ]
+          },
+          "program": {
+            "p50": 125.277,
+            "p95": 165.238,
+            "ratio": 0.9742722695768997,
+            "bootstrap95": [
+              0.9213897067000074,
+              1.0316545073809062
+            ]
+          },
+          "mounted": {
+            "p50": 125.636,
+            "p95": 162.398,
+            "ratio": 0.9594149561933714,
+            "bootstrap95": [
+              0.8981060653527885,
+              1.0277323315347364
+            ]
+          }
+        },
+        "evaluationMs": {
+          "baseline": {
+            "p50": 139.77400000000003,
+            "p95": 196.62099999999998,
+            "ratio": 1,
+            "bootstrap95": [
+              1,
+              1
+            ]
+          },
+          "program": {
+            "p50": 138.37099999999998,
+            "p95": 188.94199999999998,
+            "ratio": 0.9723706917378265,
+            "bootstrap95": [
+              0.918380157731193,
+              1.0284396944692686
+            ]
+          },
+          "mounted": {
+            "p50": 139.242,
+            "p95": 187.08399999999997,
+            "ratio": 0.9563867397005408,
+            "bootstrap95": [
+              0.8955087483626769,
+              1.0198953576049465
+            ]
+          }
+        },
+        "heapBytes": {
+          "baseline": {
+            "p50": 2358112,
+            "p95": 2363064,
+            "ratio": 1,
+            "bootstrap95": [
+              1,
+              1
+            ]
+          },
+          "program": {
+            "p50": 2363288,
+            "p95": 2363288,
+            "ratio": 1.0003566552543617,
+            "bootstrap95": [
+              0.9998837938561816,
+              1.0008294103153148
+            ]
+          },
+          "mounted": {
+            "p50": 2357644,
+            "p95": 2362596,
+            "ratio": 0.9998013736822038,
+            "bootstrap95": [
+              0.9993821371345218,
+              1.0002206372361913
+            ]
+          }
+        }
+      }
+    },
+    "refined": {
+      "completed": true,
+      "rounds": 0,
+      "artifacts": {
+        "baseline": {
+          "file": "index-rH9c3b9t.js",
+          "bytes": 196984,
+          "sha256": "5ecc889dd680bc345c8f64971bf450c8287f3d8b55c7ee00ef8ec9b82977b38f"
+        },
+        "mounted": {
+          "file": "index-Dlx7n2Ya.js",
+          "bytes": 197006,
+          "sha256": "f8ea91a10b746e1c73497ad61061d835e5ecef672b0548d778b888301ac84f4c"
+        },
+        "refined": {
+          "file": "index-DLfO_mnK.js",
+          "bytes": 197195,
+          "sha256": "fbd8c4e3530f395e06ca43df5402ad12d83dc162f9283533d43e5cf8ed8fdecf"
+        }
+      },
+      "diagnostics": {
+        "baseline": {
+          "heap": 1643584,
+          "selfBytes": 2213310,
+          "code": 723436,
+          "shapeBytes": 167436,
+          "families": {
+            "Mounted": {
+              "maps": [
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "selfBytes": [
+                1100,
+                1100,
+                1100,
+                1100,
+                1100
+              ]
+            },
+            "RenderProgramState": {
+              "maps": [
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "selfBytes": [
+                576,
+                576,
+                576,
+                576,
+                576
+              ]
+            }
+          }
+        },
+        "mounted": {
+          "heap": 1643116,
+          "selfBytes": 2212886,
+          "code": 723388,
+          "shapeBytes": 166992,
+          "families": {
+            "Mounted": {
+              "maps": [
+                5,
+                5,
+                5,
+                5,
+                5
+              ],
+              "selfBytes": [
+                1124,
+                1124,
+                1124,
+                1124,
+                1124
+              ]
+            },
+            "RenderProgramState": {
+              "maps": [
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "selfBytes": [
+                576,
+                576,
+                576,
+                576,
+                576
+              ]
+            }
+          }
+        },
+        "refined": {
+          "heap": 1644188,
+          "selfBytes": 2214336,
+          "code": 724224,
+          "shapeBytes": 167100,
+          "families": {
+            "Mounted": {
+              "maps": [
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "selfBytes": [
+                1100,
+                1100,
+                1100,
+                1100,
+                1100
+              ]
+            },
+            "RenderProgramState": {
+              "maps": [
+                3,
+                3,
+                3,
+                3,
+                3
+              ],
+              "selfBytes": [
+                576,
+                576,
+                576,
+                576,
+                576
+              ]
+            }
+          }
+        }
+      }
+    },
+    "updates": {
+      "rounds": 20,
+      "variants": {
+        "baseline": {
+          "p50": 33.5,
+          "p95": 49.10000002384186,
+          "ratio": 1,
+          "bootstrap95": [
+            1,
+            1
+          ],
+          "postGcHeapMean": 2430863.6
+        },
+        "program": {
+          "p50": 33.90000003576279,
+          "p95": 37.5,
+          "ratio": 0.9793170199528979,
+          "bootstrap95": [
+            0.9030605066718869,
+            1.0459090832888616
+          ],
+          "postGcHeapMean": 2431409.6
+        },
+        "mounted": {
+          "p50": 33.200000047683716,
+          "p95": 34.5,
+          "ratio": 0.9474691993799537,
+          "bootstrap95": [
+            0.8791482598252317,
+            1.0026564774475843
+          ],
+          "postGcHeapMean": 2430868
+        },
+        "refined": {
+          "p50": 33.59999996423721,
+          "p95": 36.40000003576279,
+          "ratio": 0.9605559227734053,
+          "bootstrap95": [
+            0.9026344002371185,
+            1.004647057922026
+          ],
+          "postGcHeapMean": 2433048.2
+        }
+      }
+    }
+  }
+}

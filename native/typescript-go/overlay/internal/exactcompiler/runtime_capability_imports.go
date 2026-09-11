@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 type jsxRuntimeNames struct {
@@ -144,11 +144,8 @@ type jsxRuntimeNames struct {
 	clientDisposeComponent     string
 	renderClosedSsr            string
 	renderClosedHydratableSsr  string
-	renderClosedSyncSsr        string
-	renderClosedSyncHydratable string
 
 	renderClosedUnmarkedSsr     string
-	renderClosedSyncUnmarkedSsr string
 	renderCompiledRoot          string
 	renderCompiledIntrinsicRoot string
 	renderCompiledProgramRoot   string
@@ -402,12 +399,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"claimCompiledProgramProperty", lowering.names.claimProgramProperty, runtimeRenderProgram},
 		{"enterCompiledProgramElement", lowering.names.enterProgramElement, runtimeRenderProgram},
 		{"leaveCompiledProgramElement", lowering.names.leaveProgramElement, runtimeRenderProgram},
-		{"renderCompilerClosedToStringAsync", lowering.names.renderClosedSsr, runtimeCompilerClosedSSR},
-		{"renderCompilerClosedToHydratableStringAsync", lowering.names.renderClosedHydratableSsr, runtimeCompilerClosedSSR},
-		{"renderCompilerClosedUnmarkedToStringAsync", lowering.names.renderClosedUnmarkedSsr, runtimeCompilerClosedSSR},
-		{"renderCompilerClosedToString", lowering.names.renderClosedSyncSsr, runtimeCompilerClosedSSR},
-		{"renderCompilerClosedToHydratableString", lowering.names.renderClosedSyncHydratable, runtimeCompilerClosedSSR},
-		{"renderCompilerClosedUnmarkedToString", lowering.names.renderClosedSyncUnmarkedSsr, runtimeCompilerClosedSSR},
+		{"renderCompilerClosedToString", lowering.names.renderClosedSsr, runtimeCompilerClosedSSR},
+		{"renderCompilerClosedToHydratableString", lowering.names.renderClosedHydratableSsr, runtimeCompilerClosedSSR},
+		{"renderCompilerClosedUnmarkedToString", lowering.names.renderClosedUnmarkedSsr, runtimeCompilerClosedSSR},
 		{"renderCompiledComponentRoot", lowering.names.renderCompiledRoot, runtimeCompiledDOMRoot},
 		{"renderCompiledIntrinsicRoot", lowering.names.renderCompiledIntrinsicRoot, runtimeCompiledDOMIntrinsicRoot},
 		{"renderCompiledProgramRoot", lowering.names.renderCompiledProgramRoot, runtimeCompiledDOMProgramRoot},
@@ -1042,11 +1036,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		clientDisposeComponent:     allocate("__exactDisposeClientComponent"),
 		renderClosedSsr:            allocate("__exactRenderClosedSsr"),
 		renderClosedHydratableSsr:  allocate("__exactRenderClosedHydratableSsr"),
-		renderClosedSyncSsr:        allocate("__exactRenderClosedSyncSsr"),
-		renderClosedSyncHydratable: allocate("__exactRenderClosedSyncHydratableSsr"),
 
 		renderClosedUnmarkedSsr:     allocate("__exactRenderClosedUnmarkedSsr"),
-		renderClosedSyncUnmarkedSsr: allocate("__exactRenderClosedSyncUnmarkedSsr"),
 		renderCompiledRoot:          allocate("__exactRenderCompiledRoot"),
 		renderCompiledIntrinsicRoot: allocate("__exactRenderCompiledIntrinsicRoot"),
 		renderCompiledProgramRoot:   allocate("__exactRenderCompiledProgramRoot"),

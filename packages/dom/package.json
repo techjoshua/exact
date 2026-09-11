@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/dom",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -122,15 +124,15 @@
 		"src/testing-component.tsx"
 	],
 	"dependencies": {
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/devtools-protocol": "^0.1.0",
-		"@exactjs/instrumentation": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/devtools-protocol": "^0.5.0",
+		"@exactjs/instrumentation": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0"
 	},
 	"devDependencies": {
-		"@exactjs/accessibility": "^0.1.0",
-		"@exactjs/jsx": "^0.1.0",
-		"@exactjs/testing": "^0.1.0"
+		"@exactjs/accessibility": "^0.5.0",
+		"@exactjs/jsx": "^0.5.0",
+		"@exactjs/testing": "^0.5.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
@@ -139,5 +141,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/dom"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

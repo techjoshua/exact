@@ -1,4 +1,5 @@
 import { attachSuppressedCleanupFailure, logFrameworkEvent } from '@exactjs/core';
+import { encodeSsrUtf8 } from '../render/utf8-encoding.js';
 import type { ExactDocumentStreamEvent, RenderToProgressiveHtmlStreamOptions } from '../types.js';
 import {
 	cleanupAll,
@@ -19,15 +20,15 @@ export type DocumentStreamRender = (
 /** Defines the progressive document stream render type contract. */
 export type ProgressiveDocumentStreamRender = (
 	options: RenderToProgressiveHtmlStreamOptions,
-	emit: (event: ExactDocumentStreamEvent) => Promise<void>
-) => Promise<void> | void;
+	emit: (event: ExactDocumentStreamEvent) => void | Promise<void>,
+	abort: (reason: unknown) => void
+) => void | Promise<void> | void;
 
 /** Creates a html stream. */
 export function createHtmlStream(
 	chunks: Iterable<string>,
 	options: { signal?: AbortSignal; maxBytes?: number; maxChunks?: number; close?(): void } = {}
 ): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
 	const iterator = chunks[Symbol.iterator]();
 	const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
 	const maxChunks = positiveLimit(options.maxChunks, 100_000);
@@ -84,7 +85,7 @@ export function createHtmlStream(
 					}
 					if (next.value.length > maxBytes - bytes)
 						throw new Error('SSR stream byte limit exceeded');
-					const chunk = encoder.encode(next.value);
+					const chunk = encodeSsrUtf8(next.value);
 					if (++chunkCount > maxChunks) throw new Error('SSR stream chunk limit exceeded');
 					bytes += chunk.byteLength;
 					if (bytes > maxBytes) throw new Error('SSR stream byte limit exceeded');
@@ -116,7 +117,6 @@ export function createDocumentEventStream(
 		onError?(error: unknown): void;
 	} = {}
 ): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
 	const ownerController = new AbortController();
 	let unlink: () => void = () => undefined;
 	let closed = false;
@@ -159,7 +159,7 @@ export function createDocumentEventStream(
 					return;
 				}
 				const emit = async (event: ExactDocumentStreamEvent): Promise<void> => {
-					const chunk = encoder.encode(`${JSON.stringify(event)}\n`);
+					const chunk = encodeSsrUtf8(`${JSON.stringify(event)}\n`);
 					if (++events > maxEvents) throw new Error('SSR stream event limit exceeded');
 					bytes += chunk.byteLength;
 					if (bytes > maxBytes) throw new Error('SSR stream byte limit exceeded');
@@ -251,7 +251,9 @@ export function createProgressiveHtmlStream(
 	render: ProgressiveDocumentStreamRender,
 	options: RenderToProgressiveHtmlStreamOptions
 ): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
+	const bufferSize = options.streamBufferSize ?? 8192;
+	if (!Number.isSafeInteger(bufferSize) || bufferSize < 1)
+		throw new RangeError('streamBufferSize must be a positive safe integer');
 	const streamOptions: RenderToProgressiveHtmlStreamOptions = {
 		...options,
 		rootId: progressiveRootId(options)
@@ -261,12 +263,12 @@ export function createProgressiveHtmlStream(
 	streamOptions.signal = abortController.signal;
 	let closed = false;
 	let resume: (() => void) | undefined;
-	let demand = 0;
 	const maxEvents = positiveLimit(options.maxStreamEvents, 100_000);
 	const maxBytes = positiveLimit(options.maxStreamBytes, 16 * 1024 * 1024);
 	let events = 0;
 	let bytes = 0;
 	const documentState: ProgressiveDocumentState = {};
+	let production: Promise<void> | undefined;
 	const wake = () => {
 		const ready = resume;
 		resume = undefined;
@@ -278,33 +280,40 @@ export function createProgressiveHtmlStream(
 	return new ReadableStream<Uint8Array>(
 		{
 			start(controller) {
-				const waitForDemand = async (): Promise<void> => {
-					while (!closed && !abortController.signal.aborted && demand <= 0) {
-						await new Promise<void>((resolve) => {
-							resume = resolve;
-						});
-					}
+				// Available demand completes directly; only actual pressure owns a continuation.
+				const waitForDemand = (): void | Promise<void> => {
 					if (closed || abortController.signal.aborted)
 						throw (
 							abortController.signal.reason ?? new DOMException('SSR stream aborted', 'AbortError')
 						);
+					if ((controller.desiredSize ?? 0) > 0) return;
+					return new Promise<void>((resolve) => {
+						resume = resolve;
+					}).then(waitForDemand);
 				};
-				const emit = async (chunk: string): Promise<void> => {
-					const encoded = encoder.encode(chunk);
+				const emit = (chunk: string): void | Promise<void> => {
+					const encoded = encodeSsrUtf8(chunk);
 					if (++events > maxEvents) throw new Error('SSR stream event limit exceeded');
 					bytes += encoded.byteLength;
 					if (bytes > maxBytes) throw new Error('SSR stream byte limit exceeded');
-					await waitForDemand();
-					demand--;
+					const ready = waitForDemand();
+					if (ready instanceof Promise)
+						return ready.then(() => {
+							controller.enqueue(encoded);
+						});
 					controller.enqueue(encoded);
 				};
-				Promise.resolve(
-					render(streamOptions, async (event) => {
-						const chunk = progressiveHtmlChunk(event, streamOptions, documentState);
-						if (chunk) await emit(chunk);
-						else await waitForDemand();
-					})
-				)
+				production = Promise.resolve()
+					.then(() =>
+						render(
+							streamOptions,
+							(event) => {
+								const chunk = progressiveHtmlChunk(event, streamOptions, documentState);
+								return chunk ? emit(chunk) : waitForDemand();
+							},
+							(reason) => abortController.abort(reason)
+						)
+					)
 					.then(() => {
 						if (closed) return;
 						closed = true;
@@ -338,34 +347,35 @@ export function createProgressiveHtmlStream(
 							error,
 							options.logger
 						);
-						void emit(progressiveErrorScript(error, streamOptions)).then(
-							() => {
-								if (!closed) {
-									closed = true;
-									try {
-										cleanup();
-										controller.close();
-									} catch (cleanupError) {
-										controller.error(cleanupError);
+						return Promise.resolve()
+							.then(() => emit(progressiveErrorScript(error, streamOptions)))
+							.then(
+								() => {
+									if (!closed) {
+										closed = true;
+										try {
+											cleanup();
+											controller.close();
+										} catch (cleanupError) {
+											controller.error(cleanupError);
+										}
+									}
+								},
+								(emitError) => {
+									if (!closed) {
+										closed = true;
+										try {
+											cleanup();
+										} catch (cleanupError) {
+											attachSuppressedCleanupFailure(emitError, cleanupError);
+										}
+										controller.error(emitError);
 									}
 								}
-							},
-							(emitError) => {
-								if (!closed) {
-									closed = true;
-									try {
-										cleanup();
-									} catch (cleanupError) {
-										attachSuppressedCleanupFailure(emitError, cleanupError);
-									}
-									controller.error(emitError);
-								}
-							}
-						);
+							);
 					});
 			},
 			pull() {
-				demand++;
 				const ready = resume;
 				resume = undefined;
 				ready?.();
@@ -376,8 +386,11 @@ export function createProgressiveHtmlStream(
 				resume = undefined;
 				abortController.abort(reason);
 				cleanup();
+				// Cancellation settles only after the renderer has unwound its owned descendants.
+				return production;
 			}
 		},
-		{ highWaterMark: 0 }
+		// A small window avoids suspending the entire component stack at every body flush.
+		{ highWaterMark: bufferSize * 4, size: (chunk) => chunk.byteLength }
 	);
 }

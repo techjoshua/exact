@@ -1,7 +1,7 @@
 import { isReactive, isReactiveValue, unwrap } from '@exactjs/reactive/framework/values';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
-import { markerId, markerPair } from '../markup.js';
+import { markerId, finalizedMarkerPair } from '../markers.js';
 import type { SsrContext } from '../types.js';
 import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
 import { withSsrReactivePeek } from './reactive-tracking-capability.js';
@@ -22,7 +22,7 @@ export function renderPreparedResumptionBoundary(
 	context.outputSink?.account(opening);
 	context.outputSink?.accountKnown('</div>', 6);
 	const boundary = `${opening}${html}</div>`;
-	return markerPair(context, markerId(context, 'client-boundary', name, id), () => boundary);
+	return finalizedMarkerPair(context, markerId(context, 'client-boundary', name, id), boundary);
 }
 
 /** Detaches resumable boundary props from reactive proxies without invoking accessors. */

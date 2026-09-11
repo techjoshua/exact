@@ -36,9 +36,8 @@ re-executing the component.
 ## Main capabilities
 
 - Context, refs, lifecycle cleanup, Suspense, Activity, and error boundaries
-- Function-defined tasks—declarations, expressions, or arrows—with optional `TaskContext`
-  placement and concurrency policy
-- Function-defined tasks with status, direct invocation, and synchronous optimistic state
+- Function-defined tasks with status, direct invocation, synchronous optimistic state, and optional
+  `TaskContext` placement and concurrency policy
 - `createComponentRegistry()` for finite eager or lazy component selection
 - `createDynamicComponent()` for intentionally open client-only providers; prefer a finite registry
   whenever the candidate set is known, and do not use open dynamic components for server work

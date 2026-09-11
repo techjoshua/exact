@@ -3,9 +3,8 @@ package exactcompiler
 import (
 	"html"
 	"strconv"
-	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 func (lowering *jsxLowering) lowerRenderProgram(
@@ -29,6 +28,10 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	if !certain {
 		parentNamespace = "contextual"
 	}
+	if lowering.target == TargetServer && rootAttributes == nil && (plannedDocumentHost(sourceText(lowering.sourceFile, openingTag(opening))) || lowering.plannedEmptyExternalScript(opening, children)) {
+		// Client adoption still claims document and external script hosts through intrinsic identities.
+		rootAttributes = lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, sourceText(lowering.sourceFile, openingTag(opening)), false, true)
+	}
 	build := &renderProgramBuild{rootAttributes: rootAttributes}
 	if lowering.target == TargetServer || lowering.contractProjection == ComponentContractProjectionComplete {
 		lowering.captureRootSsrAttributes(
@@ -48,6 +51,9 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 		}
 	}
 	build.serverSegments = append(build.serverSegments, build.serverSegment.String())
+	if lowering.target == TargetServer {
+		lowering.captureScalarRootAttributes(build)
+	}
 	programID := exactStableID(
 		lowering.sourceFile.FileName(),
 		"render-program",
@@ -88,6 +94,13 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	readers := make([]*ast.Node, len(build.slots))
 	for index, slot := range build.slots {
 		reader := slot.reader
+		if slot.kind == "root-attributes" && build.rootScalarValue != nil {
+			// Preserve the original property initializer, including any reactive wrapper. Only
+			// its containing object disappears; ordinary slot-reader normalization must not
+			// unwrap or eagerly evaluate the attribute's own deferred computation.
+			readers[index] = lowering.arrow(build.rootScalarValue)
+			continue
+		}
 		// Planned slots execute inside runtime-owned reactions. A generic JSX expression wrapper
 		// would allocate a second computed value every time the slot reader runs and retain it until
 		// the whole component scope is disposed. Feed the wrapper's computation directly to the
@@ -169,7 +182,20 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 		}
 		arguments = append(arguments, enhancement)
 	}
-	return lowering.call(prepared, arguments), ""
+	deferred := lowering.deferredDocumentBody(identityNode, sourceText(lowering.sourceFile, openingTag(opening)))
+	if deferred {
+		values := arguments[1]
+		arguments[1] = lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(nil), false)
+		arguments = append(arguments, lowering.factory.NewIdentifier("undefined"), contractObject(lowering.factory, false,
+			contractProperty(lowering.factory, "host", lowering.factory.NewThisExpression()),
+			contractProperty(lowering.factory, "read", lowering.arrow(values)),
+		))
+	}
+	invocation := lowering.call(prepared, arguments)
+	if !deferred && lowering.target == TargetServer && enhancement == nil && staticServerInvocationSlots(build) && literalServerInvocationValue(arguments[1]) {
+		return lowering.hoistStaticServerInvocation(identityNode.Pos(), programName, invocation), ""
+	}
+	return invocation, ""
 }
 
 // Reports whether `this` reaches the JSX through arrows from a component receiver.
@@ -502,8 +528,12 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	parentNamespace string,
 ) bool {
 	tag := sourceText(lowering.sourceFile, openingTag(opening))
-	if !jsxIntrinsic(tag) || unsupportedPlannedHost(tag) {
+	if !jsxIntrinsic(tag) || (unsupportedPlannedHost(tag) && !(lowering.target == TargetServer && len(path) == 0 && (plannedDocumentHost(tag) || lowering.plannedEmptyExternalScript(opening, children)))) {
 		return build.decline("unsupported-host-" + tag)
+	}
+	// Only a statically ordered head/body pair can bypass runtime document normalization.
+	if tag == "html" && !canonicalProgramDocument(children) {
+		return build.decline("dynamic-document-structure")
 	}
 	namespace := renderProgramNamespace(tag, parentNamespace)
 	if len(path) == 0 {
@@ -536,9 +566,29 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if children != nil {
 		semantic = ast.GetSemanticJsxChildren(children.Nodes)
 	}
-	textProjections := lowering.renderProgramTextProjections(semantic)
+	documentRoot := lowering.target == TargetServer && len(path) == 0 && plannedDocumentHost(tag)
+	textProjections, textRun := renderProgramTextProjections{}, false
+	if !documentRoot {
+		textProjections, textRun = lowering.planRenderProgramText(build, nodeIndex, semantic)
+	}
 	for childIndex, child := range semantic {
 		childPath := append(append([]int(nil), path...), domIndex)
+		if documentRoot {
+			if script, static := lowering.staticDocumentScript(child); static {
+				build.write(script)
+				domIndex++
+				continue
+			}
+		}
+		if documentRoot && !ast.IsJsxText(child) && !lowering.staticDocumentProgramChild(child) {
+			// Client document hosts use ordinary child adoption. Preserve those dynamic boundaries
+			// and independently compiled child programs; only static content can be coalesced.
+			for _, value := range lowering.documentProgramChild(child, children) {
+				build.childSlot(lowering.dynamicID(child), childPath, value, false, false, true)
+			}
+			domIndex++
+			continue
+		}
 		switch {
 		case ast.IsJsxText(child):
 			if textProjections.consumed[childIndex] {
@@ -549,6 +599,9 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				continue
 			}
 			build.write(html.EscapeString(text))
+			if textRun {
+				build.textRuns[nodeIndex] = append(build.textRuns[nodeIndex], lowering.factory.NewStringLiteral(text, ast.TokenFlagsNone))
+			}
 			domIndex++
 		case ast.IsJsxExpression(child):
 			expression := child.AsJsxExpression().Expression
@@ -601,6 +654,10 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression),
 				projection.prefix, projection.suffix,
 			)
+			build.slots[len(build.slots)-1].textRun = textRun
+			if textRun {
+				build.textRuns[nodeIndex] = append(build.textRuns[nodeIndex], lowering.factory.NewNumericLiteral(strconv.Itoa(len(build.slots)-1), ast.TokenFlagsNone))
+			}
 			domIndex += 3
 		case ast.IsJsxElement(child):
 			element := child.AsJsxElement()
@@ -792,177 +849,6 @@ func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
 	return exists && plan.keyed
 }
 
-func (lowering *jsxLowering) appendRenderProgramAttributes(
-	build *renderProgramBuild,
-	attributes *ast.Node,
-	tag string,
-	path []int,
-	node int,
-) bool {
-	if attributes == nil {
-		return true
-	}
-	application := lowering.enhancementImports.applications[attributes.Pos()]
-	if lowering.target == TargetDefault && len(application.components) != 0 {
-		// Untargeted inspection records enhancement facts; executable attachment is selected only
-		// after a concrete client or server target is known.
-		return build.decline("untargeted-enhancement-inspection")
-	}
-	conditionalClasses := jsxHasConditionalClassName(attributes)
-	classNameEmitted := false
-	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-		if conditionalClasses && jsxClassNameContribution(property) {
-			if !classNameEmitted {
-				build.propertySlot(
-					lowering.dynamicID(property),
-					path,
-					node,
-					"className",
-					lowering.lowerClassNameValue(attributes, false, true),
-				)
-				classNameEmitted = true
-			}
-			continue
-		}
-		if ast.IsJsxSpreadAttribute(property) {
-			expression := property.AsJsxSpreadAttribute().Expression
-			reader := lowering.visitor.VisitNode(expression)
-			if plan, exists := lowering.enhancementImports.spreads[property.Pos()]; exists {
-				keys := make([]*ast.Node, 0, len(plan.keys))
-				for _, key := range plan.keys {
-					keys = append(keys, lowering.factory.NewStringLiteral(key, ast.TokenFlagsNone))
-				}
-				reader = lowering.call(lowering.names.omitEnhancementProps, []*ast.Node{
-					reader,
-					lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(keys), false),
-				})
-			}
-			build.spreadSlot(lowering.dynamicID(property), path, node, reader)
-			continue
-		}
-		if !ast.IsJsxAttribute(property) {
-			return build.decline("unknown-attribute")
-		}
-		attribute := property.AsJsxAttribute()
-		name := jsxAttributeText(attribute.Name())
-		if ast.IsJsxNamespacedName(attribute.Name()) {
-			prefix := attribute.Name().AsJsxNamespacedName().Namespace.Text()
-			if _, enhancement := lowering.enhancementImports.bindings[prefix]; enhancement {
-				continue
-			}
-		}
-		if name == "key" {
-			// Collection lowering publishes key identity on the prepared program value. A key does not
-			// describe a host property and must never enter the template or property writer.
-			continue
-		}
-		if name == "data-exact-id" {
-			return build.decline("reserved-attribute-" + name)
-		}
-		if _, exists := lowering.componentBindings[property.Pos()]; exists {
-			return build.decline("component-binding-attribute")
-		}
-		bindingProperties := lowering.formBindingProperties(name, attribute.Initializer, attributes)
-		if lowering.target == TargetServer {
-			if serverProperty := lowering.serverFormBindingProperty(name, attribute.Initializer); serverProperty != nil {
-				bindingProperties = []*ast.Node{serverProperty}
-			}
-		}
-		if len(bindingProperties) != 0 {
-			for _, bindingProperty := range bindingProperties {
-				assignment := bindingProperty.AsPropertyAssignment()
-				build.propertySlot(
-					lowering.dynamicID(property),
-					path,
-					node,
-					assignment.Name().Text(),
-					assignment.Initializer,
-				)
-			}
-			continue
-		}
-		// Server render programs preserve the DOM structure that the paired client
-		// artifact hydrates, but client-owned behavior has no server serialization
-		// semantics. Excluding it here also prevents per-request construction of
-		// event handlers and ref callbacks that the SSR writer would discard.
-		if lowering.target == TargetServer && interactiveJSXAttribute(name) {
-			continue
-		}
-		if ast.IsJsxNamespacedName(attribute.Name()) {
-			return build.decline("namespaced-attribute")
-		}
-		if _, serialized, static := staticRenderProgramAttribute(tag, name, attribute.Initializer); static {
-			build.write(serialized)
-			continue
-		}
-		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
-		if reader != nil {
-			if lowering.target != TargetServer && jsxEventAttribute(name) {
-				expression := attribute.Initializer.AsJsxExpression().Expression
-				if jsxEventOmitsArgument(expression, lowering.checker) {
-					name = "__exactClosedInteraction:" + name
-				} else {
-					name = "__exactDirectInteraction:" + name
-				}
-			}
-			build.propertySlot(lowering.dynamicID(property), path, node, name, reader)
-		}
-	}
-	return true
-}
-
-// staticRenderProgramAttribute recognizes source literals whose DOM property and SSR attribute
-// semantics are identical. Values that need URL policy, event installation, form binding, object
-// normalization, or custom-element property assignment deliberately remain runtime operations.
-func staticRenderProgramAttribute(tag string, name string, initializer *ast.Node) (string, string, bool) {
-	if !strings.Contains(tag, "-") && initializer == nil && name == "required" {
-		return name, ` required`, true
-	}
-	if initializer != nil && ast.IsJsxExpression(initializer) {
-		expression := initializer.AsJsxExpression().Expression
-		if !strings.Contains(tag, "-") && name == "maxLength" && ast.IsNumericLiteral(expression) {
-			value, error := strconv.ParseFloat(expression.Text(), 64)
-			if error == nil {
-				return name, ` maxLength="` + strconv.FormatFloat(value, 'f', -1, 64) + `"`, true
-			}
-		}
-		return "", "", false
-	}
-	if initializer == nil || !ast.IsStringLiteral(initializer) {
-		return "", "", false
-	}
-	attributeName := name
-	switch name {
-	case "className":
-		attributeName = "class"
-	case "htmlFor":
-		attributeName = "for"
-	case "id", "class", "for", "title", "role", "type", "name", "value", "placeholder",
-		"autocomplete", "inputmode", "pattern", "min", "max", "step", "width", "height",
-		"colspan", "rowspan", "scope", "kind", "label", "media", "rel", "target", "download",
-		"crossorigin", "referrerpolicy", "fetchpriority", "loading", "decoding", "dir", "lang":
-		// These literal values have native attribute semantics in both template parsing and SSR.
-	default:
-		if !strings.HasPrefix(name, "data-") && !strings.HasPrefix(name, "aria-") {
-			return "", "", false
-		}
-	}
-	return attributeName, ` ` + attributeName + `="` + html.EscapeString(initializer.AsStringLiteral().Text) + `"`, true
-}
-
-func renderProgramSlotKind(name string) string {
-	switch name {
-	case "class", "className":
-		return "class"
-	case "style":
-		return "style"
-	case "href", "src", "srcSet", "action", "formAction", "poster", "cite", "data":
-		return "url"
-	default:
-		return "property"
-	}
-}
-
 func (lowering *jsxLowering) scalarRenderProgramExpression(expression *ast.Node) bool {
 	// Type queries are valid only for nodes from the bound source tree. Reactive
 	// lowering can revisit synthetic expressions whose parent chain is incomplete.
@@ -1087,7 +973,7 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		nodes[index] = array(members)
 	}
 	members := []*ast.Node{
-		property("version", lowering.factory.NewNumericLiteral("8", ast.TokenFlagsNone)),
+		property("version", contractNumber(lowering.factory, renderProgramVersion)),
 		property("id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone)),
 		property("namespace", lowering.factory.NewStringLiteral(build.namespace, ast.TokenFlagsNone)),
 	}
@@ -1186,6 +1072,9 @@ func (lowering *jsxLowering) renderProgramLiteral(
 			property("bindings", array(bindings)),
 			property("ssr", lowering.directRenderProgramSsrWriter(build)),
 		)
+	}
+	if lowering.target == TargetServer {
+		members = append(members, property("ssrHost", lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone)))
 	}
 	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
 }

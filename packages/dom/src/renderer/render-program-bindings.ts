@@ -36,6 +36,7 @@ import {
 	bindCompiledWideStateComponentUpdate
 } from './component-state-update-binding.js';
 import { applyProgramText } from './render-program-text.js';
+import { finishProgramTextRuns } from './render-program-text-run.js';
 import {
 	bindCompiledProgramProperties,
 	bindCompiledReactiveProgramProperties
@@ -67,6 +68,7 @@ export function bindRenderProgram(mounted: Mounted): boolean {
 		if (released) return;
 		released = true;
 		stopCurrentBindings();
+		state.textRuns = undefined;
 		if (state.props) {
 			for (const [element, props] of state.props) {
 				const ref = props.ref as { fulfill(value: unknown): void } | undefined;
@@ -93,6 +95,10 @@ export function bindRenderProgram(mounted: Mounted): boolean {
 		if (wiring) executeCompiledProgramBindings(wiring, target);
 		else if (binder) binder(target);
 		else target.valid = false;
+		if (state.textRuns) {
+			if (target.valid) target.valid = finishProgramTextRuns(state.textRuns, state.slotNodes);
+			state.textRuns = undefined;
+		}
 		initialBinding = false;
 		return target.valid;
 	};

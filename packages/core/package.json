@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/core",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -296,8 +298,8 @@
 		"ErrorBoundary"
 	],
 	"dependencies": {
-		"@exactjs/devtools-protocol": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/devtools-protocol": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
@@ -306,5 +308,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/core"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

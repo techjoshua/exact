@@ -145,6 +145,26 @@ export function createPreparedServerComponentReference(
 	return reference as ExactPreparedServerComponentReference;
 }
 
+/**
+ * Issues a reference for a compiler-proven fresh private data bag without reserved metadata.
+ * The caller must exclude own and inherited key/enhancement metadata and previous exposure.
+ * The bag is retained directly; ordinary reference construction handles all other inputs.
+ */
+export function createPreparedServerComponentReferenceFromPlainProps(
+	type: AnyExactComponentCallable,
+	props: Record<string, unknown>
+): ExactPreparedServerComponentReference {
+	const domain = currentComponentDomain();
+	const reference = {
+		[PreparedServerComponentReference]: true,
+		contract: readPreparedExactExecutableComponentContract(type),
+		props,
+		children: emptyServerComponentChildren
+	} as ExactPreparedServerComponentReference & { domain?: ComponentDomain };
+	if (domain) reference.domain = domain;
+	return reference;
+}
+
 /** Reads only the direct reference representation issued by a compiler-closed server artifact. */
 export function readPreparedServerComponentReference(
 	value: unknown

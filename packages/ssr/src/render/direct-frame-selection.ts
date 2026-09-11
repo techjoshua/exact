@@ -1,7 +1,7 @@
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { SsrContext } from '../types.js';
 import type { ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
 import { createDirectSsrContextFrame } from '../runtime/direct-context-frame.js';
+import type { SsrContext } from '../types.js';
 import {
 	createDirectSsrComponentFrame,
 	directSsrContextOwner,

@@ -92,3 +92,9 @@ operation. Application code calls the task function directly and never
 constructs protocol payloads. Distributed calls use the neutral
 `type: "invoke"` discriminator, and DevTools reports the client and server
 generations in one task tree.
+
+## Collection rollback
+
+Collection rollback preserves membership and insertion order. A newer authoritative write to a
+deleted and reinserted Map key or Set member takes precedence over an older optimistic journal.
+Observers remain connected across deletion, clearing, and rollback, including reads of absent keys.

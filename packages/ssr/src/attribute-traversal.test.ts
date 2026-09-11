@@ -5,11 +5,51 @@ import {
 	renderCompiledNativeAttributes,
 	renderNativeAttribute
 } from './markup.js';
-import { renderSsrRootAttributes } from './render/render-program-attributes.js';
 import { SsrOutputBuffer, utf8ByteLength } from './render/output-buffer.js';
+import { renderSsrRootAttributes } from './render/render-program-attributes.js';
 import type { SsrContext } from './types.js';
 
 describe('SSR attribute traversal', () => {
+	it('reconstructs scalar root properties only for active target layers', () => {
+		const compose = vi.fn((value: unknown) => ({ id: 'row', className: value }));
+		const plan = [' id="row"', ['id'], [[1, 'className', 'class']], compose] as const;
+		for (const layers of [undefined, [], [{ consumed: true, props: { className: 'unused' } }]]) {
+			const context = { targetReceiptLayers: layers } as SsrContext;
+			expect(renderSsrRootAttributes(context, ['base', 'a"b'], 'div', plan)).toBe(
+				' id="row" class="base a&quot;b"'
+			);
+		}
+		expect(compose).not.toHaveBeenCalled();
+		const outputSink = new SsrOutputBuffer(1000);
+		const context = {
+			outputSink,
+			targetReceiptLayers: [{ consumed: false, props: { className: 'caf\u00e9' } }]
+		} as unknown as SsrContext;
+		const html = renderSsrRootAttributes(context, 'base', 'div', plan, true);
+		expect(html).toBe(' id="row" class="base caf\u00e9"');
+		expect(compose).toHaveBeenCalledExactlyOnceWith('base');
+		expect(context.targetReceiptLayers![0]!.consumed).toBe(true);
+		expect(outputSink.encodedBytes()).toBe(utf8ByteLength(html));
+	});
+
+	it('preserves proven class output, byte accounting, and generic class fallback', () => {
+		const accountKnown = vi.fn();
+		const context = { outputSink: { accountKnown } } as unknown as SsrContext;
+		for (const value of ['', 'severity', 'severity critical', 'item-1 active_state']) {
+			const expected = renderCompiledNativeAttribute(value, 1, 'className', 'class', 'span');
+			expect(
+				renderCompiledNativeAttribute(value, 7, 'className', 'class', 'span', context, true)
+			).toBe(expected);
+			expect(accountKnown).toHaveBeenLastCalledWith(expected, Buffer.byteLength(expected));
+		}
+		expect(renderCompiledNativeAttribute(['base', 'a"b'], 7, 'className', 'class', 'span')).toBe(
+			' class="base a&quot;b"'
+		);
+		expect(renderCompiledNativeAttribute('a"b', 1, 'className', 'class', 'span')).toBe(
+			' class="a&quot;b"'
+		);
+	});
+
 	it('visits only owned native attributes and owned style properties', () => {
 		const style = Object.assign(Object.create({ inherited: 'no' }), { color: 'red' });
 		const props = Object.assign(Object.create({ title: 'inherited' }), {
@@ -118,17 +158,19 @@ describe('SSR attribute traversal', () => {
 		const staticRoot = [
 			' data-exact-id="row-1"',
 			['data-exact-id'],
-			[[1, 'className', 'class']]
+			[[7, 'className', 'class']]
 		] as const;
 
 		expect(renderSsrRootAttributes({} as SsrContext, props, 'button', staticRoot)).toBe(
 			' data-exact-id="row-1" class="incident"'
 		);
 		const context = {
-			targetReceiptLayers: [{ props: { 'aria-label': 'incident' }, consumed: false }]
+			targetReceiptLayers: [
+				{ props: { 'aria-label': 'incident', className: 'a"b' }, consumed: false }
+			]
 		} as unknown as SsrContext;
 		expect(renderSsrRootAttributes(context, props, 'button', staticRoot)).toBe(
-			' data-exact-id="row-1" class="incident" aria-label="incident"'
+			' data-exact-id="row-1" class="incident a&quot;b" aria-label="incident"'
 		);
 	});
 });

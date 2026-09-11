@@ -1,3 +1,7 @@
+import { createNodeHandler } from '@exactjs/node-adapter';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { ssrRenderMode } from './ssr-render-mode.mjs';
 import { createReadStream } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
@@ -51,9 +55,11 @@ async function startParticipantServer(participant, store) {
 			.match(/(?:<script[^>]+src="[^"]+"[^>]*><\/script>|<link[^>]+href="[^"]+"[^>]*>)/g)
 			?.join('\n') ?? '';
 	const serverEntry = resolve(directory, '../dist-server/server-entry.js');
-	const { renderParticipant } = await import(pathToFileURL(serverEntry).href);
+	const { renderParticipant, renderParticipantStream } = await import(
+		pathToFileURL(serverEntry).href
+	);
 	const sockets = new Set();
-	const server = createServer(async (request, response) => {
+	const handle = async (request, response, signal) => {
 		try {
 			const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
 			const candidate = resolve(directory, `.${pathname}`);
@@ -69,18 +75,23 @@ async function startParticipantServer(participant, store) {
 				users: snapshot.users,
 				sessionUserId: snapshot.sessionUserId
 			};
-			const rendered = await renderParticipant(initialData, pathname);
+			const streaming = ssrRenderMode() === 'stream';
+			const rendered = await (streaming
+				? renderParticipantStream(initialData, pathname, { clientTags }, signal)
+				: renderParticipant(initialData, pathname, { clientTags }));
 			response.writeHead(200, {
 				'cache-control': 'no-store',
 				'content-type': 'text/html; charset=utf-8',
 				'x-comparison-render': 'ssr'
 			});
-			response.end(documentHtml(participant.id, rendered, initialData, clientTags));
+			if (streaming) await pipeline(Readable.fromWeb(rendered), response);
+			else response.end(rendered);
 		} catch (caught) {
 			response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
 			response.end(caught instanceof Error ? (caught.stack ?? caught.message) : String(caught));
 		}
-	});
+	};
+	const server = createServer(participant.id === 'exact' ? createNodeHandler(handle) : handle);
 	server.on('connection', (socket) => {
 		sockets.add(socket);
 		socket.once('close', () => sockets.delete(socket));
@@ -156,24 +167,6 @@ async function waitUntilReady(url) {
 		await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
 	}
 	throw new Error(`Participant server did not become ready: ${url}`);
-}
-
-function documentHtml(participantId, rendered, initialData, clientTags) {
-	const serialized = JSON.stringify(initialData).replaceAll('<', '\\u003c');
-	return `<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<meta name="framework-participant" content="${participantId}" />
-		<title>Incident Operations</title>
-		${clientTags}
-	</head>
-	<body>
-		<div id="app" data-render-mode="ssr">${rendered}</div>
-		${participantId === 'exact' ? '' : `<script id="comparison-data" type="application/json">${serialized}</script>`}
-	</body>
-</html>`;
 }
 
 async function isFile(path) {

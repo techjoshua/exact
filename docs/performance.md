@@ -1,7 +1,153 @@
 # JavaScript performance measurement
 
-The [current-runtime chart refresh](performance-baselines/current-runtimes-2026-09-07.md)
-updates the public server charts and isolates the Node 26 idle-socket fetch delay.
+The [September 11 completion capture](performance-baselines/ssr-completion-2026-09-11.md)
+refreshes browser, heap, startup, Node, native Bun, and root
+framework measurements. Publication and final verification are complete. Every framework renders
+its own complete application document. String and streaming APIs remain separate on both runtimes;
+browser baseline measurements use the string lane. eXact, React, and TanStack Start support both
+measured lanes. Nuxt and SvelteKit expose string rendering only in this harness.
+
+The current eXact implementation uses one rendering engine. It streams a completed head before
+pending body work and delivers body output incrementally with a configurable 8192-byte threshold.
+Hydration remains before the closing tags. Compiler-proven static heads can precede their own
+blocking component tasks. The requested application owns hydration independently of an enclosing
+server document shell. The final Node HTTP capture uses automatic adapter admission by default.
+It retains scheduling only when completed-response capacity and event-loop lag improve against
+surrounding immediate controls. Native Bun retains immediate admission. The
+[adaptive controller investigation](performance-baselines/adaptive-default-node-2026-09-11.md)
+records workload changes, response tails, and rejected policies.
+
+## Earlier investigations
+
+The [full-document optimization capture](performance-baselines/post-shell-2026-09-09.md)
+is historical and predates shared SSR execution and incremental body delivery. Its implementation
+released the rendered shell first, then hydration and closing tags together, while waiting for tree
+rendering and tasks that could revise the document. Focused follow-up measurements
+are recorded in [early document publication](performance-baselines/early-document-2026-09-09.md);
+they do not replace the full capture or its public charts.
+The [browser follow-up](performance-baselines/early-document-browser-2026-09-09.md) uses actual
+streaming responses for 300 sessions across local and constrained profiles. It found no measurable
+paint or readiness improvement from shell-before-hydration publication in the comparison workload.
+
+The [shared SSR execution follow-up](performance-baselines/unified-ssr-2026-09-09.md) records the
+migration to promised string APIs and one traversal for both output modes. It includes production
+Node/Bun HTTP comparisons and 120 streaming browser sessions. Isolated streaming rendering improved,
+isolated string rendering regressed, and browser timing changes were inconclusive. The older
+full-document capture predates this migration and remains a historical measurement of its captured build.
+
+The [SSR sink investigation](performance-baselines/ssr-sinks-2026-09-09.md) records shared-renderer
+allocation changes, buffered Node response handling, native Bun sink experiments, and transport
+isolation. Its focused measurements supplement the full capture and do not replace its charts.
+
+The [compiled-program profiles](performance-baselines/ssr-program-profile-2026-09-09.md) trace current
+eXact and React rendering costs to document construction, hydration publication, and runtime stream
+consumption. Those profiles motivated compiler support for ordinary document components, implemented
+in the following investigation. Temporary allocation variants did not enter the production build.
+
+The [compiled document implementation](performance-baselines/compiled-document-2026-09-09.md)
+retains ordinary component compilation for document hosts and proven static content, with existing
+dynamic adoption boundaries. It records paired renderer and HTTP improvements on Node and Bun,
+plus production browser correctness. The final completion capture now includes this implementation.
+
+The [shared SSR allocation investigation](performance-baselines/ssr-allocation-2026-09-09.md)
+records further root-attribute, stateless execution, and keyed-list improvements, along with rejected
+experiments and the React gaps observed then. It is historical focused evidence, not the final capture.
+
+The [original full-document baseline](performance-baselines/render-modes-2026-09-09.md) remains
+unchanged. The [optimization investigation](performance-baselines/post-shell-optimization-2026-09-09.md)
+records 24 experiments, their hypotheses, accepted changes, and measured rejections. Deferred document
+hydration improved navigation completion by moving activation after a rendering opportunity; the
+investigation and startup profiles report semantic readiness separately from the load event.
+
+The full capture includes startup, client framework scenarios, and every root benchmark command.
+Scheduled-demand errors, capacity misses, artifact identities, and raw samples remain in the evidence.
+The [September 8 refresh](performance-baselines/full-refresh-2026-09-08.md) is historical: it predates
+application-owned document rendering and mixed rendering APIs across runtimes. It cannot isolate
+the performance effect of the new document path.
+
+The [SSR throughput investigation](performance-baselines/ssr-throughput-2026-09-08.md) records
+renderer optimizations and experimental buffer, pool, and Readable paths. It distinguishes
+isolated renderer gains from inconclusive HTTP results and does not replace public charts.
+The [request-owned staging experiment](performance-baselines/ssr-staging-2026-09-08.md) adds
+configurable byte batching and destruction tests, and records why its legacy-renderer bridge
+is not enabled in production.
+The [direct writer overflow experiments](performance-baselines/ssr-overflow-2026-09-08.md) compare
+splitting, combining, direct overflow writes, and explicit corking. They retain the ordinary writer
+and distinguish large-value gains from the costs of handling many small spans.
+The [hybrid writer buffer-size comparison](performance-baselines/ssr-buffer-sizes-2026-09-08.md)
+holds the overflow policy fixed while testing 2, 4, and 8 KiB staging. It records modest,
+workload-dependent differences and leaves production defaults and public charts unchanged.
+The [SSR path-cost investigation](performance-baselines/ssr-path-costs-2026-09-08.md) separates
+head flushing, span layout, rendering, and encoding costs. String batching improves on byte staging
+but trails the ordinary writer; hydration candidates do not justify production changes.
+The [hydration validation review](performance-baselines/ssr-validation-costs-2026-09-08.md)
+distinguishes representation policies from correctness and resource requirements. It measures
+unchecked projection as a cost probe and records the resulting value and field loss.
+The [projection-plan and final-encoding experiments](performance-baselines/ssr-projection-plans-2026-09-08.md)
+test schema preparation, generated tuple allocation, diagnostic branching, ASCII accounting, and
+completed-body Buffer encoding. They retain the current implementation and record a fresh React comparison.
+The [paired SSR CPU profiles](performance-baselines/ssr-paired-profile-2026-09-08.md) compare both
+production HTTP paths after warmup, normalize samples per completed request, and separate framework
+work from telemetry. They retain cheaper request-domain construction, with a renderer gain but an
+inconclusive HTTP result.
+The [hydration serialization experiments](performance-baselines/ssr-hydration-fusion-2026-09-08.md)
+compare fused positional string writers, schema-specific writers, and removal of traversal budgets.
+Native JSON over the existing projected records remains faster than the fused candidates. The report
+separates isolated hydration timing from complete rendering and makes no new HTTP capacity claim.
+The [SSR option review](performance-baselines/ssr-option-review-2026-09-08.md) checks proposed next
+steps against source and existing stacks. It supports a narrow response-construction experiment,
+corrects the HTTP input attribution, and finds no substantial duplicated hydration state in the fixture.
+The [marker necessity review](performance-baselines/ssr-marker-review-2026-09-08.md) traces the
+remaining scalar and structural comments. Existing single-expression text joining already elides
+markers; extending it to multiple scalar expressions is a bounded experiment with a 126-byte
+opportunity in the three-row fixture, not an established throughput gain.
+The [text-run experiment](performance-baselines/ssr-text-runs-2026-09-08.md) records the tested
+compiler/runtime implementation and its initial HTTP regression. The
+[forced-rebuild comparison](performance-baselines/ssr-fresh-build-2026-09-08.md) verifies both marker
+strategies with the same optimized scalar writer: markerless retains its isolated rendering gain,
+while the HTTP populations disagree about which strategy is faster. The framework retains
+markerless adoption; these captures do not establish a repeatable HTTP improvement.
+The [HTTP throughput investigation](performance-baselines/ssr-throughput-dive-2026-09-08.md) profiles
+the verified markerless build and tests header, adapter, and byte-counter candidates. None is adopted.
+An alternating diagnostic bypass finds a modest response-path opportunity, while hydration
+publication still offsets much of the HTML-rendering advantage in HTTP samples.
+The [native hydration accounting follow-up](performance-baselines/ssr-native-hydration-bytes-2026-09-08.md)
+reuses the Node adapter's existing byte counter for hydration output, avoiding the portable
+JavaScript scan for non-ASCII payloads. It retains exact output and byte-limit behavior, and records
+the rejected response-owner and escaping experiments separately.
+The [current hot-path profiles](performance-baselines/ssr-current-hotpaths-2026-09-08.md) compare that
+retained build with React on the original and larger Unicode documents. They identify dynamic-text
+escaping, hydration serialization and final response encoding as the next experimental targets.
+The [hot-path experiments](performance-baselines/ssr-hotpath-experiments-2026-09-08.md) retain native
+accounting for long unescaped text and complete-body byte publication to Node. They record paired
+HTTP measurements, compatibility checks, and the rejected projection and serialization candidates.
+The [request-count audit](performance-baselines/ssr-count-audit-2026-09-08.md) independently reconciles
+client counts with server renders and completions. It finds no React counting inflation, but records
+substantial run variation and limitations in comparing single means across experiment harnesses.
+
+The earlier [post-efficiency benchmark refresh](performance-baselines/post-efficiency-2026-09-08.md) records
+browser, heap, Node, and native Bun reports after fresh builds and both runtime
+correctness suites. It includes eXact/React ratios and individual population ratios. Node concurrency
+runs were error-free; scheduled demand recorded 13 eXact connection resets and 155 React connection refusals, retained
+in the report rather than omitted from the comparison.
+
+The [full audit efficiency review](performance-baselines/audit-efficiency-2026-09-08.md) evaluates
+all six audit areas. It retains cheaper task settlement, registry composition, and UTF-8 accounting,
+and records rejected collection and validation candidates alongside correctness and browser checks.
+
+The [collection audit efficiency follow-up](performance-baselines/collection-audit-efficiency-2026-09-08.md)
+retains a cheaper rollback path for deleted last entries and rejects a broader tradeoff that slowed
+head and middle rollbacks. It preserves the audit guarantees and does not replace public chart measurements.
+
+The [post-audit benchmark refresh](performance-baselines/post-audit-2026-09-07.md) measures the
+runtime after the adversarial-audit fixes. It refreshes the browser, heap, Node, and native Bun
+evidence and separately measures the cost of preserving collection order during transaction rollback.
+The [audit isolation follow-up](performance-baselines/audit-impact-2026-09-07.md) leaves a small
+Node SSR slowdown unresolved and records a generated task-helper correction that was missing from
+the original browser capture. It does not establish that the audit explains React's larger historical gain.
+
+The earlier [current-runtime chart refresh](performance-baselines/current-runtimes-2026-09-07.md)
+records the runtime transition and isolates the Node 26 idle-socket fetch delay.
 
 The default measurement runtimes are Node.js 26 and Bun 1.4.2. The public server charts
 identify their measured runtime versions; browser charts retain their independent Chromium
@@ -608,6 +754,11 @@ the retained mount.
 
 Run the complete framework baseline after building the repository:
 
+Runtime changes require the full repository build, including package client/server target generation,
+before rebuilding benchmark applications. A TypeScript-only incremental core build does not refresh
+those target copies. For focused core preparation, `node scripts/compile-exact-package.mjs packages/core`
+performs that generation; rebuild the affected benchmark applications afterward.
+
 ```sh
 npm run benchmark:framework
 ```
@@ -644,6 +795,14 @@ The focused reactive command includes the repaired compiled keyed-list DOM gate:
 ```sh
 npm run benchmark:reactive
 ```
+
+To isolate collection mutation costs, run `npm run benchmark:collections`. It measures ordinary
+delete/reinsert, committed transactions, and aborted transactions for 1,000- and 10,000-entry Maps
+and Sets. Setup and result verification are outside timing. Each case uses three warmups and ten
+samples of 100 operations, without observers. Rollback includes the throw/catch cost and verifies
+restored insertion order. Transactional deletion records ordering anchors in linear time; ordinary
+deletion retains its constant-time path. This microbenchmark is a cost diagnostic, not an application
+throughput estimate or a historical speedup claim.
 
 The reactive benchmark also measures scope-owned deep-chain settlement and an equal-result diamond.
 The chain guards affected-graph traversal cost; the diamond verifies that equality prevents
@@ -744,6 +903,12 @@ retains the empty-queue counter-metrics and the compiler-traversal experiment's 
 | SSR                  | Synchronous trees, CPU-bound async work, I/O-bound async siblings, and progressive first-chunk/completion timing.                                                              |
 | Server protocol      | Ordinary operation requests and streaming batches with representative payloads and compressed/uncompressed sizes.                                                              |
 | Browser              | Every client/component scenario above in the current Playwright Chromium build, with a new browser process per sample.                                                         |
+
+Server GC telemetry reports unavailable values when the runtime does not advertise `gc` observation
+support. Null counts are not zero collections, and comparative GC metrics are omitted when any
+participant in the lane lacks observations. Native Bun inspector measurements are separate diagnostics
+because enabling the inspector affects throughput. See the
+[native GC investigation](performance-baselines/bun-native-gc-ssr-2026-09-11.md).
 
 The framework comparison additionally records FCP, LCP, long-task count and duration, total
 blocking time, element/total/comment/text DOM size at semantic readiness, post-GC JavaScript and
@@ -909,9 +1074,11 @@ ownership while avoiding an extra dependency subscription on every client naviga
 Successful compiled scalar hydration emits no opening or closing sentinels when static markup proves
 the text boundary. When one scalar is adjacent only to authored static text, the compiler projects
 that text into the same focused operation: the immutable wire retains the prefix and suffix while
-the expression keeps its existing reader or indexed operand. Runs containing several expressions
-retain their independent operations and fallback sentinels rather than transferring computation
-ownership to a shared interpreter. Ambiguous adjacent text releases its fallback sentinels after
+the expression keeps its existing reader or indexed operand. When several scalar expressions and
+static text fill an intrinsic, the server omits their sentinels. Initial client bindings collect
+the expected values once; adoption validates the complete text and uses `Text.splitText()` to
+retain independent reactive nodes. Mixed structural content retains its boundary strategy.
+Ambiguous adjacent text releases its fallback sentinels after
 transferring ownership to the claimed `Text` node. Structural child markers remain when a later sibling requires
 an explicit variable-width boundary. A native component emitted directly by a generated component
 slot uses that slot's structural delimiters, or the parent end for a final keyed slot, instead of
@@ -954,23 +1121,12 @@ validates the tuple shape, then expands those indexes against the receiving comp
 contract; duplicate, negative, non-integer, or out-of-contract indexes fail closed. This avoids
 repeating state-path strings in every response without making the wire format an authority source.
 
-For `renderToStringAsync()` and `renderToHydratableStringAsync()` roots whose complete local
-component graph has direct server writers, the compiler selects a narrower entry point as well. The
-hydratable lane retains resumption capture and the hydration publication while avoiding the
-universal async VNode dispatcher. Its serializer consumes the generated
-program segments directly and coordinates only the direct component slots named by the graph. The
-selection is transitive and conservative: imported or generic descendants, client boundaries,
-general child slots, root-replacing output options, and React-markup mode keep the universal async
-VNode dispatcher. A dynamic marker flag remains on the closed marked entrypoint because marker
-publication is already a request-context decision and cannot change the rendered graph. Production
-bundle checks reject that dispatcher when the server load fixture qualifies
-for the closed lane. When a private graph is rendered only by a local call with literal
-`markers: false`, the selected publisher returns the generated HTML directly and the bundle check
-also rejects component-marker, hydration-payload, and resumption-envelope formatters. Exported
-components and calls with non-empty output extensions retain the corresponding general capability.
-Because every selected closed root is compiler-produced and cannot have a root-replacing output
-extension, its hot path omits plugin-host output processing in marked, unmarked, and hydratable
-modes. Unproven and externally transformed values continue through the general validation boundary.
+String and stream rendering now share one component executor and traversal. Compiler-selected
+root helpers preserve marker proofs while returning promises through that same engine. Completed
+tasks introduce no internal await; pending dependencies and asynchronous cleanup retain explicit
+ownership. Earlier measurements of separate synchronous and asynchronous engines describe their
+captured builds, not the current implementation. The [shared-renderer investigation](performance-baselines/unified-ssr-2026-09-09.md) records its
+own before/after captures rather than changing those historical baselines.
 
 When a closed marked graph contains an isomorphic continuation, its server definition carries the
 prepared resumption publication kind and authored component name. The direct publisher feeds those
@@ -1029,22 +1185,22 @@ observation retained by callbacks that read state after disposing their scope. T
 synthetic CPU gains from paired browser timing and records the descriptor, mutation-version, and
 initial-collection allocation candidates that were not integrated.
 
-The public charts use the [post-restart capture](performance-baselines/post-restart-2026-09-07.md),
-with scheduled arrivals subsequently refreshed from the first same-plan diagnostic rerun.
+The [post-restart capture](performance-baselines/post-restart-2026-09-07.md) supplied an earlier
+public baseline, with scheduled arrivals subsequently refreshed from a same-plan diagnostic rerun.
 The [subsequent concurrency refresh](performance-baselines/concurrency-refresh-2026-09-07.md)
-updates the preloaded concurrency curve and its headline using the current build. Other metric
-groups retain their separately dated captures.
+then updated its preloaded concurrency curve while retaining other metric groups' capture dates.
+The [post-audit refresh](performance-baselines/post-audit-2026-09-07.md) now supplies the public
+browser, heap, Node, and native Bun charts, including every sustained-capacity lane.
 The [runtime upgrade verification](performance-baselines/runtime-upgrade-2026-09-07.md) separately
 compares old and current Node/Bun releases, records compatibility fixes, and leaves the framework
 comparison charts unchanged.
-It refreshes all five frameworks' browser, heap, sequential, burst, server-memory and payload data,
-plus the existing eXact/React sustained-capacity lanes. Scheduled-arrival tables now retain explicit
+Scheduled-arrival tables retain explicit
 request-error counts and rates; concurrency capacity captures still require zero request errors.
 
 The [arrival-error investigation](performance-baselines/arrival-errors-2026-09-07.md) records
 the unrecoverable historical error codes, three diagnostic sequences, and the driver and Node
-adapter logging fixes. It identifies the error-free rerun now used for the scheduled-arrival
-charts; the original error counts remain in the historical evidence.
+adapter logging fixes. Its error-free rerun supplied the earlier scheduled-arrival charts;
+the original error counts remain in the historical evidence.
 
 The [native Bun comparison](performance-baselines/native-bun-2026-09-07.md) replaces the peers'
 compatibility serving with React's Bun streaming renderer, SvelteKit's Bun adapter, and Nitro's Bun

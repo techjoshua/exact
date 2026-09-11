@@ -1,0 +1,391 @@
+{
+  "renderer": {
+    "candidates-node.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 19.284345833333326,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "prepared-fields",
+        "microseconds": 19.084202500000007,
+        "rounds": 12
+      }
+    ],
+    "candidates-bun.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 17.995918333333336,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "prepared-fields",
+        "microseconds": 18.555544999999984,
+        "rounds": 12
+      }
+    ],
+    "projectors-node.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 13.974800833333326,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "lightweight-projectors",
+        "microseconds": 13.780484166666662,
+        "rounds": 12
+      }
+    ],
+    "projectors-bun.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 14.468750833333337,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "lightweight-projectors",
+        "microseconds": 14.275890000000002,
+        "rounds": 12
+      }
+    ],
+    "diagnostics-node.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 14.020346666666663,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "split-diagnostics",
+        "microseconds": 13.824659166666665,
+        "rounds": 12
+      }
+    ],
+    "diagnostics-bun.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 14.568467499999999,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "split-diagnostics",
+        "microseconds": 14.386715000000008,
+        "rounds": 12
+      }
+    ],
+    "text-node.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 14.0221175,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "ascii-text",
+        "microseconds": 13.8913,
+        "rounds": 12
+      }
+    ],
+    "text-bun.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 14.923645833333326,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "ascii-text",
+        "microseconds": 14.799269166666663,
+        "rounds": 12
+      }
+    ],
+    "attributes-node.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 14.0915125,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "ascii-attributes",
+        "microseconds": 14.188441666666677,
+        "rounds": 12
+      }
+    ],
+    "attributes-bun.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 14.152944999999997,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "ascii-attributes",
+        "microseconds": 14.660516666666668,
+        "rounds": 12
+      }
+    ],
+    "literals-node.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 17.339912500000004,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "literal-projectors",
+        "microseconds": 16.760229166666665,
+        "rounds": 12
+      },
+      {
+        "count": 20,
+        "variant": "original-entry",
+        "microseconds": 42.199662500000024,
+        "rounds": 12
+      },
+      {
+        "count": 20,
+        "variant": "literal-projectors",
+        "microseconds": 42.56905000000001,
+        "rounds": 12
+      },
+      {
+        "count": 200,
+        "variant": "original-entry",
+        "microseconds": 334.9309875000001,
+        "rounds": 12
+      },
+      {
+        "count": 200,
+        "variant": "literal-projectors",
+        "microseconds": 338.7841625000001,
+        "rounds": 12
+      }
+    ],
+    "literals-bun.json": [
+      {
+        "count": 3,
+        "variant": "original-entry",
+        "microseconds": 15.24222499999999,
+        "rounds": 12
+      },
+      {
+        "count": 3,
+        "variant": "literal-projectors",
+        "microseconds": 15.058270833333333,
+        "rounds": 12
+      },
+      {
+        "count": 20,
+        "variant": "original-entry",
+        "microseconds": 41.258675000000025,
+        "rounds": 12
+      },
+      {
+        "count": 20,
+        "variant": "literal-projectors",
+        "microseconds": 41.27780416666667,
+        "rounds": 12
+      },
+      {
+        "count": 200,
+        "variant": "original-entry",
+        "microseconds": 372.2535083333332,
+        "rounds": 12
+      },
+      {
+        "count": 200,
+        "variant": "literal-projectors",
+        "microseconds": 377.4443041666666,
+        "rounds": 12
+      }
+    ]
+  },
+  "http": [
+    {
+      "payloadBytes": 0,
+      "variant": "control",
+      "name": "eXact",
+      "concurrency": 32,
+      "rate": null,
+      "rps": 10888.694880884837,
+      "requestErrors": 0,
+      "requestErrorPercent": 0,
+      "capacityMissPercent": 0,
+      "lagMisses": 0,
+      "deadlineMisses": 0,
+      "p99Min": 4.459,
+      "p99Max": 10.823,
+      "populations": [
+        {
+          "population": 0,
+          "rps": 10426.138486697868
+        },
+        {
+          "population": 1,
+          "rps": 11351.137112582946
+        }
+      ]
+    },
+    {
+      "payloadBytes": 0,
+      "variant": "encoded",
+      "name": "eXact",
+      "concurrency": 32,
+      "rate": null,
+      "rps": 10356.111669677017,
+      "requestErrors": 0,
+      "requestErrorPercent": 0,
+      "capacityMissPercent": 0,
+      "lagMisses": 0,
+      "deadlineMisses": 0,
+      "p99Min": 4.767,
+      "p99Max": 11.279,
+      "populations": [
+        {
+          "population": 0,
+          "rps": 10247.788897313269
+        },
+        {
+          "population": 1,
+          "rps": 10464.437984394439
+        }
+      ]
+    },
+    {
+      "payloadBytes": 0,
+      "variant": "react",
+      "name": "React",
+      "concurrency": 32,
+      "rate": null,
+      "rps": 11891.939298295418,
+      "requestErrors": 0,
+      "requestErrorPercent": 0,
+      "capacityMissPercent": 0,
+      "lagMisses": 0,
+      "deadlineMisses": 0,
+      "p99Min": 3.657,
+      "p99Max": 11.103,
+      "populations": [
+        {
+          "population": 0,
+          "rps": 11957.652688643786
+        },
+        {
+          "population": 1,
+          "rps": 11826.223576073537
+        }
+      ]
+    },
+    {
+      "payloadBytes": 65536,
+      "variant": "control",
+      "name": "eXact",
+      "concurrency": 32,
+      "rate": null,
+      "rps": 7394.826689788123,
+      "requestErrors": 0,
+      "requestErrorPercent": 0,
+      "capacityMissPercent": 0,
+      "lagMisses": 0,
+      "deadlineMisses": 0,
+      "p99Min": 7.531,
+      "p99Max": 7.899,
+      "populations": [
+        {
+          "population": 0,
+          "rps": 7286.40752015411
+        },
+        {
+          "population": 1,
+          "rps": 7503.2395453211
+        }
+      ]
+    },
+    {
+      "payloadBytes": 65536,
+      "variant": "encoded",
+      "name": "eXact",
+      "concurrency": 32,
+      "rate": null,
+      "rps": 6997.948419402691,
+      "requestErrors": 0,
+      "requestErrorPercent": 0,
+      "capacityMissPercent": 0,
+      "lagMisses": 0,
+      "deadlineMisses": 0,
+      "p99Min": 7.639,
+      "p99Max": 8.011,
+      "populations": [
+        {
+          "population": 0,
+          "rps": 6849.266664545272
+        },
+        {
+          "population": 1,
+          "rps": 7146.564452849735
+        }
+      ]
+    },
+    {
+      "payloadBytes": 65536,
+      "variant": "react",
+      "name": "React",
+      "concurrency": 32,
+      "rate": null,
+      "rps": 8147.326314480482,
+      "requestErrors": 0,
+      "requestErrorPercent": 0,
+      "capacityMissPercent": 0,
+      "lagMisses": 0,
+      "deadlineMisses": 0,
+      "p99Min": 7.247,
+      "p99Max": 7.411,
+      "populations": [
+        {
+          "population": 0,
+          "rps": 8234.276683631408
+        },
+        {
+          "population": 1,
+          "rps": 8060.381058692883
+        }
+      ]
+    }
+  ],
+  "environment": {
+    "platform": "win32",
+    "platformRelease": "10.0.26200",
+    "cpu": {
+      "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics     ",
+      "logicalCount": 16
+    },
+    "totalMemoryBytes": 27704659968,
+    "runtimes": {
+      "node": "v26.8.1",
+      "bun": "1.4.2"
+    },
+    "workerNetworkEnvironment": {
+      "node": {},
+      "bun": {
+        "BUN_CONFIG_MAX_HTTP_REQUESTS": "64"
+      }
+    }
+  }
+}

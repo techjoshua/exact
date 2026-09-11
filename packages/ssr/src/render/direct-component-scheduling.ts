@@ -9,8 +9,10 @@ import {
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
 import type { SsrContext } from '../types.js';
+import { AsyncSsrScheduler } from './async-scheduler.js';
 import { prepareComponentProps } from './component-props.js';
-import { drainTasks } from './context.js';
+import { contextPublicationDependencies } from './context-publication-dependencies.js';
+import { awaitWithAbort } from './context.js';
 import { readDirectSsrContent } from './direct-component-content.js';
 import type {
 	DirectIssuedRender,
@@ -29,7 +31,7 @@ import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js'
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 import {
 	readServerComponentReference,
-	receiptExecutionBlueprint,
+	receiptExecutionContract,
 	serverComponentProps,
 	type ServerComponentReference
 } from './server-component-reference.js';
@@ -66,25 +68,31 @@ export function createDirectScheduledSsrComponent(
 
 /**
  * Issues compiler-proven scheduled siblings before their serial HTML positions are written.
+ * Accepts ordered program values directly so callers need not allocate a filtered reference list.
  * The returned boundary releases only frames that later rendering did not consume.
  */
 export function prepareDirectScheduledSsrComponentReferences(
 	context: SsrContext,
-	references: readonly ServerComponentReference[],
+	values: readonly (ServerComponentReference | string | readonly Child[])[],
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
 ): DirectScheduledPreparation | undefined {
-	const prepared: PreparedDirectScheduledSsrComponent[] = [];
-	for (const reference of references) {
+	let prepared: PreparedDirectScheduledSsrComponent[] | undefined;
+	for (const value of values) {
+		if (typeof value === 'string' || Array.isArray(value)) continue;
+		// Array.isArray does not narrow the readonly array member of this internal union.
+		const reference = value as ServerComponentReference;
 		if (context.preparedDirectScheduledComponents?.has(reference)) continue;
 		let created:
 			| DirectScheduledSsrComponent
 			| Promise<DirectScheduledSsrComponent | undefined>
 			| undefined;
 		try {
+			const contract = receiptExecutionContract(reference);
+			if (contract.artifact.execution?.classification !== 'scheduled') continue;
 			created = createDirectScheduledSsrComponent(
 				context,
-				receiptExecutionBlueprint(reference),
+				{ componentId: contract.artifact.id, contract },
 				serverComponentProps(reference),
 				parent,
 				options
@@ -94,16 +102,15 @@ export function prepareDirectScheduledSsrComponentReferences(
 		}
 		if (!created) continue;
 		const record: PreparedDirectScheduledSsrComponent = {
-			component: Promise.resolve(created),
+			component: created,
 			consumed: false,
 			reference
 		};
-		prepared.push(record);
+		(prepared ??= []).push(record);
 		(context.preparedDirectScheduledComponents ??= new WeakMap()).set(reference, record);
 	}
-	return prepared.length
-		? { [Symbol.asyncDispose]: () => disposePrepared(context, prepared) }
-		: undefined;
+	const owned = prepared;
+	return owned ? { [Symbol.asyncDispose]: () => disposePrepared(context, owned) } : undefined;
 }
 
 function constructDirectScheduledSsrComponent(
@@ -117,18 +124,40 @@ function constructDirectScheduledSsrComponent(
 	const frame = createSelectedDirectSsrFrame(context, blueprint.contract, parent);
 	const owner = selectedDirectSsrOwner(blueprint.contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
-	const pending = new Set<Promise<unknown>>();
+	let renderedVersion = -1;
+	const drain = (pass = 0): boolean | Promise<boolean> => {
+		const pending = execution.blockingWork();
+		if (!pending) return renderedVersion !== execution.blockingVersion;
+		if (pass === context.maxTaskPasses)
+			throw new Error(`SSR task drain exceeded ${context.maxTaskPasses} passes`);
+		return awaitWithAbort(pending, options.signal, options.taskDeadline).then(() =>
+			drain(pass + 1)
+		);
+	};
 	const execution: ServerComponentExecutionFrame = createServerComponentExecutionFrame(frame, {
-		observe(settlement) {
-			const observed = Promise.resolve(settlement);
-			void observed.catch(() => undefined);
-			pending.add(observed);
-		},
-		...(context.asyncFrame
-			? {}
-			: {
-					runTask: <T>(work: () => Promise<T>) => context.asyncScheduler!.run(work, options.signal)
-				})
+		...(server.streamingDocument
+			? {
+					prepareOutput<T>(read: () => T): T | Promise<T> {
+						const pending =
+							options.streamingScheduledComponents && !options.settleDocumentShell
+								? undefined
+								: drain();
+						const complete = () => {
+							renderedVersion = execution.blockingVersion;
+							return execution.run(() => inComponentDomain(context, read));
+						};
+						return pending instanceof Promise ? pending.then(complete) : complete();
+					}
+				}
+			: {}),
+		publicationDependencies: options.resumptionCapture
+			? contextPublicationDependencies(blueprint.contract)
+			: undefined,
+		runTask: <T>(work: () => Promise<T>) =>
+			(context.asyncScheduler ??= new AsyncSsrScheduler(options.maxAsyncSsrConcurrency)).run(
+				work,
+				options.signal
+			)
 	});
 	let render: unknown;
 	try {
@@ -156,6 +185,7 @@ function constructDirectScheduledSsrComponent(
 			props
 		},
 		render: () => {
+			renderedVersion = execution.blockingVersion;
 			const started = lifecycle ? performanceNow() : 0;
 			const issued = renderIssuedServerComponentChildren(
 				context,
@@ -166,15 +196,8 @@ function constructDirectScheduledSsrComponent(
 			lifecycle?.rendered(frame, performanceNow() - started);
 			return issued;
 		},
-		async drain() {
-			if (pending.size === 0) return false;
-			await drainObservedBlockingTasks(
-				pending,
-				context.maxTaskPasses,
-				options.signal,
-				options.taskDeadline
-			);
-			return true;
+		drain() {
+			return drain();
 		},
 		async [Symbol.asyncDispose]() {
 			let primary: unknown = noPrimaryFailure;
@@ -195,27 +218,6 @@ function constructDirectScheduledSsrComponent(
 			}
 		}
 	});
-}
-
-/**
- * Drains and acknowledges every blocking generation observed before the current render completed.
- * Settled promises remain queued until this point so a task that finishes while HTML is being
- * serialized cannot publish state without forcing a fresh render pass.
- */
-async function drainObservedBlockingTasks(
-	pending: Set<Promise<unknown>>,
-	maxPasses: number,
-	signal?: AbortSignal,
-	deadline?: number
-): Promise<void> {
-	const acknowledged = [...pending];
-	for (const settlement of acknowledged) pending.delete(settlement);
-	const draining = new Set<Promise<unknown>>();
-	for (const settlement of acknowledged) {
-		const tracked = settlement.finally(() => draining.delete(tracked));
-		draining.add(tracked);
-	}
-	await drainTasks(draining, maxPasses, signal, deadline);
 }
 
 async function disposeFailedDirectScheduledConstruction(
@@ -247,21 +249,11 @@ export function disposeDirectSsrLifetime(
 	return lifetime.lifecycle.dispose(lifetime.frame, reason);
 }
 
-/** Starts direct cleanup from a synchronous renderer and observes asynchronous disposal failures. */
-export function disposeDirectSsrLifetimeSync(
-	lifetime: DirectSsrComponentLifetime,
-	reason: string
-): void {
-	const disposal = disposeDirectSsrLifetime(lifetime, reason);
-	if (disposal && typeof (disposal as PromiseLike<void>).then === 'function')
-		void Promise.resolve(disposal).catch(() => undefined);
-}
-
 /** Claims one frame issued when compiler-generated parent render code created this component. */
 export function takePreparedDirectScheduledSsrComponent(
 	context: SsrContext,
 	component: object
-): Promise<DirectScheduledSsrComponent | undefined> | undefined {
+): DirectScheduledSsrComponent | Promise<DirectScheduledSsrComponent | undefined> | undefined {
 	const prepared = context.preparedDirectScheduledComponents?.get(component);
 	if (!prepared || prepared.consumed) return undefined;
 	(prepared as { consumed: boolean }).consumed = true;

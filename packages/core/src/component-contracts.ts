@@ -184,8 +184,8 @@ export type {
 
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
-	/** Target-discriminated component contract. Version-2 definition records are rejected. */
-	version: 3;
+	/** Target-discriminated component contract for the initial public ABI. */
+	version: 1;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	role: 'client' | 'render' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];

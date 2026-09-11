@@ -1,23 +1,24 @@
-import { createServerDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { Fragment } from '@exactjs/core';
+import { createServerDynamicComponent } from '@exactjs/core/runtime/dynamic-components';
 import { describe, expect, it } from 'vitest';
-import { renderToString, renderToStringAsync } from './index.js';
+import { renderToStream, renderToString } from './index.js';
+import { readStreamText } from './test-support/streams.js';
 import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr dynamic component boundaries', () => {
 	it('publishes an inert marker without reading the client resolver', async () => {
 		const vnode = createServerDynamicComponent('fixture:dynamic');
-		const sync = renderToString(vnode);
-		const async = await renderToStringAsync(vnode);
-		expect(sync.html).toContain('exact:dynamic:fixture:dynamic');
-		expect(async.html).toBe(sync.html);
+		const result = await renderToString(vnode);
+		const streamed = await readStreamText(renderToStream(vnode));
+		expect(result.html).toContain('exact:dynamic:fixture:dynamic');
+		expect(streamed).toBe(result.html);
 	});
 
-	it('emits only authorized immutable selected-artifact hints with a request bound', () => {
+	it('emits only authorized immutable selected-artifact hints with a request bound', async () => {
 		const early: (readonly string[])[] = [];
 		const first = createServerDynamicComponent('fixture:first');
 		const second = createServerDynamicComponent('fixture:second');
-		const result = renderToString(createOperation(Fragment, null, first, first, second), {
+		const result = await renderToString(createOperation(Fragment, null, first, first, second), {
 			maxDynamicComponentPreloads: 1,
 			dynamicComponentArtifacts: {
 				'fixture:first': {

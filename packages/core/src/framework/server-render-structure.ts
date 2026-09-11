@@ -36,6 +36,7 @@ export {
 } from '../render-program.js';
 export {
 	createPreparedServerComponentReference,
+	createPreparedServerComponentReferenceFromPlainProps,
 	readPreparedServerComponentReference,
 	type ExactPreparedServerComponentReference
 } from '../component-abi/receipt.js';

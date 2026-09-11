@@ -1,0 +1,11 @@
+eXact
+Copyright 2026 Joshua Friesen
+
+The eXact-owned source code and documentation are licensed under the Apache
+License, Version 2.0. Third-party code and data retain their respective copyright
+notices and license terms.
+
+The native compiler incorporates Microsoft's TypeScript compiler. Its platform
+packages include LICENSE.typescript-go and NOTICE.typescript with the upstream
+license and third-party attribution. Unicode CLDR data used by @exactjs/intl
+retains the notice in LICENSE.cldr.

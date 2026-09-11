@@ -1,3 +1,4 @@
+import { ownRegistryEntry } from './registry-entry.js';
 import { hasOnlyKeys, isJsonSafe } from './protocol.js';
 import {
 	isSafeProtocolKey as isSafeObjectKey,
@@ -18,8 +19,8 @@ export function isExecutorAllowed(
 	input: ExactInvocationRequest,
 	contract: ExactExecutorContract
 ): boolean {
-	if (input.type === 'invoke') return Boolean(contract.invocations[input.id]);
-	if (input.type === 'refresh') return Boolean(contract.boundaries[input.id]);
+	if (input.type === 'invoke') return Boolean(ownRegistryEntry(contract.invocations, input.id));
+	if (input.type === 'refresh') return Boolean(ownRegistryEntry(contract.boundaries, input.id));
 	return false;
 }
 
@@ -128,14 +129,14 @@ export function boundaryHintsAllowed(
 ): boolean {
 	if (!input.boundaryHtmls) return true;
 	if (input.type === 'invoke') {
-		const allowed = contract.invocations[input.id]?.boundaries;
+		const allowed = ownRegistryEntry(contract.invocations, input.id)?.boundaries;
 		if (allowed) {
 			const allowedSet = new Set(allowed);
 			return Object.keys(input.boundaryHtmls).every((id) => allowedSet.has(id));
 		}
 	}
 	for (const id of Object.keys(input.boundaryHtmls)) {
-		if (!contract.boundaries[id]) return false;
+		if (!ownRegistryEntry(contract.boundaries, id)) return false;
 	}
 	return true;
 }

@@ -9,16 +9,42 @@ import { defineExactHydrationRegistration, hydrate, readExactHydrationConfig } f
 import { resolveHydrateOptions } from './config.js';
 import {
 	documentRoot as serverDocumentRoot,
+	independentSiblingDocument as serverIndependentSiblingDocument,
+	documentWithAssets as serverDocumentWithAssets,
 	profiledRoot as serverProfiledRoot
 } from './test-support/bootstrap.fixtures.js?exact-target=server';
 import {
 	documentRoot as clientDocumentRoot,
+	independentSiblingDocument as clientIndependentSiblingDocument,
+	documentWithAssets as clientDocumentWithAssets,
 	profiledRoot as clientProfiledRoot
 } from './test-support/bootstrap.fixtures.js';
 
-it('reports aggregate hydration timing without retaining diagnostic phase timers', () => {
+it('adopts independent document siblings and updates their parent-owned props', async () => {
+	const rendered = await renderToHydratableString(serverIndependentSiblingDocument);
+	document.open();
+	document.write(rendered.htmlWithHydration);
+	document.close();
+	const buttons = [...document.querySelectorAll('button')];
+	const client = hydrate(clientIndependentSiblingDocument, document, { onMismatch: 'throw' });
+	try {
+		expect([...document.querySelectorAll('button')]).toEqual(buttons);
+		buttons[0]!.click();
+		flushSync();
+		expect(buttons[0]!.textContent).toBe('Item 2');
+		expect(buttons[1]!.textContent).toBe('Item 10');
+		expect(document.querySelector('button')).toBe(buttons[0]);
+	} finally {
+		client.dispose();
+		document.open();
+		document.write('<!doctype html><html><head></head><body></body></html>');
+		document.close();
+	}
+});
+
+it('reports aggregate hydration timing without retaining diagnostic phase timers', async () => {
 	const container = document.createElement('div');
-	container.innerHTML = renderToHydratableString(serverProfiledRoot).htmlWithHydration;
+	container.innerHTML = (await renderToHydratableString(serverProfiledRoot)).htmlWithHydration;
 	const events: Array<{ subsystem: string; phase: string }> = [];
 
 	hydrate(clientProfiledRoot, container, { onProfile: (event) => events.push(event) });
@@ -32,8 +58,8 @@ it('reports aggregate hydration timing without retaining diagnostic phase timers
 	expect(events.map((event) => event.phase)).toEqual(['hydrate']);
 });
 
-it('adopts a complete authored document while retaining framework-owned body augmentation', () => {
-	const rendered = renderToHydratableString(serverDocumentRoot, {
+it('adopts a complete authored document while retaining framework-owned body augmentation', async () => {
+	const rendered = await renderToHydratableString(serverDocumentRoot, {
 		endpoint: '/__exact'
 	});
 	document.open();
@@ -57,6 +83,57 @@ it('adopts a complete authored document while retaining framework-owned body aug
 	document.write('<!doctype html><html><head></head><body></body></html>');
 	document.close();
 });
+
+it.each(['string', 'stream'])(
+	'adopts native head lists and nested resumable components in an authored document (%s)',
+	async (mode) => {
+		const { renderToHydratableString, renderToHydratableProgressiveHtmlStream } = await import(
+			'@exactjs/ssr'
+		);
+		const options = { publishRootProps: true };
+		let html = '';
+		if (mode === 'stream') {
+			const reader = renderToHydratableProgressiveHtmlStream(
+				serverDocumentWithAssets,
+				options
+			).getReader();
+			const decoder = new TextDecoder();
+			try {
+				while (true) {
+					const next = await reader.read();
+					if (next.done) break;
+					html += decoder.decode(next.value, { stream: true });
+				}
+				html += decoder.decode();
+			} finally {
+				reader.releaseLock();
+			}
+		} else
+			html = (await renderToHydratableString(serverDocumentWithAssets, options))
+				.htmlWithHydration;
+		document.open();
+		document.write(html);
+		document.close();
+		const links = [...document.querySelectorAll('link')];
+		const button = document.querySelector('button')!;
+		let client: ReturnType<typeof hydrate> | undefined;
+		try {
+			expect(button.textContent).toBe('Nested 4');
+			expect(document.querySelector('[data-exact-client-resumption]')).toBeNull();
+			client = hydrate(clientDocumentWithAssets, document, { onMismatch: 'throw' });
+			expect([...document.querySelectorAll('link')]).toEqual(links);
+			expect(document.querySelector('button')).toBe(button);
+			button.click();
+			flushSync();
+			expect(button.textContent).toBe('Nested 5');
+		} finally {
+			client?.dispose();
+			document.open();
+			document.write('<!doctype html><html><head></head><body></body></html>');
+			document.close();
+		}
+	}
+);
 
 it('decodes keyed hydration collection envelopes into ordinary arrays', () => {
 	const records = [

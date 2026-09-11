@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 type islandValueCapture struct {
@@ -139,7 +139,7 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 	constructor := lowering.names.constructRenderComponent
 	role := "client-island"
 	contract := contractObject(factory, true,
-		contractProperty(factory, "version", contractNumber(factory, 3)),
+		contractProperty(factory, "version", contractNumber(factory, componentContractVersion)),
 		contractProperty(factory, "placement", contractString(factory, "client")),
 		contractProperty(factory, "role", contractString(factory, "client")),
 		contractProperty(factory, "implementations", contractArray(factory,

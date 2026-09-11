@@ -33,7 +33,7 @@ export const proxySources = new WeakMap<object, Set<ReactiveRef>>();
 /** Provides the canonical reactive raw objects value. */
 export const reactiveRawObjects = new WeakSet<object>();
 interface ListKeyRegistration {
-	key: (item: unknown) => string;
+	key: (item: unknown) => string | number;
 	signature: string;
 	site: string;
 	references: number;

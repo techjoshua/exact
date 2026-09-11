@@ -37,7 +37,7 @@ const buildIntegrations: Integration[] = [
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-plugin',
 		coverage:
-			'Native Bun.build transforms, target conditions, source maps, and plugin composition, exercised in Bun CI.',
+			'Native Bun.build transforms, target conditions, source maps, and plugin composition.',
 		application: 'Add @exactjs/bun-adapter separately when Bun also serves the application.'
 	},
 	{
@@ -92,16 +92,14 @@ const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Hapi 21',
 		package: '@exactjs/hapi-adapter',
-		coverage:
-			'Real Hapi registration tests, route limits, streaming conversion, and disconnect handling.',
+		coverage: 'Hapi registration, route limits, streaming conversion, and disconnect handling.',
 		application:
 			'The plugin mounts the eXact endpoint; application GET routes and assets remain yours.'
 	},
 	{
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-adapter',
-		coverage:
-			'Bun.serve handler with native Blob-backed SSR output and release-gating integration coverage.',
+		coverage: 'Bun.serve handler with native text and streaming SSR output.',
 		application: 'Add @exactjs/bun-plugin separately when Bun also performs the build.'
 	},
 	{

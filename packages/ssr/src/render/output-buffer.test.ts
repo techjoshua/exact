@@ -2,6 +2,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { SsrOutputBuffer, utf8ByteLength } from './output-buffer.js';
 
 describe('SSR output buffering', () => {
+	it('matches native UTF-8 length and limits at every split in mixed text', () => {
+		const value = `${'a'.repeat(64)}\ud800x\ud83d\ude80\udc00\u00e9\u65e5\ud800`;
+		const expected = new TextEncoder().encode(value).byteLength;
+		for (let split = 0; split <= value.length; split++) {
+			const output = new SsrOutputBuffer(expected);
+			output.append(value.slice(0, split));
+			output.append(value.slice(split));
+			expect(output.encodedBytes()).toBe(expected);
+			const bounded = new SsrOutputBuffer(expected - 1);
+			expect(() => {
+				bounded.append(value.slice(0, split));
+				bounded.append(value.slice(split));
+				bounded.finish();
+			}).toThrow('output exceeds');
+		}
+	});
+
 	it('counts UTF-8 without allocating an encoded copy', () => {
 		expect(utf8ByteLength('plain')).toBe(5);
 		expect(utf8ByteLength('café')).toBe(5);

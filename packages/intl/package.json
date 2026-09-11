@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Enhancement-first internationalization contracts and runtime for eXact",
 	"type": "module",
 	"files": [
@@ -9,7 +9,9 @@
 		"LICENSE.cldr",
 		"capability.d.ts",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -64,7 +66,7 @@
 		]
 	},
 	"exactComponentLibrary": {
-		"protocol": 2,
+		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	},
 	"exact": {
@@ -89,15 +91,15 @@
 		}
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.1.0",
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/language-extension-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/component-library": "^0.5.0",
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/language-extension-api": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"peerDependencies": {
-		"@exactjs/intl-analyzer": "^0.1.0"
+		"@exactjs/intl-analyzer": "^0.5.0"
 	},
 	"peerDependenciesMeta": {
 		"@exactjs/intl-analyzer": {
@@ -117,5 +119,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/intl"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

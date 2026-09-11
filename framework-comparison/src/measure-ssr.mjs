@@ -1,3 +1,4 @@
+import { ssrRenderMode, supportsSsrRenderMode } from './ssr-render-mode.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -68,13 +69,14 @@ const exactBeforeArtifacts = {
 };
 const retentionBatches = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCHES, 5);
 const retentionBatchSize = positiveInteger(process.env.COMPARISON_SSR_RETENTION_BATCH_SIZE, 50);
+const renderMode = ssrRenderMode();
 const participants = [
 	{ id: 'exact', artifacts: { node: 'dist-server', bun: 'dist-bun-server' } },
 	{ id: 'react', artifacts: { node: 'dist-server', bun: 'dist-bun-server' } },
 	{ id: 'sveltekit', artifacts: { node: 'build/server', bun: 'build-bun' } },
 	{ id: 'nuxt', artifacts: { node: '.output/server', bun: '.output-bun/server' } },
 	{ id: 'tanstack-start', artifacts: { node: '.output/server', bun: '.output-bun/server' } }
-];
+].filter((participant) => supportsSsrRenderMode(participant.id, renderMode));
 const runtimes = availableSsrRuntimes();
 const participantMetadata = await Promise.all(
 	participants.map(async (participant) =>
@@ -144,6 +146,7 @@ try {
 		environment: ssrEnvironmentMetadata(runtimes),
 		harness: {
 			throughputMethod: 'deferred-validation-aggregate-v2',
+			renderMode,
 			sampleCount,
 			warmupCount,
 			startupSampleCount,

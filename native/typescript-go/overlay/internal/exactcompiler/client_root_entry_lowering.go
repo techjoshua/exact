@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // lowerCompiledClientRootCalls redirects compiler-issued component roots to narrow physical
 // mount and hydration entries. Public calls with any other value retain their authored API.

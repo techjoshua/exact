@@ -1,3 +1,4 @@
+import { componentContractVersion } from '../component/contract-versions.js';
 import type {
 	ExactComponentContract,
 	ExactComponentExecutionContract,
@@ -43,7 +44,7 @@ export function isExactComponentContract(
 			'execution',
 			'artifact'
 		]) &&
-		value.version === 3 &&
+		value.version === componentContractVersion &&
 		(value.placement === 'client' ||
 			value.placement === 'server' ||
 			value.placement === 'isomorphic' ||

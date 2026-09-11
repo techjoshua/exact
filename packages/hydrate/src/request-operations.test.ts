@@ -91,10 +91,10 @@ describe('@exactjs/hydrate request-operations', () => {
 		expect(container.querySelector('circle')?.namespaceURI).toBe('http://www.w3.org/2000/svg');
 	});
 
-	it('restores same-signature form controls by compiler identity after repair reorders them', () => {
+	it('restores same-signature form controls by compiler identity after repair reorders them', async () => {
 		const container = document.createElement('div');
 		document.body.appendChild(container);
-		const rendered = renderToHydratableString(serverReorderedControlsRoot(false));
+		const rendered = await renderToHydratableString(serverReorderedControlsRoot(false));
 		container.innerHTML = rendered.html;
 		try {
 			const edited = container.querySelector('[data-exact-id=b]') as HTMLInputElement;
@@ -134,9 +134,9 @@ describe('@exactjs/hydrate request-operations', () => {
 		expect(container.textContent).toBe('Old');
 	});
 
-	it('does not duplicate marker-bearing SSR markup while creating the client tree', () => {
+	it('does not duplicate marker-bearing SSR markup while creating the client tree', async () => {
 		const root = document.createElement('div');
-		const rendered = renderToHydratableString(serverRequestParagraphRoot('server'));
+		const rendered = await renderToHydratableString(serverRequestParagraphRoot('server'));
 		root.innerHTML = rendered.html;
 		hydrate(requestParagraphRoot('client'), root, {
 			logger: noopLogger,

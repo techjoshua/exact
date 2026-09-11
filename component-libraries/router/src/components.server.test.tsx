@@ -4,7 +4,7 @@ import {
 	type RequestResponseState
 } from '@exactjs/request';
 import { installNodeRequestContext } from '@exactjs/request/node';
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { Navigate, Router } from './components.js';
 
@@ -17,8 +17,8 @@ describe('native router server artifact', () => {
 			{ url: 'https://example.test/old', publicOrigin: 'https://example.test' },
 			response
 		);
-		await requestScope.run(request, () =>
-			renderToStringAsync(
+		await requestScope.run(request, async () =>
+			await renderToString(
 				<Router
 					routes={[
 						{
@@ -44,7 +44,7 @@ describe('native router server artifact', () => {
 			},
 			response
 		);
-		const rendered = await renderToStringAsync(
+		const rendered = await renderToString(
 			<Router
 				routes={[
 					{

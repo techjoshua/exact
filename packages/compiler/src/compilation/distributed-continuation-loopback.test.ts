@@ -18,7 +18,7 @@ import {
 	type ExactResponseLike,
 	type ExactServerContext
 } from '@exactjs/server';
-import { renderToHydratableStringAsync } from '@exactjs/ssr';
+import { renderToHydratableString } from '@exactjs/ssr';
 import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -56,7 +56,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 			contract: serverContract,
 			invocations: {}
 		};
-		const rendered = await renderToHydratableStringAsync(
+		const rendered = await renderToHydratableString(
 			createCompiledComponentReceipt(ServerSearch, {}),
 			{
 				endpoint: '/__exact',

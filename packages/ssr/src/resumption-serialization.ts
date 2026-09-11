@@ -115,9 +115,10 @@ function captureStateEntriesWithRootReads(
 				const localValue = cell.value;
 				if (Object.is(stateValue, localValue)) {
 					if (!rootInput) continue;
+					// Published inputs are outside the direct executor's owned state storage.
 					if (
 						publishedRootProps &&
-						readPath(publishedRootProps, field.propSegments, cell, directRoots) &&
+						readPath(publishedRootProps, field.propSegments, cell) &&
 						Object.is(localValue, cell.value)
 					)
 						continue;

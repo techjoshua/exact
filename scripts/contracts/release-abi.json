@@ -1,0 +1,17 @@
+{
+	"epoch": 1,
+	"introduced": "0.5.0",
+	"providers": [
+		"@exactjs/compiler",
+		"@exactjs/core",
+		"@exactjs/dom",
+		"@exactjs/ssr",
+		"@exactjs/hydrate",
+		"@exactjs/jsx",
+		"@exactjs/reactive",
+		"@exactjs/server",
+		"@exactjs/react-compat",
+		"@exactjs/component-library",
+		"@exactjs/component-library-policy"
+	]
+}

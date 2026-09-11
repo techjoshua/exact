@@ -34,12 +34,18 @@ export function isJsonSafe(
 			if (item instanceof Map) {
 				for (const [key, entryValue] of item) {
 					if (!isTransportableReactiveMapKey(key)) return false;
+					if (nodes + pending.length + 1 > maxNodes) return false;
+					if (typeof key === 'string') bytes += utf8ByteLength(key);
+					if (bytes > maxBytes) return false;
 					pending.push({ value: entryValue, depth: depth + 1 });
 				}
 				continue;
 			}
 			if (item instanceof Set) {
-				for (const entryValue of item) pending.push({ value: entryValue, depth: depth + 1 });
+				for (const entryValue of item) {
+					if (nodes + pending.length + 1 > maxNodes) return false;
+					pending.push({ value: entryValue, depth: depth + 1 });
+				}
 				continue;
 			}
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;

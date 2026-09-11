@@ -33,7 +33,7 @@ enqueue events and perform I/O outside the measured operation.
 - Hydrate: client creation, DOM capture, adoption, form-control restoration, and total hydration,
   including nested DOM events when the same sink is passed.
 - Server: complete request protocol handling.
-- SSR: synchronous string rendering and stream construction.
+- SSR: complete string rendering, including pending work, and stream construction.
 - React compatibility: render and commit work created inside `withReactProfile`.
 - Vite, webpack, and Bun plugins: compiler events through `onProfile`.
 

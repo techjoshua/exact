@@ -6,7 +6,7 @@ export type ComponentListCapability = Readonly<{
 	map<T>(
 		owner: object,
 		collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-		key: (item: T) => string,
+		key: (item: T) => string | number,
 		render: (item: T) => Child,
 		id?: string,
 		provenance?: Iterable<T>,
@@ -15,7 +15,7 @@ export type ComponentListCapability = Readonly<{
 	mapDirect<T>(
 		owner: object,
 		collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-		key: (item: T) => string,
+		key: (item: T) => string | number,
 		render: (item: T) => Child,
 		id: string,
 		provenance?: Iterable<T>,

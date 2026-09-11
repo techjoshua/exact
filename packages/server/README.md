@@ -22,6 +22,10 @@ SSR may return an eXact-owned ordered-chunk response body. Platform adapters sho
 their native integration when available; its `ReadableStream` compatibility view is constructed
 only when a Web-stream host requests it. Response bodies are single-consumer values.
 
+Custom synchronous producers that already know their complete UTF-8 body size can call
+`environment?.setBodyByteLength?.(bytes)` after their final write. Include every output span;
+otherwise omit the hint and let the adapter count. See [SSR output accounting](../../docs/ssr-hydration.md).
+
 ## Security model
 
 Dispatch only compiler-generated contracts. Component labels, module names, debug identifiers,

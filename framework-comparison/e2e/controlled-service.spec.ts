@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { ssrRenderMode, supportsSsrRenderMode } from '../src/ssr-render-mode.mjs';
 
 const serviceUrl = 'http://127.0.0.1:4310';
 const participants = [
@@ -7,7 +8,7 @@ const participants = [
 	{ id: 'sveltekit', url: 'http://127.0.0.1:4403' },
 	{ id: 'nuxt', url: 'http://127.0.0.1:4404' },
 	{ id: 'tanstack-start', url: 'http://127.0.0.1:4405' }
-];
+].filter((participant) => supportsSsrRenderMode(participant.id, ssrRenderMode()));
 
 for (const participant of participants) {
 	test.describe(participant.id, () => {
@@ -24,6 +25,30 @@ for (const participant of participants) {
 			const serverPage = await noScript.newPage();
 			const response = await serverPage.goto(`${participant.url}/incidents/inc-101`);
 			expect(response?.ok()).toBe(true);
+			const documentHtml = await response!.text();
+			expect(documentHtml).toMatch(/^\s*<!doctype html>/i);
+			for (const tag of ['html', 'head', 'body']) {
+				expect(documentHtml.match(new RegExp(`<${tag}(?:\\s|>)`, 'gi'))).toHaveLength(1);
+				expect(documentHtml).toMatch(new RegExp(`</${tag}>`, 'i'));
+			}
+			if (participant.id === 'exact' || participant.id === 'react') {
+				const html = await response!.text();
+				expect(html).toMatch(/^<!doctype html>/i);
+				expect(html.match(/<html(?:\s|>)/gi)).toHaveLength(1);
+				expect(html.match(/<head(?:\s|>)/gi)).toHaveLength(1);
+				expect(html.match(/<body(?:\s|>)/gi)).toHaveLength(1);
+				expect(html).toMatch(/<\/body><\/html>$/i);
+				await expect(serverPage).toHaveTitle('Incident Operations');
+				await expect(serverPage.locator('head meta[name="viewport"]')).toHaveAttribute(
+					'content',
+					'width=device-width, initial-scale=1.0'
+				);
+				await expect(serverPage.locator('head script[src]')).not.toHaveCount(0);
+				const hydrationId = participant.id === 'exact' ? '__exact_hydration' : 'comparison-data';
+				expect(
+					JSON.parse((await serverPage.locator(`#${hydrationId}`).textContent()) ?? '')
+				).toBeTruthy();
+			}
 			await expect(
 				serverPage.getByRole('heading', { name: 'Delayed fulfillment events' })
 			).toBeVisible();
@@ -33,6 +58,18 @@ for (const participant of participants) {
 			const hydrated = await hydratedContext.newPage();
 			if (participant.id === 'exact') {
 				await hydrated.addInitScript(() => {
+					document.addEventListener(
+						'DOMContentLoaded',
+						() => {
+							(
+								globalThis as typeof globalThis & { __exactServerApp: Element | null }
+							).__exactServerApp = document.querySelector('#app > .app-shell');
+							(
+								globalThis as typeof globalThis & { __exactServerScripts: Element[] }
+							).__exactServerScripts = Array.from(document.querySelectorAll('script[src]'));
+						},
+						{ once: true }
+					);
 					const replaceChildren = Element.prototype.replaceChildren;
 					(
 						globalThis as typeof globalThis & { __exactRootReplacements: number }
@@ -56,6 +93,24 @@ for (const participant of participants) {
 				).toBe(0);
 			await hydrated.getByLabel('Severity').selectOption('critical');
 			await expect(hydrated.getByTestId('incident-row')).toHaveCount(1);
+			if (participant.id === 'exact')
+				expect(
+					await hydrated.evaluate(() => {
+						const original = (
+							globalThis as typeof globalThis & { __exactServerApp: Element | null }
+						).__exactServerApp;
+						const scripts = (globalThis as typeof globalThis & { __exactServerScripts: Element[] })
+							.__exactServerScripts;
+						const currentScripts = Array.from(document.querySelectorAll('script[src]'));
+						return (
+							original !== null &&
+							original === document.querySelector('#app > .app-shell') &&
+							scripts.length > 0 &&
+							scripts.length === currentScripts.length &&
+							scripts.every((script, index) => script === currentScripts[index])
+						);
+					})
+				).toBe(true);
 			await hydratedContext.close();
 		});
 

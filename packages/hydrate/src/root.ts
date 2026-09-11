@@ -27,11 +27,12 @@ export function hydrate(
 
 /**
  * Defers hydration beyond DOMContentLoaded while synchronously activating for an earlier user
- * interaction. The returned promise resolves to the owned root after the first trigger wins.
+ * interaction on an element or complete document. The returned promise resolves to the owned
+ * root after the first trigger wins.
  */
 export function hydrateAfterNavigation(
 	operation: Child,
-	container: Element,
+	container: Element | Document,
 	options: HydrateOptions = {}
 ): Promise<CoreHydrationRoot> {
 	try {

@@ -141,6 +141,20 @@ export function ServerExecutionPage(this: Component<{}>) {
 			<section>
 				<h2>Server rendering uses the same work</h2>
 				<p>
+					Progressive HTML can send a completed document head before tasks in its body finish, so
+					the browser can discover stylesheets and scripts sooner. The body then completes in the
+					same render, followed by hydration data and the closing document tags. If the document
+					component itself has pending work that can change its head, publication waits for that
+					work. Whole-output transformations also retain complete-output publication.
+				</p>
+				<p>
+					The compiler includes known-safe literal URLs in static server markup. Dynamic URLs still
+					pass through the server's URL policy, and browser property updates keep their usual
+					behavior. Static stylesheet links and empty external scripts with static attributes can
+					share the surrounding document markup without separate server attribute processing.
+					Scripts retain their identity for browser adoption and their usual loading behavior.
+				</p>
+				<p>
 					The renderer counts compiler-known markup and dynamic output as it is produced. Buffered
 					ranges reuse that accounting when it remains valid, with exact UTF-8 byte limits and
 					rollback preserved before output is committed.
@@ -181,6 +195,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					crossed the boundary.
 				</p>
 			</Callout>
+			<section>
+				<h2>Explicit operation registration</h2>
+				<p>
+					Custom server operation contracts, handlers, and payload decoders must be explicit entries
+					in their registration objects. Inherited properties do not register an operation or
+					authorize its payload. Use ordinary object literals when configuring these maps.
+				</p>
+			</section>
 		</Article>
 	);
 }

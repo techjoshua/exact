@@ -1,27 +1,17 @@
 import type { ContextToken } from '../component/contracts.js';
 import { unwrap } from '@exactjs/reactive/framework/runtime';
 import type { TaskContext } from './contracts.js';
+import { ServerTaskReadiness } from './server-task-readiness.js';
+import type {
+	ServerComponentExecutionFrame,
+	ServerComponentTaskSlice,
+	ServerExecutionOptions
+} from './server-component-execution-contracts.js';
 
-/** Static task wiring emitted once per compiler-closed server component transition. */
-export type ServerComponentTaskSlice = readonly [
-	/** Authored argument positions mapped to a predecessor output port, or -1 for the authored value. */
-	inputs: readonly number[],
-	/** Output port and component-state path pairs published after successful work. */
-	outputs: readonly (readonly [port: number, path: readonly string[]])[],
-	readiness: 'blocking' | 'nonblocking',
-	label: string
-];
-
-/** Request-local ownership used by a compiler-closed scheduled server component. */
-export type ServerComponentExecutionFrame = AsyncDisposable &
-	Readonly<{
-		run<T>(work: () => T): T;
-	}>;
-
-type ServerExecutionOptions = Readonly<{
-	observe(settlement: Promise<unknown>): void;
-	runTask?<T>(work: () => Promise<T>): Promise<T>;
-}>;
+export type {
+	ServerComponentExecutionFrame,
+	ServerComponentTaskSlice
+} from './server-component-execution-contracts.js';
 
 type OutputSlot = {
 	status: 'pending' | 'available' | 'failed';
@@ -38,6 +28,7 @@ type MutableServerExecutionFrame = {
 	ports: OutputSlot[];
 	paths: Array<readonly [path: string, port: number]>;
 	active: Promise<unknown>[];
+	readiness: ServerTaskReadiness;
 	continuationContexts: Map<string, ContextToken<unknown>>;
 	settledContinuations: Set<string>;
 	disposed: boolean;
@@ -208,6 +199,7 @@ export function createServerComponentExecutionFrame(
 		ports: [],
 		paths: [],
 		active: [],
+		readiness: new ServerTaskReadiness(options.trackTaskIdentities),
 		continuationContexts: new Map(),
 		settledContinuations: new Set(),
 		disposed: false
@@ -217,6 +209,15 @@ export function createServerComponentExecutionFrame(
 		value: frame
 	});
 	return Object.freeze({
+		get blockingVersion() {
+			return frame.readiness.version;
+		},
+		blockingWork(transitions?: ReadonlySet<string>) {
+			return frame.readiness.wait(transitions);
+		},
+		blockingVersionFor(transitions: ReadonlySet<string>) {
+			return frame.readiness.versionFor(transitions);
+		},
 		run<T>(work: () => T): T {
 			if (frame.disposed) throw new Error('Server component execution frame has been disposed');
 			return work();
@@ -261,7 +262,10 @@ export function activateServerComponentTaskForHost<Args extends unknown[], Resul
 	});
 	frame.active.push(settlement);
 	void settlement.catch(() => undefined);
-	if (slice[2] === 'blocking') frame.options.observe(settlement);
+	if (slice[2] === 'blocking' || frame.options.publicationDependencies?.has(transitionId)) {
+		frame.readiness.observe(settlement, transitionId);
+		frame.options.observe?.(settlement);
+	}
 }
 
 /** Registers compiler-approved public context names against one request-local server frame. */
@@ -315,6 +319,14 @@ function safeContextName(name: string): boolean {
 /** Reads the request-owned frame without retaining the host outside its request lifetime. */
 function executionFrameForHost(host: object): MutableServerExecutionFrame | undefined {
 	return (host as ServerExecutionHost)[serverExecutionFrame];
+}
+
+/** Runs a deferred compiler output read through its existing live request owner. */
+export function readServerComponentOutputForHost<T>(host: object, read: () => T): T | Promise<T> {
+	const frame = executionFrameForHost(host);
+	if (!frame || frame.disposed || !frame.options.prepareOutput)
+		throw new TypeError('Deferred server output requires its live task owner');
+	return frame.options.prepareOutput(read);
 }
 
 function executeSlice<Args extends unknown[], Result>(

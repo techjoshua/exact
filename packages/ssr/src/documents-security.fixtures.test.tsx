@@ -21,6 +21,26 @@ export function ExactDocument() {
 	);
 }
 
+/** Full document whose task can revise both the head and body before publication. */
+export function SettlingFullDocument(this: Component<{ label: string }>) {
+	this.state.label = 'Waiting';
+	const load = async (_task: TaskContext = TaskContext.server().blocking()) => {
+		await optionsReady;
+		this.state.label = 'Settled';
+	};
+	load();
+	return () => (
+		<html>
+			<head>
+				<title>{this.state.label}</title>
+			</head>
+			<body>
+				<main>{this.state.label}</main>
+			</body>
+		</html>
+	);
+}
+
 function InnerDocument() {
 	return () => (
 		<html>

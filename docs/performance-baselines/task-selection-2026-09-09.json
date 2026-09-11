@@ -1,0 +1,870 @@
+{
+  "summary": [
+    {
+      "implementation": "map",
+      "runtime": "node",
+      "tasks": 3,
+      "pairs": [
+        {
+          "control": 0.5238633333333332,
+          "candidate": 0.5582666666666666,
+          "difference": 0.03440333333333334
+        },
+        {
+          "control": 0.5123566666666667,
+          "candidate": 0.5523100000000001,
+          "difference": 0.039953333333333396
+        }
+      ]
+    },
+    {
+      "implementation": "map",
+      "runtime": "node",
+      "tasks": 16,
+      "pairs": [
+        {
+          "control": 1.8792000000000002,
+          "candidate": 1.90882,
+          "difference": 0.029619999999999758
+        },
+        {
+          "control": 1.86073,
+          "candidate": 1.9464866666666671,
+          "difference": 0.08575666666666715
+        }
+      ]
+    },
+    {
+      "implementation": "map",
+      "runtime": "bun",
+      "tasks": 3,
+      "pairs": [
+        {
+          "control": 0.6115866666666666,
+          "candidate": 0.9661366666666666,
+          "difference": 0.35455000000000003
+        },
+        {
+          "control": 0.6306566666666666,
+          "candidate": 0.9166666666666667,
+          "difference": 0.2860100000000001
+        }
+      ]
+    },
+    {
+      "implementation": "map",
+      "runtime": "bun",
+      "tasks": 16,
+      "pairs": [
+        {
+          "control": 2.0901333333333336,
+          "candidate": 3.3797233333333327,
+          "difference": 1.2895899999999991
+        },
+        {
+          "control": 1.9757,
+          "candidate": 3.1984866666666667,
+          "difference": 1.2227866666666667
+        }
+      ]
+    },
+    {
+      "implementation": "opt-in",
+      "runtime": "node",
+      "tasks": 3,
+      "pairs": [
+        {
+          "control": 0.5582133333333332,
+          "candidate": 0.5729633333333334,
+          "difference": 0.014750000000000152
+        },
+        {
+          "control": 0.5224333333333334,
+          "candidate": 0.5454300000000001,
+          "difference": 0.022996666666666665
+        }
+      ]
+    },
+    {
+      "implementation": "opt-in",
+      "runtime": "node",
+      "tasks": 16,
+      "pairs": [
+        {
+          "control": 1.8927333333333334,
+          "candidate": 1.9028733333333334,
+          "difference": 0.010140000000000038
+        },
+        {
+          "control": 1.8469966666666664,
+          "candidate": 1.9076533333333334,
+          "difference": 0.060656666666667025
+        }
+      ]
+    },
+    {
+      "implementation": "opt-in",
+      "runtime": "bun",
+      "tasks": 3,
+      "pairs": [
+        {
+          "control": 0.6352866666666667,
+          "candidate": 0.6529866666666668,
+          "difference": 0.01770000000000016
+        },
+        {
+          "control": 0.6476633333333335,
+          "candidate": 0.6635566666666667,
+          "difference": 0.015893333333333204
+        }
+      ]
+    },
+    {
+      "implementation": "opt-in",
+      "runtime": "bun",
+      "tasks": 16,
+      "pairs": [
+        {
+          "control": 2.0039066666666665,
+          "candidate": 2.1101566666666667,
+          "difference": 0.10625000000000018
+        },
+        {
+          "control": 2.1293033333333335,
+          "candidate": 2.1444799999999997,
+          "difference": 0.015176666666666172
+        }
+      ]
+    }
+  ],
+  "captures": {
+    "map": [
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5238633333333332,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5582666666666666,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5523100000000001,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5123566666666667,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.8792000000000002,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.90882,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.9464866666666671,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.86073,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.6115866666666666,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.9661366666666666,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.9166666666666667,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.6306566666666666,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 2.0901333333333336,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 3.3797233333333327,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 3.1984866666666667,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.9757,
+        "runtime": "1.4.2"
+      }
+    ],
+    "opt-in": [
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5582133333333332,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-opt-in-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5729633333333334,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-opt-in-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5454300000000001,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.5224333333333334,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.8927333333333334,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-opt-in-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.9028733333333334,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "task-selection-opt-in-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.9076533333333334,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "node",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 1.8469966666666664,
+        "runtime": "v26.8.1"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.6352866666666667,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-opt-in-current",
+        "round": 0,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.6529866666666668,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-opt-in-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.6635566666666667,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 3,
+        "iterations": 30000,
+        "usPerFrame": 0.6476633333333335,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 2.0039066666666665,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-opt-in-current",
+        "round": 0,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 2.1101566666666667,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "task-selection-opt-in-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 2.1444799999999997,
+        "runtime": "1.4.2"
+      },
+      {
+        "runtimeId": "bun",
+        "variant": "marker-hex-current",
+        "round": 1,
+        "taskCount": 16,
+        "iterations": 30000,
+        "usPerFrame": 2.1293033333333335,
+        "runtime": "1.4.2"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "runtimeId": "node",
+      "variant": "marker-hex-current",
+      "sha256": "b8a3bd6ec50d504280de2b86f9a8b20ca250f2b7a345d8a4980a492ff12efd5f",
+      "runtime": "v26.8.1",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        }
+      ]
+    },
+    {
+      "runtimeId": "node",
+      "variant": "task-selection-opt-in-current",
+      "sha256": "70a76f6acd07542b42a7a110e151794d72cde0a8ad01c98dc71eafd8d04443c1",
+      "runtime": "v26.8.1",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        }
+      ]
+    },
+    {
+      "runtimeId": "bun",
+      "variant": "marker-hex-current",
+      "sha256": "b8a3bd6ec50d504280de2b86f9a8b20ca250f2b7a345d8a4980a492ff12efd5f",
+      "runtime": "1.4.2",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        }
+      ]
+    },
+    {
+      "runtimeId": "bun",
+      "variant": "task-selection-opt-in-current",
+      "sha256": "70a76f6acd07542b42a7a110e151794d72cde0a8ad01c98dc71eafd8d04443c1",
+      "runtime": "1.4.2",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "coreTests": 258,
+    "ssrTests": 284,
+    "focusedFinalTests": 16,
+    "coreBuild": true,
+    "compileExactCore": true,
+    "comparisonClientNodeBunBuild": true,
+    "typecheckTests": true,
+    "eslint": true,
+    "sourceArchitecture": true,
+    "platformBoundaries": true,
+    "compiledAbi": true,
+    "releaseAbiEpoch": 1,
+    "packageContents": true,
+    "outputChecks": 48,
+    "browserRerun": false
+  },
+  "currentSha256": "70a76f6acd07542b42a7a110e151794d72cde0a8ad01c98dc71eafd8d04443c1"
+}

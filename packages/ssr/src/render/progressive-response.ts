@@ -1,9 +1,9 @@
 import type { Child } from '@exactjs/core';
 import { createExactAsyncProducedResponse } from '@exactjs/server';
-import type { ExactResponseLike, RenderToProgressiveHtmlResponseOptions } from '../types.js';
 import { produceProgressiveHtml } from '../stream/production.js';
 import { progressiveHtmlResponseHeaders } from '../stream/protocol.js';
-import { streamDocumentRender } from './async-rendering.js';
+import type { ExactResponseLike, RenderToProgressiveHtmlResponseOptions } from '../types.js';
+import { streamDocumentRender } from './render-output.js';
 
 /** Creates one adapter-owned progressive response from scheduled document events. */
 export function createProgressiveProducedResponse(
@@ -15,7 +15,8 @@ export function createProgressiveProducedResponse(
 		progressiveHtmlResponseHeaders(options),
 		(write, signal) =>
 			produceProgressiveHtml(
-				(streamOptions, emit) => streamDocumentRender(operation, streamOptions, emit),
+				(streamOptions, emit, abort) =>
+					streamDocumentRender(operation, streamOptions, emit, true, abort),
 				options,
 				write,
 				signal

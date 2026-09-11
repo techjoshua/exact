@@ -4,6 +4,11 @@ The opt-in sustained-load runner adds independent load generation and demand acc
 framework comparison. It complements the existing short-window capacity profile; the protocols have
 different load histories and instrumentation, so their absolute RPS values are not interchangeable.
 
+Private worker telemetry uses a persistent HTTP connection with a bounded deadline. It is outside
+application load accounting and must not open a new connection for every sample while the listener
+is saturated. Missing telemetry still rejects public capacity publication. Preserve a rejected
+capture and document any repeated measurement; do not erase application request failures.
+
 ## Running a local comparison
 
 Run the shared browser correctness suite before measuring an implementation. The load command consumes
@@ -25,6 +30,13 @@ fetching. The default is `false`. This diagnostic measures the remaining render/
 it is not representative of an application that fetches data on every request. Compare it separately
 from normal loading, and verify driver CPU and scheduling lag before calling a throughput plateau
 the framework's ceiling. The same option applies to all participants in a plan.
+
+The Node string lane awaits the complete component-rendered document. eXact hands that string to
+a buffered response and its Node adapter; React ends its response with the completed string.
+Streaming uses Web Streams in both frameworks. eXact consumes through its Node adapter, while
+React uses Node's `Readable.fromWeb()` and `pipeline()` bridge. HTTP throughput therefore includes
+these transport choices. Use a shared-transport diagnostic to distinguish renderer cost from
+adapter cost; the [sink investigation](performance-baselines/ssr-sinks-2026-09-09.md) records both.
 
 Each population starts a fresh controlled-service process and one fresh worker per participant.
 One independently owned driver runs each participant's complete plan, while other workers remain
@@ -109,6 +121,13 @@ test-server URL to remove shared driver/server CPU contention. The driver does n
 remote server or its private control endpoints. Collect remote server/service telemetry separately.
 
 Local process separation still shares physical CPU, memory, and networking on the workstation.
+
+Phase names are not necessarily equivalent across transport paths. In the current Node worker,
+eXact's produced-response `renderMs` includes writing the response, while React's `renderMs` ends
+before document assembly and response writing. Do not compare those values as isolated renderer
+costs. Use complete request measurements or scoped profiles with explicit boundaries; keep profiler
+overhead and per-request benchmark telemetry separate from framework attribution. See the
+[paired CPU investigation](performance-baselines/ssr-paired-profile-2026-09-08.md).
 
 The coordinator selects each entry explicitly, including default builds, so an inherited eXact
 entry override cannot silently replace the artifact being measured. Child processes start without

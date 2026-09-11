@@ -5,7 +5,7 @@ record retained queue-teardown and compiler-traversal changes separately from
 the complete application checkpoints below.
 
 This ledger records the accepted phase checkpoints required by the
-[component-local target ABI implementation plan](../proposals/component-local-target-abi-implementation-plan.md).
+[component-local target ABI implementation plan](../history/component-local-target-abi-implementation-plan.md).
 This ledger preserves accepted statuses, conclusions, and relevant comparison tables. Compact
 machine-readable impact summaries live in the adjacent `component-local-target-abi` directory.
 Raw populations, complete checkpoints, and mechanically generated full reports remain local and

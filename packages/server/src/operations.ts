@@ -1,3 +1,4 @@
+import { ownRegistryEntry } from './registry-entry.js';
 import { logFrameworkEvent } from '@exactjs/core';
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
@@ -158,7 +159,7 @@ async function dispatchExactOperationAfterSecurity(
 		return reject(400, 'bad_request', 'rejected exact invocation with unknown boundary hints');
 	}
 	if (input.type === 'refresh') {
-		const boundary = context.contract.boundaries[input.id];
+		const boundary = ownRegistryEntry(context.contract.boundaries, input.id);
 		if (boundary?.kind === 'partition-range') {
 			const authority = input.partition;
 			const resolveCurrentAuthority = context.resolvePartitionAuthority;
@@ -189,8 +190,10 @@ async function dispatchExactOperationAfterSecurity(
 		}
 	}
 
-	const invocation = input.type === 'invoke' ? context.contract.invocations[input.id] : undefined;
-	const executor = input.type === 'invoke' ? context.contract.executors?.[input.id] : undefined;
+	const invocation =
+		input.type === 'invoke' ? ownRegistryEntry(context.contract.invocations, input.id) : undefined;
+	const executor =
+		input.type === 'invoke' ? ownRegistryEntry(context.contract.executors, input.id) : undefined;
 	if (invocation && !stateMatchesContract(input.state, invocation.stateReads)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with mismatched state contract');
 	}
@@ -202,12 +205,12 @@ async function dispatchExactOperationAfterSecurity(
 	}
 	const manualHandler =
 		input.type === 'invoke'
-			? context.invocations?.[input.id]
-			: context.refreshBoundaries?.[input.id];
+			? ownRegistryEntry(context.invocations, input.id)
+			: ownRegistryEntry(context.refreshBoundaries, input.id);
 	const payloadDecoder =
 		input.type === 'invoke'
-			? context.payloadDecoders?.invocations?.[input.id]
-			: context.payloadDecoders?.boundaries?.[input.id];
+			? ownRegistryEntry(context.payloadDecoders?.invocations, input.id)
+			: ownRegistryEntry(context.payloadDecoders?.boundaries, input.id);
 	if (
 		manualHandler &&
 		!isExactFrameworkInvocationHandler(manualHandler) &&
@@ -312,7 +315,7 @@ async function dispatchExactOperationAfterSecurity(
 			);
 		}
 		if (input.type === 'refresh') {
-			const boundary = context.contract.boundaries[input.id];
+			const boundary = ownRegistryEntry(context.contract.boundaries, input.id);
 			if (boundary?.kind === 'partition-range') {
 				const allowed = new Set(boundary.patchTargets ?? [boundary.id]);
 				if (result.patches?.some((patch) => !allowed.has(patch.id))) {

@@ -235,9 +235,9 @@ export type ExactComponentBuildFacts = Readonly<{
 	}>[];
 }>;
 
-/** Static protocol-2 build facts published by a precompiled eXact component library. */
+/** Static protocol-1 build facts published by a precompiled eXact component library. */
 export type ExactPublishedComponentBuildFacts = Readonly<{
-	protocol: 2;
+	protocol: 1;
 	package: Readonly<{ name: string; version: string }>;
 	modules: readonly Readonly<{
 		path: string;

@@ -1,12 +1,14 @@
 {
 	"name": "@exactjs/router",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"dist",
 		"!dist/**/*.test.*",
-		"!dist/**/*.fixtures.*"
+		"!dist/**/*.fixtures.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -40,20 +42,20 @@
 	],
 	"sideEffects": false,
 	"exactComponentLibrary": {
-		"protocol": 2,
+		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.1.0",
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/request": "^0.1.0",
-		"@exactjs/react-compat-adapter-api": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/component-library": "^0.5.0",
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/request": "^0.5.0",
+		"@exactjs/react-compat-adapter-api": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"peerDependencies": {
-		"@exactjs/react-compat": "^0.1.0",
+		"@exactjs/react-compat": "^0.5.0",
 		"react-router": ">=5 <8",
 		"react-router-dom": ">=5 <8"
 	},
@@ -69,12 +71,12 @@
 		}
 	},
 	"devDependencies": {
-		"@exactjs/jsx": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0",
-		"@exactjs/react-compat": "^0.1.0",
-		"@exactjs/react-dom-compat": "^0.1.0",
-		"@exactjs/vitest": "^0.1.0"
+		"@exactjs/jsx": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0",
+		"@exactjs/react-compat": "^0.5.0",
+		"@exactjs/react-dom-compat": "^0.5.0",
+		"@exactjs/vitest": "^0.5.0"
 	},
 	"exact": {
 		"reactCompatibility": {
@@ -1037,5 +1039,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "component-libraries/router"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

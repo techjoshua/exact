@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { unwrap } from '@exactjs/reactive/framework/values';
+import { describe, expect, it } from 'vitest';
 import { directSsrReactive } from './direct-reactivity.js';
 
 describe('direct SSR reactivity', () => {

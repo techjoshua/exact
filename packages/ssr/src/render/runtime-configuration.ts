@@ -30,6 +30,9 @@ export function normalizeExactServerRuntimeOptions(options: ExactServerRuntimeOp
 	registry: ExactServerHandlerRegistryOptions;
 }> {
 	const rendering = {
+		documentShell: options.documentShell,
+		documentShellScope: undefined,
+		scheduleRender: options.scheduleRender,
 		executionRoot: options.executionRoot,
 		buildKey: options.buildKey,
 		markers: options.markers,

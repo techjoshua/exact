@@ -1,12 +1,14 @@
 {
 	"name": "@exactjs/webpack-plugin",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"README.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -21,20 +23,20 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/compiler": "^0.1.0",
-		"@exactjs/component-library-policy": "^0.1.0",
-		"@exactjs/config": "^0.1.0",
-		"@exactjs/devtools-protocol": "^0.1.0",
-		"@exactjs/devtools-runtime": "^0.1.0",
-		"@exactjs/instrumentation": "^0.1.0",
-		"@exactjs/intl-build": "^0.1.0",
-		"@exactjs/microfrontends": "^0.1.0",
-		"@exactjs/language-extension-api": "^0.1.0",
-		"@exactjs/language-extension-host": "^0.1.0",
-		"@exactjs/plugin-api": "^0.1.0",
-		"@exactjs/plugin-host": "^0.1.0",
-		"@exactjs/react-compat": "^0.1.0",
-		"@exactjs/react-dom-compat": "^0.1.0",
+		"@exactjs/compiler": "^0.5.0",
+		"@exactjs/component-library-policy": "^0.5.0",
+		"@exactjs/config": "^0.5.0",
+		"@exactjs/devtools-protocol": "^0.5.0",
+		"@exactjs/devtools-runtime": "^0.5.0",
+		"@exactjs/instrumentation": "^0.5.0",
+		"@exactjs/intl-build": "^0.5.0",
+		"@exactjs/microfrontends": "^0.5.0",
+		"@exactjs/language-extension-api": "^0.5.0",
+		"@exactjs/language-extension-host": "^0.5.0",
+		"@exactjs/plugin-api": "^0.5.0",
+		"@exactjs/plugin-host": "^0.5.0",
+		"@exactjs/react-compat": "^0.5.0",
+		"@exactjs/react-dom-compat": "^0.5.0",
 		"esbuild": "0.27.2"
 	},
 	"peerDependencies": {
@@ -55,5 +57,16 @@
 	},
 	"devDependencies": {
 		"webpack": "^5.109.2"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "framework-adapters/webpack-plugin"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

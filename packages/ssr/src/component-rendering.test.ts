@@ -1,23 +1,10 @@
-import {
-	defineExactBoundaryContract,
-	defineExactOperationContract,
-	exactResponseBodyOf
-} from '@exactjs/server';
+import { defineExactBoundaryContract, defineExactOperationContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
-import {
-	createExactServerHandlerRegistry,
-	diffBoundaryHtml,
-	renderToString,
-	renderToStringAsync
-} from './index.js';
-import {
-	renderCompilerClosedToHydratableSink,
-	renderCompilerClosedToHydratableResponse,
-	renderCompilerClosedToHydratableString
-} from './compiler-closed.js';
-import { createOperation } from './test-support/native-operations.js';
+import { renderCompilerClosedToHydratableString } from './compiler-closed.js';
 import {
 	BufferedAccountingRows,
+	CompiledTextSurroundings,
+	DistinctTaskPaths,
 	ObservedServerComponent,
 	ParallelSettledSiblings,
 	ParentWithSettledChild,
@@ -29,90 +16,97 @@ import {
 	settleParallelTasks,
 	SynchronousObservedServerComponent
 } from './component-rendering.fixtures.test.js';
+import { createExactServerHandlerRegistry, diffBoundaryHtml, renderToString } from './index.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr component and server contracts', () => {
-	it.each([false, true])('counts buffered Unicode rows exactly with markers=%s', (markers) => {
-		const operation = createOperation(BufferedAccountingRows, {
-			values: [
-				'',
-				'plain<&>',
-				'caf\u00e9',
-				'\u4e16\u754c',
-				'\ud83d',
-				'\ude80',
-				'\ud83d\ude80',
-				'a\ud83d',
-				'\ude80z'
-			]
+	it('renders distinct dotted and nested state after a suspended helper task', async () => {
+		await expect(
+			renderToString(createOperation(DistinctTaskPaths, {}), { markers: false })
+		).resolves.toMatchObject({
+			html: '<section><strong>literal ready</strong><small>nested ready</small></section>'
 		});
-		const encoder = new TextEncoder();
-		const reference: string[] = [];
-		renderCompilerClosedToHydratableSink(operation, (chunk) => reference.push(chunk), { markers });
-		const expected = reference.join('');
-		const maxOutputBytes = encoder.encode(
-			expected.slice(0, expected.indexOf('<script type="application/json"'))
-		).length;
-		const chunks: string[] = [];
-		const bytes = renderCompilerClosedToHydratableSink(operation, (chunk) => chunks.push(chunk), {
-			markers,
-			maxOutputBytes
-		});
-		expect(chunks.join('')).toBe(expected);
-		expect(bytes).toBe(encoder.encode(chunks.join('')).length);
-		expect(() =>
-			renderCompilerClosedToHydratableSink(operation, () => {}, {
-				markers,
-				maxOutputBytes: maxOutputBytes - 1
-			})
-		).toThrow('output exceeds');
+	});
+	it('preserves markup, escaping, and limits around compiled text writes', async () => {
+		const operation = createOperation(CompiledTextSurroundings, { text: 'A<&>', title: 'A&B' });
+		const expected =
+			'<section><strong>A&lt;&amp;&gt;</strong><span title="A&amp;B">A&lt;&amp;&gt;</span> Tail A&lt;&amp;&gt;</section>';
+		await expect(
+			renderToString(operation, { markers: false, maxOutputBytes: expected.length })
+		).resolves.toMatchObject({ html: expected });
+		await expect(
+			renderToString(operation, { markers: false, maxOutputBytes: expected.length - 1 })
+		).rejects.toThrow('output exceeds');
 	});
 
-	it('renders component output without marking components as mounted', () => {
+	it('disposes a synchronous component when its output fails before publication', async () => {
 		resetComponentRenderingFixtureState();
-		const result = renderToString(createOperation(ServerCard, { title: 'Server' }));
+		await expect(
+			renderToString(createOperation(SynchronousObservedServerComponent, {}), { maxOutputBytes: 1 })
+		).rejects.toThrow('output exceeds');
+		expect(readComponentRenderingFixtureState().observedDisposals).toBe(1);
+	});
+
+	it('preserves a publication failure while disposing the synchronous component', async () => {
+		resetComponentRenderingFixtureState();
+		const failure = new Error('publication failed');
+		await expect(
+			renderToString(createOperation(SynchronousObservedServerComponent, {}), {
+				onDirectComponentRendered: () => {
+					throw failure;
+				}
+			})
+		).rejects.toBe(failure);
+		expect(readComponentRenderingFixtureState().observedDisposals).toBe(1);
+	});
+
+	it.each([false, true])(
+		'counts buffered Unicode rows exactly with markers=%s',
+		async (markers) => {
+			const operation = createOperation(BufferedAccountingRows, {
+				values: [
+					'',
+					'plain<&>',
+					'caf\u00e9',
+					'\u4e16\u754c',
+					'\ud83d',
+					'\ude80',
+					'\ud83d\ude80',
+					'a\ud83d',
+					'\ude80z'
+				]
+			});
+			const encoder = new TextEncoder();
+			const reference = await renderCompilerClosedToHydratableString(operation, { markers });
+			const expected = reference.htmlWithHydration;
+			const maxOutputBytes = encoder.encode(reference.html).length;
+			const result = await renderCompilerClosedToHydratableString(operation, {
+				markers,
+				maxOutputBytes
+			});
+			expect(result.htmlWithHydration).toBe(expected);
+			await expect(
+				renderCompilerClosedToHydratableString(operation, {
+					markers,
+					maxOutputBytes: maxOutputBytes - 1
+				})
+			).rejects.toThrow('output exceeds');
+		}
+	);
+
+	it('renders component output without marking components as mounted', async () => {
+		resetComponentRenderingFixtureState();
+		const result = await renderToString(createOperation(ServerCard, { title: 'Server' }));
 
 		expect(result.html).toContain('<article>Server</article>');
 		expect(result.html).toContain('<!--exact:component:');
 		expect(readComponentRenderingFixtureState().cardMounts).toBe(0);
 	});
 
-	it('publishes a compiler-closed hydratable root through an ordered string sink', () => {
-		const operation = createOperation(ServerCard, { title: 'Server' });
-		const expected = renderCompilerClosedToHydratableString(operation, {
-			markers: false
-		}).htmlWithHydration;
-		const chunks: string[] = [];
-		const bytes = renderCompilerClosedToHydratableSink(operation, (chunk) => chunks.push(chunk), {
-			markers: false
-		});
-		const rendered = chunks.join('');
-
-		expect(rendered).toBe(expected);
-		expect(new TextEncoder().encode(rendered)).toHaveLength(bytes);
-	});
-
-	it('defers a compiler-closed root until an adapter consumes its response body', async () => {
-		const operation = createOperation(ServerCard, { title: 'Server' });
-		const expected = renderCompilerClosedToHydratableString(operation, {
-			markers: false
-		}).htmlWithHydration;
-		const response = renderCompilerClosedToHydratableResponse(operation, { markers: false });
-		const chunks: string[] = [];
-
-		expect(exactResponseBodyOf(response)?.kind).toBe('produced');
-		await exactResponseBodyOf(response)?.writeTo((chunk) => {
-			chunks.push(chunk);
-		});
-
-		expect(response.status).toBe(200);
-		expect(response.headers['content-type']).toBe('text/html; charset=utf-8');
-		expect(chunks.join('')).toBe(expected);
-	});
-
 	it('observes settled sync and async components before renderer disposal', async () => {
 		const observed: number[] = [];
 		resetComponentRenderingFixtureState();
-		renderToString(createOperation(SynchronousObservedServerComponent, {}), {
+		await renderToString(createOperation(SynchronousObservedServerComponent, {}), {
 			onDirectComponentRendered: (snapshot) => {
 				observed.push(snapshot.state.value as number);
 				expect(readComponentRenderingFixtureState().observedDisposals).toBe(0);
@@ -123,7 +117,7 @@ describe('@exactjs/ssr component and server contracts', () => {
 
 		observed.length = 0;
 		resetComponentRenderingFixtureState();
-		await renderToStringAsync(createOperation(ObservedServerComponent, {}), {
+		await renderToString(createOperation(ObservedServerComponent, {}), {
 			onDirectComponentRendered: (snapshot) => {
 				observed.push(snapshot.state.value as number);
 				expect(readComponentRenderingFixtureState().observedDisposals).toBe(0);
@@ -133,15 +127,15 @@ describe('@exactjs/ssr component and server contracts', () => {
 		expect(readComponentRenderingFixtureState().observedDisposals).toBe(1);
 	});
 
-	it('counts empty primitive child slots against the SSR breadth budget', () => {
+	it('counts empty primitive child slots against the SSR breadth budget', async () => {
 		const vnode = createOperation('div', null, ...Array.from({ length: 20 }, () => null));
-		expect(() => renderToString(vnode, { markers: false, maxTreeNodes: 8 })).toThrow(
+		await expect(renderToString(vnode, { markers: false, maxTreeNodes: 8 })).rejects.toThrow(
 			'eXact SSR tree exceeds the configured maximum of 8 render values'
 		);
 	});
 
-	it('waits for async tasks before rendering a component in async mode', async () => {
-		const result = await renderToStringAsync(createOperation(ProfileComponent, {}), {
+	it('waits for pending tasks before rendering a component', async () => {
+		const result = await renderToString(createOperation(ProfileComponent, {}), {
 			markers: false
 		});
 
@@ -149,7 +143,7 @@ describe('@exactjs/ssr component and server contracts', () => {
 	});
 
 	it('renders child components after their async tasks settle', async () => {
-		const result = await renderToStringAsync(createOperation(ParentWithSettledChild, {}), {
+		const result = await renderToString(createOperation(ParentWithSettledChild, {}), {
 			markers: false
 		});
 
@@ -158,7 +152,7 @@ describe('@exactjs/ssr component and server contracts', () => {
 
 	it('issues scheduled sibling tasks before serializing their ordered output', async () => {
 		resetComponentRenderingFixtureState();
-		const rendering = renderToStringAsync(createOperation(ParallelSettledSiblings, {}), {
+		const rendering = renderToString(createOperation(ParallelSettledSiblings, {}), {
 			markers: false
 		});
 		for (let turn = 0; turn < 10; turn++) await Promise.resolve();

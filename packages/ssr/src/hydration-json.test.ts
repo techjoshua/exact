@@ -3,28 +3,30 @@ import { validateJsonSafeHydrationValue } from './hydration-json.js';
 import { registerPositionalProjector } from './runtime/positional-projection.js';
 
 describe('hydration JSON validation', () => {
-	it('preserves active ancestors and native Set operations in version-one projectors', () => {
-		const props = { rows: Array.from({ length: 16 }, (_, value) => ({ value })) };
-		let calls = 0;
-		const item = registerPositionalProjector(
-			[1, 'value', 0] as const,
-			1,
-			(value, _depth, state) => {
-				calls++;
-				expect(state.active).toBeInstanceOf(Set);
-				expect(Set.prototype.has.call(state.active, props)).toBe(true);
-				expect(Set.prototype.has.call(state.active, props.rows)).toBe(true);
-				return [value.value];
-			}
-		);
-		const payload = { state: null };
-		expect(
-			validateJsonSafeHydrationValue(payload, {
+	it('preserves positional primitive values, rejection paths, and exact graph budgets', () => {
+		const validate = (value: unknown, maxNodes = 5, maxDepth = 3) => {
+			const payload = { state: null };
+			const failure = validateJsonSafeHydrationValue(payload, {
 				structurallyKnownRoot: payload,
-				positionalRoot: { componentId: 'test:ancestors', props, schema: [1, 'rows', [2, item]] }
-			})
-		).toBeUndefined();
-		expect(calls).toBe(16);
+				positionalRoot: {
+					componentId: 'test:primitive',
+					props: { value },
+					schema: [1, 'value', 0]
+				},
+				maxNodes,
+				maxDepth
+			});
+			return { payload, failure };
+		};
+		for (const value of [null, '', '<&\u2028', true, false, 0, -0, 1.5]) {
+			const result = validate(value);
+			expect(result.failure).toBeUndefined();
+			expect(result.payload.state).toEqual(['test:primitive', [value]]);
+			expect(validate(value, 4).failure).toBeDefined();
+			expect(validate(value, 5, 2).failure).toBe('$.state.value');
+		}
+		for (const value of [undefined, NaN, Infinity, -Infinity, 1n, Symbol('unsafe'), () => 1])
+			expect(validate(value).failure).toBe('$.state.value');
 	});
 
 	it('keeps deep cycles distinct from shared siblings across ancestor promotion', () => {
@@ -42,6 +44,37 @@ describe('hydration JSON validation', () => {
 		expect(validateJsonSafeHydrationValue(root, {})).toBe(`$${'.next'.repeat(24)}.cycle`);
 		delete cursor.cycle;
 		expect(validateJsonSafeHydrationValue(root, {})).toBeUndefined();
+	});
+
+	it('retains shallow ancestry through version-one projectors without a native Set', () => {
+		const shared = { value: 'shared' };
+		const props = { rows: Array.from({ length: 16 }, () => shared) };
+		let calls = 0;
+		const item = registerPositionalProjector([1, 'value', 0] as const, 1, (value, depth, state) => {
+			calls++;
+			expect(state.active).not.toBeInstanceOf(Set);
+			expect(state.active.has(props)).toBe(true);
+			expect(state.active.has(props.rows)).toBe(true);
+			expect(state.active.has(value)).toBe(false);
+			state.active.add(value);
+			try {
+				return state.validate(value.value, depth + 1, state) ? [value.value] : state.unsafe;
+			} finally {
+				state.active.delete(value);
+			}
+		});
+		const payload = { state: null };
+		expect(
+			validateJsonSafeHydrationValue(payload, {
+				structurallyKnownRoot: payload,
+				positionalRoot: {
+					componentId: 'test:shallow-ancestors',
+					props,
+					schema: [1, 'rows', [2, item]]
+				}
+			})
+		).toBeUndefined();
+		expect(calls).toBe(16);
 	});
 
 	it('rechecks positional field ownership after earlier authored getters run', () => {

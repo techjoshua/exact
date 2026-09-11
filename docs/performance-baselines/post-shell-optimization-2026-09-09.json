@@ -1,0 +1,2494 @@
+{
+  "createdAt": "2026-09-09T12:07:41.632Z",
+  "baseline": "render-modes-2026-09-09",
+  "summaries": [
+    {
+      "number": 1,
+      "title": "Reverse body-close search",
+      "tag": "body-search",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 54.8271,
+          "candidateUs": 44.170165625,
+          "changePercent": -19.437348273025567
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 319.43993333333333,
+          "candidateUs": 238.0145333333333,
+          "changePercent": -25.490050398624764
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 112.30481666666667,
+          "candidateUs": 88.05758333333333,
+          "changePercent": -21.590555109761546
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 43.663771874999995,
+          "candidateUs": 37.930896875,
+          "changePercent": -13.12959177327141
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 306.50628333333333,
+          "candidateUs": 257.06094999999993,
+          "changePercent": -16.131915077108005
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 77.00216666666667,
+          "candidateUs": 58.68566666666666,
+          "changePercent": -23.786993006690295
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "title": "Aggregate byte accounting",
+      "tag": "byte-ledger",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 44.59590625,
+          "candidateUs": 40.6985375,
+          "changePercent": -8.73929711877982
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 239.68925,
+          "candidateUs": 232.72776666666667,
+          "changePercent": -2.904378620790593
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 88.69118333333333,
+          "candidateUs": 84.16993333333333,
+          "changePercent": -5.0977445897948055
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 37.080484375000005,
+          "candidateUs": 37.858712499999996,
+          "changePercent": 2.0987539351688733
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 257.77143333333333,
+          "candidateUs": 261.38735,
+          "changePercent": 1.4027608179494555
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 59.57383333333334,
+          "candidateUs": 62.09583333333334,
+          "changePercent": 4.233402248750151
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "title": "Direct synchronous capture",
+      "tag": "direct-capture",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 40.93715625,
+          "candidateUs": 40.36503125,
+          "changePercent": -1.3975689872204988
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 234.61101666666667,
+          "candidateUs": 231.95341666666667,
+          "changePercent": -1.1327686302881057
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 85.62656666666666,
+          "candidateUs": 83.2895,
+          "changePercent": -2.7293709857182047
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 37.119881250000006,
+          "candidateUs": 36.413446875,
+          "changePercent": -1.9031159346718174
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 258.2522,
+          "candidateUs": 255.0363,
+          "changePercent": -1.2452556067286236
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 60.21691666666667,
+          "candidateUs": 59.37533333333333,
+          "changePercent": -1.3975862264618444
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "title": "Avoid awaits for rendered strings",
+      "tag": "stream-await",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 95.21403125,
+          "candidateUs": 93.24146249999998,
+          "changePercent": -2.0717206530419086
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 552.4837166666666,
+          "candidateUs": 552.0203666666666,
+          "changePercent": -0.08386672512188387
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 166.27845000000002,
+          "candidateUs": 168.79795,
+          "changePercent": 1.5152294238970576
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 111.98349687499999,
+          "candidateUs": 109.65836875,
+          "changePercent": -2.076313197823587
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 743.5824000000001,
+          "candidateUs": 728.3085166666667,
+          "changePercent": -2.054094251468752
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 161.03716666666662,
+          "candidateUs": 160.77683333333331,
+          "changePercent": -0.16166040344721688
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "title": "Transfer result objects in place",
+      "tag": "result-transfer",
+      "decision": "Reject",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 40.28348750000001,
+          "candidateUs": 40.059912499999996,
+          "changePercent": -0.5550040820075708
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 228.9767666666667,
+          "candidateUs": 227.18945,
+          "changePercent": -0.7805668202436444
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 82.24096666666667,
+          "candidateUs": 81.76668333333333,
+          "changePercent": -0.5766996091566723
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 35.4934625,
+          "candidateUs": 36.094265625000006,
+          "changePercent": 1.6927148908056022
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 262.66094999999996,
+          "candidateUs": 257.5811166666666,
+          "changePercent": -1.9339887917611431
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 59.083716666666675,
+          "candidateUs": 59.941933333333324,
+          "changePercent": 1.4525434672779003
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "title": "Inline async depth ownership",
+      "tag": "async-depth",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 92.63694375,
+          "candidateUs": 91.45861562500001,
+          "changePercent": -1.2719851036752217
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 554.21255,
+          "candidateUs": 538.4132666666667,
+          "changePercent": -2.850762461682488
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 167.76943333333332,
+          "candidateUs": 164.68034999999998,
+          "changePercent": -1.8412670722894986
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 110.963259375,
+          "candidateUs": 105.35218125,
+          "changePercent": -5.056699088152583
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 706.6197999999999,
+          "candidateUs": 689.81975,
+          "changePercent": -2.377523245173707
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 164.11811666666668,
+          "candidateUs": 154.7388333333333,
+          "changePercent": -5.714959154925737
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "title": "Compact async markers and prepared keyed programs",
+      "tag": "async-markers",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 90.49619375,
+          "candidateUs": 86.183878125,
+          "changePercent": -4.765190055299973
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 543.2966833333332,
+          "candidateUs": 502.5143833333333,
+          "changePercent": -7.506451125338176
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 163.96904999999998,
+          "candidateUs": 159.00744999999998,
+          "changePercent": -3.0259369069955633
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 104.19957500000001,
+          "candidateUs": 99.71324687500001,
+          "changePercent": -4.305514801763821
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 687.4591,
+          "candidateUs": 646.94715,
+          "changePercent": -5.892997852526804
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 153.20128333333332,
+          "candidateUs": 146.98765,
+          "changePercent": -4.055862456330594
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "title": "Shared generic capture class",
+      "tag": "shared-capture",
+      "decision": "Reject",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 86.83791875,
+          "candidateUs": 89.56329062500001,
+          "changePercent": 3.138458307420011
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 507.4494833333333,
+          "candidateUs": 509.96726666666666,
+          "changePercent": 0.49616433084029854
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 160.03588333333332,
+          "candidateUs": 161.43695,
+          "changePercent": 0.8754703242075168
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 100.374746875,
+          "candidateUs": 99.02685937499999,
+          "changePercent": -1.34285519213172
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 635.1187166666666,
+          "candidateUs": 629.4791333333334,
+          "changePercent": -0.8879573511755168
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 153.44503333333336,
+          "candidateUs": 157.3825,
+          "changePercent": 2.5660437363998367
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "title": "Prepared-child dispatch first",
+      "tag": "async-dispatch",
+      "decision": "Retain, magnitude uncertain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 87.37327812500001,
+          "candidateUs": 86.632065625,
+          "changePercent": -0.8483285918832184
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 503.09869999999995,
+          "candidateUs": 506.83275,
+          "changePercent": 0.7422102263432651
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 158.00473333333332,
+          "candidateUs": 157.35978333333333,
+          "changePercent": -0.40818397423536545
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 100.54796250000001,
+          "candidateUs": 99.88064375,
+          "changePercent": -0.6636820214034778
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 639.3489666666667,
+          "candidateUs": 635.8332333333333,
+          "changePercent": -0.5498927059604308
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 146.9505166666667,
+          "candidateUs": 148.6378,
+          "changePercent": 1.1481982994048456
+        }
+      ]
+    },
+    {
+      "number": 11,
+      "title": "Single-pass HTML escaping",
+      "tag": "escaping",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 86.90899999999999,
+          "candidateUs": 85.298646875,
+          "changePercent": -1.8529187138270897
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 510.5449,
+          "candidateUs": 465.72130000000004,
+          "changePercent": -8.779560818255149
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 165.88111666666668,
+          "candidateUs": 167.78183333333334,
+          "changePercent": 1.145830643572343
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 100.6185375,
+          "candidateUs": 98.132753125,
+          "changePercent": -2.4705033851242453
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 636.4685166666667,
+          "candidateUs": 606.17355,
+          "changePercent": -4.759853138585468
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 159.82503333333335,
+          "candidateUs": 156.06425000000004,
+          "changePercent": -2.3530627555007344
+        }
+      ]
+    },
+    {
+      "number": 12,
+      "title": "Bounded portable UTF-8 search",
+      "tag": "utf8-search",
+      "decision": "Retain as fallback",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 40.354246875,
+          "candidateUs": 37.982600000000005,
+          "changePercent": -5.877068855593648
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 231.25393333333335,
+          "candidateUs": 199.56563333333332,
+          "changePercent": -13.702815577335059
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 82.10688333333334,
+          "candidateUs": 86.6227,
+          "changePercent": 5.499924590163241
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 36.095815625,
+          "candidateUs": 35.694628125,
+          "changePercent": -1.1114515437687933
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 258.31391666666667,
+          "candidateUs": 248.07914999999997,
+          "changePercent": -3.9621429610677272
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 66.53166666666667,
+          "candidateUs": 66.0319,
+          "changePercent": -0.7511711215210881
+        }
+      ]
+    },
+    {
+      "number": 13,
+      "title": "Skip awaits for synchronous preparation",
+      "tag": "direct-await",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 82.719790625,
+          "candidateUs": 80.95041875000001,
+          "changePercent": -2.1389946246614944
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 437.64778333333334,
+          "candidateUs": 421.29775,
+          "changePercent": -3.7358885286253973
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 164.9207,
+          "candidateUs": 165.57209999999998,
+          "changePercent": 0.39497770746788063
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 96.38162812499999,
+          "candidateUs": 95.33910312499998,
+          "changePercent": -1.081663611915673
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 588.9849999999999,
+          "candidateUs": 573.12275,
+          "changePercent": -2.6931500802227393
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 156.23040000000003,
+          "candidateUs": 163.82505,
+          "changePercent": 4.861185787145117
+        }
+      ]
+    },
+    {
+      "number": 14,
+      "title": "Preserve canonical document children",
+      "tag": "canonical-document",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 38.51709687500001,
+          "candidateUs": 38.22670624999999,
+          "changePercent": -0.7539265639422976
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 197.41266666666667,
+          "candidateUs": 196.16271666666665,
+          "changePercent": -0.6331660582401089
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 84.44928333333334,
+          "candidateUs": 83.80141666666667,
+          "changePercent": -0.7671665656527216
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 36.03485625,
+          "candidateUs": 35.202990625,
+          "changePercent": -2.308502687588765
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 249.95865000000003,
+          "candidateUs": 247.6455833333333,
+          "changePercent": -0.9253797244731299
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 65.34798333333333,
+          "candidateUs": 64.62440000000001,
+          "changePercent": -1.1072772202355474
+        }
+      ]
+    },
+    {
+      "number": 16,
+      "title": "Return existing plain-render promise",
+      "tag": "plain-promise",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 80.22721250000001,
+          "candidateUs": 79.403875,
+          "changePercent": -1.0262571443573565
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 419.58299999999997,
+          "candidateUs": 410.99288333333334,
+          "changePercent": -2.047298548002807
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 165.64078333333336,
+          "candidateUs": 163.29200000000003,
+          "changePercent": -1.417998204347215
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 92.98526249999999,
+          "candidateUs": 90.32827187500001,
+          "changePercent": -2.8574319774598456
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 568.4421833333333,
+          "candidateUs": 557.8788166666667,
+          "changePercent": -1.8583009805365425
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 156.66806666666668,
+          "candidateUs": 152.6938833333333,
+          "changePercent": -2.536690097662986
+        }
+      ]
+    },
+    {
+      "number": 17,
+      "title": "Native UTF-8 length capability",
+      "tag": "native-length",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 37.62803125,
+          "candidateUs": 36.181937500000004,
+          "changePercent": -3.8431289173546546
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 195.91999999999996,
+          "candidateUs": 179.14364999999998,
+          "changePercent": -8.562857288689251
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 83.04056666666666,
+          "candidateUs": 61.9684,
+          "changePercent": -25.37575008519931
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 34.833484375,
+          "candidateUs": 31.9480875,
+          "changePercent": -8.283400086931437
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 247.0447666666667,
+          "candidateUs": 218.76571666666666,
+          "changePercent": -11.44693343703025
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 65.65241666666665,
+          "candidateUs": 52.58813333333334,
+          "changePercent": -19.89916593575507
+        }
+      ]
+    },
+    {
+      "number": 19,
+      "title": "Skip empty instance cleanup",
+      "tag": "owner-empty",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 77.43380625,
+          "candidateUs": 76.37918125,
+          "changePercent": -1.3619697275309872
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 400.62861666666663,
+          "candidateUs": 395.80285,
+          "changePercent": -1.2045486682449869
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 143.86061666666666,
+          "candidateUs": 144.65226666666666,
+          "changePercent": 0.5502895916498884
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 82.56480625,
+          "candidateUs": 81.546896875,
+          "changePercent": -1.2328610957044406
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 519.0683499999999,
+          "candidateUs": 515.9713166666667,
+          "changePercent": -0.5966523162765025
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 136.2752333333333,
+          "candidateUs": 134.32235,
+          "changePercent": -1.433043470603701
+        }
+      ]
+    },
+    {
+      "number": 20,
+      "title": "Static literal meta attributes",
+      "tag": "static-meta",
+      "decision": "Retain",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 36.20796875,
+          "candidateUs": 36.262553125,
+          "changePercent": 0.15075238099346855
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 179.82533333333333,
+          "candidateUs": 177.29761666666664,
+          "changePercent": -1.4056510391565302
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 62.93433333333334,
+          "candidateUs": 61.182233333333336,
+          "changePercent": -2.784012965895677
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 32.213915625,
+          "candidateUs": 31.565215625,
+          "changePercent": -2.013726016891182
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 216.18266666666665,
+          "candidateUs": 213.44571666666667,
+          "changePercent": -1.2660358215582979
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 49.21318333333334,
+          "candidateUs": 48.752149999999986,
+          "changePercent": -0.936808599050909
+        }
+      ]
+    },
+    {
+      "number": 21,
+      "title": "Remove short-text cutoff",
+      "tag": "short-text",
+      "decision": "Reject",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 35.62578125,
+          "candidateUs": 35.003581249999996,
+          "changePercent": -1.746488015613712
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 177.55871666666667,
+          "candidateUs": 170.40916666666666,
+          "changePercent": -4.026583506695392
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 61.5504,
+          "candidateUs": 61.42646666666667,
+          "changePercent": -0.20135260426143997
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 31.8185625,
+          "candidateUs": 32.17021875,
+          "changePercent": 1.105192134308397
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 213.27845000000002,
+          "candidateUs": 220.05013333333335,
+          "changePercent": 3.1750433920226584
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 48.71686666666667,
+          "candidateUs": 49.16293333333333,
+          "changePercent": 0.9156308629591603
+        }
+      ]
+    },
+    {
+      "number": 23,
+      "title": "Single hydration-escape scan",
+      "tag": "json-escape",
+      "decision": "Reject",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 36.0304125,
+          "candidateUs": 35.93468125,
+          "changePercent": -0.2656956813913758
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 180.3854,
+          "candidateUs": 181.68481666666665,
+          "changePercent": 0.720355786369975
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 61.635916666666674,
+          "candidateUs": 63.84336666666666,
+          "changePercent": 3.5814345261353076
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 31.9174875,
+          "candidateUs": 31.385087500000004,
+          "changePercent": -1.6680510958138384
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 214.74984999999998,
+          "candidateUs": 217.33863333333332,
+          "changePercent": 1.205487842405173
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 49.07735,
+          "candidateUs": 50.52826666666667,
+          "changePercent": 2.956387552845996
+        }
+      ]
+    },
+    {
+      "number": 24,
+      "title": "Shared escaping RegExp instances",
+      "tag": "stable-regex",
+      "decision": "Reject",
+      "values": [
+        {
+          "runtime": "v26.8.1",
+          "scenario": "small",
+          "baselineUs": 35.36196875,
+          "candidateUs": 35.234796875,
+          "changePercent": -0.3596289445847112
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "large",
+          "baselineUs": 176.69494999999998,
+          "candidateUs": 176.52568333333335,
+          "changePercent": -0.0957959843598366
+        },
+        {
+          "runtime": "v26.8.1",
+          "scenario": "unicode",
+          "baselineUs": 61.9184,
+          "candidateUs": 62.49293333333333,
+          "changePercent": 0.9278878868532292
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "small",
+          "baselineUs": 31.9600125,
+          "candidateUs": 30.993321875000003,
+          "changePercent": -3.02468788145811
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "large",
+          "baselineUs": 218.3606,
+          "candidateUs": 213.6168,
+          "changePercent": -2.1724615154931737
+        },
+        {
+          "runtime": "1.4.2",
+          "scenario": "unicode",
+          "baselineUs": 48.767966666666666,
+          "candidateUs": 48.07471666666666,
+          "changePercent": -1.4215273823869445
+        }
+      ]
+    }
+  ],
+  "httpSummary": [
+    {
+      "runtime": "node",
+      "mode": "string",
+      "baseline": 5743.676549091904,
+      "candidate": 7478.826889178368,
+      "react": 10277.614934823705,
+      "errors": 0
+    },
+    {
+      "runtime": "node",
+      "mode": "stream",
+      "baseline": 4454.296993956262,
+      "candidate": 5187.485514588576,
+      "react": 4205.365803859349,
+      "errors": 0
+    },
+    {
+      "runtime": "bun",
+      "mode": "string",
+      "baseline": 7130.53674300692,
+      "candidate": 9148.68980556362,
+      "react": 9836.280381153429,
+      "errors": 0
+    },
+    {
+      "runtime": "bun",
+      "mode": "stream",
+      "baseline": 4437.095566768252,
+      "candidate": 5336.017635609776,
+      "react": 7015.6706827888465,
+      "errors": 0
+    }
+  ],
+  "evidence": [
+    {
+      "entry": "async-depth-app-build.log",
+      "bytes": 2952,
+      "sha256": "a1dfa4022b5068503c834d2d26f7f0fe91ea8777ed2a1f54b0d6390eeaaa418f"
+    },
+    {
+      "entry": "async-depth-build.log",
+      "bytes": 86,
+      "sha256": "618357f7d14e2549bac96eaa645bdddb6b3b29c86063257e874bbdbf369c3306"
+    },
+    {
+      "entry": "async-depth-render.json",
+      "bytes": 27644,
+      "sha256": "7a546cb34801634311853a5989eb29448ac85e4d96912ca9f3ddc374e439d1ea"
+    },
+    {
+      "entry": "async-depth-render.log",
+      "bytes": 5992,
+      "sha256": "aed7d7a4fb69035445e12220d86ebaea8e08cd10d0ced4db6e6f3dbe2a641a6a"
+    },
+    {
+      "entry": "async-depth-ssr-tests.log",
+      "bytes": 494,
+      "sha256": "e034315b8d3e6eaa4a96e42d51e49a8695d51f32ca12c55a9524cc08a7e8a209"
+    },
+    {
+      "entry": "async-depth.mjs",
+      "bytes": 337527,
+      "sha256": "20fb342190f28481d0a58844b5c40df52913f5853346388086d28e2ea393b522"
+    },
+    {
+      "entry": "async-dispatch-render.json",
+      "bytes": 27714,
+      "sha256": "c76d9cfddd671923eaafa4922773055bce772e0ad9cc270f6e3fe262790807c5"
+    },
+    {
+      "entry": "async-dispatch-render.log",
+      "bytes": 5976,
+      "sha256": "773b0c47e2f3a04dcc591955ec5e8467bb3118c60fb407bf22762ca424334c81"
+    },
+    {
+      "entry": "async-dispatch.mjs",
+      "bytes": 337038,
+      "sha256": "bbd9dfdc44c93fe87a00e14bd698abb4aca22b77bb0067f5fa0954bf5df7e7b0"
+    },
+    {
+      "entry": "async-markers-app-build.log",
+      "bytes": 2952,
+      "sha256": "1c0fc9e9aff22b7f9f931fd0811e0f5d2e26ae975c34fdffb4d6e0d99f302aa3"
+    },
+    {
+      "entry": "async-markers-build.log",
+      "bytes": 86,
+      "sha256": "618357f7d14e2549bac96eaa645bdddb6b3b29c86063257e874bbdbf369c3306"
+    },
+    {
+      "entry": "async-markers-hydrate-tests.log",
+      "bytes": 512,
+      "sha256": "1bb28f6c532a5263950be4ab56faaafb66bebe427d78aa4a0fdc94b7ffe22cfb"
+    },
+    {
+      "entry": "async-markers-node-browser.log",
+      "bytes": 5884,
+      "sha256": "8f43bb84803af1d1db3f2058d09ffcd5eaa85452d95901dd695e3e9ed244a3ba"
+    },
+    {
+      "entry": "async-markers-render.json",
+      "bytes": 27643,
+      "sha256": "213919d6c4f867e92cd1688bc2c4982806a72b420894733b5d8795f9abde85fe"
+    },
+    {
+      "entry": "async-markers-render.log",
+      "bytes": 5966,
+      "sha256": "506c19f7cad3f8857f814f32717b4f3bd2754cc227caf1b7e0047c050860561d"
+    },
+    {
+      "entry": "async-markers-ssr-tests.log",
+      "bytes": 494,
+      "sha256": "5f88e41f496445a973e5cb0444862d806cd68424ecb15ae8cb3c540a619fbcc4"
+    },
+    {
+      "entry": "async-markers.mjs",
+      "bytes": 337038,
+      "sha256": "562ea3ed29804472adced03ddd33a3ba9a964d1654f36506c0b6c567ea28b4dd"
+    },
+    {
+      "entry": "baseline-profile-summary.json",
+      "bytes": 85267,
+      "sha256": "ea6aab5659579fc3c8ee36409c4867c30ce258ca13e68dd5ecf90261bcde0076"
+    },
+    {
+      "entry": "baseline.mjs",
+      "bytes": 334878,
+      "sha256": "f7870584e11e896716df3ff98727568779d25b0a37eddc24680ff2f73e3c8486"
+    },
+    {
+      "entry": "body-search-app-build.log",
+      "bytes": 2952,
+      "sha256": "ef2d541a514f97e4c9a9c7effff3ca2a8cae079295bee9ba7081367ea07da78d"
+    },
+    {
+      "entry": "body-search-build.log",
+      "bytes": 86,
+      "sha256": "618357f7d14e2549bac96eaa645bdddb6b3b29c86063257e874bbdbf369c3306"
+    },
+    {
+      "entry": "body-search-render.json",
+      "bytes": 27536,
+      "sha256": "4b7dbbf2e9318771c2d363b7e7724441edd55deb275c3d7903bd3707e87c70c4"
+    },
+    {
+      "entry": "body-search-render.log",
+      "bytes": 5942,
+      "sha256": "b2ee3b0f1e981d9e9934aa3f452b7b0d772e15822adf355b8366807b94387efa"
+    },
+    {
+      "entry": "body-search.mjs",
+      "bytes": 335085,
+      "sha256": "12f756f5899b7da9e43ef5eb0383b9d3ea98189b3536288845d88fe98f14cb4f"
+    },
+    {
+      "entry": "bun-text-http.json",
+      "bytes": 723700,
+      "sha256": "bd1eeb1592e12ef3deccabb96f9ab30f7d10e4db6854ef5b427b39ff32b70e07"
+    },
+    {
+      "entry": "bun-text-http.log",
+      "bytes": 410,
+      "sha256": "e4ce992390ada6c308e605bd015b2b42b010dff6058a2b5eb661996d77810ee3"
+    },
+    {
+      "entry": "bun-text-tests.log",
+      "bytes": 5152,
+      "sha256": "a489d35094c22e01e667e451e65daa4345303b50560b2e2be6f2aeea478d36b1"
+    },
+    {
+      "entry": "byte-ledger-app-build.log",
+      "bytes": 2952,
+      "sha256": "6432371688bf965830972e031ad75ff1170af75243b670b98f53b35319475ab4"
+    },
+    {
+      "entry": "byte-ledger-build.log",
+      "bytes": 86,
+      "sha256": "618357f7d14e2549bac96eaa645bdddb6b3b29c86063257e874bbdbf369c3306"
+    },
+    {
+      "entry": "byte-ledger-render.json",
+      "bytes": 27473,
+      "sha256": "49d28d03f9b7411346df237a1f275930f84f7a8c81a885896ddcb7e07cb7185b"
+    },
+    {
+      "entry": "byte-ledger-render.log",
+      "bytes": 5892,
+      "sha256": "5353a3e05cdec7dd330dc92c6f2c68b75f6bc73122cbbfe5d5bf0df7ee2f1814"
+    },
+    {
+      "entry": "byte-ledger-ssr-tests.log",
+      "bytes": 494,
+      "sha256": "ac987ceabe69a982ebb99eb33b7d8843e7ae1d85cb300716d291c585a34e6a5d"
+    },
+    {
+      "entry": "byte-ledger.mjs",
+      "bytes": 334877,
+      "sha256": "41ea90df3ddd4a3bc4559b8a04c07880d2e317879ab53afd3026af248ab55a78"
+    },
+    {
+      "entry": "canonical-document-render.json",
+      "bytes": 27778,
+      "sha256": "110c9e9c276e19a684958613e6d0f2e8679cee3f25de60d5dfffd0b1deaad74e"
+    },
+    {
+      "entry": "canonical-document-render.log",
+      "bytes": 5990,
+      "sha256": "36510d7c48041b66d6bb58066bbf50198fc5a83c481428c086b487be5657de1c"
+    },
+    {
+      "entry": "canonical-document.mjs",
+      "bytes": 338295,
+      "sha256": "12c5d2ae8e982765daa915a0483c48dec2da1b9d87586bbd349c86be37d1c2aa"
+    },
+    {
+      "entry": "changed-files.json",
+      "bytes": 1874,
+      "sha256": "6b21e08847afb1044f722b3fffd59e83d8fa9430f02d21a51f483f3c5f7bd21e"
+    },
+    {
+      "entry": "client-round.mjs",
+      "bytes": 10362,
+      "sha256": "fc56f0360193ca3af41809d4cf3d7ebcaebb3e6f7bab1803ea5c7384c292e637"
+    },
+    {
+      "entry": "cork-repro-uncork.mjs",
+      "bytes": 1027,
+      "sha256": "6ed0aeb61347c4c66734eb763388b408525e0207175375c30dbe77205b90429b"
+    },
+    {
+      "entry": "cork-repro.mjs",
+      "bytes": 990,
+      "sha256": "52b28c2bb7883fde513a1862bbfdf309c73f4521a82426edc2b8b14b1a9a3eed"
+    },
+    {
+      "entry": "current-exact-stream.cpuprofile",
+      "bytes": 284371,
+      "sha256": "d68041b28bfaa39e7574720211406ef35f90f4892bf8e04ed8de6e87e80221b2"
+    },
+    {
+      "entry": "current-exact-stream.cpuprofile.json",
+      "bytes": 7080,
+      "sha256": "3b3afce4a755caa71439888cb5d2c9c2c2e77c7b21b55c4d44017ae77c1af4ac"
+    },
+    {
+      "entry": "current-exact-string.cpuprofile",
+      "bytes": 191721,
+      "sha256": "327f25b91c277c406b9c7f35b0f4fa2d22c64500dac2b46ca962f5ec3b76b51d"
+    },
+    {
+      "entry": "current-exact-string.cpuprofile.json",
+      "bytes": 7816,
+      "sha256": "cfb60577d64cf2f43b8526260fe9935d0af8219cf3b1e9a0c9188d766dcb4953"
+    },
+    {
+      "entry": "current-profiles.log",
+      "bytes": 50342,
+      "sha256": "35a17d5fd1ac4d8f9214c10226fa6e4f17e913e69aa57b473f37faf6990ddd4d"
+    },
+    {
+      "entry": "current-react-stream.cpuprofile",
+      "bytes": 220779,
+      "sha256": "a046bd43a6e96253405e59ae1a84eea6521e395469990d9dd96364b0de0e8d05"
+    },
+    {
+      "entry": "current-react-stream.cpuprofile.json",
+      "bytes": 6686,
+      "sha256": "cca895a357f7c31905a4cf3fae0a80a46e032aa0843afdf30ef86b4f61bc5212"
+    },
+    {
+      "entry": "current-react-string.cpuprofile",
+      "bytes": 173540,
+      "sha256": "626e26274b50c1a1e5362909d364bbdf351ab9f29a72902df473f3d7a76804b3"
+    },
+    {
+      "entry": "current-react-string.cpuprofile.json",
+      "bytes": 7996,
+      "sha256": "b01b63f2fe76ab0459ea91a524083648f1570d2a247cbd6d42c850acbb8fe27f"
+    },
+    {
+      "entry": "direct-await-render.json",
+      "bytes": 27638,
+      "sha256": "8b1cc2c97f3f5a33bec96297231fb1bd48442233505b8fa48973f8ad33cbd8b1"
+    },
+    {
+      "entry": "direct-await-render.log",
+      "bytes": 5978,
+      "sha256": "063e87ef7efad2a2b68dcf8e98b6f63e181a0a7d3b222616d98b45873438d3a9"
+    },
+    {
+      "entry": "direct-await-tests.log",
+      "bytes": 584,
+      "sha256": "a357dc7560c222018e481771c1a6a2eed1a4d7ac31d08b6954805d95001468e6"
+    },
+    {
+      "entry": "direct-await.mjs",
+      "bytes": 338128,
+      "sha256": "466c3e0584af482462e836e531694713e90a88f7aa801f1382d99fc57fab13ca"
+    },
+    {
+      "entry": "direct-capture-app-build.log",
+      "bytes": 2952,
+      "sha256": "ab4fe8adeb33d884457e5bafb5428f0e3f048a6d0212f5815c81a051b39c442f"
+    },
+    {
+      "entry": "direct-capture-build.log",
+      "bytes": 86,
+      "sha256": "618357f7d14e2549bac96eaa645bdddb6b3b29c86063257e874bbdbf369c3306"
+    },
+    {
+      "entry": "direct-capture-render.json",
+      "bytes": 27587,
+      "sha256": "9ecc77411d52b9d04f5d1948a3ed29963e4e9d2790a6c3e8caf3085ebbb6fd76"
+    },
+    {
+      "entry": "direct-capture-render.log",
+      "bytes": 5916,
+      "sha256": "77be10d391e7429fb27cf470a470ce0785f52ca40cfc282872f5a84727847283"
+    },
+    {
+      "entry": "direct-capture-tests.log",
+      "bytes": 480,
+      "sha256": "ec7638e5cf01e82430b7c08f9317d35145c91782628b10e94f3dbd1935d256f1"
+    },
+    {
+      "entry": "direct-capture.mjs",
+      "bytes": 337660,
+      "sha256": "d288a5eba0c48d989e586af071553a89b5e3fab035ebe070dfe98c2c77dd57a3"
+    },
+    {
+      "entry": "encoding-http-round.mjs",
+      "bytes": 4083,
+      "sha256": "b97441d87c2e9755db83d50e75f30035898e896ddec87a4208b78e44449037d1"
+    },
+    {
+      "entry": "encoding-node-handler.mjs",
+      "bytes": 12096,
+      "sha256": "d1064c523c3ff22b146426ecfab01c376711c529a190a27ae989f784cf46d322"
+    },
+    {
+      "entry": "encoding-node-large-0-buffer-admission.json",
+      "bytes": 38285,
+      "sha256": "efaf15d1f97db1f99dd666b636be6180e0ed4cd1c121ea63078fb50ec141d7eb"
+    },
+    {
+      "entry": "encoding-node-large-0-implicit-head-admission.json",
+      "bytes": 38285,
+      "sha256": "446d8dea10340d5be3afbc0adad42d25d9e683128e08128c963c1c7e6f3c04e4"
+    },
+    {
+      "entry": "encoding-node-large-0-plain-admission.json",
+      "bytes": 38285,
+      "sha256": "bfd89653bc4f6a54dc7e00390224af45c9eccc89b02f4f72e920029b799a9047"
+    },
+    {
+      "entry": "encoding-node-large-1-buffer-admission.json",
+      "bytes": 38285,
+      "sha256": "8918de2bc77c715a134ba50acc9d3191b6b2d5dc846353425f9961564d698a9b"
+    },
+    {
+      "entry": "encoding-node-large-1-implicit-head-admission.json",
+      "bytes": 38285,
+      "sha256": "bf10cb00aa1dd01acc0245c656e9a6de7d516a1c05c121ca347819795bafa7b7"
+    },
+    {
+      "entry": "encoding-node-large-1-plain-admission.json",
+      "bytes": 38285,
+      "sha256": "2f04cee637f48b4727737cfae04cddfd293edbc4a5e62057bb9d1ec95d6029d0"
+    },
+    {
+      "entry": "encoding-node-small-0-buffer-admission.json",
+      "bytes": 4556,
+      "sha256": "ab382131179d49fd619b3c678c9f854aea3ea1ecfb49950e8767f77e2ccfb1ce"
+    },
+    {
+      "entry": "encoding-node-small-0-implicit-head-admission.json",
+      "bytes": 4556,
+      "sha256": "7b301bdb538bece733e791f1627467d66fc7e14794571ce276ea23037136b1f8"
+    },
+    {
+      "entry": "encoding-node-small-0-plain-admission.json",
+      "bytes": 4556,
+      "sha256": "84d3093e9c74db8ecdf545d172490c003c52998473d285bc4865ee63a9b9e806"
+    },
+    {
+      "entry": "encoding-node-small-1-buffer-admission.json",
+      "bytes": 4556,
+      "sha256": "a5d8d9dd90a661103652fda5fbea75a288399c05da1e48a8c00ad4f322158a6d"
+    },
+    {
+      "entry": "encoding-node-small-1-implicit-head-admission.json",
+      "bytes": 4556,
+      "sha256": "fca0eab03f186bb94e498348355cc0217091a5ced5b93bce7657525d5380f46a"
+    },
+    {
+      "entry": "encoding-node-small-1-plain-admission.json",
+      "bytes": 4556,
+      "sha256": "3adc085914051a8bd82eb4454a055ecc7e0e4c1695dde33831d174f36bfdcc50"
+    },
+    {
+      "entry": "encoding-worker.mjs",
+      "bytes": 25106,
+      "sha256": "1eca8256cd90c3376609012f20a9b3e3e91cfb3bf50b9d3993b61e5d14bafa16"
+    },
+    {
+      "entry": "escaping-render.json",
+      "bytes": 27663,
+      "sha256": "188040b0faa6224d5683fc5cc9bb18822f00da98915c31656741c8cb1433fcbb"
+    },
+    {
+      "entry": "escaping-render.log",
+      "bytes": 6002,
+      "sha256": "92113053e2f9614e2bde4333b9eccd7bbfa74700631bff0730a067f91a54fde6"
+    },
+    {
+      "entry": "escaping-tests.log",
+      "bytes": 584,
+      "sha256": "e255cf017190c3fae7b1e9075f383021b97ef27c49c94a7241513d67919dc067"
+    },
+    {
+      "entry": "escaping.mjs",
+      "bytes": 337194,
+      "sha256": "7efbc89bb6676cd6490b6dca045cecee9fd134f5ca6609c25e94fda44f905413"
+    },
+    {
+      "entry": "final-probe-build.log",
+      "bytes": 3036,
+      "sha256": "99521146044d229ce29d91e6fad91b1ce6cb7141a3b8490f71abb8167061e416"
+    },
+    {
+      "entry": "first-three-http.json",
+      "bytes": 1299150,
+      "sha256": "f46d0d634d2e790e5e639b46b588d9450446bf6e2caf3b09e3d34cd2a754b351"
+    },
+    {
+      "entry": "first-three-http.log",
+      "bytes": 1440,
+      "sha256": "2161c819d01158ff92b6c9bad3d960cbbd5c0c6cc953ba91d14deb0ab25103b6"
+    },
+    {
+      "entry": "http-encoding-large.mjs",
+      "bytes": 340058,
+      "sha256": "f6b03740dbd0ed131b1d84e95c574a40b6c53b07cfa0951a35cf8601dbfcbf60"
+    },
+    {
+      "entry": "http-encoding-small.mjs",
+      "bytes": 339723,
+      "sha256": "558db773f7c4fb8549c488eb0cddc9b5376302471b381d42ef9e4c37df669ffc"
+    },
+    {
+      "entry": "http-output-bun-large-chunk-2048.mjs",
+      "bytes": 342667,
+      "sha256": "af9bae700e6a49e370d28ddcb31a936684e23c1835e49a802886d52b710e8e9b"
+    },
+    {
+      "entry": "http-output-bun-large-chunk-4096.mjs",
+      "bytes": 342667,
+      "sha256": "77543ceabb9b233e470d16e003de18f68ac31f2ef8165313837ed0174c9180dc"
+    },
+    {
+      "entry": "http-output-bun-large-chunk-8192.mjs",
+      "bytes": 342667,
+      "sha256": "854f496d1c8c743d9b752b9229089639007146ea997b3babb5fd5550d9d0bf54"
+    },
+    {
+      "entry": "http-output-bun-large-native-buffer.mjs",
+      "bytes": 342587,
+      "sha256": "19efbc690ca6a743898e80be5c7f6f6592b5a417dd6d6df791df5f67b020751f"
+    },
+    {
+      "entry": "http-output-bun-large-plain.mjs",
+      "bytes": 342590,
+      "sha256": "f05540c9681444cc368d44bae9b7348c2d79a77526bd3c5f6954b7de8d418ff5"
+    },
+    {
+      "entry": "http-output-bun-small-chunk-2048.mjs",
+      "bytes": 342332,
+      "sha256": "f776314af3987456c0c3e7eea56a601bce71f8375bcb8b698567e0da9caa9ec1"
+    },
+    {
+      "entry": "http-output-bun-small-chunk-4096.mjs",
+      "bytes": 342332,
+      "sha256": "ca1324185c71c580ef7d5b0a5119ce5b852ddf6c050523c0087e41594f3792f2"
+    },
+    {
+      "entry": "http-output-bun-small-chunk-8192.mjs",
+      "bytes": 342332,
+      "sha256": "ce8b7a567072b5d6bc5ff543d33078ffbce621b496991341b686160fefebd1d4"
+    },
+    {
+      "entry": "http-output-bun-small-native-buffer.mjs",
+      "bytes": 342252,
+      "sha256": "cc6b4e7593751e37fcc5b1fc646a4836ac4d111b509306961b29edf60a0f597a"
+    },
+    {
+      "entry": "http-output-bun-small-plain.mjs",
+      "bytes": 342255,
+      "sha256": "3d30ea3e87ec80aa8973d9ab62652b0a517f337568a8410ae349e927bcc51a07"
+    },
+    {
+      "entry": "http-output-node-large-chunk-2048.mjs",
+      "bytes": 339101,
+      "sha256": "068d7c8d37fce80c34855b0b396bffec26a8b39d05896772466edbf4b8c4ef08"
+    },
+    {
+      "entry": "http-output-node-large-chunk-4096.mjs",
+      "bytes": 339101,
+      "sha256": "c5723d234b87cf7c7af4e2b2dc775d6d6d6c057f2642fa55e8b1b2c75aa1eaa9"
+    },
+    {
+      "entry": "http-output-node-large-chunk-8192.mjs",
+      "bytes": 339101,
+      "sha256": "8baa81b755812180ead59a56cef1e942114bf93f1bd0babcfa2e2aaf15378c51"
+    },
+    {
+      "entry": "http-output-node-large-native-buffer.mjs",
+      "bytes": 339021,
+      "sha256": "b01b77ea7e663503445a6dbce3c16507e2a1497699a6a50ef64b1621c0948bb5"
+    },
+    {
+      "entry": "http-output-node-large-plain.mjs",
+      "bytes": 339024,
+      "sha256": "a8e0df8eca8126fe660301fb20c6db64188d473b396e9b6c2f23dfba858fbf69"
+    },
+    {
+      "entry": "http-output-node-small-chunk-2048.mjs",
+      "bytes": 338766,
+      "sha256": "1d4a21f6fa520d6babea60f0f878c1fe69eac9328ff49fc7d627486b47fbe597"
+    },
+    {
+      "entry": "http-output-node-small-chunk-4096.mjs",
+      "bytes": 338766,
+      "sha256": "4acd24755c95a42006e45b94c827bfa8af8384dfb1e12cebb83b41ec6dbbddc3"
+    },
+    {
+      "entry": "http-output-node-small-chunk-8192.mjs",
+      "bytes": 338766,
+      "sha256": "9c12205d4d87ec9a240ef67a1e0569626a3dc709ad18b9a66253de6716dfdd95"
+    },
+    {
+      "entry": "http-output-node-small-native-buffer.mjs",
+      "bytes": 338686,
+      "sha256": "bf250a3bb16df6d62aab98ddb43579a627055abd30d657f7f1dd9d2ec777a624"
+    },
+    {
+      "entry": "http-output-node-small-plain.mjs",
+      "bytes": 338689,
+      "sha256": "ead8adf4656f1528a78cce016ddb87abb5619e557c867de545b3fa756f5f02fa"
+    },
+    {
+      "entry": "http-profiles.log",
+      "bytes": 1614,
+      "sha256": "38ff360858d3ebf3aaccd6e6761b4762f317eb1518405c21e0baeaede13fd0c5"
+    },
+    {
+      "entry": "http-round.mjs",
+      "bytes": 4418,
+      "sha256": "ab0f57afd71019d6b07d114dcf3c475b1986cbd14c98994d800f6f4db902e5c0"
+    },
+    {
+      "entry": "http-text-large-plain.mjs",
+      "bytes": 342590,
+      "sha256": "a90712aef9e5c291a83777967afbe785b6b7763589c02702dec860a9538a91b8"
+    },
+    {
+      "entry": "http-text-large-text.mjs",
+      "bytes": 342590,
+      "sha256": "204b100373cac47c04f2ba37c0b6f46a597733165d990d237ad627ad69cb2d03"
+    },
+    {
+      "entry": "http-text-small-plain.mjs",
+      "bytes": 342255,
+      "sha256": "3d30ea3e87ec80aa8973d9ab62652b0a517f337568a8410ae349e927bcc51a07"
+    },
+    {
+      "entry": "http-text-small-text.mjs",
+      "bytes": 342255,
+      "sha256": "8677b71828ca112319f753393a27e874ef91dceb6cfbcba50194c0ca44fbe51a"
+    },
+    {
+      "entry": "json-escape-render.json",
+      "bytes": 27729,
+      "sha256": "cef92caae770bba64716e94c9cd5a5fd50a1a6b309873b65f69f24eb4c9aa565"
+    },
+    {
+      "entry": "json-escape-render.log",
+      "bytes": 5934,
+      "sha256": "f21cfe8445f1ba034171393d1bf3d47ccf19e6c5a322cfc570c19fb62259916a"
+    },
+    {
+      "entry": "json-escape-stream-render.json",
+      "bytes": 27906,
+      "sha256": "765180fbff20c0045cd535c06b3330788487cc4e9a49438182adb4640ef01dcf"
+    },
+    {
+      "entry": "json-escape-stream-render.log",
+      "bytes": 5992,
+      "sha256": "8bee4eaa5a5daadebb2770095c4a8586f62d91480efa65e3dd54a48648b3e620"
+    },
+    {
+      "entry": "json-escape-stream.mjs",
+      "bytes": 339896,
+      "sha256": "b010d246fefdb96a40abff4e12c5fa35326083a3018066091d403cac8bbe8a1b"
+    },
+    {
+      "entry": "json-escape.mjs",
+      "bytes": 339896,
+      "sha256": "b010d246fefdb96a40abff4e12c5fa35326083a3018066091d403cac8bbe8a1b"
+    },
+    {
+      "entry": "meta-compiler-build.log",
+      "bytes": 1308,
+      "sha256": "1be6c473a1b368fd02d063902d7cefbf514fd7d73d02e58e45eb4657db59d078"
+    },
+    {
+      "entry": "native-codec-tests.log",
+      "bytes": 584,
+      "sha256": "1adf2fac5e099416981cf57d743600f805bb909ecc87f6f67659e5d51e717b5b"
+    },
+    {
+      "entry": "native-length-render.json",
+      "bytes": 27609,
+      "sha256": "531911b51405a34b6a6f88b8d7e3255900e33f78016b522e93cf9f96c5244853"
+    },
+    {
+      "entry": "native-length-render.log",
+      "bytes": 5906,
+      "sha256": "8b8c5c9ce85fdbcf0aa08e280ae3476864398ae640ce24821d61f4249b9462d8"
+    },
+    {
+      "entry": "native-length-round.mjs",
+      "bytes": 1964,
+      "sha256": "4f0ac5e1a715b75df699684bba516a80b1e97426f9a44ab467004cb2a67befb0"
+    },
+    {
+      "entry": "native-length-stream-render.json",
+      "bytes": 27970,
+      "sha256": "f3ab67a2f8c862a6f55eb57240634454e3c4bc52e7f358bc19ce83b202034710"
+    },
+    {
+      "entry": "native-length-stream-render.log",
+      "bytes": 6024,
+      "sha256": "29876074ca7db24e568dfe3f60c9704a833fbd7e5c412ff768932c679ea4f30c"
+    },
+    {
+      "entry": "native-length-stream.mjs",
+      "bytes": 338721,
+      "sha256": "2776928ae8285d8a9a916a0ee6fba2d89fd39f3418249628a47273364bc4234b"
+    },
+    {
+      "entry": "native-length.mjs",
+      "bytes": 338721,
+      "sha256": "2776928ae8285d8a9a916a0ee6fba2d89fd39f3418249628a47273364bc4234b"
+    },
+    {
+      "entry": "native-source.mjs",
+      "bytes": 339683,
+      "sha256": "bbf369830cc149c5f8cdd33fae6165b474c3f2e74d20a93715c255a710db0856"
+    },
+    {
+      "entry": "navigation-app-build.log",
+      "bytes": 2952,
+      "sha256": "7f417f7953fcf795e0eb4264084922bb5af0d73f8afd65b7cdca12802a4b2721"
+    },
+    {
+      "entry": "navigation-build.log",
+      "bytes": 94,
+      "sha256": "2b4650b37ed74ef4113d7c10272c6d7c8e1797ae0a7178cfe15ef5939e6b3681"
+    },
+    {
+      "entry": "navigation-client.json",
+      "bytes": 127036,
+      "sha256": "a85a2978cf0955496efe0ffcb6057d37c61dee5193d1bfaf5f67aee9e61eb20a"
+    },
+    {
+      "entry": "navigation-client.log",
+      "bytes": 584,
+      "sha256": "6a960135931ed6ed36d32d69a0736d4b1083df4d4b23ed36695049a55e966067"
+    },
+    {
+      "entry": "navigation-tests.log",
+      "bytes": 492,
+      "sha256": "ea238b4115bb45efc2f3fdeaa24e6e603f2cca2fe8a4ae429cda28e5112b14db"
+    },
+    {
+      "entry": "node-encoding-http.json",
+      "bytes": 1099870,
+      "sha256": "15ab6fd45539a49d7d870f2e2b2475bcad517f8f4f65d1084899d324530012be"
+    },
+    {
+      "entry": "node-encoding-http.log",
+      "bytes": 722,
+      "sha256": "d9a999501b7dfaf1d00873f12f1fa5ab36e5477444a3fba3c5a5d2f89e1946b5"
+    },
+    {
+      "entry": "opaque-construction-micro.json",
+      "bytes": 6912,
+      "sha256": "127ffa55612d17ccbb7be15c7cc1fb22068137a79d9f185a0f0e5144320b1531"
+    },
+    {
+      "entry": "opaque-construction-micro.mjs",
+      "bytes": 1780,
+      "sha256": "2bde52bf16f8636e200f17700d5fc681c81d3e339fd48563d7c6dd65ac71b829"
+    },
+    {
+      "entry": "output-bun-large-0-chunk-2048-admission.json",
+      "bytes": 38187,
+      "sha256": "cf5f00945726e23f74152072a274f6cbf462fb810c3cc1a9d23b4de9e8d13cd9"
+    },
+    {
+      "entry": "output-bun-large-0-chunk-4096-admission.json",
+      "bytes": 38187,
+      "sha256": "dfdd71b256fb6460332d03291cac49884661216f828afefe0bea1ef1467bb905"
+    },
+    {
+      "entry": "output-bun-large-0-chunk-8192-admission.json",
+      "bytes": 38187,
+      "sha256": "9ae4b58c8b3bfb1c7fd43d5bf2139008f1941c69003daf768786269d6daf35ac"
+    },
+    {
+      "entry": "output-bun-large-0-native-buffer-admission.json",
+      "bytes": 38187,
+      "sha256": "fdf6520ba6f01414b729c74b0499347ceda629174cf6b612c2af8a735fe7c45a"
+    },
+    {
+      "entry": "output-bun-large-0-plain-admission.json",
+      "bytes": 38187,
+      "sha256": "65b45eb8a97cd71b22da32290b27a0d97697ac23efeaa2fa8a3f2d6bb37c2e8b"
+    },
+    {
+      "entry": "output-bun-large-1-chunk-2048-admission.json",
+      "bytes": 38187,
+      "sha256": "4a2f795f6227069be30491ca188354170ab884b3c7acdcecf43c8f429ae4d13e"
+    },
+    {
+      "entry": "output-bun-large-1-chunk-4096-admission.json",
+      "bytes": 38187,
+      "sha256": "0831a2e8c8760644b16e1587b00adb69898412de11eb217cc7860087c620d9bf"
+    },
+    {
+      "entry": "output-bun-large-1-chunk-8192-admission.json",
+      "bytes": 38187,
+      "sha256": "3ef5e969bc8484ad87948d13d9ce8cad9930d7f476129146fde683e8f055ed70"
+    },
+    {
+      "entry": "output-bun-large-1-native-buffer-admission.json",
+      "bytes": 38187,
+      "sha256": "81831e9f1e459e0227ae6a206ececf682addc963a786940acdf439aaa19197a3"
+    },
+    {
+      "entry": "output-bun-large-1-plain-admission.json",
+      "bytes": 38187,
+      "sha256": "05c92cea1e9e9af657d7a9cc04cc5162c1817591e8e09a7da6ea12d45156b3b6"
+    },
+    {
+      "entry": "output-bun-small-0-chunk-2048-admission.json",
+      "bytes": 4459,
+      "sha256": "c701256c4592b2ea8dab508234b9ea7c74a8c8f9d77e28f415c39bccae765885"
+    },
+    {
+      "entry": "output-bun-small-0-chunk-4096-admission.json",
+      "bytes": 4459,
+      "sha256": "88fe46656044cb392fac26a8b397c05236485ede7f32e17f772d039f43e8d50d"
+    },
+    {
+      "entry": "output-bun-small-0-chunk-8192-admission.json",
+      "bytes": 4459,
+      "sha256": "91d30501b5f6ec1514df9f3139be8b3eb60e2d49cf524c3da0caff3df14a5ba1"
+    },
+    {
+      "entry": "output-bun-small-0-native-buffer-admission.json",
+      "bytes": 4459,
+      "sha256": "d8b17c68a45e9efc9e57a7e731c2b4a526045735f9ee183e043aca3049d2de97"
+    },
+    {
+      "entry": "output-bun-small-0-plain-admission.json",
+      "bytes": 4459,
+      "sha256": "6b5a24d0dea77f5f318ad0bd0b528aaec1b35d2373c34b68aa31927332bfe7a9"
+    },
+    {
+      "entry": "output-bun-small-1-chunk-2048-admission.json",
+      "bytes": 4459,
+      "sha256": "de7b09e2ad7a0a7e04b403cfeb861d688e39535b8eec3efaac47d00b0f66c4e7"
+    },
+    {
+      "entry": "output-bun-small-1-chunk-4096-admission.json",
+      "bytes": 4459,
+      "sha256": "994222bb78c6cb3694d17cc90d078eac90c30071d2596efe3682048cad9eb179"
+    },
+    {
+      "entry": "output-bun-small-1-chunk-8192-admission.json",
+      "bytes": 4459,
+      "sha256": "13e7ce4174696b2a4720cb1dc6853371e9c955037f56080e3e12bbe9eca459ad"
+    },
+    {
+      "entry": "output-bun-small-1-native-buffer-admission.json",
+      "bytes": 4459,
+      "sha256": "03aae5c510acf54c79c25c477ac93f53a2652931e1128e5640aa5f0c4191d0a2"
+    },
+    {
+      "entry": "output-bun-small-1-plain-admission.json",
+      "bytes": 4459,
+      "sha256": "92ffba2c2b889efaa1558914e1988f2711e8df2256407a2e5812b400e97b3631"
+    },
+    {
+      "entry": "output-chunk-2048.mjs",
+      "bytes": 338372,
+      "sha256": "fdd52594b99c8771bc2612edde3695f416b90b9bb5d21585bfef6d5dc4c6509f"
+    },
+    {
+      "entry": "output-chunk-4096.mjs",
+      "bytes": 338372,
+      "sha256": "3ff17099cbcb122a371b82e9f0bf801fda2695bd0ba8114d2ccae6eab5a50113"
+    },
+    {
+      "entry": "output-chunk-8192.mjs",
+      "bytes": 338372,
+      "sha256": "ee479db911aae8ceaa2fcc43ad4aa5b15e6e77954dd8d54dd764ccd6c246dc09"
+    },
+    {
+      "entry": "output-cork-corrected-probe.log",
+      "bytes": 64,
+      "sha256": "1562dcc2c026d7f8076387f0e290fe5734f2a2ec8f82c43becb4d19e1595ad86"
+    },
+    {
+      "entry": "output-cork-probe.log",
+      "bytes": 9940,
+      "sha256": "5c317b95fc276cf29e4089d236bf2b9fbfee70c90a58afb4e3f970688161f365"
+    },
+    {
+      "entry": "output-http-attempt1.json",
+      "bytes": 271367,
+      "sha256": "f4e528f66411c09f5874f77637c79fce4544428b81f2d478a28112ebb59682a3"
+    },
+    {
+      "entry": "output-http-attempt1.log",
+      "bytes": 10424,
+      "sha256": "bb6ecf7d904c5036249f78df629ab740018c69fe41188b9bf1c640bf3eaaf0be"
+    },
+    {
+      "entry": "output-http-round.mjs",
+      "bytes": 4444,
+      "sha256": "4912722d7eddc5e8cc86c60334f6a8f59be1fd6eb8f82820acbb61f3a30ab641"
+    },
+    {
+      "entry": "output-http.json",
+      "bytes": 2384100,
+      "sha256": "6a9180d14086f2f9906e4f122063d3e503f67866c8ff91231caba254e8d702ce"
+    },
+    {
+      "entry": "output-http.log",
+      "bytes": 2738,
+      "sha256": "867e75abc3b443f6880d389cda0f9d018724e3fcc93ff99f14f4bb5e79adfcb2"
+    },
+    {
+      "entry": "output-native-buffer.mjs",
+      "bytes": 338292,
+      "sha256": "1e3670726861923c65c70b15bf3a074fa6397232a9b923bf202120e31e3d053c"
+    },
+    {
+      "entry": "output-node-handler.mjs",
+      "bytes": 12584,
+      "sha256": "8947547beec17e5d89d26912f788bd1d0a9c19447096c1d4e8ea7d2dbe437ae1"
+    },
+    {
+      "entry": "output-node-large-0-chunk-2048-admission.json",
+      "bytes": 38290,
+      "sha256": "b670ce31ad8722e30f886100c714cda5eb6f6180c10b71600d187feeea227f20"
+    },
+    {
+      "entry": "output-node-large-0-chunk-4096-admission.json",
+      "bytes": 38290,
+      "sha256": "9d7c0e1b891c0ce2efcf7156e95be77444abee17f2a94e2b664bae9309f8aa65"
+    },
+    {
+      "entry": "output-node-large-0-chunk-8192-admission.json",
+      "bytes": 38290,
+      "sha256": "96cd4e1499ae326d511b6268c8f4893dc5c95925aa72033f81451c6b36d3680f"
+    },
+    {
+      "entry": "output-node-large-0-cork-2048-admission.json",
+      "bytes": 38290,
+      "sha256": "1eb0a6d89c3946c9fd14b06079639b2d56b3a678e8150744c8d5d9f1f3ae2291"
+    },
+    {
+      "entry": "output-node-large-0-native-buffer-admission.json",
+      "bytes": 38290,
+      "sha256": "07f45cb3bea2e8efa969df78d8cd7b28fd2ed50b23c81ca5aae67faed9d6a69c"
+    },
+    {
+      "entry": "output-node-large-0-plain-admission.json",
+      "bytes": 38290,
+      "sha256": "d23f97450c40226bd70c7db1e194f7a4100e74e82770c77eff396f96103e518f"
+    },
+    {
+      "entry": "output-node-large-1-chunk-2048-admission.json",
+      "bytes": 38290,
+      "sha256": "9092f3033b5f49f7f67cc56f45160fe2f03e73e0c361e9bae957044fe71107a5"
+    },
+    {
+      "entry": "output-node-large-1-chunk-4096-admission.json",
+      "bytes": 38290,
+      "sha256": "5e20465a90578115e8962330444777fb74fa3ccdcfd2907c1c9c375a87595fd5"
+    },
+    {
+      "entry": "output-node-large-1-chunk-8192-admission.json",
+      "bytes": 38290,
+      "sha256": "4347d0454044149acd353564b501d996225d4c1ccf48d17abe17d262b9fa222a"
+    },
+    {
+      "entry": "output-node-large-1-cork-2048-admission.json",
+      "bytes": 38290,
+      "sha256": "e749a004260f1d7e2fb8f5f790f0928b36ae877ac65ba255a67222caed0feb93"
+    },
+    {
+      "entry": "output-node-large-1-native-buffer-admission.json",
+      "bytes": 38290,
+      "sha256": "90791d3c2151cca7bcaf4961a3a8a658453d7ac485776329ae023bd38a3863cf"
+    },
+    {
+      "entry": "output-node-large-1-plain-admission.json",
+      "bytes": 38290,
+      "sha256": "06398c84fb84d8ff87c102cb7b46517fd6ddd7ff4bc76e4802508ddf10a646ab"
+    },
+    {
+      "entry": "output-node-small-0-chunk-2048-admission.json",
+      "bytes": 4562,
+      "sha256": "744209c896665a3b0b19e5045795e9039a4838c7ce2d8f9251e021ed36d114c0"
+    },
+    {
+      "entry": "output-node-small-0-chunk-4096-admission.json",
+      "bytes": 4562,
+      "sha256": "07f1d6361985a95f400bee9e2d9d6f71cf8b58958d812189d40c2b0181472cf7"
+    },
+    {
+      "entry": "output-node-small-0-chunk-8192-admission.json",
+      "bytes": 4562,
+      "sha256": "2984e0bc0859adbf01f6d5c595cd722c9186ea3707cd11c5a8b601b748885b6e"
+    },
+    {
+      "entry": "output-node-small-0-cork-2048-admission.json",
+      "bytes": 4562,
+      "sha256": "758f1e49bf3ba7f0c78eb78e3958b53ea414ad2ce88f7bde69b837c311b6725c"
+    },
+    {
+      "entry": "output-node-small-0-native-buffer-admission.json",
+      "bytes": 4562,
+      "sha256": "b1fe6bc9031aed06fafa0fc8acf3c5387c52b3343d573a08960dbd39391d78dd"
+    },
+    {
+      "entry": "output-node-small-0-plain-admission.json",
+      "bytes": 4562,
+      "sha256": "fc07a8a6b3a1fbccfc7642881b8da578aae5540611e196f2e364b10c39c01794"
+    },
+    {
+      "entry": "output-node-small-1-chunk-2048-admission.json",
+      "bytes": 4562,
+      "sha256": "50631119ac45c80528b2f7c0ef7bcb318064bee023e152c16ce7d496f4c7e7c3"
+    },
+    {
+      "entry": "output-node-small-1-chunk-4096-admission.json",
+      "bytes": 4562,
+      "sha256": "3576bd82d8e0b0c07f1eb7cba97b6266d227c3b4cbb513b5b07bb416436e970a"
+    },
+    {
+      "entry": "output-node-small-1-chunk-8192-admission.json",
+      "bytes": 4562,
+      "sha256": "146758ac6a23c71986d1687d30f6013b616852120da1bcb5d8acf3f54cf7627e"
+    },
+    {
+      "entry": "output-node-small-1-cork-2048-admission.json",
+      "bytes": 4562,
+      "sha256": "15dcdd66726a4ce29015d65af1d036a096ac000a1a7852a73c97f87c39c94e00"
+    },
+    {
+      "entry": "output-node-small-1-native-buffer-admission.json",
+      "bytes": 4562,
+      "sha256": "e4822543d09cfe8d28f64de8426a603f8bfacd30d4dd115628d9a3c552061aab"
+    },
+    {
+      "entry": "output-node-small-1-plain-admission.json",
+      "bytes": 4562,
+      "sha256": "37a4af2717eb5b2b73b450d8f577152781d3dab42ab550507393fd31f46fce92"
+    },
+    {
+      "entry": "output-plain.mjs",
+      "bytes": 338295,
+      "sha256": "12c5d2ae8e982765daa915a0483c48dec2da1b9d87586bbd349c86be37d1c2aa"
+    },
+    {
+      "entry": "output-render.json",
+      "bytes": 55072,
+      "sha256": "23e3f096ffd3531ed3adeadd5323a13f4a9054d6481d2d328b931fd5034f15e0"
+    },
+    {
+      "entry": "output-render.log",
+      "bytes": 8826,
+      "sha256": "454c293431d3aaa1d0531648b55e4e6b20e2ca5d07140f9f02117e84d1432db4"
+    },
+    {
+      "entry": "output-round.mjs",
+      "bytes": 2095,
+      "sha256": "dea38094474c013514280ceed65dfb93808698b8df5478508995edacb7ae03f9"
+    },
+    {
+      "entry": "output-worker.mjs",
+      "bytes": 25104,
+      "sha256": "1e98e0697bd71777efb05a9d262906c373f872452a815a40dab46c383ea780ff"
+    },
+    {
+      "entry": "owner-empty-render.json",
+      "bytes": 27640,
+      "sha256": "4b0a146c0db65960e0e2b1bb2696a10657a12adb38ba521e21ae6e6b38247b2a"
+    },
+    {
+      "entry": "owner-empty-render.log",
+      "bytes": 5954,
+      "sha256": "3304b86f52ad9f525a9c77186a4559de45f62ba6f4dc6e55b187eabf793618a1"
+    },
+    {
+      "entry": "owner-empty.mjs",
+      "bytes": 339712,
+      "sha256": "c4ee4edf3a4c3d6f0d77b6f96f659249f8aa22c153b226769b589f8f6df17311"
+    },
+    {
+      "entry": "owner-round.mjs",
+      "bytes": 2111,
+      "sha256": "537c3700c4b35f65a16fba0309f008e61d61a74ff2724374332ac87f58f396f1"
+    },
+    {
+      "entry": "plain-promise-render.json",
+      "bytes": 27819,
+      "sha256": "6df081cffd542681c21c2701e6629cb74ed806a10481dd4b5a93b70848a2e9bf"
+    },
+    {
+      "entry": "plain-promise-render.log",
+      "bytes": 6016,
+      "sha256": "bc4cb0159d8f348ff76f9d4b03aa113bc7b1b65b7f18d9671d908f1a4ad83923"
+    },
+    {
+      "entry": "plain-promise-tests.log",
+      "bytes": 584,
+      "sha256": "1b1b59edf05b64d981aefd36e680069c626af9f4bea00c3b667adcb39e796eed"
+    },
+    {
+      "entry": "plain-promise.mjs",
+      "bytes": 338689,
+      "sha256": "ead8adf4656f1528a78cce016ddb87abb5619e557c867de545b3fa756f5f02fa"
+    },
+    {
+      "entry": "pre-json-escape.mjs",
+      "bytes": 339723,
+      "sha256": "558db773f7c4fb8549c488eb0cddc9b5376302471b381d42ef9e4c37df669ffc"
+    },
+    {
+      "entry": "pre-regex.mjs",
+      "bytes": 340009,
+      "sha256": "07b60fc756ae761e5a5c83e835443bf54ac2cc1793da5a99cb2d032db750e906"
+    },
+    {
+      "entry": "prepare-final-probes.mjs",
+      "bytes": 3763,
+      "sha256": "8f09c7b8343870652e93dc47f815c2e13181d84909c52ccc12f87e59beea5e70"
+    },
+    {
+      "entry": "prepare-http-profile.mjs",
+      "bytes": 2146,
+      "sha256": "9260949517ed95e362c56ff7bb7c9e7151864cc6755938b5a20c580919244b60"
+    },
+    {
+      "entry": "prepare-output-http.mjs",
+      "bytes": 3221,
+      "sha256": "45c09a4f5a949f613ccd2903e6865f6f1f86f552897d1ec162a511861d65fea6"
+    },
+    {
+      "entry": "prepare-regex-http.mjs",
+      "bytes": 2545,
+      "sha256": "ad00e9644e9c00d790be16136ea4691b6b8f03cd90e4a7e9715e6e155fccf48e"
+    },
+    {
+      "entry": "prepare-regex-probe.mjs",
+      "bytes": 3476,
+      "sha256": "d5ccaf8b467f04fca775993f17cd342ae0cb18f7d18a3ed4b931d248db5febe8"
+    },
+    {
+      "entry": "prepare-text-http.mjs",
+      "bytes": 1034,
+      "sha256": "d2881aa4116cd71edfd0380b046e7f39de4b8308f0ad9172844db1a907505472"
+    },
+    {
+      "entry": "profile-http.mjs",
+      "bytes": 5069,
+      "sha256": "807cd024d90688b774dbbeae81d64f83915d13cce478df264073c60e94e7ab28"
+    },
+    {
+      "entry": "profile-render.mjs",
+      "bytes": 1835,
+      "sha256": "e44e8a100a5a341f1477805544ca29d71bcee56ecb098c7e21bd931627c3e40d"
+    },
+    {
+      "entry": "publish-investigation.mjs",
+      "bytes": 11966,
+      "sha256": "cb9b6bf1dbf7f1eb56a7d6d634da0639e087ce9796e4df8873e82fa58a08a748"
+    },
+    {
+      "entry": "react.mjs",
+      "bytes": 19677,
+      "sha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a"
+    },
+    {
+      "entry": "regex-http-bun-baseline.mjs",
+      "bytes": 343587,
+      "sha256": "cf3cd8e25fbedc486d6e219cd47a5f32bcfd9cae782f3a68b8a354a55d2af5db"
+    },
+    {
+      "entry": "regex-http-bun-candidate.mjs",
+      "bytes": 343818,
+      "sha256": "eda9ec9bd8994cb6101a765358a95a7e4669241777c1b8e89a320dee6a275450"
+    },
+    {
+      "entry": "regex-http-node-baseline.mjs",
+      "bytes": 340009,
+      "sha256": "07b60fc756ae761e5a5c83e835443bf54ac2cc1793da5a99cb2d032db750e906"
+    },
+    {
+      "entry": "regex-http-node-candidate.mjs",
+      "bytes": 340240,
+      "sha256": "ed68e2fb157a4c01b0ae4bdc21af6bcdf9d723125009432f51cba5c0a30bfc1e"
+    },
+    {
+      "entry": "regex-http-round.mjs",
+      "bytes": 4395,
+      "sha256": "2cf06135fc114584caee5a0327a216ac2f22fd3385e171b971d09cc7aac26bab"
+    },
+    {
+      "entry": "regex-round.mjs",
+      "bytes": 1591,
+      "sha256": "2ec084d5c9e07c4795de3ae7e2b9b55ead26ab17580a1637c4f79fe75d411b21"
+    },
+    {
+      "entry": "render-round.mjs",
+      "bytes": 1718,
+      "sha256": "b58c2febabc9a2864e99e68f45d87e1a087e5eb258b8b4591d04aef1426b46bf"
+    },
+    {
+      "entry": "render-worker.mjs",
+      "bytes": 1503,
+      "sha256": "e994ee7ed4096320d02cb954987be4def8865af176510c9d4b3d3ef24cac9861"
+    },
+    {
+      "entry": "result-transfer-app-build.log",
+      "bytes": 2952,
+      "sha256": "3fe2be3da1ceb3281743ba77d540a3121de476d0cff54d854e6bc9f407fb09d6"
+    },
+    {
+      "entry": "result-transfer-build.log",
+      "bytes": 86,
+      "sha256": "618357f7d14e2549bac96eaa645bdddb6b3b29c86063257e874bbdbf369c3306"
+    },
+    {
+      "entry": "result-transfer-render.json",
+      "bytes": 27707,
+      "sha256": "30293b80bb26ad3640709e94c23e01892410ed7b07a72e4dd1c265c90d148a26"
+    },
+    {
+      "entry": "result-transfer-render.log",
+      "bytes": 5980,
+      "sha256": "477ff97a6cf3f0d973be4adf76939be8786d5513ff18413b72406ecdcab46782"
+    },
+    {
+      "entry": "result-transfer.mjs",
+      "bytes": 337475,
+      "sha256": "fb5b8aedd7500ff002cec1c863f6354718936a409de982be8893a76f30e4a688"
+    },
+    {
+      "entry": "retained-http.json",
+      "bytes": 1301510,
+      "sha256": "098c16e8392bab93287501167c276136f1278bc0dc2121f79dae42c290d91cb3"
+    },
+    {
+      "entry": "retained-http.log",
+      "bytes": 1436,
+      "sha256": "c48c112700e115777891facd87f65ce22689d3c465115729a8e91c7cf666e821"
+    },
+    {
+      "entry": "shared-capture-render.json",
+      "bytes": 27739,
+      "sha256": "e65c24cd65d0fde6f8fbf72f4df993ecd4fec5b73001b757878781f80fddf195"
+    },
+    {
+      "entry": "shared-capture-render.log",
+      "bytes": 6006,
+      "sha256": "0705808331a43eb57a89ed6deeff5cb9311de5a78d682037c0758b57130336db"
+    },
+    {
+      "entry": "shared-capture-tests.log",
+      "bytes": 584,
+      "sha256": "fc3db44dff17225d0ba44b0a0f8ed769615fdd131dad25727bb048710e562a6c"
+    },
+    {
+      "entry": "shared-capture.mjs",
+      "bytes": 331853,
+      "sha256": "83a396e9b93e3956b84bec1a7f9362223754c6e1bcd7f636a8fd8a08ecdea352"
+    },
+    {
+      "entry": "short-text-render.json",
+      "bytes": 27609,
+      "sha256": "c14d35f241fac8892ec08ad2ff2f26312fa1a04bb0f2d18b89cddb1aa69ef6a2"
+    },
+    {
+      "entry": "short-text-render.log",
+      "bytes": 5942,
+      "sha256": "e1f52c4a1283882d5a2e3bfaea0c86c418c271094b8f937e1e415944fc03949d"
+    },
+    {
+      "entry": "short-text.mjs",
+      "bytes": 339701,
+      "sha256": "05caf2baef9c9f73fd1759f4d0504b4c7d83bb28cc6070e149eddbbd699befbf"
+    },
+    {
+      "entry": "stable-regex-http.json",
+      "bytes": 1036882,
+      "sha256": "a077db2774a083ce9f407526ef2d4915a6b0d3f0897d61715b2faae33c465d76"
+    },
+    {
+      "entry": "stable-regex-http.log",
+      "bytes": 994,
+      "sha256": "648920172c204498fa78e346988114e6b1897cf80a347a3b5e5ac12dee39009b"
+    },
+    {
+      "entry": "stable-regex-render.json",
+      "bytes": 27517,
+      "sha256": "8484a8e34201676759471b0eb6113560c5784a798b87e0fce879da2115ecc9f7"
+    },
+    {
+      "entry": "stable-regex-render.log",
+      "bytes": 5928,
+      "sha256": "6c143af429c9d8a2f365620cafe0df7ecd21e4743a4c8c47157edc9256f6059f"
+    },
+    {
+      "entry": "stable-regex-stream-render.json",
+      "bytes": 27748,
+      "sha256": "4d74d3104beaaea3c2d130b36768611c7b02bdd82b27b78903881f614fc0e3f5"
+    },
+    {
+      "entry": "stable-regex-stream-render.log",
+      "bytes": 5932,
+      "sha256": "2d7734564249c340e647e5921ac37d7f455a3a36609e9daf350a99980adefad5"
+    },
+    {
+      "entry": "stable-regex-stream.mjs",
+      "bytes": 340396,
+      "sha256": "5dccec3396c247a9971ee047ac7617d09dbfda4d5ea82724852da002f1f80a14"
+    },
+    {
+      "entry": "stable-regex-summary.json",
+      "bytes": 798,
+      "sha256": "f1d4acfd0226a1f342a5ebfe4d53ca926c822ed4a3d8a610f1044647c0d3f92b"
+    },
+    {
+      "entry": "stable-regex.mjs",
+      "bytes": 340396,
+      "sha256": "5dccec3396c247a9971ee047ac7617d09dbfda4d5ea82724852da002f1f80a14"
+    },
+    {
+      "entry": "static-meta-render.json",
+      "bytes": 27617,
+      "sha256": "a47904727a9f53d9dfe8a88a5bfeaea92c64f67644b6647574a4113110fc0da6"
+    },
+    {
+      "entry": "static-meta-render.log",
+      "bytes": 5996,
+      "sha256": "5be2460636592013a08051b922bd46b5ae993fe85934a5dfb4fe261fd258995a"
+    },
+    {
+      "entry": "static-meta-stream-render.json",
+      "bytes": 27822,
+      "sha256": "db286d078f7980e881fa9cac435eef1c0c15feba8eebcb8719b76fe598585b9e"
+    },
+    {
+      "entry": "static-meta-stream-render.log",
+      "bytes": 6012,
+      "sha256": "14f7aac8923dc3c69e7bfc22719aa7a5f9fe5e5308a142797753764975dd741f"
+    },
+    {
+      "entry": "static-meta-stream.mjs",
+      "bytes": 339723,
+      "sha256": "558db773f7c4fb8549c488eb0cddc9b5376302471b381d42ef9e4c37df669ffc"
+    },
+    {
+      "entry": "static-meta.mjs",
+      "bytes": 339723,
+      "sha256": "558db773f7c4fb8549c488eb0cddc9b5376302471b381d42ef9e4c37df669ffc"
+    },
+    {
+      "entry": "stream-await-app-build.log",
+      "bytes": 2952,
+      "sha256": "72fb76f6bc410523852474cdadc84b13c0140a1f2006c2a8e9d1dca2a1b8ac32"
+    },
+    {
+      "entry": "stream-await-build.log",
+      "bytes": 86,
+      "sha256": "618357f7d14e2549bac96eaa645bdddb6b3b29c86063257e874bbdbf369c3306"
+    },
+    {
+      "entry": "stream-await-render.json",
+      "bytes": 27819,
+      "sha256": "d0ab20bf3cfb9c5934b5afa5190e3bdd1785a3870df9bec2ed010856bf6cc014"
+    },
+    {
+      "entry": "stream-await-render.log",
+      "bytes": 6018,
+      "sha256": "529cb735ab5c41bbf484b668b68b13eef79c7cf8a26109563ecd89f685b7e175"
+    },
+    {
+      "entry": "stream-await-ssr-tests.log",
+      "bytes": 494,
+      "sha256": "560a9d8c2bfab0592c53cdefb50b538d3322c91029e3b22b47e2afdeab220e12"
+    },
+    {
+      "entry": "stream-await.mjs",
+      "bytes": 337744,
+      "sha256": "756a0fd9cf1a02b39c007b9f3cba692bf2801abfe53b76a3faa09123b3bfc0f4"
+    },
+    {
+      "entry": "text-bun-large-0-plain-admission.json",
+      "bytes": 38182,
+      "sha256": "0bcdcf21756b603ac05535991d69ae1709173f68e1d8eb16b7db1e04cbb81abc"
+    },
+    {
+      "entry": "text-bun-large-0-text-admission.json",
+      "bytes": 38182,
+      "sha256": "60ef558c293b5e3cd52eb81ea4caae915ede605e6bfc4bc2dbbc055f775df812"
+    },
+    {
+      "entry": "text-bun-large-1-plain-admission.json",
+      "bytes": 38182,
+      "sha256": "90924b2610661d3aff5334bdc3efecd762ea5ff6aa327149ccb898ebb0e4bd6c"
+    },
+    {
+      "entry": "text-bun-large-1-text-admission.json",
+      "bytes": 38182,
+      "sha256": "736a4e6d8e5c0c16d64c15a2b360c60ee0cb8794fcf3fd83665e618fed7f78de"
+    },
+    {
+      "entry": "text-bun-small-0-plain-admission.json",
+      "bytes": 4453,
+      "sha256": "1b1180e150654625f4b1d4c6d83811e8d7d6fd25eee148ec0f7da0a8478fcae2"
+    },
+    {
+      "entry": "text-bun-small-0-text-admission.json",
+      "bytes": 4453,
+      "sha256": "86d86e7c21cc9f4d028ca5e0f79385758ab3fa51fb43b3850fb5e7055d1b5233"
+    },
+    {
+      "entry": "text-bun-small-1-plain-admission.json",
+      "bytes": 4453,
+      "sha256": "59b119e822138a8dff9cc6abbc98459944f3ec81bc1250fcffaf5bc2982fb3cf"
+    },
+    {
+      "entry": "text-bun-small-1-text-admission.json",
+      "bytes": 4453,
+      "sha256": "81d231375d1cde8f4cdf4c06e7aa3c5760754b330b0d1f4c613c6ade4191f876"
+    },
+    {
+      "entry": "text-http-round.mjs",
+      "bytes": 4061,
+      "sha256": "cdf5c3be083a6e9da3e4dc7736ff051f73f99b7fe2c189fa31da85b5e70d2fbd"
+    },
+    {
+      "entry": "utf8-adaptive-render.json",
+      "bytes": 27582,
+      "sha256": "041dcd8ec0417a79c7ec5150cef000c2d68040da8e851be69ae98ed1f3cd3ded"
+    },
+    {
+      "entry": "utf8-adaptive-render.log",
+      "bytes": 5964,
+      "sha256": "a59b26310a687ea21fb4f9355a97b8a4506072e8e7ccecec080c59a732a12eff"
+    },
+    {
+      "entry": "utf8-adaptive-stream-render.json",
+      "bytes": 27830,
+      "sha256": "ad3d632735aad9150ca21136fe3ec8f26483c15137625fa61f3c6b1223619476"
+    },
+    {
+      "entry": "utf8-adaptive-stream-render.log",
+      "bytes": 5968,
+      "sha256": "778b99061327803af3c232d75c4a605697f9cb35b088c9aaa025aeaff3a5378f"
+    },
+    {
+      "entry": "utf8-adaptive-stream.mjs",
+      "bytes": 337951,
+      "sha256": "e6e1c4faeed91cb89ffdbd6bd3cb2a39fdad0111efb18b643bd4ffa92612abdc"
+    },
+    {
+      "entry": "utf8-adaptive-tests.log",
+      "bytes": 584,
+      "sha256": "e318d7ac7e7bc2828ffcf9a60c23a30e730e3701d6c89b55886045f8cfdbfc51"
+    },
+    {
+      "entry": "utf8-adaptive.mjs",
+      "bytes": 337951,
+      "sha256": "e6e1c4faeed91cb89ffdbd6bd3cb2a39fdad0111efb18b643bd4ffa92612abdc"
+    },
+    {
+      "entry": "utf8-runs-render.json",
+      "bytes": 27514,
+      "sha256": "a9788129f46dbdb4e5270ad724e59c0ab7fe40de5761d47ac4955f6385fbda0a"
+    },
+    {
+      "entry": "utf8-runs-render.log",
+      "bytes": 5950,
+      "sha256": "b91be1ebc1b27ac976fc83c316c4972122772a2748c112a94fbef8f48637f2d8"
+    },
+    {
+      "entry": "utf8-runs-stream-render.json",
+      "bytes": 27627,
+      "sha256": "b95e60800690d40defffba2ad662b60204872f76f1eead6bf85a7882fe2560a2"
+    },
+    {
+      "entry": "utf8-runs-stream-render.log",
+      "bytes": 5990,
+      "sha256": "17b3c70b7303405cb8f37fe696479e053d787af8c811fed0033446de8d17a292"
+    },
+    {
+      "entry": "utf8-runs-stream.mjs",
+      "bytes": 337516,
+      "sha256": "0344c1901215a217da297b05ded05af351a1fa398a8e5e264fad6a2c18cbaaef"
+    },
+    {
+      "entry": "utf8-runs-tests.log",
+      "bytes": 584,
+      "sha256": "b3418373d96a9ef12f93b353ef1a8ee058545a42c8301b95a0ba2edee8974890"
+    },
+    {
+      "entry": "utf8-runs.mjs",
+      "bytes": 337516,
+      "sha256": "0344c1901215a217da297b05ded05af351a1fa398a8e5e264fad6a2c18cbaaef"
+    },
+    {
+      "entry": "utf8-search-render.json",
+      "bytes": 27495,
+      "sha256": "fd025e90f6a58df6c12c4bf32fbfe32794753440f9a0871889fe7ebf24e91c73"
+    },
+    {
+      "entry": "utf8-search-render.log",
+      "bytes": 5942,
+      "sha256": "6cfd13924c80de3f046e9cd0279648a06ac33e9ffb98ecaebe4ed6b4569f4994"
+    },
+    {
+      "entry": "utf8-search-stream-render.json",
+      "bytes": 27637,
+      "sha256": "4bdc0b9c498eda1864f1726604cd9c96fbbcda1afd79907fcc70335aaec54700"
+    },
+    {
+      "entry": "utf8-search-stream-render.log",
+      "bytes": 6026,
+      "sha256": "72750bb10a6f781806dce02d8709adfaa48db8df78c38a8934bb1c51290c0e37"
+    },
+    {
+      "entry": "utf8-search-stream.mjs",
+      "bytes": 337949,
+      "sha256": "3cccec627c88a9f6c9840c8ab3b434341cea72d2a3d5447f188b438486e9e3ac"
+    },
+    {
+      "entry": "utf8-search-tests.log",
+      "bytes": 584,
+      "sha256": "5ac715cba7e7422b450c9282663474ca8ba25861ddf1af287844b5824fc9e451"
+    },
+    {
+      "entry": "utf8-search.mjs",
+      "bytes": 337949,
+      "sha256": "3cccec627c88a9f6c9840c8ab3b434341cea72d2a3d5447f188b438486e9e3ac"
+    },
+    {
+      "entry": "WORK_PLAN.md",
+      "bytes": 27291,
+      "sha256": "833e302508e275396b0ec0811d7631a1c4d836f6e4d557fab79624f84b9cf8b3"
+    }
+  ],
+  "workPlan": "﻿# Authorized overnight continuation\r\n\r\nFinish and publish render-modes-2026-09-09 as the immutable new baseline first. Do not modify the measured framework artifacts before final artifact verification and archival. Two incomplete SSR diagnostic attempts failed because the render-only harness omitted documentOptions; HTTP paths were correct. Preserve those logs. Diagnostic-only input forwarding is now fixed.\r\n\r\nAfter baseline publication, iteratively profile, hypothesize, experiment, and retain improvements until reasonable evidence-backed experiments are exhausted. User explicitly rejects arbitrary minimum improvement percentages. Preserve quality, hydration integrity, lifecycle cleanup, shell ownership, ABI compatibility, and real application functionality. Do not optimize scores by omitting work or mixing string and streaming APIs. Use focused measurements for incremental work; full reruns only at useful milestones. Investigate navigation regression as well as SSR throughput. No subagent delegation authorized.\r\n\r\nCandidate hypotheses to refine against new profiles BEFORE each experiment:\r\n\r\n1. Full-document bootstrap moved hydration onto the navigation critical path (prior deferred hydration was replaced with immediate hydrate(document)). It may explain roughly 8-12 ms of navigation growth. Test semantic-ready timing, FCP, and first interaction alongside navigation; scheduling must not merely move hidden work outside a metric.\r\n2. Root Document ownership may prevent prior single-copy root-prop hydration savings for nested IncidentApp. Audit actual payload and projection CPU. If duplicated state exists, expect savings proportional to measured duplicated encoding/projection work; no schema or ABI shortcuts.\r\n3. Full-document string publication takes a different path from the prior direct sink. Profile document normalization, direct capture versus wrapper capture, repeated joins/scans, byte counting, and resource-hint ordering. Estimate savings from measured per-request work before changes.\r\n4. Progressive full documents use the generic async renderer and retain the shell until hydration. Reuse proven compiler-native fast paths where semantically valid, aiming to eliminate unnecessary promises/traversals and provide actual incremental document delivery. Initial upper-bound hypothesis: recover some or most of the observed string/stream gap (Node ~20%, Bun ~35% of streaming request cost); refine with profiles.\r\n5. Revisit prior buffer size/flush/cork/overflow lessons under correctly matched APIs. Preserve full document, hydration placement, head-before-await flushing, cancellation, and backpressure. Compare render-only and HTTP effects separately.\r\n6. Profile client full-document adoption, head asset lists, hydration projection, native receipt handling, module/bootstrap costs. Prioritize the largest measured work rather than speculative micro-optimizations.\r\n7. Check whether improvements to hydration, capture, byte accounting, and output assembly benefit both APIs and both runtimes. Preserve public behavior and frozen ABI fixtures.\r\n\r\nRecord each hypothesis, expected impact, comparison builds, balanced measurements, correctness checks, retained/rejected outcome, and next decision. Rebuild correctly: raw tsc dist is not enough for conditional client/server exports; compile package outputs before application builds. Do not run suites/builds during timing.\r\n\r\n## Experiment 1: reverse hydration placement search\r\nHypothesis before implementation: remove the 18 ms / 1,000-render body scan, expecting about 10-20% less small-fixture string-rendering time and smaller HTTP gains. Results: four alternating fresh processes per variant/runtime/scenario; Node small -19.44%, large -25.49%, Unicode -21.59%; Bun small -13.13%, large -16.13%, Unicode -23.79%. Identical output hashes. Retain, with split/case/missing-close tests.\r\n\r\n## Experiment 2: aggregate byte-ledger charging\r\nHypothesis from baseline charge profile (11 ms / 1,000 renders): replacing per-character property updates/limit checks with the existing UTF-8 counter should save roughly 5-15% of remaining small-fixture string time, potentially more on large ASCII output. Native encoder environments retain their path; split-surrogate and rollback guarantees must hold. Compare incrementally against experiment 1, then check both streaming and HTTP before final adoption.\r\n\r\n## Experiment 3: reuse direct capture for compiler-closed synchronous strings\r\nHypothesis: the generic bridge allocates a WeakMap, observer closures and checkpoint pairs that direct artifacts do not need. Reuse the already-shipped direct sink capture with a bound lazy activation accessor. Expect roughly 2-8% lower remaining render time, with fewer allocations. Preserve observation callbacks, resumption order, rollback and public lazy activations. Compare against experiment 2, not the original baseline.\r\n\r\n## Experiment 4: avoid awaiting already-rendered string segments\r\nThe async program path awaits every static string and even an absent cleanup owner. Hypothesis: eliminating these unnecessary microtask boundaries should reduce streaming render time about 1-5%, possibly more for larger trees, without changing preparation order or awaiting actual async work. Compare against experiment 3's preserved artifact, with identical full-document output and async lifecycle/parallel-task tests.\r\n\r\n## Experiment 5: document-capable deferred hydration\r\nSource audit: the full-shell update replaced hydrateAfterNavigation(element) with immediate hydrate(document), because the deferred API only accepted Element. Hypothesis: extending the existing scheduler to Document restores roughly 5-10 ms of navigation/FCP opportunity, without increasing semantic-ready time by more than a frame or delaying the first interaction (capture-phase activation already exists). Keep full-document adoption. Measure preserved immediate baseline, deferred candidate, React in rotating cold contexts, recording semantic-ready, navigation, FCP, optimistic feedback, settlement and errors. Do not infer a win from navigation alone.\r\n\r\n## Experiment 6: transfer unpublished render results in place\r\nAll four production callers create an unpublished request-owned string result and immediately wrap it in another object solely to add hydration fields. Hypothesis: transferring that object in place removes one object, one HTML forwarding getter, repeated field copying and one symbol definition, saving roughly 2-5% of remaining string-render time. Public values, lazy HTML, resumptions, preload links and wall-clock fields must remain intact. Compare against experiment 4's artifact; stream API does not use this wrapper.\r\nExperiment 6 outcome: reject. Node differences below 1% and mixed Bun results (small/Unicode slower, larger tree faster). The in-place mutation introduces an additional internal ownership constraint without a consistent performance benefit; preserve independent public result construction. This is not a percentage admission threshold.\r\n\r\n## Experiment 7: inline ownership of async traversal depth\r\nHypothesis: renderChildAsync currently creates an additional async closure and wrapper promise for each node solely to restore tree depth. An explicit enter/try/finally/leave removes that allocation while preserving restoration across await and failure. Expect approximately 2-8% lower streaming render time, especially on larger trees. Compare against experiment 4, with experiment 6 reverted.\r\n\r\n## Experiment 8: carry compact native boundaries into async rendering\r\nAudit found 387 extra bytes in the baseline streaming document: named compiler-owned structural ranges and keyed-item pairs around compiler-prepared single-element roots. The synchronous renderer and current client already support anonymous ranges and element-owned keyed boundaries. Port those existing proven rules and route keyed programs through the existing prepared-program renderer (also avoiding its duplicate async loop). Expect about 5-9% fewer bytes in the small streamed fixture and 2-8% less renderer work, with larger-list potential. Preserve generic keyed/multinode markers, dynamic component preload identity, hydration node adoption and later keyed updates. Existing released clients already accept these forms; no new ABI shape is introduced.\r\n\r\nExperiment 8 outcome: retain. Node small/large/Unicode -4.77%/-7.51%/-3.03%; Bun -4.31%/-5.89%/-4.06%. SSR and hydration suites and Node stream application contracts pass.\r\n\r\n## Experiment 9: share request capture machinery across async and sync\r\nAudit found the generic instance callback bridge has no production renderer callers; all native renderers reserve/publish directly and already own capture checkpoint/rollback. Reuse the class-backed capture for generic/async entries, preserving their accessor-safe root reads (unlike the compiler-closed direct-storage optimization). Preserve authored observer and checkpoint callbacks and bind lazy activation accessors. Hypothesis: fewer closure, WeakMap and redundant checkpoint allocations save 2-6% of async renderer time.\r\n\r\nExperiment 9 outcome: reject and restore the original capture. Preserving generic accessor guarantees prevented sharing the faster direct read path. The remaining class change regressed Node small by 3.14% and Unicode by 0.88%, with mixed Bun results. Fewer allocations were an unfounded predictor here. Keep the generic root-accessor and rollback regression coverage.\r\n\r\n## Experiment 10: prepared-child dispatch first\r\nThe synchronous renderer recognizes prepared compiler values before opaque-operation lookup, while async rendering does that lookup first for every compiler value. Port the same priority while retaining depth ownership for all async children. Hypothesis: avoiding an unnecessary opaque lookup saves 1-3% of async renderer time.\r\n\r\nExperiment 10 outcome: retain for parity with synchronous dispatch. Small fixture improved 0.85% Node and 0.66% Bun, with mixed sub-1.2% changes elsewhere. Treat the measured magnitude as uncertain, not a demonstrated universal gain.\r\n\r\n## Experiment 11: single-pass generic HTML escaping\r\nFresh 30,000-render Node profiles attribute 195.9 ms of 2,613 ms streaming work to escapeText, compared with 24 ms in strings. The generic helper performs three replacements even for safe text and four for attributes. Use one character-class replacement for each context, preserving all existing entities. Expect 3-7% lower stream rendering time and a smaller string benefit; the fused accounted string escape stays intact.\r\n\r\nFixture correction: inspection found that the original focused runner's scenario named Unicode contained mojibake plus question marks, not the intended emoji/Japanese text. Those balanced captures are still comparisons of the same larger text workload, but are not Unicode coverage. Preserve them as such; subsequent captures use explicit Unicode escapes. The independent byte-accounting tests use actual escaped surrogate code units.\r\n\r\nExperiment 11 outcome: retain single-pass escaping. Incremental stream gains on both runtimes and large fixture (full numbers in escaping-render.json). All 246 SSR tests passed before timing.\r\n\r\n## Experiment 12: count non-ASCII runs rather than scanning the whole suffix\r\nFresh profiles attributed 177 ms/1,236 ms string work and 187 ms/2,613 ms stream work to utf8ByteLength. After the first non-ASCII code unit, the old loop scans the entire remainder, including long ASCII spans. For long values, start with code-unit length and use native scanning to visit only non-ASCII runs, adjusting for exact UTF-8 expansion and surrogate pairs. Short strings retain the simple loop. Expect 5-12% string and 2-6% streaming improvements for sparse-Unicode documents, with dense-Unicode regressions a possibility to measure.\r\n\r\nExperiment 12 first variant: reject unbounded run scanning. String Node small -4.39%, large -14.88%, dense Unicode +79.69%; Bun small -0.52%, large -1.39%, dense Unicode +113.24%. Hypothesis for refinement before measuring: inspect eight runs at a time and fall back to the original suffix loop when at least one quarter of the inspected span is non-ASCII. Expect to retain sparse-text wins while bounding dense-text overhead to a few matches. Measure against the escaping build, not the rejected unbounded variant.\r\n\r\nExperiment 12 bounded-run string results: Node small -6.69%, large -13.96%, dense Unicode +4.32%; Bun small +0.19%, large -5.34%, dense Unicode +3.01%. Final refinement hypothesis: RegExp.test with lastIndex avoids match arrays entirely; inspect eight non-ASCII code points at a time to reach the dense-text fallback sooner. Expect comparable sparse gains and a smaller dense penalty. Compare against the same escaping build.\r\n\r\nExperiment 12 final outcome: retain bounded, allocation-free native searching. String Node small -5.88%, large -13.70%, dense Unicode +5.50%; Bun -1.11%, -3.96%, -0.75%. Stream Node -3.00%, -6.37%, +0.09%; Bun +0.74%, -0.49%, -0.54%. The dense Node string tradeoff remains explicit. It is not a universal gain, and the rejected unbounded versions are not shipped. Exact encoding and limit tests passed.\r\n\r\n## Experiment 13: avoid awaiting synchronous preparation results\r\nBoth prepareComponentProps and renderIssuedServerComponentChildren already return synchronous values on the normal path and native promises only for pending props or error cleanup. executeDirectSsrComponent nevertheless awaits both for every component. Await only actual promises, preserving real dependency and cleanup awaits. Hypothesis: save 2-5% of small streamed rendering through fewer microtask boundaries; smaller proportional effect for large static-heavy trees.\r\n\r\n## Opaque-operation construction probe\r\nHypothesis: cached descriptors might reduce immutable operation allocation by 10-25% (about 7% upper-bound renderer CPU). Preserve own nonenumerable symbols, freezing and prototype. A six-round fresh-runtime microbenchmark rejected the candidate before changing core: Object.create with cached descriptors was 2.2-2.8x slower on Node and 1.7-1.8x slower on Bun than the existing defineProperty construction. Evidence: opaque-construction-micro.json.\r\n\r\nExperiment 13 outcome: retain. Stream small/large Node -2.14%/-3.74%, Bun -1.08%/-2.69%; dense-Unicode Node +0.39%, Bun +4.86%. The helper return contracts prove the skipped awaits unnecessary; async dependency and lifecycle tests pass. Keep workload-specific regressions visible rather than implying all scenarios improved.\r\n\r\n## Experiment 14: preserve an already-normalized document's child array\r\nAn authored html with exactly head then body currently allocates a classification array, entry objects, three filtered arrays and a replacement pair on each render. Recognize that canonical two-child case before the normalization fallback. Preserve missing-shell insertion, reversed order, duplicate and ambiguous-content checks in the fallback. Hypothesis: remove about 0.3-1 microsecond per request, roughly 1-3% small string renderer time, with less proportional impact on larger documents.\r\n\r\nExperiment 14 outcome: retain. Small string Node -0.75%, Bun -2.31%, with all six measured runtime/scenario means improved. It removes allocation in a provably normalized case and leaves the fallback contract intact.\r\n\r\n## Experiment 15: buffer encoding and chunk sizes under the real streaming API\r\nThe full-document stream currently owns one encoded document chunk. Buffer.concat or a pool cannot combine multiple chunks here without first changing the traversal; adding them now would add copying or retain an extra allocation. Test actual output encoding (TextEncoder versus native Buffer.from) and 2/4/8 KiB views of the encoded document, preserving every byte and backpressure. Hypothesis: native encoding may save up to 1-2% of renderer time; smaller chunks probably add 1-5% renderer overhead but could change HTTP batching. Test HTTP separately. Node 26's installed _http_outgoing already corks socket writes until nextTick, but message-level corking can additionally combine HTTP chunk framing, so consider a separate 2 KiB corked transport variant.\r\n\r\n## Experiment 16: return the existing plain-render promise without another async wrapper\r\nGeneric intrinsic and structural operations pass through async enhancement routing even when no enhancement exists. Return the underlying renderer promise directly for that case, preserving rejection semantics for a synchronously throwing callback; the actual enhancement routing keeps its async ownership scope. Hypothesis: 1-3% less small stream rendering time and fewer promise allocations. Compare against the canonical-document artifact.\r\n\r\nCorking experiment admission: first attempt failed before timing its corked variant because only the first 2 KiB reached the client. A standalone Node 26.8.1 HTTP/ReadableStream reproduction also truncated both Uint8Array and Buffer output when end() ran with an outstanding message cork. Explicitly uncorking before end restored exact bytes. The experimental adapter now owns that final uncork, and the initial failed logs remain in output-http-attempt1.*. Do not weaken the full-document or byte-identity checks.\r\nExperiment 16 outcome: retain. Node small/large/Unicode -1.03%/-2.05%/-1.42%; Bun -2.86%/-1.86%/-2.54%, with the full SSR suite passing.\r\n\r\n## Experiment 17: use an available native UTF-8 byte counter\r\nThe public string/progressive entry points currently use the portable JavaScript byte counter even on Node and Bun, while the Node response adapter already offers Buffer.byteLength to the produced-response path. Prototype native counting in the frozen renderer on both runtimes. Hypothesis: save 3-10% of rendering time, particularly dense Unicode where the JavaScript fallback struggled. Production adoption would require optional host-capability selection with an explicitly tested portable fallback, without importing Node modules into the neutral SSR graph or weakening split-surrogate accounting.\r\n\r\n## Experiment 18: native Bun Response from buffered text\r\nBun currently wraps an already-complete buffered string in Blob before constructing Response. Buffered bodies already expose a claiming toText() API, so this can be tested without adding a public capability or inspecting private chunks. Hypothesis: avoid Blob allocation/encoding overhead and improve Bun string HTTP throughput 3-10%. Preserve produced streams, ownership, complete documents and exact bytes.\r\n\r\nExperiment 15 HTTP outcome: preserve whole-document chunking and reject corking. All 44 corrected blocks had zero errors and identical full-document bytes. Native Buffer encoding was neutral on Node small, -1.04% Node large, +2.04% Bun small and +2.29% Bun large RPS. 2 KiB reduced large-fixture RPS 7.29% Node and 2.14% Bun; message corking reduced Node RPS 20.05% small and 29.46% large. No buffer-size or cork API is added. Native encoding is adopted through an optional host capability, alongside experiment 17, with a portable TextEncoder fallback.\r\nExperiment 17 prototype string outcome: native byte counting improved Node small/large/Unicode 3.84%/8.56%/25.38%; Bun 8.28%/11.45%/19.90%. Retain optional native counting and explicitly test both portable counting and native encoding.\r\nExperiment 18 outcome: native Bun buffered text improved small RPS about 3.2% and large about 2.9%, with zero errors and identical documents. Retain the existing toText() ownership API; produced streams retain their streaming path. A split-surrogate regression also protects the joined text's UTF-8 meaning.\r\n\r\n## Experiment 19: skip empty retained-instance cleanup\r\nNative direct components own their own lifetimes, so the generic SSR owner's retained-instance set is commonly empty. Its dispose() still allocates a cleanup-failure record and a reversed empty array. Return immediately for the empty set. Hypothesis: roughly 0.1-0.5 microsecond per stream request, likely below 1% renderer time. Preserve retained-instance reverse teardown and failure aggregation. Probe the frozen artifact before changing source.\r\n\r\nExperiment 19 outcome: retain the empty cleanup return. Stream small/large Node improved 1.36%/1.20%, Bun 1.23%/0.60%; Unicode Node +0.55%, Bun -1.43%. No teardown order, callback or failure path changes when retained instances exist.\r\n\r\n## Experiment 20: compile literal meta attributes into static markup\r\nFull-shell source audit found three meta tags still allocate attribute objects and execute runtime attribute handling because charSet/content are missing from the static attribute allowlist. HTML meta string literals have equivalent template and native attribute semantics. Add only meta-specific charSet/charset/content support; custom elements, dynamic expressions, URLs and document-root ownership remain on their existing paths. Hypothesis: save 1-3 microseconds per shell render, approximately 2-6% small string and 1-4% stream time, plus fewer client attribute slots. Rebuild the actual compiler and both target artifacts, and check full-document hydration.\r\n\r\nExperiment 20 emission audit: compiler selection was current. Server programs deliberately retain the root attribute bag for enhancement overrides. The changed ssrRootStatic plan now contains literal charset/content HTML and an empty runtime attribute-operation list; client templates also contain the literals. The original prediction of removing every server prop object was too broad. The actual optimization is precomputed attribute rendering and fewer client slots. Preserve those root bags and their override contract.\r\n\r\n## Experiment 21: revisit the short-text cutoff after native byte counting\r\nThe fused string text writer only takes its native no-escape scan at 32 characters or longer, a cutoff from the portable byte-counting path. Native counting is now available for short strings too. Use the same no-escape path for all lengths and preserve the fused loop for escaped text. Hypothesis: 1-3% string renderer improvement, without a streaming-path change. Verify output and split-surrogate byte accounting.\r\n\r\nExperiment 20 outcome: retain the equivalent static meta plan. String Node small +0.15%, large -1.41%, Unicode -2.78%; Bun -2.01%, -1.27%, -0.94%. Stream Node -2.05%, -1.20%, -1.02%; Bun -1.70%, -0.53%, -1.17%. Go compiler tests pass, and before/after ssrRootStatic plans verify the actual change.\r\nExperiment 21 outcome: reject the universal cutoff removal. Node string improved 1.75% small and 4.03% large, but Bun regressed 1.11% small and 3.18% large. Avoid adding engine-specific tuning solely to retain this mixed result; keep the established fused short-text path.\r\n\n## Experiment 22: Node completed-string encoding and header batching\nThe matched HTTP profile spends substantial time in writeUtf8String for eXact versus writev for React. Test Buffer.from before end, and separately letting end prepare known-length headers instead of explicit writeHead. Hypothesis: 1-5% HTTP improvement through native batching, with identical headers/body semantics and unchanged render work. Test small and 96-row documents, reversed populations, without production edits.\n\n## Experiment 23: one hydration script-escape scan\nserializeJson remains a sampled hydration hotspot. Replace its three native replacement passes with one character-class replacement, preserving exact escapes and JSON.stringify validation. Hypothesis: 1-3% renderer improvement for ordinary payloads, potentially larger for long state. Test both runtimes and modes, including real Unicode.\n\nExperiment 22 outcome: reject both variants. Pre-encoding Node complete strings reduced small RPS about 4%, large about 1.4%; implicit header preparation was neutral to slightly slower. All twelve blocks had zero errors and identical complete documents.\nExperiment 23 outcome: reject. Small string Node -0.27%, Bun -1.67%, but large string +0.72%/+1.21% and Unicode +3.58%/+2.96%. Stream small improved about 1%, while Bun Unicode regressed 3.73%. Preserve the three native replacements.\n\nFinal full-suite diagnosis: removing the plain enhancement promise wrapper exposed a resumption fixture that declared a nonblocking task while asserting SSR had waited for it. Restoring that wrapper or all baseline SSR sources made the test pass accidentally. Compiler metadata confirmed nonblocking readiness. The fixture now explicitly uses TaskContext.latest().blocking() and a test-controlled external promise, preserving the existing no-repeat-on-adoption and rerun-on-dependency-change assertions. No production waiting policy was changed. Failed full and focused diagnostic logs are retained.\n\nDirect capture boundary review: compiler-owned direct state/props may use direct reads; published input comparison is now descriptor-safe even in the direct capture. Both capture modes have regression coverage showing a published getter is not invoked and the state value remains captured.\n\nThe strengthened fixture blocks on a test-controlled external promise. The test waits a timer turn and asserts no publication, then releases the operation and verifies adoption skips settled work. A discarded timer-inside-task variant was rejected by compiler resource-escape diagnostics; those attempt logs remain archived.\n\nFinal maintainability review: extracted request-local enhancement route ownership into operation-enhancement-routes.ts and render-program attribute lowering into jsx_render_program_attributes.go. Existing algorithms and call order are unchanged. Go compiler tests, architecture and JSDoc checks pass. A fresh full build and admission run follows the split; earlier preflight attempts remain under post-shell-final/preflight-before-domain-split.\n\n## Experiment 24: reuse escaping RegExp instances\nFinal source review found per-call regex literals in HTML text/attribute escaping, attribute-name validation, and hydration script escaping. Hoist the same expressions to private module constants, preserving every replacement and validation rule. Hypothesis: 1-3% renderer improvement from fewer short-lived objects; engines may already eliminate this allocation or optimize local literals better. Test frozen actual final artifacts on both runtimes, APIs and all three fixtures after the full suite, with exact output identity. Do not edit production source before evidence.\n\nExperiment 24 renderer outcome: Node changes mostly within 1%, large stream -1.81%, Unicode slightly slower; Bun string small/large/Unicode -3.02%/-2.17%/-1.42%, stream -2.07%/+0.37%/-1.90%. This warrants a paired HTTP check. Hypothesis: roughly 0-1% end-to-end throughput benefit because serialization is only part of request cost. Compare identical complete documents in both API/runtime lanes before deciding whether shared mutable regex state is justified.\n\nExperiment 24 final outcome: reject shared regex instances. Every renderer and HTTP variant preserved exact output. HTTP throughput changes: node string 0.06%; node stream 0.11%; bun string 0.68%; bun stream -0.80%. All sixteen HTTP blocks had zero errors. Node was effectively neutral; a small Bun string gain traded against Bun stream regression, without a quality benefit to justify new shared mutable regex state. Production remains identical to the full capture.\n",
+  "evidenceBundle": {
+    "path": "docs/performance-baselines/post-shell-optimization-2026-09-09-evidence.zip",
+    "sha256": "b616ee9b5e26389f2735b191829fde144f6324c8d95ed046e771f6f67d6c3df1",
+    "bytes": 7149468,
+    "files": 630
+  }
+}

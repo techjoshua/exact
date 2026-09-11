@@ -66,6 +66,22 @@ function fixture() {
 	return { previous, raw };
 }
 
+test('streaming charts omit unavailable participants without inserting string-mode results', () => {
+	const { previous, raw } = fixture();
+	raw.harness.renderMode = 'stream';
+	raw.runtimes.node.exact.sequential.worker = { phases: { dataLoadMs: { mean: 1 } } };
+	delete raw.runtimes.node.nuxt;
+	delete raw.runtimes.node.sveltekit;
+	const report = refreshDocsSsrReport(previous, raw);
+	assert.doesNotMatch(report.server.sequential.comment, /rendering was/);
+	assert.deepEqual(
+		report.server.sequential.series.map((row) => row.name),
+		['Exact', 'React', 'TanStack Start']
+	);
+	raw.harness.renderMode = 'string';
+	assert.throws(() => refreshDocsSsrReport(previous, raw));
+});
+
 test('Bun-only refresh preserves Node and browser charts and capture dates', () => {
 	const { previous, raw } = fixture();
 	previous.metadata.ssrCreatedAt = 'node-date';

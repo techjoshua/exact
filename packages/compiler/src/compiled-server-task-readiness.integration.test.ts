@@ -7,7 +7,7 @@ import * as exactDirectServerConstructionRuntime from '@exactjs/core/runtime/com
 import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
 import * as exactComponentOperations from '@exactjs/core/runtime/component-operations';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
 import { transform } from './index.js';
@@ -78,7 +78,7 @@ it('issues nested independent server tasks before authored-order serialization',
 	if (!Page || !releaseTasks || !startedTasks)
 		throw new Error('Compiled server readiness fixture omitted a test export');
 
-	const rendering = renderToStringAsync(createCompiledComponentReceipt(Page, { title: 'Ready' }), {
+	const rendering = renderToString(createCompiledComponentReceipt(Page, { title: 'Ready' }), {
 		markers: false,
 		maxAsyncSsrConcurrency: 2
 	});

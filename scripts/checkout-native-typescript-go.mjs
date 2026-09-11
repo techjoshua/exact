@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * Clones and checks out the TypeScript-Go revision pinned by this repository.
+ * Clones and checks out the native TypeScript revision pinned by this repository.
  *
  * The destination must not contain an existing checkout. Callers own deciding
  * whether an existing checkout should be reused.
@@ -18,7 +18,22 @@ export async function checkoutNativeTypeScriptGo(destination) {
 		await readFile(path.join(repositoryRoot, 'native', 'typescript-go', 'upstream.json'), 'utf8')
 	);
 	await mkdir(path.dirname(resolvedDestination), { recursive: true });
-	await run('git', ['clone', '--filter=blob:none', upstream.repository, resolvedDestination]);
+	await run('git', [
+		'clone',
+		'--filter=blob:none',
+		'--no-checkout',
+		upstream.repository,
+		resolvedDestination
+	]);
+	await run('git', [
+		'-C',
+		resolvedDestination,
+		'sparse-checkout',
+		'set',
+		'tsc/internal',
+		'tsc/cmd',
+		'tools'
+	]);
 	await run('git', ['-C', resolvedDestination, 'checkout', upstream.revision]);
 }
 

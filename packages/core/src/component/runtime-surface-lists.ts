@@ -6,7 +6,7 @@ import { registerComponentRuntimeSurface } from './runtime-surface-registration.
 function map<T>(
 	this: AnyComponentInstance,
 	collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-	key: (item: T) => string,
+	key: (item: T) => string | number,
 	render: (item: T) => Child,
 	id?: string,
 	provenance?: Iterable<T>,

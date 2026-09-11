@@ -1090,6 +1090,9 @@ never acquire structural retention.
 
 ### Keyed collections
 
+Key selectors accept strings or numbers. The runtime normalizes either to a string, so numeric
+`1` and string `"1"` identify the same key and cannot coexist in one keyed collection.
+
 An ordinary reactive `Array.map()` is compiled as a keyed collection when
 identity is available from a type annotation. The annotation may live beside
 the component or on an item type imported from another module:

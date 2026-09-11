@@ -91,7 +91,7 @@ const ssrResult = await build({
 	absWorkingDir: repositoryRoot,
 	stdin: {
 		contents: `
-			export { renderCompilerClosedToStringAsync } from './packages/ssr/src/compiler-closed.ts';
+			export { renderCompilerClosedToString } from './packages/ssr/src/compiler-closed.ts';
 		`,
 		resolveDir: repositoryRoot,
 		sourcefile: 'component-local-target-abi-native-ssr-fixture.ts',

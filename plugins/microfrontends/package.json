@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/microfrontends",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -69,19 +71,19 @@
 	},
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/compiler": "^0.1.0",
-		"@exactjs/config": "^0.1.0",
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/hydrate": "^0.1.0",
-		"@exactjs/plugin-api": "^0.1.0",
-		"@exactjs/server": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/compiler": "^0.5.0",
+		"@exactjs/config": "^0.5.0",
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/hydrate": "^0.5.0",
+		"@exactjs/plugin-api": "^0.5.0",
+		"@exactjs/server": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"devDependencies": {
-		"@exactjs/ssr": "^0.1.0",
-		"@exactjs/testing": "^0.1.0",
+		"@exactjs/ssr": "^0.5.0",
+		"@exactjs/testing": "^0.5.0",
 		"@types/node": "^22.10.2",
 		"vite": "^8.1.5"
 	},
@@ -103,5 +105,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "plugins/microfrontends"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

@@ -1,39 +1,39 @@
-/** Decomposes one immutable response into semantic and framework-owned byte categories. */
-export function responseByteBreakdown(id, rendered, initialData) {
-	const hydrationStart =
-		id === 'exact'
-			? rendered.indexOf('<script type="application/json" id="__exact_hydration"')
-			: -1;
-	const hydrationScript = hydrationStart < 0 ? '' : rendered.slice(hydrationStart);
-	const hydrationPayload = hydrationPayloadBreakdown(hydrationScript);
-	const markup = hydrationStart < 0 ? rendered : rendered.slice(0, hydrationStart);
-	const markers = frameworkMarkerBytes(markup);
-	const identityAttributes = matchingByteLength(markup, /\sdata-exact-id="[^"]*"/g);
-	const serialized = JSON.stringify(initialData).replaceAll('<', '\\u003c');
+/** Decomposes the application-produced document without constructing a replacement shell. */
+export function responseDocumentByteBreakdown(id, document) {
+	const root = /<div\b[^>]*\bid="app"[^>]*>/.exec(document);
+	if (!root) throw new Error('Native document is missing the comparison root');
+	const hydrationScript =
+		document.match(/<script\b[^>]*\bid="__exact_hydration"[^>]*>[\s\S]*?<\/script>/)?.[0] ?? '';
 	const comparisonDataScript =
-		id === 'exact'
-			? ''
-			: `<script id="comparison-data" type="application/json">${serialized}</script>`;
-	const document = documentHtml(id, rendered, comparisonDataScript);
-	const renderedBytes = Buffer.byteLength(rendered);
-	const frameworkMarkerCommentBytes = Object.values(markers).reduce(
-		(total, bytes) => total + bytes,
-		0
-	);
+		document.match(/<script\b[^>]*\bid="comparison-data"[^>]*>[\s\S]*?<\/script>/)?.[0] ?? '';
+	const end = document.lastIndexOf('</div>');
+	if (end < root.index) throw new Error('Native document is missing the comparison root');
+	const markup = document
+		.slice(root.index + root[0].length, end)
+		.replace(hydrationScript, '')
+		.replace(comparisonDataScript, '');
+	const markers = frameworkMarkerBytes(markup);
+	const markerBytes = Object.values(markers).reduce((total, bytes) => total + bytes, 0);
+	const identityBytes = matchingByteLength(markup, /\sdata-exact-id="[^"]*"/g);
+	const hydration = hydrationPayloadBreakdown(hydrationScript);
+	const documentBytes = Buffer.byteLength(document);
+	const renderedBytes = Buffer.byteLength(markup);
 	return {
 		supported: true,
-		documentBytes: Buffer.byteLength(document),
+		documentBytes,
 		renderedBytes,
 		documentEnvelopeBytes:
-			Buffer.byteLength(document) - renderedBytes - Buffer.byteLength(comparisonDataScript),
-		semanticMarkupBytes:
-			Buffer.byteLength(markup) - frameworkMarkerCommentBytes - identityAttributes,
-		frameworkMarkerCommentBytes,
+			documentBytes -
+			renderedBytes -
+			Buffer.byteLength(hydrationScript) -
+			Buffer.byteLength(comparisonDataScript),
+		semanticMarkupBytes: renderedBytes - markerBytes - identityBytes,
+		frameworkMarkerCommentBytes: markerBytes,
 		frameworkMarkerBytesByKind: markers,
-		frameworkIdentityAttributeBytes: identityAttributes,
+		frameworkIdentityAttributeBytes: identityBytes,
 		hydrationScriptBytes: Buffer.byteLength(hydrationScript),
-		hydrationPayloadBytes: hydrationPayload.bytes,
-		hydrationFieldsBytes: hydrationPayload.fields,
+		hydrationPayloadBytes: hydration.bytes,
+		hydrationFieldsBytes: hydration.fields,
 		comparisonDataScriptBytes: Buffer.byteLength(comparisonDataScript)
 	};
 }
@@ -60,23 +60,6 @@ function hydrationPayloadBreakdown(script) {
 	} catch {
 		return { bytes: Buffer.byteLength(source), fields: {} };
 	}
-}
-
-/** Builds the comparison document around one already-rendered participant body. */
-export function comparisonDocumentHtml(id, rendered, initialData, payloadTarget) {
-	const serialized = JSON.stringify(initialData).replaceAll('<', '\\u003c');
-	const comparisonDataScript =
-		id === 'exact'
-			? ''
-			: `<script id="comparison-data" type="application/json">${serialized}</script>`;
-	const document = documentHtml(id, rendered, comparisonDataScript);
-	if (payloadTarget === undefined) return document;
-	const missing = payloadTarget - Buffer.byteLength(document);
-	return missing > 0 ? `${document}${' '.repeat(missing)}` : document;
-}
-
-function documentHtml(id, rendered, comparisonDataScript) {
-	return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="framework-participant" content="${id}"><title>Incident Operations</title></head><body><div id="app" data-render-mode="ssr">${rendered}</div>${comparisonDataScript}</body></html>`;
 }
 
 function frameworkMarkerBytes(markup) {
@@ -108,24 +91,4 @@ function matchingByteLength(value, expression) {
 	let bytes = 0;
 	for (const match of value.matchAll(expression)) bytes += Buffer.byteLength(match[0]);
 	return bytes;
-}
-
-/** Decomposes the actual native document while retaining the framework marker categories. */
-export function responseDocumentByteBreakdown(id, document, initialData) {
-	const prefix = '<div id="app" data-render-mode="ssr">';
-	const start = document.indexOf(prefix);
-	const dataStart = document.indexOf('<script id="comparison-data"');
-	const end = document.lastIndexOf('</div>', dataStart < 0 ? document.length : dataStart);
-	if (start < 0 || end < start) throw new Error('Native document is missing the comparison root');
-	const breakdown = responseByteBreakdown(
-		id,
-		document.slice(start + prefix.length, end),
-		initialData
-	);
-	const documentBytes = Buffer.byteLength(document);
-	return {
-		...breakdown,
-		documentBytes,
-		documentEnvelopeBytes: breakdown.documentEnvelopeBytes + documentBytes - breakdown.documentBytes
-	};
 }

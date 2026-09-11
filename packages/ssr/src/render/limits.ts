@@ -116,29 +116,6 @@ export function assertOutputWithinLimit(context: SsrContext, html: string): void
 	}
 }
 
-/** Runs a synchronous nested traversal while restoring depth on every exit. */
-export function withSsrTreeDepth<T>(context: SsrContext, run: () => T): T {
-	enterSsrTreeDepth(context);
-	try {
-		return run();
-	} finally {
-		leaveSsrTreeDepth(context);
-	}
-}
-
-/** Runs an asynchronous nested traversal while restoring depth on every exit. */
-export async function withSsrTreeDepthAsync<T>(
-	context: SsrContext,
-	run: () => Promise<T>
-): Promise<T> {
-	enterSsrTreeDepth(context);
-	try {
-		return await run();
-	} finally {
-		leaveSsrTreeDepth(context);
-	}
-}
-
 /** Enters one traversal frame without allocating a callback closure. */
 export function enterSsrTreeDepth(context: SsrContext): void {
 	context.traversalDepth++;

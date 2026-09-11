@@ -17,5 +17,5 @@ Bun.serve({
 
 Bun uses the Fetch API, so the adapter returns a standard `Response` while
 `@exactjs/server` remains responsible for protocol validation and dispatch.
-Buffered SSR responses use Bun's native Blob body path, preserving compiler-produced chunks without
-joining them or allocating a compatibility `ReadableStream`.
+Buffered SSR responses pass their complete text to Bun's native `Response`. Produced SSR bodies use
+the streaming boundary.

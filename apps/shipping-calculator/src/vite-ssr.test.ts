@@ -51,8 +51,8 @@ describe('shipping development SSR graph', () => {
 			const { createCompiledComponentReceipt } = await vite.ssrLoadModule(
 				'@exactjs/core/runtime/component-operations'
 			);
-			const { renderToHydratableStringAsync } = await vite.ssrLoadModule('@exactjs/ssr');
-			const rendered = await renderToHydratableStringAsync(
+			const { renderToHydratableString } = await vite.ssrLoadModule('@exactjs/ssr');
+			const rendered = await renderToHydratableString(
 				createCompiledComponentReceipt(ShippingCalculatorPage, {
 					url: 'http://localhost:4175/'
 				}),

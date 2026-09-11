@@ -26,6 +26,8 @@ directory when present; pass `--project path/to/tsconfig.json` to select another
 
 The npm package selects the native compiler binary for the current operating system and
 architecture. Application developers do not need Go installed.
+The native executable builds on Microsoft's Go compiler in `microsoft/TypeScript`.
+Platform packages include its Apache-2.0 license and upstream third-party notices.
 
 ## Programmatic use
 
@@ -61,7 +63,7 @@ interpretation, package trust, or authorization decision; adapters must join its
 their own resolver provenance.
 
 Published libraries can use `@exactjs/compiler/component-library-build` to normalize and write the
-static protocol-2 package facts referenced by `exactComponentLibrary.build`. This writer validates
+static protocol-1 package facts referenced by `exactComponentLibrary.build`. This writer validates
 component/export correspondence but deliberately contains no trust policy.
 
 ```ts

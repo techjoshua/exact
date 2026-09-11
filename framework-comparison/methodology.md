@@ -237,6 +237,15 @@ but does not alone prove an unbounded leak. Response hashes must remain stable f
 and every body must contain the selected incident, so a fast error, empty shell, or cross-request mutation
 cannot be accepted as an SSR sample.
 
+GC event telemetry checks the runtime's advertised `PerformanceObserver` entry types. When `gc`
+is unsupported or observer setup fails, it reports `available: false` with null count and duration;
+load-process samples similarly report `gcAvailable: false`. Unsupported observations are not zero
+collections. Comparison adapters omit GC metrics from a lane if any participant lacks them. Node
+observations remain numeric, including a genuine zero-event interval. Historical captures without
+availability metadata retain their original values and must not be treated as proof of GC support.
+Bun's native inspector can collect GC events in a separate diagnostic, with inspector overhead
+reported separately from ordinary throughput runs.
+
 CPU lanes read cumulative process counters without forcing collection. Forced collection is confined to
 the separate retention lane, so benchmark bookkeeping is not charged to framework request CPU.
 Bun's event-loop monitor has a coarser sampling interval than Node's. After each telemetry reset, the

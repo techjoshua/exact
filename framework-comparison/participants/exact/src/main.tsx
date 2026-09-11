@@ -19,6 +19,6 @@ const published = readPublishedRootProps<{
 	initialData?: InitialData;
 	path?: string;
 }>(IncidentApp, root);
-const app = <IncidentApp {...published} />;
-if (root.childNodes.length > 0) void hydrateAfterNavigation(app, root, profileOptions);
-else render(app, root, profileOptions);
+if (root.childNodes.length > 0)
+	void hydrateAfterNavigation(<IncidentApp {...published} />, root, profileOptions);
+else render(<IncidentApp />, root, profileOptions);

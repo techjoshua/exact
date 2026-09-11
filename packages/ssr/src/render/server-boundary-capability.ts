@@ -1,16 +1,16 @@
 import type { ExactServerBoundaryReceiptData } from '@exactjs/core/runtime/component-abi';
 import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
 import { ssrCapabilities } from './capability-registry.js';
+import type { RenderValue } from './execution.js';
 
 type ServerBoundaryCapability = Readonly<{
-	render(context: SsrContext, boundary: ExactServerBoundaryReceiptData, finite?: boolean): string;
 	renderAsync(
 		context: SsrContext,
 		boundary: ExactServerBoundaryReceiptData,
 		parent: AnyComponentInstance | undefined,
 		options: RenderToStringOptions,
 		finite?: boolean
-	): Promise<string>;
+	): RenderValue<string>;
 }>;
 
 const capabilityName = 'server-boundary';
@@ -20,26 +20,14 @@ export function registerServerBoundaryCapability(next: ServerBoundaryCapability)
 	ssrCapabilities[capabilityName] = next;
 }
 
-/** Renders an explicitly compiler-selected server boundary. */
-export function renderServerBoundary(
-	context: SsrContext,
-	boundary: ExactServerBoundaryReceiptData,
-	finite = false
-): string {
-	const capability = ssrCapabilities[capabilityName] as ServerBoundaryCapability | undefined;
-	if (!capability)
-		throw new TypeError('Server boundary rendering requires its compiler capability');
-	return capability.render(context, boundary, finite);
-}
-
 /** Renders an explicitly compiler-selected server boundary asynchronously. */
-export function renderServerBoundaryAsync(
+export function renderServerBoundary(
 	context: SsrContext,
 	boundary: ExactServerBoundaryReceiptData,
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions,
 	finite = false
-): Promise<string> {
+): RenderValue<string> {
 	const capability = ssrCapabilities[capabilityName] as ServerBoundaryCapability | undefined;
 	if (!capability)
 		throw new TypeError('Server boundary rendering requires its compiler capability');

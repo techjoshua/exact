@@ -1,3 +1,4 @@
+import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
 	SsrTaskDeadlineError,
 	defaultMaxSsrOutputBytes,
@@ -5,9 +6,7 @@ import {
 	normalizePositiveLimit,
 	normalizeSsrTreeDepth
 } from '../render/limits.js';
-import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
-import { AsyncSsrScheduler } from './async-scheduler.js';
 
 /** Performs the drain tasks domain operation. */
 export async function drainTasks(
@@ -32,10 +31,17 @@ export async function awaitWithAbort<T>(
 	signal?: AbortSignal,
 	deadline?: number
 ): Promise<T> {
-	if (signal?.aborted) throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
+	if (signal?.aborted) {
+		// The supplied work already exists and may reject after cancellation disposes its owner.
+		void promise.catch(() => {});
+		throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
+	}
 	if (!signal && deadline === undefined) return promise;
 	const remaining = deadline === undefined ? undefined : deadline - Date.now();
-	if (remaining !== undefined && remaining <= 0) throw new SsrTaskDeadlineError();
+	if (remaining !== undefined && remaining <= 0) {
+		void promise.catch(() => {});
+		throw new SsrTaskDeadlineError();
+	}
 	let abort!: () => void;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const interrupted = new Promise<never>((_, reject) => {
@@ -54,11 +60,8 @@ export async function awaitWithAbort<T>(
 	}
 }
 
-/** Creates a request-owned SSR context, omitting async scheduling only for proven sync roots. */
-export function createSsrContext(
-	options: RenderToStringOptions,
-	includeAsyncScheduler = true
-): SsrContext {
+/** Creates request-owned render state; task scheduling is allocated on first use. */
+export function createSsrContext(options: RenderToStringOptions): SsrContext {
 	const wallClockSnapshot = Date.now();
 	const context: SsrContext = {
 		executionRoot: options.executionRoot ?? 'page',
@@ -99,11 +102,7 @@ export function createSsrContext(
 		onComponentAttemptCheckpoint: options.onComponentAttemptCheckpoint,
 		onComponentAttemptRollback: options.onComponentAttemptRollback,
 		onDirectComponentCreated: options.onDirectComponentCreated,
-		onDirectComponentRendered: options.onDirectComponentRendered,
-		resumptionCapture: options.resumptionCapture,
-		asyncFrame: false
+		onDirectComponentRendered: options.onDirectComponentRendered
 	};
-	if (includeAsyncScheduler)
-		context.asyncScheduler = new AsyncSsrScheduler(options.maxAsyncSsrConcurrency);
 	return context;
 }

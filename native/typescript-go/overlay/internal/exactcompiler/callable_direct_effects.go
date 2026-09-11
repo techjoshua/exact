@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 func collectDirectCallableEffects(
@@ -55,7 +55,8 @@ func collectDirectCallableEffects(
 	for _, read := range stateReads {
 		if directlyOwnedSpan(read.Start, read.Start+read.Length, factIndex, facts) {
 			fact.directReads = append(fact.directReads, StateEffect{
-				Path: strings.Join(read.Path, "."), Kind: "read", Confidence: read.Confidence,
+				pathSegments: append([]string{}, read.Path...),
+				Path:         strings.Join(read.Path, "."), Kind: "read", Confidence: read.Confidence,
 			})
 		}
 	}
@@ -69,10 +70,11 @@ func collectDirectCallableEffects(
 				confidence = "broad"
 			}
 			fact.directWrites = append(fact.directWrites, StateEffect{
-				Path:       strings.Join(write.Path, "."),
-				Kind:       "write",
-				Confidence: confidence,
-				Operation:  stateEffectOperation(write.Operation),
+				pathSegments: append([]string{}, write.Path...),
+				Path:         strings.Join(write.Path, "."),
+				Kind:         "write",
+				Confidence:   confidence,
+				Operation:    stateEffectOperation(write.Operation),
 			})
 		}
 	}
@@ -340,7 +342,8 @@ func appendComponentBindingCallableFacts(
 			confidence = "broad"
 		}
 		write := StateEffect{
-			Path: strings.Join(binding.write.Path, "."), Kind: "write",
+			pathSegments: append([]string{}, binding.write.Path...),
+			Path:         strings.Join(binding.write.Path, "."), Kind: "write",
 			Confidence: confidence, Operation: stateEffectOperation(binding.write.Operation),
 		}
 		facts = append(facts, callableFacts{
@@ -494,10 +497,11 @@ resolved:
 		confidence = "unknown"
 	}
 	return StateEffect{
-		Path:       strings.Join(segments, "."),
-		Kind:       kind,
-		Confidence: confidence,
-		Receiver:   &StateReceiver{Kind: "parameter", Index: parameterIndex},
+		pathSegments: append([]string{}, segments...),
+		Path:         strings.Join(segments, "."),
+		Kind:         kind,
+		Confidence:   confidence,
+		Receiver:     &StateReceiver{Kind: "parameter", Index: parameterIndex},
 	}, true
 }
 
