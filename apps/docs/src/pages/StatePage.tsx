@@ -296,7 +296,8 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					Use the native collection APIs directly. Map reads track individual keys, Set membership
 					tracks individual values, and iteration tracks structural changes. Native return values
-					and Set uniqueness are preserved.
+					and Set uniqueness are preserved. Failed atomic batches restore insertion order, and
+					rollback keeps observers connected without overwriting newer authoritative entries.
 				</p>
 				<CodeBlock source={collectionSource} language="tsx" title="Selection.tsx" />
 				<p>

@@ -4,6 +4,10 @@ The `docs` directory contains engineering documentation for the current eXact
 repository. It is organized by authority so that an old implementation plan
 cannot be mistaken for a current framework contract.
 
+Start with the [public learning guide](../apps/docs/README.md) when building an application.
+Package READMEs introduce installation and API usage. The references below are for contributors
+and developers who need detailed framework contracts.
+
 ## Current references
 
 These documents describe behavior that exists in the repository today:
@@ -12,6 +16,10 @@ These documents describe behavior that exists in the repository today:
 | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | [actions-and-forms.md](actions-and-forms.md)                                     | Task interactions, optimism, forms, and router coordination.                                              |
 | [accessibility.md](accessibility.md)                                             | Native-first accessibility enhancements, modal binding, relationships, navigation, and diagnostics.       |
+| [compiled-component-artifacts.md](compiled-component-artifacts.md)               | Compiled client/server artifacts, ABI boundaries, and compatibility.                                      |
+| [licensing.md](licensing.md)                                                     | Copyright, Apache-2.0, and distribution attribution.                                                      |
+| [release-readiness.md](release-readiness.md)                                     | Independent versions, npm packaging, publication, and ABI release checks.                                 |
+| [core-api-ownership.md](core-api-ownership.md)                                   | Application APIs and framework integration boundaries.                                                    |
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                                                 |
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                                                    |
 | [component-composition-corpus.md](component-composition-corpus.md)               | Normative compiler-path and cross-renderer component acceptance corpus.                                   |
@@ -93,13 +101,12 @@ indefinite exploratory pause.
 
 The active and gated documents are:
 
-| Proposal                                                                                                                                                   | Status      | Scope                                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Component-local target ABI](proposals/component-local-target-abi.md) ([implementation plan](proposals/component-local-target-abi-implementation-plan.md)) | Implemented | Exhaustive component-local client and server artifacts are the only native execution model, with direct ABI composition and no generic native fallback. |
-| [Thematic presentation providers](proposals/thematic-presentation-providers.md)                                                                            | Proposed    | Translate portable `theme:*` semantics through an application-selected baseline, Tailwind, Bootstrap, or other finite presentation provider.            |
-| [Cooperative structured children](proposals/cooperative-structured-children.md)                                                                            | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.                                                         |
-| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)                                                           | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.                                                  |
-| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)                                                                | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.                                             |
+| Proposal                                                                                         | Status      | Scope                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Thematic presentation providers](proposals/thematic-presentation-providers.md)                  | Proposed    | Translate portable `theme:*` semantics through an application-selected baseline, Tailwind, Bootstrap, or other finite presentation provider. |
+| [Cooperative structured children](proposals/cooperative-structured-children.md)                  | Exploratory | Independent compound-component coordination research; it no longer blocks internationalization.                                              |
+| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md) | Deferred    | Add measured typed structural operations to existing render programs without creating a parallel plan.                                       |
+| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)      | Exploratory | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.                                  |
 
 Other exploratory work that is not part of the sequential program until promoted into a focused
 proposal:
@@ -128,11 +135,19 @@ without presenting completed plans as active work.
 
 ## Historical evidence
 
+The [2026-09-07 adversarial release audit](adversarial-release-audit-2026-09-07.md) records
+publication and ABI guard fixes, regression coverage, and an open comparison dependency finding.
+
 [`history`](history) contains completed proposal records plus dated benchmark and adversarial-review
 records. They explain why decisions were made but are not current API documentation. Every
 historical record identifies its implemented contract, measurement baseline, or review baseline.
 
 Completed proposal records:
+
+The [component-local target ABI design](history/component-local-target-abi.md) and its
+[implementation plan](history/component-local-target-abi-implementation-plan.md) are implemented
+and archived. Their numeric ABI examples describe development history; the current public baseline
+is defined in [compiled component artifacts](compiled-component-artifacts.md).
 
 | Proposal                                                                                            | Delivered contract                                                                                                                                               |
 | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -152,7 +167,10 @@ Completed proposal records:
 | [Reactive graph consistency](history/reactive-graph-consistency.md)                                 | Synchronously current derived chains, equality-barrier settlement, bounded cycle diagnostics, rollback validation, and detachable standalone computed ownership. |
 | [Semantic generative theming](history/semantic-generative-theming.md)                               | Reactive `exact-theme/1` resolution, semantic element enhancements, nested surface composition, deterministic tokens, and pure extension derivation.             |
 
-The current repository-wide implementation review is recorded in
+The [September 2026 framework adversarial audit](adversarial-framework-audit-2026-09-07.md)
+records reproduced runtime defects, fixes, regression evidence, and remaining limits.
+
+The July 2026 repository-wide implementation review is recorded in
 [`history/repository-code-review-2026-07.md`](history/repository-code-review-2026-07.md).
 
 ## Maintenance rule

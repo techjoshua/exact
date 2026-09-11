@@ -2,7 +2,7 @@ import { hydrate } from '@exactjs/hydrate/enhanced';
 import { exactEnhancementPassThrough } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
-import { renderToHydratableString, renderToHydratableStringAsync } from '@exactjs/ssr/enhanced';
+import { renderToHydratableString } from '@exactjs/ssr/enhanced';
 import { describe, expect, it } from 'vitest';
 import {
 	capabilitiesOwner,
@@ -41,12 +41,12 @@ import { structureRoot } from './scenarios/structure.fixtures.js';
 import { structureRoot as serverStructureRoot } from './scenarios/structure.fixtures.js?exact-target=server';
 
 describe('composition corpus hydration behavior', () => {
-	it('adopts static, nested, and registry DOM without replacement', () => {
+	it('adopts static, nested, and registry DOM without replacement', async () => {
 		for (const [serverOperation, clientOperation, selector] of [
 			[serverFundamentalsRoot('ready'), fundamentalsRoot('ready'), 'main'],
 			[serverRegistryRoot('first'), registryRoot('first'), '[data-view="first"]']
 		] as const) {
-			const { container, resumptions } = serverContainer(serverOperation);
+			const { container, resumptions } = await serverContainer(serverOperation);
 			const serverNode = container.querySelector(selector);
 			const following = container.querySelector('[data-role="after-label"]');
 			hydrate(clientOperation, container, { onMismatch: 'throw', resumptions });
@@ -65,8 +65,8 @@ describe('composition corpus hydration behavior', () => {
 		await expect.poll(() => container.querySelector('[data-dynamic]')?.textContent).toBe('first');
 	});
 
-	it('activates indexed state bindings on adopted DOM', () => {
-		const { container, resumptions } = serverContainer(serverStateRoot('count'));
+	it('activates indexed state bindings on adopted DOM', async () => {
+		const { container, resumptions } = await serverContainer(serverStateRoot('count'));
 		const output = container.querySelector('output');
 		const projected = container.querySelector('[data-role="adjacent-text"]');
 		const textarea = container.querySelector<HTMLTextAreaElement>(
@@ -93,8 +93,8 @@ describe('composition corpus hydration behavior', () => {
 		expect(button?.hasAttribute('disabled')).toBe(true);
 	});
 
-	it('applies indexed input state and nested prop operands while adopting the server range', () => {
-		const { container, resumptions } = serverContainer(
+	it('applies indexed input state and nested prop operands while adopting the server range', async () => {
+		const { container, resumptions } = await serverContainer(
 			serverInputProjectionRoot({ label: 'hydrated' })
 		);
 		const output = container.querySelector('[data-scenario="input-projection"]');
@@ -113,7 +113,7 @@ describe('composition corpus hydration behavior', () => {
 		expect(container.querySelector('[data-role="nested-prop-label"]')).toBe(nested);
 		expect(nested?.textContent).toBe('adopted update');
 
-		const snapshot = serverContainer(serverSnapshotProjectionRoot('retained'));
+		const snapshot = await serverContainer(serverSnapshotProjectionRoot('retained'));
 		const snapshotOutput = snapshot.container.querySelector(
 			'[data-scenario="snapshot-projection"]'
 		);
@@ -127,19 +127,19 @@ describe('composition corpus hydration behavior', () => {
 		expect(snapshotOutput?.textContent).toBe('retained');
 	});
 
-	it('adopts context, keyed ranges, and both enhancement target forms', () => {
+	it('adopts context, keyed ranges, and both enhancement target forms', async () => {
 		for (const [serverOperation, clientOperation, selector] of [
 			[serverContextOnlyRoot, contextOnlyRoot, '[data-scenario="context-only"]'],
 			[serverKeyedOnlyRoot, keyedOnlyRoot, '[data-scenario="keyed-only"]'],
 			[serverRefLifecycleOnlyRoot, refLifecycleOnlyRoot, '[data-scenario="ref-only"]']
 		] as const) {
-			const atom = serverContainer(serverOperation);
+			const atom = await serverContainer(serverOperation);
 			const serverNode = atom.container.querySelector(selector);
 			hydrate(clientOperation, atom.container, { resumptions: atom.resumptions });
 			expect(atom.container.querySelector(selector), selector).toBe(serverNode);
 		}
 
-		const capability = serverContainer(serverCapabilitiesRoot);
+		const capability = await serverContainer(serverCapabilitiesRoot);
 		const capabilitySection = capability.container.querySelector('section');
 		hydrate(capabilitiesRoot, capability.container, {
 			onMismatch: 'throw',
@@ -169,7 +169,7 @@ describe('composition corpus hydration behavior', () => {
 			)
 		).toEqual(['b:mean', 'b:p50']);
 
-		const enhanced = serverContainer(serverEnhancementsRoot, {
+		const enhanced = await serverContainer(serverEnhancementsRoot, {
 			enhancementCatalog: new Map([
 				['./enhancement-routing.fixtures.js#corpus', exactEnhancementPassThrough]
 			])
@@ -189,8 +189,8 @@ describe('composition corpus hydration behavior', () => {
 		).toBe('component');
 	});
 
-	it('recovers a structural mismatch at the compiler-owned component root', () => {
-		const { container, resumptions } = serverContainer(serverStructureRoot);
+	it('recovers a structural mismatch at the compiler-owned component root', async () => {
+		const { container, resumptions } = await serverContainer(serverStructureRoot);
 		const serverRoot = container.querySelector('[data-scenario="structure"]');
 		container.querySelector('[data-role="conditional"]')!.replaceWith(document.createElement('i'));
 		hydrate(structureRoot, container, { onMismatch: 'replace', resumptions });
@@ -201,21 +201,21 @@ describe('composition corpus hydration behavior', () => {
 	});
 });
 
-function serverContainer(
+async function serverContainer(
 	operation: Parameters<typeof renderToHydratableString>[0],
 	options?: Parameters<typeof renderToHydratableString>[1]
 ) {
-	const rendered = renderToHydratableString(operation, options);
+	const rendered = await renderToHydratableString(operation, options);
 	const container = document.createElement('div');
 	container.innerHTML = rendered.html;
 	return { container, resumptions: rendered.resumptions };
 }
 
 async function asyncServerContainer(
-	operation: Parameters<typeof renderToHydratableStringAsync>[0],
-	options?: Parameters<typeof renderToHydratableStringAsync>[1]
+	operation: Parameters<typeof renderToHydratableString>[0],
+	options?: Parameters<typeof renderToHydratableString>[1]
 ) {
-	const rendered = await renderToHydratableStringAsync(operation, options);
+	const rendered = await renderToHydratableString(operation, options);
 	const container = document.createElement('div');
 	container.innerHTML = rendered.html;
 	return { container, resumptions: rendered.resumptions };

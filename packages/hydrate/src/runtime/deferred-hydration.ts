@@ -1,9 +1,10 @@
 /** Defers hydration until one rendering opportunity passes or an interaction wins first. */
 export function deferHydrationAfterNavigation<T>(
 	activateHydration: () => T,
-	container: Element
+	container: Element | Document
 ): Promise<T> {
-	const ownerDocument = container.ownerDocument;
+	const ownerDocument =
+		container.nodeType === 9 ? (container as Document) : (container as Element).ownerDocument;
 	const ownerWindow = ownerDocument.defaultView;
 	const requestFrame =
 		ownerWindow?.requestAnimationFrame?.bind(ownerWindow) ??

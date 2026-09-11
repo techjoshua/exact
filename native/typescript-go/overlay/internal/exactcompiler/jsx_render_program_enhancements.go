@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // Enhanced descendants retain an ordinary focused child range. The nested render program carries
 // its own enhancement marker, so the surrounding finite intrinsic program neither interprets the

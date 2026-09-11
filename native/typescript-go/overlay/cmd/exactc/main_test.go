@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/microsoft/typescript-go/internal/exactcompiler"
+	"github.com/microsoft/TypeScript/tsc/internal/exactcompiler"
 )
 
 func TestServeProcessesMultipleRequestsInOneSession(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"html"
 	"strconv"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // captureRootSsrAttributes records the closed root plan used when no target contribution changes
@@ -60,7 +60,7 @@ func (lowering *jsxLowering) captureRootSsrAttributes(
 			build.rootSsrClosed = false
 			return
 		}
-		_, serialized, static := staticRenderProgramAttribute(tag, name, attribute.Initializer)
+		_, serialized, static := lowering.plannedStaticRenderProgramAttribute(tag, name, attribute.Initializer)
 		if static {
 			build.rootStaticHtml += serialized
 			build.rootStaticKeys = append(build.rootStaticKeys, name)
@@ -124,6 +124,7 @@ func (lowering *jsxLowering) renderProgramSsrRootStatic(build *renderProgramBuil
 	if build.rootSsrClosed {
 		plan := make([]*ast.Node, len(build.rootSsrPlan))
 		for index, operation := range build.rootSsrPlan {
+			operation = proveSsrRootClass(build, operation)
 			plan[index] = array([]*ast.Node{
 				lowering.factory.NewNumericLiteral(strconv.Itoa(operation.kind), ast.TokenFlagsNone),
 				lowering.factory.NewStringLiteral(operation.property, ast.TokenFlagsNone),
@@ -131,6 +132,9 @@ func (lowering *jsxLowering) renderProgramSsrRootStatic(build *renderProgramBuil
 			})
 		}
 		root = append(root, array(plan))
+	}
+	if build.rootScalarFactory != nil {
+		root = append(root, build.rootScalarFactory)
 	}
 	return array(root)
 }

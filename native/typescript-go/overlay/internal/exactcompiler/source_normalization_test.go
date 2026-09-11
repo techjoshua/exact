@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/microsoft/typescript-go/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 func TestNormalizeAuthoredSourceRewritesPropPunning(t *testing.T) {

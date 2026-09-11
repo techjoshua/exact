@@ -170,6 +170,29 @@ requires repeated component execution, hides state behind a runtime dispatcher, 
 React-derived ceremony should have a specific eXact reason rather than familiarity as its
 justification.
 
+## Prepare independent releases
+
+eXact-owned code is Apache-2.0, copyright Joshua Friesen. Follow `docs/licensing.md` when
+updating legal notices and distribution metadata. Preserve upstream and third-party attribution.
+
+Follow `docs/release-readiness.md` for package versioning and publication. Validation impact and
+publication selection are distinct: testing a dependent does not require publishing it. Preserve
+compatible dependency ranges, version every public manifest that must change, and keep applications
+and fixtures private. Treat compiler-emitted helper signatures and artifact semantics as ABI review
+surfaces. Incompatible changes require advancing the ABI epoch and provider package major versions,
+including at 0.x. Preserve released fixtures under `fixtures/release-abi`; never regenerate them
+to make a compatible runtime update pass. Schema checks and representative artifact tests both
+inform review; neither substitutes for classifying semantic ABI changes.
+
+Before the first public release, explicitly approved API and artifact redesigns establish the
+initial 0.5.0 contract. Do not retain obsolete implementations or aliases solely for unreleased
+callers. Migrate compiler helpers, repository callers, tests, and documentation together, and record
+the incompatibility in release guidance. Released-artifact rules apply once publication occurs.
+
+Publication preflight must verify that internal runtime, optional, and peer dependencies are
+already published or selected together. Treat malformed registry and security-audit responses as
+failures. Check release output ancestors for directory links before replacing staged artifacts.
+
 ## Validate build-script tests without generated package outputs
 
 Build-script tests must pass from a clean checkout before workspace package outputs exist. Do not

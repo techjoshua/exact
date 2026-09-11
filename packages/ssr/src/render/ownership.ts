@@ -27,6 +27,7 @@ export function createSsrOwner(): {
 			}
 		},
 		dispose(reason = 'ssr render complete') {
+			if (instances.size === 0) return;
 			// Children are constructed after parents; dispose in reverse order so a
 			// parent context stays valid throughout child teardown.
 			const failure = createCleanupFailure();

@@ -1,0 +1,1690 @@
+{
+  "http": {
+    "http.json": {
+      "createdAt": "2026-09-08T19:56:27.023Z",
+      "environment": {
+        "platform": "win32",
+        "platformRelease": "10.0.26200",
+        "cpu": {
+          "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics     ",
+          "logicalCount": 16
+        },
+        "totalMemoryBytes": 27704659968,
+        "runtimes": {
+          "node": "v26.8.1",
+          "bun": "1.4.2"
+        },
+        "workerNetworkEnvironment": {
+          "node": {},
+          "bun": {
+            "BUN_CONFIG_MAX_HTTP_REQUESTS": "64"
+          }
+        }
+      },
+      "rows": [
+        {
+          "variant": "control",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 8066.3922291637955,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 5.603,
+          "p99Max": 12.239,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 7883.230091614294
+            },
+            {
+              "population": 1,
+              "rps": 8249.535142567871
+            }
+          ]
+        },
+        {
+          "variant": "hoisted-head",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 5213.467964692648,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 8.863,
+          "p99Max": 12.999,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 5262.021168006102
+            },
+            {
+              "population": 1,
+              "rps": 5164.902577279003
+            }
+          ]
+        },
+        {
+          "variant": "hoisted-nohead",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 5647.075107897089,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.667,
+          "p99Max": 13.271,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 5566.110877613642
+            },
+            {
+              "population": 1,
+              "rps": 5728.042216997594
+            }
+          ]
+        },
+        {
+          "variant": "original-head",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 5608.208971294547,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 8.271,
+          "p99Max": 8.535,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 5472.216799054189
+            },
+            {
+              "population": 1,
+              "rps": 5744.209084865225
+            }
+          ]
+        },
+        {
+          "variant": "original-nohead",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 5834.557103666363,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.303,
+          "p99Max": 7.539,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 5970.105098143475
+            },
+            {
+              "population": 1,
+              "rps": 5699.017343968258
+            }
+          ]
+        },
+        {
+          "variant": "react",
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 8399.798423956872,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 5.851,
+          "p99Max": 12.479,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 8266.436311181678
+            },
+            {
+              "population": 1,
+              "rps": 8533.164230790218
+            }
+          ]
+        }
+      ]
+    },
+    "http-string.json": {
+      "createdAt": "2026-09-08T20:06:27.850Z",
+      "environment": {
+        "platform": "win32",
+        "platformRelease": "10.0.26200",
+        "cpu": {
+          "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics     ",
+          "logicalCount": 16
+        },
+        "totalMemoryBytes": 27704659968,
+        "runtimes": {
+          "node": "v26.8.1",
+          "bun": "1.4.2"
+        },
+        "workerNetworkEnvironment": {
+          "node": {},
+          "bun": {
+            "BUN_CONFIG_MAX_HTTP_REQUESTS": "64"
+          }
+        }
+      },
+      "rows": [
+        {
+          "variant": "control",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 8858.723335292396,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 6.003,
+          "p99Max": 12.671,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 8644.478713442239
+            },
+            {
+              "population": 1,
+              "rps": 9072.979768183432
+            }
+          ]
+        },
+        {
+          "variant": "original-nohead",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 5924.926802210199,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.891,
+          "p99Max": 13.863,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 5879.52402062903
+            },
+            {
+              "population": 1,
+              "rps": 5970.323062266389
+            }
+          ]
+        },
+        {
+          "variant": "string-head",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 6293.1631228544875,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.395,
+          "p99Max": 8.199,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 6263.143337267822
+            },
+            {
+              "population": 1,
+              "rps": 6323.186606382896
+            }
+          ]
+        },
+        {
+          "variant": "string-nohead",
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 6604.544027815255,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 7.559,
+          "p99Max": 13.503,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 6547.170629466768
+            },
+            {
+              "population": 1,
+              "rps": 6661.922680866736
+            }
+          ]
+        },
+        {
+          "variant": "react",
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 8437.897898023228,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "p99Min": 6.235,
+          "p99Max": 12.375,
+          "populations": [
+            {
+              "population": 0,
+              "rps": 8529.270240924778
+            },
+            {
+              "population": 1,
+              "rps": 8346.518104245104
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "phases": {
+    "spanCounts": {
+      "original": 86,
+      "hoisted": 131
+    },
+    "profiles": {
+      "original-render": {
+        "durationMs": 2015.949,
+        "totalSamples": 3816,
+        "topSites": [
+          {
+            "functionName": "validatePositionalValue",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 1417,
+            "columnNumber": 32,
+            "samples": 309,
+            "sampledMs": 160.67800000000008
+          },
+          {
+            "functionName": "charge",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 2523,
+            "columnNumber": 7,
+            "samples": 242,
+            "sampledMs": 125.16099999999999
+          },
+          {
+            "functionName": "serializeJson",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 1813,
+            "columnNumber": 22,
+            "samples": 223,
+            "sampledMs": 116.57799999999995
+          },
+          {
+            "functionName": "renderAccountedAttribute",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 2813,
+            "columnNumber": 33,
+            "samples": 187,
+            "sampledMs": 96.90400000000005
+          },
+          {
+            "functionName": "(garbage collector)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 156,
+            "sampledMs": 82.64999999999999
+          },
+          {
+            "functionName": "escapeSsrText",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 3453,
+            "columnNumber": 22,
+            "samples": 148,
+            "sampledMs": 77.63
+          },
+          {
+            "functionName": "createPreparedServerRenderProgram",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 465,
+            "columnNumber": 42,
+            "samples": 121,
+            "sampledMs": 62.32199999999999
+          },
+          {
+            "functionName": "utf8ByteLength",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 1668,
+            "columnNumber": 23,
+            "samples": 119,
+            "sampledMs": 61.149000000000015
+          },
+          {
+            "functionName": "isReactiveValue",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 50,
+            "columnNumber": 24,
+            "samples": 112,
+            "sampledMs": 59.56300000000001
+          },
+          {
+            "functionName": "text",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 3592,
+            "columnNumber": 5,
+            "samples": 100,
+            "sampledMs": 52.85300000000001
+          },
+          {
+            "functionName": "(anonymous)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 72,
+            "sampledMs": 40.82600000000001
+          },
+          {
+            "functionName": "createFrameworkComponentDomain",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 354,
+            "columnNumber": 39,
+            "samples": 78,
+            "sampledMs": 39.934
+          },
+          {
+            "functionName": "rootPropsOptions",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 1715,
+            "columnNumber": 25,
+            "samples": 70,
+            "sampledMs": 37.98999999999999
+          },
+          {
+            "functionName": "ssr",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 4677,
+            "columnNumber": 6,
+            "samples": 70,
+            "sampledMs": 36.727999999999994
+          },
+          {
+            "functionName": "append",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 3674,
+            "columnNumber": 7,
+            "samples": 66,
+            "sampledMs": 33.565999999999995
+          },
+          {
+            "functionName": "renderCompiledNativeAttributes",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 3165,
+            "columnNumber": 39,
+            "samples": 65,
+            "sampledMs": 32.342
+          },
+          {
+            "functionName": "executeSyncComponentOutput",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 4159,
+            "columnNumber": 35,
+            "samples": 61,
+            "sampledMs": 32.16399999999999
+          },
+          {
+            "functionName": "renderChildren",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 4381,
+            "columnNumber": 23,
+            "samples": 64,
+            "sampledMs": 32.115
+          },
+          {
+            "functionName": "unwrap",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 63,
+            "columnNumber": 15,
+            "samples": 59,
+            "sampledMs": 31.998000000000008
+          },
+          {
+            "functionName": "renderPreparedSsrProgramString",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 3691,
+            "columnNumber": 39,
+            "samples": 56,
+            "sampledMs": 28.778000000000006
+          },
+          {
+            "functionName": "readPath",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 1974,
+            "columnNumber": 17,
+            "samples": 52,
+            "sampledMs": 27.73599999999999
+          },
+          {
+            "functionName": "isReactive",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 54,
+            "columnNumber": 19,
+            "samples": 54,
+            "sampledMs": 27.181999999999995
+          },
+          {
+            "functionName": "renderSsrRootAttributes",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 3483,
+            "columnNumber": 32,
+            "samples": 48,
+            "sampledMs": 25.662000000000003
+          },
+          {
+            "functionName": "readReactiveOwnPropertyInto",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 313,
+            "columnNumber": 36,
+            "samples": 48,
+            "sampledMs": 24.04
+          },
+          {
+            "functionName": "post",
+            "url": "node:inspector",
+            "lineNumber": 114,
+            "columnNumber": 6,
+            "samples": 1,
+            "sampledMs": 22.186
+          },
+          {
+            "functionName": "accountKnown",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 2448,
+            "columnNumber": 13,
+            "samples": 42,
+            "sampledMs": 21.787000000000006
+          },
+          {
+            "functionName": "renderSyncComponent",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 4128,
+            "columnNumber": 28,
+            "samples": 35,
+            "sampledMs": 19.494999999999997
+          },
+          {
+            "functionName": "accountAscii",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 3683,
+            "columnNumber": 13,
+            "samples": 32,
+            "sampledMs": 16.298
+          },
+          {
+            "functionName": "ssr",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 4757,
+            "columnNumber": 6,
+            "samples": 31,
+            "sampledMs": 16.022999999999996
+          },
+          {
+            "functionName": "IncidentDetail",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "lineNumber": 5288,
+            "columnNumber": 68,
+            "samples": 28,
+            "sampledMs": 14.701
+          }
+        ],
+        "byUrl": [
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/original-entry.mjs",
+            "sampledMs": 1842.5580000000007
+          },
+          {
+            "url": "(native)",
+            "sampledMs": 127.093
+          },
+          {
+            "url": "node:inspector",
+            "sampledMs": 22.186
+          },
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/profile.mjs",
+            "sampledMs": 18.461
+          },
+          {
+            "url": "node:buffer",
+            "sampledMs": 5.489
+          }
+        ]
+      },
+      "hoisted-render": {
+        "durationMs": 2306.648,
+        "totalSamples": 4341,
+        "topSites": [
+          {
+            "functionName": "validatePositionalValue",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 1444,
+            "columnNumber": 32,
+            "samples": 390,
+            "sampledMs": 203.25800000000012
+          },
+          {
+            "functionName": "serializeJson",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 1840,
+            "columnNumber": 22,
+            "samples": 234,
+            "sampledMs": 122.997
+          },
+          {
+            "functionName": "charge",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 2550,
+            "columnNumber": 7,
+            "samples": 236,
+            "sampledMs": 120.05599999999994
+          },
+          {
+            "functionName": "renderAccountedAttribute",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 2840,
+            "columnNumber": 33,
+            "samples": 211,
+            "sampledMs": 109.56899999999996
+          },
+          {
+            "functionName": "escapeSsrText",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 3480,
+            "columnNumber": 22,
+            "samples": 152,
+            "sampledMs": 80.38300000000002
+          },
+          {
+            "functionName": "createPreparedServerRenderProgram",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 492,
+            "columnNumber": 42,
+            "samples": 149,
+            "sampledMs": 77.75799999999998
+          },
+          {
+            "functionName": "utf8ByteLength",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 1695,
+            "columnNumber": 23,
+            "samples": 128,
+            "sampledMs": 66.61399999999998
+          },
+          {
+            "functionName": "append",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 3701,
+            "columnNumber": 7,
+            "samples": 127,
+            "sampledMs": 65.384
+          },
+          {
+            "functionName": "text",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 3619,
+            "columnNumber": 5,
+            "samples": 124,
+            "sampledMs": 62.948
+          },
+          {
+            "functionName": "(garbage collector)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 114,
+            "sampledMs": 59.25900000000002
+          },
+          {
+            "functionName": "post",
+            "url": "node:inspector",
+            "lineNumber": 114,
+            "columnNumber": 6,
+            "samples": 1,
+            "sampledMs": 54.011
+          },
+          {
+            "functionName": "isReactiveValue",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 77,
+            "columnNumber": 24,
+            "samples": 104,
+            "sampledMs": 53.62900000000001
+          },
+          {
+            "functionName": "createFrameworkComponentDomain",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 381,
+            "columnNumber": 39,
+            "samples": 95,
+            "sampledMs": 50.054999999999986
+          },
+          {
+            "functionName": "(anonymous)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 95,
+            "sampledMs": 49.52299999999997
+          },
+          {
+            "functionName": "executeSyncComponentOutput",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 4186,
+            "columnNumber": 35,
+            "samples": 89,
+            "sampledMs": 47.69899999999999
+          },
+          {
+            "functionName": "renderPreparedSsrProgramString",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 3718,
+            "columnNumber": 39,
+            "samples": 91,
+            "sampledMs": 46.018999999999984
+          },
+          {
+            "functionName": "renderCompiledNativeAttributes",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 3192,
+            "columnNumber": 39,
+            "samples": 88,
+            "sampledMs": 45.60999999999999
+          },
+          {
+            "functionName": "publishAccounted",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 2416,
+            "columnNumber": 17,
+            "samples": 88,
+            "sampledMs": 44.375
+          },
+          {
+            "functionName": "rootPropsOptions",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 1742,
+            "columnNumber": 25,
+            "samples": 72,
+            "sampledMs": 38.191999999999986
+          },
+          {
+            "functionName": "isReactive",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 81,
+            "columnNumber": 19,
+            "samples": 69,
+            "sampledMs": 36.56600000000001
+          },
+          {
+            "functionName": "readReactiveOwnPropertyInto",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 340,
+            "columnNumber": 36,
+            "samples": 67,
+            "sampledMs": 34.56400000000001
+          },
+          {
+            "functionName": "renderChildren",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 4408,
+            "columnNumber": 23,
+            "samples": 65,
+            "sampledMs": 32.431999999999995
+          },
+          {
+            "functionName": "rootOpening",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 3683,
+            "columnNumber": 12,
+            "samples": 60,
+            "sampledMs": 30.385
+          },
+          {
+            "functionName": "readPath",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 2001,
+            "columnNumber": 17,
+            "samples": 57,
+            "sampledMs": 28.404
+          },
+          {
+            "functionName": "unwrap",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 90,
+            "columnNumber": 15,
+            "samples": 53,
+            "sampledMs": 28.102999999999998
+          },
+          {
+            "functionName": "renderSyncComponent",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 4155,
+            "columnNumber": 28,
+            "samples": 47,
+            "sampledMs": 24.627999999999993
+          },
+          {
+            "functionName": "accountKnown",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 2475,
+            "columnNumber": 13,
+            "samples": 41,
+            "sampledMs": 20.591
+          },
+          {
+            "functionName": "renderSsrRootAttributes",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 3510,
+            "columnNumber": 32,
+            "samples": 40,
+            "sampledMs": 20.589999999999996
+          },
+          {
+            "functionName": "escapeText",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 1230,
+            "columnNumber": 19,
+            "samples": 39,
+            "sampledMs": 19.660000000000004
+          },
+          {
+            "functionName": "IncidentDetail",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "lineNumber": 5315,
+            "columnNumber": 68,
+            "samples": 34,
+            "sampledMs": 17.303
+          }
+        ],
+        "byUrl": [
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/hoisted-buffers.mjs",
+            "sampledMs": 2112.322999999999
+          },
+          {
+            "url": "(native)",
+            "sampledMs": 112.25399999999998
+          },
+          {
+            "url": "node:inspector",
+            "sampledMs": 54.011
+          },
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/profile.mjs",
+            "sampledMs": 17.389999999999997
+          },
+          {
+            "url": "node:buffer",
+            "sampledMs": 10.539
+          }
+        ]
+      },
+      "original-encode": {
+        "durationMs": 1368.697,
+        "totalSamples": 2596,
+        "topSites": [
+          {
+            "functionName": "(anonymous)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 1401,
+            "sampledMs": 723.1370000000005
+          },
+          {
+            "functionName": "createUnsafeAlignedBuffer",
+            "url": "node:internal/buffer",
+            "lineNumber": 1122,
+            "columnNumber": 34,
+            "samples": 197,
+            "sampledMs": 100.74100000000003
+          },
+          {
+            "functionName": "write",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 17,
+            "columnNumber": 7,
+            "samples": 190,
+            "sampledMs": 97.64200000000005
+          },
+          {
+            "functionName": "utf8Write",
+            "url": "node:internal/buffer",
+            "lineNumber": 988,
+            "columnNumber": 18,
+            "samples": 187,
+            "sampledMs": 95.92399999999998
+          },
+          {
+            "functionName": "append",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 37,
+            "columnNumber": 8,
+            "samples": 149,
+            "sampledMs": 77.46
+          },
+          {
+            "functionName": "write",
+            "url": "node:buffer",
+            "lineNumber": 1265,
+            "columnNumber": 39,
+            "samples": 99,
+            "sampledMs": 51.144
+          },
+          {
+            "functionName": "validateOffset",
+            "url": "node:buffer",
+            "lineNumber": 134,
+            "columnNumber": 23,
+            "samples": 75,
+            "sampledMs": 37.38199999999999
+          },
+          {
+            "functionName": "(anonymous)",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/profile.mjs",
+            "lineNumber": 19,
+            "columnNumber": 25,
+            "samples": 72,
+            "sampledMs": 36.446000000000005
+          },
+          {
+            "functionName": "post",
+            "url": "node:inspector",
+            "lineNumber": 114,
+            "columnNumber": 6,
+            "samples": 1,
+            "sampledMs": 36.435
+          },
+          {
+            "functionName": "(anonymous)",
+            "url": "node:internal/validators",
+            "lineNumber": 97,
+            "columnNumber": 2,
+            "samples": 52,
+            "sampledMs": 26.85900000000001
+          },
+          {
+            "functionName": "copy",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 72,
+            "columnNumber": 6,
+            "samples": 38,
+            "sampledMs": 19.013000000000005
+          },
+          {
+            "functionName": "byteLength",
+            "url": "node:buffer",
+            "lineNumber": 905,
+            "columnNumber": 19,
+            "samples": 36,
+            "sampledMs": 17.551999999999996
+          },
+          {
+            "functionName": "(garbage collector)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 35,
+            "sampledMs": 17.168999999999997
+          },
+          {
+            "functionName": "FastBuffer",
+            "url": "node:internal/buffer",
+            "lineNumber": 960,
+            "columnNumber": 0,
+            "samples": 20,
+            "sampledMs": 10.128
+          },
+          {
+            "functionName": "assertOpen",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 116,
+            "columnNumber": 12,
+            "samples": 10,
+            "sampledMs": 5.054000000000001
+          },
+          {
+            "functionName": "get",
+            "url": "node:internal/bootstrap/node",
+            "lineNumber": 474,
+            "columnNumber": 7,
+            "samples": 8,
+            "sampledMs": 3.991
+          },
+          {
+            "functionName": "subarray",
+            "url": "node:buffer",
+            "lineNumber": 1334,
+            "columnNumber": 45,
+            "samples": 5,
+            "sampledMs": 2.128
+          },
+          {
+            "functionName": "(program)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 4,
+            "sampledMs": 1.996
+          },
+          {
+            "functionName": "allocate",
+            "url": "node:buffer",
+            "lineNumber": 513,
+            "columnNumber": 17,
+            "samples": 3,
+            "sampledMs": 1.502
+          },
+          {
+            "functionName": "(anonymous)",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/profile.mjs",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 3,
+            "sampledMs": 1.294
+          },
+          {
+            "functionName": "createUnsafeArrayBuffer",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 2,
+            "sampledMs": 1.048
+          },
+          {
+            "functionName": "dispatch",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 2,
+            "sampledMs": 1
+          },
+          {
+            "functionName": "markAsUntransferable",
+            "url": "node:internal/buffer",
+            "lineNumber": 1087,
+            "columnNumber": 29,
+            "samples": 2,
+            "sampledMs": 0.983
+          },
+          {
+            "functionName": "setDetachKey",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 1,
+            "sampledMs": 0.538
+          },
+          {
+            "functionName": "adjustOffset",
+            "url": "node:buffer",
+            "lineNumber": 1317,
+            "columnNumber": 21,
+            "samples": 1,
+            "sampledMs": 0.5
+          },
+          {
+            "functionName": "emit",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 98,
+            "columnNumber": 6,
+            "samples": 1,
+            "sampledMs": 0.496
+          },
+          {
+            "functionName": "flush",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 80,
+            "columnNumber": 7,
+            "samples": 1,
+            "sampledMs": 0.476
+          },
+          {
+            "functionName": "arrayBufferAlignedOffset",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 1,
+            "sampledMs": 0.462
+          }
+        ],
+        "byUrl": [
+          {
+            "url": "(native)",
+            "sampledMs": 745.3500000000005
+          },
+          {
+            "url": "node:internal/buffer",
+            "sampledMs": 207.776
+          },
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "sampledMs": 200.14100000000008
+          },
+          {
+            "url": "node:buffer",
+            "sampledMs": 110.20799999999997
+          },
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/profile.mjs",
+            "sampledMs": 37.74
+          },
+          {
+            "url": "node:inspector",
+            "sampledMs": 36.435
+          },
+          {
+            "url": "node:internal/validators",
+            "sampledMs": 26.85900000000001
+          },
+          {
+            "url": "node:internal/bootstrap/node",
+            "sampledMs": 3.991
+          }
+        ]
+      },
+      "hoisted-encode": {
+        "durationMs": 1544.352,
+        "totalSamples": 2596,
+        "topSites": [
+          {
+            "functionName": "(anonymous)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 1361,
+            "sampledMs": 801.2750000000004
+          },
+          {
+            "functionName": "append",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 37,
+            "columnNumber": 8,
+            "samples": 265,
+            "sampledMs": 156.59099999999992
+          },
+          {
+            "functionName": "write",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 17,
+            "columnNumber": 7,
+            "samples": 203,
+            "sampledMs": 119.35
+          },
+          {
+            "functionName": "createUnsafeAlignedBuffer",
+            "url": "node:internal/buffer",
+            "lineNumber": 1122,
+            "columnNumber": 34,
+            "samples": 159,
+            "sampledMs": 89.983
+          },
+          {
+            "functionName": "utf8Write",
+            "url": "node:internal/buffer",
+            "lineNumber": 988,
+            "columnNumber": 18,
+            "samples": 151,
+            "sampledMs": 84.69999999999997
+          },
+          {
+            "functionName": "write",
+            "url": "node:buffer",
+            "lineNumber": 1265,
+            "columnNumber": 39,
+            "samples": 107,
+            "sampledMs": 60.53199999999997
+          },
+          {
+            "functionName": "copy",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 72,
+            "columnNumber": 6,
+            "samples": 68,
+            "sampledMs": 39.595
+          },
+          {
+            "functionName": "(anonymous)",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/profile.mjs",
+            "lineNumber": 19,
+            "columnNumber": 25,
+            "samples": 64,
+            "sampledMs": 36.38600000000001
+          },
+          {
+            "functionName": "byteLength",
+            "url": "node:buffer",
+            "lineNumber": 905,
+            "columnNumber": 19,
+            "samples": 46,
+            "sampledMs": 27.76299999999999
+          },
+          {
+            "functionName": "post",
+            "url": "node:inspector",
+            "lineNumber": 114,
+            "columnNumber": 6,
+            "samples": 1,
+            "sampledMs": 27.311
+          },
+          {
+            "functionName": "(anonymous)",
+            "url": "node:internal/validators",
+            "lineNumber": 97,
+            "columnNumber": 2,
+            "samples": 48,
+            "sampledMs": 26.925000000000004
+          },
+          {
+            "functionName": "(garbage collector)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 26,
+            "sampledMs": 15.736
+          },
+          {
+            "functionName": "FastBuffer",
+            "url": "node:internal/buffer",
+            "lineNumber": 960,
+            "columnNumber": 0,
+            "samples": 25,
+            "sampledMs": 14.268000000000004
+          },
+          {
+            "functionName": "get",
+            "url": "node:internal/bootstrap/node",
+            "lineNumber": 474,
+            "columnNumber": 7,
+            "samples": 23,
+            "sampledMs": 13.936
+          },
+          {
+            "functionName": "_copyActual",
+            "url": "node:buffer",
+            "lineNumber": 286,
+            "columnNumber": 20,
+            "samples": 16,
+            "sampledMs": 10.427999999999999
+          },
+          {
+            "functionName": "subarray",
+            "url": "node:buffer",
+            "lineNumber": 1334,
+            "columnNumber": 45,
+            "samples": 6,
+            "sampledMs": 3.485
+          },
+          {
+            "functionName": "(program)",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 4,
+            "sampledMs": 2.9059999999999997
+          },
+          {
+            "functionName": "assertOpen",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 116,
+            "columnNumber": 12,
+            "samples": 5,
+            "sampledMs": 2.544
+          },
+          {
+            "functionName": "createUnsafeArrayBuffer",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 3,
+            "sampledMs": 1.641
+          },
+          {
+            "functionName": "adjustOffset",
+            "url": "node:buffer",
+            "lineNumber": 1317,
+            "columnNumber": 21,
+            "samples": 1,
+            "sampledMs": 1.078
+          },
+          {
+            "functionName": "flush",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 80,
+            "columnNumber": 7,
+            "samples": 1,
+            "sampledMs": 1.049
+          },
+          {
+            "functionName": "emit",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 98,
+            "columnNumber": 6,
+            "samples": 2,
+            "sampledMs": 1.0190000000000001
+          },
+          {
+            "functionName": "arrayBufferAlignedOffset",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 2,
+            "sampledMs": 1.017
+          },
+          {
+            "functionName": "allocate",
+            "url": "node:buffer",
+            "lineNumber": 513,
+            "columnNumber": 17,
+            "samples": 2,
+            "sampledMs": 1.017
+          },
+          {
+            "functionName": "copyImpl",
+            "url": "node:buffer",
+            "lineNumber": 250,
+            "columnNumber": 17,
+            "samples": 1,
+            "sampledMs": 0.919
+          },
+          {
+            "functionName": "setDetachKey",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 1,
+            "sampledMs": 0.535
+          },
+          {
+            "functionName": "dispatch",
+            "url": "(native)",
+            "lineNumber": -1,
+            "columnNumber": -1,
+            "samples": 1,
+            "sampledMs": 0.531
+          },
+          {
+            "functionName": "validateOffset",
+            "url": "node:buffer",
+            "lineNumber": 134,
+            "columnNumber": 23,
+            "samples": 1,
+            "sampledMs": 0.521
+          },
+          {
+            "functionName": "DirectWriter",
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "lineNumber": 4,
+            "columnNumber": 13,
+            "samples": 1,
+            "sampledMs": 0.485
+          },
+          {
+            "functionName": "markAsUntransferable",
+            "url": "node:internal/buffer",
+            "lineNumber": 1087,
+            "columnNumber": 29,
+            "samples": 1,
+            "sampledMs": 0.47
+          }
+        ],
+        "byUrl": [
+          {
+            "url": "(native)",
+            "sampledMs": 823.6410000000003
+          },
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/direct-writer.mjs",
+            "sampledMs": 320.6329999999999
+          },
+          {
+            "url": "node:internal/buffer",
+            "sampledMs": 189.421
+          },
+          {
+            "url": "node:buffer",
+            "sampledMs": 105.74299999999995
+          },
+          {
+            "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-path-costs/profile.mjs",
+            "sampledMs": 36.57200000000001
+          },
+          {
+            "url": "node:inspector",
+            "sampledMs": 27.311
+          },
+          {
+            "url": "node:internal/validators",
+            "sampledMs": 26.925000000000004
+          },
+          {
+            "url": "node:internal/bootstrap/node",
+            "sampledMs": 13.936
+          }
+        ]
+      }
+    },
+    "timings": [
+      {
+        "name": "original-render",
+        "round": 0,
+        "microseconds": 24.165459999999985
+      },
+      {
+        "name": "hoisted-render",
+        "round": 0,
+        "microseconds": 22.558929999999965
+      },
+      {
+        "name": "original-encode",
+        "round": 0,
+        "microseconds": 14.545589999999901
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 0,
+        "microseconds": 17.092900000000007
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 1,
+        "microseconds": 15.757229999999982
+      },
+      {
+        "name": "original-encode",
+        "round": 1,
+        "microseconds": 15.18179999999993
+      },
+      {
+        "name": "hoisted-render",
+        "round": 1,
+        "microseconds": 22.715740000000004
+      },
+      {
+        "name": "original-render",
+        "round": 1,
+        "microseconds": 24.39581999999991
+      },
+      {
+        "name": "original-render",
+        "round": 2,
+        "microseconds": 27.4235200000001
+      },
+      {
+        "name": "hoisted-render",
+        "round": 2,
+        "microseconds": 24.160500000000138
+      },
+      {
+        "name": "original-encode",
+        "round": 2,
+        "microseconds": 13.120340000000033
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 2,
+        "microseconds": 13.25663000000004
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 3,
+        "microseconds": 14.427379999999904
+      },
+      {
+        "name": "original-encode",
+        "round": 3,
+        "microseconds": 14.390149999999995
+      },
+      {
+        "name": "hoisted-render",
+        "round": 3,
+        "microseconds": 22.657350000000044
+      },
+      {
+        "name": "original-render",
+        "round": 3,
+        "microseconds": 23.21957999999995
+      },
+      {
+        "name": "original-render",
+        "round": 4,
+        "microseconds": 22.442919999999866
+      },
+      {
+        "name": "hoisted-render",
+        "round": 4,
+        "microseconds": 22.628219999999963
+      },
+      {
+        "name": "original-encode",
+        "round": 4,
+        "microseconds": 10.095910000000003
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 4,
+        "microseconds": 13.797860000000037
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 5,
+        "microseconds": 13.70054
+      },
+      {
+        "name": "original-encode",
+        "round": 5,
+        "microseconds": 15.212280000000101
+      },
+      {
+        "name": "hoisted-render",
+        "round": 5,
+        "microseconds": 22.33189999999995
+      },
+      {
+        "name": "original-render",
+        "round": 5,
+        "microseconds": 21.966510000000017
+      },
+      {
+        "name": "original-render",
+        "round": 6,
+        "microseconds": 20.70437000000002
+      },
+      {
+        "name": "hoisted-render",
+        "round": 6,
+        "microseconds": 20.84251999999997
+      },
+      {
+        "name": "original-encode",
+        "round": 6,
+        "microseconds": 12.88651000000009
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 6,
+        "microseconds": 15.877949999999874
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 7,
+        "microseconds": 14.985900000000038
+      },
+      {
+        "name": "original-encode",
+        "round": 7,
+        "microseconds": 11.49426000000003
+      },
+      {
+        "name": "hoisted-render",
+        "round": 7,
+        "microseconds": 21.67670999999991
+      },
+      {
+        "name": "original-render",
+        "round": 7,
+        "microseconds": 21.93853999999992
+      },
+      {
+        "name": "original-render",
+        "round": 8,
+        "microseconds": 24.103869999999915
+      },
+      {
+        "name": "hoisted-render",
+        "round": 8,
+        "microseconds": 18.347710000000006
+      },
+      {
+        "name": "original-encode",
+        "round": 8,
+        "microseconds": 10.798899999999957
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 8,
+        "microseconds": 13.556910000000062
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 9,
+        "microseconds": 13.85559000000012
+      },
+      {
+        "name": "original-encode",
+        "round": 9,
+        "microseconds": 12.78133999999991
+      },
+      {
+        "name": "hoisted-render",
+        "round": 9,
+        "microseconds": 20.937920000000123
+      },
+      {
+        "name": "original-render",
+        "round": 9,
+        "microseconds": 22.664890000000014
+      },
+      {
+        "name": "original-render",
+        "round": 10,
+        "microseconds": 20.13618999999999
+      },
+      {
+        "name": "hoisted-render",
+        "round": 10,
+        "microseconds": 18.49220999999998
+      },
+      {
+        "name": "original-encode",
+        "round": 10,
+        "microseconds": 12.272279999999956
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 10,
+        "microseconds": 13.43153000000002
+      },
+      {
+        "name": "hoisted-encode",
+        "round": 11,
+        "microseconds": 14.768930000000001
+      },
+      {
+        "name": "original-encode",
+        "round": 11,
+        "microseconds": 10.602739999999903
+      },
+      {
+        "name": "hoisted-render",
+        "round": 11,
+        "microseconds": 17.228859999999987
+      },
+      {
+        "name": "original-render",
+        "round": 11,
+        "microseconds": 16.81311999999998
+      }
+    ]
+  },
+  "candidates": {
+    "candidates-node.json": [
+      {
+        "name": "original-entry",
+        "microseconds": 21.22194666666668
+      },
+      {
+        "name": "dense-array",
+        "microseconds": 21.446636666666677
+      },
+      {
+        "name": "dense-record",
+        "microseconds": 22.558151666666664
+      },
+      {
+        "name": "dense-both",
+        "microseconds": 21.77803583333331
+      }
+    ],
+    "json-candidates-node.json": [
+      {
+        "name": "original-entry",
+        "microseconds": 19.834275833333336
+      },
+      {
+        "name": "json-gate",
+        "microseconds": 19.762293333333332
+      },
+      {
+        "name": "json-single",
+        "microseconds": 19.602338333333346
+      }
+    ],
+    "projector-candidates-node.json": [
+      {
+        "name": "original-entry",
+        "microseconds": 19.492755833333337
+      },
+      {
+        "name": "small-projectors",
+        "microseconds": 20.942206666666664
+      }
+    ]
+  }
+}

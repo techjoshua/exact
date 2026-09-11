@@ -81,7 +81,7 @@ export function createComponentListController(ownerScope: EffectScope) {
 		},
 		map<T>(
 			collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-			key: (item: T) => string,
+			key: (item: T) => string | number,
 			render: (item: T) => Child,
 			id?: string,
 			provenance?: Iterable<T>,
@@ -110,7 +110,7 @@ export function createComponentListController(ownerScope: EffectScope) {
 				registered?.stop();
 				const stop = registerReactiveListKey(
 					provenance ?? current,
-					key as (item: unknown) => string,
+					key as (item: unknown) => string | number,
 					id ?? 'an unlabelled this.map() call',
 					keyIdentity
 				);

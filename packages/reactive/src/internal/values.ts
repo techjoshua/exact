@@ -24,8 +24,9 @@ export function isReactive(value: unknown): boolean {
  * layer and does not recursively clone descendants.
  */
 export function unwrap<T>(value: T): T {
+	if (value === null || typeof value !== 'object') return value;
 	if (isReactiveValue(value)) return value.get() as T;
-	if (isReactive(value)) return (value as { [rawTarget]: T })[rawTarget];
+	if (isReactive(value)) return (value as T & { [rawTarget]: T })[rawTarget];
 	return value;
 }
 

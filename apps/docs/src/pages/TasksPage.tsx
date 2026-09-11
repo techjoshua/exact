@@ -316,6 +316,14 @@ export function TasksPage(this: Component<{}>) {
 					attached-child settlement without serializing task authority through the browser.
 				</p>
 			</section>
+			<section>
+				<h2>Tasks while a component is paused</h2>
+				<p>
+					While Activity pauses a component, successful awaits and source failures wait before
+					running the component's continuation. Cancellation remains immediate and releases that
+					wait. A late result from a cancelled task cannot reactivate its continuation.
+				</p>
+			</section>
 		</Article>
 	);
 }

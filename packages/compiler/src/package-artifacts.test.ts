@@ -63,7 +63,7 @@ describe('installed eXact component package artifacts', () => {
 			await writeFile(
 				path.join(leafRoot, 'exact-component-build.json'),
 				`${JSON.stringify({
-					protocol: 2,
+					protocol: 1,
 					package: { name: '@fixture/exact-leaf', version: '1.0.0' },
 					modules: [
 						{ path: 'index.client.js', facts: leafCompiled.build.componentBuild },
@@ -95,7 +95,7 @@ describe('installed eXact component package artifacts', () => {
 					name: '@fixture/exact-leaf',
 					version: '1.0.0',
 					type: 'module',
-					exactComponentLibrary: { protocol: 2, build: './exact-component-build.json' },
+					exactComponentLibrary: { protocol: 1, build: './exact-component-build.json' },
 					exports: {
 						'.': {
 							types: './index.d.ts',
@@ -167,7 +167,7 @@ describe('installed eXact component package artifacts', () => {
 				path.join(packageRoot, 'exact-component-build.json'),
 				`${JSON.stringify(
 					{
-						protocol: 2,
+						protocol: 1,
 						package: { name: '@fixture/exact-components', version: '1.0.0' },
 						modules: [
 							{
@@ -221,7 +221,7 @@ describe('installed eXact component package artifacts', () => {
 							'exact-component-build.json'
 						],
 						exactComponentLibrary: {
-							protocol: 2,
+							protocol: 1,
 							build: './exact-component-build.json'
 						},
 						exports: {
@@ -428,7 +428,7 @@ describe('installed eXact component package artifacts', () => {
 				JSON.parse(
 					await readFile(path.join(installedLeafRoot, 'exact-component-build.json'), 'utf8')
 				)
-			).toMatchObject({ protocol: 2, package: { name: '@fixture/exact-leaf' } });
+			).toMatchObject({ protocol: 1, package: { name: '@fixture/exact-leaf' } });
 			const installedFacts = JSON.parse(
 				await readFile(
 					path.join(
@@ -441,7 +441,7 @@ describe('installed eXact component package artifacts', () => {
 					'utf8'
 				)
 			) as { protocol: number; modules: Array<{ facts: unknown }> };
-			expect(installedFacts.protocol).toBe(2);
+			expect(installedFacts.protocol).toBe(1);
 			expect(installedFacts.modules).toHaveLength(2);
 			expect(JSON.stringify(installedFacts)).not.toMatch(/window\.location|function\s*\(|=>/);
 		},

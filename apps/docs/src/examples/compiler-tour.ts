@@ -143,7 +143,7 @@ const state = {
 
 // This immutable plan is shared by every CatalogEditor instance.
 const catalogProgram = compileProgram({
-  version: 8,
+  version: 1,
   id: '<catalog-view>',
   namespace: 'html',
   template: '<section>...</section>',
@@ -273,7 +273,7 @@ import { taskAwait, withTaskSignal }
 // The generated writer owns serialization order. Static character and UTF-8
 // byte facts are module data; output and dynamic values remain request-owned.
 const catalogProgram = compileProgram({
-  version: 8,
+  version: 1,
   id: '<catalog-view>',
   namespace: 'html',
   ssr(operations, request, invocation) {

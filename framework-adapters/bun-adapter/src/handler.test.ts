@@ -53,6 +53,15 @@ it('passes chunked SSR bodies to the Fetch runtime without materializing a Web s
 	const response = exactResponseToBunResponse(exact);
 
 	expect(await response.text()).toBe('<main>Ready</main>');
+	expect(() => exact.stream).toThrow('already claimed');
+});
+
+it('preserves Unicode across buffered text boundaries', async () => {
+	const exact = createExactBufferedResponse(200, { 'content-type': 'text/plain' }, [
+		'caf\u00e9 \ud83d',
+		'\ude80'
+	]);
+	expect(await exactResponseToBunResponse(exact).text()).toBe('caf\u00e9 \ud83d\ude80');
 });
 
 it('consumes produced SSR bodies through the Fetch stream boundary', async () => {

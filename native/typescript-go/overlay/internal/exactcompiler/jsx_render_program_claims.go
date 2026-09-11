@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 type renderProgramClaim struct {
@@ -41,6 +41,9 @@ func (lowering *jsxLowering) directRenderProgramClaims(
 		operations = append(operations, lowering.renderProgramOperation(opcode, arguments...))
 	}
 	emitChildren = func(parentPath []int) {
+		if run := lowering.renderProgramTextRunClaim(build, parentPath); run != nil {
+			operations = append(operations, run)
+		}
 		claims := make([]renderProgramClaim, 0)
 		for index, node := range build.nodes {
 			if index == 0 || !directChildPath(node.path, parentPath) ||

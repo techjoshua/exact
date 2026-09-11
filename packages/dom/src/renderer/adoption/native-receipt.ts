@@ -133,7 +133,13 @@ export function adoptChildRangeReceipt(
 ): { mounted: Mounted; next: number } | undefined {
 	const scope = createEffectScope(parentScope);
 	const start = nodes[cursor];
-	if (!(start instanceof Comment) || !isChildRangeOpening(start.data)) {
+	// Native list receipts retain their compiler identity in the server fragment boundary.
+	const listBoundary =
+		start instanceof Comment &&
+		receipt.markerId !== undefined &&
+		start.data.startsWith('exact:fragment:') &&
+		start.data.endsWith(`:${receipt.markerId}`);
+	if (!(start instanceof Comment) || (!isChildRangeOpening(start.data) && !listBoundary)) {
 		scope.stop();
 		return undefined;
 	}

@@ -1,209 +1,35 @@
-import { logFrameworkEvent, withTaskObserver, type Child } from '@exactjs/core';
-import { componentDomainUsesWallClock } from '@exactjs/core/framework/component-domains';
-import { publishExactProfile } from '@exactjs/instrumentation';
-import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
+export { renderToStream } from './output-stream.js';
+export { renderToHydratableString, renderToString } from './render-output.js';
+import { logFrameworkEvent, type Child } from '@exactjs/core';
 import { createExactBufferedResponse, runWithExactRequestScope } from '@exactjs/server';
 import { escapeAttr } from '../html.js';
-import { renderHydrationScript } from '../hydration.js';
-import { createSsrResumptionCapture } from '../resumption.js';
-import { assertOutputWithinLimit } from '../render/limits.js';
-import {
-	createDocumentEventStream,
-	createHtmlStream,
-	createProgressiveHtmlStream
-} from '../streams.js';
+import { createDocumentEventStream, createProgressiveHtmlStream } from '../streams.js';
 import type {
 	ExactRequestLike,
 	ExactRequestRenderFunction,
 	ExactResponseLike,
 	ExactServerContext,
-	HydratableStringResult,
-	HydrationScriptOptions,
 	RenderExactRequestToHtmlResponseOptions,
 	RenderToDocumentStreamOptions,
 	RenderToProgressiveHtmlResponseOptions,
 	RenderToProgressiveHtmlStreamOptions,
-	RenderToStringOptions,
-	RenderToStringResult,
-	SsrProfileEvent
+	RenderToStringOptions
 } from '../types.js';
-import {
-	renderToHydratableStringAsync,
-	renderToStringAsync,
-	streamDocumentRender
-} from './async-rendering.js';
-import { createProgressiveProducedResponse } from './progressive-response.js';
-import { createSsrContext } from './context.js';
-import { hydrationScriptOptions } from './hydration-options.js';
-import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
-import { renderSignal } from './signals.js';
-import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
-import { renderChildren } from './sync-children.js';
-import { renderChildChunks } from './sync-child-chunks.js';
-import { rootComponentIdentity, rootPropsForCapture, rootPropsOptions } from './root-props.js';
-import { SsrOutputBuffer } from './output-buffer.js';
-import {
-	createChunkedHydratableResult,
-	createChunkedStringResult,
-	isExactDocumentResult,
-	startsExactDocument
-} from './output-result.js';
-import { htmlChunksOf, hydratableChunksOf } from './output-buffer.js';
 import type { DirectScheduledSsrComponent } from './direct-component-contracts.js';
+import { htmlChunksOf, hydratableChunksOf } from './output-buffer.js';
+import { isExactDocumentResult, startsExactDocument } from './output-result.js';
+import { createProgressiveProducedResponse } from './progressive-response.js';
+import { renderToHydratableString, renderToString, streamDocumentRender } from './render-output.js';
+import { renderSignal } from './signals.js';
 
 /** Configures ssr render. */
 export type SsrRenderOptions = RenderToStringOptions & {
 	taskDeadline?: number;
 	/** Internal collector retaining scheduled frames until a progressive shell is published. */
 	streamingScheduledComponents?: DirectScheduledSsrComponent[];
+	/** Settles compiler-known documents and discovered document descendants; fragments retain replacements. */
+	settleDocumentShell?: boolean;
 };
-
-/** Transforms to string into its required representation. */
-export function renderToString(
-	operation: Child,
-	options: RenderToStringOptions = {}
-): RenderToStringResult {
-	const profileStarted = options.onProfile ? performance.now() : undefined;
-	const owner = createSsrOwner();
-	let primary: unknown = noPrimaryFailure;
-	try {
-		return withTaskObserver(owner.observer, () => renderToStringOwned(operation, options));
-	} catch (error) {
-		primary = error;
-		throw error;
-	} finally {
-		disposePreservingPrimary(() => owner.dispose('ssr render complete'), primary);
-		if (profileStarted !== undefined) {
-			publishExactProfile(
-				options.onProfile,
-				Object.freeze({
-					subsystem: 'ssr',
-					phase: 'render-to-string',
-					elapsedMs: performance.now() - profileStarted
-				} satisfies SsrProfileEvent)
-			);
-		}
-	}
-}
-
-/** Transforms to string owned into its required representation. */
-export function renderToStringOwned(
-	operation: Child,
-	options: RenderToStringOptions
-): RenderToStringResult {
-	const validatedOperation = processExactOutputSync(
-		operation,
-		{ kind: 'operation', signal: options.signal },
-		options.outputExtensions ?? []
-	) as Child;
-	const context = createSsrContext(options);
-	attachSsrRootExecutionBlueprint(context, validatedOperation);
-	const output = new SsrOutputBuffer(context.maxOutputBytes);
-	output.append(renderChildren(context, [validatedOperation], undefined));
-	output.prepend(context.reactResourceHints ?? []);
-	let chunks = output.finish();
-	if (options.outputExtensions?.length) {
-		const html = processExactOutputSync(
-			chunks.length === 1 ? chunks[0]! : chunks.join(''),
-			{ kind: 'html', signal: options.signal },
-			options.outputExtensions
-		) as string;
-		assertOutputWithinLimit(context, html);
-		chunks = [html];
-	}
-	const hydrationTable = context.hydrationTable?.value();
-	return createChunkedStringResult(
-		chunks,
-		options.state,
-		hydrationTable,
-		context.resourceLinkHeaders ?? [],
-		context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
-			? context.wallClockSnapshot
-			: undefined
-	);
-}
-
-/** Transforms to hydratable string into its required representation. */
-export function renderToHydratableString(
-	operation: Child,
-	options: RenderToStringOptions & HydrationScriptOptions = {}
-): HydratableStringResult {
-	const prepared = rootPropsOptions(operation, options);
-	const capture = createSsrResumptionCapture(
-		prepared,
-		rootPropsForCapture(operation, prepared),
-		rootComponentIdentity(operation)
-	);
-	const result = renderToString(operation, capture.options);
-	const resumptions = capture.serializedRecords();
-	const emittedResumptions = resumptions.length ? capture.activations : prepared.resumptions;
-	const hydrationScript = renderHydrationScript(
-		hydrationScriptOptions(
-			prepared,
-			result,
-			resumptions.length && prepared.outputExtensions?.length
-				? capture.activations()
-				: prepared.resumptions
-		),
-		undefined,
-		resumptions
-	);
-	return createChunkedHydratableResult(result, emittedResumptions, hydrationScript);
-}
-
-/** Transforms to stream into its required representation. */
-export function renderToStream(
-	operation: Child,
-	options: RenderToStringOptions = {}
-): ReadableStream<Uint8Array> {
-	const profileStarted = options.onProfile ? performance.now() : undefined;
-	const owner = createSsrOwner();
-	const validatedOperation = processExactOutputSync(
-		operation,
-		{ kind: 'operation', signal: options.signal },
-		options.outputExtensions ?? []
-	) as Child;
-	const context = createSsrContext(options);
-	attachSsrRootExecutionBlueprint(context, validatedOperation);
-	const rendered = renderChildChunks(context, validatedOperation, undefined, 1);
-	const observed: Iterable<string> = {
-		[Symbol.iterator]() {
-			return {
-				next: () => {
-					const next = withTaskObserver(owner.observer, () => rendered.next());
-					return next.done
-						? next
-						: {
-								done: false,
-								value: processExactOutputSync(
-									next.value,
-									{ kind: 'stream', signal: options.signal },
-									options.outputExtensions ?? []
-								) as string
-							};
-				},
-				return: () => rendered.return(undefined)
-			};
-		}
-	};
-	const stream = createHtmlStream(observed, {
-		signal: options.signal,
-		maxBytes: options.maxStreamBytes,
-		maxChunks: options.maxStreamChunks,
-		close: () => owner.dispose(options.signal?.reason ?? 'ssr stream complete')
-	});
-	if (profileStarted !== undefined) {
-		publishExactProfile(
-			options.onProfile,
-			Object.freeze({
-				subsystem: 'ssr',
-				phase: 'create-stream',
-				elapsedMs: performance.now() - profileStarted
-			} satisfies SsrProfileEvent)
-		);
-	}
-	return stream;
-}
 
 /** Transforms to document stream into its required representation. */
 export function renderToDocumentStream(
@@ -239,7 +65,8 @@ export function renderToProgressiveHtmlStream(
 	options: RenderToProgressiveHtmlStreamOptions = {}
 ): ReadableStream<Uint8Array> {
 	return createProgressiveHtmlStream(
-		(streamOptions, emit) => streamDocumentRender(operation, streamOptions, emit),
+		(streamOptions, emit, abort) =>
+			streamDocumentRender(operation, streamOptions, emit, true, abort),
 		options
 	);
 }
@@ -295,11 +122,11 @@ export async function renderExactRequestToHtmlResponse(
 			let body: readonly string[];
 			let preloadLinks: readonly string[] | undefined;
 			if (options.hydration === false) {
-				const rendered = await renderToStringAsync(operation, renderOptions);
+				const rendered = await renderToString(operation, renderOptions);
 				body = htmlChunksOf(rendered) ?? [rendered.html];
 				preloadLinks = rendered.preloadLinks;
 			} else {
-				const rendered = await renderToHydratableStringAsync(operation, renderOptions);
+				const rendered = await renderToHydratableString(operation, renderOptions);
 				body = hydratableChunksOf(rendered) ?? [rendered.htmlWithHydration];
 				preloadLinks = rendered.preloadLinks;
 			}
@@ -344,14 +171,14 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 			let body: readonly string[];
 			let preloadLinks: readonly string[] | undefined;
 			if (options.hydration === false) {
-				const rendered = await renderToStringAsync(operation, renderOptions);
+				const rendered = await renderToString(operation, renderOptions);
 				preloadLinks = rendered.preloadLinks;
 				const chunks = htmlChunksOf(rendered) ?? [rendered.html];
 				body = startsExactDocument(chunks)
 					? chunks
 					: [`<div id="${escapeAttr(options.rootId ?? 'exact-root')}">`, ...chunks, '</div>'];
 			} else {
-				const rendered = await renderToHydratableStringAsync(operation, renderOptions);
+				const rendered = await renderToHydratableString(operation, renderOptions);
 				preloadLinks = rendered.preloadLinks;
 				const htmlChunks = htmlChunksOf(rendered) ?? [rendered.html];
 				body = isExactDocumentResult(rendered)

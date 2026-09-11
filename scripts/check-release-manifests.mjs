@@ -1,5 +1,6 @@
 import path from 'node:path';
 import process from 'node:process';
+import semver from 'semver';
 import { existsSync, readFileSync } from 'node:fs';
 import { isPublishableWorkspace, readWorkspaceManifests } from './workspace-manifests.mjs';
 
@@ -14,20 +15,12 @@ const root = path.resolve(import.meta.dirname, '..');
 const entries = await readWorkspaceManifests(root);
 const publishable = entries.filter(isPublishableWorkspace);
 const byName = new Map(publishable.map((entry) => [entry.manifest.name, entry]));
-const versions = new Set(publishable.map((entry) => entry.manifest.version));
 const failures = [];
-
-if (versions.size !== 1) {
-	failures.push(`public package versions are not synchronized: ${[...versions].sort().join(', ')}`);
-}
-
-const [releaseVersion] = versions;
-if (!releaseVersion || releaseVersion === '0.0.0') {
-	failures.push('public packages must have a non-placeholder release version');
-}
 
 for (const entry of publishable) {
 	const { manifest, relativePath } = entry;
+	if (!semver.valid(manifest.version) || manifest.version === '0.0.0')
+		failures.push(`${relativePath} must have a non-placeholder semver version`);
 	if (manifest.publishConfig?.access !== 'public') {
 		failures.push(`${relativePath} must set publishConfig.access to "public"`);
 	}
@@ -45,25 +38,24 @@ for (const entry of publishable) {
 			}
 			const target = byName.get(name);
 			if (!target) continue;
-			const expected = `^${target.manifest.version}`;
-			if (specification !== expected) {
+			if (!semver.satisfies(target.manifest.version, specification)) {
 				failures.push(
-					`${relativePath} ${section}.${name} is ${specification}; expected ${expected}`
+					`${relativePath} ${section}.${name} is ${specification}; must accept ${target.manifest.version}`
 				);
 			}
 		}
 	}
 
 	if (manifest.exactComponentLibrary) {
-		if (manifest.dependencies?.['@exactjs/component-library'] !== '^0.1.0')
+		if (!manifest.dependencies?.['@exactjs/component-library'])
 			failures.push(
 				`${relativePath} must declare @exactjs/component-library in production dependencies`
 			);
 		if (
-			manifest.exactComponentLibrary?.protocol !== 2 ||
+			manifest.exactComponentLibrary?.protocol !== 1 ||
 			typeof manifest.exactComponentLibrary?.build !== 'string'
 		)
-			failures.push(`${relativePath} must declare protocol-2 exactComponentLibrary.build`);
+			failures.push(`${relativePath} must declare protocol-1 exactComponentLibrary.build`);
 		else {
 			const buildFactsPath = path.resolve(
 				path.dirname(entry.filename),
@@ -74,7 +66,7 @@ for (const entry of publishable) {
 			else {
 				const facts = JSON.parse(readFileSync(buildFactsPath, 'utf8'));
 				if (
-					facts.protocol !== 2 ||
+					facts.protocol !== 1 ||
 					facts.package?.name !== manifest.name ||
 					facts.package?.version !== manifest.version ||
 					!facts.exports?.length ||
@@ -111,8 +103,8 @@ for (const entry of publishable) {
 }
 
 const marker = byName.get('@exactjs/component-library')?.manifest;
-if (!marker || marker.exactComponentLibraryProtocol !== 2)
-	failures.push('@exactjs/component-library must publish protocol marker 2');
+if (!marker || marker.exactComponentLibraryProtocol !== 1)
+	failures.push('@exactjs/component-library must publish protocol marker 1');
 else if (marker.main || marker.exports || marker.scripts)
 	failures.push('@exactjs/component-library must remain inert with no executable entry or scripts');
 
@@ -123,5 +115,5 @@ if (failures.length) {
 }
 
 console.log(
-	`${publishable.length} public package manifests are synchronized at ${releaseVersion} with registry-safe internal ranges.`
+	`${publishable.length} public package manifests have registry-safe, compatible internal ranges.`
 );

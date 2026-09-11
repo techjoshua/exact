@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // inlineDirectServerValuePropagation removes the task-shaped call boundary only when one
 // compiler-created dependency feeds one direct assignment exactly once. Calls, closures,

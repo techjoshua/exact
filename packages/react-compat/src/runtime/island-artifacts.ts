@@ -124,7 +124,7 @@ const commonArtifact = {
 };
 
 const clientContract: ExactComponentContract = {
-	version: 3,
+	version: 1,
 	placement: 'client',
 	role: 'client',
 	implementations: [
@@ -155,7 +155,7 @@ const clientContract: ExactComponentContract = {
 };
 
 const serverContract: ExactComponentContract = {
-	version: 3,
+	version: 1,
 	placement: 'server',
 	role: 'executor',
 	implementations: [

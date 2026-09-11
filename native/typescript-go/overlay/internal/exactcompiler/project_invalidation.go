@@ -3,8 +3,8 @@ package exactcompiler
 import (
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 // invalidateChangedProjectSources retains generation-local facts only when

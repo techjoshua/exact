@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"golang.org/x/text/currency"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"

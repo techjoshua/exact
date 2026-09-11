@@ -163,6 +163,27 @@ export function PackagesPage(this: Component<{}>) {
 			description="The package surface is broad because platform boundaries are explicit. Most browser applications begin with only core, DOM, JSX, and the compiler integration."
 			previous={{ path: '/advanced', label: 'Beyond the browser' }}
 		>
+			<section>
+				<h2>Package versions</h2>
+				<p>
+					eXact-owned code is licensed under Apache License 2.0, copyright Joshua Friesen.
+					Commercial use is permitted under the license terms. Packages include license and
+					attribution notices; third-party code and data retain their own terms.
+				</p>
+				<p>
+					Packages can release independently. Updating a component library does not require every
+					framework package to receive a new version. Use each package's declared dependency ranges
+					to select compatible versions. Documentation apps and sample applications are repository
+					companions and are not npm packages.
+				</p>
+				<p>
+					The initial public package version is 0.5.0. Precompiled components remain supported by
+					compatible runtime updates without rebuilding the library. Breaking the compiled-component
+					ABI requires a major version of its framework providers, including during the 0.x series.
+					Newly compiled libraries must declare the minimum runtime versions their output needs.
+					Those dependency versions must be available when the library is published.
+				</p>
+			</section>
 			{packageGroups.map((group) => (
 				<section className="package-group">
 					<h2>{group.title}</h2>

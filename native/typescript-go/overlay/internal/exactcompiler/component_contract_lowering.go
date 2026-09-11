@@ -1,8 +1,8 @@
 package exactcompiler
 
 import (
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/printer"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 // lowerComponentContracts attaches a target-local executable artifact to every
@@ -841,6 +841,8 @@ func rootComponentContractAttachment(
 		runtimeABI,
 		component.TargetPlan.DirectServer,
 		component.TargetPlan.DirectServerExecutor,
+		component.DocumentRoot,
+		hasStreamingDocumentTasks(component.StaticDocumentHead, projectedExecution),
 		target == TargetServer,
 		projection != ComponentContractProjectionComplete,
 		updates,
@@ -850,7 +852,7 @@ func rootComponentContractAttachment(
 		contractProperty(
 			factory,
 			"version",
-			factory.NewNumericLiteral("3", ast.TokenFlagsNone),
+			contractNumber(factory, componentContractVersion),
 		),
 		contractProperty(
 			factory,

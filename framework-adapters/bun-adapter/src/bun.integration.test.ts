@@ -1,4 +1,9 @@
-import { createExactBufferedResponse, defineExactOperationContract } from '@exactjs/server';
+import {
+	createExactAsyncProducedResponse,
+	createExactBufferedResponse,
+	defineExactOperationContract,
+	exactResponseBodyOf
+} from '@exactjs/server';
 import { createExactBunHandler, exactResponseToBunResponse } from './index.js';
 
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
@@ -11,6 +16,131 @@ const testApi = (
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-adapter with Bun.serve', () => {
+	testApi.it(
+		'flushes the shell through native HTTP before pending production completes',
+		async () => {
+			let release!: () => void;
+			const gate = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			const server = bunRuntime().serve({
+				port: 0,
+				fetch: () =>
+					exactResponseToBunResponse(
+						createExactAsyncProducedResponse(200, {}, async (write) => {
+							await write('shell');
+							await gate;
+							await write('hydration caf\u00e9 \ud83d\ude80');
+						})
+					)
+			});
+			try {
+				const response = await fetch(server.url);
+				const reader = response.body!.getReader();
+				testApi.expect(new TextDecoder().decode((await reader.read()).value)).toBe('shell');
+				release();
+				let tail = '';
+				for (;;) {
+					const next = await reader.read();
+					if (next.done) break;
+					tail += new TextDecoder().decode(next.value);
+				}
+				testApi.expect(tail).toBe('hydration caf\u00e9 \ud83d\ude80');
+			} finally {
+				release();
+				await server.stop(true);
+			}
+		}
+	);
+
+	testApi.it(
+		'keeps unconsumed production lazy and releases its scope on cancellation',
+		async () => {
+			let starts = 0;
+			let releases = 0;
+			const exact = createExactAsyncProducedResponse(200, {}, async (write) => {
+				starts++;
+				await write('unused');
+			});
+			exactResponseBodyOf(exact)!.retainRequestScope!(async () => {
+				releases++;
+			});
+			const response = exactResponseToBunResponse(exact);
+			testApi.expect(starts).toBe(0);
+			await response.body!.cancel('cancel before demand');
+			testApi.expect(starts).toBe(0);
+			testApi.expect(releases).toBe(1);
+		}
+	);
+
+	testApi.it(
+		'propagates producer failures instead of reporting a successful empty body',
+		async () => {
+			const response = exactResponseToBunResponse(
+				createExactAsyncProducedResponse(200, {}, async () => {
+					throw new Error('native producer failed');
+				})
+			);
+			await testApi.expect(response.text()).rejects.toThrow('native producer failed');
+		}
+	);
+
+	testApi.it('aborts an active producer when its reader cancels', async () => {
+		let signal!: AbortSignal;
+		const response = exactResponseToBunResponse(
+			createExactAsyncProducedResponse(200, {}, async (write, ownedSignal) => {
+				signal = ownedSignal;
+				await write('shell');
+				if (!signal.aborted)
+					await new Promise<void>((resolve) =>
+						signal.addEventListener('abort', () => resolve(), { once: true })
+					);
+			})
+		);
+		const reader = response.body!.getReader();
+		await reader.read();
+		await reader.cancel('client left');
+		testApi.expect(signal.aborted).toBe(true);
+		testApi.expect(signal.reason).toBe('client left');
+	});
+
+	testApi.it('exposes UTF-8 bytes to direct response readers', async () => {
+		const response = exactResponseToBunResponse(
+			createExactAsyncProducedResponse(200, {}, async (write) => {
+				await write('caf\u00e9 \ud83d\ude80');
+			})
+		);
+		const reader = response.body!.getReader();
+		try {
+			const first = await reader.read();
+			testApi.expect(first.value).toBeInstanceOf(Uint8Array);
+			testApi.expect(new TextDecoder().decode(first.value)).toBe('caf\u00e9 \ud83d\ude80');
+			testApi.expect((await reader.read()).done).toBe(true);
+		} finally {
+			await reader.cancel();
+		}
+	});
+
+	testApi.it('pauses production when the response reader stops requesting chunks', async () => {
+		let written = 0;
+		const response = exactResponseToBunResponse(
+			createExactAsyncProducedResponse(200, {}, async (write) => {
+				for (let index = 0; index < 100; index++) {
+					await write('chunk');
+					written++;
+				}
+			})
+		);
+		const reader = response.body!.getReader();
+		try {
+			await reader.read();
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+			testApi.expect(written).toBe(1);
+		} finally {
+			await reader.cancel('paused client left');
+		}
+	});
+
 	testApi.it('serves an eXact action through Bun native HTTP', async () => {
 		const handler = createExactBunHandler({
 			contract: {

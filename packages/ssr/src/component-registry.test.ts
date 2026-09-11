@@ -1,17 +1,18 @@
 import { Suspense } from '@exactjs/core';
-import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { readExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
+import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { describe, expect, it, vi } from 'vitest';
 
-import { renderToString, renderToStringAsync } from './index.js';
-import { createOperation } from './test-support/native-operations.js';
 import {
 	EagerRegistryComponent as Eager,
 	LazyRegistryComponent as Lazy
 } from './component-registry.fixtures.test.js';
+import { renderToString } from './index.js';
+import { encodeMarkerKey } from './markers.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr component registries', () => {
-	it('renders eager registry members through their stable selection facade', () => {
+	it('renders eager registry members through their stable selection facade', async () => {
 		let direct = 0;
 		let generic = 0;
 		const View = createCompiledComponentRegistry('test:ssr:eager', 'EagerView', 'server', () => ({
@@ -22,7 +23,7 @@ describe('@exactjs/ssr component registries', () => {
 		expect(registryArtifact.execution).toEqual(selectedArtifact.execution);
 		expect(registryArtifact.instantiate).toBe(selectedArtifact.instantiate);
 		expect(registryArtifact.id).toBe('test:ssr:eager:eager');
-		const output = renderToString(createOperation(View.eager, { label: 'ready' }), {
+		const output = await renderToString(createOperation(View.eager, { label: 'ready' }), {
 			onDirectComponentCreated: () => direct++,
 			onComponentCreated: () => generic++
 		});
@@ -43,7 +44,7 @@ describe('@exactjs/ssr component registries', () => {
 				lazy: lazy(load)
 			})
 		);
-		const output = await renderToStringAsync(
+		const output = await renderToString(
 			createOperation(
 				Suspense,
 				{ fallback: createOperation('p', null, 'loading') },
@@ -54,6 +55,8 @@ describe('@exactjs/ssr component registries', () => {
 
 		expect(output.html).toMatch(/lazy:.*ready/u);
 		expect(output.html).not.toContain('loading');
+		// Deferred marker formatting must retain the facade identity, not the selected artifact's ID.
+		expect(output.html).toContain(`:${encodeMarkerKey(artifact.id)}-->`);
 		expect(load).toHaveBeenCalledTimes(1);
 		expect(artifact.execution).toEqual({
 			version: 1,

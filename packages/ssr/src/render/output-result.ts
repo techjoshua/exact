@@ -7,7 +7,43 @@ import {
 	type SsrChunkedResult
 } from './output-buffer.js';
 
-/** Creates a public string result backed by request-owned chunks and one lazy final join. */
+const resultStorage = Symbol('ssrResultStorage');
+
+/** Request-local data stays on the result rather than in a newly allocated getter closure. */
+interface HydratableResultStorage {
+	readonly chunks: readonly string[];
+	materialized: string | undefined;
+	readonly resumptions:
+		| HydratableStringResult['resumptions']
+		| (() => HydratableStringResult['resumptions']);
+}
+
+type StoredHydratableResult = HydratableStringResult & {
+	[resultStorage]: HydratableResultStorage;
+};
+
+/** Shared own accessors preserve lazy reads without retaining request state in accessor closures. */
+const hydratableResultDescriptors = {
+	htmlWithHydration: {
+		enumerable: true,
+		configurable: true,
+		get(this: StoredHydratableResult) {
+			const data = this[resultStorage];
+			return (data.materialized ??=
+				data.chunks.length === 1 ? data.chunks[0]! : data.chunks.join(''));
+		}
+	},
+	resumptions: {
+		enumerable: true,
+		configurable: true,
+		get(this: StoredHydratableResult) {
+			const value = this[resultStorage].resumptions;
+			return typeof value === 'function' ? value() : value;
+		}
+	}
+};
+
+/** Publishes completed HTML while retaining request-owned chunks for hydration insertion. */
 export function createChunkedStringResult(
 	chunks: readonly string[],
 	state: unknown,
@@ -15,19 +51,16 @@ export function createChunkedStringResult(
 	preloadLinks?: readonly string[],
 	wallClockSnapshot?: number
 ): RenderToStringResult {
-	let materialized: string | undefined;
-	const result = {
-		state,
-		...(wallClockSnapshot === undefined ? {} : { wallClockSnapshot }),
-		...(hydrationTable ? { hydrationTable } : {}),
-		...(preloadLinks?.length ? { preloadLinks: Object.freeze([...preloadLinks]) } : {})
-	} as RenderToStringResult & SsrChunkedResult;
-	Object.defineProperty(result, 'html', {
-		enumerable: true,
-		get() {
-			return (materialized ??= chunks.length === 1 ? chunks[0]! : chunks.join(''));
-		}
-	});
+	// Retained document edges remain ropes until a consumer needs the complete plain markup.
+	let html = '';
+	for (const chunk of chunks) html += chunk;
+	const result: RenderToStringResult & SsrChunkedResult = {
+		html,
+		state
+	};
+	if (wallClockSnapshot !== undefined) result.wallClockSnapshot = wallClockSnapshot;
+	if (hydrationTable) result.hydrationTable = hydrationTable;
+	if (preloadLinks?.length) result.preloadLinks = Object.freeze([...preloadLinks]);
 	Object.defineProperty(result, ssrHtmlChunks, { value: chunks });
 	return result;
 }
@@ -44,35 +77,36 @@ export function createChunkedHydratableResult(
 	const chunks = htmlChunks
 		? augmentChunkedBody(htmlChunks, hydrationScript)
 		: [augmentDocumentBody(result.html, hydrationScript)];
-	let materialized: string | undefined;
 	const hydratable = {
-		get html() {
-			return result.html;
-		},
+		resumptions: undefined,
+		htmlWithHydration: undefined,
+		html: result.html,
 		state: result.state,
-		...(result.wallClockSnapshot === undefined
-			? {}
-			: { wallClockSnapshot: result.wallClockSnapshot }),
-		...(result.hydrationTable ? { hydrationTable: result.hydrationTable } : {}),
-		...(result.preloadLinks ? { preloadLinks: result.preloadLinks } : {}),
 		hydrationScript
-	} as HydratableStringResult & SsrChunkedResult;
-	Object.defineProperty(hydratable, 'resumptions', {
-		enumerable: true,
-		get: typeof resumptions === 'function' ? resumptions : () => resumptions
+	} as unknown as HydratableStringResult & SsrChunkedResult;
+	Object.defineProperty(hydratable, 'resumptions', hydratableResultDescriptors.resumptions);
+	Object.defineProperty(
+		hydratable,
+		'htmlWithHydration',
+		hydratableResultDescriptors.htmlWithHydration
+	);
+	Object.defineProperty(hydratable, resultStorage, {
+		value: {
+			chunks,
+			materialized: undefined,
+			resumptions
+		} satisfies HydratableResultStorage
 	});
-	Object.defineProperty(hydratable, 'htmlWithHydration', {
-		enumerable: true,
-		get() {
-			return (materialized ??= chunks.length === 1 ? chunks[0]! : chunks.join(''));
-		}
-	});
+	if (result.wallClockSnapshot !== undefined)
+		hydratable.wallClockSnapshot = result.wallClockSnapshot;
+	if (result.hydrationTable) hydratable.hydrationTable = result.hydrationTable;
+	if (result.preloadLinks) hydratable.preloadLinks = result.preloadLinks;
 	Object.defineProperty(hydratable, ssrHtmlChunks, { value: htmlChunks ?? [result.html] });
 	Object.defineProperty(hydratable, ssrHydratableChunks, { value: chunks });
 	return hydratable;
 }
 
-/** Reports document output from chunks without flattening the rendered body. */
+/** Recognizes normalized document output across renderer chunk boundaries. */
 export function startsExactDocument(chunks: readonly string[]): boolean {
 	const expected = '<!doctype html>';
 	let matched = 0;
@@ -94,46 +128,39 @@ export function isExactDocumentResult(result: RenderToStringResult): boolean {
 function augmentChunkedBody(chunks: readonly string[], hydrationScript: string): readonly string[] {
 	if (!startsExactDocument(chunks)) return [...chunks, hydrationScript];
 	const insertion = findLastBodyClose(chunks);
-	if (insertion < 0)
+	if (!insertion)
 		throw new Error('Normalized eXact document output is missing its closing </body> element.');
 	const augmentation = hydrationScript
 		? `<!--exact:framework-body:start-->${hydrationScript}<!--exact:framework-body:end-->`
 		: '';
-	const result: string[] = [];
-	let offset = 0;
-	for (const chunk of chunks) {
-		const end = offset + chunk.length;
-		if (insertion < offset || insertion >= end) result.push(chunk);
-		else {
-			const local = insertion - offset;
-			if (local > 0) result.push(chunk.slice(0, local));
-			if (augmentation) result.push(augmentation);
-			if (local < chunk.length) result.push(chunk.slice(local));
-		}
-		offset = end;
-	}
+	if (!augmentation) return chunks;
+	const result = chunks.slice(0, insertion.chunkIndex);
+	const chunk = chunks[insertion.chunkIndex]!;
+	if (insertion.offset) result.push(chunk.slice(0, insertion.offset));
+	result.push(augmentation, chunk.slice(insertion.offset));
+	for (let index = insertion.chunkIndex + 1; index < chunks.length; index++)
+		result.push(chunks[index]!);
 	return result;
 }
 
-function findLastBodyClose(chunks: readonly string[]): number {
+/** Searches from the document tail, preserving tokens split across arbitrary renderer chunks. */
+function findLastBodyClose(
+	chunks: readonly string[]
+): { chunkIndex: number; offset: number } | undefined {
 	const expected = '</body>';
 	let matched = 0;
-	let offset = 0;
-	let found = -1;
-	for (const chunk of chunks) {
-		for (let index = 0; index < chunk.length; index++, offset++) {
+	for (let chunkIndex = chunks.length - 1; chunkIndex >= 0; chunkIndex--) {
+		const chunk = chunks[chunkIndex]!;
+		for (let index = chunk.length - 1; index >= 0; index--) {
 			const code = asciiLower(chunk.charCodeAt(index));
-			const expectedCode = expected.charCodeAt(matched);
+			const expectedCode = expected.charCodeAt(expected.length - matched - 1);
 			if (code === expectedCode) {
 				matched++;
-				if (matched === expected.length) {
-					found = offset - expected.length + 1;
-					matched = 0;
-				}
-			} else matched = code === expected.charCodeAt(0) ? 1 : 0;
+				if (matched === expected.length) return { chunkIndex, offset: index };
+			} else matched = code === expected.charCodeAt(expected.length - 1) ? 1 : 0;
 		}
 	}
-	return found;
+	return undefined;
 }
 
 function asciiLower(code: number): number {

@@ -15,10 +15,15 @@ export const exactResponseBody = Symbol.for('@exactjs/server/response-body');
 /** Writes one buffered response chunk to a platform transport. */
 export type ExactResponseBodyWriter = (chunk: string) => void | Promise<void>;
 
-/** Immutable encoding operations supplied by the adapter consuming a synchronous response. */
+/** Immutable encoding and output-metadata capabilities supplied by a synchronous response adapter. */
 export type ExactSynchronousResponseEnvironment = Readonly<{
 	/** Returns the exact UTF-8 byte length without materializing encoded output. */
 	encodedByteLength?: (value: string) => number;
+	/**
+	 * Publishes the exact UTF-8 size of the complete body after its final write. The producer must
+	 * include every span and account for cross-span surrogate pairs. Call only during production.
+	 */
+	setBodyByteLength?: (bytes: number) => void;
 }>;
 
 /** Produces settled response spans synchronously while request-owned values remain valid. */

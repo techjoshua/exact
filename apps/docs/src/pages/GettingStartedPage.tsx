@@ -42,7 +42,7 @@ export function GettingStartedPage(this: Component<{}>) {
 				<p>
 					Use npm&apos;s <code>create</code> command to run the latest released version of
 					<code>@exactjs/create-exact-app</code>. The generated package manifest uses the eXact
-					package versions that belong to that release—there are no repository-only
+					compatible package ranges selected by the scaffolder. There are no repository-only
 					<code>workspace:</code> dependencies to replace.
 				</p>
 				<CodeBlock source={createAppSource} language="shell" title="Terminal" compact />
@@ -98,14 +98,15 @@ export function GettingStartedPage(this: Component<{}>) {
 					<p>
 						The compiler package is a small JavaScript host. npm selects one native binary for your
 						operating system and architecture from the platform packages declared by
-						<code>@exactjs/compiler</code>; it does not install all six targets or the retired
-						JavaScript compiler.
+						<code>@exactjs/compiler</code>.
 					</p>
 				</Callout>
 				<p>
-					TypeScript 7 remains the application&apos;s editor and command-line type-checker. The
-					persistent native compiler owns its pinned TypeScript-Go version independently, so there
-					is no compiler-backend option to add to the generated Vite, Webpack, or Bun configuration.
+					TypeScript 7 provides editor support. Run <code>npm run typecheck</code> to check the
+					application through <code>exactc --check .</code>, including compiler-owned TSX. The
+					persistent native compiler owns its pinned native TypeScript version independently, so
+					there is no compiler-backend option to add to the generated Vite, Webpack, or Bun
+					configuration.
 				</p>
 			</section>
 		</Article>

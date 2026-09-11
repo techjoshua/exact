@@ -7,11 +7,11 @@ import {
 	renderExactRequestToHtmlResponse,
 	renderToString
 } from './index.js';
-import { createOperation } from './test-support/native-operations.js';
 import { InspectablePage, StaticServerPage } from './inspection.fixtures.test.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr inspection ownership', () => {
-	it('publishes compiler-backed request snapshots without retaining component instances', () => {
+	it('publishes compiler-backed request snapshots without retaining component instances', async () => {
 		const inspection = createExactRuntimeInspectionOwner({
 			buildKey: 'server-build',
 			executionRoot: 'page',
@@ -21,7 +21,7 @@ describe('@exactjs/ssr inspection ownership', () => {
 		inspection.attach('debug-session', { publish: (event) => events.push(event) });
 
 		const snapshots: Array<{ phase: string; state: Readonly<Record<string, unknown>> }> = [];
-		const result = renderToString(createOperation(InspectablePage, {}), {
+		const result = await renderToString(createOperation(InspectablePage, {}), {
 			inspection,
 			onDirectComponentCreated: (snapshot) =>
 				snapshots.push({ phase: 'created', state: { ...snapshot.state } }),
@@ -36,6 +36,40 @@ describe('@exactjs/ssr inspection ownership', () => {
 		]);
 		expect(events).toEqual([]);
 		expect(JSON.stringify(events)).not.toContain('<h1');
+	});
+
+	it('preserves requested attempt and publication callbacks for stateless components', async () => {
+		const events: string[] = [];
+		await renderToString(createOperation(StaticServerPage, {}), {
+			onComponentAttemptCheckpoint: () => {
+				events.push('checkpoint');
+				return 'attempt';
+			},
+			onDirectComponentCreated: () => {
+				events.push('created');
+			},
+			onDirectComponentRendered: () => {
+				events.push('rendered');
+			},
+			onComponentAttemptRollback: () => {
+				events.push('rollback');
+			}
+		});
+		expect(events).toEqual(['checkpoint', 'created', 'rendered']);
+	});
+
+	it('rolls back a failed stateless attempt when only attempt callbacks are installed', async () => {
+		const events: unknown[] = [];
+		await expect(
+			renderToString(createOperation(StaticServerPage, {}), {
+				maxOutputBytes: 1,
+				onComponentAttemptCheckpoint: () => 'attempt',
+				onComponentAttemptRollback: (checkpoint) => {
+					events.push(checkpoint);
+				}
+			})
+		).rejects.toThrow(/maximum.*bytes/);
+		expect(events).toEqual(['attempt']);
 	});
 
 	it('does not retain request SSR observations in the reusable server runtime', async () => {

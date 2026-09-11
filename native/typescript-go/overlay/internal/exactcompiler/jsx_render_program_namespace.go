@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // renderProgramParentNamespace resolves the concrete DOM namespace inherited by a planned region.
 // A component ancestor makes the insertion point component-defined, so the region stays on the

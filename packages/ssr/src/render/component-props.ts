@@ -11,8 +11,9 @@ export function prepareComponentProps(
 	let pending: Promise<readonly [key: string, value: unknown]>[] | undefined;
 	for (const key in props) {
 		if (!Object.hasOwn(props, key) || deferredTaskProps?.includes(key)) continue;
-		const source =
-			serverComponentDependencyForValue(props[key]) ?? plannedContinuationDependency(props[key]);
+		const value = props[key];
+		if (value === null || (typeof value !== 'object' && typeof value !== 'function')) continue;
+		const source = serverComponentDependencyForValue(value) ?? plannedContinuationDependency(value);
 		if (!source) continue;
 		const snapshot = source.read();
 		if (snapshot.status === 'pending') {

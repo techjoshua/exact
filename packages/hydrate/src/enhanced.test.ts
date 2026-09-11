@@ -25,9 +25,9 @@ import {
 import { noopLogger } from './test-support/responses.js';
 
 describe('enhanced hydration facade', () => {
-	it('adopts a direct target intrinsic ahead of a later nested target in a fragment', () => {
+	it('adopts a direct target intrinsic ahead of a later nested target in a fragment', async () => {
 		const root = document.createElement('div');
-		const rendered = renderToHydratableString(serverTargetOrderRoot);
+		const rendered = await renderToHydratableString(serverTargetOrderRoot);
 		root.innerHTML = rendered.html;
 		const host = root.querySelector('#host');
 		const heading = root.querySelector('h2');
@@ -48,7 +48,7 @@ describe('enhanced hydration facade', () => {
 		let now = 100;
 		vi.spyOn(Date, 'now').mockImplementation(() => now);
 		const root = document.createElement('div');
-		const rendered = renderToHydratableString(serverClockRoot, {
+		const rendered = await renderToHydratableString(serverClockRoot, {
 			enhancementCatalog: new Map([[clockEnhancementIdentity, exactEnhancementPassThrough]])
 		});
 		root.innerHTML = rendered.html;
@@ -73,9 +73,9 @@ describe('enhanced hydration facade', () => {
 		client.dispose();
 	});
 
-	it('supplies the application-bundle catalog after adoption', () => {
+	it('supplies the application-bundle catalog after adoption', async () => {
 		const root = document.createElement('div');
-		const rendered = renderToHydratableString(serverFacadePageRoot, {
+		const rendered = await renderToHydratableString(serverFacadePageRoot, {
 			enhancementCatalog: new Map([[facadeEnhancementIdentity, exactEnhancementPassThrough]])
 		});
 		root.innerHTML = rendered.html;

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // islandStatePaths computes the minimal stable state snapshot needed to reconstruct one generated

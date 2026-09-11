@@ -8,7 +8,7 @@ import {
 } from '../../framework-comparison/src/ssr-benchmark-statistics.mjs';
 import { validateRaw } from './framework-comparison-adapter-support.mjs';
 
-const participants = [
+const allParticipants = [
 	['Exact', 'exact'],
 	['React', 'react'],
 	['SvelteKit', 'sveltekit'],
@@ -16,12 +16,23 @@ const participants = [
 	['TanStack Start', 'tanstack-start']
 ];
 
+/** Keeps unavailable renderer modes out of charts instead of substituting buffered responses. */
+function reportParticipants(raw) {
+	const mode = raw.harness?.renderMode;
+	if (mode !== undefined && mode !== 'string' && mode !== 'stream')
+		throw new Error('Unknown SSR rendering mode');
+	return mode === 'stream'
+		? allParticipants.filter(([, id]) => ['exact', 'react', 'tanstack-start'].includes(id))
+		: allParticipants;
+}
+
 /**
  * Refreshes public SSR charts for the selected runtime from complete v2 evidence while
  * preserving independently captured browser evidence and its date. Aggregate throughput never replaces a window mean.
  * Recomputes throughput from raw windows and rejects inconsistent recorded summaries.
  */
 export function refreshDocsSsrReport(previous, raw, runtimeId = 'node') {
+	const participants = reportParticipants(raw);
 	if (!['node', 'bun'].includes(runtimeId)) throw new Error(`Unsupported SSR runtime ${runtimeId}`);
 	const runtimeName = runtimeId === 'node' ? 'Node' : 'Bun';
 	validateRaw(raw, 'framework-comparison-ssr-run');
@@ -73,7 +84,7 @@ export function refreshDocsSsrReport(previous, raw, runtimeId = 'node') {
 		...previous.server.sequential,
 		comment:
 			'Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better.' +
-			(phases
+			(phases?.dataLoadMs && phases.renderMs
 				? ` In this capture, eXact mean data loading was ${phases.dataLoadMs.mean.toFixed(2)} ms and rendering was ${phases.renderMs.mean.toFixed(2)} ms.`
 				: ''),
 		series: participants.map(([name, id]) => ({
@@ -151,6 +162,7 @@ export function refreshDocsSsrReport(previous, raw, runtimeId = 'node') {
  * Defaults to Node and includes Bun when present, with independent capture provenance for each.
  */
 export function refreshDocsSsrDiagnostics(previous, raw, runtimeId = 'node') {
+	const participants = reportParticipants(raw);
 	const refreshed = refreshDocsSsrReport(previous, raw, runtimeId);
 	const { burst, sequential, retention, bars, responseComposition } = refreshed.server;
 	for (const [id, entry] of Object.entries(raw.runtimes[runtimeId])) {
@@ -202,6 +214,7 @@ export function refreshDocsSsrDiagnostics(previous, raw, runtimeId = 'node') {
 
 /** Refreshes Bun diagnostics while preserving independently captured Node and browser evidence. */
 export function refreshDocsBunSsrDiagnostics(previous, raw) {
+	const participants = reportParticipants(raw);
 	for (const [, id] of participants)
 		if (raw.runtimes.bun?.[id]?.transport !== 'bun-fetch')
 			throw new Error(`${id}: native Bun diagnostics require bun-fetch evidence`);

@@ -350,7 +350,8 @@ export const docGroups: DocGroup[] = [
 				path: '/packages',
 				label: 'Package map',
 				summary: 'Find the package that owns the job at hand.',
-				keywords: 'packages core dom compiler native platform binary hydrate testing',
+				keywords:
+					'packages core dom compiler native platform binary hydrate testing npm releases versions ABI compatibility Apache license copyright',
 				component: 'PackagesPage'
 			}
 		]

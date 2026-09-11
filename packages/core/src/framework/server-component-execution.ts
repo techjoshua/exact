@@ -2,6 +2,7 @@ export {
 	activateServerComponentTaskForHost,
 	createServerComponentExecutionFrame,
 	issueServerComponentReceipt,
+	readServerComponentOutputForHost,
 	registerServerComponentContinuationContextsForHost,
 	serverComponentDependencyForValue,
 	serverComponentContinuationContextValuesForHost,

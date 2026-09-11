@@ -1,12 +1,14 @@
 {
 	"name": "@exactjs/bun-test",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Bun test runner integration, DOM setup, compiler preload, and matchers for eXact",
 	"type": "module",
 	"files": [
 		"dist",
 		"README.md",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -25,8 +27,8 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/bun-plugin": "^0.1.0",
-		"@exactjs/testing": "^0.1.0",
+		"@exactjs/bun-plugin": "^0.5.0",
+		"@exactjs/testing": "^0.5.0",
 		"@happy-dom/global-registrator": "^20.11.1"
 	},
 	"peerDependencies": {
@@ -46,5 +48,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/bun-test"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

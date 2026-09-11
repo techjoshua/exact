@@ -1,30 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { renderHydrationScript, renderToString, renderToStringAsync } from './index.js';
+import { renderHydrationScript, renderToString } from './index.js';
 import { LargeOutputComponent, NeverSettledComponent } from './limits.fixtures.test.js';
 import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr limits', () => {
-	it('rejects over-deep sync and async operation trees with a deterministic limit error', async () => {
+	it('rejects over-deep operation trees with a deterministic limit error', async () => {
 		let operation = createOperation('span', null, 'leaf');
 		for (let depth = 0; depth < 20; depth++) operation = createOperation('div', null, operation);
 
-		expect(() => renderToString(operation, { markers: false, maxTreeDepth: 8 })).toThrow(
+		await expect(renderToString(operation, { markers: false, maxTreeDepth: 8 })).rejects.toThrow(
 			'eXact SSR tree exceeds the configured maximum depth of 8'
 		);
-		await expect(
-			renderToStringAsync(operation, { markers: false, maxTreeDepth: 8 })
-		).rejects.toThrow('eXact SSR tree exceeds the configured maximum depth of 8');
 	});
 
 	it('bounds encoded string output and does not let component fallbacks swallow the limit', async () => {
-		expect(() =>
-			renderToString(createOperation(LargeOutputComponent, {}), {
-				markers: false,
-				maxOutputBytes: 9
-			})
-		).toThrow('eXact SSR output exceeds the configured maximum of 9 bytes');
 		await expect(
-			renderToStringAsync(createOperation(LargeOutputComponent, {}), {
+			renderToString(createOperation(LargeOutputComponent, {}), {
 				markers: false,
 				maxOutputBytes: 9
 			})
@@ -33,7 +24,7 @@ describe('@exactjs/ssr limits', () => {
 
 	it('bounds the wall-clock duration of tasks that never settle', async () => {
 		await expect(
-			renderToStringAsync(createOperation(NeverSettledComponent, {}), { maxTaskDurationMs: 10 })
+			renderToString(createOperation(NeverSettledComponent, {}), { maxTaskDurationMs: 10 })
 		).rejects.toThrow('SSR task duration limit exceeded');
 	});
 

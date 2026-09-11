@@ -5,12 +5,13 @@ Browser DOM renderer for compiled eXact components.
 ## Usage
 
 ```tsx
-import { render } from '@exactjs/dom';
+import { render, unmount } from '@exactjs/dom';
 
-const root = render(<App />, document.getElementById('app')!);
+const container = document.getElementById('app')!;
+render(<App />, container);
 
 // Later:
-root.unmount();
+unmount(container);
 ```
 
 ## What it provides

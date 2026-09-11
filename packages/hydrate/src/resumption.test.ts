@@ -1,11 +1,12 @@
 /** @vitest-environment jsdom */
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
-import { renderToHydratableStringAsync } from '@exactjs/ssr';
+import { renderToHydratableString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate } from './index.js';
 import { normalizeSerializedComponentResumptions } from './config-validation.js';
 import { createComponentResumptionResolver } from './runtime/resumption.js';
 import {
+	holdSearchWork as holdServerSearchWork,
 	initialPageRoot as serverInitialPageRoot,
 	prerenderedShellRoot as serverPrerenderedShellRoot,
 	readSearchRuns as readServerSearchRuns,
@@ -114,7 +115,7 @@ describe('@exactjs/hydrate component resumption', () => {
 	});
 
 	it('limits SSR activation records to adoption so later client navigation mounts fresh state', async () => {
-		const rendered = await renderToHydratableStringAsync(serverInitialPageRoot);
+		const rendered = await renderToHydratableString(serverInitialPageRoot);
 		const container = document.createElement('main');
 		container.innerHTML = rendered.htmlWithHydration;
 
@@ -127,7 +128,7 @@ describe('@exactjs/hydrate component resumption', () => {
 	});
 
 	it('mounts a fresh route when the browser location changes before SSR adoption', async () => {
-		const rendered = await renderToHydratableStringAsync(serverPrerenderedShellRoot);
+		const rendered = await renderToHydratableString(serverPrerenderedShellRoot);
 		const container = document.createElement('main');
 		container.innerHTML = rendered.htmlWithHydration;
 
@@ -138,7 +139,19 @@ describe('@exactjs/hydrate component resumption', () => {
 	});
 
 	it('adopts SSR state without repeating settled work and reruns after a dependency change', async () => {
-		const rendered = await renderToHydratableStringAsync(serverResumableSearchRoot);
+		const release = holdServerSearchWork();
+		let published = false;
+		const rendering = renderToHydratableString(serverResumableSearchRoot).then((result) => {
+			published = true;
+			return result;
+		});
+		try {
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
+			expect(published).toBe(false);
+		} finally {
+			release();
+		}
+		const rendered = await rendering;
 		const container = document.createElement('main');
 		container.innerHTML = rendered.htmlWithHydration;
 		const serverOutput = container.querySelector('output');
@@ -172,7 +185,7 @@ describe('@exactjs/hydrate component resumption', () => {
 	});
 
 	it('restores a settled shared context before constructing its descendants', async () => {
-		const rendered = await renderToHydratableStringAsync(serverResumptionProviderRoot);
+		const rendered = await renderToHydratableString(serverResumptionProviderRoot);
 		const container = document.createElement('main');
 		container.innerHTML = rendered.htmlWithHydration;
 		const serverOutput = container.querySelector('output');

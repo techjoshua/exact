@@ -2,6 +2,30 @@ import type { Child } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrContext } from '../types.js';
 
+/** Root-document claims that must roll back with an unpublished component attempt. */
+export type DocumentHostCheckpoint = Pick<
+	SsrContext,
+	'documentProbe' | 'documentRootSeen' | 'documentHeadSeen' | 'documentBodySeen'
+>;
+
+/** Captures document claims without changing the balanced intrinsic ancestry stack. */
+export function checkpointDocumentHost(context: SsrContext): DocumentHostCheckpoint {
+	return {
+		documentProbe: context.documentProbe,
+		documentRootSeen: context.documentRootSeen,
+		documentHeadSeen: context.documentHeadSeen,
+		documentBodySeen: context.documentBodySeen
+	};
+}
+
+/** Restores claims after an attempt whose intrinsic traversal has already unwound. */
+export function restoreDocumentHost(context: SsrContext, checkpoint: DocumentHostCheckpoint): void {
+	context.documentProbe = checkpoint.documentProbe;
+	context.documentRootSeen = checkpoint.documentRootSeen;
+	context.documentHeadSeen = checkpoint.documentHeadSeen;
+	context.documentBodySeen = checkpoint.documentBodySeen;
+}
+
 /** Enters one already-normalized intrinsic operation. */
 export function enterHostTag(
 	context: SsrContext,

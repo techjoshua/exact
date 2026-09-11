@@ -49,10 +49,10 @@ static compiler facts:
 ```json
 {
 	"dependencies": {
-		"@exactjs/component-library": "^0.1.0"
+		"@exactjs/component-library": "^0.5.0"
 	},
 	"exactComponentLibrary": {
-		"protocol": 2,
+		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	}
 }

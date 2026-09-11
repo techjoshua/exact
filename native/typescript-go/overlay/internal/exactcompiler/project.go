@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/bundled"
-	"github.com/microsoft/typescript-go/internal/checker"
-	"github.com/microsoft/typescript-go/internal/compiler"
-	"github.com/microsoft/typescript-go/internal/core"
-	"github.com/microsoft/typescript-go/internal/tsoptions"
-	"github.com/microsoft/typescript-go/internal/tspath"
-	"github.com/microsoft/typescript-go/internal/vfs/osvfs"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/bundled"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/compiler"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/tsoptions"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/vfs/osvfs"
 )
 
 type projectState struct {
@@ -49,7 +49,8 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 	base := bundled.WrapFS(osvfs.FS())
 	overlay := newSourceOverlay(base)
 	overlay.set(fileName, request.Source)
-	host := compiler.NewCompilerHost(currentDirectory, overlay, bundled.LibPath(), nil, nil)
+	// eXact owns source lowering through its overlay, without an upstream content-mapper project.
+	host := compiler.NewCompilerHost(currentDirectory, overlay, bundled.LibPath(), nil, nil, nil)
 	configFile := request.ConfigFile
 	var config *tsoptions.ParsedCommandLine
 	var diagnostics []*ast.Diagnostic
@@ -88,14 +89,9 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 		if !found {
 			rootFiles = append(rootFiles, fileName)
 		}
-		config = tsoptions.NewParsedCommandLine(
-			options,
-			rootFiles,
-			tspath.ComparePathsOptions{
-				CurrentDirectory:          currentDirectory,
-				UseCaseSensitiveFileNames: overlay.UseCaseSensitiveFileNames(),
-			},
-		)
+		// Preserve reference syntax and resolution metadata for upstream diagnostics.
+		config = parsed.WithFileNames(rootFiles)
+		config.ParsedConfig.CompilerOptions = options
 	} else {
 		options := &core.CompilerOptions{
 			AllowJs:          core.TSTrue,
@@ -109,6 +105,7 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 		config = tsoptions.NewParsedCommandLine(
 			options,
 			[]string{fileName},
+			nil,
 			tspath.ComparePathsOptions{
 				CurrentDirectory:          currentDirectory,
 				UseCaseSensitiveFileNames: overlay.UseCaseSensitiveFileNames(),
@@ -149,18 +146,12 @@ func (state *projectState) advance(
 			bundled.LibPath(),
 			nil,
 			nil,
+			nil,
 		)
 		if state.program.GetSourceFile(fileName) == nil {
 			rootFiles := append([]string(nil), state.config.FileNames()...)
 			rootFiles = append(rootFiles, fileName)
-			state.config = tsoptions.NewParsedCommandLine(
-				state.config.CompilerOptions().Clone(),
-				rootFiles,
-				tspath.ComparePathsOptions{
-					CurrentDirectory:          state.currentDirectory,
-					UseCaseSensitiveFileNames: state.fs.UseCaseSensitiveFileNames(),
-				},
-			)
+			state.config = state.config.WithFileNames(rootFiles)
 			state.program = compiler.NewProgram(compiler.ProgramOptions{
 				Config: state.config,
 				Host:   host,

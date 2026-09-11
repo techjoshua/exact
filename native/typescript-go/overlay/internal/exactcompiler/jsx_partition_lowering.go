@@ -3,7 +3,7 @@ package exactcompiler
 import (
 	"strconv"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 func (lowering *jsxLowering) serverPartitionRangeEdge(start int) (PartitionPlanEdge, bool) {

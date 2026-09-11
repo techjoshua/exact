@@ -454,12 +454,12 @@ function createFixture() {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-component-policy-'));
 	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 	const marker = createPackage(root, '@exactjs/component-library', '0.1.0', 'marker', {
-		exactComponentLibraryProtocol: 2
+		exactComponentLibraryProtocol: 1
 	});
 	const library = createPackage(root, '@acme/cards', '1.2.3', 'cards', {
 		exports: { '.': './dist/index.js' },
 		dependencies: { '@exactjs/component-library': '^0.1.0' },
-		exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+		exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 	});
 	writeBuildFacts(library, 'Card');
 	const candidate: ExactResolvedComponentCandidate = Object.freeze({
@@ -480,13 +480,13 @@ function addLibrary(fixture: Fixture, name: string, version: string, directory: 
 		'0.1.0',
 		`${directory}-marker`,
 		{
-			exactComponentLibraryProtocol: 2
+			exactComponentLibraryProtocol: 1
 		}
 	);
 	const instance = createPackage(fixture.root, name, version, directory, {
 		exports: { '.': './dist/index.js' },
 		dependencies: { '@exactjs/component-library': '^0.1.0' },
-		exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+		exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 	});
 	writeBuildFacts(instance, 'Icon');
 	return {
@@ -531,7 +531,7 @@ function writeBuildFacts(
 	componentImports: ExactComponentBuildFacts['componentImports'] = []
 ): void {
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 2,
+		protocol: 1,
 		package: { name: instance.name, version: instance.version },
 		modules: [
 			{

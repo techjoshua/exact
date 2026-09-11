@@ -1,5 +1,5 @@
 import { TaskContext, taskTimeout, type Component } from '@exactjs/core';
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import type { ServerScenarioResult } from './server-scenario-contract.js';
 
@@ -56,7 +56,7 @@ export async function taskReadinessSsr(count: number): Promise<ServerScenarioRes
 	assert(componentsPerRequest === 8, 'task readiness fixture requires at least eight components');
 	let probeGenericInstances = 0;
 	let probeDirectComponents = 0;
-	await renderToStringAsync(<TaskReadinessTree request={0} />, {
+	await renderToString(<TaskReadinessTree request={0} />, {
 		markers: false,
 		onComponentCreated: () => probeGenericInstances++,
 		onDirectComponentCreated: () => probeDirectComponents++
@@ -149,8 +149,8 @@ export async function taskReadinessSsr(count: number): Promise<ServerScenarioRes
 
 async function renderRequests(requests: number, concurrency: number, markers = false) {
 	return Promise.all(
-		Array.from({ length: requests }, (_, request) =>
-			renderToStringAsync(<TaskReadinessTree request={request + 1} />, {
+		Array.from({ length: requests }, async (_, request) =>
+			await renderToString(<TaskReadinessTree request={request + 1} />, {
 				markers,
 				maxAsyncSsrConcurrency: concurrency
 			})

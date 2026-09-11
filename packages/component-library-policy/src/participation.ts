@@ -1,3 +1,4 @@
+import { componentLibraryProtocolVersion } from './protocol-version.js';
 import type {
 	ExactComponentBuildFacts,
 	ExactPublishedComponentBuildFacts
@@ -111,7 +112,7 @@ async function validatePackageParticipation(
 	const markerManifest = await readManifest(marker);
 	if (
 		!semver.satisfies(marker.version, markerRange) ||
-		markerManifest.exactComponentLibraryProtocol !== 2
+		markerManifest.exactComponentLibraryProtocol !== componentLibraryProtocolVersion
 	) {
 		throw new ExactComponentParticipationError(
 			'marker-incompatible',
@@ -119,10 +120,14 @@ async function validatePackageParticipation(
 		);
 	}
 	const declaration = manifest.exactComponentLibrary;
-	if (!declaration || declaration.protocol !== 2 || typeof declaration.build !== 'string') {
+	if (
+		!declaration ||
+		declaration.protocol !== componentLibraryProtocolVersion ||
+		typeof declaration.build !== 'string'
+	) {
 		throw new ExactComponentParticipationError(
 			'build-facts-missing',
-			`${instance.name} must publish protocol-2 exactComponentLibrary.build facts`
+			`${instance.name} must publish protocol-1 exactComponentLibrary.build facts`
 		);
 	}
 	const buildFactsPath = packageRelativePath(instance.root, declaration.build, 'build facts');
@@ -213,7 +218,7 @@ function validatePublishedBuildFacts(
 ): void {
 	if (
 		!facts ||
-		facts.protocol !== 2 ||
+		facts.protocol !== componentLibraryProtocolVersion ||
 		facts.package?.name !== instance.name ||
 		facts.package?.version !== instance.version ||
 		!Array.isArray(facts.modules) ||
@@ -279,7 +284,7 @@ function validateComponentBuildProjection(
 ): void {
 	if (
 		!isRecord(facts) ||
-		facts.protocol !== 1 ||
+		facts.protocol !== componentLibraryProtocolVersion ||
 		!Array.isArray(facts.components) ||
 		!Array.isArray(facts.componentImports) ||
 		!Array.isArray(facts.rendererEnhancements)

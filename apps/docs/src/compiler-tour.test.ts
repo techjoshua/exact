@@ -18,7 +18,7 @@ describe('compiler tour generated-artifact examples', () => {
 	});
 
 	it('shows the current direct server writer and request-owned execution boundary', () => {
-		expect(compilerTourSource).toContain('version: 8');
+		expect(compilerTourSource).toContain('version: 1');
 		expect(compilerTourSource).toContain('operations.begin');
 		expect(compilerTourSource).toContain('operations.compiledAttribute');
 		expect(compilerTourSource).toContain('issue: issueExactServerComponent');

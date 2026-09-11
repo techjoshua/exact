@@ -12,7 +12,7 @@ import {
 import {
 	createExactServerRuntime,
 	renderToHydratableProgressiveHtmlResponse,
-	renderToHydratableStringAsync
+	renderToHydratableString
 } from '@exactjs/ssr';
 import { ProfilePage } from '../.exact/ProfilePage.exact.server.js';
 
@@ -48,7 +48,7 @@ export const exactRuntime = createExactServerRuntime({
 
 /** Renders the profile page sample to hydratable HTML. */
 export async function renderProfilePage(name: string) {
-	return renderToHydratableStringAsync(<ProfilePage name={name} />, {
+	return await renderToHydratableString(<ProfilePage name={name} />, {
 		markers: false,
 		...createExactHydrationConfig(exactContract, { state: { profile: { name } } })
 	});

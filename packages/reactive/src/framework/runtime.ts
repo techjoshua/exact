@@ -30,6 +30,7 @@ export {
 	effectScopeParent,
 	effectScopeWorkPriority,
 	registerEffectScopeCleanup,
+	scheduleEffectScopeResume,
 	setEffectScopeWorkPriority,
 	transferEffectScope,
 	whenEffectScopeResumed,

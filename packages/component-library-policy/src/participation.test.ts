@@ -14,12 +14,12 @@ it('resolves compiler facts and relative imports from the implementation behind 
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-component-participation-'));
 	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 	const marker = createPackage(root, '@exactjs/component-library', '0.1.0', 'marker', {
-		exactComponentLibraryProtocol: 2
+		exactComponentLibraryProtocol: 1
 	});
 	const library = createPackage(root, '@acme/cards', '1.2.3', 'cards', {
 		exports: { '.': './dist/index.js' },
 		dependencies: { '@exactjs/component-library': '^0.1.0' },
-		exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+		exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 	});
 	const facadeModule = path.join(library.root, 'dist', 'index.js');
 	const implementationModule = path.join(library.root, 'dist', 'components', 'card.js');
@@ -84,7 +84,7 @@ function createPackage(
 
 function buildFacts(): ExactPublishedComponentBuildFacts {
 	return {
-		protocol: 2,
+		protocol: 1,
 		package: { name: '@acme/cards', version: '1.2.3' },
 		modules: [
 			{

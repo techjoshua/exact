@@ -488,3 +488,22 @@ func TestPropertyOperandRetainsPrimitiveAndArbitraryFallbacks(t *testing.T) {
 		t.Fatalf("arbitrary expression lost its executable fallback:\n%s", response.Code)
 	}
 }
+
+func TestLiteralDocumentMetadataUsesStaticAttributes(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		response := NewSession().Execute(Request{
+			ID:     "C:/tmp/static-document-metadata.tsx",
+			Kind:   "compile",
+			Target: target,
+			Source: `export function Metadata() { return () => <meta charSet="UTF-8" name="viewport" content="width=device-width" />; }`,
+		})
+		if response.Error != "" {
+			t.Fatal(response.Error)
+		}
+		for _, literal := range []string{`charSet=\"UTF-8\"`, `content=\"width=device-width\"`} {
+			if !strings.Contains(response.Code, literal) {
+				t.Fatalf("literal metadata did not reach static markup (%s):\n%s", target, response.Code)
+			}
+		}
+	}
+}

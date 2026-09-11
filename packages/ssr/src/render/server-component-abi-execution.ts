@@ -1,4 +1,6 @@
-import type { AnyComponentInstance, Child } from '@exactjs/core';
+import type { ServerArtifactExecution } from './server-artifact-context.js';
+import { executeSynchronousArtifact } from './synchronous-artifact.js';
+import type { AnyComponentInstance } from '@exactjs/core';
 import { readPreparedExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
 import {
 	exactServerDispose,
@@ -16,13 +18,21 @@ import type {
 	DirectScheduledSsrComponent,
 	DirectSsrComponentPublisher
 } from './direct-component-contracts.js';
-import { executeDirectSsrComponent } from './direct-component.js';
 import {
 	createDirectScheduledSsrComponent,
+	prepareDirectScheduledSsrComponentReferences,
 	takePreparedDirectScheduledSsrComponent
 } from './direct-component-scheduling.js';
 import type { SsrRenderOptions } from './entrypoints.js';
+import type { RenderValue } from './execution.js';
+import { mapRenderValue } from './execution.js';
+import { checkpointDocumentHost, restoreDocumentHost } from './host.js';
+import { renderOperationEnhancements } from './operation-enhancements.js';
 import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js';
+import {
+	checkpointTargetReceiptLayers,
+	restoreTargetReceiptLayers
+} from './receipt-target-contributions.js';
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 import {
 	receiptExecutionBlueprint,
@@ -30,11 +40,6 @@ import {
 	serverComponentProps,
 	type ServerComponentReference
 } from './server-component-reference.js';
-import { renderOperationEnhancementsAsync } from './operation-enhancements.js';
-import {
-	checkpointTargetReceiptLayers,
-	restoreTargetReceiptLayers
-} from './receipt-target-contributions.js';
 
 type IssuedScheduledServerComponent = ExactServerFrame & {
 	readonly artifact: ExactServerComponentArtifact;
@@ -50,27 +55,12 @@ type IssuedScheduledServerComponent = ExactServerFrame & {
 	preparation?: DirectIssuedRender['preparation'];
 };
 
-type ServerArtifactExecution<Publication> = Readonly<{
-	context: SsrContext;
-	options: SsrRenderOptions;
-	publication: Publication;
-	publish: DirectSsrComponentPublisher<Publication>;
-	renderChildren(
-		children: readonly Child[],
-		parent: AnyComponentInstance | undefined
-	): Promise<string>;
-	renderOwnedComponent(
-		component: ServerComponentReference,
-		parent: AnyComponentInstance | undefined
-	): Promise<string>;
-}>;
-
 /**
  * Executes one native server component exclusively through its target-local artifact methods.
  * Issuance owns request state before serialization begins; disposal is attempted exactly once and
  * cleanup failure never replaces the primary render failure.
  */
-export async function renderServerComponentArtifactOutput<Publication>(
+export function renderServerComponentArtifactOutput<Publication>(
 	context: SsrContext,
 	reference: ServerComponentReference,
 	parent: AnyComponentInstance | undefined,
@@ -79,24 +69,25 @@ export async function renderServerComponentArtifactOutput<Publication>(
 	renderOwnedComponent: ServerArtifactExecution<Publication>['renderOwnedComponent'],
 	publish: DirectSsrComponentPublisher<Publication>,
 	publication: Publication
-): Promise<string | undefined> {
+): RenderValue<string | undefined> {
 	const contract = receiptExecutionContract(reference);
 	const artifact = contract.artifact;
 	const props = serverComponentProps(reference);
 	if (artifact.selection) {
-		const selected = await artifact.selection.resolve();
-		return renderServerComponentArtifactOutput(
-			context,
-			{
-				...reference,
-				contract: readPreparedExactServerExecutableComponentContract(selected)
-			},
-			parent,
-			options,
-			renderChildren,
-			renderOwnedComponent,
-			publish,
-			publication
+		return mapRenderValue(artifact.selection.resolve(), (selected) =>
+			renderServerComponentArtifactOutput(
+				context,
+				{
+					...reference,
+					contract: readPreparedExactServerExecutableComponentContract(selected)
+				},
+				parent,
+				options,
+				renderChildren,
+				renderOwnedComponent,
+				publish,
+				publication
+			)
 		);
 	}
 	if (artifact.execution.lane !== 'direct') return undefined;
@@ -106,10 +97,47 @@ export async function renderServerComponentArtifactOutput<Publication>(
 		publication,
 		publish,
 		renderChildren,
-		renderOwnedComponent
+		renderOwnedComponent,
+		renderOwner: undefined,
+		renderProgramSegment: renderExecutionProgramSegment,
+		prepareProgramReferences: prepareExecutionProgramReferences
 	} satisfies ServerArtifactExecution<Publication>;
 	if (artifact.execution.classification === 'synchronous')
 		return executeSynchronousArtifact(execution, contract, reference, parent, props);
+	return executeScheduledArtifact(execution, artifact, reference, parent, props);
+}
+
+/** Shared program forwarding retains the selected owner on this component's execution. */
+function renderExecutionProgramSegment<Publication>(
+	this: ServerArtifactExecution<Publication>,
+	value: unknown
+): RenderValue<string> {
+	return Array.isArray(value)
+		? this.renderChildren(value, this.renderOwner)
+		: this.renderOwnedComponent(value as ServerComponentReference, this.renderOwner);
+}
+
+/** Prepares siblings under the same component owner without a per-content forwarding closure. */
+function prepareExecutionProgramReferences<Publication>(
+	this: ServerArtifactExecution<Publication>,
+	values: readonly unknown[]
+): AsyncDisposable | undefined {
+	return prepareDirectScheduledSsrComponentReferences(
+		this.context,
+		values as readonly ServerComponentReference[],
+		this.renderOwner,
+		this.options
+	);
+}
+
+async function executeScheduledArtifact<Publication>(
+	execution: ServerArtifactExecution<Publication>,
+	artifact: ExactServerComponentArtifact,
+	reference: ServerComponentReference,
+	parent: AnyComponentInstance | undefined,
+	props: Record<string, unknown>
+): Promise<string> {
+	const context = execution.context;
 	const blueprint = receiptExecutionBlueprint(reference);
 	const frame = (await artifact.issue.call(
 		artifact,
@@ -125,7 +153,7 @@ export async function renderServerComponentArtifactOutput<Publication>(
 	} catch (error) {
 		primary = error;
 		if (frame.resumptionCheckpoint !== undefined)
-			context.resumptionCapture?.rollback(frame.resumptionCheckpoint);
+			execution.options.resumptionCapture?.rollback(frame.resumptionCheckpoint);
 		context.onComponentAttemptRollback?.(frame.checkpoint);
 		throw error;
 	} finally {
@@ -225,107 +253,77 @@ async function writeScheduledFrame<Publication>(
 	execution: ServerArtifactExecution<Publication>,
 	frame: IssuedScheduledServerComponent
 ): Promise<string> {
-	frame.resumptionCheckpoint = execution.context.resumptionCapture?.checkpoint();
-	frame.resumptionToken = execution.context.resumptionCapture?.reserveDirect(
+	frame.resumptionCheckpoint = execution.options.resumptionCapture?.checkpoint();
+	frame.resumptionToken = execution.options.resumptionCapture?.reserveDirect(
 		frame.scheduled.snapshot.componentId,
 		frame.scheduled.snapshot.contract
 	);
 	const scheduled = frame.scheduled;
+	const settleDocument =
+		execution.options.settleDocumentShell &&
+		(execution.context.documentRootSeen || frame.artifact.execution.documentRoot === true);
+	if (
+		(!execution.options.streamingScheduledComponents || settleDocument) &&
+		!frame.artifact.execution.streamingDocument
+	) {
+		const pending = scheduled.drain();
+		if (pending instanceof Promise) await pending;
+	}
 	for (let pass = 0; pass < execution.context.maxTaskPasses; pass++) {
 		const renderCheckpoint = execution.context.onComponentAttemptCheckpoint?.();
-		const resumptionCheckpoint = execution.context.resumptionCapture?.checkpoint();
+		const resumptionCheckpoint = execution.options.resumptionCapture?.checkpoint();
 		const targetCheckpoint = checkpointTargetReceiptLayers(execution.context);
-		const issued = await scheduled.render();
+		const documentCheckpoint = checkpointDocumentHost(execution.context);
+		const candidate = scheduled.render();
+		const issued = candidate instanceof Promise ? await candidate : candidate;
 		frame.preparation = issued.preparation;
 		let primary: unknown = noPrimaryFailure;
 		try {
-			const html = await renderOperationEnhancementsAsync(
+			const rendered = renderOperationEnhancements(
 				execution.context,
 				frame.reference.enhancement,
-				() =>
-					renderDirectSsrContent(
-						execution.context,
-						issued.content,
-						scheduled.owner,
-						execution.renderChildren,
-						execution.renderOwnedComponent
-					),
+				() => renderDirectSsrContent(execution, issued.content, scheduled.owner),
 				scheduled.owner,
 				execution.options,
 				(_context, children, parent) => execution.renderChildren(children, parent)
 			);
-			if (execution.options.streamingScheduledComponents) {
+			const html = rendered instanceof Promise ? await rendered : rendered;
+			if (
+				execution.options.streamingScheduledComponents &&
+				!(
+					settleDocument ||
+					(execution.options.settleDocumentShell && execution.context.documentRootSeen)
+				)
+			) {
 				frame.deferredScheduledDisposal = true;
 				execution.options.streamingScheduledComponents.push(scheduled);
 				return publishFrame(execution, frame, html, scheduled.snapshot);
 			}
-			if (await scheduled.drain()) {
+			const readiness = scheduled.drain();
+			if (readiness instanceof Promise ? await readiness : readiness) {
 				if (resumptionCheckpoint !== undefined)
-					execution.context.resumptionCapture?.rollback(resumptionCheckpoint);
+					execution.options.resumptionCapture?.rollback(resumptionCheckpoint);
 				execution.context.onComponentAttemptRollback?.(renderCheckpoint);
 				restoreTargetReceiptLayers(execution.context, targetCheckpoint);
+				restoreDocumentHost(execution.context, documentCheckpoint);
 				continue;
 			}
 			return publishFrame(execution, frame, html, scheduled.snapshot);
 		} catch (error) {
 			primary = error;
 			if (resumptionCheckpoint !== undefined)
-				execution.context.resumptionCapture?.rollback(resumptionCheckpoint);
+				execution.options.resumptionCapture?.rollback(resumptionCheckpoint);
 			execution.context.onComponentAttemptRollback?.(renderCheckpoint);
 			restoreTargetReceiptLayers(execution.context, targetCheckpoint);
+			restoreDocumentHost(execution.context, documentCheckpoint);
 			throw error;
 		} finally {
-			await disposeFramePreparation(frame, primary);
+			if (frame.preparation) await disposeFramePreparation(frame, primary);
 		}
 	}
 	throw new Error(
 		`eXact direct scheduled SSR component did not stabilize after ${execution.context.maxTaskPasses} render passes`
 	);
-}
-
-async function executeSynchronousArtifact<Publication>(
-	execution: ServerArtifactExecution<Publication>,
-	contract: import('@exactjs/core/framework/component-contracts').ExactServerExecutableComponentContract,
-	reference: ServerComponentReference,
-	parent: AnyComponentInstance | undefined,
-	props: Record<string, unknown>
-): Promise<string> {
-	const output = await executeDirectSsrComponent(
-		execution.context,
-		contract,
-		props,
-		parent,
-		execution.options,
-		async (content, owner, preparedProps, snapshot) => {
-			const html = await renderOperationEnhancementsAsync(
-				execution.context,
-				reference.enhancement,
-				() =>
-					renderDirectSsrContent(
-						execution.context,
-						content,
-						owner,
-						execution.renderChildren,
-						execution.renderOwnedComponent
-					),
-				owner,
-				execution.options,
-				(_context, children, childParent) => execution.renderChildren(children, childParent)
-			);
-			return execution.publish(
-				execution.context,
-				reference,
-				parent,
-				html,
-				preparedProps,
-				snapshot,
-				execution.publication
-			);
-		}
-	);
-	if (output === undefined)
-		throw new TypeError('Synchronous server artifact did not execute its request-owned sink');
-	return output;
 }
 
 function publishFrame<Publication>(
@@ -344,7 +342,7 @@ function publishFrame<Publication>(
 		execution.publication
 	);
 	if (frame.resumptionToken !== undefined)
-		execution.context.resumptionCapture?.publishDirect(
+		execution.options.resumptionCapture?.publishDirect(
 			frame.resumptionToken,
 			snapshot.host,
 			snapshot.state,

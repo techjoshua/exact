@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/microsoft/typescript-go/internal/tspath"
-	"github.com/microsoft/typescript-go/internal/vfs"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/vfs"
 )
 
 type sourceOverlay struct {

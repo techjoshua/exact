@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
 import {
 	exactComponentContract,
 	type ExactComponentContract
 } from '@exactjs/core/framework/component-contracts';
+import { describe, expect, it } from 'vitest';
 import { ssrRootExecutionBlueprint } from './render/root-execution-cache.js';
 import {
 	CachedDynamic,

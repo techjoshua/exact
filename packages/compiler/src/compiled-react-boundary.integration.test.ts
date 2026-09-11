@@ -60,7 +60,7 @@ describe('compiled direct React boundary', () => {
 		expect(compiled).not.toContain('component: Native');
 	});
 
-	it('compiles, mounts, updates, hydrates, and unmounts one mixed component', () => {
+	it('compiles, mounts, updates, hydrates, and unmounts one mixed component', async () => {
 		const client = compileMixedApp('client');
 		const serverApp = compileMixedApp('server');
 		const mounted = document.createElement('div');
@@ -80,7 +80,7 @@ describe('compiled direct React boundary', () => {
 		unmount(mounted);
 		expect(mounted.childNodes).toHaveLength(0);
 
-		const server = renderToString(createCompiledComponentReceipt(serverApp.App, null));
+		const server = await renderToString(createCompiledComponentReceipt(serverApp.App, null));
 		expect(server.html).not.toContain('Application error');
 		const hydrated = document.createElement('div');
 		hydrated.innerHTML = server.html;

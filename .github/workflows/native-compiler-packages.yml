@@ -8,10 +8,20 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish the staged platform packages to npm
+        description: Publish selected staged npm packages that are not already published
         required: false
         default: false
         type: boolean
+      packages:
+        description: Comma-separated public npm package names (empty selects all)
+        required: false
+        default: ''
+        type: string
+      abi_base:
+        description: Prior release commit or tag for ABI comparison (required when publishing)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -157,6 +167,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 26
@@ -172,6 +184,7 @@ jobs:
           npm run build:prerequisites
           npm run build:workspaces
       - run: npm run check:publish
+      - run: npm run check:security-audit
       - name: Package npm workspaces
         run: >-
           node scripts/package-release-npm.mjs
@@ -219,7 +232,7 @@ jobs:
           stage=".tmp/vscode-extension"
           rm -rf "$stage"
           mkdir -p "$stage"
-          cp packages/vscode-extension/{package.json,README.md,AGENTS.md} "$stage"
+          cp packages/vscode-extension/{package.json,README.md,AGENTS.md,LICENSE,NOTICE} "$stage"
           cp -R packages/vscode-extension/dist "$stage/dist"
           node -e \
             "const fs=require('node:fs');const file=process.argv[1];const manifest=JSON.parse(fs.readFileSync(file));manifest.name='exact-language-tools';delete manifest.devDependencies;delete manifest.files;delete manifest.scripts;fs.writeFileSync(file,JSON.stringify(manifest,null,'\t')+'\n')" \
@@ -238,7 +251,6 @@ jobs:
             cd "$stage"
             node "$GITHUB_WORKSPACE/node_modules/@vscode/vsce/vsce" package \
               --dependencies \
-              --skip-license \
               --out "$GITHUB_WORKSPACE/.tmp/release/exact-language-tools.vsix"
           )
       - name: Verify VS Code extension contents
@@ -254,7 +266,7 @@ jobs:
         working-directory: packages/chromium-devtools
         run: >-
           zip -qr ../../.tmp/release/exact-chromium-devtools.zip
-          manifest.json README.md AGENTS.md dist
+          manifest.json README.md AGENTS.md LICENSE NOTICE dist
       - uses: actions/upload-artifact@v4
         with:
           name: release-packages
@@ -263,31 +275,37 @@ jobs:
           if-no-files-found: error
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      RELEASE_ABI_BASE: ${{ inputs.abi_base || github.event.pull_request.base.sha || github.event.before || github.sha }}
+      RELEASE_ABI_REQUIRE_PRIOR: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
 
-  publish-native-packages:
-    name: Publish native packages
+  publish-npm-packages:
+    name: Publish selected npm packages
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
     needs:
       - package
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 26
           registry-url: https://registry.npmjs.org
+      - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v4
         with:
           name: release-packages
           path: .tmp/release
-      - name: Publish platform packages
+      - name: Publish selected packages
         shell: bash
         run: |
-          for package in .tmp/release/npm/exactjs-compiler-native-*.tgz
-          do
-            npm publish "$package"
-          done
+          selection=()
+          if [[ -n "$RELEASE_PACKAGES" ]]; then
+            selection+=("--packages=$RELEASE_PACKAGES")
+          fi
+          npm run release:publish -- --execute "${selection[@]}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_PACKAGES: ${{ inputs.packages }}
 
   publish-pages:
     name: Publish Pages apps

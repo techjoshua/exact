@@ -67,7 +67,7 @@ it('emits and publishes a real client remote exposure generation', async () => {
 			name: '@fixture/webpack-remote',
 			private: true,
 			type: 'module',
-			dependencies: { '@exactjs/microfrontends': '^0.1.0' }
+			dependencies: { '@exactjs/microfrontends': '^0.5.0' }
 		})
 	);
 	writeFileSync(
@@ -257,7 +257,7 @@ function createFixture(denied: boolean): { root: string } {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 2
+			exactComponentLibraryProtocol: 1
 		})
 	);
 	writeFileSync(
@@ -267,7 +267,7 @@ function createFixture(denied: boolean): { root: string } {
 			version: '1.0.0',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(
@@ -277,7 +277,7 @@ function createFixture(denied: boolean): { root: string } {
 	writeFileSync(
 		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
 		JSON.stringify({
-			protocol: 2,
+			protocol: 1,
 			package: { name: '@acme/cards', version: '1.0.0' },
 			modules: [
 				{

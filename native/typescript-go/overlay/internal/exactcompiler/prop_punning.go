@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // planPropPunning relies on TypeScript's JSX parser and scanner to own tags,
 // trivia, literals, templates, regular expressions, comments, and expression

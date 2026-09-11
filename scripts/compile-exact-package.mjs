@@ -231,8 +231,8 @@ function componentModuleFor(identity, targetDirectory, subpath, exportName) {
 async function writeComponentLibraryBuildFacts() {
 	const declaration = manifest.exactComponentLibrary;
 	if (!declaration) return;
-	if (declaration.protocol !== 2 || typeof declaration.build !== 'string')
-		throw new Error(`${manifest.name} must declare protocol-2 exactComponentLibrary.build`);
+	if (declaration.protocol !== 1 || typeof declaration.build !== 'string')
+		throw new Error(`${manifest.name} must declare protocol-1 exactComponentLibrary.build`);
 	if (!manifest.exactCompiledComponents)
 		throw new Error(`${manifest.name} component libraries must declare exactCompiledComponents`);
 	const { writeExactPublishedComponentBuildFacts } = await import(

@@ -169,7 +169,7 @@ source diagnostic. Nested explicit message boundaries are not merged: keep the m
 outer lexical range, or expose an independently translated component through a named
 `intl:fragment` when it must move within the enclosing translation.
 
-The native TypeScript-Go analyzer recognizes normalized text, shared scalar identifier/property bindings,
+The native native TypeScript analyzer recognizes normalized text, shared scalar identifier/property bindings,
 finite boolean/exact branches, cardinal and English ordinal fallback ternaries, movable direct intrinsic
 children, native `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Intl.RelativeTimeFormat`,
 `Intl.DisplayNames`, and `Intl.ListFormat` calls, and typed Temporal values. Date ranges and
@@ -454,7 +454,7 @@ or `u-ms` overrides. Applications only provide the finite, dimension-checked
 `IntlUnitPreferences` entries that intentionally override those defaults.
 
 `environment.setLocale(locale)` is reactive and atomic. Generated companions are discovered
-automatically; missing messages use the analyzed source plan. DOM, synchronous SSR, and hydration
+automatically; missing messages use the analyzed source plan. DOM, SSR, and hydration
 use the same plan and preserve direct-intrinsic identity across binding and locale changes.
 Translator data cannot provide functions, component identities, HTML, handlers, URLs, or undeclared
 bindings. Native `Intl` formatter instances live in one bounded, lazily created realm-wide cache

@@ -1,4 +1,4 @@
-import { markerPair } from '../markup.js';
+import { finalizedMarkerPair } from '../markers.js';
 import type { SsrContext } from '../types.js';
 import { ssrCapabilities } from './capability-registry.js';
 
@@ -26,5 +26,5 @@ export function renderPreparedResumableComponentBoundary(
 	props: Record<string, unknown>
 ): string {
 	const capability = ssrCapabilities[capabilityName] as ResumptionBoundaryCapability | undefined;
-	return capability?.(context, id, name, html, props) ?? markerPair(context, id, () => html);
+	return capability?.(context, id, name, html, props) ?? finalizedMarkerPair(context, id, html);
 }

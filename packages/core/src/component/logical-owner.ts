@@ -19,7 +19,7 @@ const unsupportedAttachment = () => {
 };
 
 const logicalOwnerContract = Object.freeze({
-	version: 3,
+	version: 1,
 	placement: 'client',
 	role: 'client',
 	implementations: [],

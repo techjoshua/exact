@@ -1,12 +1,14 @@
 {
 	"name": "@exactjs/intl-build",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Shared bundler orchestration for eXact internationalization artifacts",
 	"type": "module",
 	"files": [
 		"README.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -17,9 +19,9 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/intl": "^0.1.0",
-		"@exactjs/intl-analyzer": "^0.1.0",
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/intl": "^0.5.0",
+		"@exactjs/intl-analyzer": "^0.5.0",
 		"saxes": "^6.0.0"
 	},
 	"scripts": {
@@ -29,5 +31,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/intl-build"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

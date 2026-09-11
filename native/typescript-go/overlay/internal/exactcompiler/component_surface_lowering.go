@@ -1,7 +1,7 @@
 package exactcompiler
 
 import (
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // lowerComponentLifecycleCall wires canonical authored lifecycle operations directly to the

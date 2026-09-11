@@ -1,5 +1,5 @@
 import type { Component } from '@exactjs/core';
-import { renderToHydratableString, renderToHydratableStringAsync } from './index.js';
+import { renderToHydratableString } from './index.js';
 
 /** Compiler-backed conditional child used to verify emitted hydration range identity. */
 export function HydrationPanel(this: Component<{ show: boolean }>) {
@@ -21,35 +21,32 @@ export function PositionalPublishedRoot(
 	return () => <main>{props.label}</main>;
 }
 
-/** Exercises compiler-closed synchronous SSR with root-prop publication enabled. */
-export function renderPublishedRoot(label: string) {
-	return renderToHydratableString(<PublishedRoot label={label} />, { publishRootProps: true });
-}
-
-/** Exercises compiler-closed asynchronous SSR with root-prop publication enabled. */
-export function renderPublishedRootAsync(label: string) {
-	return renderToHydratableStringAsync(<PublishedRoot label={label} />, { publishRootProps: true });
+/** Exercises compiler-closed SSR with root-prop publication enabled. */
+export async function renderPublishedRoot(label: string) {
+	return await renderToHydratableString(<PublishedRoot label={label} />, {
+		publishRootProps: true
+	});
 }
 
 /** Exercises nested component-local positional root-prop publication. */
-export function renderPositionalPublishedRoot() {
-	return renderToHydratableString(
+export async function renderPositionalPublishedRoot() {
+	return await renderToHydratableString(
 		<PositionalPublishedRoot rows={[{ id: 'first', detail: { ready: true } }]} label="queue" />,
 		{ publishRootProps: true }
 	);
 }
 
 /** Exercises the named fallback when runtime data exceeds the finite authored shape. */
-export function renderMismatchedPositionalPublishedRoot() {
+export async function renderMismatchedPositionalPublishedRoot() {
 	const detail = { ready: true, source: 'runtime' } as { ready: boolean };
-	return renderToHydratableString(
+	return await renderToHydratableString(
 		<PositionalPublishedRoot rows={[{ id: 'first', detail }]} label="queue" />,
 		{ publishRootProps: true }
 	);
 }
 
 /** Exercises one normal read of a compiler-declared positional field. */
-export function renderAccessorPositionalPublishedRoot(onRead: () => void) {
+export async function renderAccessorPositionalPublishedRoot(onRead: () => void) {
 	const detail = {} as { ready: boolean };
 	Object.defineProperty(detail, 'ready', {
 		enumerable: true,
@@ -58,16 +55,16 @@ export function renderAccessorPositionalPublishedRoot(onRead: () => void) {
 			return true;
 		}
 	});
-	return renderToHydratableString(
+	return await renderToHydratableString(
 		<PositionalPublishedRoot rows={[{ id: 'first', detail }]} label="queue" />,
 		{ publishRootProps: true }
 	);
 }
 
 /** Exercises the named fallback when a runtime object substitutes another own field. */
-export function renderMissingPositionalPublishedRoot() {
+export async function renderMissingPositionalPublishedRoot() {
 	const detail = { source: true } as unknown as { ready: boolean };
-	return renderToHydratableString(
+	return await renderToHydratableString(
 		<PositionalPublishedRoot rows={[{ id: 'first', detail }]} label="queue" />,
 		{ publishRootProps: true }
 	);

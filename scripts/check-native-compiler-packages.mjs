@@ -18,7 +18,7 @@ const failures = [];
 for (const [platform, arch] of targets) {
 	const target = `${platform}-${arch}`;
 	const name = `@exactjs/compiler-native-${target}`;
-	const expectedVersion = `^${compiler.version}`;
+	const expectedVersion = compiler.version;
 	if (compiler.optionalDependencies?.[name] !== expectedVersion) {
 		failures.push(
 			`packages/compiler/package.json optionalDependencies.${name} must be ${expectedVersion}`
@@ -42,6 +42,8 @@ for (const [platform, arch] of targets) {
 		failures.push(`${target}: files must include ${expectedExecutable}`);
 	if (!template.files?.includes('LICENSE.typescript-go'))
 		failures.push(`${target}: files must include the TypeScript-Go license`);
+	if (!template.files?.includes('NOTICE.typescript'))
+		failures.push(`${target}: files must include upstream TypeScript notices`);
 }
 
 const expectedNames = new Set(

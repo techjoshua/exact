@@ -156,10 +156,13 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 	const aggregateMetrics = [
 		'processUserCpuPerRequestMs',
 		'processSystemCpuPerRequestMs',
-		'processTotalCpuPerRequestMs',
-		'garbageCollectionCount',
-		'garbageCollectionDurationMs'
+		'processTotalCpuPerRequestMs'
 	];
+	const hasGarbageCollection = Object.values(entries).every(
+		(entry) => selectLane(entry)?.garbageCollection?.available !== false
+	);
+	if (hasGarbageCollection)
+		aggregateMetrics.push('garbageCollectionCount', 'garbageCollectionDurationMs');
 	if (hasAggregateThroughput) aggregateMetrics.push('aggregateRequestsPerSecond');
 	if (hasMemory)
 		for (const field of memoryFields)
@@ -185,7 +188,7 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 		const workerCpuBatches = hasRawRequests
 			? batchedCpuPerRequest(lane.workerSamples, 5)
 			: undefined;
-		const metrics = requestMetrics(lane);
+		const metrics = requestMetrics(lane, hasGarbageCollection);
 		if (hasAggregateThroughput)
 			metrics.aggregateRequestsPerSecond = repeated(
 				lane.aggregateRequestsPerSecond,
@@ -283,7 +286,7 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 		});
 		aggregateRaw.push({
 			name: participantName,
-			samples: [aggregateSample(lane, hasMemory ? memoryFields : [])]
+			samples: [aggregateSample(lane, hasMemory ? memoryFields : [], hasGarbageCollection)]
 		});
 		artifactHashes[participantName] = raw.artifacts?.[runtime]?.[participantName]?.hash;
 		responseHashes[participantName] = entry.response?.hash;
@@ -316,7 +319,7 @@ function createSsrRequestSuite(raw, runtime, laneName, entries, selectLane) {
 	});
 }
 
-function requestMetrics(lane) {
+function requestMetrics(lane, hasGarbageCollection) {
 	return {
 		clientTtfbMs: withUnit(lane.client.ttfbMs, 'ms'),
 		clientTotalMs: withUnit(lane.client.totalMs, 'ms'),
@@ -331,8 +334,12 @@ function requestMetrics(lane) {
 		processUserCpuPerRequestMs: repeated(lane.cpuPerRequest.userMs, 'ms'),
 		processSystemCpuPerRequestMs: repeated(lane.cpuPerRequest.systemMs, 'ms'),
 		processTotalCpuPerRequestMs: repeated(lane.cpuPerRequest.totalMs, 'ms'),
-		garbageCollectionCount: repeated(lane.garbageCollection.count, 'count'),
-		garbageCollectionDurationMs: repeated(lane.garbageCollection.durationMs, 'ms')
+		...(hasGarbageCollection
+			? {
+					garbageCollectionCount: repeated(lane.garbageCollection.count, 'count'),
+					garbageCollectionDurationMs: repeated(lane.garbageCollection.durationMs, 'ms')
+				}
+			: {})
 	};
 }
 
@@ -343,7 +350,7 @@ function addMemoryMetrics(metrics, lane, fields) {
 	}
 }
 
-function aggregateSample(lane, memoryFields) {
+function aggregateSample(lane, memoryFields, hasGarbageCollection) {
 	const sample = {
 		...(Number.isFinite(lane.aggregateRequestsPerSecond)
 			? { aggregateRequestsPerSecond: lane.aggregateRequestsPerSecond }
@@ -351,8 +358,12 @@ function aggregateSample(lane, memoryFields) {
 		processUserCpuPerRequestMs: lane.cpuPerRequest.userMs,
 		processSystemCpuPerRequestMs: lane.cpuPerRequest.systemMs,
 		processTotalCpuPerRequestMs: lane.cpuPerRequest.totalMs,
-		garbageCollectionCount: lane.garbageCollection.count,
-		garbageCollectionDurationMs: lane.garbageCollection.durationMs
+		...(hasGarbageCollection
+			? {
+					garbageCollectionCount: lane.garbageCollection.count,
+					garbageCollectionDurationMs: lane.garbageCollection.durationMs
+				}
+			: {})
 	};
 	for (const field of memoryFields) {
 		sample[`memoryBefore${capitalize(field)}Bytes`] = lane.memoryBefore[field];

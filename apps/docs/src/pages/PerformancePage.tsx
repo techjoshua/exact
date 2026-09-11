@@ -1,3 +1,4 @@
+import streamReport from '../data/ssr-stream-report.json' with { type: 'json' };
 import { Chart, Legend, type ChartSeriesInput } from '@exactjs/charts';
 import type { Component } from '@exactjs/core';
 import reportJson from '../data/performance-report.json' with { type: 'json' };
@@ -92,10 +93,22 @@ export function PerformancePage(this: Component<{}>) {
 		<Article
 			eyebrow="Accepted performance evidence"
 			title="Browser experience and server capacity"
-			description="Current results from the balanced framework comparison, including aggregate server throughput, arithmetic means, and distribution percentiles."
+			description="Recorded results from the balanced framework comparison, including aggregate server throughput, arithmetic means, and distribution percentiles."
 			previous={{ path: '/framework-comparison', label: 'Read the benchmark methodology' }}
 			next={{ path: '/components/charts', label: 'Explore the chart components' }}
 		>
+			<Callout title="Rendering API scope">
+				<p>
+					String and streaming API results use separate charts. Each framework renders its complete
+					application document and hydration data. Browser measurements use string rendering. The
+					streaming lane includes eXact, React, and TanStack Start; the current Nuxt and SvelteKit
+					document paths do not expose an equivalent streaming API.
+				</p>
+				<p>
+					These complete-response charts predate eXact's shared renderer, early shell delivery, and
+					later SSR optimizations. New optimizations appear here after a full benchmark capture.
+				</p>
+			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">
 				{[
 					...ssrCapacityHighlights,
@@ -122,13 +135,13 @@ export function PerformancePage(this: Component<{}>) {
 
 			<MetricSection
 				title="Browser experience"
-				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures time until the browser's load event. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
+				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures time until the browser's load event. The eXact app defers document hydration, so this event does not mean hydration has finished. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
 				charts={report.browserCharts}
 			/>
 			<HeapComposition />
 			<SsrCapacity />
 			<MetricSection
-				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}`}
+				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}, string API`}
 				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection; it is distinct from the amount allocated while handling requests."
 				charts={[report.server.burst, report.server.sequential, report.server.retention]}
 			/>
@@ -138,8 +151,8 @@ export function PerformancePage(this: Component<{}>) {
 				delay reproduced on this Windows host.
 			</p>
 			<MetricSection
-				title={`Server response time and memory: Bun ${report.server.bun.runtime}`}
-				description="The same five-framework workload runs on Bun. All five participants use native Bun.serve: eXact's Bun adapter, React's Bun streaming renderer, SvelteKit's Bun adapter, and Nitro's Bun preset for Nuxt and TanStack Start. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
+				title={`Server response time and memory: Bun ${report.server.bun.runtime}, string API`}
+				description="The same five-framework workload runs on Bun. All five participants use native Bun.serve: eXact's Bun adapter, React's string renderer, SvelteKit's Bun adapter, and Nitro's Bun preset for Nuxt and TanStack Start. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
 				charts={[
 					report.server.bun.burst,
 					report.server.bun.sequential,
@@ -153,14 +166,40 @@ export function PerformancePage(this: Component<{}>) {
 				bursts, and {report.server.bun.retentionCheckpoints} retained-heap checkpoints per
 				framework.
 			</p>
+			<MetricSection
+				title={
+					'Server response time and memory: Node ' +
+					streamReport.metadata.ssrDiagnosticsEnvironment.runtimes.node +
+					', streaming API'
+				}
+				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start. Nuxt and SvelteKit are unavailable for this lane. This capture predates eXact's early shell publication."
+				charts={[
+					streamReport.server.burst,
+					streamReport.server.sequential,
+					streamReport.server.retention
+				]}
+			/>
+			<MetricSection
+				title={
+					'Server response time and memory: Bun ' +
+					streamReport.server.bun.runtime +
+					', streaming API'
+				}
+				description="The same streaming-API workload on native Bun servers. These results are separate from string rendering and from the sustained capacity captures."
+				charts={[
+					streamReport.server.bun.burst,
+					streamReport.server.bun.sequential,
+					streamReport.server.bun.retention
+				]}
+			/>
 			<ValueSection
-				title="Response payload: Node"
+				title="Response payload: Node, string API"
 				description="Complete response sizes include application markup and framework data. The composition chart separates semantic markup, document overhead, framework markers, identity attributes, and hydration data."
 				charts={report.server.bars}
 			/>
 			<ResponseComposition figure={report.server.responseComposition} runtimeId="node" />
 			<ValueSection
-				title="Response payload: Bun"
+				title="Response payload: Bun, string API"
 				description="Complete native Bun response sizes, including application markup and framework data."
 				charts={report.server.bun.bars}
 			/>
@@ -174,8 +213,9 @@ export function PerformancePage(this: Component<{}>) {
 				charts contain {report.metadata.browserSamples} samples per framework. Server latency charts
 				contain {report.metadata.ssrSequentialSamples} sequential requests and
 				{report.metadata.ssrBurstSamples} bursts per framework. Server memory uses
-				{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework. Sustained
-				capacity charts state their own measurement durations.
+				{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework. Capacity
+				charts state their durations. Incomplete telemetry rejects publication; request errors and
+				missed arrivals remain visible. Unavailable GC telemetry does not mean zero collections.
 			</p>
 		</Article>
 	);

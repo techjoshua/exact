@@ -1,7 +1,9 @@
 # eXact native compiler overlay
 
 This directory contains eXact-owned Go packages that are copied into a pinned
-TypeScript-Go checkout before building `exactc`.
+native TypeScript checkout before building `exactc`. The upstream is now
+`microsoft/TypeScript`; its Go module lives under `tsc/`. The local directory name
+is retained for repository continuity.
 
 TypeScript-Go intentionally keeps its AST, checker, transformer, and printer
 packages under Go's `internal` visibility rule. The overlay therefore has to be
@@ -37,11 +39,16 @@ sessions, compilation, validation, and timing aggregation so the release
 performance gate measures the native architecture rather than per-file
 JavaScript orchestration.
 
-Run `node scripts/build-native-compiler.mjs --source <typescript-go checkout>`
+Run `node scripts/build-native-compiler.mjs --source <TypeScript checkout>`
 to stage the overlay into a temporary worktree, run its Go tests, and build the
 host. Add `--package` to stage the current platform npm package, or pass
 `--platform` and `--arch` for one of the supported cross-compilation targets.
 Set `EXACT_GO` when `go` is not on `PATH`.
+Without an override, the checkout is stored at `.tmp/typescript-source`. The
+existing `EXACT_TYPESCRIPT_GO_SOURCE` override still accepts a repository root,
+which must match the pinned revision. Sparse checkouts retain the compiler and
+tool modules without materializing the upstream test corpus. Native packages
+include the upstream Apache license and `NOTICE.txt` attribution content.
 
 JavaScript plugins continue through the explicit compatibility host; native
 extensions are registered statically at build time. Dynamic Go plugins are

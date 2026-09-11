@@ -10,9 +10,9 @@ import { inspectionPageRoot as clientInspectionPageRoot } from './test-support/i
 import { hydrate } from './index.js';
 
 describe('@exactjs/hydrate inspection ownership', () => {
-	it('emits root hydration activation through the inherited component domain', () => {
+	it('emits root hydration activation through the inherited component domain', async () => {
 		const container = document.createElement('div');
-		container.innerHTML = renderToString(serverInspectionPageRoot).html;
+		container.innerHTML = (await renderToString(serverInspectionPageRoot)).html;
 		const inspection = createExactRuntimeInspectionOwner({
 			buildKey: 'client-build',
 			executionRoot: 'page'

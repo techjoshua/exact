@@ -1,10 +1,10 @@
+import { normalizeChildren } from '@exactjs/core';
+import type { ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
+import { readPreparedServerComponentReference } from '@exactjs/core/framework/server-render-structure';
 import {
 	readCompiledComponentReceipt,
 	type ExactComponentReceiptData
 } from '@exactjs/core/runtime/component-abi';
-import { readPreparedServerComponentReference } from '@exactjs/core/framework/server-render-structure';
-import type { ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
-import { normalizeChildren } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrComponentExecutionBlueprint } from './root-execution-cache.js';
 

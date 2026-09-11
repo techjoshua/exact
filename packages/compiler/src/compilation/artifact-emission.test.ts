@@ -544,12 +544,10 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(workspaceViewClient).toContain('[7, 0, 0]');
 		expect(workspaceViewClient).not.toContain('__exactClaimProgramKeyedChild');
 		expect(workspaceViewClient).toContain('directClaims: true');
-		expect(workspaceViewClient).not.toContain(
-			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
-		);
-		expect(workspaceViewServer).toContain(
-			'ssr: (__exactSsr, __exactContext, __exactInvocation) =>'
-		);
+		// Server writers may be resumable functions or synchronous arrows. Both
+		// belong exclusively to the server artifact, regardless of lowering syntax.
+		expect(workspaceViewClient).not.toMatch(/\bssr:\s*(?:function\b|\()/);
+		expect(workspaceViewServer).toMatch(/\bssr:\s*(?:function\b|\()/);
 		expect(workspaceViewClient).not.toContain('() => __exactVNode("div"');
 		expect(workspaceViewClient).toContain('__exact_visible_1.map(');
 		expect(workspaceViewClient).not.toContain('this.map(');
