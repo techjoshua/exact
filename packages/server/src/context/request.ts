@@ -1,3 +1,4 @@
+import { inheritRequestRenderScheduler } from '../framework/render-scheduling.js';
 import { type RequestResponseState } from '@exactjs/request';
 import type {
 	ExactContextRuntimeConfiguration,
@@ -24,6 +25,7 @@ export function createRequestLifetime(...signals: Array<AbortSignal | undefined>
 	const listeners = new Map<AbortSignal, () => void>();
 	for (const signal of signals) {
 		if (!signal) continue;
+		inheritRequestRenderScheduler(signal, controller.signal);
 		const abort = () => controller.abort(signal.reason);
 		if (signal.aborted) {
 			abort();

@@ -101,6 +101,27 @@ test('concurrency load validates all responses and drains owned requests', async
 	assert.equal(stage.intervals.at(-1).inFlight, 0);
 });
 
+test('sparse demand retires idle pooled sockets within the configured timeout', async (t) => {
+	const ports = new Set();
+	const url = await fixture(t, (_number, response) => {
+		ports.add(response.socket.remotePort);
+		response.end('fixture');
+	});
+	const stage = (
+		await runSsrLoadPlan({
+			url,
+			timeoutMs: 250,
+			maxLagMs: 250,
+			stages: [{ name: 'sparse', mode: 'arrival', rate: 1, durationMs: 1500 }]
+		})
+	).stages[0];
+	accounting(stage);
+	assert.equal(stage.errors, 0);
+	assert.equal(stage.valid, 2);
+	// An unbounded free pool keeps all sparse requests on the original socket until the server closes it.
+	assert.ok(ports.size >= 2, 'Idle sockets must expire before the next sparse request');
+});
+
 test('scheduled overload counts missed arrivals instead of falling back to closed-loop demand', async (t) => {
 	const url = await fixture(t, (n, response) =>
 		n === 1 ? response.end('fixture') : setTimeout(() => response.end('fixture'), 70)

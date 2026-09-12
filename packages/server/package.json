@@ -22,6 +22,10 @@
 		"./framework/trusted-handler": {
 			"types": "./dist/framework/trusted-handler.d.ts",
 			"default": "./dist/framework/trusted-handler.js"
+		},
+		"./framework/render-scheduling": {
+			"types": "./dist/framework/render-scheduling.d.ts",
+			"default": "./dist/framework/render-scheduling.js"
 		}
 	},
 	"main": "./dist/index.js",

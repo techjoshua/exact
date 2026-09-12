@@ -1,9 +1,13 @@
+import {
+	bindRequestRenderScheduler,
+	type RequestRenderScheduler
+} from '@exactjs/server/framework/render-scheduling';
 import type { ServerResponse } from 'node:http';
 import { AdaptiveRequestGate } from './adaptive-gate.js';
 import { createNodeRenderScheduler } from '../render-scheduler.js';
 
 const admissionOwner = Symbol('exact.node.admission');
-type AdmittedResponse = ServerResponse & { [admissionOwner]?: true };
+type AdmittedResponse = ServerResponse & { [admissionOwner]?: RequestRenderScheduler | false };
 
 /** Node HTTP controls. Node compatibility hosting on Bun defaults to immediate starts. */
 export interface NodeSchedulingOptions {
@@ -23,13 +27,22 @@ export function createNodeRequestAdmission(
 	const enqueue = createNodeRenderScheduler({ maxBatchSize: options.maxBatchSize });
 	const gate =
 		(options.adaptive ?? !('bun' in process.versions)) ? new AdaptiveRequestGate() : undefined;
+	const checkpoint: RequestRenderScheduler = (signal) => {
+		signal?.throwIfAborted();
+		return gate?.shouldSchedule() ? enqueue(signal) : undefined;
+	};
 	return (response, signal) => {
 		if (signal.aborted) return Promise.reject(signal.reason);
 		// An outer page host may dispatch to an eXact endpoint handler. Its request policy wins.
 		const owned = response as AdmittedResponse;
-		if (owned[admissionOwner]) return;
-		owned[admissionOwner] = true;
+		const existing = owned[admissionOwner];
+		if (existing !== undefined) {
+			if (existing) bindRequestRenderScheduler(signal, existing);
+			return;
+		}
+		owned[admissionOwner] = gate ? checkpoint : false;
 		if (!gate) return;
+		bindRequestRenderScheduler(signal, checkpoint);
 		const epoch = gate.observeRequest();
 		if (epoch !== undefined) {
 			const completed = () => {

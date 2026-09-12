@@ -9,7 +9,7 @@ import type { InitialData } from './types.js';
 
 /** Keeps host scheduling outside the authored document's serializable props. */
 export type ParticipantRenderOptions = DocumentOptions &
-	Pick<RenderToStringOptions, 'scheduleRender'>;
+	Pick<RenderToStringOptions, 'scheduleRender' | 'signal'>;
 
 /** Uses the public progressive HTML API with the same authored document and root props. */
 export function renderParticipantStream(
@@ -40,6 +40,7 @@ export async function renderParticipant(
 	return (
 		await renderToHydratableString(<IncidentApp initialData={initialData} path={path} />, {
 			publishRootProps: true,
+			signal: options?.signal,
 			scheduleRender: options?.scheduleRender,
 			documentShell: (application) => (
 				<Document clientTags={options?.clientTags}>{application}</Document>

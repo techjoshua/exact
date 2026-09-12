@@ -131,5 +131,12 @@ function requestBody(url, startedAt) {
 }
 
 function createClientAgent() {
-	return new Agent({ keepAlive: true, maxSockets: 128, maxFreeSockets: 128, scheduling: 'lifo' });
+	// Match the request timeout so Node also bounds idle pooling and honors shorter server hints.
+	return new Agent({
+		keepAlive: true,
+		timeout: 10_000,
+		maxSockets: 128,
+		maxFreeSockets: 128,
+		scheduling: 'lifo'
+	});
 }

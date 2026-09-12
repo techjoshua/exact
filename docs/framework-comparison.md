@@ -74,6 +74,20 @@ of being silently assigned to whichever framework ran last. SSR cold startup, re
 and intrusive CPU/allocation profiles remain isolated so their process ownership stays meaningful. An admitted
 historical eXact server artifact can also run in the same rounds for a direct before/current comparison.
 
+SSR measurement clients bound idle connection pooling with a finite agent timeout, allowing Node
+to retire free sockets before a shorter advertised server keep-alive timeout. The sustained driver
+uses its configured request deadline; the burst client uses ten seconds. Requests retain their
+existing deadlines and failures are not retried. Transport errors remain distinct from invalid
+responses and missed arrivals. Captures made before this pooling correction retain their original
+connection policy and error counts.
+
+For steady-state offered-load investigations, prepare the intended connection population gradually
+immediately before the measured stage and retain setup errors separately. A low-concurrency warmup
+can leave a larger pool idle long enough to expire. Abrupt pool expansion under overload is a
+different transport workload and should remain an explicit control rather than being silently
+replaced with prepared connections. See the
+[connection investigation](performance-baselines/ssr-followup-2026-09-12.md) for the measured distinction.
+
 Controlled browser results use captured production pages over real HTTP, with framework servers stopped.
 Each sample uses a fresh cache-disabled context in a warm browser process, after one discarded scenario per participant.
 Actions and live updates still use the shared service. `COMPARISON_CLIENT_MODE=live` retains a separate

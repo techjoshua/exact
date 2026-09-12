@@ -34,8 +34,9 @@ export function PerformancePage(this: Component<{}>) {
 					document paths do not expose an equivalent streaming API.
 				</p>
 				<p>
-					These complete-response charts predate eXact's shared renderer, early shell delivery, and
-					later SSR optimizations. New optimizations appear here after a full benchmark capture.
+					The SSR charts include eXact's shared renderer, early head delivery, and adaptive
+					scheduling at render entry and after pending component data settles. Browser charts retain
+					their separately dated capture.
 				</p>
 			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">
@@ -59,6 +60,12 @@ export function PerformancePage(this: Component<{}>) {
 					their primary marker. The tables give exact values without expanding each percentile into
 					a separate metric row. Historical and control-normalized comparisons remain part of the
 					internal engineering evidence rather than this public framework comparison.
+				</p>
+				<p>
+					Connection errors mean an HTTP connection could not be established or was interrupted.
+					They can involve server overload, runtime behavior, or client connection handling; the
+					count alone does not identify a rendering defect. Failed attempts remain counted without
+					retries, separately from missed arrivals.
 				</p>
 			</Callout>
 
@@ -101,7 +108,7 @@ export function PerformancePage(this: Component<{}>) {
 					streamReport.metadata.ssrDiagnosticsEnvironment.runtimes.node +
 					', streaming API'
 				}
-				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start. Nuxt and SvelteKit are unavailable for this lane. This capture predates eXact's early shell publication."
+				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start, including eXact's early head delivery. Nuxt and SvelteKit are unavailable for this lane."
 				charts={[
 					streamReport.server.burst,
 					streamReport.server.sequential,
@@ -135,8 +142,9 @@ export function PerformancePage(this: Component<{}>) {
 			<ResponseComposition figure={report.server.bun.responseComposition} runtimeId="bun" />
 
 			<p className="performance-evidence-note">
-				Browser evidence commit <code>{report.metadata.commit}</code>. SSR evidence commit{' '}
-				<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured{' '}
+				Browser evidence commit <code>{report.metadata.commit}</code>. SSR source snapshot
+				<code>{report.metadata.ssrSourceSha256.slice(0, 12)}</code>, based on commit
+				<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured
 				<time dateTime={report.metadata.browserCreatedAt}>{report.metadata.browserCreatedAt}</time>;
 				Node response-time, payload, and server-memory evidence captured{' '}
 				<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>. Browser

@@ -26,6 +26,6 @@ export async function renderParticipantBunResponse(
 			headers,
 			stream: renderParticipantStream(initialData, path, options, signal)
 		});
-	const rendered = await renderParticipant(initialData, path, options);
+	const rendered = await renderParticipant(initialData, path, { ...options, signal });
 	return exactResponseToBunResponse(createExactBufferedResponse(200, headers, [rendered]));
 }

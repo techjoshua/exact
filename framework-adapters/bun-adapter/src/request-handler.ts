@@ -1,3 +1,7 @@
+import {
+	bindRequestRenderScheduler,
+	type RequestRenderScheduler
+} from '@exactjs/server/framework/render-scheduling';
 import { BunRequestGate } from './adaptive-gate.js';
 import { createBunRenderScheduler } from './render-scheduler.js';
 
@@ -29,7 +33,7 @@ export function createBunRequestHandler<S extends BunRequestServer = BunRequestS
 	options: BunSchedulingOptions = {}
 ): (request: Request, server?: S) => Response | Promise<Response> {
 	const enqueue = createBunRenderScheduler(options);
-	const gates = new WeakMap<S, BunRequestGate>();
+	const gates = new WeakMap<S, { gate: BunRequestGate; checkpoint: RequestRenderScheduler }>();
 	return (request, server) => {
 		if (request.signal.aborted) return Promise.reject(request.signal.reason);
 		const owned = request as AdmittedRequest;
@@ -37,11 +41,20 @@ export function createBunRequestHandler<S extends BunRequestServer = BunRequestS
 		// A top-level page dispatcher owns admission when it calls an endpoint handler.
 		if (server) owned[admissionOwner] = true;
 		if (server && options.adaptive !== false) {
-			let gate = gates.get(server);
-			if (!gate) {
-				gate = new BunRequestGate(() => server.pendingRequests);
-				gates.set(server, gate);
+			let entry = gates.get(server);
+			if (!entry) {
+				const gate = new BunRequestGate(() => server.pendingRequests);
+				entry = {
+					gate,
+					checkpoint: (signal) => {
+						signal?.throwIfAborted();
+						return gate.shouldSchedule() ? enqueue(signal) : undefined;
+					}
+				};
+				gates.set(server, entry);
 			}
+			const { gate, checkpoint } = entry;
+			bindRequestRenderScheduler(request.signal, checkpoint);
 			gate.observeRequest();
 			if (gate.shouldSchedule())
 				return enqueue(request.signal).then(() => {

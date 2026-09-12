@@ -1,3 +1,4 @@
+import { withRequestRenderScheduling } from './resume-scheduling.js';
 import { withTaskObserver, type Child } from '@exactjs/core';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import { isExactDocumentHtml } from '../document.js';
@@ -38,6 +39,7 @@ export async function renderStringOutput(
 	omitRootBoundary = false,
 	outputKind: 'html' | 'stream' = 'html'
 ): Promise<RenderToStringResult> {
+	options = withRequestRenderScheduling(options);
 	if (options.scheduleRender) {
 		options.signal?.throwIfAborted();
 		const scheduled = options.scheduleRender(options.signal);
@@ -93,6 +95,7 @@ export async function renderHydratableOutput(
 	options: RenderToStringOptions & HydrationScriptOptions = {},
 	omitRootBoundary = false
 ): Promise<HydratableStringResult> {
+	options = withRequestRenderScheduling(options);
 	if (options.scheduleRender) {
 		options.signal?.throwIfAborted();
 		const scheduled = options.scheduleRender(options.signal);
@@ -135,6 +138,7 @@ export async function streamDocumentRender(
 	settleDocumentShell = false,
 	abort: (reason: unknown) => void = () => {}
 ): Promise<void> {
+	options = withRequestRenderScheduling(options);
 	if (options.scheduleRender) {
 		options.signal?.throwIfAborted();
 		const scheduled = options.scheduleRender(options.signal);

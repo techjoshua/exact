@@ -3,11 +3,14 @@ import { AsyncSsrScheduler } from './async-scheduler.js';
 
 it('starts available work immediately and admits waiting work in FIFO order', async () => {
 	const scheduler = new AsyncSsrScheduler(1);
-	const first = Promise.withResolvers<number>();
+	let resolveFirst!: (value: number) => void;
+	const first = new Promise<number>((resolve) => {
+		resolveFirst = resolve;
+	});
 	const starts: number[] = [];
 	const one = scheduler.run(() => {
 		starts.push(1);
-		return first.promise;
+		return first;
 	});
 	const two = scheduler.run(async () => {
 		starts.push(2);
@@ -18,15 +21,18 @@ it('starts available work immediately and admits waiting work in FIFO order', as
 		return 3;
 	});
 	expect(starts).toEqual([1]);
-	first.resolve(1);
+	resolveFirst(1);
 	expect(await Promise.all([one, two, three])).toEqual([1, 2, 3]);
 	expect(starts).toEqual([1, 2, 3]);
 });
 
 it('removes cancelled queued work without consuming a permit', async () => {
 	const scheduler = new AsyncSsrScheduler(1);
-	const first = Promise.withResolvers<void>();
-	const one = scheduler.run(() => first.promise);
+	let resolveFirst!: () => void;
+	const first = new Promise<void>((resolve) => {
+		resolveFirst = resolve;
+	});
+	const one = scheduler.run(() => first);
 	const controller = new AbortController();
 	const cancelledWork = vi.fn(async () => {});
 	const cancelled = scheduler.run(cancelledWork, controller.signal);
@@ -34,7 +40,7 @@ it('removes cancelled queued work without consuming a permit', async () => {
 	controller.abort('cancelled');
 	await rejection;
 	const next = scheduler.run(async () => 'next');
-	first.resolve();
+	resolveFirst();
 	await one;
 	expect(await next).toBe('next');
 	expect(cancelledWork).not.toHaveBeenCalled();

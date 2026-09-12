@@ -38,10 +38,11 @@ export type RenderToStringOptions = {
 	/** @internal Coordinates shell traversal with its single application hydration boundary. */
 	documentShellScope?: import('./render/document-shell.js').DocumentShellScope;
 	/**
-	 * Optional host-owned gate before initial rendering creates resources. Share
-	 * across requests for batching; receives the cancellation signal. Omitted means
-	 * start immediately. Return void to proceed synchronously, or a promise to delay
-	 * initial rendering and stream/head output until the host releases the request.
+	 * Host-owned gate at render entry and after pending component data settles. Share
+	 * across requests for batching; receives the cancellation signal. Defaults to the
+	 * adapter policy associated with the request signal, otherwise immediate work.
+	 * Return void to continue synchronously or a promise to wait. Ready component
+	 * work and transport drains do not add checkpoints. An explicit hook overrides the adapter.
 	 */
 	scheduleRender?: (signal?: AbortSignal) => void | Promise<void>;
 	/** Immutable runtime namespace used by partition markers. */

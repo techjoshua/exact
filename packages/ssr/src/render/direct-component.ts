@@ -55,7 +55,7 @@ export function executeDirectSsrComponent<Result>(
 	return mapRenderValue(
 		scalarPropsProven
 			? rawProps
-			: prepareComponentProps(rawProps, server.deferredTaskProps, options.signal),
+			: prepareComponentProps(rawProps, server.deferredTaskProps, options),
 		(props) => {
 			const stateless =
 				server.mode === 'stateless' &&

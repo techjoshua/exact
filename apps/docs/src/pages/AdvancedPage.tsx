@@ -175,8 +175,11 @@ export function AdvancedPage(this: Component<{}>) {
 					scheduling. The configurable <code>maxBatchSize</code> defaults to 32 starts per callback.
 					Trials can briefly be slower before backing off, so compare complete response p95/p99
 					alongside throughput for your workload. A low-level <code>scheduleRender</code> hook is
-					available for custom host policies; avoid adding a second scheduling gate inside an
-					automatically scheduled handler.
+					available for custom host policies. Forward the Node handler's signal or Bun's
+					<code>request.signal</code> to SSR to inherit adaptive scheduling at render entry and
+					after pending component data settles. Ready components continue immediately, and head
+					output can still precede pending body tasks. An explicit hook replaces the inherited
+					render policy; disable adapter admission when replacing its entire policy.
 				</p>
 			</section>
 

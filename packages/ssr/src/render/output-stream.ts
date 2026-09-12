@@ -1,3 +1,4 @@
+import { inheritRequestRenderScheduler } from '@exactjs/server/framework/render-scheduling';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import { positiveLimit } from '../stream/protocol.js';
 import type { Child, RenderToStringOptions, RenderToStringResult } from '../types.js';
@@ -15,6 +16,7 @@ export function renderToStream(
 ): ReadableStream<Uint8Array> {
 	const started = options.onProfile ? performance.now() : undefined;
 	const owner = new AbortController();
+	inheritRequestRenderScheduler(options.signal, owner.signal);
 	let render: Promise<RenderToStringResult> | undefined;
 	let chunks: readonly string[] | undefined;
 	let index = 0;

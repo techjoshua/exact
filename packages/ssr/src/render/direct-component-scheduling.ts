@@ -9,10 +9,10 @@ import {
 	type ServerComponentExecutionFrame
 } from '@exactjs/core/framework/server-component-execution';
 import type { SsrContext } from '../types.js';
+import { settleSsrReadiness } from './resume-scheduling.js';
 import { AsyncSsrScheduler } from './async-scheduler.js';
 import { prepareComponentProps } from './component-props.js';
 import { contextPublicationDependencies } from './context-publication-dependencies.js';
-import { awaitWithAbort } from './context.js';
 import { readDirectSsrContent } from './direct-component-content.js';
 import type {
 	DirectIssuedRender,
@@ -51,7 +51,7 @@ export function createDirectScheduledSsrComponent(
 	const server = blueprint.contract.artifact.execution;
 	if (server?.lane !== 'direct' || server.classification !== 'scheduled' || !server.render)
 		return undefined;
-	const preparedProps = prepareComponentProps(rawProps, server.deferredTaskProps, options.signal);
+	const preparedProps = prepareComponentProps(rawProps, server.deferredTaskProps, options);
 	return preparedProps &&
 		typeof (preparedProps as Promise<Record<string, unknown>>).then === 'function'
 		? Promise.resolve(preparedProps).then((props) =>
@@ -125,14 +125,10 @@ function constructDirectScheduledSsrComponent(
 	const owner = selectedDirectSsrOwner(blueprint.contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let renderedVersion = -1;
-	const drain = (pass = 0): boolean | Promise<boolean> => {
-		const pending = execution.blockingWork();
-		if (!pending) return renderedVersion !== execution.blockingVersion;
-		if (pass === context.maxTaskPasses)
-			throw new Error(`SSR task drain exceeded ${context.maxTaskPasses} passes`);
-		return awaitWithAbort(pending, options.signal, options.taskDeadline).then(() =>
-			drain(pass + 1)
-		);
+	const changed = () => renderedVersion !== execution.blockingVersion;
+	const drain = (): boolean | Promise<boolean> => {
+		const pending = settleSsrReadiness(execution, options, context.maxTaskPasses);
+		return pending instanceof Promise ? pending.then(changed) : changed();
 	};
 	const execution: ServerComponentExecutionFrame = createServerComponentExecutionFrame(frame, {
 		...(server.streamingDocument
