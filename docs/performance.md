@@ -13,7 +13,9 @@ Hydration remains before the closing tags. Compiler-proven static heads can prec
 blocking component tasks. The requested application owns hydration independently of an enclosing
 server document shell. The final Node HTTP capture uses automatic adapter admission by default.
 It retains scheduling only when completed-response capacity and event-loop lag improve against
-surrounding immediate controls. Native Bun retains immediate admission. The
+surrounding immediate controls. Native Bun now also enables adaptive admission through its Fetch
+adapter, using native request drain and event-loop delay. The capture linked above predates that Bun
+default change; its Bun results use immediate admission. The
 [adaptive controller investigation](performance-baselines/adaptive-default-node-2026-09-11.md)
 records workload changes, response tails, and rejected policies.
 
@@ -25,8 +27,13 @@ application throughput measurements.
 
 The [Bun admission recheck](performance-baselines/bun-admission-recheck-2026-09-11.md) finds a
 repeatable gain from batching before the native Fetch handler on the current small-document fixture.
-It is diagnostic evidence for a future adaptive policy, not a change to the shipping Bun default
-or the public benchmark baseline.
+It motivated the native adaptive admission policy, which retains scheduling only when trials beat
+both surrounding immediate controls. The historical capture itself is not the public benchmark baseline.
+
+The [native Bun admission implementation](performance-baselines/bun-adaptive-admission-2026-09-11.md)
+checks the automatic policy against its explicit opt-out on small and large documents. Small string
+and stream workloads retain batching; the large string workload rejects it. Native pending-request
+accounting preserves body streaming and provides a host-owned drain signal without wrapping Responses.
 
 The [Node admission miss investigation](performance-baselines/node-admission-misses-2026-09-11.md)
 traces excess scheduled-demand misses to repeated immediate control periods. The retained policy

@@ -101,7 +101,16 @@ export function AdvancedPage(this: Component<{}>) {
 					response writing. Quiet requests start immediately; busy hosts trial batched starts,
 					retain them when completion capacity and event-loop delay improve, and recheck successful
 					policies after 30 seconds. Lower throughput, increased event-loop delay, or idle traffic
-					can trigger earlier reassessment. Native Bun keeps its independent immediate default.
+					can trigger earlier reassessment.
+				</p>
+				<p>
+					Native Bun also adapts scheduling automatically. Use <code>createExactBunHandler()</code>
+					for endpoints or <code>createBunRequestHandler()</code> for a complete Fetch dispatcher.
+					Forward both request and server arguments through wrappers, and route all HTTP requests
+					through that dispatcher instead of a separate Bun routes map. Bun measures native request
+					drain and event-loop delay without wrapping response bodies. Sparse traffic stays
+					immediate;
+					<code>{'{ adaptive: false }'}</code> disables admission scheduling.
 				</p>
 				<p>
 					Server rendering produces HTML and public component state. Hydration adopts the existing

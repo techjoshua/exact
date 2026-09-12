@@ -4,7 +4,11 @@ import {
 	defineExactOperationContract,
 	exactResponseBodyOf
 } from '@exactjs/server';
-import { createExactBunHandler, exactResponseToBunResponse } from './index.js';
+import {
+	createBunRequestHandler,
+	createExactBunHandler,
+	exactResponseToBunResponse
+} from './index.js';
 
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
 
@@ -16,6 +20,40 @@ const testApi = (
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-adapter with Bun.serve', () => {
+	testApi.it('observes native pending bodies after the Fetch handler has returned', async () => {
+		let release!: () => void;
+		const pending = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const server = bunRuntime().serve({
+			port: 0,
+			fetch: createBunRequestHandler(
+				() =>
+					new Response(
+						new ReadableStream({
+							async start(controller) {
+								controller.enqueue(new TextEncoder().encode('head'));
+								await pending;
+								controller.close();
+							}
+						})
+					)
+			)
+		});
+		try {
+			const response = await fetch(server.url);
+			const native = server as typeof server & { pendingRequests: number };
+			testApi.expect(native.pendingRequests).toBe(1);
+			release();
+			testApi.expect(await response.text()).toBe('head');
+			for (let attempt = 0; native.pendingRequests && attempt < 50; attempt++)
+				await new Promise((resolve) => setTimeout(resolve, 2));
+			testApi.expect(native.pendingRequests).toBe(0);
+		} finally {
+			release();
+			await server.stop(true);
+		}
+	});
 	testApi.it(
 		'flushes the shell through native HTTP before pending production completes',
 		async () => {

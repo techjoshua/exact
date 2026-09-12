@@ -2,6 +2,7 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 if (!globalThis.Bun) throw new Error('The native Bun server worker requires the Bun runtime');
+const { createBunRequestHandler } = await import('@exactjs/bun-adapter');
 
 const fixture = requiredEnvironment('EXACT_SERVER_PERFORMANCE_FIXTURE');
 const moduleStarted = performance.now();
@@ -38,7 +39,7 @@ monitor.unref();
 const server = Bun.serve({
 	hostname: '127.0.0.1',
 	port: 0,
-	async fetch(request) {
+	fetch: createBunRequestHandler(async (request) => {
 		try {
 			const url = new URL(request.url);
 			if (url.pathname === '/__exact/reset') {
@@ -84,7 +85,7 @@ const server = Bun.serve({
 			errorCount++;
 			return new Response(error instanceof Error ? error.message : String(error), { status: 500 });
 		}
-	}
+	})
 });
 
 process.stdout.write(

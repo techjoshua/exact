@@ -14,15 +14,16 @@ export async function startSsrBenchmarkHost(options) {
 /** Starts Bun's native Fetch server without importing Node's HTTP compatibility module. */
 function startBunHost(options) {
 	if (!globalThis.Bun?.serve) throw new Error('bun-fetch transport requires Bun.serve');
+	const fetchHandler = async (request, server) => {
+		const pathname = new URL(request.url).pathname;
+		return pathname.startsWith('/__exact-benchmark/')
+			? options.handleFetchControl(request)
+			: options.handleFetchRequest(request, server);
+	};
 	const server = globalThis.Bun.serve({
 		hostname: '127.0.0.1',
 		port: options.port,
-		async fetch(request) {
-			const pathname = new URL(request.url).pathname;
-			return pathname.startsWith('/__exact-benchmark/')
-				? options.handleFetchControl(request)
-				: options.handleFetchRequest(request);
-		}
+		fetch: options.wrapFetchHandler ? options.wrapFetchHandler(fetchHandler) : fetchHandler
 	});
 	return {
 		port: Number(server.port ?? new URL(server.url).port),
