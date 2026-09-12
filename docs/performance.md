@@ -23,6 +23,11 @@ children. Public composition semantics are preserved, and large nested lists avo
 variadic-call argument limit. Focused allocation improvements are separate from the current
 application throughput measurements.
 
+The [Bun admission recheck](performance-baselines/bun-admission-recheck-2026-09-11.md) finds a
+repeatable gain from batching before the native Fetch handler on the current small-document fixture.
+It is diagnostic evidence for a future adaptive policy, not a change to the shipping Bun default
+or the public benchmark baseline.
+
 ## Earlier investigations
 
 The [full-document optimization capture](performance-baselines/post-shell-2026-09-09.md)
