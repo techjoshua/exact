@@ -71,14 +71,8 @@ export function claimCompiledRenderProgram(
 	};
 	if (program.wire) claimCompiledProgramWiring(program.wire, target);
 	else fixtureBinder!(target);
-	if (target.valid && target.began && target.parents.length === 0)
-		return {
-			elements: target.elements,
-			slotNodes: target.slotNodes,
-			componentSlots: target.componentSlots,
-			work: target.work,
-			...(target.textRuns ? { textRuns: target.textRuns } : {})
-		};
+	// The completed cursor already owns the result arrays; do not allocate a second wrapper.
+	if (target.valid && target.began && target.parents.length === 0) return target;
 	return undefined;
 }
 

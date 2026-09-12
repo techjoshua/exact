@@ -45,6 +45,11 @@ integrates those candidates, a teardown marker stack, and lazy tracking Sets. Fo
 measurements show approximately 6.5% less filtering allocation and 13.1% less selection allocation,
 with small timing differences. Neither investigation replaces the public benchmark charts.
 
+The [client reconciliation investigation](performance-baselines/client-reconciliation-2026-09-11.md)
+extends that work to 1,000-row browser workloads. Removing repeated component-root discovery during
+keyed sibling updates reduced the warmed all-label replacement case from 93.83 to 8.08 ms. The small
+incident fixture changed little, and public charts remain the last full-suite capture.
+
 ## Earlier investigations
 
 The [full-document optimization capture](performance-baselines/post-shell-2026-09-09.md)
