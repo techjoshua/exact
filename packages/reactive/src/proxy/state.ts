@@ -28,8 +28,6 @@ export const parentSourceCache = new WeakMap<
 >();
 /** Provides the canonical proxy refs value. */
 export const proxyRefs = new WeakMap<object, ReactiveRef>();
-/** Provides the canonical proxy sources value. */
-export const proxySources = new WeakMap<object, Set<ReactiveRef>>();
 /** Provides the canonical reactive raw objects value. */
 export const reactiveRawObjects = new WeakSet<object>();
 interface ListKeyRegistration {
