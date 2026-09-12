@@ -6,6 +6,7 @@ import { createGarbageCollectionMeter } from './garbage-collection-meter.mjs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createNodeHandler, writeNodeResponse } from '@exactjs/node-adapter';
+import { createBunRequestHandler } from '@exactjs/bun-adapter';
 import { createExactBufferedResponse } from '@exactjs/server';
 import { SsrPhaseTotals } from './ssr-load-statistics.mjs';
 import { createLoadErrorLog } from './ssr-load-errors.mjs';
@@ -69,7 +70,7 @@ eventLoopDelay?.enable();
 
 const participant = await createParticipantHandler(participantId);
 // The shipping Node request adapter owns automatic admission before eager rendering.
-// React and native Fetch participants retain their existing handlers.
+// Native Bun uses its shipping Fetch admission wrapper; React retains its existing handler.
 const nodeParticipant =
 	participantId === 'exact' && runtimeId === 'node'
 		? {
@@ -81,6 +82,8 @@ const nodeParticipant =
 		: participant;
 const host = await startSsrBenchmarkHost({
 	transport,
+	wrapFetchHandler:
+		participantId === 'exact' && runtimeId === 'bun' ? createBunRequestHandler : undefined,
 	loadEntry: participant.loadEntry,
 	installFetchHandler: participant.installFetchHandler,
 	port: requestedPort,

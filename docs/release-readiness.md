@@ -16,6 +16,11 @@ void and starts rendering without a scheduling suspension. Node request handlers
 adaptive admission before rendering; Bun configuration is independent. This replaces the unreleased
 promise-only declaration in the initial 0.5.0 contract.
 
+The Bun adapter also enables native adaptive admission by default. `createExactBunHandler` accepts
+optional scheduling controls, and `createBunRequestHandler` wraps a complete Fetch dispatcher.
+Forward Bun's server argument and observe all HTTP routes through that dispatcher. These are host
+API additions; compiler artifacts and hydration contracts are unchanged.
+
 The Node adapter's former `createNodeHandler` alias now wraps a custom Node application/page
 callback. Use `createExactNodeHandler` for an executor context. Both enable adaptive admission by
 default on Node and accept an explicit immediate override. The low-level `createNodeRenderScheduler`

@@ -29,11 +29,20 @@ handles framework endpoints; `createNodeHandler(handler)` wraps custom page/appl
 before their eager string rendering or streaming work starts. Create a handler once per host.
 Its callback receives a disconnect signal, which must be passed to pending rendering and output.
 A generic `writeNodeResponse()` call alone cannot schedule string rendering that already finished.
-Native Bun hosting retains immediate admission by default. `{ adaptive: false }` explicitly disables
-Node admission. Do not additionally install an always-yielding SSR hook inside an automatically
+Native Bun handlers also enable adaptive admission by default. `{ adaptive: false }` explicitly disables
+admission. Do not additionally install an always-yielding SSR hook inside an automatically
 scheduled handler.
 
-The adaptive controller starts monitoring after four closely spaced requests. Sparse requests do
+`createExactBunHandler(context)` handles framework endpoints; `createBunRequestHandler(handler)`
+wraps a complete native Fetch dispatcher. Pass both `(request, server)` through any wrapper and
+route every HTTP request through this dispatcher, without a separate Bun `routes` map. Calls
+without a native server remain immediate. The outer eXact handler owns admission for nested handlers.
+Bun uses observed arrivals plus the change in native `pendingRequests` to measure request drain.
+Returning a Response does not count as draining its body. Native departures include disconnects,
+so this is a capacity signal, not a successful-response counter or a client latency measurement.
+Scheduling never wraps, buffers, or coalesces response bodies. Each native host owns its controller.
+
+The Node adaptive controller starts monitoring after four closely spaced requests. Sparse requests do
 not create a histogram, timer, or scheduling promise. It samples every 250 ms. Immediate control
 windows finish after at least 250 ms and 100 completed responses, or after 750 ms when that count
 has not been reached. Scheduled trial and enabled-policy observation windows last at least 750 ms.
@@ -47,6 +56,11 @@ disabling useful scheduling. These windows do not impose a response deadline or 
 Each decision requires at least 100 completed responses in the compared windows. Quiet traffic
 resets the policy; an idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
+
+Bun uses the same trial windows, bounded start batches, idle cleanup, and backoff periods, but its
+samples use native departures rather than Node finish events. An open body remains pending across
+window boundaries. Changes in the native pending count account for requests that drain in a later
+window without mistaking Response creation for transmission completion.
 
 The controller does not equate handler duration with client latency. Immediate rendering can finish
 quickly inside a handler while requests wait in Node's networking queues before that handler runs.
