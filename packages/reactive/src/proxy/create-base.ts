@@ -17,7 +17,6 @@ import {
 	mutatingArrayMethods,
 	parentSourceCache,
 	proxyRefs,
-	proxySources,
 	reactiveRawObjects,
 	readonlyReactiveOptionsKey,
 	rootProxyCache,
@@ -347,7 +346,6 @@ function getCachedProxy(
 			if (unwrap(Reflect.get(oldSource.target, oldSource.key)) === raw) continue;
 			bySource.delete(oldSource);
 			bySource.set(source, proxy);
-			proxySources.set(proxy, new Set([source]));
 			proxyRefs.set(proxy, source);
 			return proxy;
 		}
@@ -376,15 +374,15 @@ function cacheProxy(
 }
 
 function registerProxySource(proxy: object, source: ReactiveRef): void {
-	proxySources.set(proxy, new Set([source]));
-	// ref(value) is primarily used immediately after obtaining value from its
-	// parent. Keep that exact path while property reads subscribe to every known
-	// alias, preventing retained aliases from silently losing updates.
+	// Aliases have distinct path-specific proxies. The retained ref is also the
+	// single parent dependency observed by reads through this proxy.
 	proxyRefs.set(proxy, source);
 }
 
+/** Observes the parent path owned by this proxy, including a migrated collection item. */
 function trackProxySources(proxy: object): void {
-	for (const source of proxySources.get(proxy) ?? []) track(source.target, source.key);
+	const source = proxyRefs.get(proxy);
+	if (source) track(source.target, source.key);
 }
 
 function normalizeDescriptor(descriptor: PropertyDescriptor): PropertyDescriptor {

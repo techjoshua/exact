@@ -39,8 +39,11 @@ all measured populations, missed arrivals, and connection errors visible.
 The [client V8 audit](performance-baselines/client-v8-2026-09-11.md) examines the shipped browser
 bundles, hydration, list filtering, and incident selection using bytecode, optimization traces,
 CPU profiles, and allocation sampling that includes collected objects. It identifies tracking
-and teardown storage as priorities and screens two isolated allocation candidates. Neither
-candidate is integrated, and the audit does not replace the public benchmark charts.
+and teardown storage as priorities and screens two isolated allocation candidates. The
+[client allocation follow-up](performance-baselines/client-v8-optimization-2026-09-11.md)
+integrates those candidates, a teardown marker stack, and lazy tracking Sets. Focused browser
+measurements show approximately 6.5% less filtering allocation and 13.1% less selection allocation,
+with small timing differences. Neither investigation replaces the public benchmark charts.
 
 ## Earlier investigations
 
