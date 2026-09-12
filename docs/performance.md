@@ -1,13 +1,43 @@
 # JavaScript performance measurement
 
+The [fresh client benchmark capture](performance-baselines/client-fresh-2026-09-12.md) is the current
+browser timing, startup CPU, and retained heap baseline. It includes all five frameworks, 30 browser
+timing samples per framework, ten startup samples at each of three CPU throttle rates, and five heap
+composition snapshots per framework. Browser and heap charts use this capture; startup profiles
+remain separately reported diagnostics. The SSR results below retain their independent capture.
+
+The [fresh SSR benchmark capture](performance-baselines/ssr-fresh-2026-09-12.md) is the current
+Node and native Bun SSR baseline. It repeats the full sweep with bounded idle pooling in the
+benchmark clients and unchanged framework artifacts. Primary offered-load results retain abrupt
+connection growth; separately reported controls prepare connections gradually. The capture includes
+both API modes, normal and preloaded loading, burst latency, startup, retention, and server
+diagnostics. Historical captures and client-side browser measurements remain available unchanged.
+
+The [SSR tail and connection investigation](performance-baselines/ssr-followup-2026-09-12.md)
+traces Node burst tails to the data-fetch path, confirms that Bun adaptive scheduling activates
+at concurrency 16, and separates connection-growth overload from steady-state capacity. Gradual
+pool preparation immediately before offered load removes the reproduced React connection refusals
+in both controls, including setup. A retained harness correction bounds idle socket pooling;
+historical reset failures remain unattributed. These focused controls supplement the full baseline
+without replacing its charts or removing its recorded errors.
+
+The [production SSR readiness checkpoint capture](performance-baselines/ssr-production-checkpoint-2026-09-12.md)
+is the preceding Node and native Bun SSR baseline. It includes adapter policy inheritance at render
+entry and after pending component data settles, with ready work remaining synchronous. All sixteen
+measurement stages and four focused control runs completed. Node normal streaming favors eXact;
+Bun normal streaming still favors React. Disabling the added checkpoint did not remove the Bun
+gap, and fresh Node controls did not reproduce eXact's earlier connection errors. The report retains
+all errors and missed arrivals without attributing unresolved differences to the checkpoint.
+Browser, startup, and heap charts retain their existing client capture.
+
 The [conditional await checkpoint experiment](performance-baselines/ssr-conditional-checkpoint-2026-09-12.md)
 tests a pass-through continuation helper after real HTTP data loading. Node string throughput
-and tail latency improve against surrounding controls. Compiler integration remains untested.
+and tail latency improve against surrounding controls. That focused experiment did not test component task resumption; the production capture above does.
 
 The [post-fetch adaptive scheduling experiment](performance-baselines/ssr-resume-admission-2026-09-12.md)
 finds a repeatable Node normal-loading gain by consulting the same admission policy again when
-data becomes ready to render. It remains a focused experiment; streaming tails are mixed and
-the full baseline charts and production defaults are unchanged.
+data becomes ready to render. That historical experiment left the baseline charts and production defaults unchanged; streaming
+tails were mixed. The production capture above supersedes it as the current SSR baseline.
 
 The [normal-loading SSR investigation](performance-baselines/ssr-data-path-2026-09-12.md)
 separates host data fetching from component tasks, tests admission and response-writing controls,
@@ -15,10 +45,10 @@ and records a small task scheduler allocation improvement. It does not replace t
 or claim that the remaining normal-loading throughput gap is solved.
 
 The [September 12 native Bun adaptive SSR capture](performance-baselines/bun-adaptive-ssr-2026-09-12.md)
-refreshes Node and native Bun capacity, response latency, memory, and server measurements with
+previously refreshed Node and native Bun capacity, response latency, memory, and server measurements with
 adaptive admission enabled by default on both hosts. The
-[full client capture](performance-baselines/client-full-2026-09-11.md) remains the source of browser,
-heap, and startup measurements. Every framework renders its own complete application document.
+[preceding client capture](performance-baselines/client-full-2026-09-11.md) remains historical browser,
+heap, and startup evidence. Every framework renders its own complete application document.
 String and streaming APIs remain separate on both runtimes; browser measurements use the string
 lane. eXact, React, and TanStack Start support both SSR lanes. Nuxt and SvelteKit expose string
 rendering only in this harness.

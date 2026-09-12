@@ -46,6 +46,7 @@ export interface PerformanceReport {
 	readonly metadata: {
 		readonly commit: string;
 		readonly ssrCommit: string;
+		readonly ssrSourceSha256: string;
 		readonly createdAt: string;
 		readonly browserCreatedAt: string;
 		readonly ssrCreatedAt: string;

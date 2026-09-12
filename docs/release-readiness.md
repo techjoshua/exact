@@ -14,7 +14,12 @@ not a reason to regenerate released ABI fixtures or add an obsolete implementati
 The initial SSR scheduling hook accepts `void | Promise<void>`. A ready adapter gate returns
 void and starts rendering without a scheduling suspension. Node request handlers now own default
 adaptive admission before rendering; Bun configuration is independent. This replaces the unreleased
-promise-only declaration in the initial 0.5.0 contract.
+promise-only declaration in the initial 0.5.0 contract. The hook now also governs resumption
+after pending component data settles. Omission inherits the adapter policy through the request
+signal. This intentionally replaces the unreleased entry-only hook semantics, without a new
+ABI epoch or a second generated renderer. Ship the server signal-policy bridge, SSR runtime,
+and adapter integration together. Compiler helper signatures and hydration representation
+are unchanged.
 
 The Bun adapter also enables native adaptive admission by default. `createExactBunHandler` accepts
 optional scheduling controls, and `createBunRequestHandler` wraps a complete Fetch dispatcher.

@@ -18,6 +18,8 @@ export async function runSsrLoadPlan(input, { signal, onInterval = () => {} } = 
 	const transport = url.protocol === 'https:' ? https : http;
 	const agent = new transport.Agent({
 		keepAlive: true,
+		// A finite bound lets Node retire free sockets before the server's keep-alive hint expires.
+		timeout: plan.timeoutMs,
 		maxSockets: plan.maxInFlight,
 		maxFreeSockets: plan.maxInFlight,
 		scheduling: 'lifo'

@@ -17,10 +17,15 @@ engine as streaming and progressive documents. Available component work runs imm
 waits only when required tasks or child output are pending. Await the result before reading its HTML.
 
 Node hosts use `createNodeHandler()` for custom pages or `createExactNodeHandler()` for framework
-endpoints. Those adapter handlers automatically trial scheduling under load and keep quiet requests
-immediate. Custom hosts can supply `scheduleRender(signal)` to defer initial rendering before
-resources are created; returning void proceeds immediately. Avoid adding this second gate inside
-an automatically scheduled Node handler. Native Bun retains independent immediate admission.
+endpoints. Native Bun hosts use the Bun adapter. These handlers automatically trial scheduling
+under load and keep quiet requests immediate. Forward the handler's request signal to SSR so
+render entry and pending component data reuse the same adaptive policy. Ready components and
+transport drains do not add checkpoints.
+
+Custom hosts can provide `scheduleRender(signal)`: return void to continue immediately or a
+promise to defer rendering. The hook also runs after pending component data settles. It overrides
+the inherited render policy; use `{ adaptive: false }` on the adapter when replacing its entire
+scheduling policy.
 
 Progressive HTML rendering supports `publishRootProps` too. An authored full document sends its
 rendered head and body content before hydration data, allowing earlier resource discovery. Hydration

@@ -1,3 +1,4 @@
+import { inheritRequestRenderScheduler } from '@exactjs/server/framework/render-scheduling';
 import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '@exactjs/core';
 import { findDocumentBodyClose, isExactDocumentHtml } from '../document.js';
 import { escapeAttr } from '../html.js';
@@ -20,6 +21,7 @@ export function cleanupAll(...callbacks: Array<() => void>): void {
 
 /** Forwards cancellation from the request signal into the progressive render controller. */
 export function forwardAbort(source: AbortSignal | undefined, target: AbortController): () => void {
+	inheritRequestRenderScheduler(source, target.signal);
 	if (!source) return () => undefined;
 	const abort = () => target.abort(source.reason);
 	if (source.aborted) abort();

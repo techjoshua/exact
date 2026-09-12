@@ -221,7 +221,8 @@ async function createParticipantHandler(id) {
 						initialData,
 						url.pathname,
 						benchmarkPayloadTarget(url),
-						renderParticipant
+						renderParticipant,
+						signal
 					);
 					await writeNodeResponse(response, result, signal, responseLogger);
 					return;
@@ -657,9 +658,15 @@ function jsonFetchResponse(value) {
 }
 
 /** Renders a complete string document before handing a buffered response to the Node adapter. */
-async function createExactBufferedDocument(initialData, path, payloadTarget, renderParticipant) {
+async function createExactBufferedDocument(
+	initialData,
+	path,
+	payloadTarget,
+	renderParticipant,
+	signal
+) {
 	const html = await measureAsyncPhase('renderMs', () =>
-		renderParticipant(initialData, path, documentOptions)
+		renderParticipant(initialData, path, { ...documentOptions, signal })
 	);
 	const renderedBytes = Buffer.byteLength(html);
 	const padding =

@@ -188,7 +188,9 @@ export function RuntimesPage(this: Component<{}>) {
 					validation through a zero-delay timer. On Windows hosts with coarse timer resolution, this
 					can add roughly 15 ms to sequential keep-alive requests. Bun's native fetch client does
 					not use that Undici path. See the{' '}
-					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>.
+					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>. Burst
+					completion also includes application data fetching. Its latency distribution should not be
+					read as rendering time alone.
 				</p>
 				<h2>Compiler and bundler integrations</h2>
 				<p>

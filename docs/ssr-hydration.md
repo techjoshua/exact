@@ -2,15 +2,31 @@
 
 Status: implemented foundation with the explicit limits listed below.
 
-## Host-controlled render starts
+## Host-controlled render checkpoints
 
-SSR options accept an optional `scheduleRender(signal): void | Promise<void>` gate. It runs once at
-initial string, hydratable string, or document-stream execution, before render-owner creation
-and hydration capture. Returning void proceeds without a suspension; a promise delays the shared
-renderer until the gate resolves.
-No gate runs when the option is omitted. Cancellation is checked before and after waiting;
-custom gates should also reject promptly and release their own queued resources on abort.
-Runtime configuration forwards this option to its rendering configuration.
+SSR accepts `scheduleRender(signal): void | Promise<void>` at initial string, hydratable
+string, or document-stream execution and after pending component data settles. Returning
+void continues synchronously. A promise delays CPU rendering until admission is available.
+Ready component work and transport backpressure do not add scheduling checkpoints.
+
+When the hook is omitted, SSR uses the adapter policy associated with its request signal.
+Custom Node handlers must forward the supplied signal; custom Bun pages must forward
+`request.signal`. The same host controller observes each request once and decides admission
+at render entry and data readiness. No response or component execution is shared. An explicit
+hook overrides the inherited render policy, but does not disable initial handler admission.
+Use `{ adaptive: false }` on the adapter when replacing its entire policy with a custom gate.
+
+The adapter and a separately bundled renderer share weak signal-to-policy associations in
+one realm. Derived request and stream cancellation scopes inherit the policy. Component
+frames do not allocate policy registries. The runtime consults admission after pending props
+or blocking component work settles, before executing dependent output. The compiler's
+existing immediate/pending continuation contract is sufficient; sink drains and parent
+completion propagation do not introduce additional checks. Static head publication before
+pending body tasks remains available. Queued resumption respects cancellation and the task
+deadline, and retains normal component cleanup on failure.
+
+Custom gates should reject promptly and release queued resources on abort. Runtime
+configuration forwards the hook to its rendering configuration.
 
 The Node adapter's `createNodeRenderScheduler({ maxBatchSize: 32 })` returns a gate suitable
 for sharing across a host's requests. It prefers `node:timers/promises`'s `scheduler.yield()`

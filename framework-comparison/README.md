@@ -131,6 +131,10 @@ diagnostics retain 100 ms windows. Their published percentiles
 describe a real population rather than repeating the maximum of a few samples.
 The runner writes a `.timed.json` checkpoint after each completed runtime before later diagnostics can fail,
 so a valid Node population is not discarded by a subsequent Bun transport error.
+SSR load clients use a finite agent timeout so idle sockets can expire before the server's
+advertised keep-alive limit. The sustained driver uses its request deadline, and the burst client
+uses ten seconds. Failed attempts are counted without retries; connection failures alone do not
+identify a framework rendering defect.
 Each participant declares its production transport for each runtime: native integrations such as eXact's
 `Bun.serve` lane are measured directly, while compatibility-only paths remain explicitly labeled. The report
 includes cold startup, warm sequential and concurrent request phases, CPU per request, post-GC memory trends,
