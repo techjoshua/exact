@@ -99,8 +99,9 @@ export function AdvancedPage(this: Component<{}>) {
 					handler with <code>createNodeHandler()</code> from <code>@exactjs/node-adapter</code>.
 					Create the handler once per host and forward its disconnect signal to rendering and
 					response writing. Quiet requests start immediately; busy hosts trial batched starts,
-					retain them when completion capacity and event-loop delay improve, and periodically
-					recheck. Native Bun keeps its independent immediate default.
+					retain them when completion capacity and event-loop delay improve, and recheck successful
+					policies after 30 seconds. Lower throughput, increased event-loop delay, or idle traffic
+					can trigger earlier reassessment. Native Bun keeps its independent immediate default.
 				</p>
 				<p>
 					Server rendering produces HTML and public component state. Hydration adopts the existing

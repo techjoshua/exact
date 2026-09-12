@@ -98,7 +98,12 @@ export class AdaptiveRequestGate {
 			this.restartBaseline(now);
 			return;
 		}
-		if (now - this.started < 750) return;
+		const elapsed = now - this.started;
+		const control = this.phase === 'baseline' || this.phase === 'after';
+		// Immediate controls can fill the host's request queue. End them promptly once enough
+		// responses establish a sample; lower-volume controls retain the longer collection window.
+		if (elapsed < (control ? 250 : 750)) return;
+		if (control && this.completions < 100 && elapsed < 750) return;
 		const sample: Sample = {
 			lag: this.delay!.percentile(95) / 1e6,
 			rate: (this.completions * 1000) / (now - this.started),
@@ -127,7 +132,9 @@ export class AdaptiveRequestGate {
 				this.controlRate = rate;
 				this.controlLag = lag;
 				this.phase = 'enabled';
-				this.until = now + 5000;
+				// Keep routine probes from repeatedly interrupting a healthy policy. Observation
+				// windows still reject lost capacity or lag benefits before this deadline.
+				this.until = now + 30_000;
 				this.backoff = 2000;
 			} else {
 				this.phase = 'baseline';

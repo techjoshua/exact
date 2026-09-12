@@ -28,6 +28,12 @@ repeatable gain from batching before the native Fetch handler on the current sma
 It is diagnostic evidence for a future adaptive policy, not a change to the shipping Bun default
 or the public benchmark baseline.
 
+The [Node admission miss investigation](performance-baselines/node-admission-misses-2026-09-11.md)
+traces excess scheduled-demand misses to repeated immediate control periods. The retained policy
+shortens adequately sampled controls and rechecks healthy scheduling after 30 seconds, while
+retaining earlier workload reassessment and idle cleanup. Focused before/after measurements include
+misses, errors, response tails, and unchanged React controls; they supplement the full-suite charts.
+
 ## Earlier investigations
 
 The [full-document optimization capture](performance-baselines/post-shell-2026-09-09.md)
