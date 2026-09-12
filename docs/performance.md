@@ -1,5 +1,9 @@
 # JavaScript performance measurement
 
+The [conditional await checkpoint experiment](performance-baselines/ssr-conditional-checkpoint-2026-09-12.md)
+tests a pass-through continuation helper after real HTTP data loading. Node string throughput
+and tail latency improve against surrounding controls. Compiler integration remains untested.
+
 The [post-fetch adaptive scheduling experiment](performance-baselines/ssr-resume-admission-2026-09-12.md)
 finds a repeatable Node normal-loading gain by consulting the same admission policy again when
 data becomes ready to render. It remains a focused experiment; streaming tails are mixed and
