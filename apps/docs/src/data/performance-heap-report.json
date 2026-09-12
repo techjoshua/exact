@@ -1,8 +1,8 @@
 {
 	"schemaVersion": 1,
 	"metadata": {
-		"createdAt": "2026-09-11T23:35:50.175Z",
-		"commit": "8aa16396c57360411dc6741af22fae38315aa9cc",
+		"createdAt": "2026-09-12T01:54:56.322Z",
+		"commit": "9a98803a68772e57af44b4be39963a5baed03561",
 		"workingTreeDirty": true,
 		"browserVersion": "149.0.7827.55",
 		"samplesPerFramework": 5,
@@ -106,6 +106,14 @@
 							}
 						},
 						{
+							"path": "/_app/immutable/chunks/BEkc52iU.js",
+							"bytes": 34435,
+							"sha256": "9929d618cb3858043dec98a819e1c24336c7f986536ba153c4e0309c6e967538",
+							"headers": {
+								"content-type": "text/javascript; charset=utf-8"
+							}
+						},
+						{
 							"path": "/_app/immutable/chunks/Bjy-W4x2.js",
 							"bytes": 1365,
 							"sha256": "f07424758318dd6b5f32b0fe8de9d2ffb8d97a17c841758626d18ba0faa0456a",
@@ -117,14 +125,6 @@
 							"path": "/_app/immutable/chunks/BlXBKPhq.js",
 							"bytes": 38,
 							"sha256": "438eda46a601c6ffb484611c9197655669ee07a4573effbcf4922ba38c39e6fa",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/chunks/Dkqg7gXX.js",
-							"bytes": 34435,
-							"sha256": "230f515d654ecd3007e45881f908f4eaeab54e29f02e3c5ebbe917620247a692",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -146,17 +146,17 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/app.DRAT6A3E.js",
+							"path": "/_app/immutable/entry/app.ClazhO2d.js",
 							"bytes": 4133,
-							"sha256": "f43a5e31c2b257a95cb93e5d6286350b347c3d12a941eebd52a866e09fc7279a",
+							"sha256": "a3bafa1da674e86f68db91228116e247e91d107bfd960510243dab1e086e4314",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/start.BnYYDm7T.js",
+							"path": "/_app/immutable/entry/start.eRyQBqqu.js",
 							"bytes": 77,
-							"sha256": "c4dc5452787fbf0384359c418e21c7dae223a8ad1bc4bb5964f1c1988b5a7668",
+							"sha256": "205f7c579f5693370ac648da6fa70aa21c20f45f1851eb25ed3b25ba6a745bbe",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -170,9 +170,9 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/nodes/1.B4WWrd5N.js",
+							"path": "/_app/immutable/nodes/1.CMHxyCVY.js",
 							"bytes": 597,
-							"sha256": "8efd773fe3d73ad2a2ac8f4491d9b18599d25479bfb80bf87e8bed79afec34b3",
+							"sha256": "a7151128a397a7e55c3b401086c467dfc3ee506428a085d629854603343ca352",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -196,7 +196,7 @@
 						{
 							"path": "/_app/version.json",
 							"bytes": 27,
-							"sha256": "04e7a64a45168ace6cb3203bdc98f3be5dc0f1221f3f086f71e16d7097889d37",
+							"sha256": "2a25e6de6ff50b8ac042d56cb9c7625369b11dc079e93193677533be14baa3be",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -204,11 +204,11 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4064,
-							"sha256": "636f5885efba08011325d79079064a8638c8e77058977ad5ded8c288b4cd56ee",
+							"sha256": "29f98353fcc8b66272717f516d5f1bf1479ab73d3f0e759b4ca0350e34454daa",
 							"headers": {
 								"content-type": "text/html",
-								"etag": "\"1xirqqb\"",
-								"link": "<../_app/immutable/assets/0.BJKxxgwL.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.BnYYDm7T.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/Dkqg7gXX.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.DRAT6A3E.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.CgQsc1AC.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+								"etag": "\"h1lnxv\"",
+								"link": "<../_app/immutable/assets/0.BJKxxgwL.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.eRyQBqqu.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BEkc52iU.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.ClazhO2d.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.CgQsc1AC.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
 								"x-comparison-render": "ssr",
 								"x-sveltekit-page": "true"
 							}
@@ -230,15 +230,15 @@
 						{
 							"path": "/_nuxt/builds/latest.json",
 							"bytes": 71,
-							"sha256": "a299205bc80f9c7fb9b0471bb1fa4168d960aa5e916a2bf5c60f3bd0c75fb7e8",
+							"sha256": "8f2f1ea4c0e31c5d9fe37c9dbcef11566b71ee25caa64c9d6d53400f313d1f44",
 							"headers": {
 								"content-type": "application/json"
 							}
 						},
 						{
-							"path": "/_nuxt/builds/meta/df310697-859f-43f1-917e-af1d3b74a454.json",
+							"path": "/_nuxt/builds/meta/e22b2b31-b113-414b-993c-b5fa2053a082.json",
 							"bytes": 88,
-							"sha256": "21eeb2226d8ea1c1b78ebc907fff5b9b6e0ea456baaa00eba06213cf61fe16e6",
+							"sha256": "ef3dd43e38a217afc356ac6cba1564243c0625a9d11328cce486b3c2cad11b2b",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -302,7 +302,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4464,
-							"sha256": "d37d8d7c2a156eee531498a07fb9aafc743ccbe37a6feccaa710cf3cd182e04a",
+							"sha256": "409a8508fab9ba73f5ea7c04ccd368eb8e7c4a933a1a0fc0c0c34b8dc2d421a7",
 							"headers": {
 								"content-type": "text/html;charset=utf-8",
 								"x-powered-by": "Nuxt"
@@ -349,7 +349,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 5195,
-							"sha256": "6c1fd3a5fc65eee96823940ff22c9073392892da76d16753ada2c83f9d284f46",
+							"sha256": "3d0f8874a22cd22199e7e678f9295fb068a0e64b2434f4d34ce097464dae523c",
 							"headers": {
 								"content-type": "text/html; charset=utf-8",
 								"x-comparison-render": "ssr"
@@ -370,11 +370,11 @@
 			},
 			{
 				"name": "SvelteKit",
-				"artifactHash": "39d3c2dd5e34b01857d94c2055d78141eff87d034d6ee36115613488f8801c7f"
+				"artifactHash": "b3984dd47bf8f48d20b99b78d34f3a1948e3482d362999afa6f36eb3c4b64d00"
 			},
 			{
 				"name": "Nuxt",
-				"artifactHash": "d306735289c711085b0396f1e6c4f0b343da3269d10f196b4b4984a53804be2f"
+				"artifactHash": "8045f2711446db4e67161f89c410fe55129a868949c887a87aa17c514566e7c8"
 			},
 			{
 				"name": "TanStack Start",
@@ -401,16 +401,16 @@
 		},
 		{
 			"name": "Strings / source text",
-			"values": [0.096656, 0.102016, 0.080244, 0.08768, 0.120244]
+			"values": [0.096656, 0.1020128, 0.080244, 0.08768, 0.1202424]
 		},
 		{
 			"name": "Native nodes",
-			"values": [0.919326, 0.922562, 0.710532, 0.7815002, 1.1830008]
+			"values": [0.9192604, 0.9224954000000001, 0.7104008, 0.781697, 1.1830003999999998]
 		},
 		{
 			"name": "Other nodes",
-			"values": [0.00116, 0.00056, 0.00128, 0.00074, 0.0007016]
+			"values": [0.00116, 0.0005576, 0.00128, 0.00074, 0.000704]
 		}
 	],
-	"totals": [2.211486, 1.98825, 1.57888, 1.8865082, 2.6964104]
+	"totals": [2.2114203999999997, 1.9881778000000003, 1.5787488, 1.886705, 2.6964107999999998]
 }
