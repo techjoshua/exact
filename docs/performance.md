@@ -1,5 +1,10 @@
 # JavaScript performance measurement
 
+The [normal-loading SSR investigation](performance-baselines/ssr-data-path-2026-09-12.md)
+separates host data fetching from component tasks, tests admission and response-writing controls,
+and records a small task scheduler allocation improvement. It does not replace the full baseline
+or claim that the remaining normal-loading throughput gap is solved.
+
 The [September 12 native Bun adaptive SSR capture](performance-baselines/bun-adaptive-ssr-2026-09-12.md)
 refreshes Node and native Bun capacity, response latency, memory, and server measurements with
 adaptive admission enabled by default on both hosts. The

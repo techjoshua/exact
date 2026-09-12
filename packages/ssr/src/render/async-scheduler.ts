@@ -12,11 +12,13 @@ export class AsyncSsrScheduler {
 				: 4;
 	}
 
-	/** Runs one operation after acquiring a request-owned slot and always releases it. */
+	/** Starts ready work immediately when a slot is free; queued work waits for its FIFO permit. */
 	async run<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
 		if (signal?.aborted)
 			throw signal.reason ?? new DOMException('SSR render aborted', 'AbortError');
-		await this.acquire(signal);
+		const pending = this.acquire(signal);
+		// A free permit requires no promise or microtask before starting the task's I/O.
+		if (pending) await pending;
 		try {
 			return await work();
 		} finally {
@@ -31,14 +33,15 @@ export class AsyncSsrScheduler {
 			return await work();
 		} finally {
 			// Reacquire unconditionally so the outer run still owns the permit it releases.
-			await this.acquire();
+			const pending = this.acquire();
+			if (pending) await pending;
 		}
 	}
 
-	private acquire(signal?: AbortSignal): Promise<void> {
+	private acquire(signal?: AbortSignal): void | Promise<void> {
 		if (this.active < this.limit) {
 			this.active++;
-			return Promise.resolve();
+			return;
 		}
 		return new Promise<void>((resolve, reject) => {
 			let settled = false;
