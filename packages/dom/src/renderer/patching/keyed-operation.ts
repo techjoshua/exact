@@ -35,7 +35,9 @@ export function patchKeyedOperation(
 		parentInstance,
 		nextScope,
 		undefined,
-		structuralOwner
+		structuralOwner,
+		// The enclosing sibling pass publishes completion after every keyed child is patched.
+		false
 	);
 	if (patchedChildren.length !== 1)
 		throw new Error('A keyed compiler operation must contribute one child range');
