@@ -34,12 +34,16 @@ Node admission. Do not additionally install an always-yielding SSR hook inside a
 scheduled handler.
 
 The adaptive controller starts monitoring after four closely spaced requests. Sparse requests do
-not create a histogram, timer, or scheduling promise. It samples every 250 ms and evaluates 750 ms
-observation windows. Two high-lag baseline windows and enough completed responses trigger a trial.
+not create a histogram, timer, or scheduling promise. It samples every 250 ms. Immediate control
+windows finish after at least 250 ms and 100 completed responses, or after 750 ms when that count
+has not been reached. Scheduled trial and enabled-policy observation windows last at least 750 ms.
+Two high-lag baseline windows and enough completed responses trigger a trial.
 After a settling interval, it compares the trial's completed-response rate and p95 event-loop delay
 with immediate controls on both sides. Higher rate and lower lag than both controls retain scheduling; unsuccessful
 trials back off for two seconds, increasing up to 30 seconds. Successful trials are reassessed after
-five seconds, or sooner when an observation window loses the established capacity or lag benefit.
+30 seconds, or sooner when an observation window loses the established capacity or lag benefit.
+Shorter immediate controls and less frequent routine probes limit the queueing caused by temporarily
+disabling useful scheduling. These windows do not impose a response deadline or share rendered responses.
 Each decision requires at least 100 completed responses in the compared windows. Quiet traffic
 resets the policy; an idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
