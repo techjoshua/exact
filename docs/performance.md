@@ -36,6 +36,12 @@ misses, errors, response tails, and unchanged React controls; they supplement th
 The full capture linked above refreshes those charts with the retained admission policy and keeps
 all measured populations, missed arrivals, and connection errors visible.
 
+The [client V8 audit](performance-baselines/client-v8-2026-09-11.md) examines the shipped browser
+bundles, hydration, list filtering, and incident selection using bytecode, optimization traces,
+CPU profiles, and allocation sampling that includes collected objects. It identifies tracking
+and teardown storage as priorities and screens two isolated allocation candidates. Neither
+candidate is integrated, and the audit does not replace the public benchmark charts.
+
 ## Earlier investigations
 
 The [full-document optimization capture](performance-baselines/post-shell-2026-09-09.md)
