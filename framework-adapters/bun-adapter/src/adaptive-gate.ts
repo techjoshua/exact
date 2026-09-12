@@ -1,4 +1,5 @@
-import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
+import { performance } from 'node:perf_hooks';
+import { BunEventLoopObserver } from './event-loop-observer.js';
 
 type Phase = 'baseline' | 'settle' | 'trial' | 'after' | 'enabled';
 type Sample = { lag: number; rate: number; count: number };
@@ -11,7 +12,7 @@ type Sample = { lag: number; rate: number; count: number };
  * Sparse traffic creates no histogram or timer. Idle monitoring disables and releases its timer.
  */
 export class BunRequestGate {
-	private delay: ReturnType<typeof monitorEventLoopDelay> | undefined;
+	private delay: BunEventLoopObserver | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private lastRequest = -Infinity;
 	private recentRequests = 0;
@@ -46,7 +47,7 @@ export class BunRequestGate {
 		this.recentRequests = now - this.lastRequest > 250 ? 1 : this.recentRequests + 1;
 		this.lastRequest = now;
 		if (this.recentRequests < 4) return;
-		this.delay ??= monitorEventLoopDelay({ resolution: 2 });
+		this.delay ??= new BunEventLoopObserver();
 		this.delay.enable();
 		this.resetWindow(now);
 		this.timer = setInterval(() => this.sample(), 250);

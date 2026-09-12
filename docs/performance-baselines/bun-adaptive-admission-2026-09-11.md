@@ -1,5 +1,10 @@
 # Automatic native Bun admission, September 11, 2026
 
+These initial policy screens used Bun's shared native event-loop observer. A later full SSR run
+exposed interference between admission idle cleanup and unrelated monitoring. The independently
+owned sampler and its repeated measurements supersede that observer implementation; the original
+screens remain historical evidence for the admission policy.
+
 Native Bun handlers now enable adaptive admission by default. The Fetch dispatcher observes all
 request starts and derives native drain from Bun's pending-request counter. Handler resolution does
 not count as transmission completion. Native drain includes disconnects, so errors and client tails

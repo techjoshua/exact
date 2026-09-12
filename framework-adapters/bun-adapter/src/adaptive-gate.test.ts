@@ -2,11 +2,18 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BunRequestGate } from './adaptive-gate.js';
 
 const probe = vi.hoisted(() => ({ lag: 4, create: vi.fn(), disable: vi.fn() }));
-vi.mock('node:perf_hooks', () => ({
-	performance: { now: () => Date.now() },
-	monitorEventLoopDelay: () => {
-		probe.create();
-		return { enable() {}, disable: probe.disable, reset() {}, percentile: () => probe.lag * 1e6 };
+vi.mock('node:perf_hooks', () => ({ performance: { now: () => Date.now() } }));
+vi.mock('./event-loop-observer.js', () => ({
+	BunEventLoopObserver: class {
+		constructor() {
+			probe.create();
+		}
+		enable() {}
+		disable = probe.disable;
+		reset() {}
+		percentile() {
+			return probe.lag * 1e6;
+		}
 	}
 }));
 

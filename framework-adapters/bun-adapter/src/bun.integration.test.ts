@@ -10,6 +10,9 @@ import {
 	exactResponseToBunResponse
 } from './index.js';
 
+import { monitorEventLoopDelay } from 'node:perf_hooks';
+import { BunEventLoopObserver } from './event-loop-observer.js';
+
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
 
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
@@ -20,6 +23,44 @@ const testApi = (
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-adapter with Bun.serve', () => {
+	testApi.it('keeps application monitoring active after a busy host becomes idle', async () => {
+		const native = monitorEventLoopDelay({ resolution: 1 });
+		const server = bunRuntime().serve({
+			port: 0,
+			fetch: createBunRequestHandler(() => new Response('ready'))
+		});
+		native.enable();
+		try {
+			await Promise.all(Array.from({ length: 8 }, async () => (await fetch(server.url)).text()));
+			await new Promise((resolve) => setTimeout(resolve, 800));
+			native.reset();
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			testApi.expect(native.count).toBeGreaterThan(0);
+		} finally {
+			await server.stop(true);
+			native.disable();
+		}
+	});
+	testApi.it(
+		'releases admission monitoring without disabling unrelated native monitors',
+		async () => {
+			const native = monitorEventLoopDelay({ resolution: 1 });
+			const admission = new BunEventLoopObserver();
+			native.enable();
+			admission.enable();
+			try {
+				await new Promise((resolve) => setTimeout(resolve, 30));
+				testApi.expect(admission.percentile(95)).toBeGreaterThan(0);
+				admission.disable();
+				native.reset();
+				await new Promise((resolve) => setTimeout(resolve, 30));
+				testApi.expect(native.count).toBeGreaterThan(0);
+			} finally {
+				admission.disable();
+				native.disable();
+			}
+		}
+	);
 	testApi.it('observes native pending bodies after the Fetch handler has returned', async () => {
 		let release!: () => void;
 		const pending = new Promise<void>((resolve) => {
