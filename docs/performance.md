@@ -1,6 +1,6 @@
 # JavaScript performance measurement
 
-The [September 11 Node admission capture](performance-baselines/admission-full-2026-09-11.md)
+The [September 11 full client-optimization capture](performance-baselines/client-full-2026-09-11.md)
 refreshes browser, heap, startup, Node, native Bun, and root
 framework measurements. Publication and final verification are complete. Every framework renders
 its own complete application document. String and streaming APIs remain separate on both runtimes;
@@ -43,12 +43,15 @@ and teardown storage as priorities and screens two isolated allocation candidate
 [client allocation follow-up](performance-baselines/client-v8-optimization-2026-09-11.md)
 integrates those candidates, a teardown marker stack, and lazy tracking Sets. Focused browser
 measurements show approximately 6.5% less filtering allocation and 13.1% less selection allocation,
-with small timing differences. Neither investigation replaces the public benchmark charts.
+with small timing differences. The full capture linked above refreshes the public charts with these
+changes included; the focused investigations remain separate evidence.
 
 The [client reconciliation investigation](performance-baselines/client-reconciliation-2026-09-11.md)
 extends that work to 1,000-row browser workloads. Removing repeated component-root discovery during
 keyed sibling updates reduced the warmed all-label replacement case from 93.83 to 8.08 ms. The small
-incident fixture changed little, and public charts remain the last full-suite capture.
+incident fixture changed little. The full capture linked above measures the retained implementation
+across the entire suite without applying the larger workload's improvement percentage to the small
+application fixture.
 
 ## Earlier investigations
 

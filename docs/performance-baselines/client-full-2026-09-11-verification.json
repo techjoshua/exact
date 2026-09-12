@@ -1,0 +1,183 @@
+{
+  "builds": [
+    {
+      "name": "workspace-build",
+      "startedAt": "2026-09-12T04:23:39.710Z",
+      "pid": 13696,
+      "code": 0,
+      "endedAt": "2026-09-12T04:25:09.257Z"
+    },
+    {
+      "name": "comparison-build",
+      "startedAt": "2026-09-12T04:25:09.258Z",
+      "pid": 17828,
+      "code": 0,
+      "endedAt": "2026-09-12T04:25:27.774Z"
+    },
+    {
+      "name": "bun-build",
+      "startedAt": "2026-09-12T04:25:27.775Z",
+      "pid": 21436,
+      "code": 0,
+      "endedAt": "2026-09-12T04:25:40.062Z"
+    }
+  ],
+  "checks": [
+    {
+      "name": "artifacts",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\client-full/verify-artifacts.mjs"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T05:18:30.056Z",
+      "pid": 18776,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:18:30.175Z"
+    },
+    {
+      "name": "publish",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\client-full/publish.mjs"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T05:18:30.176Z",
+      "pid": 9404,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:18:30.518Z"
+    },
+    {
+      "name": "report",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\client-full/write-report.py"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T05:18:30.519Z",
+      "pid": 11356,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:18:30.735Z"
+    },
+    {
+      "name": "format",
+      "args": [
+        "node_modules/prettier/bin/prettier.cjs",
+        "--write",
+        "docs/performance-baselines/client-full-2026-09-11.md",
+        "apps/docs/src/data/*.json"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T05:18:30.735Z",
+      "pid": 6080,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:18:30.983Z"
+    },
+    {
+      "name": "comparison-tests",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:framework-comparison"
+      ],
+      "nodeEnv": "test",
+      "startedAt": "2026-09-12T05:18:30.983Z",
+      "pid": 23076,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:18:34.405Z"
+    },
+    {
+      "name": "docs-types",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "typecheck",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "nodeEnv": "test",
+      "startedAt": "2026-09-12T05:18:34.406Z",
+      "pid": 21528,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:18:35.004Z"
+    },
+    {
+      "name": "docs-tests",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "nodeEnv": "test",
+      "startedAt": "2026-09-12T05:18:35.005Z",
+      "pid": 1916,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:18:38.477Z"
+    },
+    {
+      "name": "docs-build",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "build",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T05:18:38.478Z",
+      "pid": 10296,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:19:02.616Z"
+    },
+    {
+      "name": "docs-browser",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\client-full/verify-docs.mjs"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T05:19:02.617Z",
+      "pid": 21820,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:19:06.260Z"
+    },
+    {
+      "name": "diff",
+      "args": [
+        "diff",
+        "--check"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T05:19:06.261Z",
+      "pid": 22140,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T05:19:06.308Z"
+    }
+  ],
+  "docsBrowser": [
+    {
+      "name": "desktop",
+      "distributionTables": 17,
+      "heapRows": 5
+    },
+    {
+      "name": "mobile",
+      "distributionTables": 17,
+      "heapRows": 5
+    }
+  ],
+  "clientBuildIdentity": {
+    "path": "framework-comparison/participants/exact/dist/assets/index-DIRk0j6Z.js",
+    "sha256": "b8c5dcd1b96262ebe9aabcc1d117ca40eff50f23b3b92d7ed7b5985495dca360",
+    "retainedExperimentSha256": "b8c5dcd1b96262ebe9aabcc1d117ca40eff50f23b3b92d7ed7b5985495dca360",
+    "matches": true
+  }
+}
