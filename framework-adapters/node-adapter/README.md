@@ -28,7 +28,8 @@ that signal to rendering and response writing. Create the wrapper once per host.
 Quiet requests start immediately. Under sustained event-loop delay, the adapter briefly trials
 batched starts and compares completed-response capacity and lag with immediate controls before
 and after the trial. It backs off unsuccessful trials and periodically rechecks successful ones.
-Monitoring stops when idle. Native Bun hosting retains immediate starts by default.
+Monitoring stops when idle. The Node HTTP compatibility adapter keeps immediate starts when running on Bun. Native Bun Fetch
+hosting uses the separate Bun adapter and its automatic admission policy.
 
 Both factories accept `{ adaptive: false }` to disable automatic scheduling and `maxBatchSize`
 (default 32) to bound starts per callback. This is not a bound on total rendering time in a turn.

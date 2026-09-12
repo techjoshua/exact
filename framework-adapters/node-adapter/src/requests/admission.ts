@@ -5,7 +5,7 @@ import { createNodeRenderScheduler } from '../render-scheduler.js';
 const admissionOwner = Symbol('exact.node.admission');
 type AdmittedResponse = ServerResponse & { [admissionOwner]?: true };
 
-/** Node host scheduling controls. Native Bun hosting retains immediate starts by default. */
+/** Node HTTP controls. Node compatibility hosting on Bun defaults to immediate starts. */
 export interface NodeSchedulingOptions {
 	/** Enables automatic trials and reassessment. Defaults to true on Node and false on Bun. */
 	adaptive?: boolean;
