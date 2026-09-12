@@ -1,11 +1,13 @@
 # JavaScript performance measurement
 
-The [September 11 full client-optimization capture](performance-baselines/client-full-2026-09-11.md)
-refreshes browser, heap, startup, Node, native Bun, and root
-framework measurements. Publication and final verification are complete. Every framework renders
-its own complete application document. String and streaming APIs remain separate on both runtimes;
-browser baseline measurements use the string lane. eXact, React, and TanStack Start support both
-measured lanes. Nuxt and SvelteKit expose string rendering only in this harness.
+The [September 12 native Bun adaptive SSR capture](performance-baselines/bun-adaptive-ssr-2026-09-12.md)
+refreshes Node and native Bun capacity, response latency, memory, and server measurements with
+adaptive admission enabled by default on both hosts. The
+[full client capture](performance-baselines/client-full-2026-09-11.md) remains the source of browser,
+heap, and startup measurements. Every framework renders its own complete application document.
+String and streaming APIs remain separate on both runtimes; browser measurements use the string
+lane. eXact, React, and TanStack Start support both SSR lanes. Nuxt and SvelteKit expose string
+rendering only in this harness.
 
 The current eXact implementation uses one rendering engine. It streams a completed head before
 pending body work and delivers body output incrementally with a configurable 8192-byte threshold.
@@ -14,8 +16,7 @@ blocking component tasks. The requested application owns hydration independently
 server document shell. The final Node HTTP capture uses automatic adapter admission by default.
 It retains scheduling only when completed-response capacity and event-loop lag improve against
 surrounding immediate controls. Native Bun now also enables adaptive admission through its Fetch
-adapter, using native request drain and event-loop delay. The capture linked above predates that Bun
-default change; its Bun results use immediate admission. The
+adapter, using native request drain and event-loop delay. The current SSR capture includes that Bun default. The
 [adaptive controller investigation](performance-baselines/adaptive-default-node-2026-09-11.md)
 records workload changes, response tails, and rejected policies.
 
@@ -50,13 +51,13 @@ and teardown storage as priorities and screens two isolated allocation candidate
 [client allocation follow-up](performance-baselines/client-v8-optimization-2026-09-11.md)
 integrates those candidates, a teardown marker stack, and lazy tracking Sets. Focused browser
 measurements show approximately 6.5% less filtering allocation and 13.1% less selection allocation,
-with small timing differences. The full capture linked above refreshes the public charts with these
+with small timing differences. The client capture linked above refreshes the public charts with these
 changes included; the focused investigations remain separate evidence.
 
 The [client reconciliation investigation](performance-baselines/client-reconciliation-2026-09-11.md)
 extends that work to 1,000-row browser workloads. Removing repeated component-root discovery during
 keyed sibling updates reduced the warmed all-label replacement case from 93.83 to 8.08 ms. The small
-incident fixture changed little. The full capture linked above measures the retained implementation
+incident fixture changed little. The client capture linked above measures the retained implementation
 across the entire suite without applying the larger workload's improvement percentage to the small
 application fixture.
 

@@ -30,7 +30,9 @@ automatic and disabled policy order. Each request independently renders its comp
 | 96 rows  | stream |                  2,234 / 2,218 |                 1,912 / 1,928 | 26.19 to 26.69          | 22.02 to 24.61         |
 
 The controller retained scheduling for the small fixture and for large streaming responses. It
-rejected large-string trials in both populations. The unsuccessful probes impose a small cost in
+rejected large-string trials in both populations. Large-stream driver p99 rose from 22.0 to 24.6 ms
+with admission disabled to 26.2 to 26.7 ms with automatic admission. Native drain and event-loop lag
+are not client p99 guarantees, so the throughput gain has a tail-latency tradeoff in that workload. The unsuccessful probes impose a small cost in
 these short runs; automatic does not mean every request or workload is faster. All policy-control
 responses passed full-document identity checks, and no request errors occurred.
 

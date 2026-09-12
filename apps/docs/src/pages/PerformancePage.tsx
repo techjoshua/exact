@@ -49,6 +49,7 @@ interface ResponseCompositionChart {
 const report = reportJson as unknown as {
 	readonly metadata: {
 		readonly commit: string;
+		readonly ssrCommit: string;
 		readonly createdAt: string;
 		readonly browserCreatedAt: string;
 		readonly ssrCreatedAt: string;
@@ -206,7 +207,8 @@ export function PerformancePage(this: Component<{}>) {
 			<ResponseComposition figure={report.server.bun.responseComposition} runtimeId="bun" />
 
 			<p className="performance-evidence-note">
-				Evidence commit <code>{report.metadata.commit}</code>. Browser evidence captured{' '}
+				Browser evidence commit <code>{report.metadata.commit}</code>. SSR evidence commit{' '}
+				<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured{' '}
 				<time dateTime={report.metadata.browserCreatedAt}>{report.metadata.browserCreatedAt}</time>;
 				Node response-time, payload, and server-memory evidence captured{' '}
 				<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>. Browser
