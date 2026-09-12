@@ -1,6 +1,6 @@
 # JavaScript performance measurement
 
-The [September 11 completion capture](performance-baselines/ssr-completion-2026-09-11.md)
+The [September 11 child-normalization capture](performance-baselines/v8-normalization-full-2026-09-11.md)
 refreshes browser, heap, startup, Node, native Bun, and root
 framework measurements. Publication and final verification are complete. Every framework renders
 its own complete application document. String and streaming APIs remain separate on both runtimes;
@@ -16,6 +16,12 @@ It retains scheduling only when completed-response capacity and event-loop lag i
 surrounding immediate controls. Native Bun retains immediate admission. The
 [adaptive controller investigation](performance-baselines/adaptive-default-node-2026-09-11.md)
 records workload changes, response tails, and rejected policies.
+
+The [V8 bytecode follow-up](performance-baselines/v8-attribute-and-child-normalization-2026-09-11.md)
+retains one child-normalization result array instead of allocating intermediate arrays for nested
+children. Public composition semantics are preserved, and large nested lists avoid the former
+variadic-call argument limit. Focused allocation improvements are separate from the current
+application throughput measurements.
 
 ## Earlier investigations
 

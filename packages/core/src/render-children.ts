@@ -3,11 +3,16 @@ import type { Child, RenderResult } from './component/contracts.js';
 /** Flattens nested compiler-produced child arrays without assigning renderer topology. */
 export function normalizeChildren(children: unknown[]): Child[] {
 	const normalized: Child[] = [];
+	appendNormalizedChildren(children, normalized);
+	return normalized;
+}
+
+/** Appends descendants in order without temporary arrays or variadic argument limits. */
+function appendNormalizedChildren(children: unknown[], normalized: Child[]): void {
 	for (const child of children) {
-		if (Array.isArray(child)) normalized.push(...normalizeChildren(child));
+		if (Array.isArray(child)) appendNormalizedChildren(child, normalized);
 		else normalized.push(child as Child);
 	}
-	return normalized;
 }
 
 /** Normalizes one component output into its owned child sequence. */

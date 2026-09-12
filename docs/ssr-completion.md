@@ -1,6 +1,6 @@
 # SSR completion scope
 
-Status: complete. Implementation, full benchmark publication, documentation, and final validation are ready for the initial release commit.
+Status: complete. Implementation, full benchmark publication, documentation, and final validation were committed in `8aa16396`.
 This is the fixed completion list approved on September 11, 2026.
 Do not add optimization tracks to this work.
 
@@ -56,6 +56,11 @@ retain full authored application/shell rendering, and leave React unchanged.
   type checks, 10 docs tests, and desktop/mobile verification of the published tables. See the
   [completion baseline](performance-baselines/ssr-completion-2026-09-11.md) for all modes, tails,
   request errors, telemetry retries, and artifact identities.
+
+The subsequent [V8 child-normalization checkpoint](performance-baselines/v8-normalization-full-2026-09-11.md)
+refreshes all benchmark modes after the internal allocation optimization. It preserves these SSR
+completion decisions and adds four core regression tests. The original completion capture remains
+historical evidence of the release checkpoint above.
 
 The [shell and body checks](performance-baselines/ssr-shell-body-2026-09-11.md) rerun prior artifacts
 and React under the user's changed PC workload. They retain repeats and tails rather than compare
