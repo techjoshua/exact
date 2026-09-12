@@ -1,5 +1,10 @@
 # JavaScript performance measurement
 
+The [post-fetch adaptive scheduling experiment](performance-baselines/ssr-resume-admission-2026-09-12.md)
+finds a repeatable Node normal-loading gain by consulting the same admission policy again when
+data becomes ready to render. It remains a focused experiment; streaming tails are mixed and
+the full baseline charts and production defaults are unchanged.
+
 The [normal-loading SSR investigation](performance-baselines/ssr-data-path-2026-09-12.md)
 separates host data fetching from component tasks, tests admission and response-writing controls,
 and records a small task scheduler allocation improvement. It does not replace the full baseline
