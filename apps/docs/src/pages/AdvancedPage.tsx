@@ -73,7 +73,9 @@ export function AdvancedPage(this: Component<{}>) {
 					Await <code>renderToString()</code> or <code>renderToHydratableString()</code> before
 					reading the result. String and streaming output share one renderer. Component tasks run
 					through the task system; the renderer waits for pending work needed by the output and
-					continues immediately when that work is already complete.
+					continues immediately when that work is already complete. Ready tasks start immediately
+					when the request's task concurrency limit has room; otherwise they wait for an available
+					slot.
 				</p>
 				<p>
 					The result's <code>html</code> contains the completed markup. Use

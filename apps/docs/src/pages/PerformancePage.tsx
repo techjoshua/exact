@@ -7,86 +7,14 @@ import { Callout } from './Callout.jsx';
 import { HeapComposition } from './HeapComposition.jsx';
 import { SsrCapacity, ssrCapacityHighlights } from './SsrCapacity.jsx';
 
-interface DistributionStatistics {
-	readonly mean: number;
-	readonly p50: number;
-	readonly p75: number;
-	readonly p95: number;
-	readonly p99: number;
-}
+import type {
+	DistributionChart,
+	ValueChart,
+	ResponseCompositionChart,
+	PerformanceReport
+} from '../data/performance-report-types.js';
 
-interface DistributionChart {
-	readonly title: string;
-	readonly unit: string;
-	readonly precision: number;
-	readonly comment: string;
-	readonly series: readonly {
-		readonly name: string;
-		readonly stats: DistributionStatistics;
-		readonly aggregate?: number;
-	}[];
-}
-
-interface ValueChart {
-	readonly title: string;
-	readonly unit: string;
-	readonly precision: number;
-	readonly comment: string;
-	readonly values: readonly {
-		readonly name: string;
-		readonly value: number;
-	}[];
-}
-
-interface ResponseCompositionChart {
-	readonly title: string;
-	readonly unit: string;
-	readonly categories: readonly string[];
-	readonly series: readonly { readonly name: string; readonly values: readonly number[] }[];
-	readonly comment: string;
-}
-
-const report = reportJson as unknown as {
-	readonly metadata: {
-		readonly commit: string;
-		readonly ssrCommit: string;
-		readonly createdAt: string;
-		readonly browserCreatedAt: string;
-		readonly ssrCreatedAt: string;
-		readonly browserSamples: number;
-		readonly ssrSequentialSamples: number;
-		readonly ssrBurstSamples: number;
-		readonly ssrRetentionCheckpoints: number;
-		readonly ssrDiagnosticsEnvironment: {
-			readonly runtimes: { readonly node: string; readonly bun: string };
-		};
-	};
-	readonly summary: readonly {
-		readonly label: string;
-		readonly value: string;
-		readonly context: string;
-	}[];
-	readonly browserCharts: readonly DistributionChart[];
-	readonly server: {
-		readonly bun: {
-			readonly runtime: string;
-			readonly createdAt: string;
-			readonly sequentialSamples: number;
-			readonly burstSamples: number;
-			readonly retentionCheckpoints: number;
-			readonly bars: readonly ValueChart[];
-			readonly responseComposition: ResponseCompositionChart;
-			readonly burst: DistributionChart;
-			readonly sequential: DistributionChart;
-			readonly retention: DistributionChart;
-		};
-		readonly burst: DistributionChart;
-		readonly sequential: DistributionChart;
-		readonly retention: DistributionChart;
-		readonly bars: readonly ValueChart[];
-		readonly responseComposition: ResponseCompositionChart;
-	};
-};
+const report = reportJson as unknown as PerformanceReport;
 
 /** Presents the latest admitted performance evidence without rerunning or renormalizing it. */
 export function PerformancePage(this: Component<{}>) {

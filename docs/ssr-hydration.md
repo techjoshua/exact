@@ -484,6 +484,8 @@ stable server marker ranges remain the ownership boundary for each resulting DOM
 
 SSR allocates one request-owned FIFO task scheduler when the first scheduled task needs it.
 `maxAsyncSsrConcurrency` defaults to 4, accepts 1 for serial task execution, and is capped at 32.
+Ready work starts immediately when a permit is free. Only contention suspends permit acquisition;
+task completion and cleanup retain their asynchronous ownership boundaries.
 The task system owns execution and dependency settlement. HTML traversal remains ordered, so
 components do not concurrently mutate document hosts, marker allocation, or enhancement state.
 
