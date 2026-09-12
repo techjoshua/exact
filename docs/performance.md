@@ -1,6 +1,6 @@
 # JavaScript performance measurement
 
-The [September 11 child-normalization capture](performance-baselines/v8-normalization-full-2026-09-11.md)
+The [September 11 Node admission capture](performance-baselines/admission-full-2026-09-11.md)
 refreshes browser, heap, startup, Node, native Bun, and root
 framework measurements. Publication and final verification are complete. Every framework renders
 its own complete application document. String and streaming APIs remain separate on both runtimes;
@@ -33,6 +33,8 @@ traces excess scheduled-demand misses to repeated immediate control periods. The
 shortens adequately sampled controls and rechecks healthy scheduling after 30 seconds, while
 retaining earlier workload reassessment and idle cleanup. Focused before/after measurements include
 misses, errors, response tails, and unchanged React controls; they supplement the full-suite charts.
+The full capture linked above refreshes those charts with the retained admission policy and keeps
+all measured populations, missed arrivals, and connection errors visible.
 
 ## Earlier investigations
 

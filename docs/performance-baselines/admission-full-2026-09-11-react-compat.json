@@ -1,0 +1,86 @@
+{
+  "results": [
+    {
+      "baseline": "18.3",
+      "iterations": 200,
+      "bytes": 336695,
+      "p50Ms": 7.346000000000004,
+      "p75Ms": 7.3596,
+      "p95Ms": 7.510099999999966,
+      "p99Ms": 7.510099999999966,
+      "rawSamples": [
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.2864999999999895
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.346000000000004
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.510099999999966
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.3596
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 6.844200000000001
+        }
+      ]
+    },
+    {
+      "baseline": "19.2",
+      "iterations": 200,
+      "bytes": 336695,
+      "p50Ms": 10.90640000000002,
+      "p75Ms": 10.989300000000014,
+      "p95Ms": 11.304899999999975,
+      "p99Ms": 11.304899999999975,
+      "rawSamples": [
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 10.90640000000002
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 10.817700000000002
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 10.748900000000049
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 11.304899999999975
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 10.989300000000014
+        }
+      ]
+    }
+  ]
+}

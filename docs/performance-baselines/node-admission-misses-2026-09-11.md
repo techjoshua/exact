@@ -94,3 +94,7 @@ adapters and application bundles, source snapshots, and runners. No failed or sl
 removed. Runners use the recorded workspace paths and installed repository dependencies.
 
 Archive SHA-256: `ab3b7b667bec0ef67da7c92964571fd0fc8479bc8f565dafbd45708fa530da9e`.
+
+The subsequent [full benchmark capture](admission-full-2026-09-11.md) refreshes the public charts
+with this retained policy, including client, Node/Bun string and streaming, and internal framework
+measurements. It preserves all populations and connection errors under the later PC workload.
