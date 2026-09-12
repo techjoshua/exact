@@ -62,6 +62,11 @@ samples use native departures rather than Node finish events. An open body remai
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.
 
+Bun records two-millisecond timer intervals into an independently owned histogram. In the tested
+Bun 1.4.2 runtime, disabling one `monitorEventLoopDelay()` instance also stops unrelated native
+observers. Admission cleanup must not disable application monitoring, so the adapter does not use
+that shared native observer lifetime.
+
 The controller does not equate handler duration with client latency. Immediate rendering can finish
 quickly inside a handler while requests wait in Node's networking queues before that handler runs.
 Client p95/p99 and sparse latency therefore remain external validation metrics. A trial can briefly
