@@ -7,6 +7,7 @@ const ignoredDirectories = new Set([
 	'.exact',
 	'.nuxt',
 	'.output',
+	'.output-bun',
 	'.svelte-kit',
 	'.tmp',
 	'coverage',

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/microsoft/typescript-go/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 func TestNormalizeAuthoredSourceRewritesPropPunning(t *testing.T) {
@@ -59,7 +59,7 @@ func TestPlanPropPunningRejectsNonShorthandBraceForms(t *testing.T) {
 		"const text = `<Card {value} />`;",
 		`// <Card {value} />`,
 	} {
-		edits := planPropPunning(normalizationTestFile(t, "unchanged.tsx"), source)
+		edits := planJSXAttributeSyntax(normalizationTestFile(t, "unchanged.tsx"), source)
 		if len(edits) != 0 {
 			t.Fatalf("non-shorthand source produced edits %#v:\n%s", edits, source)
 		}

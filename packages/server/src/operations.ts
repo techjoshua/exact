@@ -1,3 +1,6 @@
+import { checkSecurityHooks } from './request-security.js';
+export { checkSecurityHooks, type ExactSecurityResult } from './request-security.js';
+import { ownRegistryEntry } from './registry-entry.js';
 import { logFrameworkEvent } from '@exactjs/core';
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
@@ -15,7 +18,6 @@ import type {
 	ExactInvocationRequest,
 	ExactOperationError,
 	ExactOperationResult,
-	ExactProtocolRequest,
 	ExactRequestLike,
 	ExactResponseLike,
 	ExactServerContext
@@ -30,9 +32,6 @@ import {
 	stateResponseMatchesContract,
 	stateMatchesContract
 } from './validation.js';
-
-/** Describes the result produced by exact security. */
-export type ExactSecurityResult = 'allowed' | 'unauthorized' | 'csrf';
 
 /** Returns whether an operation result is the protocol's structured error variant. */
 export function isOperationError(result: ExactOperationResult): result is ExactOperationError {
@@ -55,45 +54,6 @@ export async function dispatchSecurityCheckedExactOperation(
 	context: ExactServerContext
 ): Promise<ExactOperationResult> {
 	return dispatchExactOperationAfterSecurity(request, input, context, true);
-}
-
-/** Runs authorization and CSRF hooks, converting hook failures into closed security results. */
-export async function checkSecurityHooks(
-	request: ExactRequestLike,
-	input: ExactProtocolRequest,
-	context: ExactServerContext
-): Promise<ExactSecurityResult> {
-	if (context.authorize) {
-		try {
-			if (!(await context.authorize(request, input, context))) return 'unauthorized';
-		} catch (error) {
-			logFrameworkEvent(
-				'error',
-				'server',
-				'security',
-				'exact authorization hook failed',
-				error,
-				context.logger
-			);
-			return 'unauthorized';
-		}
-	}
-	if (context.validateCsrf) {
-		try {
-			if (!(await context.validateCsrf(request, input, context))) return 'csrf';
-		} catch (error) {
-			logFrameworkEvent(
-				'error',
-				'server',
-				'security',
-				'exact csrf hook failed',
-				error,
-				context.logger
-			);
-			return 'csrf';
-		}
-	}
-	return 'allowed';
 }
 
 /** Serializes an extension-processed response while enforcing the configured byte limit. */
@@ -149,6 +109,14 @@ async function dispatchExactOperationAfterSecurity(
 		return { ok: false, type: input.type, id: input.id, opId: input.opId, status, error };
 	};
 
+	if (!securityChecked) {
+		const security = await checkSecurityHooks(request, context);
+		if (security === 'unauthorized')
+			return reject(403, 'forbidden', 'rejected unauthorized exact invocation');
+		if (security === 'csrf')
+			return reject(403, 'forbidden', 'rejected exact invocation with invalid csrf');
+	}
+
 	// Compiler-emitted opaque IDs form the execution boundary; module paths and
 	// function names supplied by a client are never resolved dynamically.
 	if (!isExecutorAllowed(input, context.contract)) {
@@ -158,7 +126,7 @@ async function dispatchExactOperationAfterSecurity(
 		return reject(400, 'bad_request', 'rejected exact invocation with unknown boundary hints');
 	}
 	if (input.type === 'refresh') {
-		const boundary = context.contract.boundaries[input.id];
+		const boundary = ownRegistryEntry(context.contract.boundaries, input.id);
 		if (boundary?.kind === 'partition-range') {
 			const authority = input.partition;
 			const resolveCurrentAuthority = context.resolvePartitionAuthority;
@@ -189,8 +157,10 @@ async function dispatchExactOperationAfterSecurity(
 		}
 	}
 
-	const invocation = input.type === 'invoke' ? context.contract.invocations[input.id] : undefined;
-	const executor = input.type === 'invoke' ? context.contract.executors?.[input.id] : undefined;
+	const invocation =
+		input.type === 'invoke' ? ownRegistryEntry(context.contract.invocations, input.id) : undefined;
+	const executor =
+		input.type === 'invoke' ? ownRegistryEntry(context.contract.executors, input.id) : undefined;
 	if (invocation && !stateMatchesContract(input.state, invocation.stateReads)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with mismatched state contract');
 	}
@@ -202,12 +172,12 @@ async function dispatchExactOperationAfterSecurity(
 	}
 	const manualHandler =
 		input.type === 'invoke'
-			? context.invocations?.[input.id]
-			: context.refreshBoundaries?.[input.id];
+			? ownRegistryEntry(context.invocations, input.id)
+			: ownRegistryEntry(context.refreshBoundaries, input.id);
 	const payloadDecoder =
 		input.type === 'invoke'
-			? context.payloadDecoders?.invocations?.[input.id]
-			: context.payloadDecoders?.boundaries?.[input.id];
+			? ownRegistryEntry(context.payloadDecoders?.invocations, input.id)
+			: ownRegistryEntry(context.payloadDecoders?.boundaries, input.id);
 	if (
 		manualHandler &&
 		!isExactFrameworkInvocationHandler(manualHandler) &&
@@ -234,12 +204,13 @@ async function dispatchExactOperationAfterSecurity(
 		}
 	}
 
-	if (!securityChecked) {
-		const security = await checkSecurityHooks(request, input, context);
-		if (security === 'unauthorized')
-			return reject(403, 'forbidden', 'rejected unauthorized exact invocation');
-		if (security === 'csrf')
-			return reject(403, 'forbidden', 'rejected exact invocation with invalid csrf');
+	if (context.authorizeOperation) {
+		try {
+			if (!(await context.authorizeOperation(request, input, context)))
+				return reject(403, 'forbidden', 'rejected unauthorized exact operation');
+		} catch {
+			return reject(403, 'forbidden', 'exact operation authorization failed');
+		}
 	}
 
 	const handler =
@@ -312,7 +283,7 @@ async function dispatchExactOperationAfterSecurity(
 			);
 		}
 		if (input.type === 'refresh') {
-			const boundary = context.contract.boundaries[input.id];
+			const boundary = ownRegistryEntry(context.contract.boundaries, input.id);
 			if (boundary?.kind === 'partition-range') {
 				const allowed = new Set(boundary.patchTargets ?? [boundary.id]);
 				if (result.patches?.some((patch) => !allowed.has(patch.id))) {

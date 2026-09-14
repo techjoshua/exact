@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/jest",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Jest matchers and component-testing integration for eXact applications",
 	"type": "module",
 	"files": [
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -27,11 +29,11 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/component-library-policy": "^0.1.0",
-		"@exactjs/compiler": "^0.1.0",
-		"@exactjs/config": "^0.1.0",
-		"@exactjs/react-compat": "^0.1.0",
-		"@exactjs/testing": "^0.1.0",
+		"@exactjs/component-library-policy": "^0.5.0",
+		"@exactjs/compiler": "^0.5.0",
+		"@exactjs/config": "^0.5.0",
+		"@exactjs/react-compat": "^0.5.0",
+		"@exactjs/testing": "^0.5.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"peerDependencies": {
@@ -43,7 +45,7 @@
 		"@jest/globals": "^30.2.0",
 		"jest": "^30.2.0",
 		"jest-environment-jsdom": "^30.2.0",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"scripts": {
 		"build": "tsc6 -b",
@@ -53,5 +55,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/jest"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

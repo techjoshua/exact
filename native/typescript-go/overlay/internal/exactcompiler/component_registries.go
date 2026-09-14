@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 var registryImportPattern = regexp.MustCompile(

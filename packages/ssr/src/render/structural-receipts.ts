@@ -6,38 +6,14 @@ import type {
 	ExactSuspenseReceiptData,
 	ExactTargetReceiptData
 } from '@exactjs/core/runtime/component-abi';
-import type { RenderToStringOptions, SsrContext } from '../types.js';
 import { markerId, markerPair, suspenseStatusMarkerId } from '../markup.js';
-import {
-	renderNativeSuspenseAsync,
-	renderNativeSuspenseSync
-} from './structural-boundary-capability.js';
-
-/** Serializes one compiler-keyed sibling as an identity-owned range. */
-export function renderKeyedChildReceipt(
-	context: SsrContext,
-	receipt: ExactKeyedChildReceiptData,
-	parent: AnyComponentInstance | undefined,
-	hasComponentAncestor: boolean,
-	renderChildren: (
-		context: SsrContext,
-		children: readonly import('@exactjs/core').Child[],
-		parent: AnyComponentInstance | undefined,
-		hasComponentAncestor: boolean
-	) => string
-): string {
-	return markerPair(context, markerId(context, 'item', undefined, receipt.key), () =>
-		renderChildren(
-			context,
-			[receipt.value as import('@exactjs/core').Child],
-			parent,
-			hasComponentAncestor
-		)
-	);
-}
+import type { RenderToStringOptions, SsrContext } from '../types.js';
+import type { RenderValue } from './execution.js';
+import { renderNativeSuspense } from './structural-boundary-capability.js';
+import { captureSsrProgramOutput } from './program-capture.js';
 
 /** Async keyed sibling serialization. */
-export function renderKeyedChildReceiptAsync(
+export function renderKeyedChildReceipt(
 	context: SsrContext,
 	receipt: ExactKeyedChildReceiptData,
 	parent: AnyComponentInstance | undefined,
@@ -49,8 +25,8 @@ export function renderKeyedChildReceiptAsync(
 		parent: AnyComponentInstance | undefined,
 		options: RenderToStringOptions,
 		hasComponentAncestor: boolean
-	) => Promise<string>
-): Promise<string> {
+	) => RenderValue<string>
+): RenderValue<string> {
 	return markerPair(context, markerId(context, 'item', undefined, receipt.key), () =>
 		renderChildren(
 			context,
@@ -62,28 +38,10 @@ export function renderKeyedChildReceiptAsync(
 	);
 }
 
-/** Serializes one compiler-owned transparent range. */
+/** Serializes one compiler-owned transparent range asynchronously. */
 export function renderFragmentReceipt(
 	context: SsrContext,
-	receipt: ExactFragmentReceiptData,
-	parent: AnyComponentInstance | undefined,
-	hasComponentAncestor: boolean,
-	renderChildren: (
-		context: SsrContext,
-		children: readonly import('@exactjs/core').Child[],
-		parent: AnyComponentInstance | undefined,
-		hasComponentAncestor: boolean
-	) => string
-): string {
-	return markerPair(context, markerId(context, 'fragment', undefined, receipt.key), () =>
-		renderChildren(context, receipt.children, parent, hasComponentAncestor)
-	);
-}
-
-/** Serializes one compiler-owned transparent range asynchronously. */
-export function renderFragmentReceiptAsync(
-	context: SsrContext,
-	receipt: ExactFragmentReceiptData,
+	receipt: Pick<ExactFragmentReceiptData, 'children' | 'key'>,
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions,
 	hasComponentAncestor: boolean,
@@ -93,39 +51,15 @@ export function renderFragmentReceiptAsync(
 		parent: AnyComponentInstance | undefined,
 		options: RenderToStringOptions,
 		hasComponentAncestor: boolean
-	) => Promise<string>
-): Promise<string> {
+	) => RenderValue<string>
+): RenderValue<string> {
 	return markerPair(context, markerId(context, 'fragment', undefined, receipt.key), () =>
 		renderChildren(context, receipt.children, parent, options, hasComponentAncestor)
 	);
 }
 
-/** Serializes one semantic-target range while keeping its child contribution opaque. */
-export function renderTargetReceipt(
-	context: SsrContext,
-	receipt: ExactTargetReceiptData,
-	parent: AnyComponentInstance | undefined,
-	hasComponentAncestor: boolean,
-	renderChildren: (
-		context: SsrContext,
-		children: readonly import('@exactjs/core').Child[],
-		parent: AnyComponentInstance | undefined,
-		hasComponentAncestor: boolean
-	) => string
-): string {
-	const layer = { props: receipt.props, consumed: false };
-	(context.targetReceiptLayers ??= []).push(layer);
-	try {
-		return markerPair(context, markerId(context, 'target', undefined, receipt.key), () =>
-			renderChildren(context, receipt.children, parent, hasComponentAncestor)
-		);
-	} finally {
-		context.targetReceiptLayers!.pop();
-	}
-}
-
 /** Async semantic-target serialization with request-local contribution ownership. */
-export async function renderTargetReceiptAsync(
+export async function renderTargetReceipt(
 	context: SsrContext,
 	receipt: ExactTargetReceiptData,
 	parent: AnyComponentInstance | undefined,
@@ -137,7 +71,7 @@ export async function renderTargetReceiptAsync(
 		parent: AnyComponentInstance | undefined,
 		options: RenderToStringOptions,
 		hasComponentAncestor: boolean
-	) => Promise<string>
+	) => RenderValue<string>
 ): Promise<string> {
 	const layer = { props: receipt.props, consumed: false };
 	(context.targetReceiptLayers ??= []).push(layer);
@@ -150,28 +84,8 @@ export async function renderTargetReceiptAsync(
 	}
 }
 
-/** Serializes one compiler-issued retained Activity operation. */
-export function renderActivityReceipt(
-	context: SsrContext,
-	receipt: ExactActivityReceiptData,
-	parent: AnyComponentInstance | undefined,
-	hasComponentAncestor: boolean,
-	renderChildren: (
-		context: SsrContext,
-		children: readonly import('@exactjs/core').Child[],
-		parent: AnyComponentInstance | undefined,
-		hasComponentAncestor: boolean
-	) => string
-): string {
-	return markerPair(context, markerId(context, 'activity'), () =>
-		normalizeActivityMode(unwrap(receipt.props.mode)) === 'active'
-			? renderChildren(context, receipt.children, parent, hasComponentAncestor)
-			: ''
-	);
-}
-
 /** Serializes one compiler-issued retained Activity operation asynchronously. */
-export function renderActivityReceiptAsync(
+export function renderActivityReceipt(
 	context: SsrContext,
 	receipt: ExactActivityReceiptData,
 	parent: AnyComponentInstance | undefined,
@@ -183,8 +97,8 @@ export function renderActivityReceiptAsync(
 		parent: AnyComponentInstance | undefined,
 		options: RenderToStringOptions,
 		hasComponentAncestor: boolean
-	) => Promise<string>
-): Promise<string> {
+	) => RenderValue<string>
+): RenderValue<string> {
 	return markerPair(context, markerId(context, 'activity'), () =>
 		normalizeActivityMode(unwrap(receipt.props.mode)) === 'active'
 			? renderChildren(context, receipt.children, parent, options, hasComponentAncestor)
@@ -192,32 +106,8 @@ export function renderActivityReceiptAsync(
 	);
 }
 
-/** Serializes one compiler-issued readiness operation synchronously. */
-export function renderSuspenseReceipt(
-	context: SsrContext,
-	receipt: ExactSuspenseReceiptData,
-	parent: AnyComponentInstance | undefined,
-	hasComponentAncestor: boolean,
-	renderChildren: (
-		context: SsrContext,
-		children: readonly import('@exactjs/core').Child[],
-		parent: AnyComponentInstance | undefined,
-		hasComponentAncestor: boolean
-	) => string
-): string {
-	const identity = markerId(context, 'suspense');
-	const rendered = renderNativeSuspenseSync(context, receipt, parent, (target, children, owner) =>
-		renderChildren(target, children, owner, hasComponentAncestor)
-	);
-	return markerPair(
-		context,
-		suspenseStatusMarkerId(identity, rendered.status),
-		() => rendered.html
-	);
-}
-
 /** Serializes one compiler-issued readiness operation asynchronously. */
-export async function renderSuspenseReceiptAsync(
+export async function renderSuspenseReceipt(
 	context: SsrContext,
 	receipt: ExactSuspenseReceiptData,
 	parent: AnyComponentInstance | undefined,
@@ -229,10 +119,14 @@ export async function renderSuspenseReceiptAsync(
 		parent: AnyComponentInstance | undefined,
 		options: RenderToStringOptions,
 		hasComponentAncestor: boolean
-	) => Promise<string>
+	) => RenderValue<string>
 ): Promise<string> {
+	if (context.writerSink)
+		return captureSsrProgramOutput(context, () =>
+			renderSuspenseReceipt(context, receipt, parent, options, hasComponentAncestor, renderChildren)
+		);
 	const identity = markerId(context, 'suspense');
-	const rendered = await renderNativeSuspenseAsync(
+	const rendered = await renderNativeSuspense(
 		context,
 		receipt,
 		parent,

@@ -51,3 +51,5 @@ registration, and provided-package identity. No additional Webpack plugin is req
 Use `onRemoteEntries` to publish successful production entries and
 `onRemoteDevelopmentEntries` to expose stable development module IDs. Failed watch compilations do
 not publish a partial map; the previous successful deployment map remains valid.
+
+Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.

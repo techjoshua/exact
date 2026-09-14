@@ -5,6 +5,8 @@ export function isExactServerExecutionMetadata(value: unknown, selection = false
 		'version',
 		'classification',
 		'lane',
+		'documentRoot',
+		'streamingDocument',
 		'deferredTaskProps',
 		'render',
 		'mode',
@@ -21,6 +23,11 @@ export function isExactServerExecutionMetadata(value: unknown, selection = false
 			value.classification === 'scheduled' ||
 			value.classification === 'dynamic') &&
 		(direct || lane === 'generic' || lane === 'compatibility') &&
+		(value.documentRoot === undefined || (value.documentRoot === true && direct && !selection)) &&
+		(value.streamingDocument === undefined ||
+			(value.streamingDocument === true &&
+				value.documentRoot === true &&
+				value.classification === 'scheduled')) &&
 		(value.deferredTaskProps === undefined || stringList(value.deferredTaskProps)) &&
 		(value.mode === undefined ||
 			((value.mode === 'direct' || value.mode === 'stateless') &&

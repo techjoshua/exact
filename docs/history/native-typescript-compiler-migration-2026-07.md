@@ -141,7 +141,7 @@ this containment when the native response serializer is fixed upstream.
 ## Proof-of-concept findings
 
 The experiment in
-[`../../experiments/typescript7-native-checker`](../../experiments/typescript7-native-checker)
+`experiments/typescript7-native-checker` (since removed from the working tree)
 proved that the installed TypeScript 7.0.2 package can:
 
 - load an in-memory `tsconfig.json` and TSX module through filesystem callbacks;

@@ -69,6 +69,17 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const enhancementFacadeCatalog = new ExactViteEnhancementFacadeCatalog();
 	let viteCommand: 'build' | 'serve' = 'build';
 	let configuredDebug = options.debug;
+	const authorizeOptions = (
+		host: Parameters<typeof createExactViteAuthorizationOptions>[2],
+		command = viteCommand
+	) =>
+		createExactViteAuthorizationOptions(
+			options,
+			preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+			host,
+			command
+		);
+
 	const inspectionModules = new Map<string, ExactViteInspectionRecord>();
 	const intl = new IntlBuildCoordinator({
 		applicationRoot: options.applicationRoot,
@@ -191,16 +202,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				authorize: (resolved, request, owner) =>
 					isCompiledTestResolution(resolved, options)
 						? Promise.resolve(resolved)
-						: componentAuthorization.authorize(
-								resolved,
-								request,
-								owner,
-								createExactViteAuthorizationOptions(
-									options,
-									preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
-									(file) => this.addWatchFile?.(file)
-								)
-							),
+						: componentAuthorization.authorize(resolved, request, owner, authorizeOptions(this)),
 				requires: (request, owner) => componentAuthorization.requires(request, owner),
 				activationModule:
 					requestTarget === 'server' ? undefined : '@exactjs/dom/framework/enhancements',
@@ -236,16 +238,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						value ?? (this.resolve ? this.resolve(source, importer, { skipSelf: true }) : null)
 				)
 				.then((value) =>
-					componentAuthorization.authorize(
-						value,
-						source,
-						importer,
-						createExactViteAuthorizationOptions(
-							options,
-							preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
-							(file) => this.addWatchFile?.(file)
-						)
-					)
+					componentAuthorization.authorize(value, source, importer, authorizeOptions(this))
 				);
 		},
 		load(id) {
@@ -310,11 +303,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				const registry = await prepareRegistry();
 				openAuthorizationGeneration(registry);
 				try {
-					const authorizationOptions = createExactViteAuthorizationOptions(
-						options,
-						registry.applicationRoot,
-						(file) => this.addWatchFile?.(file)
-					);
+					const authorizationOptions = authorizeOptions(this, 'serve');
 					await componentAuthorization.revalidate(
 						authorizationOptions,
 						componentAuthorization.watches(context.file) ? undefined : filename

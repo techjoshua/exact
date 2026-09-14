@@ -98,9 +98,18 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 				<h2>Server attribution</h2>
 				<p>
 					Node and Bun results use separate production targets. All five Bun participants use native
-					Bun serving: eXact's Bun adapter, React's streaming renderer, SvelteKit's Bun adapter, and
-					Nitro's Bun preset for Nuxt and TanStack Start. Each target passes the shared SSR,
+					Bun serving: eXact's Bun adapter, React's selected rendering API, SvelteKit's Bun adapter,
+					and Nitro's Bun preset for Nuxt and TanStack Start. Each target passes the shared SSR,
 					hydration, and interaction checks before measurement.
+				</p>
+				<p>
+					String and streaming APIs are measured separately, using the same mode on Node and Bun.
+					Each application renders its own complete document and hydration data. eXact, React, and
+					TanStack Start expose both APIs. The current Nuxt and SvelteKit fixtures use buffered
+					document rendering and have no streaming-API result. The published capture predates
+					eXact's delivery of full-document shells before hydration data. Those streaming results
+					measure complete responses, not early resource discovery. Browser measurements use the
+					string lane.
 				</p>
 				<p>
 					The performance page uses sustained capacity captures with independent load-driver

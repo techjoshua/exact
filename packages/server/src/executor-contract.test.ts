@@ -17,7 +17,7 @@ describe('@exactjs/server executor contracts', () => {
 		const component = Object.assign(() => () => undefined, {
 			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
-				version: 3 as const,
+				version: 1 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -96,7 +96,7 @@ describe('@exactjs/server executor contracts', () => {
 		const component = Object.assign(() => () => undefined, {
 			[exactComponentType]: 'Page',
 			[exactComponentContract]: {
-				version: 3 as const,
+				version: 1 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],

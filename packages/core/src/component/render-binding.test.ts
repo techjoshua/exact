@@ -61,7 +61,7 @@ describe('component render binding', () => {
 		const Direct = Object.assign(implementation, {
 			[exactComponentType]: 'test:direct-render',
 			[exactComponentContract]: {
-				version: 3 as const,
+				version: 1 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],

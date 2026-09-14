@@ -1,3 +1,4 @@
+import { componentLibraryProtocolVersion } from './native/contract-versions.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type {
@@ -15,7 +16,7 @@ export type ExactComponentLibraryBuildInput = Readonly<{
 	exports: ExactPublishedComponentBuildFacts['exports'];
 }>;
 
-/** Creates deterministic protocol-2 static facts without adding trust decisions. */
+/** Creates deterministic protocol-1 static facts without adding trust decisions. */
 export function createExactPublishedComponentBuildFacts(
 	input: ExactComponentLibraryBuildInput
 ): ExactPublishedComponentBuildFacts {
@@ -79,7 +80,7 @@ export function createExactPublishedComponentBuildFacts(
 				`Published export ${record.subpath}#${record.exportName} has no ${record.componentId} component in ${record.componentModule}`
 			);
 	return Object.freeze({
-		protocol: 2,
+		protocol: componentLibraryProtocolVersion,
 		package: Object.freeze({ ...input.package }),
 		modules: Object.freeze(modules),
 		exports: Object.freeze(exports)

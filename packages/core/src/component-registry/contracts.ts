@@ -11,10 +11,13 @@ export declare const componentRegistryBrand: unique symbol;
 /** Private type-level identity carried by a scoped lazy definition entry. */
 export declare const lazyRegistryEntryBrand: unique symbol;
 
-/** Declarative lazy component entry accepted only inside a registry definition callback. */
-export type LazyRegistryEntry<Component extends AnyAuthoredComponentFunction> = Readonly<{
+/**
+ * Declarative lazy component entry accepted only inside a registry definition callback.
+ * A named interface keeps inferred registry declarations nameable when consumers export KeyOf types.
+ */
+export interface LazyRegistryEntry<Component extends AnyAuthoredComponentFunction> {
 	readonly [lazyRegistryEntryBrand]: Component;
-}>;
+}
 
 /** One eager or scoped-lazy entry in a declarative component registry definition. */
 export type ComponentRegistryDefinitionEntry =

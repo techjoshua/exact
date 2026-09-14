@@ -19,6 +19,17 @@ The ABI bit assignments have one repository-owned JSON contract. Generated Go co
 and TypeScript runtime constants are checked into the tree and verified against that source during
 build-script tests, so neither side can advance the protocol independently.
 
+The initial public 0.5.0 release resets component records and render programs to version 1.
+
+Server positional projectors register the initial traversal contract version 1. Its active ancestry
+capability provides `has`, `add`, and `delete`; generated code must not depend on the tracker being
+a native `Set`. This replaces the earlier unreleased version-one requirement in place. Schema
+tuples and hydration bytes are unchanged. Unknown projector versions use the ordinary interpreter.
+Published artifacts are a compatibility surface: incompatible helper signatures, layouts,
+capability meanings, lifecycle behavior, or hydration formats require a new ABI epoch and major
+provider package versions, even before 1.0. Frozen client/server artifacts exercise current
+runtimes without recompilation. See [release readiness](release-readiness.md) for the release gate.
+
 Compatibility adapters may own foreign functions and explicitly bridge them into a compiled eXact
 boundary. Genuinely runtime-dependent children remain supported inside compiler-declared dynamic
 ranges. Neither case makes an arbitrary function a native component.
@@ -105,7 +116,7 @@ the compiler facts to the owning artifact, so relative component imports, target
 transitive authorization retain the same module base used during compilation. These facts are
 emitted from the successful client and server compiler results; package builds do not reconstruct
 component graphs by importing built JavaScript or scanning for legacy runtime brands.
-The protocol-2 facts are inert JSON: they contain component identities, target-local module paths,
+The protocol-1 facts are inert JSON: they contain component identities, target-local module paths,
 imports, and enhancement edges, but no executable functions or source text. A nested installed
 dependency publishes the same conditional client/server exports and facts as a direct dependency.
 Consumers resolve and validate those files without recompiling or recursively reading dependency
@@ -134,6 +145,10 @@ per-class registry.
 Browser-target artifacts carry only their specialized template, claims, readers, bindings, and
 update program. They do not embed a second generic VNode description of the same region; a same-build
 hydration mismatch is recovered at the owning root boundary.
+Claim opcode 8 describes a compiler-proven whole-intrinsic text run as literal strings and scalar
+slot indices. Initial bindings supply the scalar values, and hydration validates and splits the
+server text before assigning the independent slot nodes. This additive unpublished-baseline
+extension requires a matching DOM runtime for new output; existing claim semantics are unchanged.
 Durable component setup installs its component domain and reactive ownership scope through one
 focused call around the compiler-selected setup operation. It does not allocate an adapter closure
 whose only work is entering the second ownership context. General output and fallback functions
@@ -264,10 +279,14 @@ reactive computation ownership.
 such as authorized server patches and interaction replay. It is not a second render-program ABI.
 Generated server writers preflight each dynamic input into a compiler-named local and pass that
 value directly to its serialization operation; the runtime does not rebuild a per-region slot
-table or allocate a receiver merely to replay the compiler's ordering. Render-program ABI version
-6 identifies the direct stateless-operation contract and its statically selected server-child
-operation so older precompiled writers cannot be
-silently executed with the incompatible calling convention. Server artifacts return a branded
+table or allocate a receiver merely to replay the compiler's ordering. The initial public
+render-program ABI baseline is version 1 and includes the direct stateless operations and
+statically selected server-child operation. A final static write in a compiled body may supply
+its closing-tag UTF-16 offset as the optional third argument to `static`. This is a buffering hint:
+ignoring it preserves the exact markup and hydration protocol. The SSR runtime applies it only
+inside the normalized document body and only when the destination supports retained boundaries.
+Pre-baseline development versions are not public
+compatibility targets. Server artifacts return a branded
 prepared invocation directly to the SSR component lane; they do not allocate a render-program
 VNode and send it back through ordinary child normalization and kind dispatch. Durable fallback
 components likewise preserve raw compiler output until SSR has selected that invocation or the
@@ -298,10 +317,25 @@ charged at their individual static writes. A lane whose output provenance is not
 invalidates the partial ledger and receives one exact scan when the completed root is committed;
 it does not install a second renderer or weaken the output limit.
 
-Runtime UTF-8 accounting skips long ASCII prefixes with a native string search, then counts the
+Server-only attribute planning can serialize native URL literals with proven safe prefixes into
+the existing static markup fields. Dynamic URLs and target overrides retain runtime policy;
+client attribute plans are unchanged. This uses the existing writer ABI and does not change the
+artifact epoch. Static stylesheet links can coalesce into a document head without losing the DOM
+structure that the paired client adopts.
+
+A direct document child that is an empty external script with fully static safe attributes may
+also be serialized into the document writer. Its generated element identity remains in that
+markup so the client intrinsic adopts the same script. This uses existing static writer fields;
+scripts requiring runtime attribute or content handling remain independent operations.
+
+Portable UTF-8 accounting skips long ASCII prefixes with a native string search, then counts the
 remaining Unicode code units, including paired and unpaired surrogates, without allocating an
 encoded buffer. Short strings use the scalar counter directly. This is an internal counting
 optimization; generated byte facts, hydration limits, and the compiled-component ABI are unchanged.
+Adapter-supplied native counters also handle long dynamic text without HTML escaping and escaped
+hydration payloads. Complete synchronous response producers can publish their final byte size
+through the optional `setBodyByteLength` environment capability. Node reuses that size after
+production and request cleanup, without changing emitted component helpers or artifact semantics.
 
 Low-level progressive render responses retain the same ordered component output but expose it as an
 asynchronous produced body instead of first routing every span through a Web byte stream. A Node
@@ -338,60 +372,13 @@ it does not construct named records and compact them afterward. An application t
 lazy request-local projection, and hydration output extensions retain that generic named-record
 boundary. Neither projection is retained by the immutable artifact.
 
-The compiler also specializes authored `renderToStringAsync()` and
-`renderToHydratableStringAsync()` calls whose local root graph is closed and whose options cannot
-enable foreign React markup. A runtime `markers` choice still uses the closed marked entrypoint;
-the request context selects whether it publishes delimiters without reopening component dispatch.
-Those calls enter a structure-only
-serializer that accepts generated render programs, scalar and property slots, and transitively
-closed component slots. Render options that can replace the root, general child expressions, and
-unsupported graph edges leave the authored call on the universal SSR entry point. This proof keeps the broad async
-VNode dispatcher out of simple production server bundles without creating a second author-facing
-render API. A private closed graph rendered by a local call with literal `markers: false` also
-publishes its generated HTML directly, so marker, hydration-payload, and resumption-envelope
-formatting do not enter that server bundle. Exported server components retain those capabilities
-because an external caller can render them with markers, and non-empty output extensions retain
-the universal entry point because they may replace the rendered value. Every compiler-only closed
-entry trusts its proven root directly; plugin-host output processing remains at the ordinary
-renderer boundary for authored or externally transformed values.
-Generated native-component slots preserve their component kind through server serialization. The
-direct lane writes the component inside the parent slot's existing structural range instead of
-adding a redundant component marker pair. Hydration uses that same bounded slot for ownership, while
-still accepting an explicit matching component marker when a generic keyed-list lane rendered the
-slot. Components with continuation activation keep their resumable boundary.
-Server artifacts import structure-only render and task helpers. Durable generic component
-construction, enhancement planning, and native structural-boundary ownership are separately
-installed capabilities selected only by artifacts that can reach those paths. A direct server
-artifact evaluates its compiler-ordered render slots into the prepared invocation directly rather
-than creating a one-use runtime slot dispatcher. Resumption
-publication is a distinct server capability: a compiled continuation component can publish its
-request-local resumption envelope without retaining client-boundary traversal or generic component
-construction. The server artifact carries the authored publication name and resumption kind, so
-the direct publisher calls the narrow serializer without rereading the component contract or
-searching its continuation catalog. Server-only task components do not select that client
-publication capability, even when their server artifact is exported. The server keeps readable
-path-keyed records in its result API while serializing values as compiler-indexed pairs. Immutable
-resumption schemas cache path segments, context order, and allowed continuation identities by
-prepared component contract, so requests retain only their values and component identities.
-Hydration expands indexed pairs only through the matching prepared component contract. SSR enhancement activation and `_target` composition are likewise installed only by
-server artifacts that emit enhancement operations. An enhancement artifact whose compiled output
-contains `_target` carries the internal `targets` capability. SSR uses that compiler fact to defer
-serializing the enhanced child until the target layer exists; ordinary structural enhancements keep
-their established eager child execution so component-published context and nested root routing remain
-available. This capability is bundler/runtime metadata, not an authored API or retained source
-descriptor. Client-only artifacts never select SSR,
-resumption, or continuation capabilities;
-SSR-only, hydratable, continuation, and mixed artifacts each import their own analyzed lane.
-An SSR-render contract facet retains request-local task readiness and resumption publication but
-omits later continuation-dispatch executors; combined server bundles retain the complete facet.
-Compiler-owned vnode discriminators use realm-stable ABI identities so separately loaded
-precompiled libraries and renderer modules agree on generated execution boundaries during
-development as well as in deduplicated production bundles.
-Compiler-closed server task frames follow the same rule: the renderer attaches the frame to its
-request-local host with a realm-stable, non-enumerable identity, and disposal removes it. Generated
-artifacts can therefore find their own request's frame even when a development module graph loads
-another copy of core, without introducing a process-wide request registry or cross-request
-retention.
+The compiler specializes authored `renderToString()` and `renderToHydratableString()`
+when the root is a proven native component and the options cannot replace it or enable foreign
+markup. These helpers retain root-marker proofs, not separate execution engines. Every helper
+returns a promise through the shared renderer, which handles available output directly and
+suspends for actual pending work. A literal `markers: false` selects an unmarked root; runtime
+marker choices retain the request's marker policy. Non-empty output extensions and unproven roots
+use the ordinary entry point and its output-processing boundary.
 
 Direct component execution and compiler-closed serialization are separate proofs. A component
 whose authored output forwards children or constructs VNodes through a typed helper can still run

@@ -1,9 +1,5 @@
-import {
-	createHistogram,
-	monitorEventLoopDelay,
-	performance,
-	PerformanceObserver
-} from 'node:perf_hooks';
+import { createHistogram, monitorEventLoopDelay, performance } from 'node:perf_hooks';
+import { createGarbageCollectionMeter } from './garbage-collection-meter.mjs';
 
 /** Constant-space phase totals; length=0 preserves the existing worker reset contract. */
 export class SsrPhaseTotals {
@@ -66,19 +62,12 @@ export function createLoadProcessMeter() {
 	let previousCpu = process.cpuUsage(),
 		previousTime = performance.now(),
 		previousLoop = performance.eventLoopUtilization();
-	let gcCount = 0,
-		gcMs = 0;
+	const garbageCollection = createGarbageCollectionMeter();
 	const delay = monitorEventLoopDelay({ resolution: 10 });
 	delay.enable();
-	const observer = new PerformanceObserver((list) => {
-		for (const entry of list.getEntries()) {
-			gcCount++;
-			gcMs += entry.duration;
-		}
-	});
-	observer.observe({ entryTypes: ['gc'] });
 	return {
 		sample() {
+			const gc = garbageCollection.snapshot();
 			const now = performance.now(),
 				cpu = process.cpuUsage(),
 				loop = performance.eventLoopUtilization();
@@ -91,21 +80,21 @@ export function createLoadProcessMeter() {
 				cpuPercentOfOneCore: (cpuMs / elapsedMs) * 100,
 				eventLoopUtilization: performance.eventLoopUtilization(loop, previousLoop).utilization,
 				eventLoopP99Ms: delay.count ? delay.percentile(99) / 1e6 : null,
-				gcCount,
-				gcMs,
+				gcAvailable: gc.available,
+				gcCount: gc.count,
+				gcMs: gc.durationMs,
 				memory: process.memoryUsage()
 			};
 			previousCpu = cpu;
 			previousTime = now;
 			previousLoop = loop;
-			gcCount = 0;
-			gcMs = 0;
+			garbageCollection.reset();
 			delay.reset();
 			return result;
 		},
 		close() {
 			delay.disable();
-			observer.disconnect();
+			garbageCollection.close();
 		}
 	};
 }

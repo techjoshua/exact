@@ -14,6 +14,7 @@ import type { ComponentResumptionSource } from '@exactjs/core/framework/componen
 export type ComponentResumptionResolver<
 	Source extends ComponentResumptionSource = ComponentResumptionSource
 > = ((type: AnyComponentFunction) => Source | undefined) & {
+	withRecords<T>(records: readonly Source[], work: () => T): T;
 	checkpoint(): number;
 	rollback(checkpoint: number): void;
 };
@@ -23,11 +24,12 @@ export function createComponentResumptionResolver<Source extends ComponentResump
 	records: () => readonly Source[] | undefined
 ): ComponentResumptionResolver<Source> {
 	let cursor = 0;
+	let scopedRecords: readonly Source[] | undefined;
 	const resolve = ((type: AnyComponentFunction) => {
 		const contract = readPreparedExactClientExecutableComponentContract(type);
 		if (!contract.resumption) return undefined;
 		const componentId = exactComponentIdentity(type);
-		const available = records();
+		const available = scopedRecords ?? records();
 		if (!available?.length) throw new Error('eXact SSR resumption payload is unavailable');
 		const record = available[cursor] as ComponentResumptionSource | undefined;
 		if (!record) throw new Error(`eXact SSR resumption is missing component ${componentId}`);
@@ -70,7 +72,10 @@ export function createComponentResumptionResolver<Source extends ComponentResump
 			);
 		}
 		for (const id of settledContinuations) {
-			if (!contract.continuations?.some((continuation) => continuation.id === id))
+			if (
+				!contract.continuations?.some((continuation) => continuation.id === id) &&
+				!contract.resumption.continuations?.includes(id)
+			)
 				throw new Error(
 					`eXact SSR resumption contains undeclared continuation ${componentId}:${id}`
 				);
@@ -78,6 +83,18 @@ export function createComponentResumptionResolver<Source extends ComponentResump
 		cursor++;
 		return record;
 	}) as ComponentResumptionResolver<Source>;
+	resolve.withRecords = (records, work) => {
+		const previousRecords = scopedRecords;
+		const previousCursor = cursor;
+		scopedRecords = records;
+		cursor = 0;
+		try {
+			return work();
+		} finally {
+			scopedRecords = previousRecords;
+			cursor = previousCursor;
+		}
+	};
 	resolve.checkpoint = () => cursor;
 	resolve.rollback = (checkpoint) => {
 		if (!Number.isSafeInteger(checkpoint) || checkpoint < 0 || checkpoint > cursor)
@@ -152,4 +169,16 @@ export function rollbackComponentResumptions(domain: ComponentDomain, checkpoint
 
 function resolverForDomain(domain: ComponentDomain): ComponentResumptionResolver | undefined {
 	return componentDomainResumption(domain) as ComponentResumptionResolver | undefined;
+}
+
+/** Gives one synchronous island activation its own cursor, independent of lazy loading order. */
+export function withIslandResumptions<T>(
+	domain: ComponentDomain,
+	records: readonly ComponentResumptionSource[] | undefined,
+	work: () => T
+): T {
+	if (records === undefined) return work();
+	const resolver = resolverForDomain(domain);
+	if (!resolver?.withRecords) throw new Error('eXact island requires a resumption-capable domain');
+	return resolver.withRecords(records, work);
 }

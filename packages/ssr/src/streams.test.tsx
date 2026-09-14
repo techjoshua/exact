@@ -1,3 +1,5 @@
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
+import { exactResponseBodyOf } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,
@@ -6,19 +8,9 @@ import {
 	renderToProgressiveHtmlResponse,
 	renderToProgressiveHtmlStream,
 	renderToStream,
-	renderToString,
-	renderToStringAsync
+	renderToString
 } from './index.js';
-import {
-	readRemainingStreamEvents,
-	readRemainingStreamText,
-	readRemainingText,
-	readStreamEvent,
-	readStreamText
-} from './test-support/streams.js';
-import { createOperation } from './test-support/native-operations.js';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
-import { exactResponseBodyOf } from '@exactjs/server';
+import { StreamEnhancement } from './streams-enhancement.fixtures.test.js';
 import {
 	configureControlledText,
 	ControlledText,
@@ -29,7 +21,14 @@ import {
 	resetRoutedStreamFixture,
 	RoutedStreamPage
 } from './streams.fixtures.test.js';
-import { StreamEnhancement } from './streams-enhancement.fixtures.test.js';
+import { createOperation } from './test-support/native-operations.js';
+import {
+	readRemainingStreamEvents,
+	readRemainingStreamText,
+	readRemainingText,
+	readStreamEvent,
+	readStreamText
+} from './test-support/streams.js';
 
 const streamEnhancementIdentity = './stream-enhancements.fixtures.test.js#routed';
 
@@ -108,17 +107,14 @@ describe('@exactjs/ssr streams', () => {
 		await reader.cancel();
 	});
 
-	it('bounds broad trees in sync, async, and streaming renders', async () => {
+	it('bounds broad trees in string and streaming renders', async () => {
 		const vnode = createOperation(
 			'main',
 			null,
 			...Array.from({ length: 12 }, (_, index) => createOperation('p', null, String(index)))
 		);
 
-		expect(() => renderToString(vnode, { markers: false, maxTreeNodes: 5 })).toThrow(
-			'eXact SSR tree exceeds the configured maximum of 5 render values'
-		);
-		await expect(renderToStringAsync(vnode, { markers: false, maxTreeNodes: 5 })).rejects.toThrow(
+		await expect(renderToString(vnode, { markers: false, maxTreeNodes: 5 })).rejects.toThrow(
 			'eXact SSR tree exceeds the configured maximum of 5 render values'
 		);
 		const reader = renderToStream(vnode, { markers: false, maxTreeNodes: 5 }).getReader();

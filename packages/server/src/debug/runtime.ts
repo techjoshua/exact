@@ -46,7 +46,6 @@ export function createExactServerDebugRuntime(
 	const limits = normalizeLimits(context.debugLimits);
 	const catalogs = createExactInspectionCatalogRegistry(context.inspectionCatalogs);
 	const sessions = createExactDebugSessionManager(context, limits);
-	const gatewayClosures = new Map<string, Promise<void>>();
 	let closed = false;
 	const runtime: ExactServerDebugRuntime = {
 		async handle(request, input) {
@@ -56,13 +55,8 @@ export function createExactServerDebugRuntime(
 					? input.capabilities
 					: (['catalog', 'snapshot', 'events'] satisfies ExactDebugCapability[]);
 				const session = await sessions.open(request, requested);
-				if (!session) return unavailable();
-				sessions.onClose(session, () => {
-					const closure = Promise.resolve(context.gateway?.closeDebugSession?.(session.id, context))
-						.catch(() => undefined)
-						.finally(() => gatewayClosures.delete(session.id));
-					gatewayClosures.set(session.id, closure);
-				});
+				if (!session || closed) return unavailable();
+
 				return jsonResponse(200, {
 					ok: true,
 					session: sessions.describe(session),
@@ -74,16 +68,15 @@ export function createExactServerDebugRuntime(
 			}
 			if (input.request === 'close') {
 				const existed = sessions.close(input.sessionId);
-				if (existed) await gatewayClosures.get(input.sessionId);
 				return existed ? jsonResponse(200, { ok: true }) : unavailable();
 			}
 			if (input.request === 'subscribe') return unavailable();
-			const session = await sessions.require(
+			const session = await requireSession(
 				request,
 				input.sessionId,
 				exactDebugCapabilityForRequest(input)
 			);
-			if (!session) return unavailable();
+			if (!session || closed) return unavailable();
 			const response = await dispatchExactInspectionQuery(session, input.query, {
 				context,
 				catalogs,
@@ -101,24 +94,29 @@ export function createExactServerDebugRuntime(
 		},
 		async authorize(request, input) {
 			if (closed || input.request === 'open' || input.request === 'close') return false;
-			return !!(await sessions.require(
+			const session = await requireSession(
 				request,
 				input.sessionId,
 				exactDebugCapabilityForRequest(input)
-			));
+			);
+			return !!session && !closed;
 		},
 		async createRequestRuntime(request, sessionId) {
 			if (closed || !sameOrigin(request, context)) return undefined;
-			const session = await sessions.require(request, sessionId, 'events');
-			return session
-				? createRequestDebugRuntime(session.id, limits.maxEvents, limits.maxEventBytes)
+			const session = await requireSession(request, sessionId, 'events');
+			return session && !closed
+				? createRequestDebugRuntime(
+						session.id,
+						limits.maxEvents,
+						limits.maxEventBytes,
+						requestHeader(request, 'x-exact-debug-binding')
+					)
 				: undefined;
 		},
 		async close() {
 			if (closed) return;
 			closed = true;
 			sessions.closeAll();
-			await Promise.all(gatewayClosures.values());
 			catalogs.dispose();
 		},
 		registerCatalog(catalog) {
@@ -129,13 +127,25 @@ export function createExactServerDebugRuntime(
 			return Object.freeze({ sessionId, side: 'server', ...input });
 		}
 	};
+	function requireSession(
+		request: ExactRequestLike,
+		sessionId: string,
+		capability: ExactDebugCapability
+	) {
+		const binding = requestHeader(request, 'x-exact-debug-binding');
+		return binding && requestHeader(request, 'x-exact-debug-session') === sessionId
+			? sessions.authorizeForwarded(request, sessionId, capability)
+			: sessions.require(request, sessionId, capability);
+	}
+
 	return Object.freeze(runtime);
 }
 
 function createRequestDebugRuntime(
 	sessionId: string,
 	maxEvents: number,
-	maxBytes: number
+	maxBytes: number,
+	binding?: string
 ): ExactServerRequestDebugRuntime {
 	const events: Array<{ event: ExactRuntimeInspectionEvent; bytes: number }> = [];
 	const owners = new Set<ReturnType<typeof createExactRuntimeInspectionOwner>>();
@@ -145,7 +155,11 @@ function createRequestDebugRuntime(
 	const runtime: ExactServerRequestDebugRuntime = {
 		inspectionOwner(options) {
 			if (closed) throw new Error('Cannot inspect through a disposed request');
-			const owner = createExactRuntimeInspectionOwner({ ...options, side: 'server' });
+			const owner = createExactRuntimeInspectionOwner({
+				...options,
+				...(binding ? { binding } : {}),
+				side: 'server'
+			});
 			owner.attach(sessionId, runtime);
 			owners.add(owner);
 			return owner;
@@ -169,7 +183,7 @@ function createRequestDebugRuntime(
 					id: Object.freeze({
 						sessionId,
 						side: 'server',
-						...(event.binding ? { binding: event.binding } : {}),
+						...((binding ?? event.binding) ? { binding: binding ?? event.binding } : {}),
 						buildKey: event.buildKey,
 						executionRoot: event.executionRoot,
 						componentTypeId: event.componentTypeId,

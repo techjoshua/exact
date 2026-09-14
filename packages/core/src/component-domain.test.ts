@@ -12,8 +12,12 @@ import {
 	callWithComponentDomain,
 	callWithComponentDomainInEffectScope,
 	componentDomainInspection,
+	componentDomainLogging,
+	componentDomainTarget,
+	componentDomainWallClockSnapshot,
 	createFrameworkComponentDomain,
-	currentComponentDomain
+	currentComponentDomain,
+	isHydrationComponentDomain
 } from './component/domain.js';
 
 describe('component domains', () => {
@@ -128,5 +132,27 @@ describe('component domains', () => {
 		expect(domain).toEqual({ executionRoot: 'page' });
 		expect(Object.keys(domain)).toEqual(['executionRoot']);
 		expect(componentDomainInspection(domain)).toBeUndefined();
+	});
+
+	it('preserves optional capability defaults and explicit zero or undefined values', () => {
+		const ordinary = createFrameworkComponentDomain({ executionRoot: 'ordinary' });
+		expect(componentDomainTarget(ordinary)).toBe('client');
+		expect(componentDomainLogging(ordinary)).toBeUndefined();
+		expect(componentDomainWallClockSnapshot(ordinary)).toBeUndefined();
+		expect(isHydrationComponentDomain(ordinary)).toBe(false);
+
+		const server = createFrameworkComponentDomain({
+			executionRoot: 'server',
+			target: 'server',
+			logger: undefined,
+			wallClockSnapshot: 0,
+			inspectionActivation: 'hydration'
+		});
+		expect(componentDomainTarget(server)).toBe('server');
+		expect(componentDomainLogging(server)).toEqual({ logger: undefined, componentOverride: false });
+		expect(componentDomainWallClockSnapshot(server)).toBe(0);
+		expect(isHydrationComponentDomain(server)).toBe(true);
+		expect(Object.keys(server)).toEqual(['executionRoot']);
+		expect(Object.isFrozen(server)).toBe(true);
 	});
 });

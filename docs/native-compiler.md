@@ -2,7 +2,7 @@
 
 `@exactjs/compiler` is the JavaScript process host and public API for the native `exactc` compiler. Parsing,
 checking, eXact analysis, placement, policy enforcement, artifact partitioning, lowering,
-generated-code validation, and printing execute in one persistent TypeScript-Go process.
+generated-code validation, and printing execute in one persistent native TypeScript process.
 After analysis and target transforms settle, the JavaScript artifact host stages the complete
 client, server, shared, source-map, and inspection set before publication. A filesystem failure
 restores the prior generation instead of leaving target files mixed. Semantic work and
@@ -36,7 +36,7 @@ an exact generated-to-compiled suffix map. Host `moduleTransform` callbacks must
 3 map whenever they change code with source maps enabled; an unmapped rewrite is rejected rather
 than approximated line-for-line. Vite, Webpack, and Bun recovery paths use token-position mappings
 and leave generated-only regions unmapped.
-Native protocol 1.34 and generated component-contract version 2 carry the normalized recursive
+Compiler process protocol 1.0.0 and component-contract version 1 carry the normalized recursive
 partition plan, including ordinary enhancement-component owners, structural templates,
 crossing-edge data slots, source evidence, and partition-derived range contracts. It also retains
 `setupExecution` on authored state assignments across source normalization, distinguishing
@@ -47,10 +47,15 @@ state path, endpoint props, callback value type, placement, artifact targets, an
 identity; generated helper names never replace that source-facing description.
 See [Compiler-aware language tools](language-tools.md).
 
+The native source is pinned from Microsoft’s main `TypeScript` repository, in its `tsc` Go module.
+See [release readiness](release-readiness.md) for the upstream pin, ABI baseline, and publication
+checks. The local `native/typescript-go` directory name is retained for repository continuity.
+
 ## Application and compiler TypeScript versions
 
-New applications use TypeScript 7 for editor support and `tsc` type-checking. The compiler owns
-its pinned TypeScript-Go version independently of the application’s `typescript` dependency.
+New applications use TypeScript 7 for editor support and `exactc --check .` for compiler-aware
+application checking. The compiler owns its pinned native TypeScript revision independently of
+the application’s `typescript` dependency.
 Application source does not import a compiler API, and it does not need TypeScript 6 to run the
 eXact compiler.
 

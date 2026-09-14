@@ -8,6 +8,7 @@ import { executeOpaqueOperation } from './opaque-operation.js';
 import { isOpaqueOperation } from './opaque-operation.js';
 import {
 	createPreparedServerComponentReference,
+	createPreparedServerComponentReferenceFromPlainProps,
 	readPreparedServerComponentReference
 } from './receipt.js';
 import {
@@ -19,8 +20,26 @@ import {
 	readPreparedServerKeyedChild
 } from './server-keyed-child.js';
 import { createExactCompiledDynamicBoundaryArtifact } from '../testing/runtime-artifacts.js';
+import { createFrameworkComponentDomain, withComponentDomain } from '../component/domain.js';
 
 describe('opaque target operations', () => {
+	it('retains the active domain and private props in a proven plain reference', () => {
+		const Component = createExactCompiledDynamicBoundaryArtifact(
+			function ServerComponent() {},
+			'@exactjs/core:test-plain-server-reference',
+			'server'
+		);
+		const domain = createFrameworkComponentDomain({ target: 'server', executionRoot: 'page' });
+		const props = { message: 'ready' };
+		const reference = withComponentDomain(domain, () =>
+			createPreparedServerComponentReferenceFromPlainProps(Component, props)
+		);
+		expect(readPreparedServerComponentReference(reference)).toBe(reference);
+		expect(reference.domain).toBe(domain);
+		expect(reference.props).toBe(props);
+		expect(reference.children).toEqual([]);
+	});
+
 	it('selects its target method without exposing a kind or topology to the caller', () => {
 		const invoke = vi.fn((..._arguments: unknown[]) => 'mounted');
 		const target: ExactIntrinsicOperationTarget<string> = {

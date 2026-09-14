@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/microsoft/typescript-go/internal/exactcompiler"
+	"github.com/microsoft/TypeScript/tsc/internal/exactcompiler"
 )
 
 func main() {

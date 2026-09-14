@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/theme",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Deterministic semantic theme generation and enhancements for eXact",
 	"type": "module",
 	"files": [
@@ -10,7 +10,9 @@
 		"dist",
 		"styles.css",
 		"!dist/**/*.test.*",
-		"!dist/**/*.fixtures.*"
+		"!dist/**/*.fixtures.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -43,22 +45,22 @@
 		"./styles.css"
 	],
 	"exactComponentLibrary": {
-		"protocol": 2,
+		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.1.0",
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/component-library": "^0.5.0",
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0",
 		"color-name": "^2.1.0"
 	},
 	"devDependencies": {
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/hydrate": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0",
-		"@exactjs/testing": "^0.1.0"
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/hydrate": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0",
+		"@exactjs/testing": "^0.5.0"
 	},
 	"scripts": {
 		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs . && node scripts/generate-styles.mjs && prettier --write styles.css",
@@ -68,5 +70,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/theme"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

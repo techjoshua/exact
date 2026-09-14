@@ -1,8 +1,18 @@
 import type { ExactValueSerializationSchema } from '@exactjs/core/framework/component-contracts';
 
-/** Version-one traversal context supplied only to compiler-generated positional projectors. */
+/** Active-path operations permitted by the initial version-one generated projector contract. */
+export interface PositionalAncestors {
+	/** Checks active ancestry, excluding already completed siblings. */
+	has(value: object): boolean;
+	/** Enters a container after its cycle check. */
+	add(value: object): void;
+	/** Leaves the most recently entered container on success or failure. */
+	delete(value: object): boolean;
+}
+
+/** Shared traversal context; active ancestry exposes operations without requiring a native Set. */
 export interface PositionalProjectionContext {
-	readonly active: Set<object>;
+	readonly active: PositionalAncestors;
 	readonly maxDepth: number;
 	readonly maxNodes: number;
 	nodes: number;
@@ -32,7 +42,7 @@ const projectors = new WeakMap<object, { version: number; project: PositionalPro
 
 /**
  * Associates server-only generated code with an immutable schema without changing its tuple.
- * Unknown versions remain inert, allowing the ordinary interpreter to handle older components.
+ * Unknown versions remain inert, allowing the ordinary interpreter to handle their schemas.
  */
 export function registerPositionalProjector<T extends ExactValueSerializationSchema>(
 	schema: T,
@@ -43,7 +53,7 @@ export function registerPositionalProjector<T extends ExactValueSerializationSch
 	return schema;
 }
 
-/** Reads only the supported traversal contract; absent or future versions use the interpreter. */
+/** Reads supported emitted code without exposing the registry's mutable storage. */
 export function readPositionalProjector(
 	schema: ExactValueSerializationSchema
 ): PositionalProjector | undefined {

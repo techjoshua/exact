@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/time",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Clock-derived reactive view enhancements for eXact",
 	"type": "module",
 	"files": [
@@ -8,7 +8,9 @@
 		"README.md",
 		"capability.d.ts",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -66,15 +68,15 @@
 		}
 	},
 	"exactComponentLibrary": {
-		"protocol": 2,
+		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.1.0",
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/language-extension-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/component-library": "^0.5.0",
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/language-extension-api": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"scripts": {
 		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
@@ -83,5 +85,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/time"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

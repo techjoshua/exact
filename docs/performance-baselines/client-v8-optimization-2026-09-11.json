@@ -1,0 +1,5111 @@
+{
+  "baselineCommit": "5f6345b8ef4e922c49dffc0d27491de91e1002d8",
+  "scope": "eXact client only",
+  "captures": {
+    "compare-exact-corrected.json": {
+      "baseline": {
+        "filter": {
+          "populationMeanUs": [
+            141.2499998509884,
+            138.7500001490116,
+            152.00000002980232,
+            132.00000017881393,
+            137.00000032782555,
+            134.2500001192093,
+            135.75000002980232,
+            138.7499998509884,
+            138.99999976158142
+          ],
+          "meanUs": 138.75000003311368,
+          "medianPopulationUs": 138.7499998509884,
+          "updatesPerPopulation": 400
+        },
+        "selection": {
+          "populationMeanUs": [
+            227.9999989271164,
+            226.00000023841858,
+            224.9999988079071,
+            217.9999989271164,
+            223.99999976158142,
+            226.00000083446503,
+            218.99999916553497,
+            228.0000001192093,
+            234.00000035762787
+          ],
+          "meanUs": 225.3333330154419,
+          "medianPopulationUs": 226.00000023841858,
+          "updatesPerPopulation": 100
+        }
+      },
+      "reactive": {
+        "filter": {
+          "populationMeanUs": [
+            143.49999994039536,
+            139.50000017881393,
+            137.49999970197678,
+            133.2499997317791,
+            130.75000017881393,
+            131.25,
+            136.7500001192093,
+            135.75000002980232,
+            134.24999997019768
+          ],
+          "meanUs": 135.83333331677647,
+          "medianPopulationUs": 135.75000002980232,
+          "updatesPerPopulation": 400
+        },
+        "selection": {
+          "populationMeanUs": [
+            230.0,
+            484.9999988079071,
+            228.0000001192093,
+            218.99999856948853,
+            226.9999998807907,
+            231.9999998807907,
+            227.0000010728836,
+            226.00000083446503,
+            225.0000011920929
+          ],
+          "meanUs": 255.44444448418088,
+          "medianPopulationUs": 227.0000010728836,
+          "updatesPerPopulation": 100
+        }
+      },
+      "teardown": {
+        "filter": {
+          "populationMeanUs": [
+            137.75000035762787,
+            142.99999997019768,
+            137.49999970197678,
+            135.99999964237213,
+            135.75000017881393,
+            133.75,
+            133.0000002682209,
+            136.50000005960464,
+            135.49999982118607
+          ],
+          "meanUs": 136.52777777777777,
+          "medianPopulationUs": 135.99999964237213,
+          "updatesPerPopulation": 400
+        },
+        "selection": {
+          "populationMeanUs": [
+            229.00000035762787,
+            230.99999904632568,
+            224.00000035762787,
+            219.99999940395355,
+            223.99999916553497,
+            228.99999916553497,
+            222.00000047683716,
+            224.99999940395355,
+            235.00000059604645
+          ],
+          "meanUs": 226.55555533038245,
+          "medianPopulationUs": 224.99999940395355,
+          "updatesPerPopulation": 100
+        }
+      }
+    },
+    "profile-exact-corrected.json": {
+      "baseline": {
+        "filter": {
+          "populationMeanUs": [
+            365.9999994933605,
+            370.0,
+            364.9999998509884,
+            363.7500001490116,
+            366.4999997615814,
+            363.7499997019768
+          ],
+          "meanUs": 365.8333331594865,
+          "medianPopulationUs": 365.49999967217445,
+          "updatesPerPopulation": 400,
+          "sampledBytesPerUpdate": [
+            39467.87,
+            39560.63,
+            39149.23,
+            40168.61,
+            40045.38,
+            39667.26
+          ],
+          "meanSampledBytesPerUpdate": 39676.496666666666
+        },
+        "selection": {
+          "populationMeanUs": [
+            491.9999998807907,
+            512.9999995231628,
+            479.00000035762787,
+            460.0000011920929,
+            466.0000002384186,
+            462.9999989271164
+          ],
+          "meanUs": 478.83333335320157,
+          "medianPopulationUs": 472.5000002980232,
+          "updatesPerPopulation": 100,
+          "sampledBytesPerUpdate": [
+            45789.6,
+            46038.88,
+            46523.52,
+            47168.0,
+            46461.76,
+            45940.2
+          ],
+          "meanSampledBytesPerUpdate": 46320.32666666667
+        }
+      },
+      "reactive": {
+        "filter": {
+          "populationMeanUs": [
+            349.7499994933605,
+            367.9999999701977,
+            361.74999952316284,
+            346.9999998807907,
+            354.2499999701977,
+            350.75000062584877
+          ],
+          "meanUs": 355.24999991059303,
+          "medianPopulationUs": 352.5000002980232,
+          "updatesPerPopulation": 400,
+          "sampledBytesPerUpdate": [
+            37706.96,
+            37768.7,
+            37840.49,
+            38036.79,
+            38012.94,
+            38086.0
+          ],
+          "meanSampledBytesPerUpdate": 37908.64666666667
+        },
+        "selection": {
+          "populationMeanUs": [
+            660.9999996423721,
+            436.99999928474426,
+            427.99999952316284,
+            430.0,
+            437.9999989271164,
+            464.0000009536743
+          ],
+          "meanUs": 476.33333305517834,
+          "medianPopulationUs": 437.4999991059303,
+          "updatesPerPopulation": 100,
+          "sampledBytesPerUpdate": [
+            40405.72,
+            40314.76,
+            40542.64,
+            39340.44,
+            40510.6,
+            40432.36
+          ],
+          "meanSampledBytesPerUpdate": 40257.753333333334
+        }
+      },
+      "teardown": {
+        "filter": {
+          "populationMeanUs": [
+            360.0000001490116,
+            360.7500000298023,
+            373.50000008940697,
+            353.7500001490116,
+            345.99999964237213,
+            350.49999982118607
+          ],
+          "meanUs": 357.41666664679843,
+          "medianPopulationUs": 356.8750001490116,
+          "updatesPerPopulation": 400,
+          "sampledBytesPerUpdate": [
+            37786.47,
+            37446.03,
+            37809.53,
+            37786.15,
+            37660.36,
+            37717.51
+          ],
+          "meanSampledBytesPerUpdate": 37701.00833333333
+        },
+        "selection": {
+          "populationMeanUs": [
+            448.9999997615814,
+            454.0000009536743,
+            443.0000001192093,
+            428.0000001192093,
+            431.0000014305115,
+            428.00000071525574
+          ],
+          "meanUs": 438.8333338499069,
+          "medianPopulationUs": 437.0000007748604,
+          "updatesPerPopulation": 100,
+          "sampledBytesPerUpdate": [
+            40096.28,
+            40311.0,
+            39439.8,
+            40856.08,
+            39984.36,
+            41067.92
+          ],
+          "meanSampledBytesPerUpdate": 40292.573333333334
+        }
+      }
+    },
+    "compare-exact-tracking.json": {
+      "baseline": {
+        "filter": {
+          "populationMeanUs": [
+            139.50000002980232,
+            134.75000008940697,
+            153.2499997317791,
+            136.49999976158142,
+            136.25000044703484,
+            141.00000023841858,
+            132.74999991059303,
+            137.4999998509884,
+            134.9999998509884
+          ],
+          "meanUs": 138.4999999900659,
+          "medianPopulationUs": 136.49999976158142,
+          "updatesPerPopulation": 400
+        },
+        "selection": {
+          "populationMeanUs": [
+            237.99999952316284,
+            225.0000011920929,
+            222.00000047683716,
+            229.00000035762787,
+            221.99999928474426,
+            219.9999988079071,
+            225.0,
+            225.00000059604645,
+            231.99999928474426
+          ],
+          "meanUs": 226.44444439146253,
+          "medianPopulationUs": 225.00000059604645,
+          "updatesPerPopulation": 100
+        }
+      },
+      "teardown": {
+        "filter": {
+          "populationMeanUs": [
+            135.99999994039536,
+            133.49999979138374,
+            137.24999994039536,
+            142.00000017881393,
+            134.75000008940697,
+            134.4999998807907,
+            131.25,
+            134.9999998509884,
+            137.4999998509884
+          ],
+          "meanUs": 135.7499999470181,
+          "medianPopulationUs": 134.9999998509884,
+          "updatesPerPopulation": 400
+        },
+        "selection": {
+          "populationMeanUs": [
+            226.00000083446503,
+            458.999999165535,
+            223.0000001192093,
+            224.99999940395355,
+            220.0,
+            218.00000071525574,
+            227.00000047683716,
+            223.99999856948853,
+            223.99999916553497
+          ],
+          "meanUs": 249.55555538336435,
+          "medianPopulationUs": 223.99999916553497,
+          "updatesPerPopulation": 100
+        }
+      },
+      "tracking": {
+        "filter": {
+          "populationMeanUs": [
+            134.4999998807907,
+            135.7499998807907,
+            136.50000005960464,
+            135.0000001490116,
+            137.75000020861626,
+            133.25000017881393,
+            140.25000005960464,
+            140.49999982118607,
+            136.00000023841858
+          ],
+          "meanUs": 136.61111116409302,
+          "medianPopulationUs": 136.00000023841858,
+          "updatesPerPopulation": 400
+        },
+        "selection": {
+          "populationMeanUs": [
+            221.9999998807907,
+            226.9999998807907,
+            225.99999964237213,
+            220.0,
+            218.00000071525574,
+            221.99999928474426,
+            220.99999964237213,
+            221.9999998807907,
+            220.99999964237213
+          ],
+          "meanUs": 222.1111109521654,
+          "medianPopulationUs": 221.99999928474426,
+          "updatesPerPopulation": 100
+        }
+      }
+    },
+    "profile-exact-tracking.json": {
+      "baseline": {
+        "filter": {
+          "populationMeanUs": [
+            364.4999997317791,
+            387.7499997615814,
+            402.5,
+            374.2500001192093,
+            366.4999996125698,
+            370.00000044703484
+          ],
+          "meanUs": 377.58333327869576,
+          "medianPopulationUs": 372.12500028312206,
+          "updatesPerPopulation": 400,
+          "sampledBytesPerUpdate": [
+            39343.97,
+            39933.98,
+            40221.52,
+            40124.21,
+            39702.05,
+            39570.76
+          ],
+          "meanSampledBytesPerUpdate": 39816.081666666665
+        },
+        "selection": {
+          "populationMeanUs": [
+            465.0,
+            485.00000059604645,
+            506.99999928474426,
+            477.00000166893005,
+            470.0,
+            461.0000002384186
+          ],
+          "meanUs": 477.5000002980232,
+          "medianPopulationUs": 473.500000834465,
+          "updatesPerPopulation": 100,
+          "sampledBytesPerUpdate": [
+            46440.44,
+            46640.36,
+            45802.16,
+            45478.48,
+            46169.96,
+            45760.0
+          ],
+          "meanSampledBytesPerUpdate": 46048.566666666666
+        }
+      },
+      "teardown": {
+        "filter": {
+          "populationMeanUs": [
+            367.75000020861626,
+            373.49999994039536,
+            356.7500001192093,
+            348.49999994039536,
+            361.9999997317791,
+            341.00000008940697
+          ],
+          "meanUs": 358.25000000496703,
+          "medianPopulationUs": 359.3749999254942,
+          "updatesPerPopulation": 400,
+          "sampledBytesPerUpdate": [
+            38115.61,
+            37523.68,
+            37664.4,
+            37738.87,
+            38082.57,
+            37797.46
+          ],
+          "meanSampledBytesPerUpdate": 37820.43166666667
+        },
+        "selection": {
+          "populationMeanUs": [
+            633.0000001192093,
+            443.0000001192093,
+            440.00000059604645,
+            448.00000071525574,
+            441.0000002384186,
+            431.9999998807907
+          ],
+          "meanUs": 472.83333361148834,
+          "medianPopulationUs": 442.00000017881393,
+          "updatesPerPopulation": 100,
+          "sampledBytesPerUpdate": [
+            40882.72,
+            39228.48,
+            39178.72,
+            41333.84,
+            40721.24,
+            40360.76
+          ],
+          "meanSampledBytesPerUpdate": 40284.293333333335
+        }
+      },
+      "tracking": {
+        "filter": {
+          "populationMeanUs": [
+            366.4999997615814,
+            379.24999982118607,
+            353.0000004172325,
+            358.75,
+            356.00000008940697,
+            359.50000032782555
+          ],
+          "meanUs": 362.1666667362054,
+          "medianPopulationUs": 359.1250001639128,
+          "updatesPerPopulation": 400,
+          "sampledBytesPerUpdate": [
+            36976.42,
+            37148.14,
+            37132.89,
+            37481.79,
+            37452.94,
+            37217.86
+          ],
+          "meanSampledBytesPerUpdate": 37235.00666666667
+        },
+        "selection": {
+          "populationMeanUs": [
+            454.00000035762787,
+            488.9999997615814,
+            438.0000001192093,
+            413.9999997615814,
+            446.9999998807907,
+            438.0000001192093
+          ],
+          "meanUs": 446.6666666666667,
+          "medianPopulationUs": 442.5,
+          "updatesPerPopulation": 100,
+          "sampledBytesPerUpdate": [
+            39128.2,
+            40476.44,
+            40528.12,
+            39247.8,
+            40377.32,
+            40470.28
+          ],
+          "meanSampledBytesPerUpdate": 40038.026666666665
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "baseline": {
+      "bytes": 199356,
+      "sha256": "7f6b6318a0a5bcddbacc597af73322fc1f1a535aa255abf187f244d43fc2760b"
+    },
+    "reactive": {
+      "bytes": 199322,
+      "sha256": "eed5d2640c881e82c5863b50282470dbfe169d94ca5f3f6161845154093ec029"
+    },
+    "teardown": {
+      "bytes": 199037,
+      "sha256": "7e2d99a3763ed13092cd97f4b210854eec78db0172702176e1238239c0a8587b"
+    },
+    "tracking": {
+      "bytes": 199067,
+      "sha256": "649db8a6bce3dc94c57d04175b29130a41c0d2c2bb33e5d20bf54049188f6712"
+    }
+  },
+  "browserVersion": "149.0.7827.55",
+  "bytecode": {
+    "exact": {
+      "mappedNamedFunctions": [
+        {
+          "minified": "hh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/boundaries.js",
+          "line": 101,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptStaticChildrenRange(root, children, nodes, parentInstance, parentScope, requireAll, start = 0, end = nodes.length) {",
+          "characters": 1490,
+          "bytecodeBytes": 2040
+        },
+        {
+          "minified": "Ye",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 129,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function flushSync(through = 'deferred') {",
+          "characters": 1048,
+          "bytecodeBytes": 1718
+        },
+        {
+          "minified": "Bh",
+          "source": "../../../../packages/hydrate/dist/validation.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isJsonSafe(value, limits = {}) {",
+          "characters": 979,
+          "bytecodeBytes": 1280
+        },
+        {
+          "minified": "ng",
+          "source": "../../../../packages/hydrate/dist/root-config.js",
+          "line": 119,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function parseRootConfig(script, limits) {",
+          "characters": 1642,
+          "bytecodeBytes": 1235
+        },
+        {
+          "minified": "hg",
+          "source": "../../../../packages/hydrate/dist/framework/component-root.js",
+          "line": 15,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function hydrateCompiledComponentRoot(operation, container, options = {}) {",
+          "characters": 1312,
+          "bytecodeBytes": 1169
+        },
+        {
+          "minified": "Xt",
+          "source": "../../../../packages/reactive/dist/internal/equality.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function structurallyEqual(left, right, unwrap) {",
+          "characters": 1134,
+          "bytecodeBytes": 1151
+        },
+        {
+          "minified": "mm",
+          "source": "../../../../packages/dom/dist/client/renderer/patching/children.js",
+          "line": 37,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function patchMixedNativeChildren(root, parent, oldChildren, next, parentInstance, parentScope, before, structuralOwner) {",
+          "characters": 1094,
+          "bytecodeBytes": 1143
+        },
+        {
+          "minified": "bd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 64,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function setElementProp(root, element, key, value, previous, scope) {",
+          "characters": 1275,
+          "bytecodeBytes": 991
+        },
+        {
+          "minified": "oh",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-adoption.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptProgramChildSlots(mounted, parentInstance, adoptChildren) {",
+          "characters": 972,
+          "bytecodeBytes": 974
+        },
+        {
+          "minified": "Ct",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 157,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function stopEffectScope(root) {",
+          "characters": 643,
+          "bytecodeBytes": 950
+        },
+        {
+          "minified": "Dh",
+          "source": "../../../../packages/hydrate/dist/adoption/form-state.js",
+          "line": 71,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function restoreFormState(container, states, work) {",
+          "characters": 1180,
+          "bytecodeBytes": 937
+        },
+        {
+          "minified": "re",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 121,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function scheduleTriggeredReactions(triggers) {",
+          "characters": 241,
+          "bytecodeBytes": 863
+        },
+        {
+          "minified": "kp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 45,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function claimCompiledProgramWiring(wiring, target) {",
+          "characters": 526,
+          "bytecodeBytes": 766
+        },
+        {
+          "minified": "Qc",
+          "source": "../../../../packages/core/dist/client/component/resumption.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function applyComponentResumption(state, resumption) {",
+          "characters": 281,
+          "bytecodeBytes": 754
+        },
+        {
+          "minified": "kd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 264,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function setDomProp(root, element, key, value) {",
+          "characters": 841,
+          "bytecodeBytes": 751
+        },
+        {
+          "minified": "dp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-text-run.js",
+          "line": 17,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function finishProgramTextRuns(pending, slotNodes) {",
+          "characters": 532,
+          "bytecodeBytes": 702
+        },
+        {
+          "minified": "Ks",
+          "source": "../../../../packages/core/dist/client/component/compiled-output.js",
+          "line": 10,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function executeCompiledComponentOutput(instance) {",
+          "characters": 463,
+          "bytecodeBytes": 653
+        },
+        {
+          "minified": "Z",
+          "source": "../../../../packages/dom/dist/client/renderer/teardown.js",
+          "line": 30,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function unmountMounted(mounted) {",
+          "characters": 823,
+          "bytecodeBytes": 631
+        },
+        {
+          "minified": "Xf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-dependencies.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createCompiledComponentDependencies(owner, bindings, props, publish, scope = owner.scope) {",
+          "characters": 245,
+          "bytecodeBytes": 628
+        },
+        {
+          "minified": "Jd",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/operation-parking.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function takeParkedOperation(root, value, parentInstance, parentScope) {",
+          "characters": 668,
+          "bytecodeBytes": 618
+        },
+        {
+          "minified": "Lm",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-component-artifact.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function mountNativeComponentArtifact(root, receipt, scope, parentInstance, parentNode) {",
+          "characters": 693,
+          "bytecodeBytes": 601
+        },
+        {
+          "minified": "Ue",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 71,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function discardScheduledScopeWork(scope, scopes) {",
+          "characters": 192,
+          "bytecodeBytes": 588
+        },
+        {
+          "minified": "Gm",
+          "source": "../../../../packages/dom/dist/client/renderer/root-construction.js",
+          "line": 9,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createRendererRoot(container, current, options, construction) {",
+          "characters": 815,
+          "bytecodeBytes": 579
+        },
+        {
+          "minified": "$m",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-receipt.js",
+          "line": 11,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptComponentReceipt(root, receipt, nodes, cursor, parentInstance, parentScope, rangeEnd, omitCompilerOwnedBoundary) {",
+          "characters": 640,
+          "bytecodeBytes": 575
+        },
+        {
+          "minified": "Fn",
+          "source": "../../../../packages/reactive/dist/internal/keyed/protocol.js",
+          "line": 67,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function decodeValue(value, install, active, depth) {",
+          "characters": 648,
+          "bytecodeBytes": 562
+        },
+        {
+          "minified": "vp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 90,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function executeCompiledProgramBinding(operation, target) {",
+          "characters": 613,
+          "bytecodeBytes": 559
+        },
+        {
+          "minified": "Fp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 156,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function claimCompiledProgramText(target, index, skip, id) {",
+          "characters": 938,
+          "bytecodeBytes": 527
+        },
+        {
+          "minified": "qd",
+          "source": "../../../../packages/dom/dist/client/renderer/teardown.js",
+          "line": 80,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function removeMountedNodes(parent, mounted) {",
+          "characters": 559,
+          "bytecodeBytes": 524
+        },
+        {
+          "minified": "tt",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 324,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function highestQueuedPriority() {",
+          "characters": 182,
+          "bytecodeBytes": 521
+        },
+        {
+          "minified": "lh",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program.js",
+          "line": 75,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function adoptMarkedRenderProgram(root, value, nodes, cursor, end, scope, parentInstance, adoptChildren) {",
+          "characters": 726,
+          "bytecodeBytes": 521
+        },
+        {
+          "minified": "mg",
+          "source": "../../../../packages/hydrate/dist/runtime/deferred-hydration.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function deferHydrationAfterNavigation(activateHydration, container) {",
+          "characters": 1161,
+          "bytecodeBytes": 516
+        },
+        {
+          "minified": "at",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 361,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function hasQueuedPriority(priority) {",
+          "characters": 155,
+          "bytecodeBytes": 516
+        },
+        {
+          "minified": "xr",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 246,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function getCachedProxy(raw, options, source) {",
+          "characters": 218,
+          "bytecodeBytes": 502
+        },
+        {
+          "minified": "eh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-receipt.js",
+          "line": 59,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function adoptMarkerlessReceipt(root, receipt, nodes, cursor, parentInstance, scope, rangeEnd) {",
+          "characters": 662,
+          "bytecodeBytes": 490
+        },
+        {
+          "minified": "s",
+          "source": "../../../../packages/core/dist/client/tasks/component-continuation.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function markContinuationWork(id, work) {",
+          "characters": 165,
+          "bytecodeBytes": 483
+        },
+        {
+          "minified": "Qf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-dependencies.js",
+          "line": 62,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function refreshForwardedProp(dependencies, index) {",
+          "characters": 441,
+          "bytecodeBytes": 475
+        },
+        {
+          "minified": "$",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/children.js",
+          "line": 27,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mountDetachedChildren(root, children, parentInstance, parentScope, parentNode) {",
+          "characters": 563,
+          "bytecodeBytes": 475
+        },
+        {
+          "minified": "$h",
+          "source": "../../../../packages/hydrate/dist/root-config.js",
+          "line": 61,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function readRootConfig(container, limits = {}, maxDomNodes) {",
+          "characters": 494,
+          "bytecodeBytes": 447
+        },
+        {
+          "minified": "di",
+          "source": "../../../../packages/reactive/dist/writes.js",
+          "line": 135,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerReactiveListKey(collection, key, site = 'an unlabelled this.map() call', identity) {",
+          "characters": 534,
+          "bytecodeBytes": 445
+        },
+        {
+          "minified": "x",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 81,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function cleanupReaction(reaction) {",
+          "characters": 138,
+          "bytecodeBytes": 440
+        },
+        {
+          "minified": "o",
+          "source": "../../../../packages/core/dist/client/tasks/component-continuation.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function markComponentContinuationTask(id, work) {",
+          "characters": 30,
+          "bytecodeBytes": 422
+        },
+        {
+          "minified": "Ef",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 72,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function prepareProgramChildBinding(mounted, index, initialBinding, read = readProgramChildren) {",
+          "characters": 755,
+          "bytecodeBytes": 422
+        },
+        {
+          "minified": "Qh",
+          "source": "../../../../packages/hydrate/dist/root-config.js",
+          "line": 24,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function resolveRootHydrateOptions(container, options) {",
+          "characters": 1326,
+          "bytecodeBytes": 406
+        },
+        {
+          "minified": "Gr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 189,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function writeIndexedRecord(indexed, index, next) {",
+          "characters": 525,
+          "bytecodeBytes": 406
+        },
+        {
+          "minified": "st",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 383,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function takeEligibleReactions(through) {",
+          "characters": 197,
+          "bytecodeBytes": 399
+        },
+        {
+          "minified": "ot",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 370,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function takeEligibleComputations(through) {",
+          "characters": 164,
+          "bytecodeBytes": 399
+        },
+        {
+          "minified": "vd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 32,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function clearElementProps(element) {",
+          "characters": 183,
+          "bytecodeBytes": 388
+        },
+        {
+          "minified": "Td",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 187,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function setDirectEventHandler(root, element, key, type, value, capture, directInteraction = false, closedInteraction = false) {",
+          "characters": 482,
+          "bytecodeBytes": 367
+        },
+        {
+          "minified": "Rf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-components.js",
+          "line": 35,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function prepareProgramComponentBinding(mounted, index, initialBinding) {",
+          "characters": 1136,
+          "bytecodeBytes": 361
+        },
+        {
+          "minified": "Ot",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 315,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function notifyResumedSubtree(root) {",
+          "characters": 215,
+          "bytecodeBytes": 352
+        },
+        {
+          "minified": "Xp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-operation.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mountRenderProgram(root, value, scope, parentInstance, parentNode) {",
+          "characters": 601,
+          "bytecodeBytes": 349
+        },
+        {
+          "minified": "it",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 352,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function hasEligibleReactions(through) {",
+          "characters": 88,
+          "bytecodeBytes": 339
+        },
+        {
+          "minified": "Kr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 229,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function seedIndexedRecord(indexed, initial) {",
+          "characters": 263,
+          "bytecodeBytes": 322
+        },
+        {
+          "minified": "q",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function placeMountedBefore(root, parent, mounted, before) {",
+          "characters": 289,
+          "bytecodeBytes": 320
+        },
+        {
+          "minified": "Nl",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 25,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mountedDomNodes(mounted) {",
+          "characters": 449,
+          "bytecodeBytes": 320
+        },
+        {
+          "minified": "Sm",
+          "source": "../../../../packages/dom/dist/client/renderer/child-range-receipt.js",
+          "line": 101,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function rangeChildren(receipt, parentInstance, onSuspension) {",
+          "characters": 408,
+          "bytecodeBytes": 317
+        },
+        {
+          "minified": "ah",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/native-receipt.js",
+          "line": 67,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptChildRangeReceipt(root, receipt, nodes, cursor, parentInstance, parentScope, end, adoptChildren) {",
+          "characters": 472,
+          "bytecodeBytes": 315
+        },
+        {
+          "minified": "pg",
+          "source": "../../../../packages/hydrate/dist/runtime/root-client.js",
+          "line": 11,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createHydrationOnlyClient(container, resolvedOptions) {",
+          "characters": 825,
+          "bytecodeBytes": 314
+        },
+        {
+          "minified": "rc",
+          "source": "../../../../packages/core/dist/client/component-abi/receipt.js",
+          "line": 21,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createCompiledComponentReceipt(type, props, ...children) {",
+          "characters": 289,
+          "bytecodeBytes": 294
+        },
+        {
+          "minified": "Kh",
+          "source": "../../../../packages/hydrate/dist/config-validation.js",
+          "line": 167,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function indexedPairs(value) {",
+          "characters": 307,
+          "bytecodeBytes": 293
+        },
+        {
+          "minified": "Rl",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 81,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function runAfterPlacement(root, mounted) {",
+          "characters": 559,
+          "bytecodeBytes": 286
+        },
+        {
+          "minified": "ae",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 161,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function runTracked(reaction, fn) {",
+          "characters": 190,
+          "bytecodeBytes": 284
+        },
+        {
+          "minified": "hp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-property-bindings.js",
+          "line": 30,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function applyCompiledProgramProperties(target, group, firstSlot) {",
+          "characters": 274,
+          "bytecodeBytes": 283
+        },
+        {
+          "minified": "ks",
+          "source": "../../../../packages/core/dist/client/tasks/dependency-watcher.js",
+          "line": 9,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function watchContinuationDependencies(sources, callbacks) {",
+          "characters": 706,
+          "bytecodeBytes": 281
+        },
+        {
+          "minified": "Bc",
+          "source": "../../../../packages/core/dist/client/class-values.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function appendClassValue(output, candidate) {",
+          "characters": 222,
+          "bytecodeBytes": 278
+        },
+        {
+          "minified": "vh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-receipt-root.js",
+          "line": 33,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptMarkerlessCompiledComponentReceiptRoot(operation, receipt, container, options = {}) {",
+          "characters": 501,
+          "bytecodeBytes": 277
+        },
+        {
+          "minified": "Op",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function claimCompiledRenderProgram(program, root, source) {",
+          "characters": 542,
+          "bytecodeBytes": 273
+        },
+        {
+          "minified": "pf",
+          "source": "../../../../packages/dom/dist/client/renderer/patching/mixed-child-operations.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mixedChildOperations(children) {",
+          "characters": 346,
+          "bytecodeBytes": 270
+        },
+        {
+          "minified": "$c",
+          "source": "../../../../packages/core/dist/client/component/resumption.js",
+          "line": 16,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function writePath(target, path, value) {",
+          "characters": 268,
+          "bytecodeBytes": 268
+        },
+        {
+          "minified": "Jr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 252,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function readIndexedValue(indexed, key, index, mode) {",
+          "characters": 380,
+          "bytecodeBytes": 265
+        },
+        {
+          "minified": "lp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-text.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function applyProgramText(mounted, index, source, operandSlot, prefix = '', suffix = '') {",
+          "characters": 406,
+          "bytecodeBytes": 259
+        },
+        {
+          "minified": "Cu",
+          "source": "../../../../packages/dom/dist/client/renderer/component-roots.js",
+          "line": 64,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function firstHostElement(mounted) {",
+          "characters": 329,
+          "bytecodeBytes": 259
+        },
+        {
+          "minified": "Lp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 244,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function claimCompiledProgramKeyedChild(target, index, skip, component = false, endIndex) {",
+          "characters": 357,
+          "bytecodeBytes": 256
+        },
+        {
+          "minified": "Rm",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-component-artifact.js",
+          "line": 72,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function bindComponentReceiptUpdate(mounted, owner, receipt) {",
+          "characters": 385,
+          "bytecodeBytes": 253
+        },
+        {
+          "minified": "dn",
+          "source": "../../../../packages/reactive/dist/computation.js",
+          "line": 317,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function settleGraph(root) {",
+          "characters": 448,
+          "bytecodeBytes": 252
+        },
+        {
+          "minified": "xn",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 147,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function subscribeKeys(target, keys, callback, options = {}) {",
+          "characters": 147,
+          "bytecodeBytes": 249
+        },
+        {
+          "minified": "As",
+          "source": "../../../../packages/core/dist/client/tasks/computation-activation.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function activateComputationForHost(host, computation, ...inputs) {",
+          "characters": 576,
+          "bytecodeBytes": 240
+        },
+        {
+          "minified": "Ep",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claim-path.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function claimCompiledProgramElementPath(target, index, path, tag, namespace) {",
+          "characters": 339,
+          "bytecodeBytes": 240
+        },
+        {
+          "minified": "bu",
+          "source": "../../../../packages/dom/dist/client/renderer/component-roots.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function firstTargetElement(mounted) {",
+          "characters": 287,
+          "bytecodeBytes": 238
+        },
+        {
+          "minified": "Ze",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 241,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function settleScheduler() {",
+          "characters": 171,
+          "bytecodeBytes": 237
+        },
+        {
+          "minified": "yd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 46,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function synchronizeFormBinding(element) {",
+          "characters": 377,
+          "bytecodeBytes": 236
+        },
+        {
+          "minified": "jr",
+          "source": "../../../../packages/reactive/dist/indexed-layout.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function indexedLayout(keys) {",
+          "characters": 167,
+          "bytecodeBytes": 234
+        },
+        {
+          "minified": "us",
+          "source": "../../../../packages/core/dist/client/interaction/execution.js",
+          "line": 47,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function runDirectCompiledComponentInteraction(owner, source, generation, priority, work, onTraceScope, trace) {",
+          "characters": 596,
+          "bytecodeBytes": 233
+        },
+        {
+          "minified": "Kf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-storage.js",
+          "line": 40,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function publishComponentUpdateTargets(targets, apply) {",
+          "characters": 212,
+          "bytecodeBytes": 229
+        },
+        {
+          "minified": "ph",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/boundaries.js",
+          "line": 78,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptComponentChildren(root, children, nodes, parentInstance, parentScope, start = 0, end = nodes.length) {",
+          "characters": 275,
+          "bytecodeBytes": 225
+        },
+        {
+          "minified": "Gu",
+          "source": "../../../../packages/dom/dist/client/focus.js",
+          "line": 45,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function restoreFocus(root, snapshot) {",
+          "characters": 473,
+          "bytecodeBytes": 225
+        },
+        {
+          "minified": "ef",
+          "source": "../../../../packages/dom/dist/client/renderer/child-keys.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function assertUniqueChildKeys(children) {",
+          "characters": 171,
+          "bytecodeBytes": 225
+        },
+        {
+          "minified": "qp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-template.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function materializeProgramTemplate(program, ownerDocument, parentNode) {",
+          "characters": 291,
+          "bytecodeBytes": 219
+        },
+        {
+          "minified": "ne",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 109,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function scheduleDependencyReactions(target, key) {",
+          "characters": 148,
+          "bytecodeBytes": 218
+        },
+        {
+          "minified": "$p",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-operation.js",
+          "line": 72,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function countProgramWork(root, work, includeRoot) {",
+          "characters": 90,
+          "bytecodeBytes": 218
+        },
+        {
+          "minified": "yl",
+          "source": "../../../../packages/core/dist/client/component/runtime-surface-registration.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function installDescriptors(descriptors) {",
+          "characters": 192,
+          "bytecodeBytes": 213
+        },
+        {
+          "minified": "og",
+          "source": "../../../../packages/hydrate/dist/runtime/resumption.js",
+          "line": 50,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function prepareIndexedFields(entries, fields, componentId, fieldKind) {",
+          "characters": 386,
+          "bytecodeBytes": 213
+        },
+        {
+          "minified": "nh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-receipt.js",
+          "line": 116,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function constructReceipt(root, receipt, parent) {",
+          "characters": 286,
+          "bytecodeBytes": 210
+        },
+        {
+          "minified": "Qm",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-receipt-identity.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentMarkerBoundaryByIdentity(nodes, cursor, identity, end = nodes.length) {",
+          "characters": 316,
+          "bytecodeBytes": 209
+        },
+        {
+          "minified": "Lh",
+          "source": "../../../../packages/core/dist/client/protocol-utf8.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function protocolUtf8ByteLength(value) {",
+          "characters": 274,
+          "bytecodeBytes": 208
+        },
+        {
+          "minified": "Ga",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 23,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createFrameworkComponentDomain(options) {",
+          "characters": 531,
+          "bytecodeBytes": 206
+        },
+        {
+          "minified": "Qr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 335,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function reactiveIndexedDependencies(value, indexes) {",
+          "characters": 151,
+          "bytecodeBytes": 206
+        },
+        {
+          "minified": "Am",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/children.js",
+          "line": 111,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function mountEnhancedCompilerOperation(root, value, parentInstance, parentScope, parentNode) {",
+          "characters": 308,
+          "bytecodeBytes": 206
+        },
+        {
+          "minified": "Zf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-dependencies.js",
+          "line": 48,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function visitChangedCompiledComponentDependencies(dependencies, visit, forwardedBinding = -1) {",
+          "characters": 103,
+          "bytecodeBytes": 206
+        },
+        {
+          "minified": "cf",
+          "source": "../../../../packages/dom/dist/client/renderer/reconciliation.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function longestIncreasingSubsequencePositions(values) {",
+          "characters": 265,
+          "bytecodeBytes": 204
+        },
+        {
+          "minified": "va",
+          "source": "../../../../packages/core/dist/client/component-abi/value-serialization.js",
+          "line": 23,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function decodeExactValueWithSchema(value, schema) {",
+          "characters": 333,
+          "bytecodeBytes": 203
+        },
+        {
+          "minified": "Ip",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 218,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function claimCompiledProgramChild(target, index, skip, id, component = false) {",
+          "characters": 328,
+          "bytecodeBytes": 201
+        },
+        {
+          "minified": "nd",
+          "source": "../../../../packages/dom/dist/client/events.js",
+          "line": 105,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function runInteractiveEvent(root, owner, work, direct = false) {",
+          "characters": 565,
+          "bytecodeBytes": 201
+        },
+        {
+          "minified": "ap",
+          "source": "../../../../packages/dom/dist/client/renderer/component-state-update-binding.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledStateComponentUpdate(target, index, updates) {",
+          "characters": 196,
+          "bytecodeBytes": 199
+        },
+        {
+          "minified": "yr",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 190,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function createParentSource(target, key, options, collectionMember) {",
+          "characters": 438,
+          "bytecodeBytes": 197
+        },
+        {
+          "minified": "Be",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 33,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function queueReaction(reaction, priority = currentWorkPriority()) {",
+          "characters": 196,
+          "bytecodeBytes": 197
+        },
+        {
+          "minified": "up",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-text-run.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function prepareProgramTextRun(container, parts, pending) {",
+          "characters": 193,
+          "bytecodeBytes": 195
+        },
+        {
+          "minified": "Zr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 318,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function reactiveOwnDependencies(value, keys) {",
+          "characters": 147,
+          "bytecodeBytes": 195
+        },
+        {
+          "minified": "yp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 142,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledProgramComponent(target, index, bindings, props) {",
+          "characters": 282,
+          "bytecodeBytes": 195
+        },
+        {
+          "minified": "tg",
+          "source": "../../../../packages/hydrate/dist/root-config.js",
+          "line": 99,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readPublishedRootProps(componentOrContainer, containerOrLimits, limitsOrMaxDomNodes, maxDomNodes) {",
+          "characters": 373,
+          "bytecodeBytes": 194
+        },
+        {
+          "minified": "Na",
+          "source": "../../../../packages/core/dist/client/component/task-owner-integration.js",
+          "line": 7,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function configureComponentTaskOwner(instance, owner, execution, props) {",
+          "characters": 286,
+          "bytecodeBytes": 193
+        },
+        {
+          "minified": "sc",
+          "source": "../../../../packages/core/dist/client/component-abi/child-range-receipt.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createChildRangeReceipt(value, markerId, mayReplaceSubtree = true, dynamicComponent) {",
+          "characters": 183,
+          "bytecodeBytes": 193
+        },
+        {
+          "minified": "bh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-receipt-root.js",
+          "line": 90,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function adoptReceiptRoot(root, mounted, receipt, nodes, options) {",
+          "characters": 403,
+          "bytecodeBytes": 191
+        },
+        {
+          "minified": "G",
+          "source": "../../../../packages/core/dist/client/render-program.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createPreparedRenderProgram(branded, readers, owner, propertyWriter, enhancement) {",
+          "characters": 195,
+          "bytecodeBytes": 191
+        },
+        {
+          "minified": "Do",
+          "source": "../../../../packages/core/dist/client/render-children.js",
+          "line": 17,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function normalizeRenderResult(result) {",
+          "characters": 103,
+          "bytecodeBytes": 189
+        },
+        {
+          "minified": "qf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-storage.js",
+          "line": 64,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createComponentDependencyGroup(owner, bindings, source, start = 0, end = bindings.length) {",
+          "characters": 201,
+          "bytecodeBytes": 186
+        },
+        {
+          "minified": "Hl",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 140,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function insertBeforeIfNeeded(root, parent, node, before) {",
+          "characters": 415,
+          "bytecodeBytes": 186
+        },
+        {
+          "minified": "qc",
+          "source": "../../../../packages/core/dist/client/component/authorization.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isExactComponentAuthorizationIdentity(value) {",
+          "characters": 371,
+          "bytecodeBytes": 183
+        },
+        {
+          "minified": "Ed",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 224,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function eventContainerFor(root, element) {",
+          "characters": 181,
+          "bytecodeBytes": 183
+        },
+        {
+          "minified": "_f",
+          "source": "../../../../packages/dom/dist/client/compiled-props.js",
+          "line": 60,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function releaseCompiledProps(mounted) {",
+          "characters": 159,
+          "bytecodeBytes": 182
+        },
+        {
+          "minified": "Rr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 53,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createIndexedReactive(keys, options, wrap, initial, preserveReactiveValues = false) {",
+          "characters": 237,
+          "bytecodeBytes": 176
+        },
+        {
+          "minified": "wn",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 173,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function collectionRef(value) {",
+          "characters": 294,
+          "bytecodeBytes": 175
+        },
+        {
+          "minified": "rt",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 343,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function hasEligibleComputations(through) {",
+          "characters": 95,
+          "bytecodeBytes": 173
+        },
+        {
+          "minified": "td",
+          "source": "../../../../packages/dom/dist/client/events.js",
+          "line": 94,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function runEventInteraction(root, owner, work, onScope, direct = false) {",
+          "characters": 160,
+          "bytecodeBytes": 173
+        },
+        {
+          "minified": "zl",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 114,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isInFinalPlacement(root, node) {",
+          "characters": 132,
+          "bytecodeBytes": 171
+        },
+        {
+          "minified": "_r",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 165,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createReactiveBase(value, options, parentSource, collectionMember) {",
+          "characters": 238,
+          "bytecodeBytes": 170
+        },
+        {
+          "minified": "Bl",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 125,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function flushPlacementRetentions(root) {",
+          "characters": 142,
+          "bytecodeBytes": 169
+        },
+        {
+          "minified": "Oh",
+          "source": "../../../../packages/hydrate/dist/adoption/form-state.js",
+          "line": 132,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function formControlIdentity(element) {",
+          "characters": 140,
+          "bytecodeBytes": 168
+        },
+        {
+          "minified": "al",
+          "source": "../../../../packages/core/dist/client/component/state.js",
+          "line": 33,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createComponentProps(rawProps, indexedKeys, collections = false, opaqueKeys = []) {",
+          "characters": 298,
+          "bytecodeBytes": 166
+        },
+        {
+          "minified": "Ff",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 163,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function refreshProgramMountedChildren(mounted) {",
+          "characters": 113,
+          "bytecodeBytes": 166
+        },
+        {
+          "minified": "$f",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-binding.js",
+          "line": 10,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledComponentUpdate(target, index, updates) {",
+          "characters": 173,
+          "bytecodeBytes": 166
+        },
+        {
+          "minified": "wc",
+          "source": "../../../../packages/core/dist/client/component-abi/keyed-child-receipt.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createCompiledKeyedChildReceipt(value, authoredKey, ownerScope) {",
+          "characters": 209,
+          "bytecodeBytes": 164
+        },
+        {
+          "minified": "ru",
+          "source": "../../../../packages/dom/dist/client/work.js",
+          "line": 33,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function walkDomSubtree(root, visit, options = {}) {",
+          "characters": 301,
+          "bytecodeBytes": 163
+        },
+        {
+          "minified": "St",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 138,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function transferEffectScope(scope, parent) {",
+          "characters": 361,
+          "bytecodeBytes": 162
+        },
+        {
+          "minified": "Da",
+          "source": "../../../../packages/core/dist/client/keys.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createContext(description, options = false) {",
+          "characters": 289,
+          "bytecodeBytes": 159
+        },
+        {
+          "minified": "yg",
+          "source": "../../../../packages/core/dist/client/component/list-controller.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createComponentListController(ownerScope) {",
+          "characters": 1519,
+          "bytecodeBytes": 158
+        },
+        {
+          "minified": "Eo",
+          "source": "../../../../packages/core/dist/client/render-children.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function appendNormalizedChildren(children, normalized) {",
+          "characters": 67,
+          "bytecodeBytes": 157
+        },
+        {
+          "minified": "sn",
+          "source": "../../../../packages/reactive/dist/computation.js",
+          "line": 15,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function computed(compute) {",
+          "characters": 149,
+          "bytecodeBytes": 156
+        },
+        {
+          "minified": "ui",
+          "source": "../../../../packages/reactive/dist/writes.js",
+          "line": 87,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function commitIndexedReactiveWrite(target, index, next) {",
+          "characters": 203,
+          "bytecodeBytes": 155
+        },
+        {
+          "minified": "Gf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-storage.js",
+          "line": 16,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindComponentUpdateTarget(target, targets, index) {",
+          "characters": 255,
+          "bytecodeBytes": 155
+        },
+        {
+          "minified": "_p",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 83,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function executeCompiledProgramBindings(wiring, target) {",
+          "characters": 62,
+          "bytecodeBytes": 154
+        },
+        {
+          "minified": "Sr",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 269,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function cacheProxy(raw, options, source, proxy) {",
+          "characters": 191,
+          "bytecodeBytes": 152
+        },
+        {
+          "minified": "gu",
+          "source": "../../../../packages/core/dist/client/component/root-lifecycle.js",
+          "line": 31,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function publishComponentRoot(instance, discovered, presented = true, introduction = 'update') {",
+          "characters": 219,
+          "bytecodeBytes": 152
+        },
+        {
+          "minified": "ed",
+          "source": "../../../../packages/dom/dist/client/events.js",
+          "line": 53,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function ensureDelegated(root, type, container = root.container) {",
+          "characters": 384,
+          "bytecodeBytes": 150
+        },
+        {
+          "minified": "oe",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 191,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function releaseEmptyDependency(dep) {",
+          "characters": 149,
+          "bytecodeBytes": 150
+        },
+        {
+          "minified": "Ve",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 49,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function queueComputation(computation, onError, priority = currentWorkPriority(), scope) {",
+          "characters": 143,
+          "bytecodeBytes": 150
+        },
+        {
+          "minified": "jo",
+          "source": "../../../../packages/core/dist/client/component-abi/opaque-operation.js",
+          "line": 17,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createOpaqueOperation(execute, metadata) {",
+          "characters": 226,
+          "bytecodeBytes": 149
+        },
+        {
+          "minified": "Gp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-slot-claims.js",
+          "line": 41,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function ownDirectProgramNodes(elements, owner) {",
+          "characters": 66,
+          "bytecodeBytes": 148
+        },
+        {
+          "minified": "vn",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 19,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function watchRetained(fn, scheduler, options = {}) {",
+          "characters": 147,
+          "bytecodeBytes": 148
+        },
+        {
+          "minified": "Up",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-hydration.js",
+          "line": 75,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function markedProgramRange(nodes, cursor, end) {",
+          "characters": 254,
+          "bytecodeBytes": 145
+        },
+        {
+          "minified": "Uu",
+          "source": "../../../../packages/dom/dist/client/focus.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function preserveFocus(root, work) {",
+          "characters": 273,
+          "bytecodeBytes": 145
+        },
+        {
+          "minified": "e_",
+          "source": "../../../../framework-comparison/participants/exact/src/live-service.ts",
+          "line": 58,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function publishConnection(status: typeof connection): void {",
+          "characters": 56,
+          "bytecodeBytes": 145
+        },
+        {
+          "minified": "zr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 137,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createIndexedReactiveValue(target, index) {",
+          "characters": 183,
+          "bytecodeBytes": 144
+        },
+        {
+          "minified": "de",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 58,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function publishBatch(fn) {",
+          "characters": 155,
+          "bytecodeBytes": 140
+        },
+        {
+          "minified": "gf",
+          "source": "../../../../packages/dom/dist/client/compiled-props.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function applyCompiledProps(mounted, element, group, initialBinding, operands) {",
+          "characters": 652,
+          "bytecodeBytes": 134
+        },
+        {
+          "minified": "uo",
+          "source": "../../../../packages/core/dist/client/component/log.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function logFrameworkEvent(level, packageName, category, message, data, logger = defaultConsoleLogger) {",
+          "characters": 158,
+          "bytecodeBytes": 134
+        },
+        {
+          "minified": "w",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function trigger(target, key) {",
+          "characters": 189,
+          "bytecodeBytes": 131
+        },
+        {
+          "minified": "yu",
+          "source": "../../../../packages/dom/dist/client/renderer/component-roots.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function refreshComponentRoot(instance, presented = true, introduction = 'update') {",
+          "characters": 140,
+          "bytecodeBytes": 131
+        },
+        {
+          "minified": "sd",
+          "source": "../../../../packages/dom/dist/client/events.js",
+          "line": 191,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function dispatchEventPath(event, container, visit) {",
+          "characters": 259,
+          "bytecodeBytes": 128
+        },
+        {
+          "minified": "Nr",
+          "source": "../../../../packages/reactive/dist/reactive-record-slots.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function ensureIndexedRecordIndex(record, key) {",
+          "characters": 191,
+          "bytecodeBytes": 127
+        },
+        {
+          "minified": "jp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 102,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function beginCompiledProgramClaims(target, tag, namespace, nodes, slots) {",
+          "characters": 173,
+          "bytecodeBytes": 126
+        },
+        {
+          "minified": "Gh",
+          "source": "../../../../packages/hydrate/dist/config-validation.js",
+          "line": 158,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isIndexedComponentResumption(value) {",
+          "characters": 152,
+          "bytecodeBytes": 125
+        },
+        {
+          "minified": "Sf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 9,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindProgramChild(mounted, index, initialBinding, stopBindings, direct = false) {",
+          "characters": 189,
+          "bytecodeBytes": 125
+        },
+        {
+          "minified": "ue",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 32,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function batch(fn) {",
+          "characters": 145,
+          "bytecodeBytes": 125
+        },
+        {
+          "minified": "Hp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 291,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function markComponentSlot(target, index) {",
+          "characters": 239,
+          "bytecodeBytes": 124
+        },
+        {
+          "minified": "te",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 93,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function detachDependency(reaction, dep) {",
+          "characters": 231,
+          "bytecodeBytes": 123
+        },
+        {
+          "minified": "Wu",
+          "source": "../../../../packages/dom/dist/client/focus.js",
+          "line": 26,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function captureFocus() {",
+          "characters": 325,
+          "bytecodeBytes": 122
+        },
+        {
+          "minified": "Jp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-template.js",
+          "line": 25,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function createProgramTemplate(program, ownerDocument, namespace) {",
+          "characters": 244,
+          "bytecodeBytes": 122
+        },
+        {
+          "minified": "Cd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 166,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function applyPropValue(root, element, key, value) {",
+          "characters": 155,
+          "bytecodeBytes": 119
+        },
+        {
+          "minified": "Qg",
+          "source": "../../../../framework-comparison/participants/exact/src/live-service.ts",
+          "line": 19,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function subscribeLiveService(",
+          "characters": 206,
+          "bytecodeBytes": 119
+        },
+        {
+          "minified": "ch",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program.js",
+          "line": 60,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptCompiledRenderProgram(root, value, nodes, cursor, parentInstance, scope, end, adoptChildren) {",
+          "characters": 147,
+          "bytecodeBytes": 118
+        },
+        {
+          "minified": "gh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/boundaries.js",
+          "line": 225,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function closingMarkerIndex(nodes, cursor, opening, end = nodes.length) {",
+          "characters": 178,
+          "bytecodeBytes": 118
+        },
+        {
+          "minified": "Q",
+          "source": "../../../../packages/dom/dist/client/renderer/patching/children.js",
+          "line": 20,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function patchChildren(root, parent, oldChildren, nextChildren, parentInstance, parentScope, before, structuralOwner) {",
+          "characters": 226,
+          "bytecodeBytes": 118
+        },
+        {
+          "minified": "$a",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 140,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function withComponentResumption(domain, work) {",
+          "characters": 105,
+          "bytecodeBytes": 116
+        },
+        {
+          "minified": "bn",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 138,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function subscribe(source, callback, options = {}) {",
+          "characters": 115,
+          "bytecodeBytes": 116
+        },
+        {
+          "minified": "Dp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claim-path.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function matchesProgramElement(element, tag, namespace) {",
+          "characters": 230,
+          "bytecodeBytes": 113
+        },
+        {
+          "minified": "bp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 167,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledProgramText(target, index, direct, operand, prefix = '', suffix = '') {",
+          "characters": 125,
+          "bytecodeBytes": 111
+        },
+        {
+          "minified": "pp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-property-bindings.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledProgramProperties(target, group, firstSlot, direct, operands) {",
+          "characters": 194,
+          "bytecodeBytes": 110
+        },
+        {
+          "minified": "$g",
+          "source": "../../../../framework-comparison/participants/exact/src/live-service.ts",
+          "line": 42,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function ensureLiveService(): void {",
+          "characters": 308,
+          "bytecodeBytes": 109
+        },
+        {
+          "minified": "Eh",
+          "source": "../../../../packages/hydrate/dist/adoption/form-state.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function captureHydrationDom(container, work) {",
+          "characters": 1286,
+          "bytecodeBytes": 108
+        },
+        {
+          "minified": "_g",
+          "source": "../../../../packages/hydrate/dist/framework/component-root.js",
+          "line": 115,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function domOptions(options, work) {",
+          "characters": 308,
+          "bytecodeBytes": 108
+        },
+        {
+          "minified": "Tf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 53,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindProgramKeyedChild(mounted, index, initialBinding, stopBindings) {",
+          "characters": 208,
+          "bytecodeBytes": 107
+        },
+        {
+          "minified": "gg",
+          "source": "../../../../packages/hydrate/dist/framework/component-root.js",
+          "line": 106,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function hydrateCompiledComponentRootAfterNavigation(operation, container, options = {}) {",
+          "characters": 93,
+          "bytecodeBytes": 106
+        },
+        {
+          "minified": "vf",
+          "source": "../../../../packages/dom/dist/client/renderer/dynamic-children.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledDynamicChildren(invocation, index, parentInstance, label) {",
+          "characters": 93,
+          "bytecodeBytes": 106
+        },
+        {
+          "minified": "Hh",
+          "source": "../../../../packages/hydrate/dist/config-validation.js",
+          "line": 46,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function normalizeSerializedComponentResumptions(value) {",
+          "characters": 251,
+          "bytecodeBytes": 104
+        },
+        {
+          "minified": "rl",
+          "source": "../../../../packages/core/dist/client/component/state.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createComponentState(domain, instance, indexedKeys, collections = false) {",
+          "characters": 325,
+          "bytecodeBytes": 104
+        },
+        {
+          "minified": "ig",
+          "source": "../../../../packages/hydrate/dist/runtime/current-document.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function assertCurrentDocumentContainer(container) {",
+          "characters": 324,
+          "bytecodeBytes": 101
+        },
+        {
+          "minified": "id",
+          "source": "../../../../packages/dom/dist/client/events.js",
+          "line": 164,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function eventTypeForProp(key) {",
+          "characters": 234,
+          "bytecodeBytes": 101
+        },
+        {
+          "minified": "rg",
+          "source": "../../../../packages/hydrate/dist/root-config.js",
+          "line": 242,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function normalizeRootHydrationTable(value) {",
+          "characters": 403,
+          "bytecodeBytes": 100
+        },
+        {
+          "minified": "Mp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 117,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function claimCompiledProgramElement(target, index, skip, tag, namespace) {",
+          "characters": 183,
+          "bytecodeBytes": 100
+        },
+        {
+          "minified": "Jf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-storage.js",
+          "line": 83,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function visitChangedComponentDependencyGroup(group, visit) {",
+          "characters": 122,
+          "bytecodeBytes": 99
+        },
+        {
+          "minified": "Yr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 280,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function indexedParentSource(indexed, index) {",
+          "characters": 162,
+          "bytecodeBytes": 98
+        },
+        {
+          "minified": "$r",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 346,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readIndexedReactiveSource(value, index) {",
+          "characters": 167,
+          "bytecodeBytes": 98
+        },
+        {
+          "minified": "xf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-markers.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function findProgramChildEnd(start, id) {",
+          "characters": 192,
+          "bytecodeBytes": 97
+        },
+        {
+          "minified": "br",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 234,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function sourcedReactive(raw, options, source, collectionMember) {",
+          "characters": 183,
+          "bytecodeBytes": 96
+        },
+        {
+          "minified": "mu",
+          "source": "../../../../packages/dom/dist/client/renderer/limits.js",
+          "line": 64,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function withTreeDepth(root, run) {",
+          "characters": 162,
+          "bytecodeBytes": 96
+        },
+        {
+          "minified": "Yp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-template.js",
+          "line": 38,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function materializedNamespace(program, parentNode) {",
+          "characters": 359,
+          "bytecodeBytes": 96
+        },
+        {
+          "minified": "Nh",
+          "source": "../../../../packages/hydrate/dist/adoption/form-state.js",
+          "line": 168,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function nodePath(root, node, work) {",
+          "characters": 173,
+          "bytecodeBytes": 95
+        },
+        {
+          "minified": "Ns",
+          "source": "../../../../packages/core/dist/client/tasks/compiled-latest.js",
+          "line": 99,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function createLatestTaskState(host, label, implementation) {",
+          "characters": 214,
+          "bytecodeBytes": 95
+        },
+        {
+          "minified": "Il",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 66,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function ownsChildDom(mounted) {",
+          "characters": 206,
+          "bytecodeBytes": 94
+        },
+        {
+          "minified": "Dr",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 311,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function reactiveOptionsKey(options) {",
+          "characters": 213,
+          "bytecodeBytes": 93
+        },
+        {
+          "minified": "mp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-property-bindings.js",
+          "line": 19,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledReactiveProgramProperties(target, group, firstSlot) {",
+          "characters": 170,
+          "bytecodeBytes": 93
+        },
+        {
+          "minified": "fu",
+          "source": "../../../../packages/dom/dist/client/renderer/limits.js",
+          "line": 50,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function countDomWork(root) {",
+          "characters": 166,
+          "bytecodeBytes": 90
+        },
+        {
+          "minified": "gp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 19,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindRenderProgram(mounted) {",
+          "characters": 597,
+          "bytecodeBytes": 90
+        },
+        {
+          "minified": "_",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 21,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerDependencyObservationHooks(target, key, hooks) {",
+          "characters": 143,
+          "bytecodeBytes": 89
+        },
+        {
+          "minified": "Is",
+          "source": "../../../../packages/core/dist/client/component/async.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function observeComponentAsync(instance, value, source, phase) {",
+          "characters": 109,
+          "bytecodeBytes": 88
+        },
+        {
+          "minified": "jh",
+          "source": "../../../../packages/hydrate/dist/adoption/form-state.js",
+          "line": 149,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function formControlSignature(element) {",
+          "characters": 141,
+          "bytecodeBytes": 87
+        },
+        {
+          "minified": "ee",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 69,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function getDep(target, key) {",
+          "characters": 113,
+          "bytecodeBytes": 87
+        },
+        {
+          "minified": "jd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 329,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function clearDomProp(element, key) {",
+          "characters": 155,
+          "bytecodeBytes": 87
+        },
+        {
+          "minified": "du",
+          "source": "../../../../packages/dom/dist/client/renderer/limits.js",
+          "line": 36,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function withDomWork(root, run) {",
+          "characters": 112,
+          "bytecodeBytes": 86
+        },
+        {
+          "minified": "se",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 199,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function publishObservationTransition(transition) {",
+          "characters": 86,
+          "bytecodeBytes": 86
+        },
+        {
+          "minified": "j",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 231,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function withEffectScope(scope, fn) {",
+          "characters": 165,
+          "bytecodeBytes": 85
+        },
+        {
+          "minified": "Vm",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-component-artifact.js",
+          "line": 126,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function receiveComponentReceipt(mounted, receipt) {",
+          "characters": 164,
+          "bytecodeBytes": 85
+        },
+        {
+          "minified": "kr",
+          "source": "../../../../packages/reactive/dist/framework/objects.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function reactiveObjects(value, options = defaultReactiveOptions, parentSource) {",
+          "characters": 182,
+          "bytecodeBytes": 83
+        },
+        {
+          "minified": "$t",
+          "source": "../../../../packages/reactive/dist/change-detection.js",
+          "line": 10,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isReactiveContainer(value) {",
+          "characters": 151,
+          "bytecodeBytes": 83
+        },
+        {
+          "minified": "ym",
+          "source": "../../../../packages/dom/dist/client/renderer/child-range-receipt.js",
+          "line": 40,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function installRangeWatch(root, mounted, receipt, parentInstance, fallbackParent) {",
+          "characters": 463,
+          "bytecodeBytes": 83
+        },
+        {
+          "minified": "fh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/boundaries.js",
+          "line": 71,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function adoptStaticChildren(root, children, nodes, parentInstance, parentScope, start = 0, end = nodes.length) {",
+          "characters": 74,
+          "bytecodeBytes": 82
+        },
+        {
+          "minified": "ep",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-binding.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function publishCompiledComponentUpdate(updates, state, forwardedBinding) {",
+          "characters": 120,
+          "bytecodeBytes": 82
+        },
+        {
+          "minified": "Ma",
+          "source": "../../../../packages/core/dist/client/component/readiness.js",
+          "line": 118,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentReadinessContext(instance) {",
+          "characters": 97,
+          "bytecodeBytes": 81
+        },
+        {
+          "minified": "Np",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 130,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function enterCompiledProgramElement(target, index) {",
+          "characters": 164,
+          "bytecodeBytes": 81
+        },
+        {
+          "minified": "ye",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 243,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function createTransaction(rollback, retainVersions = false) {",
+          "characters": 96,
+          "bytecodeBytes": 81
+        },
+        {
+          "minified": "Wr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 183,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function indexedRecord(value, index, operation) {",
+          "characters": 183,
+          "bytecodeBytes": 80
+        },
+        {
+          "minified": "wd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 180,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function propMayObserveReactiveValue(key, value) {",
+          "characters": 131,
+          "bytecodeBytes": 79
+        },
+        {
+          "minified": "vu",
+          "source": "../../../../packages/core/dist/client/component/root-lifecycle.js",
+          "line": 98,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function rootRecord(instance) {",
+          "characters": 175,
+          "bytecodeBytes": 79
+        },
+        {
+          "minified": "sp",
+          "source": "../../../../packages/dom/dist/client/renderer/component-state-update-binding.js",
+          "line": 44,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function publishStateUpdate(updates, state) {",
+          "characters": 116,
+          "bytecodeBytes": 79
+        },
+        {
+          "minified": "xp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 183,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function applyCompiledProgramText(target, index, source, operandSlot, prefix = '', suffix = '') {",
+          "characters": 77,
+          "bytecodeBytes": 79
+        },
+        {
+          "minified": "_u",
+          "source": "../../../../packages/core/dist/client/component/root-lifecycle.js",
+          "line": 87,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function disposeComponentRoot(instance) {",
+          "characters": 144,
+          "bytecodeBytes": 78
+        },
+        {
+          "minified": "mf",
+          "source": "../../../../packages/dom/dist/client/renderer/patching/mixed-child-operations.js",
+          "line": 24,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mountedChildKey(mounted) {",
+          "characters": 133,
+          "bytecodeBytes": 77
+        },
+        {
+          "minified": "Pp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 143,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function leaveCompiledProgramElement(target) {",
+          "characters": 145,
+          "bytecodeBytes": 76
+        },
+        {
+          "minified": "ie",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 148,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function observesDuringTracking(reaction, dep) {",
+          "characters": 112,
+          "bytecodeBytes": 75
+        },
+        {
+          "minified": "zf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-components.js",
+          "line": 102,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function componentIdentityChanged(mounted, next) {",
+          "characters": 154,
+          "bytecodeBytes": 75
+        },
+        {
+          "minified": "Df",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 122,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function structuralProgramSlotIdentity(state, index) {",
+          "characters": 135,
+          "bytecodeBytes": 74
+        },
+        {
+          "minified": "_e",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 227,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function incrementMutationVersion(target, key) {",
+          "characters": 98,
+          "bytecodeBytes": 73
+        },
+        {
+          "minified": "Bf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-components.js",
+          "line": 109,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function componentSlotIdentity(state, index, marker, anchor) {",
+          "characters": 142,
+          "bytecodeBytes": 73
+        },
+        {
+          "minified": "Cm",
+          "source": "../../../../packages/dom/dist/client/renderer/child-range-receipt.js",
+          "line": 128,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function sameRangeChildren(previous, next) {",
+          "characters": 123,
+          "bytecodeBytes": 73
+        },
+        {
+          "minified": "Fo",
+          "source": "../../../../packages/core/dist/client/component-abi/opaque-operation.js",
+          "line": 46,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function executeOpaqueOperation(value, target) {",
+          "characters": 128,
+          "bytecodeBytes": 72
+        },
+        {
+          "minified": "zm",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-component-artifact.js",
+          "line": 97,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function componentReceiptUpdateOwner(instance) {",
+          "characters": 106,
+          "bytecodeBytes": 72
+        },
+        {
+          "minified": "Ll",
+          "source": "../../../../packages/dom/dist/client/placement.js",
+          "line": 77,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function aliasesKeyedChildRange(mounted) {",
+          "characters": 122,
+          "bytecodeBytes": 72
+        },
+        {
+          "minified": "Qa",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 118,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function callWithComponentDomainInEffectScope(domain, scope, work) {",
+          "characters": 104,
+          "bytecodeBytes": 71
+        },
+        {
+          "minified": "g",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 10,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function track(target, key) {",
+          "characters": 118,
+          "bytecodeBytes": 71
+        },
+        {
+          "minified": "xs",
+          "source": "../../../../packages/core/dist/client/tasks/dependency-source.js",
+          "line": 22,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function activationInputDependency(input) {",
+          "characters": 102,
+          "bytecodeBytes": 70
+        },
+        {
+          "minified": "Al",
+          "source": "../../../../packages/dom/dist/client/renderer/foreign-child-capability.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function registry() {",
+          "characters": 203,
+          "bytecodeBytes": 70
+        },
+        {
+          "minified": "Hr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 166,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function setIndexedReactiveSlotWithResult(value, index, next) {",
+          "characters": 92,
+          "bytecodeBytes": 70
+        },
+        {
+          "minified": "S",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 182,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function peek(fn) {",
+          "characters": 63,
+          "bytecodeBytes": 67
+        },
+        {
+          "minified": "E_",
+          "source": "../../../../framework-comparison/participants/exact/src/live-service.ts",
+          "line": 61,
+          "column": 0,
+          "name": null,
+          "sourceLine": "}",
+          "characters": 112,
+          "bytecodeBytes": 67
+        },
+        {
+          "minified": "A",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 122,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createEffectScope(parent = currentEffectScope(), onError, onProfile) {",
+          "characters": 146,
+          "bytecodeBytes": 66
+        },
+        {
+          "minified": "Za",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 107,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function withComponentDomain(domain, work) {",
+          "characters": 99,
+          "bytecodeBytes": 66
+        },
+        {
+          "minified": "Wf",
+          "source": "../../../../packages/dom/dist/client/renderer/component-update-storage.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentUpdateOwner(target) {",
+          "characters": 138,
+          "bytecodeBytes": 66
+        },
+        {
+          "minified": "z",
+          "source": "../../../../packages/core/dist/client/component-abi/opaque-operation.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function sharedOpaqueOperationStore(name) {",
+          "characters": 165,
+          "bytecodeBytes": 65
+        },
+        {
+          "minified": "Xm",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-attachment.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function attachHydratedComponent(root, mounted, artifact, instance, adopt) {",
+          "characters": 116,
+          "bytecodeBytes": 64
+        },
+        {
+          "minified": "pd",
+          "source": "../../../../packages/dom/dist/client/prop-binding-ownership.js",
+          "line": 14,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function releasePropBinding(element, key) {",
+          "characters": 74,
+          "bytecodeBytes": 64
+        },
+        {
+          "minified": "Xe",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 231,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function runReactionWithPriority(priority, reaction) {",
+          "characters": 58,
+          "bytecodeBytes": 64
+        },
+        {
+          "minified": "Pr",
+          "source": "../../../../packages/reactive/dist/reactive-record-slots.js",
+          "line": 19,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function indexedRecordKey(record, index) {",
+          "characters": 102,
+          "bytecodeBytes": 62
+        },
+        {
+          "minified": "Ad",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 317,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function syncBooleanAttribute(element, property, value) {",
+          "characters": 124,
+          "bytecodeBytes": 62
+        },
+        {
+          "minified": "Uo",
+          "source": "../../../../packages/core/dist/client/component/errors.js",
+          "line": 11,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function createErrorContextWithLimit(errors, maxReports) {",
+          "characters": 279,
+          "bytecodeBytes": 61
+        },
+        {
+          "minified": "T",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 163,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function recordTransactionUndo(undo, target, key) {",
+          "characters": 71,
+          "bytecodeBytes": 61
+        },
+        {
+          "minified": "eg",
+          "source": "../../../../packages/hydrate/dist/root-config.js",
+          "line": 90,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function scriptBelongsToContainer(script, container) {",
+          "characters": 130,
+          "bytecodeBytes": 60
+        },
+        {
+          "minified": "mn",
+          "source": "../../../../packages/reactive/dist/computation.js",
+          "line": 365,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function trackReturnedReference(value) {",
+          "characters": 79,
+          "bytecodeBytes": 60
+        },
+        {
+          "minified": "Ld",
+          "source": "../../../../packages/dom/dist/client/renderer/target-capability.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function targetCapabilityRegistry() {",
+          "characters": 172,
+          "bytecodeBytes": 60
+        },
+        {
+          "minified": "If",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-components.js",
+          "line": 18,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindProgramComponent(mounted, index, initialBinding) {",
+          "characters": 102,
+          "bytecodeBytes": 59
+        },
+        {
+          "minified": "Xd",
+          "source": "../../../../packages/dom/dist/client/renderer/enhancement-capability.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function capabilityRegistry() {",
+          "characters": 188,
+          "bytecodeBytes": 59
+        },
+        {
+          "minified": "Ke",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 106,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function runWithPriority(priority, work) {",
+          "characters": 61,
+          "bytecodeBytes": 59
+        },
+        {
+          "minified": "Jh",
+          "source": "../../../../packages/hydrate/dist/protocol-decoding.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function decodeBoundedReactiveProtocolValue(encoded, limits, failure) {",
+          "characters": 106,
+          "bytecodeBytes": 56
+        },
+        {
+          "minified": "qs",
+          "source": "../../../../packages/core/dist/client/component/compiled-output.js",
+          "line": 48,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function performanceNow() {",
+          "characters": 108,
+          "bytecodeBytes": 56
+        },
+        {
+          "minified": "$e",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 295,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function scheduleFlush(priority) {",
+          "characters": 197,
+          "bytecodeBytes": 56
+        },
+        {
+          "minified": "qr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 245,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function retainedIndexedValue(indexed, key, value) {",
+          "characters": 104,
+          "bytecodeBytes": 54
+        },
+        {
+          "minified": "eo",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 154,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function resolveComponentResumption(domain, type) {",
+          "characters": 73,
+          "bytecodeBytes": 54
+        },
+        {
+          "minified": "gl",
+          "source": "../../../../packages/core/dist/client/render-program.js",
+          "line": 68,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readRenderProgramSlot(invocation, index) {",
+          "characters": 112,
+          "bytecodeBytes": 54
+        },
+        {
+          "minified": "Dl",
+          "source": "../../../../packages/core/dist/client/url.js",
+          "line": 10,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function sanitizeUrlAttribute(name, value) {",
+          "characters": 84,
+          "bytecodeBytes": 54
+        },
+        {
+          "minified": "oo",
+          "source": "../../../../packages/core/dist/client/logging.js",
+          "line": 9,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createConsoleLogger(options = {}) {",
+          "characters": 257,
+          "bytecodeBytes": 53
+        },
+        {
+          "minified": "P",
+          "source": "../../../../packages/reactive/dist/internal/values.js",
+          "line": 18,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function unwrap(value) {",
+          "characters": 73,
+          "bytecodeBytes": 53
+        },
+        {
+          "minified": "Hm",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-component-artifact.js",
+          "line": 140,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function componentProps(props, children) {",
+          "characters": 95,
+          "bytecodeBytes": 53
+        },
+        {
+          "minified": "kf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 135,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function programComponentSlotIncludes(slots, index) {",
+          "characters": 75,
+          "bytecodeBytes": 52
+        },
+        {
+          "minified": "Ap",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 91,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function claimCompiledProgramProperty(target, slot, element) {",
+          "characters": 108,
+          "bytecodeBytes": 52
+        },
+        {
+          "minified": "Nf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 152,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function programKeyedChildIncludes(slots, index) {",
+          "characters": 80,
+          "bytecodeBytes": 52
+        },
+        {
+          "minified": "Eg",
+          "source": "../../../../packages/core/dist/client/component/list-capability-integration.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function controller(owner) {",
+          "characters": 71,
+          "bytecodeBytes": 52
+        },
+        {
+          "minified": "Vf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-components.js",
+          "line": 119,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function componentSlotIncludes(slots, index) {",
+          "characters": 75,
+          "bytecodeBytes": 52
+        },
+        {
+          "minified": "hf",
+          "source": "../../../../packages/dom/dist/client/renderer/patching/reconciliation-completion.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function completeChildReconciliation(root, parentInstance, structuralOwner) {",
+          "characters": 101,
+          "bytecodeBytes": 52
+        },
+        {
+          "minified": "$i",
+          "source": "../../../../packages/core/dist/client/tasks/frame-runtime.js",
+          "line": 56,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function withTaskOwnerRecord(owner, work) {",
+          "characters": 60,
+          "bytecodeBytes": 51
+        },
+        {
+          "minified": "fp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-retained-binding.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function retainProgramBinding(context, apply) {",
+          "characters": 95,
+          "bytecodeBytes": 51
+        },
+        {
+          "minified": "Qi",
+          "source": "../../../../packages/core/dist/client/tasks/frame-runtime.js",
+          "line": 41,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function withDeferredTaskFrame(materialize, work) {",
+          "characters": 60,
+          "bytecodeBytes": 51
+        },
+        {
+          "minified": "go",
+          "source": "../../../../packages/core/dist/client/component/log.js",
+          "line": 117,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isLogEnabled(logger, level, scope) {",
+          "characters": 86,
+          "bytecodeBytes": 51
+        },
+        {
+          "minified": "Sa",
+          "source": "../../../../packages/core/dist/client/component-contracts.js",
+          "line": 47,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readPreparedExactExecutableComponentContract(component) {",
+          "characters": 169,
+          "bytecodeBytes": 50
+        },
+        {
+          "minified": "nl",
+          "source": "../../../../packages/reactive/dist/framework/indexed-objects.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function indexedReactiveObjects(keys, options = {}, initial, preserveReactiveValues = false) {",
+          "characters": 49,
+          "bytecodeBytes": 50
+        },
+        {
+          "minified": "Cn",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 162,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function ref(value) {",
+          "characters": 86,
+          "bytecodeBytes": 50
+        },
+        {
+          "minified": "Et",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 300,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function effectScopeWorkPriority(scope, requested) {",
+          "characters": 116,
+          "bytecodeBytes": 50
+        },
+        {
+          "minified": "ut",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 404,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function constrainedPriority(scope, requested) {",
+          "characters": 116,
+          "bytecodeBytes": 50
+        },
+        {
+          "minified": "ju",
+          "source": "../../../../packages/dom/dist/client/renderer/root-support.js",
+          "line": 23,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createMarker(root, label) {",
+          "characters": 104,
+          "bytecodeBytes": 50
+        },
+        {
+          "minified": "ku",
+          "source": "../../../../packages/dom/dist/client/renderer/root-support.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createDomErrorContext(options, onReport) {",
+          "characters": 118,
+          "bytecodeBytes": 49
+        },
+        {
+          "minified": "lu",
+          "source": "../../../../packages/dom/dist/client/renderer/limits.js",
+          "line": 21,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function normalizeTreeDepth(value) {",
+          "characters": 69,
+          "bytecodeBytes": 49
+        },
+        {
+          "minified": "Pf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 157,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function sameProgramChildren(previous, next) {",
+          "characters": 84,
+          "bytecodeBytes": 49
+        },
+        {
+          "minified": "fd",
+          "source": "../../../../packages/dom/dist/client/prop-binding-ownership.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function clearPropBinding(element, key) {",
+          "characters": 82,
+          "bytecodeBytes": 48
+        },
+        {
+          "minified": "xd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 150,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function authoredEventKey(key) {",
+          "characters": 121,
+          "bytecodeBytes": 48
+        },
+        {
+          "minified": "Im",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-component-artifact.js",
+          "line": 16,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mountComponentReceipt(root, receipt, parentInstance, parentScope, parentNode) {",
+          "characters": 111,
+          "bytecodeBytes": 48
+        },
+        {
+          "minified": "ss",
+          "source": "../../../../packages/core/dist/client/interaction/execution.js",
+          "line": 22,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function traceInteractionPhase(interaction, phase, attributes) {",
+          "characters": 49,
+          "bytecodeBytes": 48
+        },
+        {
+          "minified": "e",
+          "source": "../../../../packages/core/dist/client/tasks/owner-activations.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function deferTaskOwnerActivations(owner) {",
+          "characters": 39,
+          "bytecodeBytes": 46
+        },
+        {
+          "minified": "Xa",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 87,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function constructComponentDomain(options) {",
+          "characters": 156,
+          "bytecodeBytes": 46
+        },
+        {
+          "minified": "Zs",
+          "source": "../../../../packages/core/dist/client/component-abi/compiled-runtime.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function attachExactCompiledClientComponent(instance, target, mode) {",
+          "characters": 61,
+          "bytecodeBytes": 46
+        },
+        {
+          "minified": "Sp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 189,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledProgramChild(target, index, direct) {",
+          "characters": 91,
+          "bytecodeBytes": 46
+        },
+        {
+          "minified": "qe",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 116,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function scheduleWork(work, priority = currentWorkPriority(), onError, scope) {",
+          "characters": 38,
+          "bytecodeBytes": 46
+        },
+        {
+          "minified": "Mr",
+          "source": "../../../../packages/reactive/dist/reactive-record-slots.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function indexedRecordIndex(record, key) {",
+          "characters": 74,
+          "bytecodeBytes": 45
+        },
+        {
+          "minified": "F",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 129,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readIndexedReactiveSlot(value, index) {",
+          "characters": 69,
+          "bytecodeBytes": 45
+        },
+        {
+          "minified": "Br",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 157,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function peekIndexedReactiveSlot(value, index) {",
+          "characters": 68,
+          "bytecodeBytes": 45
+        },
+        {
+          "minified": "Cc",
+          "source": "../../../../packages/core/dist/client/component-abi/keyed-child-receipt.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function executeKeyedChildOperation(target) {",
+          "characters": 135,
+          "bytecodeBytes": 45
+        },
+        {
+          "minified": "pl",
+          "source": "../../../../packages/core/dist/client/render-program.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function executeRenderProgramOperation(target) {",
+          "characters": 138,
+          "bytecodeBytes": 45
+        },
+        {
+          "minified": "Qs",
+          "source": "../../../../packages/core/dist/client/component-abi/compiled-runtime.js",
+          "line": 11,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function receiveExactClientComponentProps(instance, source, children = emptyChildren) {",
+          "characters": 53,
+          "bytecodeBytes": 45
+        },
+        {
+          "minified": "Gt",
+          "source": "../../../../packages/reactive/dist/internal/objects.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isPlainObject(value) {",
+          "characters": 119,
+          "bytecodeBytes": 44
+        },
+        {
+          "minified": "tu",
+          "source": "../../../../packages/dom/dist/client/work.js",
+          "line": 11,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function consumeDomWork(budget) {",
+          "characters": 57,
+          "bytecodeBytes": 43
+        },
+        {
+          "minified": "Sn",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 159,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function resolveObservationScope(options) {",
+          "characters": 83,
+          "bytecodeBytes": 43
+        },
+        {
+          "minified": "Tp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-bindings.js",
+          "line": 207,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledProgramKeyedChild(target, index) {",
+          "characters": 87,
+          "bytecodeBytes": 43
+        },
+        {
+          "minified": "_n",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 15,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function watchStructural(fn, options = {}) {",
+          "characters": 65,
+          "bytecodeBytes": 43
+        },
+        {
+          "minified": "Ca",
+          "source": "../../../../packages/core/dist/client/component-contracts.js",
+          "line": 54,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readPreparedExactClientExecutableComponentContract(component) {",
+          "characters": 149,
+          "bytecodeBytes": 42
+        },
+        {
+          "minified": "eu",
+          "source": "../../../../packages/dom/dist/client/work.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createDomWorkBudget(maxNodes) {",
+          "characters": 70,
+          "bytecodeBytes": 42
+        },
+        {
+          "minified": "vr",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 186,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function requiresExactProxyValue(target, key) {",
+          "characters": 114,
+          "bytecodeBytes": 42
+        },
+        {
+          "minified": "Og",
+          "source": "../../../../packages/core/dist/client/runtime/lists.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mapExactCompiledKeyedChildren(owner, collection, key, render, id, provenance, keyIdentity) {",
+          "characters": 64,
+          "bytecodeBytes": 41
+        },
+        {
+          "minified": "xu",
+          "source": "../../../../packages/dom/dist/client/renderer/component-roots.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function rootIntroduction(root) {",
+          "characters": 118,
+          "bytecodeBytes": 41
+        },
+        {
+          "minified": "_l",
+          "source": "../../../../packages/core/dist/client/component-abi/compiled-child-range.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createCompiledChildRangeReceipt(compute, markerId, mayReplaceSubtree = true) {",
+          "characters": 43,
+          "bytecodeBytes": 41
+        },
+        {
+          "minified": "Hu",
+          "source": "../../../../packages/dom/dist/client/ownership.js",
+          "line": 19,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function findOwnerInstance(element) {",
+          "characters": 81,
+          "bytecodeBytes": 41
+        },
+        {
+          "minified": "c",
+          "source": "../../../../packages/core/dist/client/tasks/component-continuation.js",
+          "line": 20,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentContinuationTaskId(work) {",
+          "characters": 26,
+          "bytecodeBytes": 40
+        },
+        {
+          "minified": "Wc",
+          "source": "../../../../packages/core/dist/client/cleanup.js",
+          "line": 14,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function attemptCleanup(failure, cleanup) {",
+          "characters": 43,
+          "bytecodeBytes": 40
+        },
+        {
+          "minified": "ag",
+          "source": "../../../../packages/hydrate/dist/runtime/resumption.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createComponentResumptionResolver(records) {",
+          "characters": 967,
+          "bytecodeBytes": 39
+        },
+        {
+          "minified": "Bs",
+          "source": "../../../../packages/core/dist/client/component/lifecycle-handlers.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function registration(instance) {",
+          "characters": 62,
+          "bytecodeBytes": 39
+        },
+        {
+          "minified": "xm",
+          "source": "../../../../packages/dom/dist/client/renderer/child-range-receipt.js",
+          "line": 97,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function installAdoptedChildRangeReceipt(root, mounted, receipt, parentInstance) {",
+          "characters": 58,
+          "bytecodeBytes": 39
+        },
+        {
+          "minified": "Fa",
+          "source": "../../../../packages/core/dist/client/component/task-capability.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerComponentTaskCapability(capability) {",
+          "characters": 105,
+          "bytecodeBytes": 38
+        },
+        {
+          "minified": "Sg",
+          "source": "../../../../packages/core/dist/client/component/list-capability.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerComponentListCapability(next) {",
+          "characters": 105,
+          "bytecodeBytes": 38
+        },
+        {
+          "minified": "Ms",
+          "source": "../../../../packages/core/dist/client/tasks/compiled-latest.js",
+          "line": 15,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function bindCompiledClientLatestTaskForHost(host, label, implementation) {",
+          "characters": 69,
+          "bytecodeBytes": 38
+        },
+        {
+          "minified": "rr",
+          "source": "../../../../packages/reactive/dist/internal/keyed-collections.js",
+          "line": 206,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function clearMetadata(collection) {",
+          "characters": 53,
+          "bytecodeBytes": 38
+        },
+        {
+          "minified": "uf",
+          "source": "../../../../packages/dom/dist/client/renderer/retained-release.js",
+          "line": 7,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function releaseMountedRange(root, parent, mounted, reason) {",
+          "characters": 53,
+          "bytecodeBytes": 38
+        },
+        {
+          "minified": "th",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/component-receipt.js",
+          "line": 109,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function receiptClientArtifact(receipt) {",
+          "characters": 142,
+          "bytecodeBytes": 37
+        },
+        {
+          "minified": "Ss",
+          "source": "../../../../packages/core/dist/client/tasks/dependency-source.js",
+          "line": 48,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createIndexedContinuationDependency(input, index) {",
+          "characters": 54,
+          "bytecodeBytes": 37
+        },
+        {
+          "minified": "wr",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 291,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function trackProxySources(proxy) {",
+          "characters": 52,
+          "bytecodeBytes": 36
+        },
+        {
+          "minified": "Rh",
+          "source": "../../../../packages/core/dist/client/framework/protocol-records.js",
+          "line": 12,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function normalizeProtocolLimit(value, fallback) {",
+          "characters": 77,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "D",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 236,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readMutationVersion(target, key) {",
+          "characters": 44,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "ma",
+          "source": "../../../../packages/core/dist/client/tasks/observers.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function taskObserverFor(instance) {",
+          "characters": 49,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "Yi",
+          "source": "../../../../packages/core/dist/client/tasks/frame-runtime.js",
+          "line": 21,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerTaskOwnerCleanup(owner, cleanup) {",
+          "characters": 98,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "Vs",
+          "source": "../../../../packages/core/dist/client/component/lifecycle-handlers.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function mutableComponentLifecycleHandlers(instance, phase) {",
+          "characters": 46,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "Bp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 281,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function concreteElementNamespace(element) {",
+          "characters": 144,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "Zp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-operation.js",
+          "line": 51,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function renderProgramHasBindings(program) {",
+          "characters": 59,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "Us",
+          "source": "../../../../packages/core/dist/client/component/lifecycle-handlers.js",
+          "line": 26,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentLifecycleHandlers(instance, phase) {",
+          "characters": 43,
+          "bytecodeBytes": 35
+        },
+        {
+          "minified": "el",
+          "source": "../../../../packages/core/dist/client/component/resumption.js",
+          "line": 36,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function safeSegment(segment) {",
+          "characters": 86,
+          "bytecodeBytes": 34
+        },
+        {
+          "minified": "Ea",
+          "source": "../../../../packages/core/dist/client/tasks/component-execution-capability.js",
+          "line": 7,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function initializeComponentExecutionCapability(owner, instance, execution, props) {",
+          "characters": 45,
+          "bytecodeBytes": 34
+        },
+        {
+          "minified": "Vr",
+          "source": "../../../../packages/reactive/dist/indexed-base.js",
+          "line": 162,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function setIndexedReactiveSlot(value, index, next) {",
+          "characters": 43,
+          "bytecodeBytes": 34
+        },
+        {
+          "minified": "Ws",
+          "source": "../../../../packages/core/dist/client/component/lifecycle-handlers.js",
+          "line": 35,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentRenderHandlers(instance) {",
+          "characters": 44,
+          "bytecodeBytes": 34
+        },
+        {
+          "minified": "Sd",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 158,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isCompilerFormBindingProp(key) {",
+          "characters": 154,
+          "bytecodeBytes": 34
+        },
+        {
+          "minified": "Vp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 288,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function markerIdentity(id) {",
+          "characters": 58,
+          "bytecodeBytes": 33
+        },
+        {
+          "minified": "jf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 144,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readProgramChildren(invocation, index, parentInstance) {",
+          "characters": 62,
+          "bytecodeBytes": 33
+        },
+        {
+          "minified": "Ml",
+          "source": "../../../../packages/dom/dist/client/renderer/foreign-child-capability.js",
+          "line": 25,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function prepareForeignProgramChildren(values) {",
+          "characters": 59,
+          "bytecodeBytes": 33
+        },
+        {
+          "minified": "Vc",
+          "source": "../../../../packages/core/dist/client/class-values.js",
+          "line": 33,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function appendClassToken(output, token) {",
+          "characters": 44,
+          "bytecodeBytes": 33
+        },
+        {
+          "minified": "Lf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-components.js",
+          "line": 27,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function applyProgramComponent(mounted, index) {",
+          "characters": 84,
+          "bytecodeBytes": 33
+        },
+        {
+          "minified": "Po",
+          "source": "../../../../packages/core/dist/client/component-abi/opaque-operation.js",
+          "line": 40,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function opaqueOperationDomain(value) {",
+          "characters": 49,
+          "bytecodeBytes": 32
+        },
+        {
+          "minified": "Ya",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 71,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isHydrationComponentDomain(domain) {",
+          "characters": 68,
+          "bytecodeBytes": 32
+        },
+        {
+          "minified": "Ol",
+          "source": "../../../../packages/dom/dist/client/debug.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function domDebug(root, message, details) {",
+          "characters": 58,
+          "bytecodeBytes": 32
+        },
+        {
+          "minified": "No",
+          "source": "../../../../packages/core/dist/client/component-abi/opaque-operation.js",
+          "line": 34,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function opaqueOperationKey(value) {",
+          "characters": 46,
+          "bytecodeBytes": 32
+        },
+        {
+          "minified": "Xl",
+          "source": "../../../../packages/dom/dist/client/state.js",
+          "line": 45,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function exactDomInspectionOwner(options = {}) {",
+          "characters": 55,
+          "bytecodeBytes": 31
+        },
+        {
+          "minified": "uu",
+          "source": "../../../../packages/dom/dist/client/renderer/limits.js",
+          "line": 27,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function normalizeTreeNodes(value) {",
+          "characters": 56,
+          "bytecodeBytes": 31
+        },
+        {
+          "minified": "wa",
+          "source": "../../../../packages/core/dist/client/component-contracts.js",
+          "line": 68,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function exactComponentIdentity(component) {",
+          "characters": 132,
+          "bytecodeBytes": 31
+        },
+        {
+          "minified": "zp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 276,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function advance(node, count) {",
+          "characters": 65,
+          "bytecodeBytes": 31
+        },
+        {
+          "minified": "We",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 84,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createScheduledScopePurge() {",
+          "characters": 51,
+          "bytecodeBytes": 31
+        },
+        {
+          "minified": "cg",
+          "source": "../../../../packages/hydrate/dist/runtime/resumption.js",
+          "line": 72,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function checkpointComponentResumptions(domain) {",
+          "characters": 45,
+          "bytecodeBytes": 30
+        },
+        {
+          "minified": "tf",
+          "source": "../../../../packages/dom/dist/client/renderer/scalar-child.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function scalarText(value) {",
+          "characters": 89,
+          "bytecodeBytes": 30
+        },
+        {
+          "minified": "df",
+          "source": "../../../../packages/dom/dist/client/renderer/retained-release.js",
+          "line": 11,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function takeReversedRelease(root, parent, next) {",
+          "characters": 45,
+          "bytecodeBytes": 30
+        },
+        {
+          "minified": "U",
+          "source": "../../../../packages/core/dist/client/component-abi/receipt.js",
+          "line": 101,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledComponentReceipt(value) {",
+          "characters": 60,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "Tc",
+          "source": "../../../../packages/core/dist/client/component-abi/keyed-child-receipt.js",
+          "line": 31,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledKeyedChildReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "zo",
+          "source": "../../../../packages/core/dist/client/component-abi/intrinsic-receipt.js",
+          "line": 37,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledIntrinsicReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "_c",
+          "source": "../../../../packages/core/dist/client/component-abi/fragment-receipt.js",
+          "line": 34,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledFragmentReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "bc",
+          "source": "../../../../packages/core/dist/client/component-abi/target-receipt.js",
+          "line": 33,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledTargetReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "cc",
+          "source": "../../../../packages/core/dist/client/component-abi/child-range-receipt.js",
+          "line": 28,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readChildRangeReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "mc",
+          "source": "../../../../packages/core/dist/client/component-abi/activity-receipt.js",
+          "line": 27,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledActivityReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "dc",
+          "source": "../../../../packages/core/dist/client/component-abi/suspense-receipt.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readCompiledSuspenseReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "Oc",
+          "source": "../../../../packages/core/dist/client/component-abi/unsafe-html-receipt.js",
+          "line": 29,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readUnsafeHtmlReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "Pc",
+          "source": "../../../../packages/core/dist/client/component-abi/server-structure-receipts.js",
+          "line": 78,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readServerSlotReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "hl",
+          "source": "../../../../packages/core/dist/client/render-program.js",
+          "line": 52,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readRenderProgramReceipt(value) {",
+          "characters": 61,
+          "bytecodeBytes": 29
+        },
+        {
+          "minified": "Dt",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 308,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isEffectScopePaused(scope) {",
+          "characters": 74,
+          "bytecodeBytes": 28
+        },
+        {
+          "minified": "me",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 181,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function publishTransaction(parent, transaction) {",
+          "characters": 42,
+          "bytecodeBytes": 28
+        },
+        {
+          "minified": "$s",
+          "source": "../../../../packages/core/dist/client/component-abi/compiled-runtime.js",
+          "line": 26,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function disposeExactClientComponent(instance, reason) {",
+          "characters": 68,
+          "bytecodeBytes": 28
+        },
+        {
+          "minified": "W",
+          "source": "../../../../packages/core/dist/client/render-program.js",
+          "line": 23,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function prepareCompiledRenderProgram(program) {",
+          "characters": 116,
+          "bytecodeBytes": 27
+        },
+        {
+          "minified": "Pn",
+          "source": "../../../../packages/reactive/dist/internal/keyed/protocol.js",
+          "line": 7,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function decodeKeyedProtocolValue(value, install) {",
+          "characters": 46,
+          "bytecodeBytes": 27
+        },
+        {
+          "minified": "Uh",
+          "source": "../../../../packages/hydrate/dist/config-validation.js",
+          "line": 62,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isRecord(value) {",
+          "characters": 64,
+          "bytecodeBytes": 27
+        },
+        {
+          "minified": "zd",
+          "source": "../../../../packages/dom/dist/client/renderer/target-capability.js",
+          "line": 41,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function refreshTargetDependents(root, structuralOwner) {",
+          "characters": 46,
+          "bytecodeBytes": 27
+        },
+        {
+          "minified": "Ja",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 67,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentDomainResumption(domain) {",
+          "characters": 49,
+          "bytecodeBytes": 26
+        },
+        {
+          "minified": "Ka",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 47,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentDomainLogging(domain) {",
+          "characters": 41,
+          "bytecodeBytes": 26
+        },
+        {
+          "minified": "qa",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 63,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentDomainInspection(domain) {",
+          "characters": 44,
+          "bytecodeBytes": 26
+        },
+        {
+          "minified": "El",
+          "source": "../../../../packages/core/dist/client/url.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isUrlAttribute(name) {",
+          "characters": 46,
+          "bytecodeBytes": 26
+        },
+        {
+          "minified": "Vd",
+          "source": "../../../../packages/dom/dist/client/renderer/target-capability.js",
+          "line": 53,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function clearTargetedIntrinsicProps(mounted) {",
+          "characters": 39,
+          "bytecodeBytes": 26
+        },
+        {
+          "minified": "Um",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-component-artifact.js",
+          "line": 149,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function resolveChildReceipt(children) {",
+          "characters": 41,
+          "bytecodeBytes": 26
+        },
+        {
+          "minified": "E",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 167,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function hasActiveTransaction() {",
+          "characters": 42,
+          "bytecodeBytes": 25
+        },
+        {
+          "minified": "Ds",
+          "source": "../../../../packages/core/dist/client/tasks/dependency-source.js",
+          "line": 207,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function disposable(dispose) {",
+          "characters": 42,
+          "bytecodeBytes": 25
+        },
+        {
+          "minified": "bg",
+          "source": "../../../../packages/core/dist/client/component/list-controller.js",
+          "line": 140,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function encodeSlot(value) {",
+          "characters": 41,
+          "bytecodeBytes": 25
+        },
+        {
+          "minified": "Md",
+          "source": "../../../../packages/dom/dist/client/props.js",
+          "line": 349,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function normalizePropName(key) {",
+          "characters": 78,
+          "bytecodeBytes": 25
+        },
+        {
+          "minified": "qm",
+          "source": "../../../../packages/dom/dist/client/renderer/root-construction.js",
+          "line": 60,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function childDomain(value) {",
+          "characters": 41,
+          "bytecodeBytes": 24
+        },
+        {
+          "minified": "wu",
+          "source": "../../../../packages/dom/dist/client/renderer/component-mount-ownership.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function ownMountedInstance(mounted, instance) {",
+          "characters": 42,
+          "bytecodeBytes": 24
+        },
+        {
+          "minified": "fn",
+          "source": "../../../../packages/reactive/dist/computation.js",
+          "line": 345,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function snapshotDependencies(reaction) {",
+          "characters": 105,
+          "bytecodeBytes": 24
+        },
+        {
+          "minified": "io",
+          "source": "../../../../packages/core/dist/client/component/async-value.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isPromiseLike(value) {",
+          "characters": 96,
+          "bytecodeBytes": 24
+        },
+        {
+          "minified": "rd",
+          "source": "../../../../packages/dom/dist/client/events.js",
+          "line": 135,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function compiledInteractionTrace(root) {",
+          "characters": 100,
+          "bytecodeBytes": 24
+        },
+        {
+          "minified": "Mo",
+          "source": "../../../../packages/core/dist/client/component-abi/opaque-operation.js",
+          "line": 28,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isOpaqueOperation(value) {",
+          "characters": 58,
+          "bytecodeBytes": 23
+        },
+        {
+          "minified": "Zc",
+          "source": "../../../../packages/core/dist/client/component/instance-identity.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function allocateComponentInstanceId() {",
+          "characters": 31,
+          "bytecodeBytes": 23
+        },
+        {
+          "minified": "Hs",
+          "source": "../../../../packages/core/dist/client/component/lifecycle-handlers.js",
+          "line": 18,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerComponentLifecycleHandler(instance, phase, handler) {",
+          "characters": 35,
+          "bytecodeBytes": 23
+        },
+        {
+          "minified": "Mf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 148,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readDirectProgramChildren(invocation, index, parentInstance) {",
+          "characters": 64,
+          "bytecodeBytes": 23
+        },
+        {
+          "minified": "Cg",
+          "source": "../../../../packages/core/dist/client/component/list-capability.js",
+          "line": 9,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentListCapability() {",
+          "characters": 131,
+          "bytecodeBytes": 23
+        },
+        {
+          "minified": "I",
+          "source": "../../../../packages/reactive/dist/writes.js",
+          "line": 63,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function writeIndexedReactiveValue(target, index, next) {",
+          "characters": 37,
+          "bytecodeBytes": 22
+        },
+        {
+          "minified": "$d",
+          "source": "../../../../packages/dom/dist/client/renderer/enhancement-capability.js",
+          "line": 33,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isCapabilityRegistry(value) {",
+          "characters": 56,
+          "bytecodeBytes": 22
+        },
+        {
+          "minified": "Ho",
+          "source": "../../../../packages/core/dist/client/component/errors.js",
+          "line": 8,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createErrorContext(errors = []) {",
+          "characters": 31,
+          "bytecodeBytes": 21
+        },
+        {
+          "minified": "vg",
+          "source": "../../../../packages/core/dist/client/framework/component-lifecycle.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerComponentLifecycleHandler(instance, phase, handler) {",
+          "characters": 29,
+          "bytecodeBytes": 21
+        },
+        {
+          "minified": "em",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-operation.js",
+          "line": 81,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function directProgram(program) {",
+          "characters": 127,
+          "bytecodeBytes": 21
+        },
+        {
+          "minified": "mh",
+          "source": "../../../../packages/dom/dist/client/renderer/adoption/boundaries.js",
+          "line": 97,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isChildRangeOpening(value) {",
+          "characters": 62,
+          "bytecodeBytes": 21
+        },
+        {
+          "minified": "Tn",
+          "source": "../../../../packages/reactive/dist/observation.js",
+          "line": 201,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function trackCollectionStructure(value) {",
+          "characters": 25,
+          "bytecodeBytes": 21
+        },
+        {
+          "minified": "ct",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 397,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isEligible(priority, through) {",
+          "characters": 37,
+          "bytecodeBytes": 21
+        },
+        {
+          "minified": "N",
+          "source": "../../../../packages/reactive/dist/internal/values.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isReactiveValue(value) {",
+          "characters": 53,
+          "bytecodeBytes": 20
+        },
+        {
+          "minified": "ml",
+          "source": "../../../../packages/core/dist/client/render-program.js",
+          "line": 47,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readRenderProgram(value) {",
+          "characters": 40,
+          "bytecodeBytes": 20
+        },
+        {
+          "minified": "Ge",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 88,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function currentWorkPriority() {",
+          "characters": 47,
+          "bytecodeBytes": 20
+        },
+        {
+          "minified": "Yt",
+          "source": "../../../../packages/reactive/dist/internal/equality.js",
+          "line": 4,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function hasChanged(previous, next, unwrap) {",
+          "characters": 36,
+          "bytecodeBytes": 19
+        },
+        {
+          "minified": "Nt",
+          "source": "../../../../packages/reactive/dist/internal/values.js",
+          "line": 7,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isReactive(value) {",
+          "characters": 54,
+          "bytecodeBytes": 18
+        },
+        {
+          "minified": "Qt",
+          "source": "../../../../packages/reactive/dist/change-detection.js",
+          "line": 6,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function hasChanged(previous, next) {",
+          "characters": 34,
+          "bytecodeBytes": 18
+        },
+        {
+          "minified": "et",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 319,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function scheduleRemainingWork() {",
+          "characters": 34,
+          "bytecodeBytes": 18
+        },
+        {
+          "minified": "Ug",
+          "source": "../../../../packages/core/dist/client/component/durable-instance-construction.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "};",
+          "characters": 185,
+          "bytecodeBytes": 18
+        },
+        {
+          "minified": "Bu",
+          "source": "../../../../packages/dom/dist/client/ownership.js",
+          "line": 11,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function setNodeOwner(node, owner) {",
+          "characters": 29,
+          "bytecodeBytes": 18
+        },
+        {
+          "minified": "Ru",
+          "source": "../../../../packages/dom/dist/client/ownership.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function setElementOwner(element, owner) {",
+          "characters": 29,
+          "bytecodeBytes": 18
+        },
+        {
+          "minified": "vt",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 106,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerEffectScopeReaction(scope, reaction) {",
+          "characters": 36,
+          "bytecodeBytes": 17
+        },
+        {
+          "minified": "nt",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 340,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function hasEligibleWork(through) {",
+          "characters": 35,
+          "bytecodeBytes": 17
+        },
+        {
+          "minified": "bt",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 114,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerEffectScopeCleanup(scope, cleanup) {",
+          "characters": 35,
+          "bytecodeBytes": 17
+        },
+        {
+          "minified": "zu",
+          "source": "../../../../packages/dom/dist/client/ownership.js",
+          "line": 7,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function clearElementOwner(element) {",
+          "characters": 28,
+          "bytecodeBytes": 17
+        },
+        {
+          "minified": "Vu",
+          "source": "../../../../packages/dom/dist/client/ownership.js",
+          "line": 15,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function clearNodeOwner(node) {",
+          "characters": 28,
+          "bytecodeBytes": 17
+        },
+        {
+          "minified": "Cr",
+          "source": "../../../../packages/reactive/dist/proxy/create-base.js",
+          "line": 286,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function registerProxySource(proxy, source) {",
+          "characters": 29,
+          "bytecodeBytes": 16
+        },
+        {
+          "minified": "Zo",
+          "source": "../../../../packages/core/dist/client/component/inspection-source.js",
+          "line": 14,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readExactInspectionSource(callback) {",
+          "characters": 32,
+          "bytecodeBytes": 16
+        },
+        {
+          "minified": "$u",
+          "source": "../../../../packages/dom/dist/client/events.js",
+          "line": 49,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function requiresDirectListener(type) {",
+          "characters": 32,
+          "bytecodeBytes": 16
+        },
+        {
+          "minified": "To",
+          "source": "../../../../packages/core/dist/client/render-children.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function normalizeChildren(children) {",
+          "characters": 41,
+          "bytecodeBytes": 16
+        },
+        {
+          "minified": "Of",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-children.js",
+          "line": 131,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function isKeyedChildAnchor(value) {",
+          "characters": 39,
+          "bytecodeBytes": 15
+        },
+        {
+          "minified": "Hf",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-components.js",
+          "line": 125,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isKeyedChildAnchor(value) {",
+          "characters": 39,
+          "bytecodeBytes": 15
+        },
+        {
+          "minified": "He",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 62,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function removeQueuedComputation(computation) {",
+          "characters": 27,
+          "bytecodeBytes": 15
+        },
+        {
+          "minified": "Yn",
+          "source": "../../../../packages/reactive/dist/internal/keyed-collections.js",
+          "line": 113,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function decodeReactiveProtocolValueInternal(value) {",
+          "characters": 46,
+          "bytecodeBytes": 14
+        },
+        {
+          "minified": "wt",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 245,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function currentEffectScope() {",
+          "characters": 37,
+          "bytecodeBytes": 14
+        },
+        {
+          "minified": "jl",
+          "source": "../../../../packages/dom/dist/client/renderer/foreign-child-capability.js",
+          "line": 21,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function foreignChildCapability() {",
+          "characters": 37,
+          "bytecodeBytes": 14
+        },
+        {
+          "minified": "zc",
+          "source": "../../../../packages/core/dist/client/class-values.js",
+          "line": 10,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function normalizeClassValue(value) {",
+          "characters": 31,
+          "bytecodeBytes": 14
+        },
+        {
+          "minified": "Zd",
+          "source": "../../../../packages/dom/dist/client/renderer/enhancement-capability.js",
+          "line": 23,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function domEnhancementCapability() {",
+          "characters": 37,
+          "bytecodeBytes": 14
+        },
+        {
+          "minified": "Fd",
+          "source": "../../../../packages/dom/dist/client/renderer/target-capability.js",
+          "line": 3,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function targetDomCapability() {",
+          "characters": 37,
+          "bytecodeBytes": 14
+        },
+        {
+          "minified": "Ni",
+          "source": "../../../../packages/core/dist/client/tasks/owner-record.js",
+          "line": 59,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createLazyTaskOwnerRecord(label) {",
+          "characters": 32,
+          "bytecodeBytes": 13
+        },
+        {
+          "minified": "fe",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 171,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function hasActiveReactiveTransaction() {",
+          "characters": 32,
+          "bytecodeBytes": 13
+        },
+        {
+          "minified": "Hc",
+          "source": "../../../../packages/core/dist/client/cleanup.js",
+          "line": 2,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createCleanupFailure() {",
+          "characters": 45,
+          "bytecodeBytes": 13
+        },
+        {
+          "minified": "Gc",
+          "source": "../../../../packages/core/dist/client/cleanup.js",
+          "line": 23,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function throwCleanupFailure(failure) {",
+          "characters": 41,
+          "bytecodeBytes": 13
+        },
+        {
+          "minified": "yt",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 110,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function releaseEffectScopeReaction(scope, reaction) {",
+          "characters": 37,
+          "bytecodeBytes": 12
+        },
+        {
+          "minified": "bl",
+          "source": "../../../../packages/core/dist/client/component/runtime-surface-registration.js",
+          "line": 16,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function registerComponentRuntimeSurface(descriptors) {",
+          "characters": 21,
+          "bytecodeBytes": 11
+        },
+        {
+          "minified": "Su",
+          "source": "../../../../packages/dom/dist/client/renderer/component-roots.js",
+          "line": 60,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function disposeMountedComponentRoot(instance) {",
+          "characters": 21,
+          "bytecodeBytes": 11
+        },
+        {
+          "minified": "to",
+          "source": "../../../../packages/core/dist/client/component/domain.js",
+          "line": 160,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function currentComponentDomain() {",
+          "characters": 37,
+          "bytecodeBytes": 10
+        },
+        {
+          "minified": "dg",
+          "source": "../../../../packages/hydrate/dist/runtime/resumption.js",
+          "line": 93,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function resolverForDomain(domain) {",
+          "characters": 28,
+          "bytecodeBytes": 10
+        },
+        {
+          "minified": "Te",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 342,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function triggerNow(target, key) {",
+          "characters": 25,
+          "bytecodeBytes": 10
+        },
+        {
+          "minified": "Ji",
+          "source": "../../../../packages/core/dist/client/tasks/frame-runtime.js",
+          "line": 17,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createTaskOwnerRecord(label) {",
+          "characters": 28,
+          "bytecodeBytes": 10
+        },
+        {
+          "minified": "os",
+          "source": "../../../../packages/core/dist/client/interaction/execution.js",
+          "line": 18,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function hasComponentTaskOwner(owner) {",
+          "characters": 36,
+          "bytecodeBytes": 10
+        },
+        {
+          "minified": "Rp",
+          "source": "../../../../packages/dom/dist/client/renderer/render-program-claims.js",
+          "line": 273,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function isClaimTarget(target) {",
+          "characters": 38,
+          "bytecodeBytes": 9
+        },
+        {
+          "minified": "Wn",
+          "source": "../../../../packages/reactive/dist/internal/keyed-collections.js",
+          "line": 10,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function releaseKeyedCollectionMetadata(collection) {",
+          "characters": 21,
+          "bytecodeBytes": 9
+        },
+        {
+          "minified": "we",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 339,
+          "column": 0,
+          "name": null,
+          "sourceLine": "function flushTriggers(triggers) {",
+          "characters": 21,
+          "bytecodeBytes": 9
+        },
+        {
+          "minified": "Em",
+          "source": "../../../../packages/dom/dist/client/renderer/mounting/native-operation-target.js",
+          "line": 103,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function retainMountedOperation(mounted, operation) {",
+          "characters": 40,
+          "bytecodeBytes": 9
+        },
+        {
+          "minified": "ei",
+          "source": "../../../../packages/reactive/dist/protocol.js",
+          "line": 13,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function decodeReactiveProtocolValue(value) {",
+          "characters": 28,
+          "bytecodeBytes": 8
+        },
+        {
+          "minified": "Je",
+          "source": "../../../../packages/reactive/dist/internal/scheduler.js",
+          "line": 120,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function resumeScheduledWork() {",
+          "characters": 19,
+          "bytecodeBytes": 8
+        },
+        {
+          "minified": "vl",
+          "source": "../../../../packages/core/dist/client/component/reactive-expressions.js",
+          "line": 5,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function createExpression(compute) {",
+          "characters": 28,
+          "bytecodeBytes": 8
+        },
+        {
+          "minified": "Ia",
+          "source": "../../../../packages/core/dist/client/component/task-capability.js",
+          "line": 9,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function componentTaskCapability() {",
+          "characters": 24,
+          "bytecodeBytes": 5
+        },
+        {
+          "minified": "wg",
+          "source": "../../../../packages/core/dist/client/component/list-capability.js",
+          "line": 15,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function optionalComponentListCapability() {",
+          "characters": 24,
+          "bytecodeBytes": 5
+        },
+        {
+          "minified": "xt",
+          "source": "../../../../packages/reactive/dist/internal/scopes.js",
+          "line": 130,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function effectScopeParent(scope) {",
+          "characters": 31,
+          "bytecodeBytes": 5
+        },
+        {
+          "minified": "b",
+          "source": "../../../../packages/reactive/dist/internal/dependency-graph.js",
+          "line": 65,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function reactionDependencies(reaction) {",
+          "characters": 28,
+          "bytecodeBytes": 5
+        },
+        {
+          "minified": "ve",
+          "source": "../../../../packages/reactive/dist/internal/deps.js",
+          "line": 240,
+          "column": 0,
+          "name": null,
+          "sourceLine": "export function readReactiveRestorationVersion() {",
+          "characters": 24,
+          "bytecodeBytes": 3
+        }
+      ],
+      "unattributedNotice": "Anonymous functions, ambiguous local names, methods, and injected browser helpers are not attributed by this name-based inventory."
+    }
+  },
+  "invalidExperiment": "Unlabelled initial compare/profile used stale DOM browser output for teardown. Reactive changes were present. These captures are archived for transparency but excluded from teardown evidence."
+}

@@ -26,11 +26,11 @@ export type ExactHapiPluginOptions = {
 	runtime: ExactServerContext;
 	/**
 	 * Hapi route options such as auth, CORS, tags, validation, and timeouts.
-	 * The plugin owns the handler and buffered payload parsing contract.
+	 * The plugin owns the handler and raw buffered payload contract.
 	 */
 	routeOptions?: Omit<RouteOptions, 'handler' | 'payload'>;
 	/**
-	 * Additional Hapi payload settings. eXact always uses parsed, buffered payloads,
+	 * Additional Hapi payload settings. eXact always uses raw, buffered payloads,
 	 * so `output` and `parse` are intentionally controlled by the adapter.
 	 */
 	payload?: Omit<RouteOptionsPayload, 'output' | 'parse'>;
@@ -63,7 +63,7 @@ export const exactHapiPlugin: Plugin<ExactHapiPluginOptions> = {
 				...options.routeOptions,
 				payload: {
 					output: 'data',
-					parse: true,
+					parse: false,
 					allow: 'application/json',
 					maxBytes: exactMaxRequestBytes(options.runtime),
 					...options.payload
@@ -97,6 +97,8 @@ export function createExactHapiHandler(
 				: (result.body ?? '');
 			const response = h.response(body).code(result.status);
 			for (const [name, value] of Object.entries(result.headers)) response.header(name, value);
+			for (const cookie of result.setCookies ?? [])
+				response.header('set-cookie', cookie, { append: true });
 			if (!result.stream) disconnect.cleanup();
 			return response;
 		} catch (error) {

@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -15,19 +16,23 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
 
-it('gates a real Webpack server compilation before building a denied component module', async () => {
+it('builds with a warning and rejects execution before a denied component runs', async () => {
 	const fixture = createFixture(true);
+	const candidate = path.join(fixture.root, 'node_modules', '@acme', 'cards', 'dist', 'index.js');
+	writeFileSync(
+		candidate,
+		"throw new Error('DENIED_IMPLEMENTATION_EVALUATED');\n" + readFileSync(candidate, 'utf8')
+	);
 	const stats = await compile(fixture.root);
-
-	expect(stats.hasErrors()).toBe(true);
-	expect(stats.toJson({ all: false, errors: true }).errors?.[0]?.message).toContain(
-		'matches deny rule @acme/cards'
+	expect(stats.hasErrors(), JSON.stringify(stats.toJson({ all: false, errors: true }).errors)).toBe(
+		false
 	);
-	expect(stats.toJson({ all: false, modules: true }).modules ?? []).not.toEqual(
-		expect.arrayContaining([
-			expect.objectContaining({ name: expect.stringContaining('@acme/cards') })
-		])
-	);
+	const execution = spawnSync(process.execPath, [path.join(fixture.root, 'dist', 'server.js')], {
+		encoding: 'utf8'
+	});
+	expect(execution.status).not.toBe(0);
+	expect(execution.stderr).toContain('explicitly-denied');
+	expect(execution.stderr).not.toContain('DENIED_IMPLEMENTATION_EVALUATED');
 });
 
 it('emits authorization artifacts from a real authorized Webpack server compilation', async () => {
@@ -67,7 +72,7 @@ it('emits and publishes a real client remote exposure generation', async () => {
 			name: '@fixture/webpack-remote',
 			private: true,
 			type: 'module',
-			dependencies: { '@exactjs/microfrontends': '^0.1.0' }
+			dependencies: { '@exactjs/microfrontends': '^0.5.0' }
 		})
 	);
 	writeFileSync(
@@ -257,7 +262,7 @@ function createFixture(denied: boolean): { root: string } {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 2
+			exactComponentLibraryProtocol: 1
 		})
 	);
 	writeFileSync(
@@ -267,7 +272,7 @@ function createFixture(denied: boolean): { root: string } {
 			version: '1.0.0',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(
@@ -277,7 +282,7 @@ function createFixture(denied: boolean): { root: string } {
 	writeFileSync(
 		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
 		JSON.stringify({
-			protocol: 2,
+			protocol: 1,
 			package: { name: '@acme/cards', version: '1.0.0' },
 			modules: [
 				{

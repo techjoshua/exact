@@ -1,8 +1,8 @@
 package exactcompiler
 
 import (
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 var scheduledCallbackCalls = map[string]struct{}{

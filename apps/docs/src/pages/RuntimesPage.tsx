@@ -37,7 +37,7 @@ const buildIntegrations: Integration[] = [
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-plugin',
 		coverage:
-			'Native Bun.build transforms, target conditions, source maps, and plugin composition, exercised in Bun CI.',
+			'Native Bun.build transforms, target conditions, source maps, and plugin composition.',
 		application: 'Add @exactjs/bun-adapter separately when Bun also serves the application.'
 	},
 	{
@@ -92,16 +92,14 @@ const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Hapi 21',
 		package: '@exactjs/hapi-adapter',
-		coverage:
-			'Real Hapi registration tests, route limits, streaming conversion, and disconnect handling.',
+		coverage: 'Hapi registration, route limits, streaming conversion, and disconnect handling.',
 		application:
 			'The plugin mounts the eXact endpoint; application GET routes and assets remain yours.'
 	},
 	{
 		name: 'Bun 1.3+',
 		package: '@exactjs/bun-adapter',
-		coverage:
-			'Bun.serve handler with native Blob-backed SSR output and release-gating integration coverage.',
+		coverage: 'Bun.serve handler with native text and streaming SSR output.',
 		application: 'Add @exactjs/bun-plugin separately when Bun also performs the build.'
 	},
 	{
@@ -190,7 +188,9 @@ export function RuntimesPage(this: Component<{}>) {
 					validation through a zero-delay timer. On Windows hosts with coarse timer resolution, this
 					can add roughly 15 ms to sequential keep-alive requests. Bun's native fetch client does
 					not use that Undici path. See the{' '}
-					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>.
+					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>. Burst
+					completion also includes application data fetching. Its latency distribution should not be
+					read as rendering time alone.
 				</p>
 				<h2>Compiler and bundler integrations</h2>
 				<p>

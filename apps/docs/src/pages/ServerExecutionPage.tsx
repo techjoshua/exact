@@ -59,6 +59,17 @@ export function ServerExecutionPage(this: Component<{}>) {
 			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
 		>
 			<section>
+				<h2>Resume interactive regions inside server pages</h2>
+				<p>
+					A server-rendered page can contain independently hydrated client regions. eXact keeps each
+					region's public props and captured state with its boundary, so lazy regions can load in
+					either order and adopt their existing DOM. Completed server work resumes from its captured
+					result. Components inside a single client root share that root's hydration ownership. The
+					same behavior applies to string and streaming SSR. Prop-derived initial values do not
+					overwrite restored server results; subsequent prop changes still update dependent values.
+				</p>
+			</section>
+			<section>
 				<h2>Use server resources in component code</h2>
 				<p>
 					A component may need a database, request-scoped service, secret, or server-only library
@@ -141,6 +152,20 @@ export function ServerExecutionPage(this: Component<{}>) {
 			<section>
 				<h2>Server rendering uses the same work</h2>
 				<p>
+					Progressive HTML can send a completed document head before tasks in its body finish, so
+					the browser can discover stylesheets and scripts sooner. The body then completes in the
+					same render, followed by hydration data and the closing document tags. If the document
+					component itself has pending work that can change its head, publication waits for that
+					work. Whole-output transformations also retain complete-output publication.
+				</p>
+				<p>
+					The compiler includes known-safe literal URLs in static server markup. Dynamic URLs still
+					pass through the server's URL policy, and browser property updates keep their usual
+					behavior. Static stylesheet links and empty external scripts with static attributes can
+					share the surrounding document markup without separate server attribute processing.
+					Scripts retain their identity for browser adoption and their usual loading behavior.
+				</p>
+				<p>
 					The renderer counts compiler-known markup and dynamic output as it is produced. Buffered
 					ranges reuse that accounting when it remains valid, with exact UTF-8 byte limits and
 					rollback preserved before output is committed.
@@ -174,6 +199,17 @@ export function ServerExecutionPage(this: Component<{}>) {
 					closed after commitment. Error details stay in server logs.
 				</p>
 			</section>
+			<section>
+				<h2>Authenticate requests and authorize operations</h2>
+				<p>
+					Configure <code>authorize(request, context)</code> and
+					<code>validateCsrf(request, context)</code> to check request credentials and headers
+					before body parsing. Use <code>authorizeOperation(request, input, context)</code>
+					for policy that needs a decoded local operation. Forwarding hosts authenticate requests;
+					downstream services own their operation policy.
+				</p>
+			</section>
+
 			<Callout title="Compiler errors protect the boundary">
 				<p>
 					Compilation rejects undeclared captures, non-serializable results, server resources in
@@ -181,6 +217,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					crossed the boundary.
 				</p>
 			</Callout>
+			<section>
+				<h2>Explicit operation registration</h2>
+				<p>
+					Custom server operation contracts, handlers, and payload decoders must be explicit entries
+					in their registration objects. Inherited properties do not register an operation or
+					authorize its payload. Use ordinary object literals when configuring these maps.
+				</p>
+			</section>
 		</Article>
 	);
 }

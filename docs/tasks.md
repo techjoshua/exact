@@ -294,3 +294,15 @@ Runtime integration code must state policy and capabilities that the compiler ca
 infer. It does not receive source partitioning, static capture or secret-flow
 validation, generated remote continuations, or automatic disposable escape
 analysis.
+
+## Paused task continuations
+
+While an Activity-owned effect scope is paused, compiler-owned awaits park both successful results
+and source failures before the authored continuation runs. Resuming the scope delivers the result
+or error. Cancellation still settles immediately and removes the parked wait; a source that settles
+later cannot register another wait for that cancelled generation.
+
+Optimistic rollback restores only writes still owned by the rejected task. Array slots and explicit
+length changes retain independent ownership: an unrelated append or a later authoritative slot or
+length write survives rollback. Sparse arrays keep their holes. Ordinary writes outside an
+optimistic journal do not take array snapshots.

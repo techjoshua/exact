@@ -28,7 +28,9 @@ export function isPublishableWorkspace(entry) {
 	return (
 		entry.manifest.private !== true &&
 		entry.manifest.name?.startsWith('@exactjs/') === true &&
-		publishableWorkspaceRoots.includes(entry.relativePath.split('/')[0])
+		publishableWorkspaceRoots.some((root) =>
+			new RegExp(`^${root}/[^/]+/package\\.json$`).test(entry.relativePath)
+		)
 	);
 }
 

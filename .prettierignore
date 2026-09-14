@@ -22,3 +22,5 @@ apps/react-reconciler-reference-*/
 apps/react-reference-*/
 apps/*/test-results/
 framework-comparison/results/raw/
+fixtures/release-abi/*/client.js
+fixtures/release-abi/*/server.js

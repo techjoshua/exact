@@ -1,3 +1,5 @@
+import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
+import { mergeInspectionRedactions } from '@exactjs/devtools-protocol';
 import {
 	createExactBuildInspectionCatalog,
 	createCompilerSession,
@@ -145,6 +147,7 @@ export function recordWebpackComponentBuildFacts(
 
 /** Options needed to open a Webpack authorization generation lazily from resolver hooks. */
 export type ExactWebpackAuthorizationOptions = Readonly<{
+	warn?: (message: string) => void;
 	target?: string;
 	applicationRoot?: string;
 	configPath?: string;
@@ -177,7 +180,7 @@ export async function authorizeWebpackResolvedComponent(
 	resolvedModuleId: string,
 	resolvePublished?: ExactWebpackComponentResolver,
 	watchFile?: (filename: string) => void
-): Promise<'authorized' | 'omitted' | undefined> {
+): Promise<'authorized' | 'omitted' | { guard: string } | undefined> {
 	if (options.target !== 'server') return;
 	const importerPath = webpackIssuerResource(importerModuleId);
 	const importer = componentFacts.get(id)?.get(importerPath);
@@ -237,7 +240,7 @@ export async function authorizeWebpackResolvedComponent(
 				);
 				await authorizeWebpackResolvedComponent(
 					id,
-					options,
+					{ ...options, warn: undefined },
 					edge.moduleSpecifier,
 					facts.filename,
 					child,
@@ -253,7 +256,7 @@ export async function authorizeWebpackResolvedComponent(
 				);
 				await authorizeWebpackResolvedComponent(
 					id,
-					options,
+					{ ...options, warn: undefined },
 					nested.moduleSpecifier,
 					facts.filename,
 					child,
@@ -265,6 +268,19 @@ export async function authorizeWebpackResolvedComponent(
 		generation.preflighted.set(preflightKey, authorization.outcome);
 		return authorization.outcome;
 	} catch (error) {
+		if (options.warn) {
+			const guard = materializeExactComponentExecutionGuard(
+				error,
+				resolvedModuleId,
+				generation.applicationRoot!,
+				options.warn
+			);
+			if (guard) {
+				const result = { guard };
+				generation.preflighted.set(preflightKey, result);
+				return result;
+			}
+		}
 		generation.preflighted.delete(preflightKey);
 		throw error;
 	}
@@ -303,7 +319,7 @@ type WebpackAuthorizationGeneration = {
 	preparing?: Promise<void>;
 	session?: ExactComponentAuthorizationSession;
 	applicationRoot?: string;
-	preflighted?: Map<string, 'authorized' | 'omitted' | null>;
+	preflighted?: Map<string, 'authorized' | 'omitted' | { guard: string } | null>;
 };
 
 async function webpackAuthorizationGeneration(
@@ -401,28 +417,4 @@ export function webpackInspectionCatalog(
 	return options.componentAuthorization
 		? Object.freeze({ ...catalog, componentAuthorization: options.componentAuthorization })
 		: catalog;
-}
-
-function mergeInspectionRedactions(
-	generated: readonly ExactInspectionRedactionCatalog[],
-	configured: Partial<ExactInspectionRedactionCatalog> = {}
-): ExactInspectionRedactionCatalog {
-	return {
-		statePaths: [
-			...new Set([
-				...generated.flatMap((value) => value.statePaths),
-				...(configured.statePaths ?? [])
-			])
-		].sort(),
-		contextTokens: [
-			...generated.flatMap((value) => value.contextTokens),
-			...(configured.contextTokens ?? [])
-		],
-		secretNames: [
-			...new Set([
-				...generated.flatMap((value) => value.secretNames),
-				...(configured.secretNames ?? [])
-			])
-		].sort()
-	};
 }

@@ -10,7 +10,7 @@ import {
 } from '@exactjs/intl';
 import { prepareIntlActivation } from '../../intl/src/internal.js';
 import { flushSync, reactive } from '@exactjs/reactive';
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import {
 	attributesRoot,
@@ -41,7 +41,7 @@ describe('intl architecture fixture', () => {
 		const enhancementCatalog = new Map([[enhancementIdentity, CompiledIntlLocale]]);
 		const serverEnhancementCatalog = new Map([[enhancementIdentity, ServerIntlLocale]]);
 		const server = (
-			await renderToStringAsync(serverLocaleRoot(environment), {
+			await renderToString(serverLocaleRoot(environment), {
 				enhancementCatalog: serverEnhancementCatalog
 			})
 		).html;
@@ -120,7 +120,7 @@ describe('intl architecture fixture', () => {
 		);
 
 		const server = (
-			await renderToStringAsync(serverMessageRoot(environment, serverMessage), {
+			await renderToString(serverMessageRoot(environment, serverMessage), {
 				enhancementCatalog: serverEnhancementCatalog
 			})
 		).html;
@@ -185,7 +185,7 @@ describe('intl architecture fixture', () => {
 		const enhancementCatalog = new Map([[enhancementIdentity, CompiledIntlAttributes]]);
 		const serverEnhancementCatalog = new Map([[enhancementIdentity, ServerIntlAttributes]]);
 		const server = (
-			await renderToStringAsync(serverAttributesRoot(environment, placeholder), {
+			await renderToString(serverAttributesRoot(environment, placeholder), {
 				enhancementCatalog: serverEnhancementCatalog
 			})
 		).html;

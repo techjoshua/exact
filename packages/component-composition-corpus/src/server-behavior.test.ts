@@ -1,10 +1,4 @@
-import {
-	renderToProgressiveHtmlStream,
-	renderToHydratableString,
-	renderToStream,
-	renderToString,
-	renderToStringAsync
-} from '@exactjs/ssr/enhanced';
+import { renderToProgressiveHtmlStream, renderToHydratableString, renderToStream, renderToString } from '@exactjs/ssr/enhanced';
 import { describe, expect, it } from 'vitest';
 import { capabilitiesRoot } from './scenarios/capabilities.fixtures.js?exact-target=server';
 import { dynamicRoot } from './scenarios/dynamic.fixtures.js?exact-target=server';
@@ -28,21 +22,21 @@ import { structureRoot } from './scenarios/structure.fixtures.js?exact-target=se
 import { serverTaskRoot } from './scenarios/tasks.fixtures.js?exact-target=server';
 
 describe('composition corpus server behavior', () => {
-	it('renders the normative sync compositions directly', () => {
-		expect(renderToString(fundamentalsRoot('server'), { markers: false }).html).toBe(
+	it('renders the normative sync compositions directly', async () => {
+		expect((await renderToString(fundamentalsRoot('server'), { markers: false })).html).toBe(
 			'<main data-scenario="fundamentals"><h1>Composition corpus</h1><strong data-role="label">server</strong><small data-role="label-suffix">!</small><span data-role="after-label">After</span></main>'
 		);
-		expect(renderToString(stateRoot('count'), { markers: false }).html).toContain('count:1');
-		expect(renderToString(structureRoot, { markers: false }).html).toContain('visible');
-		const capabilities = renderToString(capabilitiesRoot, { markers: false }).html;
+		expect((await renderToString(stateRoot('count'), { markers: false })).html).toContain('count:1');
+		expect((await renderToString(structureRoot, { markers: false })).html).toContain('visible');
+		const capabilities = (await renderToString(capabilitiesRoot, { markers: false })).html;
 		expect(capabilities).toContain('provided');
 		expect(capabilities).toContain('a:mean');
 		expect(capabilities).toContain('b:mean');
-		expect(renderToString(registryRoot('second'), { markers: false }).html).toContain('second');
+		expect((await renderToString(registryRoot('second'), { markers: false })).html).toContain('second');
 	});
 
-	it('serializes compiler-known state attributes with native semantics', () => {
-		const html = renderToString(stateRoot('count'), { markers: false }).html;
+	it('serializes compiler-known state attributes with native semantics', async () => {
+		const html = (await renderToString(stateRoot('count'), { markers: false })).html;
 		expect(html).toMatch(
 			/^<section data-exact-id="[^"]+" data-scenario="state" class="state-root enabled">/
 		);
@@ -51,45 +45,45 @@ describe('composition corpus server behavior', () => {
 		);
 	});
 
-	it('omits state that hydration reconstructs from unconditional primitive setup', () => {
-		const rendered = renderToHydratableString(inputProjectionRoot(), { markers: false });
+	it('omits state that hydration reconstructs from unconditional primitive setup', async () => {
+		const rendered = await renderToHydratableString(inputProjectionRoot(), { markers: false });
 		const resumptions = rendered.resumptions ?? [];
 		expect(resumptions).toHaveLength(1);
 		expect(resumptions[0]?.values).not.toHaveProperty('status');
 		expect(rendered.html).toContain('loading:missing:idle');
 	});
 
-	it('preserves direct and authored synchronous server setup semantics', () => {
-		expect(renderToString(serverSetupProjectionRoot(' ready '), { markers: false }).html).toBe(
+	it('preserves direct and authored synchronous server setup semantics', async () => {
+		expect((await renderToString(serverSetupProjectionRoot(' ready '), { markers: false })).html).toBe(
 			'<output data-scenario="server-setup-projection"> ready :READY</output>'
 		);
 	});
 
 	it('leaves an open dynamic component inert during async server rendering', async () => {
-		const rendered = await renderToStringAsync(dynamicRoot(), { markers: false });
+		const rendered = await renderToString(dynamicRoot(), { markers: false });
 		expect(rendered.html).toBe('<section data-scenario="dynamic"></section>');
 	});
 
-	it('renders both enhancement target forms on the server', () => {
+	it('renders both enhancement target forms on the server', async () => {
 		resetServerEnhancementTones();
-		const html = renderToString(enhancementsRoot, {
+		const html = (await renderToString(enhancementsRoot, {
 			markers: false,
 			enhancementCatalog: new Map([
 				['./enhancement-routing.fixtures.js#corpus', serverCorpusEnhancement]
 			])
-		}).html;
+		})).html;
 		expect(html).toContain('data-corpus-tone="intrinsic"');
 		expect(serverEnhancementTones()).toEqual(['intrinsic', 'component']);
 		expect(html).toContain('data-corpus-tone="component"');
 	});
 
 	it('settles blocking server tasks in async rendering', async () => {
-		const rendered = await renderToStringAsync(serverTaskRoot, { markers: false });
+		const rendered = await renderToString(serverTaskRoot, { markers: false });
 		expect(rendered.html).toContain('ready');
 	});
 
 	it('loads a finite lazy registry entry in async rendering', async () => {
-		const rendered = await renderToStringAsync(lazyRegistryRoot, { markers: false });
+		const rendered = await renderToString(lazyRegistryRoot, { markers: false });
 		expect(rendered.html).toContain('lazy second');
 	});
 

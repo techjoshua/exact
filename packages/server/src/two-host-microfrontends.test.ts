@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactBindingGateway,
 	defineExactOperationContract,
+	exactResponseToFetchResponse,
 	handleExactRequest
 } from './index.js';
 import { context } from './test-support/server.js';
@@ -68,7 +69,7 @@ describe('page host to component host integration', () => {
 						method: init?.method ?? 'GET',
 						url: String(input),
 						headers: new Headers(init?.headers),
-						body: JSON.parse(String(init?.body)),
+						body: init?.body,
 						signal: init?.signal ?? undefined
 					},
 					hostContext
@@ -104,7 +105,7 @@ describe('page host to component host integration', () => {
 					'x-exact-build': buildKey,
 					authorization: 'Bearer browser'
 				},
-				body: {
+				body: JSON.stringify({
 					type: 'batch',
 					version: 1,
 					operations: [
@@ -119,7 +120,7 @@ describe('page host to component host integration', () => {
 							id: 'same-local-id'
 						}
 					]
-				}
+				})
 			},
 			pageContext
 		);
@@ -133,27 +134,27 @@ describe('page host to component host integration', () => {
 					'x-exact-build': buildKey,
 					authorization: 'Bearer browser'
 				},
-				body: {
+				body: JSON.stringify({
 					type: 'invoke',
 					root: '@company/branding#./Shell',
 					id: 'same-local-id'
-				}
+				})
 			},
 			pageContext
 		);
 
 		expect(billingResponse.status).toBe(200);
-		expect(JSON.parse(billingResponse.body).results).toEqual([
+		expect((await exactResponseToFetchResponse(billingResponse).json()).results).toEqual([
 			expect.objectContaining({ ok: true, state: { source: 'area' } }),
 			expect.objectContaining({ ok: true, state: { source: 'other' } })
 		]);
 		expect(brandingResponse.status).toBe(200);
-		expect(JSON.parse(brandingResponse.body)).toEqual(
+		expect(await exactResponseToFetchResponse(brandingResponse).json()).toEqual(
 			expect.objectContaining({ ok: true, state: { source: 'branding' } })
 		);
 		expect(pageAuthorize).toHaveBeenCalledTimes(2);
-		// Billing authorizes the forwarded batch envelope and both decoded operations.
-		expect(billingAuthorize).toHaveBeenCalledTimes(3);
+		// Request authorization runs once; services may additionally authorize each decoded operation.
+		expect(billingAuthorize).toHaveBeenCalledOnce();
 		expect(brandingAuthorize).toHaveBeenCalledOnce();
 		expect(areaAction).toHaveBeenCalledOnce();
 		expect(otherAction).toHaveBeenCalledOnce();

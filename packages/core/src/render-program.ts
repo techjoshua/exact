@@ -1,3 +1,9 @@
+export {
+	createPreparedServerRenderProgram,
+	readPreparedServerRenderProgram,
+	type ExactPreparedServerRenderProgram
+} from './server-render-program.js';
+import { renderProgramVersion } from './component/contract-versions.js';
 import type { CompiledEnhancementNode } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import {
@@ -15,8 +21,18 @@ export type ExactRenderProgramNode = readonly [
 	namespace?: ExactRenderProgramNamespace
 ];
 
-/** Compiler-owned server output containing serialized spans and deferred child ranges. */
-export type ExactRenderProgramSsrOutput = Array<string | readonly unknown[] | object>;
+/** Caller-owned destination and sibling lifetime consumed by a generated server writer. */
+export type ExactRenderProgramSsrOutput = {
+	/** Accepts ordered text and reports actual transport pressure. */
+	readonly sink: {
+		write(html: string): void;
+		ready(): void | Promise<void>;
+	};
+	/** Prepares scheduled siblings after validation, before ordered traversal. */
+	readonly prepareReferences?: (values: readonly unknown[]) => AsyncDisposable | undefined;
+	/** Releases prepared siblings that traversal did not consume. */
+	preparation?: AsyncDisposable;
+};
 
 /** Request-local server invocation whose generated writer consumes eager slot values. */
 export type ExactRenderProgramSsrInvocation = Readonly<{
@@ -24,9 +40,9 @@ export type ExactRenderProgramSsrInvocation = Readonly<{
 	eagerValues: readonly unknown[];
 }>;
 
-/** Compiler-selected native SSR attribute: behavior, source property, serialized name. */
+/** Compiler-selected native SSR attribute; kind 7 proves a root class contains only safe ASCII. */
 export type ExactRenderProgramSsrAttribute = readonly [
-	kind: 0 | 1 | 2 | 3 | 4 | 5 | 6,
+	kind: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7,
 	property: string,
 	attribute: string
 ];
@@ -35,8 +51,19 @@ export type ExactRenderProgramSsrAttribute = readonly [
 export type ExactRenderProgramSsrOperations = Readonly<{
 	/** Private sentinel returned when generated slot validation rejects malformed output. */
 	unprepared: symbol;
-	/** Allocates the typed invocation-local output owned by the generated writer. */
-	output(): ExactRenderProgramSsrOutput;
+	/** Intrinsic promise identity, independent of authored names. */
+	promise: PromiseConstructor;
+	/**
+	 * Issues a statically selected component reference after slot validation. The optional proof
+	 * names the only field in a fresh private bag (null means empty). The runtime checks actual
+	 * scalar values on the invocation's first attempt; types alone never establish this proof.
+	 */
+	reference(
+		component: unknown,
+		props: unknown,
+		scalarPropKey?: string | null,
+		proofInvocation?: ExactRenderProgramSsrInvocation
+	): unknown;
 	/** Reads and validates one compiler-known scalar before serialization mutates request state. */
 	prepareText(invocation: ExactRenderProgramSsrInvocation, index: number): unknown;
 	/** Reads and validates one recursive child before serialization mutates request state. */
@@ -55,8 +82,8 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		staticCharacters: number,
 		staticBytes?: number
 	): void;
-	/** Appends compiler-owned static markup already charged by the generated program. */
-	static(output: ExactRenderProgramSsrOutput, value: string): void;
+	/** Appends charged static markup, optionally identifying its root-body closing-tag offset. */
+	static(output: ExactRenderProgramSsrOutput, value: string, bodyCloseOffset?: number): void;
 	/** Writes one prepared escaped scalar and its delimiters when required. */
 	text(
 		context: object,
@@ -65,9 +92,9 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		id: string,
 		characters: number,
 		markerless?: true,
-		/** Compiler-escaped static text projected into the same physical scalar node. */
+		/** Compiler-serialized markup and escaped text preceding the scalar's delimiters. */
 		prefix?: string,
-		/** Compiler-escaped static text projected into the same physical scalar node. */
+		/** Compiler-serialized markup and escaped text following the scalar's delimiters. */
 		suffix?: string
 	): number;
 	/** Recursively renders one prepared structural or component child. */
@@ -77,9 +104,9 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		value: unknown,
 		id: string,
 		characters: number
-	): number;
+	): number | Promise<number>;
 	/** Renders one compiler-keyed final-child range without serializing delimiters. */
-	keyedChild(output: ExactRenderProgramSsrOutput, value: unknown): void;
+	keyedChild(output: ExactRenderProgramSsrOutput, value: unknown): void | Promise<void>;
 	/** Publishes one component through its compiler-owned parent slot boundary. */
 	component(
 		context: object,
@@ -88,7 +115,7 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		id: string,
 		characters: number,
 		markerless?: true
-	): number;
+	): number | Promise<number>;
 	/** Issues a statically selected component without materializing a request-local reference. */
 	directComponent(
 		context: object,
@@ -98,7 +125,7 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		id: string,
 		characters: number,
 		markerless?: true
-	): number;
+	): number | Promise<number>;
 	/** Serializes one prepared host value with ordinary SSR attribute semantics. */
 	attribute(
 		context: object,
@@ -136,11 +163,7 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 		prefix: string,
 		suffix: string,
 		characters: number,
-		staticAttributes?: readonly [
-			html: string,
-			propNames: readonly string[],
-			dynamic?: readonly ExactRenderProgramSsrAttribute[]
-		]
+		staticAttributes?: ExactRenderProgram['ssrRootStatic']
 	): number;
 }>;
 
@@ -148,8 +171,9 @@ export type ExactRenderProgramSsrOperations = Readonly<{
 export type ExactRenderProgramSsrWriter = (
 	operations: ExactRenderProgramSsrOperations,
 	context: object,
-	invocation: ExactRenderProgramSsrInvocation
-) => ExactRenderProgramSsrOutput | undefined;
+	invocation: ExactRenderProgramSsrInvocation,
+	output: ExactRenderProgramSsrOutput
+) => ExactRenderProgramSsrOutput | undefined | Promise<ExactRenderProgramSsrOutput | undefined>;
 
 /** Compact text slot: kind, fallback identity, template path, and marker-free SSR proof. */
 export type ExactRenderProgramTextSlot = readonly [
@@ -205,7 +229,7 @@ export type ExactRenderProgramBinder = (target: ExactRenderProgramBindingTarget)
 /** Compact compiler-local claim operation consumed by the focused DOM claim executor. */
 export type ExactRenderProgramClaimOperation = readonly [
 	kind: number,
-	first?: number | string | boolean,
+	first?: number | string | boolean | readonly (string | number)[],
 	second?: number | string | boolean,
 	third?: number | string | boolean,
 	fourth?: number | string | boolean,
@@ -248,11 +272,13 @@ export type ExactRenderProgramWiring = readonly [
 ];
 
 type ExactRenderProgramBase = Readonly<{
-	version: 8;
+	version: 1;
 	id: string;
 	namespace: ExactRenderProgramNamespace;
 	/** Root intrinsic used to resolve a contextual namespace at physical attachment time. */
 	attachmentTag?: string;
+	/** Root intrinsic used to retain document ancestry during ordered server traversal. */
+	ssrHost?: string;
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
 	listBindings?: true;
 	/** Compiler-keyed child slots, encoded as a compact bit mask or explicit indexes. */
@@ -261,7 +287,9 @@ type ExactRenderProgramBase = Readonly<{
 	ssrRootStatic?: readonly [
 		html: string,
 		propNames: readonly string[],
-		dynamic?: readonly ExactRenderProgramSsrAttribute[]
+		dynamic?: readonly ExactRenderProgramSsrAttribute[],
+		/** A single captured attribute replaces the prop bag; reconstruct only for target composition. */
+		composeScalar?: (value: unknown) => Record<string, unknown>
 	];
 }>;
 
@@ -334,7 +362,6 @@ export type ExactRenderProgram =
 export type ExactDomRenderProgram = ExactDirectRenderProgram | ExactTableRenderProgram;
 
 type BrandedRenderProgram = ExactRenderProgram & { readonly __exactPreparedRenderProgram: never };
-const PreparedServerRenderProgram = Symbol.for('@exactjs/prepared-server-render-program');
 declare const exactRenderProgramReceiptBrand: unique symbol;
 type ExactRenderProgramReaders =
 	| ReadonlyArray<(() => unknown) | undefined>
@@ -386,14 +413,6 @@ function executeRenderProgramOperation(this: object, target: object): unknown {
 	);
 }
 
-/** Compiler-issued server invocation consumed directly by the compiler-closed SSR lane. */
-export type ExactPreparedServerRenderProgram = ExactRenderProgramSsrInvocation &
-	Readonly<{
-		[PreparedServerRenderProgram]: true;
-		enhancement?: CompiledEnhancementNode;
-		domain?: import('./component/contracts.js').ComponentDomain;
-	}>;
-
 /**
  * Registers one compiler-emitted descriptor without copying its trusted executable data.
  *
@@ -404,8 +423,8 @@ export type ExactPreparedServerRenderProgram = ExactRenderProgramSsrInvocation &
  * can reach this compiler-only operation.
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
-	if ((program as { version: number }).version !== 8)
-		throw new TypeError('Unsupported eXact render-program ABI; expected version 8');
+	if ((program as { version: number }).version !== renderProgramVersion)
+		throw new TypeError('Unsupported eXact render-program ABI; expected version 1');
 	return program as BrandedRenderProgram;
 }
 
@@ -432,43 +451,6 @@ export function createPreparedRenderProgram(
 		...(domain ? { domain } : {})
 	});
 	return receipt;
-}
-
-/**
- * Captures compiler-known server slots while the enclosing component issuance scope is active.
- * This preserves eager sibling task execution without retaining lazy reader closures through the
- * later HTML traversal. Client and hydration artifacts continue to use lazy readers.
- */
-export function createPreparedServerRenderProgram(
-	branded: BrandedRenderProgram,
-	eagerValues: readonly unknown[],
-	enhancement?: CompiledEnhancementNode
-): ExactPreparedServerRenderProgram {
-	// The nominal wrapper prevents ordinary child normalization from flattening the values array.
-	const domain = enhancement ? currentComponentDomain() : undefined;
-	const invocation = {
-		[PreparedServerRenderProgram]: true,
-		program: branded,
-		eagerValues
-	} as {
-		readonly [key: symbol]: unknown;
-		program: BrandedRenderProgram;
-		eagerValues: readonly unknown[];
-		enhancement?: CompiledEnhancementNode;
-		domain?: import('./component/contracts.js').ComponentDomain;
-	};
-	if (enhancement) invocation.enhancement = enhancement;
-	if (domain) invocation.domain = domain;
-	return invocation as ExactPreparedServerRenderProgram;
-}
-
-/** Recognizes only the realm-stable compiler-issued direct server invocation shape. */
-export function readPreparedServerRenderProgram(
-	value: unknown
-): ExactPreparedServerRenderProgram | undefined {
-	return typeof value === 'object' && value !== null && PreparedServerRenderProgram in value
-		? (value as ExactPreparedServerRenderProgram)
-		: undefined;
 }
 
 /** Reads the invocation carried by a compiler-only render-program operation. */

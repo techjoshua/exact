@@ -95,10 +95,14 @@ times out stalled entries after 30 seconds and retains at most 64 pending or com
 
 ## Protocol and recovery
 
-The browser continues to use the page host's `/__exact` endpoint. The gateway
-selects the private host from trusted binding and build metadata, removes
-framework routing headers before forwarding application traffic, and preserves
-one request authorization, CSRF, limit, response, and cleanup lifecycle.
+The browser continues to use the page host's `/__exact` endpoint. Request authentication and CSRF
+hooks run before body reading. The gateway validates the configured binding, consumes its routing
+header, and relays original request and response bytes with bounded buffering and cancellation.
+Build headers, cookies, and authorization pass through. Each service owns protocol validation,
+operation authorization, and its response. Applications may add credentials with
+`transformForwardedRequest`, which can change headers only. Use raw request bodies at gateway
+endpoints; parsed middleware objects cannot preserve the original payload. Hop-by-hop headers
+are removed, redirects are relayed, and separate `Set-Cookie` fields are preserved.
 
 Different roots can share a batch without sharing their invocation or boundary ID
 namespace. Work across roots is not atomic; failure is contained to the

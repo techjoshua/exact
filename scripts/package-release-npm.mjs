@@ -2,17 +2,36 @@ import { cp, mkdir, readdir, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
-import { isPublishableWorkspace, readWorkspaceManifests } from './workspace-manifests.mjs';
+import { readWorkspaceManifests } from './workspace-manifests.mjs';
+import { selectReleaseWorkspaces } from './package-release-selection.mjs';
+import { assertReleaseOutput } from './release-output-path.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
-const nativePackages = path.resolve(argument('native-packages'));
 const output = path.resolve(argument('output'));
 const npm = npmInvocation();
+const names = process.argv
+	.find((value) => value.startsWith('--packages='))
+	?.slice('--packages='.length)
+	.split(',');
+const workspaces = selectReleaseWorkspaces(await readWorkspaceManifests(root), names);
+const includesCompiler = workspaces.some((entry) => entry.manifest.name === '@exactjs/compiler');
+const nativePackages = includesCompiler ? path.resolve(argument('native-packages')) : undefined;
+await assertReleaseOutput(root, output);
+if (
+	nativePackages &&
+	(nativePackages === output || !path.relative(output, nativePackages).startsWith('..'))
+)
+	throw new Error('Native input archives must be outside the release output directory.');
+const nativeArchives = nativePackages
+	? (await readdir(nativePackages)).filter((entry) => entry.endsWith('.tgz'))
+	: [];
+if (includesCompiler && nativeArchives.length === 0) {
+	throw new Error(`No native compiler packages found in ${nativePackages}`);
+}
 
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 
-const workspaces = (await readWorkspaceManifests(root)).filter(isPublishableWorkspace);
 for (const workspace of workspaces) {
 	await run(npm.command, [
 		...npm.prefix,
@@ -24,10 +43,6 @@ for (const workspace of workspaces) {
 	]);
 }
 
-const nativeArchives = (await readdir(nativePackages)).filter((entry) => entry.endsWith('.tgz'));
-if (nativeArchives.length === 0) {
-	throw new Error(`No native compiler packages found in ${nativePackages}`);
-}
 for (const archive of nativeArchives) {
 	await cp(path.join(nativePackages, archive), path.join(output, archive));
 }

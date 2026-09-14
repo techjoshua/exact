@@ -11,6 +11,7 @@ import {
 } from '@exactjs/server/framework/trusted-handler';
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from '../diff.js';
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerPair } from '../markup.js';
+import { finalizedMarkerPair } from '../markers.js';
 import {
 	assertOutputWithinLimit,
 	boundedJoin,
@@ -19,8 +20,6 @@ import {
 	normalizePositiveLimit
 } from '../render/limits.js';
 import type {
-	InvocationRefreshBoundaryOptions,
-	InvocationRefreshOptions,
 	BoundaryRefreshOptions,
 	BoundaryRenderFunction,
 	ExactBoundaryRenderer,
@@ -30,6 +29,8 @@ import type {
 	ExactServerHandlerRegistry,
 	ExactServerHandlerRegistryOptions,
 	ExactServerRuntimeOptions,
+	InvocationRefreshBoundaryOptions,
+	InvocationRefreshOptions,
 	KeyedListRefreshOptions,
 	KeyedListSnapshot,
 	KeyedListSnapshotItem,
@@ -37,12 +38,12 @@ import type {
 	KeyedListSnapshotParseOptions,
 	RenderToStringOptions
 } from '../types.js';
-import { renderToStringAsync } from './async-rendering.js';
+import { renderChildren } from './children.js';
 import { createSsrContext } from './context.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
+import { renderToString } from './render-output.js';
 import { normalizeExactServerRuntimeOptions } from './runtime-configuration.js';
 import { renderSignal } from './signals.js';
-import { renderChildren } from './sync-children.js';
 
 /** Creates a boundary refresh handler. */
 export function createBoundaryRefreshHandler(
@@ -51,7 +52,7 @@ export function createBoundaryRefreshHandler(
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
 	return markExactFrameworkInvocationHandler(async (input, context) => {
 		const operation = await render(input, context);
-		const result = await renderToStringAsync(operation, {
+		const result = await renderToString(operation, {
 			...options,
 			contexts: context.contexts?.componentValues ?? options.contexts,
 			signal: renderSignal(context.signal, options.signal)
@@ -82,7 +83,7 @@ export function createInvocationRefreshHandler(
 
 		for (const boundary of options.boundaries) {
 			const operation = await boundary.render(input, context);
-			const result = await renderToStringAsync(operation, {
+			const result = await renderToString(operation, {
 				...boundary,
 				contexts: context.contexts?.componentValues ?? boundary.contexts,
 				signal: renderSignal(context.signal, boundary.signal)
@@ -205,13 +206,13 @@ export function boundaryRefreshOptions(
 }
 
 /** Transforms keyed list snapshot into its required representation. */
-export function renderKeyedListSnapshot<T>(
+export async function renderKeyedListSnapshot<T>(
 	options: KeyedListSnapshotOptions<T>
-): KeyedListSnapshot {
+): Promise<KeyedListSnapshot> {
 	const owner = createSsrOwner();
 	let primary: unknown = noPrimaryFailure;
 	try {
-		return withTaskObserver(owner.observer, () => renderKeyedListSnapshotOwned(options));
+		return await withTaskObserver(owner.observer, () => renderKeyedListSnapshotOwned(options));
 	} catch (error) {
 		primary = error;
 		throw error;
@@ -221,9 +222,9 @@ export function renderKeyedListSnapshot<T>(
 }
 
 /** Transforms keyed list snapshot owned into its required representation. */
-export function renderKeyedListSnapshotOwned<T>(
+export async function renderKeyedListSnapshotOwned<T>(
 	options: KeyedListSnapshotOptions<T>
-): KeyedListSnapshot {
+): Promise<KeyedListSnapshot> {
 	const context = createSsrContext(options);
 	const items: KeyedListSnapshotItem[] = [];
 	const html: string[] = [];
@@ -234,15 +235,15 @@ export function renderKeyedListSnapshotOwned<T>(
 			throw new Error(`Duplicate key ${JSON.stringify(key)} in keyed-list snapshot`);
 		keys.add(key);
 		const child = options.render(item);
-		const itemHtml = markerPair(context, keyedItemMarkerId(key), () =>
-			renderChildren(context, [child], undefined)
+		const itemHtml = await markerPair(context, keyedItemMarkerId(key), () =>
+			renderChildren(context, [child], undefined, options)
 		);
 		items.push({ key, html: itemHtml });
 		html.push(itemHtml);
 	}
 
 	const innerHtml = boundedJoin(context, html);
-	const snapshotHtml = markerPair(context, exactMarkerId(options.listId), () => innerHtml);
+	const snapshotHtml = finalizedMarkerPair(context, exactMarkerId(options.listId), innerHtml);
 	assertOutputWithinLimit(context, snapshotHtml);
 
 	return {
@@ -259,7 +260,7 @@ export function createKeyedListRefreshHandler<T>(
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
 	return markExactFrameworkInvocationHandler(async (input, context) => {
 		const nextItems = await options.items(input, context);
-		const next = renderKeyedListSnapshot({
+		const next = await renderKeyedListSnapshot({
 			...options,
 			items: nextItems
 		});
@@ -347,10 +348,10 @@ export function parseKeyedListSnapshotHtml(
 		if (frame.item) return undefined;
 	}
 	if (stack.length || !items.length) return undefined;
-	const snapshotHtml = markerPair(
+	const snapshotHtml = finalizedMarkerPair(
 		createSsrContext({ markers: true }),
 		exactMarkerId(listId),
-		() => html
+		html
 	);
 	if (
 		snapshotHtml.length > maxBytes ||

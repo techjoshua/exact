@@ -34,7 +34,7 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"jsx":"preserve"}}`), 0o600); err != nil {
+	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"jsx":"preserve","jsxImportSource":"@exactjs/jsx"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -171,17 +171,19 @@ func TestSessionEmitsClosedServerRenderProgramsWithoutGenericFallback(t *testing
 		`from "@exactjs/core/framework/server-render-structure"`,
 		"createPreparedServerRenderProgram",
 		"prepareCompiledRenderProgram",
-		"version: 8",
-		`ssr: (__exactSsr, __exactContext, __exactInvocation) =>`,
+		"version: 1",
+		`__exactContext, __exactInvocation, __exactOutput`,
 		`__exactSsr.begin(__exactContext, 2, 2, 30, 30)`,
 		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "span", "<span", "><strong>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
-		`const __exactValue_1 = __exactSsr.prepareText(__exactInvocation, 1)`,
+		`__exactValue_1 = __exactSsr.prepareText(__exactInvocation, 1)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
-		`, true)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("planned output omitted %q:\n%s", expected, response.Code)
 		}
+	}
+	if markerlessSsrTextCallCount(response.Code) != 1 {
+		t.Fatalf("planned scalar lost its markerless write:\n%s", response.Code)
 	}
 	for _, omitted := range []string{"template:", "slots:", "nodes:", "bindings:", "parts:", "ssrParts:", "ssrOperations:", "() => __exactVNode(\"span\""} {
 		if strings.Contains(response.Code, omitted) {
@@ -232,7 +234,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		t.Fatalf("client render program retained server marker metadata:\n%s", response.Code)
 	}
 	for _, erased := range []string{
-		"version: 3", `placement: "isomorphic"`, `role: "client"`, "implementations: [",
+		`placement: "isomorphic"`, `role: "client"`, "implementations: [",
 		"continuations: [", "executors: [", "boundaries: [",
 	} {
 		if strings.Contains(response.Code, erased) {
@@ -566,7 +568,7 @@ func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		strings.Contains(response.Code, `slots: [["text"`) ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) ||
-		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
+		!strings.Contains(response.Code, `__exactContext, __exactInvocation, __exactOutput`) ||
 		strings.Contains(response.Code, "parts:") ||
 		strings.Contains(response.Code, "ssrParts:") ||
 		strings.Contains(response.Code, "ssrOperations:") {
@@ -591,7 +593,7 @@ func TestSessionUsesDirectStructuralClaimsWithCompleteMetadata(t *testing.T) {
 		strings.Contains(response.Code, "ssrOperations:") ||
 		!strings.Contains(response.Code, `[[4, 0, 0, true]]`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
-		!strings.Contains(response.Code, `ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
+		!strings.Contains(response.Code, `__exactContext, __exactInvocation, __exactOutput`) ||
 		strings.Contains(response.Code, `["component"`) ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) {
 		t.Fatalf("complete metadata artifact did not close over direct structural execution:\n%s", response.Code)
@@ -613,12 +615,13 @@ func TestSessionEmitsFiniteHostPropertiesInRenderPrograms(t *testing.T) {
 	for _, expected := range []string{
 		"createPreparedServerRenderProgram",
 		`ssrRootStatic: [" data-exact-id=\"`,
-		` class=\"action\"", ["data-exact-id", "className"], [[0, "disabled", "disabled"]]]`,
-		`const __exactValue_0 = __exactSsr.prepareAttribute(__exactInvocation, 0)`,
+		` class=\"action\"", ["data-exact-id", "className"], [[0, "disabled", "disabled"]]`,
+		`__exactValue_0 = __exactInvocation.eagerValues[0]`,
 		`__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "button", "<button", ">", __exactCharacters, __exactInvocation.program.ssrRootStatic)`,
 		`__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`,
 		`"data-exact-id":`,
-		`className: "action", disabled: props.disabled`,
+		`className: "action", disabled: __exactRootValue`,
+		`[props.disabled, props.label]`,
 		`__exactPreparedServerRenderProgram(__exact_render_program_1, [`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -687,7 +690,7 @@ func TestSessionKeepsMarkerlessTextClaimsPairedAcrossTargets(t *testing.T) {
 		t.Fatalf("client artifact did not select its markerless scalar claim:\n%s", client.Code)
 	}
 	if !strings.Contains(server.Code, `__exactSsr.text(__exactContext, __exactOutput, __exactValue_1,`) ||
-		!strings.Contains(server.Code, `__exactCharacters, true)`) {
+		markerlessSsrTextCallCount(server.Code) != 1 {
 		t.Fatalf("server artifact did not select the paired markerless scalar write:\n%s", server.Code)
 	}
 }
@@ -790,7 +793,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	if !strings.Contains(server.Code, `createPreparedServerRenderProgram`) ||
 		!strings.Contains(server.Code, `__exactSsr.prepareComponentProps(`) ||
-		!strings.Contains(server.Code, `__exactSsr.directComponent(__exactContext, __exactOutput, Detail,`) ||
+		!strings.Contains(server.Code, `__exactSsr.reference(Detail,`) ||
 		strings.Contains(server.Code, `__exactComponentReceipt(Detail`) ||
 		strings.Contains(server.Code, `__exactSsr.child(`) ||
 		strings.Contains(server.Code, `__exactVNode("main"`) {
@@ -1146,9 +1149,10 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"], [[0, "d", "d"]]], ssr: (__exactSsr, __exactContext, __exactInvocation) =>`) ||
+	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"], [[0, "d", "d"]]`) ||
 		!strings.Contains(response.Code, `__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "path", "<path", "></path>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`) ||
-		!strings.Contains(response.Code, `[{ className: "route", d: props.path }]`) {
+		!strings.Contains(response.Code, `[props.path]`) ||
+		!strings.Contains(response.Code, `className: "route", d: __exactRootValue`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
 }
@@ -1185,7 +1189,7 @@ func TestSessionMarksOnlyProvenAsyncSiblingGroups(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
-		strings.Count(response.Code, "__exactSsr.directComponent(") < 2 ||
+		strings.Count(response.Code, "__exactSsr.reference(") < 2 ||
 		strings.Contains(response.Code, "__exactComponentReceipt(Left") ||
 		strings.Contains(response.Code, "__exactComponentReceipt(Right") ||
 		strings.Contains(response.Code, "markIndependentAsyncSiblings as") {
@@ -1246,7 +1250,6 @@ func TestSessionKeepsNestedIndependentServerTaskSiblingsOutOfOrderedRenderProgra
 	}
 	if !strings.Contains(response.Code, "createPreparedServerRenderProgram") ||
 		strings.Count(response.Code, "__exactIssueServerComponent(") < 2 ||
-		!strings.Contains(response.Code, `__exactSsr.static(__exactOutput, "</h1><section>")`) ||
 		strings.Contains(response.Code, "markIndependentAsyncSiblings as") {
 		t.Fatalf("nested independent server task siblings were not eagerly issued by the compiled program:\n%s", response.Code)
 	}
@@ -2331,7 +2334,7 @@ func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `__exactSsr.directComponent(__exactContext, __exactOutput, Child,`) ||
+	if !strings.Contains(response.Code, `__exactSsr.reference(Child,`) ||
 		strings.Contains(response.Code, `__exactVNode("Child",`) {
 		t.Fatalf("server-render projection lost the imported component identity:\n%s", response.Code)
 	}
@@ -2343,7 +2346,7 @@ func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *
 	if childResponse.Error != "" {
 		t.Fatal(childResponse.Error)
 	}
-	if !strings.Contains(childResponse.Code, `className: [{ "active": this.state.active }]`) ||
+	if !strings.Contains(childResponse.Code, `[{ "active": this.state.active }]`) ||
 		strings.Contains(childResponse.Code, `"className:active"`) {
 		t.Fatalf("server island fallback did not lower its conditional class:\n%s", childResponse.Code)
 	}

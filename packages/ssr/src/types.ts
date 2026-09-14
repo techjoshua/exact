@@ -2,22 +2,21 @@ import type {
 	AnyComponentInstance,
 	AnyEnhancementComponentFunction,
 	Child,
-	ComponentDomain,
-	DynamicComponentArtifact,
 	ComponentContextValues,
+	ComponentDomain,
 	ComponentFunction,
 	ComponentInstance,
 	ComponentResumptionActivation,
-	ExactRuntimeInspectionOwner,
+	DynamicComponentArtifact,
 	ExactComponentAuthorizationIdentity,
+	ExactRuntimeInspectionOwner,
 	Logger,
 	TaskObserver,
 	UnsafeHtmlAuditEvent
 } from '@exactjs/core';
-export type { AnyComponentInstance };
 import type {
-	ExactServerExecutableComponentContract,
-	ExactComponentContinuationContract
+	ExactComponentContinuationContract,
+	ExactServerExecutableComponentContract
 } from '@exactjs/core/framework/component-contracts';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
@@ -30,9 +29,22 @@ import type {
 	ExactServerContext,
 	ExactServerContextConfiguration
 } from '@exactjs/server';
+export type { AnyComponentInstance };
 
 /** Configures render to string. */
 export type RenderToStringOptions = {
+	/** Wraps the requested application in a server-only document component without hydrating the shell. */
+	documentShell?: (application: Child) => Child;
+	/** @internal Coordinates shell traversal with its single application hydration boundary. */
+	documentShellScope?: import('./render/document-shell.js').DocumentShellScope;
+	/**
+	 * Host-owned gate at render entry and after pending component data settles. Share
+	 * across requests for batching; receives the cancellation signal. Defaults to the
+	 * adapter policy associated with the request signal, otherwise immediate work.
+	 * Return void to continue synchronously or a promise to wait. Ready component
+	 * work and transport drains do not add checkpoints. An explicit hook overrides the adapter.
+	 */
+	scheduleRender?: (signal?: AbortSignal) => void | Promise<void>;
 	/** Immutable runtime namespace used by partition markers. */
 	executionRoot?: string;
 	/** Immutable deployment namespace used by partition markers. */
@@ -87,6 +99,8 @@ export type RenderToStringOptions = {
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** @internal Request-owned compact resumption capture selected by hydratable entry points. */
 	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
+	/** @internal True only while a compiled client root owns adoption of this subtree. */
+	clientResumptionOwner?: boolean;
 	/** @internal Allows framework-owned observers to be replayed after independent sibling work. */
 	allowIndependentComponentObservation?: boolean;
 	/** Receives SSR rendering profiling observations. */
@@ -109,6 +123,8 @@ export type SsrProfileEvent = ExactProfileEvent<'ssr', 'render-to-string' | 'cre
 /** Describes the result produced by render to string. */
 export type RenderToStringResult = {
 	html: string;
+	/** @internal Body output was already delivered; html contains only reserved closing tags. */
+	streamedDocument?: true;
 	state?: unknown;
 	/** Internal request-owned clock sample transferred to hydrating framework domains. */
 	wallClockSnapshot?: number;
@@ -161,6 +177,8 @@ export type HydratableStringResult = RenderToStringResult & {
 /** Configures render to document stream. */
 export type RenderToDocumentStreamOptions = RenderToStringOptions &
 	HydrationScriptOptions & {
+		/** Body flush threshold in UTF-8 bytes. Defaults to 8192; complete spans may exceed it. */
+		streamBufferSize?: number;
 		rootId?: string;
 		hydration?: boolean;
 		maxStreamEvents?: number;
@@ -198,7 +216,9 @@ export type RenderExactRequestToHtmlResponseOptions = RenderToStringOptions &
 /** Reports an observable exact document stream event. */
 export type ExactDocumentStreamEvent =
 	| { event: 'start'; version: 1 }
-	| { event: 'shell'; version: 1; html: string }
+	| { event: 'head'; version: 1; html: string }
+	| { event: 'body'; version: 1; html: string }
+	| { event: 'shell'; version: 1; html: string; streamed?: true }
 	| { event: 'replace'; version: 1; id: string; html: string }
 	| { event: 'hydration'; version: 1; html: string }
 	| { event: 'complete'; version: 1 }
@@ -255,6 +275,7 @@ export type ExactServerRuntimeOptions = ExactServerHandlerRegistryOptions &
 	ExactServerContextConfiguration & {
 		authorize?: ExactServerContext['authorize'];
 		validateCsrf?: ExactServerContext['validateCsrf'];
+		authorizeOperation?: ExactServerContext['authorizeOperation'];
 		payloadDecoders?: ExactServerContext['payloadDecoders'];
 		resolvePartitionAuthority?: ExactServerContext['resolvePartitionAuthority'];
 		remoteBuilds?: ExactServerContext['remoteBuilds'];
@@ -331,6 +352,8 @@ export type SsrContext = {
 	maxOutputBytes: number;
 	/** Request-owned sink receiving compiler-proven synchronous output byte facts. */
 	outputSink?: import('./render/output-buffer.js').SsrOutputBuffer;
+	/** Ordered render destination; temporarily absent while a boundary captures local markup. */
+	writerSink?: import('./render/program-sink.js').SsrProgramSink;
 	reactResourceHints?: string[];
 	reactResourceKeys?: Set<string>;
 	dynamicComponentArtifacts?: RenderToStringOptions['dynamicComponentArtifacts'];
@@ -379,12 +402,8 @@ export type SsrContext = {
 	onComponentAttemptRollback?: (checkpoint: unknown) => void;
 	onDirectComponentCreated?: (snapshot: DirectSsrComponentSnapshot) => void;
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
-	/** Request-owned direct indexed resumption capture. */
-	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
 	/** Request-local scheduler shared by every eligible sibling group. */
 	asyncScheduler?: import('./render/async-scheduler.js').AsyncSsrScheduler;
-	/** Child frames remain serial so nested groups cannot multiply permits or deadlock. */
-	asyncFrame: boolean;
 	/** Response-local compiler-finite boundary table. */
 	hydrationTable?: import('./render/hydration-table.js').SsrHydrationTable;
 	/** Reusable immutable plan cache selected by the rendered root component. */

@@ -57,6 +57,7 @@ export function adoptRenderProgram(
 			invocation,
 			programRoot: dom,
 			slotNodes: direct.slotNodes,
+			...(direct.textRuns ? { textRuns: direct.textRuns } : {}),
 			...(direct.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
 			bindingOwner,
@@ -169,6 +170,7 @@ function adoptMarkedRenderProgram(
 			invocation,
 			programRoot,
 			slotNodes: direct.slotNodes,
+			...(direct.textRuns ? { textRuns: direct.textRuns } : {}),
 			...(direct.componentSlots ? { componentSlots: direct.componentSlots } : {}),
 			root,
 			parentInstance

@@ -39,52 +39,53 @@ export function disposeMounted(parent: Node, mounted: Mounted): void {
 	throwTeardownFailure(failure);
 }
 
-/** Performs the unmount mounted domain operation. */
+/**
+ * Stops scopes on entry, then releases descendants before their parent in sibling order.
+ * Cleanup failures are accumulated so later owned resources still receive teardown.
+ */
 export function unmountMounted(mounted: Mounted): void {
-	const pending: Array<{ mounted: Mounted; complete: boolean }> = [{ mounted, complete: false }];
+	// An undefined marker completes the preceding mount after its children.
+	const pending: Array<Mounted | undefined> = [mounted];
 	const failure = teardownFailure();
 	while (pending.length) {
-		const current = pending.pop()!;
-		if (!current.complete) {
-			current.mounted.suspensionRegistration?.cancel();
-			current.mounted.suspensionRegistration = undefined;
-			attemptTeardown(failure, () => current.mounted.scope.stop());
-			pending.push({ mounted: current.mounted, complete: true });
+		const entering = pending.pop();
+		if (entering) {
+			entering.suspensionRegistration?.cancel();
+			entering.suspensionRegistration = undefined;
+			attemptTeardown(failure, () => entering.scope.stop());
+			pending.push(entering, undefined);
 			for (
-				let index = (current.mounted.suspense?.candidate?.children.length ?? 0) - 1;
+				let index = (entering.suspense?.candidate?.children.length ?? 0) - 1;
 				index >= 0;
 				index--
 			) {
-				pending.push({
-					mounted: current.mounted.suspense!.candidate!.children[index]!,
-					complete: false
-				});
+				pending.push(entering.suspense!.candidate!.children[index]!);
 			}
-			for (let index = current.mounted.children.length - 1; index >= 0; index--) {
-				pending.push({ mounted: current.mounted.children[index]!, complete: false });
+			for (let index = entering.children.length - 1; index >= 0; index--) {
+				pending.push(entering.children[index]!);
 			}
 			continue;
 		}
-		if (current.mounted.instance) {
-			componentMounts.delete(current.mounted.instance);
+		const current = pending.pop()!;
+		if (current.instance) {
+			componentMounts.delete(current.instance);
 			attemptTeardown(failure, () => {
-				const artifact = current.mounted.clientArtifact;
-				if (artifact) artifact.dispose(current.mounted.instance!, 'dom-unmount');
-				else current.mounted.instance!.unmount();
+				const artifact = current.clientArtifact;
+				if (artifact) artifact.dispose(current.instance!, 'dom-unmount');
+				else current.instance!.unmount();
 			});
-			attemptTeardown(failure, () => disposeMountedComponentRoot(current.mounted.instance!));
+			attemptTeardown(failure, () => disposeMountedComponentRoot(current.instance!));
 		}
-		if (current.mounted.targetBoundary?.release)
-			attemptTeardown(failure, current.mounted.targetBoundary.release);
-		if (current.mounted.stop) attemptTeardown(failure, current.mounted.stop);
-		if (current.mounted.dom instanceof Element) {
-			attemptTeardown(failure, () => clearTargetedIntrinsicProps(current.mounted));
-			attemptTeardown(failure, () => clearElementProps(current.mounted.dom as Element));
-			attemptTeardown(failure, () => clearElementOwner(current.mounted.dom as Element));
+		if (current.targetBoundary?.release) attemptTeardown(failure, current.targetBoundary.release);
+		if (current.stop) attemptTeardown(failure, current.stop);
+		if (current.dom instanceof Element) {
+			attemptTeardown(failure, () => clearTargetedIntrinsicProps(current));
+			attemptTeardown(failure, () => clearElementProps(current.dom as Element));
+			attemptTeardown(failure, () => clearElementOwner(current.dom as Element));
 		}
-		attemptTeardown(failure, () => clearNodeOwner(current.mounted.dom));
-		if (current.mounted.end) attemptTeardown(failure, () => clearNodeOwner(current.mounted.end!));
-		const ref = current.mounted.intrinsicReceipt?.props.ref as RefBinding<unknown> | undefined;
+		attemptTeardown(failure, () => clearNodeOwner(current.dom));
+		if (current.end) attemptTeardown(failure, () => clearNodeOwner(current.end!));
+		const ref = current.intrinsicReceipt?.props.ref as RefBinding<unknown> | undefined;
 		if (ref && typeof ref.fulfill === 'function')
 			attemptTeardown(failure, () => ref.fulfill(undefined));
 	}

@@ -8,7 +8,8 @@
 	"type": "module",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/techjoshua/exact.git"
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/vscode-extension"
 	},
 	"engines": {
 		"vscode": "^1.96.0"
@@ -26,7 +27,9 @@
 		"AGENTS.md",
 		"dist",
 		"package.json",
-		"README.md"
+		"README.md",
+		"LICENSE",
+		"NOTICE"
 	],
 	"contributes": {
 		"typescriptServerPlugins": [
@@ -163,8 +166,8 @@
 		]
 	},
 	"dependencies": {
-		"@exactjs/language-server": "^0.1.0",
-		"@exactjs/typescript-plugin": "^0.1.0",
+		"@exactjs/language-server": "^0.5.0",
+		"@exactjs/typescript-plugin": "^0.5.0",
 		"vscode-languageclient": "^9.0.1"
 	},
 	"devDependencies": {
@@ -176,5 +179,11 @@
 	"scripts": {
 		"build": "tsc6 -b && node scripts/bundle.mjs",
 		"test": "vitest run --maxWorkers=4"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

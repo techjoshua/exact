@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/testing",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -45,17 +47,17 @@
 		"server": "server-artifact"
 	},
 	"dependencies": {
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/hydrate": "^0.1.0",
-		"@exactjs/jsx": "^0.1.0",
-		"@exactjs/plugin-host": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/server": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/hydrate": "^0.5.0",
+		"@exactjs/jsx": "^0.5.0",
+		"@exactjs/plugin-host": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/server": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"devDependencies": {
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"scripts": {
 		"build": "tsc -b && node ../../scripts/compile-exact-package.mjs .",
@@ -64,5 +66,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/testing"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

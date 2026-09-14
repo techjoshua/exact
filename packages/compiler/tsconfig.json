@@ -8,11 +8,21 @@
 		"types": ["node"]
 	},
 	"references": [
-		{ "path": "../devtools-protocol" },
-		{ "path": "../instrumentation" },
-		{ "path": "../language-extension-api" },
-		{ "path": "../language-extension-host" },
-		{ "path": "../config" }
+		{
+			"path": "../devtools-protocol"
+		},
+		{
+			"path": "../instrumentation"
+		},
+		{
+			"path": "../language-extension-api"
+		},
+		{
+			"path": "../language-extension-host"
+		},
+		{
+			"path": "../config"
+		}
 	],
 	"files": [
 		"src/adapter-support.ts",
@@ -104,6 +114,7 @@
 		"src/policy-report.ts",
 		"src/registry.ts",
 		"src/source-maps.ts",
-		"src/types.ts"
+		"src/types.ts",
+		"src/native/contract-versions.ts"
 	]
 }

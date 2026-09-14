@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 type renderProgramTextProjection struct {
 	prefix string
@@ -13,8 +13,8 @@ type renderProgramTextProjections struct {
 }
 
 // renderProgramTextProjections folds static text around one scalar expression into that scalar's
-// focused operation. Runs containing several expressions keep their separate fallback boundaries;
-// updating one member must not require a runtime parser or transfer another expression's ownership.
+// focused operation. Several expressions retain independent operations; whole-element runs use
+// a separate adoption plan to recover their text nodes without sharing computation ownership.
 func (lowering *jsxLowering) renderProgramTextProjections(
 	children []*ast.Node,
 ) renderProgramTextProjections {

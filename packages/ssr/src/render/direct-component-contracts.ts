@@ -1,11 +1,11 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
-import type { ServerComponentReference } from './server-component-reference.js';
 import type { DirectSsrComponentContent } from './direct-component-content.js';
 import type {
 	DirectSsrComponentFrame,
 	DirectSsrLifecycleCapability
 } from './direct-component-support.js';
+import type { ServerComponentReference } from './server-component-reference.js';
 
 /** Request-local direct frame paired with its compiler-linked lifecycle operations. */
 export type DirectSsrComponentLifetime = Readonly<{
@@ -30,12 +30,12 @@ export type DirectScheduledSsrComponent = AsyncDisposable &
 		snapshot: DirectSsrComponentSnapshot;
 		render(): DirectIssuedRender | Promise<DirectIssuedRender>;
 		/** Returns whether blocking work existed and the completed output must be rendered again. */
-		drain(): Promise<boolean>;
+		drain(): boolean | Promise<boolean>;
 	}>;
 
 /** Request-local scheduled frame issued before its serial HTML position is published. */
 export type PreparedDirectScheduledSsrComponent = Readonly<{
-	component: Promise<DirectScheduledSsrComponent | undefined>;
+	component: DirectScheduledSsrComponent | Promise<DirectScheduledSsrComponent | undefined>;
 	consumed: boolean;
 	reference: ServerComponentReference;
 }>;

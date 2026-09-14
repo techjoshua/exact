@@ -67,7 +67,9 @@ export function DevtoolsPage(this: Component<{}>) {
 					correlation identities. Development can enable both automatically; hardened builds set
 					both controls to <code>false</code>. A production deployment must enable output
 					deliberately and still authorize each session. The Vite, Webpack, and Bun integrations
-					keep catalog assets in their server output and outside public client graphs.
+					keep catalog assets in their server output and outside public client graphs. Session
+					limits also apply to concurrent requests. Revocation and expiry take effect even while an
+					asynchronous authorization check is pending.
 				</p>
 				<p>
 					While DevTools is attached, each server response carries only the observations produced by
@@ -104,10 +106,11 @@ export function DevtoolsPage(this: Component<{}>) {
 			<section>
 				<h2>Microfrontends authorize independently</h2>
 				<p>
-					The page host routes remote queries through its existing eXact binding gateway. It
-					validates the registered binding, build, and root, then opens a child session at the
-					component host. Both hosts run their own <code>allowDebug</code> decision. Browser
-					credentials are never copied to the component host.
+					The page host authenticates and forwards remote requests through its binding gateway.
+					Cookies and authorization headers pass through; applications can add service credentials.
+					Each service authenticates independently and applies its own <code>allowDebug</code>
+					policy. The session ID correlates results and grants no authority. eXact does not open
+					child sessions or coordinate authentication between hosts.
 				</p>
 				<p>
 					Remote observations return with the operation response after independent authorization.

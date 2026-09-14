@@ -5,9 +5,10 @@ import { escapeAttr } from '../html.js';
 import { jsonUnsafePath } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';
 import type { AnyComponentInstance, RenderToStringOptions, SsrContext } from '../types.js';
-import { renderChildrenAsync } from './async-children.js';
-import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
+import { renderChildren } from './children.js';
+import { captureSsrProgramOutput } from './program-capture.js';
 import { publishClientBoundary } from './client-boundary-publication.js';
+import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
 import {
 	serverSlotId,
 	serverSlotOpening,
@@ -15,39 +16,19 @@ import {
 	serverSlotReference,
 	type ExactServerSlotReference
 } from './server-slots.js';
-import { renderChildren } from './sync-children.js';
-
-/** Transforms server boundary into its required representation. */
-export function renderServerBoundary(
-	context: SsrContext,
-	boundary: ExactServerBoundaryReceiptData,
-	finite = false
-): string {
-	const { id, name } = boundary;
-	const hydration = clientBoundaryHydration(boundary);
-	const props = clientBoundaryProps(context, boundary);
-	const unsafePath = jsonUnsafePath(props);
-	if (unsafePath) {
-		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
-	}
-	const fallback = clientBoundaryHydrationFallback(boundary);
-	const children = fallback
-		? renderChildren(context, [fallback], undefined, true)
-		: renderServerBoundaryChildren(context, boundary, undefined);
-	// Client boundary props are serialized into an attribute, while children are
-	// represented as server slots so the client bundle does not need server-only code.
-	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
-	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
-}
 
 /** Transforms server boundary async into its required representation. */
-export async function renderServerBoundaryAsync(
+export async function renderServerBoundary(
 	context: SsrContext,
 	boundary: ExactServerBoundaryReceiptData,
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions,
 	finite = false
 ): Promise<string> {
+	if (context.writerSink)
+		return captureSsrProgramOutput(context, () =>
+			renderServerBoundary(context, boundary, parent, options, finite)
+		);
 	const { id, name } = boundary;
 	const hydration = clientBoundaryHydration(boundary);
 	const props = clientBoundaryProps(context, boundary);
@@ -58,11 +39,11 @@ export async function renderServerBoundaryAsync(
 	const fallback = clientBoundaryHydrationFallback(boundary);
 	const slots = serverBoundarySlotReferences(boundary);
 	const children = fallback
-		? await renderChildrenAsync(context, [fallback], parent, options, true)
+		? await renderChildren(context, [fallback], parent, options, true)
 		: slots
-			? await boundedServerRangeChildrenAsync(context, boundary, slots, parent, options)
+			? await boundedServerRangeChildren(context, boundary, slots, parent, options)
 			: boundary.children.length
-				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildrenAsync(context, boundary.children, parent, options, true)}</span>`
+				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildren(context, boundary.children, parent, options, true)}</span>`
 				: '';
 	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
@@ -126,26 +107,6 @@ export function clientBoundaryHydrationFallback(
 	return fallback as Child | undefined;
 }
 
-/** Transforms server boundary children into its required representation. */
-export function renderServerBoundaryChildren(
-	context: SsrContext,
-	boundary: ExactServerBoundaryReceiptData,
-	parent: AnyComponentInstance | undefined
-): string {
-	if (!boundary.children.length) return '';
-	const slots = serverBoundarySlotReferences(boundary);
-	if (slots) {
-		return boundary.children
-			.map(
-				(child, index) =>
-					`${serverSlotOpening(slots[index]!, context)}${renderChildren(context, [child], parent, true)}</span>`
-			)
-			.join('');
-	}
-	const slotId = serverSlotId(boundary.id);
-	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, boundary.children, parent, true)}</span>`;
-}
-
 /** Reads and validates compiler-owned independent range identities. */
 export function serverBoundarySlotIds(
 	boundary: ExactServerBoundaryReceiptData
@@ -186,7 +147,7 @@ export function serverBoundarySlotReferences(
 	return slots;
 }
 
-async function boundedServerRangeChildrenAsync(
+async function boundedServerRangeChildren(
 	context: SsrContext,
 	boundary: ExactServerBoundaryReceiptData,
 	slots: readonly ExactServerSlotReference[],
@@ -196,7 +157,7 @@ async function boundedServerRangeChildrenAsync(
 	const ranges = await Promise.all(
 		boundary.children.map(
 			async (child, index) =>
-				`${serverSlotOpening(slots[index]!, context)}${await renderChildrenAsync(context, [child], parent, options, true)}</span>`
+				`${serverSlotOpening(slots[index]!, context)}${await renderChildren(context, [child], parent, options, true)}</span>`
 		)
 	);
 	return ranges.join('');

@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
-	"github.com/microsoft/typescript-go/internal/compiler"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/compiler"
 )
 
 var exactContextToken = regexp.MustCompile(

@@ -1,10 +1,12 @@
 {
 	"name": "@exactjs/react-compat-build",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -23,8 +25,8 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/compiler": "^0.1.0",
-		"@exactjs/react-compat": "^0.1.0"
+		"@exactjs/compiler": "^0.5.0",
+		"@exactjs/react-compat": "^0.5.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
@@ -33,5 +35,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/react-compat-build"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

@@ -5,6 +5,7 @@ import type {
 } from '@exactjs/core/runtime/render-operations';
 import type { RenderProgramChildAnchor } from '../types.js';
 import { MATHML_NAMESPACE, SVG_NAMESPACE } from '../namespace.js';
+import { prepareProgramTextRun, type PendingProgramTextRuns } from './render-program-text-run.js';
 import {
 	claimCompiledProgramElementPath,
 	matchesProgramElement
@@ -18,6 +19,7 @@ type ProgramClaimTarget = {
 	readonly claiming: true;
 	readonly root: Element;
 	readonly source: 'template' | 'ssr';
+	textRuns?: PendingProgramTextRuns;
 	namespace: ConcreteNamespace;
 	readonly elements: Array<Element | undefined>;
 	readonly slotNodes: Array<Node | RenderProgramChildAnchor | undefined>;
@@ -32,6 +34,7 @@ type ProgramClaimTarget = {
 
 /** Result of one compiler-wired successful-path claim. */
 export type ClaimedRenderProgram = Readonly<{
+	textRuns?: PendingProgramTextRuns;
 	elements: readonly (Element | undefined)[];
 	slotNodes: readonly (Node | RenderProgramChildAnchor | undefined)[];
 	componentSlots: number | ReadonlySet<number>;
@@ -68,13 +71,8 @@ export function claimCompiledRenderProgram(
 	};
 	if (program.wire) claimCompiledProgramWiring(program.wire, target);
 	else fixtureBinder!(target);
-	if (target.valid && target.began && target.parents.length === 0)
-		return {
-			elements: target.elements,
-			slotNodes: target.slotNodes,
-			componentSlots: target.componentSlots,
-			work: target.work
-		};
+	// The completed cursor already owns the result arrays; do not allocate a second wrapper.
+	if (target.valid && target.began && target.parents.length === 0) return target;
 	return undefined;
 }
 
@@ -140,6 +138,19 @@ function claimCompiledProgramWiring(
 			case 7:
 				claimCompiledProgramProperty(target, operation[1] as number, operation[2] as number);
 				break;
+			case 8: {
+				const claim = target as ProgramClaimTarget;
+				if (claim.valid && claim.source === 'ssr') {
+					const pending = (claim.textRuns ??= { runs: [], values: new Map() });
+					claim.valid = prepareProgramTextRun(
+						claim.container,
+						operation[1] as readonly (string | number)[],
+						pending
+					);
+					claim.current = null;
+				}
+				break;
+			}
 			default:
 				(target as { valid: boolean }).valid = false;
 				return;
@@ -241,6 +252,7 @@ export function claimCompiledProgramText(
 	id: string | true
 ): void {
 	if (!isClaimTarget(target) || !target.valid) return;
+	if (target.textRuns?.values.has(index)) return;
 	if (target.source === 'ssr' && id === true) {
 		let marker = target.current;
 		for (let offset = 0; offset < skip; offset++) {

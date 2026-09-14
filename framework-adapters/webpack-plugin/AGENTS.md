@@ -8,3 +8,5 @@ applications in Webpack.
 - Let the same plugin create microfrontend exposure entries; do not add a second federation runtime.
 - Put component-library trust policy in `exact.config.*`; do not create loader-local allowlists.
 - Enable inspection output only for environments where DevTools data is intended to be available.
+
+- Resolve component-policy warnings before deploying; denied components reject at execution.

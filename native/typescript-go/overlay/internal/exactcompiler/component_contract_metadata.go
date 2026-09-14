@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/printer"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 func componentDescriptorDeclaration(
@@ -671,6 +671,7 @@ func componentResumptionMetadata(
 	resumptions []ComponentResumption,
 	boundaries []Boundary,
 	includeStateInputs bool,
+	continuationIDs []string,
 ) *ast.Node {
 	record := ComponentResumption{
 		ComponentID: component.ID,
@@ -742,6 +743,13 @@ func componentResumptionMetadata(
 			"boundaries",
 			stringMetadata(factory, record.Client.Boundaries),
 		),
+	}
+	// Hydration-only artifacts omit the verbose execution catalog but still validate server
+	// completion records against compiler-owned identities.
+	if len(continuationIDs) != 0 {
+		properties = append(properties, contractProperty(
+			factory, "continuations", stringMetadata(factory, continuationIDs),
+		))
 	}
 	if includeStateInputs && len(record.Client.StateDefaults) != 0 {
 		properties = append(properties, contractProperty(

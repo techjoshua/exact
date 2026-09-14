@@ -12,8 +12,9 @@ export function hasChanged(previous: unknown, next: unknown, unwrap: UnwrapValue
 
 /** Compares primitives, arrays, and plain objects after unwrapping reactive values. */
 export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapValue): boolean {
-	const leftToRight = new WeakMap<object, object>();
-	const rightToLeft = new WeakMap<object, object>();
+	if (Object.is(left, right)) return true;
+	let leftToRight: WeakMap<object, object> | undefined;
+	let rightToLeft: WeakMap<object, object> | undefined;
 	const pending: Array<readonly [unknown, unknown]> = [[left, right]];
 	let visited = 0;
 	while (pending.length) {
@@ -34,6 +35,8 @@ export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapV
 		// handles are therefore never structurally interchangeable even though both appear empty.
 		if (exactOpaqueOperationIdentity in currentLeft || exactOpaqueOperationIdentity in currentRight)
 			return false;
+		leftToRight ??= new WeakMap<object, object>();
+		rightToLeft ??= new WeakMap<object, object>();
 		const priorRight = leftToRight.get(currentLeft);
 		const priorLeft = rightToLeft.get(currentRight);
 		if (priorRight || priorLeft) {

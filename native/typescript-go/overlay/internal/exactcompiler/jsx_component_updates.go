@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 type componentUpdateOperation struct {

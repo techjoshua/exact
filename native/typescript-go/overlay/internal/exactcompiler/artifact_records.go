@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // createArtifactRecords materializes target-neutral symbol ownership and DOM

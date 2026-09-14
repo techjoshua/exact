@@ -1,42 +1,4 @@
-import type { AnyAuthoredComponentFunction } from '@exactjs/core';
-import { AdvancedPage } from './pages/AdvancedPage.jsx';
-import { AccessibilityPage } from './pages/AccessibilityPage.jsx';
-import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
-import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
-import { ComponentsPage } from './pages/ComponentsPage.jsx';
-import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
-import { ComponentLibraryTrustPage } from './pages/ComponentLibraryTrustPage.jsx';
-import { DevtoolsPage } from './pages/DevtoolsPage.jsx';
-import { DateTimePage } from './pages/DateTimePage.jsx';
-import { EnhancementsPage } from './pages/EnhancementsPage.jsx';
-import { FormsPage } from './pages/FormsPage.jsx';
-import { FrameworkComparisonPage } from './pages/FrameworkComparisonPage.jsx';
-import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
-import { GesturesPage } from './pages/GesturesPage.jsx';
-import { GravityPage } from './pages/GravityPage.jsx';
-import { IntroductionPage } from './pages/IntroductionPage.jsx';
-import { InternationalizationPage } from './pages/InternationalizationPage.jsx';
-import { ListsPage } from './pages/ListsPage.jsx';
-import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
-import { LogoLabPage } from './pages/LogoLabPage.jsx';
-import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
-import { MotionPage } from './pages/MotionPage.jsx';
-import { PhysicsPage } from './pages/PhysicsPage.jsx';
-import { PackagesPage } from './pages/PackagesPage.jsx';
-import { PluginsPage } from './pages/PluginsPage.jsx';
-import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
-import { ReactDevelopersPage } from './pages/ReactDevelopersPage.jsx';
-import { RoutingPage } from './pages/RoutingPage.jsx';
-import { RuntimesPage } from './pages/RuntimesPage.jsx';
-import { SamplesPage } from './pages/SamplesPage.jsx';
-import { SecretsPluginPage } from './pages/SecretsPluginPage.jsx';
-import { ServerExecutionPage } from './pages/ServerExecutionPage.jsx';
-import { StatePage } from './pages/StatePage.jsx';
-import { StoryPage } from './pages/StoryPage.jsx';
-import { TasksPage } from './pages/TasksPage.jsx';
-import { TestingPage } from './pages/TestingPage.jsx';
-import { ThemeProposalPage } from './pages/ThemeProposalPage.jsx';
-import { ChartsDocsRoute, PerformanceDocsRoute } from './pages/SpecializedDocsRoutes.jsx';
+import type { DocsPageKey } from './DocsPageRoute.jsx';
 
 /** Describes one routable and searchable documentation article. */
 export type DocPage = {
@@ -45,7 +7,7 @@ export type DocPage = {
 	label: string;
 	summary: string;
 	keywords: string;
-	component: AnyAuthoredComponentFunction;
+	component: DocsPageKey;
 };
 
 /** Groups related documentation pages under one navigation heading. */
@@ -66,7 +28,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Build precise client and server interfaces with TypeScript and TSX.',
 				keywords:
 					'overview component compiler reactive TypeScript JSX state precise updates client server',
-				component: IntroductionPage
+				component: 'IntroductionPage'
 			},
 			{
 				path: '/story',
@@ -75,7 +37,7 @@ export const docGroups: DocGroup[] = [
 					'How async/await inspired eXact’s compiler-led model for components, reactivity, and coordinated server work.',
 				keywords:
 					'story history async await compiler state machine React JSX reactivity server components philosophy',
-				component: StoryPage
+				component: 'StoryPage'
 			},
 			{
 				path: '/getting-started',
@@ -83,7 +45,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Scaffold and run an eXact application with compatible package versions.',
 				keywords:
 					'create exact app install scaffold vite runtime test runner agent skill native compiler platform binary TypeScript 7',
-				component: GettingStartedPage
+				component: 'GettingStartedPage'
 			},
 			{
 				path: '/react-developers',
@@ -92,7 +54,7 @@ export const docGroups: DocGroup[] = [
 					'Compare everyday eXact and React components side by side, from state and forms to lists, async work, and lifecycle.',
 				keywords:
 					'React developers migration comparison side by side hooks useState useEffect useMemo state forms binding JSX className keyed lists tasks lifecycle cleanup Server Components RSC Server Functions actions continuations Next.js optimistic',
-				component: ReactDevelopersPage
+				component: 'ReactDevelopersPage'
 			},
 			{
 				path: '/samples',
@@ -100,7 +62,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Explore the hosted Sudoku demo and complete repository applications.',
 				keywords:
 					'samples applications Sudoku shipping calculator kanban workbench microfrontend server components hosted GitHub Pages',
-				component: SamplesPage
+				component: 'SamplesPage'
 			},
 			{
 				path: '/runtimes',
@@ -108,7 +70,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Compare the current support depth for compiler hosts and deployment runtimes.',
 				keywords:
 					'runtime adapter integration status Vite Webpack Bun Node Express Fastify Hapi Koa Deno Cloudflare serverless Fetch',
-				component: RuntimesPage
+				component: 'RuntimesPage'
 			},
 			{
 				path: '/framework-comparison',
@@ -117,7 +79,7 @@ export const docGroups: DocGroup[] = [
 					'Compare production-shaped applications through controlled-service and native-full-stack tracks.',
 				keywords:
 					'framework comparison benchmark methodology performance complexity incident operations controlled service native full stack reproducible',
-				component: FrameworkComparisonPage
+				component: 'FrameworkComparisonPage'
 			},
 			{
 				path: '/performance',
@@ -125,7 +87,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Explore admitted browser experience and Node server capacity evidence.',
 				keywords:
 					'performance results charts aggregate mean percentile p50 p75 p95 p99 browser heap evaluation optimistic SSR Node sustained throughput requests per second burst completion closed loop payload allocation normalization',
-				component: PerformanceDocsRoute
+				component: 'PerformancePage'
 			}
 		]
 	},
@@ -137,14 +99,14 @@ export const docGroups: DocGroup[] = [
 				label: 'Components',
 				summary: 'Instances, props, events, and lifecycle.',
 				keywords: 'component props lifecycle refs events',
-				component: ComponentsPage
+				component: 'ComponentsPage'
 			},
 			{
 				path: '/learn/state',
 				label: 'State & derived values',
 				summary: 'Direct state with precise reactive updates.',
 				keywords: 'state reactive computed derived batch',
-				component: StatePage
+				component: 'StatePage'
 			},
 			{
 				path: '/learn/tasks',
@@ -152,7 +114,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Run async work with status, cancellation, scheduling, and Suspense.',
 				keywords:
 					'task function create captured parameter default snapshot dependency effect result async await Suspense readiness blocking nonblocking priority deferred abort signal cleanup optimistic invocation concurrency latest queue key keyed status pending aggregate owner tree structured',
-				component: TasksPage
+				component: 'TasksPage'
 			},
 			{
 				path: '/learn/compiler-tour',
@@ -160,14 +122,14 @@ export const docGroups: DocGroup[] = [
 				summary: 'Trace authored code into annotated browser and server artifacts.',
 				keywords:
 					'compiler native TypeScript Go generated output lowering browser server artifact pseudocode reactive helpers task binding continuation executor map JSX',
-				component: CompilerTourPage
+				component: 'CompilerTourPage'
 			},
 			{
 				path: '/learn/lists',
 				label: 'Keyed lists',
 				summary: 'Keep identity stable while collections move.',
 				keywords: 'list map key reorder identity',
-				component: ListsPage
+				component: 'ListsPage'
 			},
 			{
 				path: '/learn/component-registries',
@@ -175,7 +137,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Choose components through branches, finite registries, or an open fallback.',
 				keywords:
 					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle createDynamicComponent provider client only',
-				component: ComponentRegistriesPage
+				component: 'ComponentRegistriesPage'
 			},
 			{
 				path: '/learn/async-interfaces',
@@ -184,7 +146,7 @@ export const docGroups: DocGroup[] = [
 					'Await task values, coordinate readiness, retain inactive trees, and schedule deferred work.',
 				keywords:
 					'async await task Suspense Activity parked background deferred blocking scheduling readiness cancellation',
-				component: AsyncInterfacesPage
+				component: 'AsyncInterfacesPage'
 			},
 			{
 				path: '/learn/server-execution',
@@ -192,7 +154,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Use server resources safely from components and tasks.',
 				keywords:
 					'server task continuation dependency watcher component execution subgraph root blueprint cache slot state machine C# async SSR scheduler hydration context Apollo TanStack bundle shared secret',
-				component: ServerExecutionPage
+				component: 'ServerExecutionPage'
 			},
 			{
 				path: '/learn/language-tools',
@@ -200,7 +162,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'See compiler reasoning, fix errors and warnings, and safely refactor tasks.',
 				keywords:
 					'language tools VS Code extension LSP TypeScript plugin IntelliSense completion component this enhancement namespace props semantic tokens hover CodeLens inlay hints errors warnings refactor compiler inspection inferred authored TaskContext policy task no emit',
-				component: LanguageToolsPage
+				component: 'LanguageToolsPage'
 			},
 			{
 				path: '/learn/devtools',
@@ -209,7 +171,7 @@ export const docGroups: DocGroup[] = [
 					'Inspect durable browser and server components across authorized microfrontend roots.',
 				keywords:
 					'DevTools Chromium component inspection state contexts tasks invocations arguments results errors execution history timeline server cooperation allowDebug catalog redaction secrets microfrontend federation CDP agent',
-				component: DevtoolsPage
+				component: 'DevtoolsPage'
 			}
 		]
 	},
@@ -221,7 +183,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Routing',
 				summary: 'Nested routes for browsers and servers.',
 				keywords: 'router route link outlet hash history',
-				component: RoutingPage
+				component: 'RoutingPage'
 			},
 			{
 				path: '/guides/forms',
@@ -230,14 +192,14 @@ export const docGroups: DocGroup[] = [
 					'Bind component callbacks and native controls while preserving explicit state ownership.',
 				keywords:
 					'form input component binding callback value change checked details toggle field validation label accessible',
-				component: FormsPage
+				component: 'FormsPage'
 			},
 			{
 				path: '/guides/testing',
 				label: 'Testing',
 				summary: 'Exercise real components through user behavior.',
 				keywords: 'test vitest jest query click mount',
-				component: TestingPage
+				component: 'TestingPage'
 			},
 			{
 				path: '/guides/react-compatibility',
@@ -245,7 +207,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Bring supported React code and packages into an eXact application.',
 				keywords:
 					'React compatibility direct JSX components reactive props hooks migration interop adapter',
-				component: ReactCompatibilityPage
+				component: 'ReactCompatibilityPage'
 			}
 		]
 	},
@@ -258,14 +220,14 @@ export const docGroups: DocGroup[] = [
 				summary: 'Compose accessible, localized, theme-aware SVG charts.',
 				keywords:
 					'charts graph line area bar stacked range percentile data visualization SVG accessibility tooltip legend keyboard intl localization units theme',
-				component: ChartsDocsRoute
+				component: 'ChartsPage'
 			},
 			{
 				path: '/components/enhancements',
 				label: 'Enhancements',
 				summary: 'Apply optional ordinary components through finite namespaced JSX.',
 				keywords: 'enhancement component library activator target composition optional namespace',
-				component: EnhancementsPage
+				component: 'EnhancementsPage'
 			},
 			{
 				path: '/components/theme',
@@ -274,7 +236,7 @@ export const docGroups: DocGroup[] = [
 					'Generate reactive semantic themes from compact visual primitives, compose nested surfaces, and derive specialized palettes.',
 				keywords:
 					'theme theming proposal provider Tailwind Bootstrap adapter class manifest temperament palette OKLCH color CSS variables semantic action surface field text status selection nested reactive chart data colors component library enhancement depth hover active dragging interactive busy disabled overlay',
-				component: ThemeProposalPage
+				component: 'ThemeProposalPage'
 			},
 			{
 				path: '/components/date-time',
@@ -282,7 +244,7 @@ export const docGroups: DocGroup[] = [
 				summary: 'Build dates, clocks, countdowns, and relative-time views.',
 				keywords:
 					'time date clock countdown stopwatch relative time Temporal Intl scheduler auto accuracy disabled manual clock enhancement',
-				component: DateTimePage
+				component: 'DateTimePage'
 			},
 			{
 				path: '/components/accessibility',
@@ -291,7 +253,7 @@ export const docGroups: DocGroup[] = [
 					'Add ref relationships, bounded focus lifecycle, composite navigation, and package-owned guidance while preserving native HTML behavior.',
 				keywords:
 					'accessibility a11y ARIA label description relationship ref focus dialog modal command keyboard navigation roving tabindex active descendant listbox tablist radiogroup toolbar grid LSP errors warnings enhancement',
-				component: AccessibilityPage
+				component: 'AccessibilityPage'
 			},
 			{
 				path: '/components/trust',
@@ -299,21 +261,21 @@ export const docGroups: DocGroup[] = [
 				summary: 'Allow trusted component packages to run on the server.',
 				keywords:
 					'component library trust authorization marker policy allow deny server bundler supply chain',
-				component: ComponentLibraryTrustPage
+				component: 'ComponentLibraryTrustPage'
 			},
 			{
 				path: '/components/motion',
 				label: 'Motion',
 				summary: 'Animate committed state with prepared definitions and task-owned playback.',
 				keywords: 'component library enhancement motion animation presets task Web Animations',
-				component: MotionPage
+				component: 'MotionPage'
 			},
 			{
 				path: '/components/gestures',
 				label: 'Gestures',
 				summary: 'Recognize semantic pointer and keyboard intent with owned sessions.',
 				keywords: 'component library enhancement gestures drag pan pointer keyboard accessibility',
-				component: GesturesPage
+				component: 'GesturesPage'
 			},
 			{
 				path: '/components/physics',
@@ -321,14 +283,14 @@ export const docGroups: DocGroup[] = [
 				summary: 'Simulate deterministic 2D worlds and optionally project body pose.',
 				keywords:
 					'component library enhancement physics body force collision fixed step projection',
-				component: PhysicsPage
+				component: 'PhysicsPage'
 			},
 			{
 				path: '/components/gravity',
 				label: 'Gravity',
 				summary: 'Compose pure bounded acceleration fields through the physics force seam.',
 				keywords: 'component library enhancement gravity field force physics acceleration',
-				component: GravityPage
+				component: 'GravityPage'
 			}
 		]
 	},
@@ -340,7 +302,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Plugin system',
 				summary: 'Package cross-cutting behavior as a validated, multi-host extension.',
 				keywords: 'plugin compiler server render client testing configuration package',
-				component: PluginsPage
+				component: 'PluginsPage'
 			},
 			{
 				path: '/plugins/internationalization',
@@ -349,21 +311,21 @@ export const docGroups: DocGroup[] = [
 					'Localize enhancement-authored messages with semantic inference and XLIFF catalogs.',
 				keywords:
 					'plugin internationalization intl i18n locale translation catalog XLIFF extraction source message plural ordinal currency unit CLDR date time Temporal analyzer enhancement Vite Bun Webpack test bed reorder fragments',
-				component: InternationalizationPage
+				component: 'InternationalizationPage'
 			},
 			{
 				path: '/plugins/microfrontends',
 				label: 'Microfrontends',
 				summary: 'Expose and consume independently built eXact component roots.',
 				keywords: 'plugin microfrontends remotes exposes binding recovery deployment',
-				component: MicrofrontendsPluginPage
+				component: 'MicrofrontendsPluginPage'
 			},
 			{
 				path: '/plugins/secrets',
 				label: 'Secrets',
 				summary: 'Load server secrets while preserving compiler-visible data boundaries.',
 				keywords: 'plugin secrets server provider environment consume security',
-				component: SecretsPluginPage
+				component: 'SecretsPluginPage'
 			}
 		]
 	},
@@ -375,21 +337,22 @@ export const docGroups: DocGroup[] = [
 				label: 'Logo lab',
 				summary: 'Program a turtle and watch eXact coordinate the work.',
 				keywords: 'logo turtle interpreter canvas demo playground',
-				component: LogoLabPage
+				component: 'LogoLabPage'
 			},
 			{
 				path: '/advanced',
 				label: 'Beyond the browser',
 				summary: 'SSR, hydration, server components, and adapters.',
 				keywords: 'SSR hydration server stream React compatibility',
-				component: AdvancedPage
+				component: 'AdvancedPage'
 			},
 			{
 				path: '/packages',
 				label: 'Package map',
 				summary: 'Find the package that owns the job at hand.',
-				keywords: 'packages core dom compiler native platform binary hydrate testing',
-				component: PackagesPage
+				keywords:
+					'packages core dom compiler native platform binary hydrate testing npm releases versions ABI compatibility Apache license copyright',
+				component: 'PackagesPage'
 			}
 		]
 	}

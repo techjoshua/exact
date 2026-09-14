@@ -1,10 +1,12 @@
 {
 	"name": "@exactjs/agent-skill",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Portable Agent Skill for building idiomatic eXact web applications",
 	"type": "module",
 	"files": [
-		"skills"
+		"skills",
+		"LICENSE",
+		"NOTICE"
 	],
 	"keywords": [
 		"exact",
@@ -16,5 +18,16 @@
 	],
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "agents/exact-skill"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

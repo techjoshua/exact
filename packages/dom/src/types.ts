@@ -44,6 +44,7 @@ import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentati
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { DomWorkBudget } from './work.js';
 import type { RetainedMountedRanges } from './renderer/retained-range.js';
+import type { PendingProgramTextRuns } from './renderer/render-program-text-run.js';
 import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
 import type { ComponentDomainLogging } from '@exactjs/core/framework/component-domains';
 
@@ -94,6 +95,8 @@ export type Mounted = {
 		/** Intrinsic root used for compiler-path ownership when `dom` is an SSR range marker. */
 		readonly programRoot: Node;
 		readonly slotNodes: readonly (Node | RenderProgramChildAnchor | undefined)[];
+		/** Temporary scalar adoption plan, released after the first binding pass. */
+		textRuns?: PendingProgramTextRuns;
 		/** Component structural slots encoded as a number until an unusually high index needs a set. */
 		readonly componentSlots?: number | ReadonlySet<number>;
 		readonly root: Root;

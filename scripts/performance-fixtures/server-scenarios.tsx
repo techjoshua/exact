@@ -1,5 +1,5 @@
 import { TaskContext, taskTimeout, type Component } from '@exactjs/core';
-import { renderToProgressiveHtmlStream, renderToString, renderToStringAsync } from '@exactjs/ssr';
+import { renderToProgressiveHtmlStream, renderToString } from '@exactjs/ssr';
 import {
 	defineExactBoundaryContract,
 	defineExactOperationContract,
@@ -106,9 +106,9 @@ function ProgressivePanel(this: Component<{ ready: boolean }>) {
 	return () => <p>{this.state.ready ? 'ready' : 'loading'}</p>;
 }
 
-function synchronousSsr(count: number): ServerScenarioResult {
+async function synchronousSsr(count: number): Promise<ServerScenarioResult> {
 	const started = performance.now();
-	const result = renderToString(<ServerTree count={count} />, { markers: false });
+	const result = await renderToString(<ServerTree count={count} />, { markers: false });
 	const elapsed = performance.now() - started;
 	assert(result.html.includes('Row 499') || count < 500, 'synchronous SSR lost trailing content');
 	return {
@@ -123,7 +123,7 @@ function synchronousSsr(count: number): ServerScenarioResult {
 
 async function asynchronousCpuSsr(iterations: number): Promise<ServerScenarioResult> {
 	const started = performance.now();
-	const result = await renderToStringAsync(<CpuPanel iterations={iterations} />, {
+	const result = await renderToString(<CpuPanel iterations={iterations} />, {
 		markers: false
 	});
 	const elapsed = performance.now() - started;
@@ -144,7 +144,7 @@ async function asynchronousCpuSsr(iterations: number): Promise<ServerScenarioRes
 
 async function asynchronousIoSsr(delayMs: number): Promise<ServerScenarioResult> {
 	const started = performance.now();
-	const result = await renderToStringAsync(
+	const result = await renderToString(
 		<section>
 			<IoPanel delayMs={delayMs} />
 			<IoPanel delayMs={delayMs} />
@@ -174,7 +174,7 @@ async function plannedContinuationSsr(count: number): Promise<ServerScenarioResu
 	globalThis.gc?.();
 	const startingHeap = process.memoryUsage().heapUsed;
 	const started = performance.now();
-	const result = await renderToStringAsync(<PlannedTree count={count} />, { markers: false });
+	const result = await renderToString(<PlannedTree count={count} />, { markers: false });
 	const elapsed = performance.now() - started;
 	const heapGrowthBytes = Math.max(0, process.memoryUsage().heapUsed - startingHeap);
 	globalThis.gc?.();

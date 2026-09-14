@@ -3,7 +3,7 @@ package exactcompiler
 import (
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // componentUsesJSXInterop reports whether a native component's target artifact must retain the

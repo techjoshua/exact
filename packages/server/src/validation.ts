@@ -1,3 +1,5 @@
+import { stateNodeMatchesWrites } from '@exactjs/core/framework/protocol-records';
+import { ownRegistryEntry } from './registry-entry.js';
 import { hasOnlyKeys, isJsonSafe } from './protocol.js';
 import {
 	isSafeProtocolKey as isSafeObjectKey,
@@ -18,8 +20,8 @@ export function isExecutorAllowed(
 	input: ExactInvocationRequest,
 	contract: ExactExecutorContract
 ): boolean {
-	if (input.type === 'invoke') return Boolean(contract.invocations[input.id]);
-	if (input.type === 'refresh') return Boolean(contract.boundaries[input.id]);
+	if (input.type === 'invoke') return Boolean(ownRegistryEntry(contract.invocations, input.id));
+	if (input.type === 'refresh') return Boolean(ownRegistryEntry(contract.boundaries, input.id));
 	return false;
 }
 
@@ -128,14 +130,14 @@ export function boundaryHintsAllowed(
 ): boolean {
 	if (!input.boundaryHtmls) return true;
 	if (input.type === 'invoke') {
-		const allowed = contract.invocations[input.id]?.boundaries;
+		const allowed = ownRegistryEntry(contract.invocations, input.id)?.boundaries;
 		if (allowed) {
 			const allowedSet = new Set(allowed);
 			return Object.keys(input.boundaryHtmls).every((id) => allowedSet.has(id));
 		}
 	}
 	for (const id of Object.keys(input.boundaryHtmls)) {
-		if (!contract.boundaries[id]) return false;
+		if (!ownRegistryEntry(contract.boundaries, id)) return false;
 	}
 	return true;
 }
@@ -252,21 +254,6 @@ function hasStatePath(value: unknown, path: string): boolean {
 		if (!isSafeObjectKey(segment)) return false;
 		if (!Object.prototype.hasOwnProperty.call(cursor, segment)) return false;
 		cursor = (cursor as Record<string, unknown>)[segment];
-	}
-	return true;
-}
-
-/** Validates a partial response tree without traversing authorized subtrees. */
-function stateNodeMatchesWrites(value: object, path: string, writes: readonly string[]): boolean {
-	for (const key of Object.keys(value)) {
-		if (!isSafeObjectKey(key)) return false;
-		if (Array.isArray(value) && !isArrayIndex(key)) return false;
-		const childPath = path ? `${path}.${key}` : key;
-		if (writes.includes(childPath)) continue;
-		if (!writes.some((write) => write.startsWith(`${childPath}.`))) return false;
-		const child = (value as Record<string, unknown>)[key];
-		if (!child || typeof child !== 'object') return false;
-		if (!stateNodeMatchesWrites(child, childPath, writes)) return false;
 	}
 	return true;
 }

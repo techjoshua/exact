@@ -8,7 +8,11 @@ type WrapCollectionValue = (value: unknown, dependency?: PropertyKey) => unknown
 
 const iterateDependency = Symbol('exact.collection.iterate');
 const sizeDependency = Symbol('exact.collection.size');
-const keyDependencies = new WeakMap<object, Map<unknown, symbol>>();
+// Key identity must survive deletion: observers and optimistic journals can outlive membership.
+const keyDependencies = new WeakMap<
+	object,
+	{ primitives: Map<unknown, symbol>; objects: WeakMap<object, symbol> }
+>();
 
 /**
  * Implements the observable Map and Set surface without changing native
@@ -72,11 +76,26 @@ function reactiveMapMember(
 				const rawKey = unwrap(input);
 				if (!target.has(rawKey)) return false;
 				const previous = target.get(rawKey);
-				recordMapUndo(target, rawKey, true, previous);
+				if (hasActiveTransaction()) {
+					const following = followingCollectionKeys(target.keys(), rawKey);
+					recordTransactionUndo(
+						() => {
+							if (!following.size) {
+								target.set(rawKey, previous);
+								return;
+							}
+							const entries = [...target.entries()];
+							const before = entries.findIndex(([key]) => following.has(key));
+							entries.splice(before < 0 ? entries.length : before, 0, [rawKey, previous]);
+							restoreMap(target, entries);
+						},
+						target,
+						collectionKeyDependency(target, rawKey)
+					);
+				}
 				const deleted = target.delete(rawKey);
 				if (deleted) {
 					triggerCollectionRemoval(target, rawKey);
-					releaseCollectionKeyDependency(target, rawKey);
 					notifyMutation(options, rawKey, 'map.delete');
 				}
 				return deleted;
@@ -91,7 +110,6 @@ function reactiveMapMember(
 				target.clear();
 				for (const [entryKey] of previous)
 					trigger(target, collectionKeyDependency(target, entryKey));
-				keyDependencies.delete(target);
 				trigger(target, iterateDependency);
 				trigger(target, sizeDependency);
 				notifyMutation(options, undefined, 'map.clear');
@@ -154,16 +172,26 @@ function reactiveSetMember(
 				assertWritable(options, 'delete');
 				const rawValue = unwrap(input);
 				if (!target.has(rawValue)) return false;
-				if (hasActiveTransaction())
+				if (hasActiveTransaction()) {
+					const following = followingCollectionKeys(target.values(), rawValue);
 					recordTransactionUndo(
-						() => target.add(rawValue),
+						() => {
+							if (!following.size) {
+								target.add(rawValue);
+								return;
+							}
+							const values = [...target.values()];
+							const before = values.findIndex((value) => following.has(value));
+							values.splice(before < 0 ? values.length : before, 0, rawValue);
+							restoreSet(target, values);
+						},
 						target,
 						collectionKeyDependency(target, rawValue)
 					);
+				}
 				const deleted = target.delete(rawValue);
 				if (deleted) {
 					triggerCollectionRemoval(target, rawValue);
-					releaseCollectionKeyDependency(target, rawValue);
 					notifyMutation(options, undefined, 'set.delete');
 				}
 				return deleted;
@@ -177,7 +205,6 @@ function reactiveSetMember(
 					recordTransactionUndo(() => restoreSet(target, previous), target, iterateDependency);
 				target.clear();
 				for (const value of previous) trigger(target, collectionKeyDependency(target, value));
-				keyDependencies.delete(target);
 				trigger(target, iterateDependency);
 				trigger(target, sizeDependency);
 				notifyMutation(options, undefined, 'set.clear');
@@ -252,20 +279,16 @@ function wrapIterator<T, U>(iterator: Iterator<T>, wrap: (value: T) => U): Itera
 
 function collectionKeyDependency(target: object, key: unknown): symbol {
 	let dependencies = keyDependencies.get(target);
-	if (!dependencies) keyDependencies.set(target, (dependencies = new Map()));
-	let dependency = dependencies.get(key);
+	if (!dependencies)
+		keyDependencies.set(target, (dependencies = { primitives: new Map(), objects: new WeakMap() }));
+	const objectKey = key !== null && (typeof key === 'object' || typeof key === 'function');
+	const keys = objectKey ? dependencies.objects : dependencies.primitives;
+	let dependency = keys.get(key as object);
 	if (!dependency) {
 		dependency = Symbol('exact.collection.key');
-		dependencies.set(key, dependency);
+		keys.set(key as object, dependency);
 	}
 	return dependency;
-}
-
-function releaseCollectionKeyDependency(target: object, key: unknown): void {
-	const dependencies = keyDependencies.get(target);
-	if (!dependencies) return;
-	dependencies.delete(key);
-	if (!dependencies.size) keyDependencies.delete(target);
 }
 
 function triggerCollectionRemoval(target: ReactiveCollection, value: unknown): void {
@@ -318,4 +341,15 @@ function notifyMutation(options: ReactiveOptions, key: unknown, operation: strin
 	} catch {
 		// Diagnostic observation must not change collection mutation behavior.
 	}
+}
+
+/** Retains insertion-order anchors only for the lifetime of a rollback journal. */
+function followingCollectionKeys(keys: Iterable<unknown>, removed: unknown): Set<unknown> {
+	const following = new Set<unknown>();
+	let found = false;
+	for (const key of keys) {
+		if (found) following.add(key);
+		else if (key === removed || Object.is(key, removed)) found = true;
+	}
+	return following;
 }

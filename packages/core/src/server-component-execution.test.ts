@@ -6,6 +6,7 @@ import {
 	awaitServerComponentTask,
 	createServerComponentExecutionFrame,
 	issueServerComponentReceipt,
+	readServerComponentOutputForHost,
 	registerServerComponentContinuationContextsForHost,
 	serverComponentDependencyForValue,
 	serverComponentContinuationContextValuesForHost,
@@ -25,6 +26,49 @@ const valueSlice = [
 const consumeSlice = [[-1], [], 'blocking', 'consume'] as const satisfies ServerComponentTaskSlice;
 
 describe('compiler-closed server component execution', () => {
+	it('keeps deferred output reads synchronous when ready and rejects disposed ownership', async () => {
+		const host = { state: {} };
+		const frame = createServerComponentExecutionFrame(host, { prepareOutput: (read) => read() });
+		try {
+			expect(readServerComponentOutputForHost(host, () => 42)).toBe(42);
+		} finally {
+			await frame[Symbol.asyncDispose]();
+		}
+		let read = false;
+		expect(() =>
+			readServerComponentOutputForHost(host, () => {
+				read = true;
+			})
+		).toThrow(/live task owner/);
+		expect(read).toBe(false);
+	});
+	it('selects task readiness by compiler identity while preserving request disposal', async () => {
+		const host = { state: {} };
+		const frame = createServerComponentExecutionFrame(host, { trackTaskIdentities: true });
+		let releaseBody!: () => void;
+		const body = new Promise<void>((resolve) => {
+			releaseBody = resolve;
+		});
+		const selection = new Set(['head']);
+		const version = frame.blockingVersionFor(selection);
+		try {
+			activateServerComponentTaskForHost(
+				host,
+				[[], [], 'blocking', 'head'],
+				'head',
+				() => undefined
+			);
+			activateServerComponentTaskForHost(host, [[], [], 'blocking', 'body'], 'body', () => body);
+			await frame.blockingWork(selection);
+			expect(frame.blockingWork(selection)).toBeUndefined();
+			expect(frame.blockingVersionFor(selection)).toBe(version + 1);
+			expect(frame.blockingWork()).toBeInstanceOf(Promise);
+		} finally {
+			releaseBody();
+			await frame[Symbol.asyncDispose]();
+		}
+	});
+
 	it('publishes an empty context selection without requiring an execution frame', () => {
 		expect(serverComponentContinuationContextValuesForHost({}, [])).toEqual({});
 	});
@@ -136,7 +180,10 @@ describe('compiler-closed server component execution', () => {
 		const host = { state: { value: 'pending' } };
 		let cleanupCalls = 0;
 		let observedSignal: AbortSignal | undefined;
-		const frame = createServerComponentExecutionFrame(host, { observe: () => undefined });
+		const frame = createServerComponentExecutionFrame(host, {
+			observe: () => undefined,
+			trackTaskIdentities: true
+		});
 		expect(Object.keys(host)).toEqual(['state']);
 		expect(Object.getOwnPropertySymbols(host)).toContain(
 			Symbol.for('@exactjs/server-component-execution-frame')
@@ -150,7 +197,11 @@ describe('compiler-closed server component execution', () => {
 				task.signal.addEventListener('abort', () => reject(task.signal.reason), { once: true })
 			);
 		});
+		const selectedWait = expect(frame.blockingWork(new Set(['pending']))).rejects.toMatchObject({
+			name: 'AbortError'
+		});
 		await Promise.resolve(frame[Symbol.asyncDispose]());
+		await selectedWait;
 		expect(observedSignal?.aborted).toBe(true);
 		expect(cleanupCalls).toBe(1);
 		expect(serverComponentExecutionValueForHost(host, 'value', 'released')).toBe('released');

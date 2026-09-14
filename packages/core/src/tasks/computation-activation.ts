@@ -14,8 +14,8 @@ type ActivationInput<T> = T | ReactiveValue<T> | ContinuationDependencySource<T>
 
 /**
  * Activates synchronous compiler-owned component computation without constructing a task
- * generation. Hydration contracts contain no cross-boundary execution graph, so their ordinary
- * derived setup writes need dependency observation and lifetime ownership, but not cancellation,
+ * generation. Ordinary synchronous setup writes run before SSR state is restored and need
+ * dependency observation and lifetime ownership, but not cancellation,
  * promises, status, scheduling policy, or task frames. Disposing the returned handle stops its
  * watcher and releases the registration from the durable host.
  */
@@ -29,6 +29,7 @@ export function activateComputationForHost<Args extends unknown[]>(
 		throw new Error('activateComputationForHost() requires a registered durable task host');
 	const dependencies = inputs.map(activationInputDependency);
 	let watcher: ContinuationDependencyWatcher | undefined;
+	let initializedDuringSetup = false;
 	const registration: TaskActivationRegistration = {
 		task: computation as AnyTaskFunction,
 		settled: false,
@@ -37,7 +38,7 @@ export function activateComputationForHost<Args extends unknown[]>(
 			let initial = true;
 			watcher = watchContinuationDependencies(dependencies, {
 				onReady(vector) {
-					if (skipInitial && initial) {
+					if ((skipInitial || initializedDuringSetup) && initial) {
 						initial = false;
 						registration.settled = true;
 						return;
@@ -54,7 +55,6 @@ export function activateComputationForHost<Args extends unknown[]>(
 		}
 	};
 	owner.activationRegistrations.add(registration);
-	if (!owner.activationsDeferred) registration.start(false);
 	let disposed = false;
 	const activation: Disposable = {
 		[Symbol.dispose]() {
@@ -67,6 +67,23 @@ export function activateComputationForHost<Args extends unknown[]>(
 	};
 	const cleanup = activation[Symbol.dispose].bind(activation);
 	registerTaskOwnerCleanup(owner, cleanup);
+	try {
+		if (owner.activationsDeferred) {
+			// Reconstruct sparse omissions before the host restores authoritative SSR state. Subscribe
+			// only on release so restoration writes cannot enqueue another initialization afterwards.
+			const snapshots = dependencies.map((dependency) => dependency.read());
+			if (snapshots.every((snapshot) => snapshot.status === 'available')) {
+				peek(() =>
+					computation(...(snapshots.map((snapshot) => snapshot.value) as Args), computationContext)
+				);
+				initializedDuringSetup = true;
+				registration.settled = true;
+			}
+		} else registration.start(false);
+	} catch (error) {
+		activation[Symbol.dispose]();
+		throw error;
+	}
 	return activation;
 }
 

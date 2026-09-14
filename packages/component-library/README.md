@@ -2,7 +2,7 @@
 
 This package is the inert participation marker for published eXact component libraries. It tells
 eXact build adapters that a package intentionally follows component-library packaging and
-provenance protocol 2.
+provenance protocol 1.
 
 ## Usage
 

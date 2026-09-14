@@ -6,8 +6,33 @@ import './unsafe-html.js';
 import { describe, expect, it, vi } from 'vitest';
 import { renderTestTree as render } from './testing.js';
 import { createOperation } from './test-support/native-operations.js';
+import { applyDomProp } from './props.js';
+import { unmount } from './root.js';
 
 describe('@exactjs/dom security', () => {
+	it.each(['innerHTML', 'INNERHTML', 'outerHTML', 'OUTERHTML', 'onclick', 'ONCLICK', 'SRCDOC'])(
+		'rejects rootless unsafe %s patches before changing DOM',
+		(name) => {
+			const element = document.createElement('div');
+			element.textContent = 'preserved';
+			expect(() => applyDomProp(element, name, '<img onerror="bad">')).toThrow();
+			expect(element.textContent).toBe('preserved');
+			expect(element.attributes.length).toBe(0);
+		}
+	);
+	it.each(['onclick', 'ONCLICK', 'onClick'])('binds %s as a callback', (name) => {
+		const container = document.createElement('div');
+		const handler = vi.fn();
+		try {
+			render(createOperation('button', { [name]: handler }, 'click'), container);
+			const button = container.querySelector('button')!;
+			button.click();
+			expect(handler).toHaveBeenCalledTimes(1);
+			expect(button.hasAttribute('onclick')).toBe(false);
+		} finally {
+			unmount(container);
+		}
+	});
 	it('mounts and replaces opted-in opaque unsafe HTML ranges', () => {
 		const container = document.createElement('div');
 		const audit = vi.fn();

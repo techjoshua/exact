@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 func (lowering *jsxLowering) reactiveExpression(
@@ -759,6 +759,11 @@ func (lowering *jsxLowering) materializedName(
 			return true
 		}
 		for _, existing := range lowering.materializedNames {
+			if existing == name {
+				return true
+			}
+		}
+		for _, existing := range lowering.staticServerInvocations {
 			if existing == name {
 				return true
 			}

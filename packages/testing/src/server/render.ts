@@ -15,8 +15,8 @@ import {
 	type ExactRequestLike
 } from '@exactjs/server';
 import {
-	renderToHydratableStringAsync,
-	renderToStringAsync,
+	renderToHydratableString,
+	renderToString,
 	type HydrationScriptOptions,
 	type RenderToStringOptions
 } from '@exactjs/ssr';
@@ -321,13 +321,13 @@ export async function renderServerTest(
 	} = options;
 	try {
 		const result = hydration
-			? await renderToHydratableStringAsync(operation, {
+			? await renderToHydratableString(operation, {
 					...renderOptions,
 					...hydration,
 					contexts,
 					onComponentRendered: capture
 				})
-			: await renderToStringAsync(operation, {
+			: await renderToString(operation, {
 					...renderOptions,
 					contexts,
 					onComponentRendered: capture

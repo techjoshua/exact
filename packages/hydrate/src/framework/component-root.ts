@@ -160,7 +160,7 @@ function reportHydrationPhase(
 
 /** Defers compiled component hydration until navigation startup yields or interaction begins. */
 export function hydrateCompiledComponentRootAfterNavigation(
-	operation: Child,
+	operation: Child | (() => Child),
 	container: Element,
 	options: HydrateOptions = {}
 ): Promise<CoreHydrationRoot> {
@@ -170,7 +170,12 @@ export function hydrateCompiledComponentRootAfterNavigation(
 		return Promise.reject(error);
 	}
 	return deferHydrationAfterNavigation(
-		() => hydrateCompiledComponentRoot(operation, container, options),
+		() =>
+			hydrateCompiledComponentRoot(
+				typeof operation === 'function' ? operation() : operation,
+				container,
+				options
+			),
 		container
 	);
 }

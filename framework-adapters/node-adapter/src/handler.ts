@@ -6,16 +6,20 @@ import {
 } from '@exactjs/server';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { reportNodeError } from './error-reporting.js';
+import { writeNodeError } from './requests/error.js';
+import { createNodeRequestAdmission, type NodeSchedulingOptions } from './requests/admission.js';
 
 /** Node-owned immutable encoding capabilities used while consuming produced response bodies. */
 const nodeSynchronousResponseEnvironment = Object.freeze({
 	encodedByteLength: (value: string) => Buffer.byteLength(value)
 });
 
-/** Creates a Node http.createServer-compatible eXact endpoint handler. */
+/** Creates a Node endpoint handler with automatic adaptive admission and disconnect cancellation. */
 export function createExactNodeHandler(
-	context: ExactServerContext
+	context: ExactServerContext,
+	options: NodeSchedulingOptions = {}
 ): (request: IncomingMessage, response: ServerResponse) => void {
+	const admit = createNodeRequestAdmission(options);
 	return (request, response) => {
 		const disconnect = new AbortController();
 		const abort = () => disconnect.abort(new DOMException('Client disconnected', 'AbortError'));
@@ -32,17 +36,26 @@ export function createExactNodeHandler(
 		// asks for text. Observe an early transport rejection immediately while
 		// preserving the original rejected promise for readBody().
 		void body.catch(() => undefined);
-		void handleExactRequest(
-			{
-				method: request.method ?? 'GET',
-				url: request.url,
-				headers: request.headers,
-				text: () => body,
-				signal: disconnect.signal,
-				platformRequest: request
-			},
-			context
-		)
+		const execute = () =>
+			handleExactRequest(
+				{
+					method: request.method ?? 'GET',
+					url: request.url,
+					headers: request.headers,
+					text: () => body,
+					signal: disconnect.signal,
+					platformRequest: request
+				},
+				context
+			);
+		let result: Promise<ExactResponseLike>;
+		try {
+			const pending = admit(response, disconnect.signal);
+			result = pending ? pending.then(execute) : execute();
+		} catch (error) {
+			result = Promise.reject(error);
+		}
+		void result
 			.then((result) =>
 				writeNodeResponse(response, result, disconnect.signal, context.logger).finally(cleanup)
 			)
@@ -121,12 +134,16 @@ export async function writeNodeResponse(
 ): Promise<void> {
 	response.statusCode = result.status;
 	for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
+	if (result.setCookies?.length) response.setHeader('set-cookie', [...result.setCookies]);
 	const body = exactResponseBodyOf(result);
 	if (body?.kind === 'produced' && body.writeSynchronously) {
 		try {
-			const collected = collectProducedBody(body, signal);
+			const collected = collectProducedBody(body, signal, response);
 			const output = typeof collected === 'string' ? collected : await collected;
 			throwIfAborted(signal);
+			// Prepare known-length headers only after production and request-scope cleanup succeed.
+			if (!response.headersSent && response.hasHeader('content-length'))
+				response.writeHead(response.statusCode);
 			response.end(output);
 		} catch (error) {
 			if (!signal?.aborted || error !== signal.reason) reportNodeError(error, 'response', logger);
@@ -150,6 +167,11 @@ export async function writeNodeResponse(
 		return;
 	}
 	try {
+		if (body?.kind === 'buffered') {
+			throwIfAborted(signal);
+			response.end(body.toText());
+			return;
+		}
 		await writeNodeResponseBody(response, result, signal);
 		throwIfAborted(signal);
 		response.end();
@@ -198,16 +220,36 @@ export async function writeNodeResponseBody(
 	response.write(result.body ?? '');
 }
 
-/** Collects output before response commitment, preserving cross-span UTF-16 pairs. */
+/** Collects output and optional complete-body byte facts before commitment and scope cleanup. */
 function collectProducedBody(
 	body: NonNullable<ReturnType<typeof exactResponseBodyOf>>,
-	signal?: AbortSignal
+	signal?: AbortSignal,
+	lengthResponse?: ServerResponse
 ): string | Promise<string> {
 	let output = '';
-	const completion = body.writeSynchronously!((chunk) => {
-		throwIfAborted(signal);
-		output += chunk;
-	}, nodeSynchronousResponseEnvironment);
+	const completion = body.writeSynchronously!(
+		(chunk) => {
+			throwIfAborted(signal);
+			output += chunk;
+		},
+		lengthResponse
+			? Object.freeze({
+					...nodeSynchronousResponseEnvironment,
+					setBodyByteLength(bytes: number) {
+						if (!Number.isSafeInteger(bytes) || bytes < 0)
+							throw new TypeError('Invalid produced body byte length');
+						if (
+							!lengthResponse.headersSent &&
+							lengthResponse.statusCode >= 200 &&
+							lengthResponse.statusCode !== 204 &&
+							lengthResponse.statusCode !== 304 &&
+							!lengthResponse.hasHeader('transfer-encoding')
+						)
+							lengthResponse.setHeader('content-length', bytes);
+					}
+				})
+			: nodeSynchronousResponseEnvironment
+	);
 	return completion ? completion.then(() => output) : output;
 }
 
@@ -219,26 +261,6 @@ export async function cancelNodeResponseBody(
 	const body = exactResponseBodyOf(result);
 	if (body) await body.cancel(reason);
 	else if (result.stream) await result.stream.cancel(reason);
-}
-
-/** Reports an uncaught handler failure and terminates the response without exposing its details. */
-function writeNodeError(
-	response: ServerResponse,
-	error: unknown,
-	logger?: ExactServerContext['logger']
-): void {
-	reportNodeError(error, 'request', logger);
-	if (response.destroyed || response.writableEnded) return;
-	if (response.headersSent) {
-		response.destroy(
-			error instanceof Error ? error : new Error('eXact request failed', { cause: error })
-		);
-		return;
-	}
-	for (const name of response.getHeaderNames()) response.removeHeader(name);
-	response.statusCode = 500;
-	response.setHeader('content-type', 'application/json; charset=utf-8');
-	response.end(JSON.stringify({ error: 'internal_error' }));
 }
 
 async function pipeReadableStream(
@@ -299,5 +321,3 @@ function waitForDrain(response: ServerResponse, signal?: AbortSignal): Promise<v
 function throwIfAborted(signal?: AbortSignal): void {
 	if (signal?.aborted) throw signal.reason ?? new DOMException('Client disconnected', 'AbortError');
 }
-
-export { createExactNodeHandler as createNodeHandler };

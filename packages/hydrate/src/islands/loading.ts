@@ -65,11 +65,8 @@ function freezeActivation(activation: ExactActivationDecision): ExactActivationD
 	});
 }
 
-/** Resolves and registers one lazy component exactly once for every shared loader entry. */
-export function loadClientIsland(
-	entry: ClientIslandLoader,
-	options: HydrateOptions
-): Promise<AnyComponentFunction> {
+/** Shares module loading across owners without publishing contracts into any hydration root. */
+export function loadClientIsland(entry: ClientIslandLoader): Promise<AnyComponentFunction> {
 	let pending = pendingLoads.get(entry);
 	if (!pending) {
 		pending = entry
@@ -85,18 +82,23 @@ export function loadClientIsland(
 			});
 		pendingLoads.set(entry, pending);
 	}
-	return pending.then((component) => {
-		// The module promise is shared, but continuation registration belongs to
-		// each hydration root that activates the shared artifact.
-		let contracts = loadedContracts.get(component);
-		if (!contracts) {
-			contracts = composePreparedExactComponentContracts([component], 'client');
-			loadedContracts.set(component, contracts);
-		}
-		mergeHydrationRegistration(options, {
-			continuations: contracts.continuations
-		});
-		return component;
+	return pending;
+}
+
+/** Publishes a loaded artifact only after the caller has validated current hydration ownership. */
+export function registerLoadedClientIsland(
+	component: AnyComponentFunction,
+	options: HydrateOptions
+): void {
+	// The module promise is shared, but continuation registration belongs to
+	// each hydration root that activates the shared artifact.
+	let contracts = loadedContracts.get(component);
+	if (!contracts) {
+		contracts = composePreparedExactComponentContracts([component], 'client');
+		loadedContracts.set(component, contracts);
+	}
+	mergeHydrationRegistration(options, {
+		continuations: contracts.continuations
 	});
 }
 

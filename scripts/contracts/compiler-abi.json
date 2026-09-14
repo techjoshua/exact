@@ -1,4 +1,10 @@
 {
+	"versions": {
+		"component": 1,
+		"renderProgram": 1,
+		"componentLibrary": 1,
+		"compilerProcess": "1.0.0"
+	},
 	"component": {
 		"render": 1,
 		"lifecycle": 2,

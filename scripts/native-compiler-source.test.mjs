@@ -18,7 +18,7 @@ test('an explicit native compiler source is used without bootstrapping', async (
 	assert.equal(checkoutCalled, false);
 });
 
-test('an existing default TypeScript-Go checkout is reused', async () => {
+test('an existing default native TypeScript checkout is reused', async () => {
 	let checkoutCalled = false;
 	let inspectedPath;
 	const repositoryRoot = path.resolve('repository');
@@ -33,12 +33,12 @@ test('an existing default TypeScript-Go checkout is reused', async () => {
 		}
 	});
 
-	assert.equal(source, path.join(repositoryRoot, '.tmp', 'typescript-go-source'));
+	assert.equal(source, path.join(repositoryRoot, '.tmp', 'typescript-source'));
 	assert.equal(inspectedPath, path.join(source, '.git'));
 	assert.equal(checkoutCalled, false);
 });
 
-test('a missing default TypeScript-Go checkout is bootstrapped', async () => {
+test('a missing default native TypeScript checkout is bootstrapped', async () => {
 	let checkoutDestination;
 	const repositoryRoot = path.resolve('repository');
 	const source = await prepareNativeCompilerSource({
@@ -49,6 +49,6 @@ test('a missing default TypeScript-Go checkout is bootstrapped', async () => {
 		}
 	});
 
-	assert.equal(source, path.join(repositoryRoot, '.tmp', 'typescript-go-source'));
+	assert.equal(source, path.join(repositoryRoot, '.tmp', 'typescript-source'));
 	assert.equal(checkoutDestination, source);
 });

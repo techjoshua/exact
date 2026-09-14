@@ -69,9 +69,9 @@ import {
 } from './test-support/adoption.fixtures.js?exact-target=server';
 
 describe('@exactjs/hydrate adoption', () => {
-	it('adopts target-forwarded attributes without replacing the intrinsic', () => {
+	it('adopts target-forwarded attributes without replacing the intrinsic', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverTargetForwardingRoot);
+		const resumptions = await prepareServerHydration(root, serverTargetForwardingRoot);
 		const serverButton = root.querySelector('button')!;
 
 		hydrate(targetForwardingRoot, root, { logger: noopLogger, resumptions });
@@ -81,7 +81,7 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(serverButton.getAttribute('aria-describedby')).toBe('help');
 	});
 
-	it('adopts nested target owners with independent refs and event subscriptions', () => {
+	it('adopts nested target owners with independent refs and event subscriptions', async () => {
 		const calls: string[] = [];
 		const refs: Element[] = [];
 		const ref = { fulfill: (value: unknown) => value instanceof Element && refs.push(value) };
@@ -93,7 +93,7 @@ describe('@exactjs/hydrate adoption', () => {
 		};
 		configureNestedTargetRoot(props);
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverNestedTargetRoot);
+		const resumptions = await prepareServerHydration(root, serverNestedTargetRoot);
 		const serverButton = root.querySelector('button')!;
 
 		hydrate(nestedTargetRoot, root, { logger: noopLogger, resumptions });
@@ -105,7 +105,7 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(calls).toEqual(['authored']);
 	});
 
-	it('activates bundle-local enhancements after adopting their authored target', () => {
+	it('activates bundle-local enhancements after adopting their authored target', async () => {
 		const roots: RootLifecycle<HTMLElement>[] = [];
 		configureAdoptionEnhancement((root) => roots.push(root));
 		const root = document.createElement('div');
@@ -113,7 +113,7 @@ describe('@exactjs/hydrate adoption', () => {
 		const serverEnhancementCatalog = new Map([
 			[adoptionEnhancementIdentity, exactEnhancementPassThrough]
 		]);
-		const rendered = renderToString(serverEnhancedPageRoot, {
+		const rendered = await renderToString(serverEnhancedPageRoot, {
 			enhancementCatalog: serverEnhancementCatalog
 		});
 		root.innerHTML = rendered.html;
@@ -190,9 +190,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(() => first.applyPatches([])).toThrow('disposed');
 	});
 
-	it('adopts compatible static marker-wrapped SSR nodes', () => {
+	it('adopts compatible static marker-wrapped SSR nodes', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverParagraphRoot('server', 'ready'));
+		const resumptions = await prepareServerHydration(root, serverParagraphRoot('server', 'ready'));
 		const serverNode = root.querySelector('p')!;
 		const observations: unknown[] = [];
 		hydrate(paragraphRoot('server', 'ready'), root, {
@@ -205,9 +205,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(observations).toEqual([{ kind: 'root', outcome: 'adopted', markers: 'exact' }]);
 	});
 
-	it('adopts normalized static class-list values without replacing the server node', () => {
+	it('adopts normalized static class-list values without replacing the server node', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(
+		const resumptions = await prepareServerHydration(
 			root,
 			serverParagraphRoot('server', ['panel', { active: true, hidden: false }])
 		);
@@ -236,9 +236,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(audit).toEqual([{ characters: 14 }]);
 	});
 
-	it('patches an adopted static root without appending a second tree', () => {
+	it('patches an adopted static root without appending a second tree', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverParagraphRoot('server'));
+		const resumptions = await prepareServerHydration(root, serverParagraphRoot('server'));
 		const serverNode = root.querySelector('p')!;
 		hydrate(paragraphRoot('server'), root, { logger: noopLogger, resumptions });
 		render(paragraphRoot('client'), root);
@@ -247,9 +247,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.textContent).toBe('client');
 	});
 
-	it('adopts an SSR root component boundary without replacing its DOM', () => {
+	it('adopts an SSR root component boundary without replacing its DOM', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverGreetingRoot);
+		const resumptions = await prepareServerHydration(root, serverGreetingRoot);
 		const serverNode = root.querySelector('p')!;
 		hydrate(greetingRoot, root, { logger: noopLogger, resumptions });
 		expect(root.querySelector('p')).toBe(serverNode);
@@ -257,18 +257,18 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')).toBe(serverNode);
 	});
 
-	it('adopts nested component marker boundaries', () => {
+	it('adopts nested component marker boundaries', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverNestedParentRoot);
+		const resumptions = await prepareServerHydration(root, serverNestedParentRoot);
 		const serverChild = root.querySelector('em')!;
 		hydrate(nestedParentRoot, root, { logger: noopLogger, resumptions });
 		expect(root.querySelector('em')).toBe(serverChild);
 	});
 
-	it('adopts compiler cell marker boundaries', () => {
+	it('adopts compiler cell marker boundaries', async () => {
 		const root = document.createElement('div');
 		let instance!: Component<{ label: string }>;
-		const resumptions = prepareServerHydration(root, serverLabelStateRoot());
+		const resumptions = await prepareServerHydration(root, serverLabelStateRoot());
 		const serverNode = root.querySelector('p')!;
 		hydrate(
 			labelStateRoot((value) => (instance = value)),
@@ -284,9 +284,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')?.textContent).toBe('client');
 	});
 
-	it('adopts a compiler cell at the hydration root without replacing server DOM', () => {
+	it('adopts a compiler cell at the hydration root without replacing server DOM', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverLabelPropsRoot('server'));
+		const resumptions = await prepareServerHydration(root, serverLabelPropsRoot('server'));
 		const serverNode = root.querySelector('p')!;
 
 		hydrate(labelPropsRoot('server'), root, { logger: noopLogger, resumptions });
@@ -297,9 +297,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(serverNode.textContent).toBe('client');
 	});
 
-	it('adopts keyed SSR item ranges and reorders their existing DOM', () => {
+	it('adopts keyed SSR item ranges and reorders their existing DOM', async () => {
 		const root = document.createElement('div');
-		root.innerHTML = renderToString(serverKeyedListRoot).html;
+		root.innerHTML = (await renderToString(serverKeyedListRoot)).html;
 		const [a, b] = Array.from(root.querySelectorAll('li'));
 		hydrate(keyedListRoot, root, { logger: noopLogger });
 		mountedKeyedList().state.items.splice(0, 2, { id: 'b', title: 'B' }, { id: 'a', title: 'A' });
@@ -307,10 +307,10 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(Array.from(root.querySelectorAll('li'))).toEqual([b, a]);
 	});
 
-	it('adopts a dynamic marker range and updates it after hydration', () => {
+	it('adopts a dynamic marker range and updates it after hydration', async () => {
 		const root = document.createElement('div');
 		let client!: Component<{ label: string }>;
-		const resumptions = prepareServerHydration(root, serverDynamicLabelRoot());
+		const resumptions = await prepareServerHydration(root, serverDynamicLabelRoot());
 		const serverNode = root.querySelector('p')!;
 		hydrate(
 			dynamicLabelRoot((value) => (client = value)),
@@ -326,9 +326,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')?.textContent).toBe('client');
 	});
 
-	it('activates a client-only dynamic component inside its SSR-owned range', () => {
+	it('activates a client-only dynamic component inside its SSR-owned range', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverDynamicPanelRoot);
+		const resumptions = await prepareServerHydration(root, serverDynamicPanelRoot);
 		const siblings = root.querySelectorAll('span');
 		const before = siblings[0];
 		const after = siblings[1];
@@ -347,9 +347,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelectorAll('span')[1]).toBe(after);
 	});
 
-	it('attaches JSX events while adopting a component root', () => {
+	it('attaches JSX events while adopting a component root', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverCounterRoot);
+		const resumptions = await prepareServerHydration(root, serverCounterRoot);
 		hydrate(counterRoot, root, { logger: noopLogger, resumptions });
 		const button = root.querySelector('button')!;
 		button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -364,7 +364,7 @@ describe('@exactjs/hydrate adoption', () => {
 			isEnabled: (level) => level === 'trace',
 			log: (event) => events.push(event)
 		};
-		const resumptions = prepareServerHydration(root, serverCounterRoot);
+		const resumptions = await prepareServerHydration(root, serverCounterRoot);
 		hydrate(counterRoot, root, { logger, resumptions });
 
 		root.querySelector('button')!.click();
@@ -373,10 +373,10 @@ describe('@exactjs/hydrate adoption', () => {
 		);
 	});
 
-	it('fulfills component refs while adopting existing elements', () => {
+	it('fulfills component refs while adopting existing elements', async () => {
 		const root = document.createElement('div');
 		let instance!: Component<{}>;
-		const resumptions = prepareServerHydration(root, serverButtonRefRoot());
+		const resumptions = await prepareServerHydration(root, serverButtonRefRoot());
 		const serverNode = root.querySelector('button')!;
 		hydrate(
 			buttonRefRoot((value) => (instance = value)),
@@ -389,27 +389,27 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(instance.refs.get(buttonRefKey)).toBe(serverNode);
 	});
 
-	it('adopts static fragment siblings inside a marker range', () => {
+	it('adopts static fragment siblings inside a marker range', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverSiblingRoot({}));
+		const resumptions = await prepareServerHydration(root, serverSiblingRoot({}));
 		const [first, second] = Array.from(root.querySelectorAll('p'));
 		hydrate(siblingRoot({}), root, { logger: noopLogger, resumptions });
 		expect(root.querySelectorAll('p')[0]).toBe(first);
 		expect(root.querySelectorAll('p')[1]).toBe(second);
 	});
 
-	it('adopts nested static fragments inside a marker range', () => {
+	it('adopts nested static fragments inside a marker range', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverSiblingRoot({}));
+		const resumptions = await prepareServerHydration(root, serverSiblingRoot({}));
 		const [first, second] = Array.from(root.querySelectorAll('p'));
 		hydrate(siblingRoot({}), root, { logger: noopLogger, resumptions });
 		expect(root.querySelectorAll('p')[0]).toBe(first);
 		expect(root.querySelectorAll('p')[1]).toBe(second);
 	});
 
-	it('repairs an unexpected SSR attribute without replacing compatible markup', () => {
+	it('repairs an unexpected SSR attribute without replacing compatible markup', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverParagraphRoot('server'));
+		const resumptions = await prepareServerHydration(root, serverParagraphRoot('server'));
 		const serverNode = root.querySelector('p')!;
 		serverNode.setAttribute('data-stale', 'yes');
 		hydrate(paragraphRoot('server'), root, { logger: noopLogger, resumptions });
@@ -417,9 +417,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')?.hasAttribute('data-stale')).toBe(false);
 	});
 
-	it('repairs only the mismatched child of an adopted static fragment', () => {
+	it('repairs only the mismatched child of an adopted static fragment', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverSiblingRoot({}));
+		const resumptions = await prepareServerHydration(root, serverSiblingRoot({}));
 		root.querySelectorAll('p')[1]!.textContent = 'stale';
 		const first = root.querySelectorAll('p')[0]!;
 		const stale = root.querySelectorAll('p')[1]!;
@@ -429,9 +429,9 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.textContent).toBe('onetwo');
 	});
 
-	it('repairs a stale static attribute without replacing compatible siblings', () => {
+	it('repairs a stale static attribute without replacing compatible siblings', async () => {
 		const root = document.createElement('div');
-		const resumptions = prepareServerHydration(root, serverSiblingRoot({ firstClass: 'stale' }));
+		const resumptions = await prepareServerHydration(root, serverSiblingRoot({ firstClass: 'stale' }));
 		const stale = root.querySelectorAll('p')[0]!;
 		const sibling = root.querySelectorAll('p')[1]!;
 		hydrate(siblingRoot({ firstClass: 'fresh' }), root, { logger: noopLogger, resumptions });
@@ -440,10 +440,10 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelectorAll('p')[1]).toBe(sibling);
 	});
 
-	it('restores focus and selection when local static repair replaces an input', () => {
+	it('restores focus and selection when local static repair replaces an input', async () => {
 		const root = document.createElement('div');
 		document.body.appendChild(root);
-		const resumptions = prepareServerHydration(root, serverSiblingRoot({ input: true }));
+		const resumptions = await prepareServerHydration(root, serverSiblingRoot({ input: true }));
 		const input = root.querySelector('input')!;
 		input.setAttribute('value', 'stale');
 		input.focus();
@@ -459,9 +459,9 @@ describe('@exactjs/hydrate adoption', () => {
 		}
 	});
 
-	it('recovers a mismatched registry entry without replacing adjacent adopted DOM', () => {
+	it('recovers a mismatched registry entry without replacing adjacent adopted DOM', async () => {
 		const container = document.createElement('div');
-		const resumptions = prepareServerHydration(container, serverRegistryRoot);
+		const resumptions = await prepareServerHydration(container, serverRegistryRoot);
 		const stable = container.querySelector('span');
 		configureRegistrySelection('second');
 
@@ -472,8 +472,8 @@ describe('@exactjs/hydrate adoption', () => {
 	});
 });
 
-function prepareServerHydration(container: Element, operation: Child) {
-	const rendered = renderToHydratableString(operation);
+async function prepareServerHydration(container: Element, operation: Child) {
+	const rendered = await renderToHydratableString(operation);
 	container.innerHTML = rendered.html;
 	return rendered.resumptions;
 }

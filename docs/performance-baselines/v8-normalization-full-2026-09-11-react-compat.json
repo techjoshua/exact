@@ -1,0 +1,86 @@
+{
+  "results": [
+    {
+      "baseline": "18.3",
+      "iterations": 200,
+      "bytes": 336695,
+      "p50Ms": 7.608400000000017,
+      "p75Ms": 7.730500000000006,
+      "p95Ms": 8.308500000000038,
+      "p99Ms": 8.308500000000038,
+      "rawSamples": [
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.107500000000016
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.0274
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 8.308500000000038
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.730500000000006
+        },
+        {
+          "baseline": "18.3",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 7.608400000000017
+        }
+      ]
+    },
+    {
+      "baseline": "19.2",
+      "iterations": 200,
+      "bytes": 336695,
+      "p50Ms": 10.977199999999982,
+      "p75Ms": 11.125800000000027,
+      "p95Ms": 11.126400000000046,
+      "p99Ms": 11.126400000000046,
+      "rawSamples": [
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 11.126400000000046
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 11.125800000000027
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 10.540400000000034
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 10.925900000000013
+        },
+        {
+          "baseline": "19.2",
+          "iterations": 200,
+          "bytes": 336695,
+          "durationMs": 10.977199999999982
+        }
+      ]
+    }
+  ]
+}

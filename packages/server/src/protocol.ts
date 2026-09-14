@@ -1,5 +1,8 @@
 import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
-import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
+import {
+	normalizeProtocolLimit as positiveLimit,
+	protocolUtf8ByteLength as utf8Length
+} from '@exactjs/core/framework/protocol-records';
 import { parseExactDebugRequest } from '@exactjs/devtools-protocol';
 import type {
 	ExactBatchRequest,
@@ -93,6 +96,11 @@ export function parseExactRequestBody(
 		maxRequestBytes?: number;
 	} = {}
 ): ExactProtocolRequest {
+	if (body instanceof Uint8Array) {
+		if (body.byteLength > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024))
+			throw new Error('request byte limit exceeded');
+		body = new TextDecoder('utf-8', { fatal: true }).decode(body);
+	}
 	if (
 		typeof body === 'string' &&
 		utf8Length(body) > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024)
@@ -191,13 +199,18 @@ function jsonGraphSafe(
 			if (allowDecodedCollections && item instanceof Map) {
 				for (const [key, entryValue] of item) {
 					if (!isTransportableMapKey(key)) return false;
+					if (nodes + pending.length + 1 > maxNodes) return false;
+					if (typeof key === 'string') bytes += utf8Length(key);
+					if (bytes > maxBytes) return false;
 					pending.push({ value: entryValue, depth: current.depth + 1 });
 				}
 				continue;
 			}
 			if (allowDecodedCollections && item instanceof Set) {
-				for (const entryValue of item)
+				for (const entryValue of item) {
+					if (nodes + pending.length + 1 > maxNodes) return false;
 					pending.push({ value: entryValue, depth: current.depth + 1 });
+				}
 				continue;
 			}
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;
@@ -249,10 +262,6 @@ function parseBatch(record: Record<string, unknown>, maxOperations: number): Exa
 		version: record.version === 1 ? 1 : undefined,
 		operations
 	};
-}
-
-function utf8Length(value: string): number {
-	return new TextEncoder().encode(value).byteLength;
 }
 
 function parseInvocationRecord(record: Record<string, unknown>): ExactInvocationRequest {

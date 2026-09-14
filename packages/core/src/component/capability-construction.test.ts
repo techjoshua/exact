@@ -49,7 +49,7 @@ describe('compiled component capability construction', () => {
 		const StaticPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:StaticPanel',
 			[exactComponentContract]: {
-				version: 3 as const,
+				version: 1 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [
@@ -131,7 +131,7 @@ describe('compiled component capability construction', () => {
 		const InputPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:InputPanel',
 			[exactComponentContract]: {
-				version: 3 as const,
+				version: 1 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -205,7 +205,7 @@ describe('compiled component capability construction', () => {
 		const TaskPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:TaskPanel',
 			[exactComponentContract]: {
-				version: 3 as const,
+				version: 1 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -249,7 +249,7 @@ describe('compiled component capability construction', () => {
 		const FailingTaskPanel = Object.assign(implementation, {
 			[exactComponentType]: 'component:FailingTaskPanel',
 			[exactComponentContract]: {
-				version: 3 as const,
+				version: 1 as const,
 				placement: 'isomorphic' as const,
 				role: 'client' as const,
 				implementations: [],

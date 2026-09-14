@@ -11,6 +11,6 @@ function LargeList(props: { count: number }) {
 }
 
 /** Renders the compiler-owned list used to measure DevTools-independent SSR cost. */
-export function renderLargeList(count: number) {
-	return renderToString(<LargeList count={count} />, { markers: false });
+export async function renderLargeList(count: number) {
+	return await renderToString(<LargeList count={count} />, { markers: false });
 }

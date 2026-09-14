@@ -219,7 +219,7 @@ function attachRegistryFacadeArtifact(
 		});
 	}
 	const contract: ExactComponentContract = Object.freeze({
-		version: 3,
+		version: 1,
 		placement: target,
 		role: target === 'client' ? 'client' : 'executor',
 		implementations: Object.freeze([

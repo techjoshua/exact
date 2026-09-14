@@ -1,3 +1,10 @@
+import { authoredEventKey } from './events.js';
+import {
+	assertNativePropAllowed,
+	assertNativeEventHandler,
+	isNativeEventProp,
+	isNativeSrcdocProp
+} from '@exactjs/core/framework/render-structure';
 import {
 	batch,
 	createErrorReport,
@@ -96,11 +103,8 @@ export function setElementProp(
 	scope: EffectScope
 ): void {
 	if (key === 'children') return;
-	if (key === 'dangerouslySetInnerHTML') {
-		throw new Error(
-			'Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.'
-		);
-	}
+	assertNativePropAllowed(key);
+	if (isNativeSrcdocProp(key)) key = 'srcdoc';
 
 	clearPropBinding(element, key);
 
@@ -146,7 +150,8 @@ export function setElementProp(
 	const closedInteraction = key.startsWith('__exactClosedInteraction:');
 	const directInteraction = closedInteraction || key.startsWith('__exactDirectInteraction:');
 	const eventKey = authoredEventKey(key);
-	if (/^on[A-Z]/.test(eventKey)) {
+	if (isNativeEventProp(eventKey)) {
+		assertNativeEventHandler(value);
 		const { type, capture } = eventTypeForProp(eventKey);
 		if (closedInteraction || capture || requiresDirectListener(type)) {
 			setDirectEventHandler(
@@ -206,15 +211,7 @@ export function setElementProp(
 
 /** Identifies authored and compiler-specialized DOM event properties. */
 export function isEventHandlerProp(key: string): boolean {
-	return /^on[A-Z]/.test(authoredEventKey(key));
-}
-
-function authoredEventKey(key: string): string {
-	if (key.startsWith('__exactClosedInteraction:'))
-		return key.slice('__exactClosedInteraction:'.length);
-	if (key.startsWith('__exactDirectInteraction:'))
-		return key.slice('__exactDirectInteraction:'.length);
-	return key;
+	return isNativeEventProp(authoredEventKey(key));
 }
 
 /** Identifies compiler-owned native-control bindings that enhancements must preserve verbatim. */
@@ -306,11 +303,13 @@ function eventContainerFor(root: Root, element: Element): Node {
 
 /** Applies one non-reactive property using the same semantics as JSX bindings. */
 export function applyDomProp(element: Element, key: string, value: unknown): void {
-	if (key === 'dangerouslySetInnerHTML') {
-		throw new Error(
-			'Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.'
+	assertNativePropAllowed(key);
+	if (isNativeEventProp(key)) {
+		throw new TypeError(
+			'Native eXact event patches require an event binding owned by a render root.'
 		);
 	}
+	if (isNativeSrcdocProp(key)) key = 'srcdoc';
 	if ((key === 'srcdoc' || key === 'srcDoc') && value !== null && value !== undefined) {
 		throw new Error(
 			'Native eXact srcdoc patches require an unsafeHtml() capability owned by a render root.'

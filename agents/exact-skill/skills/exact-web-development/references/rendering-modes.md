@@ -26,13 +26,12 @@ protocol solely for data fetching.
 
 ## SSR without hydration
 
-Render HTML on the server with the synchronous or asynchronous API supported by the installed
-`@exactjs/ssr` version:
+Render HTML on the server by awaiting the `@exactjs/ssr` result:
 
 ```tsx
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 
-const rendered = await renderToStringAsync(<App />);
+const rendered = await renderToString(<App />);
 const html = rendered.html;
 ```
 
@@ -47,7 +46,7 @@ Render hydratable HTML on the server and hydrate the same application in the bro
 // server
 import { renderToHydratableString } from '@exactjs/ssr';
 
-const rendered = renderToHydratableString(<App />);
+const rendered = await renderToHydratableString(<App />);
 const html = rendered.htmlWithHydration;
 ```
 

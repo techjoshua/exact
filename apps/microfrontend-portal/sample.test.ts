@@ -51,11 +51,11 @@ describe('trusted microfrontend portal sample', () => {
 			{
 				method: 'POST',
 				url: 'https://portal.test/__exact',
-				body: {
+				body: JSON.stringify({
 					type: 'invoke',
 					id: 'page.audit',
 					payload: { tenant: 'Northwind', accountId: 'ACCT-1042' }
-				}
+				})
 			},
 			runtimes.page
 		);
@@ -69,18 +69,18 @@ describe('trusted microfrontend portal sample', () => {
 					'x-exact-binding': 'branding',
 					'x-exact-build': buildKey
 				},
-				body: {
+				body: JSON.stringify({
 					type: 'batch',
 					version: 1,
 					operations: [
 						{ type: 'invoke', root: brandingRoot, id: 'branding.ping' },
 						{ type: 'invoke', root: compactBrandingRoot, id: 'branding.ping' }
 					]
-				}
+				})
 			},
 			runtimes.page
 		);
-		const results = JSON.parse(branding.body).results;
+		const results = (await responseFrom(branding).json()).results;
 		expect(results).toHaveLength(2);
 		expect(results[0].state.variant).toBe('full');
 		expect(results[1].state.variant).toBe('compact');
@@ -90,14 +90,14 @@ describe('trusted microfrontend portal sample', () => {
 				method: 'POST',
 				url: 'https://portal.test/__exact',
 				headers: { 'x-exact-binding': 'billing', 'x-exact-build': buildKey },
-				body: {
+				body: JSON.stringify({
 					type: 'batch',
 					version: 1,
 					operations: [
 						{ type: 'invoke', root: billingRoot, id: 'billing.balance' },
 						{ type: 'invoke', root: billingRoot, id: 'billing.history' }
 					]
-				}
+				})
 			},
 			runtimes.page
 		);
@@ -114,12 +114,12 @@ describe('trusted microfrontend portal sample', () => {
 						...(request.binding ? { 'x-exact-binding': request.binding } : {}),
 						...(request.binding ? { 'x-exact-build': buildKey } : {})
 					},
-					body: {
+					body: JSON.stringify({
 						type: 'refresh',
 						root: request.root,
 						id: request.id,
 						payload: { tenant: 'Northwind', accountId: 'ACCT-1042' }
-					}
+					})
 				},
 				runtimes.page
 			);
@@ -139,7 +139,7 @@ describe('trusted microfrontend portal sample', () => {
 				method: 'POST',
 				url: 'http://localhost:4401/__exact',
 				headers: { 'x-exact-build': buildKey },
-				body: { type: 'invoke', root: billingRoot, id: 'billing.balance' }
+				body: JSON.stringify({ type: 'invoke', root: billingRoot, id: 'billing.balance' })
 			},
 			runtimes.billing
 		);
@@ -234,7 +234,7 @@ function requestFrom(input: string | URL | Request, init?: RequestInit): ExactRe
 		method: init?.method ?? 'POST',
 		url: String(input),
 		headers: new Headers(init?.headers),
-		body: init?.body ? JSON.parse(String(init.body)) : undefined,
+		body: init?.body,
 		signal: init?.signal ?? undefined
 	};
 }

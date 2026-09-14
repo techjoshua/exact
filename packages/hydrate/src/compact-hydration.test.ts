@@ -12,8 +12,8 @@ import {
 	CompactLabel
 } from './test-support/compact-hydration.fixtures.js';
 
-it('resolves compiler-finite island props from a grouped response table', () => {
-	const rendered = renderToHydratableString(
+it('resolves compiler-finite island props from a grouped response table', async () => {
+	const rendered = await renderToHydratableString(
 		markFiniteClientBoundary(
 			createServerBoundary('counter-1', 'Counter', {
 				label: 'Compact'

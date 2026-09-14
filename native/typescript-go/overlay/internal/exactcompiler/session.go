@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/core"
-	"github.com/microsoft/typescript-go/internal/printer"
-	"github.com/microsoft/typescript-go/internal/sourcemap"
-	"github.com/microsoft/typescript-go/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
+	"github.com/microsoft/TypeScript/tsc/internal/sourcemap"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 // Session owns persistent native compiler state for a stream of requests.
@@ -176,6 +176,22 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	defer generation.release()
+	if request.Kind != "extension" && request.Kind != "diagnose" {
+		if edits := planNativePropCasing(generation.sourceFile, generation.checker); len(edits) != 0 {
+			normalization.apply(edits)
+			request.Source = normalization.text
+			if packageEnhancementSuffix != "" {
+				request.PackageEnhancementBoundary = utf16Length(request.Source)
+				request.Source += packageEnhancementSuffix
+			}
+			generation, err = project.advance(context.Background(), fileName, request.Source)
+			if err != nil {
+				response.Error = err.Error()
+				return response
+			}
+			defer generation.release()
+		}
+	}
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
 	if request.Kind == "extension" {
@@ -542,6 +558,7 @@ func (s *Session) Execute(request Request) Response {
 		)...,
 	)
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, nativePropDiagnostics(sourceFile, generation.checker)...)
 	response.Diagnostics = append(response.Diagnostics, componentBindingDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
@@ -600,6 +617,7 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	if hasErrorDiagnostic(response.Diagnostics) {
+		remapAuthoredLocations(&response, normalization, len(response.Diagnostics))
 		return response
 	}
 

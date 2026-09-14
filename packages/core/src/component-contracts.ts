@@ -139,6 +139,8 @@ export type ExactComponentResumptionContract = Readonly<{
 	statePaths: readonly string[];
 	/** State path and root-prop path pairs that client setup can reconstruct. */
 	stateInputs: readonly (readonly [statePath: string, propPath: string])[];
+	/** Compact completion allowlist when a hydration artifact omits its execution catalog. */
+	continuations?: readonly string[];
 	/** Server-only primitive setup values that sparse capture may omit. */
 	stateDefaults?: readonly (readonly [
 		statePath: string,
@@ -184,8 +186,8 @@ export type {
 
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
-	/** Target-discriminated component contract. Version-2 definition records are rejected. */
-	version: 3;
+	/** Target-discriminated component contract for the initial public ABI. */
+	version: 1;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	role: 'client' | 'render' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];

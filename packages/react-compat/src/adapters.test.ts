@@ -24,7 +24,7 @@ function adapter(
 	return {
 		name,
 		version: '1.0.0',
-		dependencies: { '@exactjs/react-compat-adapter-api': '^0.1.0' },
+		dependencies: { '@exactjs/react-compat-adapter-api': '^0.5.0' },
 		exports: { '.': './dist/index.js', './provider': './dist/provider.js' },
 		exact: {
 			reactCompatibility: {
@@ -159,7 +159,7 @@ describe('React compatibility adapter discovery', () => {
 		const fixture = graph([
 			node('root', { name: 'app', version: '1.0.0' }, ['adapter', 'modern', 'nested']),
 			node('adapter', manifest, ['marker']),
-			node('marker', { name: '@exactjs/react-compat-adapter-api', version: '0.1.0' }),
+			node('marker', { name: '@exactjs/react-compat-adapter-api', version: '0.5.0' }),
 			node('modern', { name: '@tanstack/react-query', version: '5.80.0' }),
 			node('nested', { name: '@org/nested', version: '1.0.0' }, ['legacy']),
 			node('legacy', { name: '@tanstack/react-query', version: '4.40.0' })

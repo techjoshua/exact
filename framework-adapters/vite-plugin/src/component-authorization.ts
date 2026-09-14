@@ -1,3 +1,4 @@
+import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import type { ExactComponentLibraryTrustConfig } from '@exactjs/config';
 import {
@@ -116,6 +117,7 @@ export class ExactViteComponentAuthorization {
 			applicationRoot: string;
 			executionReason?: ExactResolvedComponentCandidate['reason'];
 			watch(file: string): void;
+			warn?: (message: string) => void;
 		}
 	): Promise<ExactViteResolution> {
 		if (!resolved || !importer || !this.#session) return resolved;
@@ -182,7 +184,7 @@ export class ExactViteComponentAuthorization {
 					source: 'published' as const
 				});
 				this.#facts.set(exactModuleFilename(facts.filename), record);
-				await this.preflightPublishedEdges(facts, options);
+				await this.preflightPublishedEdges(facts, { ...options, warn: undefined });
 			}
 			const result =
 				authorization.outcome === 'omitted'
@@ -203,6 +205,18 @@ export class ExactViteComponentAuthorization {
 			);
 			return result;
 		} catch (error) {
+			if (options.warn) {
+				const guarded = materializeExactComponentExecutionGuard(
+					error,
+					resolvedModuleId,
+					options.applicationRoot,
+					options.warn
+				);
+				if (guarded) {
+					this.#preflighted.set(preflightKey, guarded);
+					return { id: guarded, external: false };
+				}
+			}
 			this.#preflighted.delete(preflightKey);
 			throw error;
 		}

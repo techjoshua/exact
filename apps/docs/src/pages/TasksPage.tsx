@@ -245,6 +245,10 @@ export function TasksPage(this: Component<{}>) {
 					number, activation kind, snapshots, optimistic mutation, cleanup registration, and
 					disposable ownership. Application code never constructs or passes that final argument.
 				</p>
+				<p>
+					Optimistic rollback restores only changes still owned by that task. Later authoritative
+					writes survive, including array appends, individual slots, and explicit length changes.
+				</p>
 			</section>
 			<section>
 				<h2>Effects and results are separate</h2>
@@ -314,6 +318,14 @@ export function TasksPage(this: Component<{}>) {
 					Server continuations run through the same frame contract. Their trusted
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
 					attached-child settlement without serializing task authority through the browser.
+				</p>
+			</section>
+			<section>
+				<h2>Tasks while a component is paused</h2>
+				<p>
+					While Activity pauses a component, successful awaits and source failures wait before
+					running the component's continuation. Cancellation remains immediate and releases that
+					wait. A late result from a cancelled task cannot reactivate its continuation.
 				</p>
 			</section>
 		</Article>

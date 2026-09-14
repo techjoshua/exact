@@ -34,3 +34,9 @@ export {
 	createExpression,
 	createForwardedExpression
 } from '../component/reactive-expressions.js';
+export {
+	assertNativePropAllowed,
+	assertNativeEventHandler,
+	isNativeEventProp,
+	isNativeSrcdocProp
+} from '../native-props.js';

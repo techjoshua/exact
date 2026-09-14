@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 type componentComputationLocals struct {
@@ -40,7 +40,7 @@ type setupAssignmentExecution struct {
 // JavaScript never parses or reconstructs the compiler AST on the native path.
 func normalizeAuthoredSource(fileName string, source string) (normalizedSource, error) {
 	result := newNormalizedSource(source)
-	result.apply(planPropPunning(fileName, result.text))
+	result.apply(planJSXAttributeSyntax(fileName, result.text))
 	result.apply(planCanonicalComponentReturns(fileName, result.text))
 	for {
 		destructuringEdits, err := planComponentStateDestructuring(

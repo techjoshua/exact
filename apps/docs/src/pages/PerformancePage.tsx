@@ -1,3 +1,4 @@
+import streamReport from '../data/ssr-stream-report.json' with { type: 'json' };
 import { Chart, Legend, type ChartSeriesInput } from '@exactjs/charts';
 import type { Component } from '@exactjs/core';
 import reportJson from '../data/performance-report.json' with { type: 'json' };
@@ -6,85 +7,14 @@ import { Callout } from './Callout.jsx';
 import { HeapComposition } from './HeapComposition.jsx';
 import { SsrCapacity, ssrCapacityHighlights } from './SsrCapacity.jsx';
 
-interface DistributionStatistics {
-	readonly mean: number;
-	readonly p50: number;
-	readonly p75: number;
-	readonly p95: number;
-	readonly p99: number;
-}
+import type {
+	DistributionChart,
+	ValueChart,
+	ResponseCompositionChart,
+	PerformanceReport
+} from '../data/performance-report-types.js';
 
-interface DistributionChart {
-	readonly title: string;
-	readonly unit: string;
-	readonly precision: number;
-	readonly comment: string;
-	readonly series: readonly {
-		readonly name: string;
-		readonly stats: DistributionStatistics;
-		readonly aggregate?: number;
-	}[];
-}
-
-interface ValueChart {
-	readonly title: string;
-	readonly unit: string;
-	readonly precision: number;
-	readonly comment: string;
-	readonly values: readonly {
-		readonly name: string;
-		readonly value: number;
-	}[];
-}
-
-interface ResponseCompositionChart {
-	readonly title: string;
-	readonly unit: string;
-	readonly categories: readonly string[];
-	readonly series: readonly { readonly name: string; readonly values: readonly number[] }[];
-	readonly comment: string;
-}
-
-const report = reportJson as unknown as {
-	readonly metadata: {
-		readonly commit: string;
-		readonly createdAt: string;
-		readonly browserCreatedAt: string;
-		readonly ssrCreatedAt: string;
-		readonly browserSamples: number;
-		readonly ssrSequentialSamples: number;
-		readonly ssrBurstSamples: number;
-		readonly ssrRetentionCheckpoints: number;
-		readonly ssrDiagnosticsEnvironment: {
-			readonly runtimes: { readonly node: string; readonly bun: string };
-		};
-	};
-	readonly summary: readonly {
-		readonly label: string;
-		readonly value: string;
-		readonly context: string;
-	}[];
-	readonly browserCharts: readonly DistributionChart[];
-	readonly server: {
-		readonly bun: {
-			readonly runtime: string;
-			readonly createdAt: string;
-			readonly sequentialSamples: number;
-			readonly burstSamples: number;
-			readonly retentionCheckpoints: number;
-			readonly bars: readonly ValueChart[];
-			readonly responseComposition: ResponseCompositionChart;
-			readonly burst: DistributionChart;
-			readonly sequential: DistributionChart;
-			readonly retention: DistributionChart;
-		};
-		readonly burst: DistributionChart;
-		readonly sequential: DistributionChart;
-		readonly retention: DistributionChart;
-		readonly bars: readonly ValueChart[];
-		readonly responseComposition: ResponseCompositionChart;
-	};
-};
+const report = reportJson as unknown as PerformanceReport;
 
 /** Presents the latest admitted performance evidence without rerunning or renormalizing it. */
 export function PerformancePage(this: Component<{}>) {
@@ -92,10 +22,23 @@ export function PerformancePage(this: Component<{}>) {
 		<Article
 			eyebrow="Accepted performance evidence"
 			title="Browser experience and server capacity"
-			description="Current results from the balanced framework comparison, including aggregate server throughput, arithmetic means, and distribution percentiles."
+			description="Recorded results from the balanced framework comparison, including aggregate server throughput, arithmetic means, and distribution percentiles."
 			previous={{ path: '/framework-comparison', label: 'Read the benchmark methodology' }}
 			next={{ path: '/components/charts', label: 'Explore the chart components' }}
 		>
+			<Callout title="Rendering API scope">
+				<p>
+					String and streaming API results use separate charts. Each framework renders its complete
+					application document and hydration data. Browser measurements use string rendering. The
+					streaming lane includes eXact, React, and TanStack Start; the current Nuxt and SvelteKit
+					document paths do not expose an equivalent streaming API.
+				</p>
+				<p>
+					The SSR charts include eXact's shared renderer, early head delivery, and adaptive
+					scheduling at render entry and after pending component data settles. Browser charts retain
+					their separately dated capture.
+				</p>
+			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">
 				{[
 					...ssrCapacityHighlights,
@@ -118,17 +61,23 @@ export function PerformancePage(this: Component<{}>) {
 					a separate metric row. Historical and control-normalized comparisons remain part of the
 					internal engineering evidence rather than this public framework comparison.
 				</p>
+				<p>
+					Connection errors mean an HTTP connection could not be established or was interrupted.
+					They can involve server overload, runtime behavior, or client connection handling; the
+					count alone does not identify a rendering defect. Failed attempts remain counted without
+					retries, separately from missed arrivals.
+				</p>
 			</Callout>
 
 			<MetricSection
 				title="Browser experience"
-				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures time until the browser's load event. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
+				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures time until the browser's load event. The eXact app defers document hydration, so this event does not mean hydration has finished. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
 				charts={report.browserCharts}
 			/>
 			<HeapComposition />
 			<SsrCapacity />
 			<MetricSection
-				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}`}
+				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}, string API`}
 				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection; it is distinct from the amount allocated while handling requests."
 				charts={[report.server.burst, report.server.sequential, report.server.retention]}
 			/>
@@ -138,8 +87,8 @@ export function PerformancePage(this: Component<{}>) {
 				delay reproduced on this Windows host.
 			</p>
 			<MetricSection
-				title={`Server response time and memory: Bun ${report.server.bun.runtime}`}
-				description="The same five-framework workload runs on Bun. All five participants use native Bun.serve: eXact's Bun adapter, React's Bun streaming renderer, SvelteKit's Bun adapter, and Nitro's Bun preset for Nuxt and TanStack Start. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
+				title={`Server response time and memory: Bun ${report.server.bun.runtime}, string API`}
+				description="The same five-framework workload runs on Bun. All five participants use native Bun.serve: eXact's Bun adapter, React's string renderer, SvelteKit's Bun adapter, and Nitro's Bun preset for Nuxt and TanStack Start. Heap measurements cover JavaScriptCore, so they are not directly comparable to Node's V8 heap accounting."
 				charts={[
 					report.server.bun.burst,
 					report.server.bun.sequential,
@@ -153,29 +102,58 @@ export function PerformancePage(this: Component<{}>) {
 				bursts, and {report.server.bun.retentionCheckpoints} retained-heap checkpoints per
 				framework.
 			</p>
+			<MetricSection
+				title={
+					'Server response time and memory: Node ' +
+					streamReport.metadata.ssrDiagnosticsEnvironment.runtimes.node +
+					', streaming API'
+				}
+				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start, including eXact's early head delivery. Nuxt and SvelteKit are unavailable for this lane."
+				charts={[
+					streamReport.server.burst,
+					streamReport.server.sequential,
+					streamReport.server.retention
+				]}
+			/>
+			<MetricSection
+				title={
+					'Server response time and memory: Bun ' +
+					streamReport.server.bun.runtime +
+					', streaming API'
+				}
+				description="The same streaming-API workload on native Bun servers. These results are separate from string rendering and from the sustained capacity captures."
+				charts={[
+					streamReport.server.bun.burst,
+					streamReport.server.bun.sequential,
+					streamReport.server.bun.retention
+				]}
+			/>
 			<ValueSection
-				title="Response payload: Node"
+				title="Response payload: Node, string API"
 				description="Complete response sizes include application markup and framework data. The composition chart separates semantic markup, document overhead, framework markers, identity attributes, and hydration data."
 				charts={report.server.bars}
 			/>
 			<ResponseComposition figure={report.server.responseComposition} runtimeId="node" />
 			<ValueSection
-				title="Response payload: Bun"
+				title="Response payload: Bun, string API"
 				description="Complete native Bun response sizes, including application markup and framework data."
 				charts={report.server.bun.bars}
 			/>
 			<ResponseComposition figure={report.server.bun.responseComposition} runtimeId="bun" />
 
 			<p className="performance-evidence-note">
-				Evidence commit <code>{report.metadata.commit}</code>. Browser evidence captured{' '}
+				Browser evidence commit <code>{report.metadata.commit}</code>. SSR source snapshot
+				<code>{report.metadata.ssrSourceSha256.slice(0, 12)}</code>, based on commit
+				<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured
 				<time dateTime={report.metadata.browserCreatedAt}>{report.metadata.browserCreatedAt}</time>;
 				Node response-time, payload, and server-memory evidence captured{' '}
 				<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>. Browser
 				charts contain {report.metadata.browserSamples} samples per framework. Server latency charts
 				contain {report.metadata.ssrSequentialSamples} sequential requests and
 				{report.metadata.ssrBurstSamples} bursts per framework. Server memory uses
-				{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework. Sustained
-				capacity charts state their own measurement durations.
+				{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework. Capacity
+				charts state their durations. Incomplete telemetry rejects publication; request errors and
+				missed arrivals remain visible. Unavailable GC telemetry does not mean zero collections.
 			</p>
 		</Article>
 	);

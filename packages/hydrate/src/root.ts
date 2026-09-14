@@ -27,11 +27,14 @@ export function hydrate(
 
 /**
  * Defers hydration beyond DOMContentLoaded while synchronously activating for an earlier user
- * interaction. The returned promise resolves to the owned root after the first trigger wins.
+ * interaction on an element or complete document. The returned promise resolves to the owned
+ * root after the first trigger wins. A synchronous root factory runs exactly once on activation,
+ * allowing published-props decoding and root creation to share the deferral. Factory failures
+ * reject the promise; early interactions activate the factory synchronously.
  */
 export function hydrateAfterNavigation(
-	operation: Child,
-	container: Element,
+	operation: Child | (() => Child),
+	container: Element | Document,
 	options: HydrateOptions = {}
 ): Promise<CoreHydrationRoot> {
 	try {
@@ -39,7 +42,10 @@ export function hydrateAfterNavigation(
 	} catch (error) {
 		return Promise.reject(error);
 	}
-	return deferHydrationAfterNavigation(() => hydrate(operation, container, options), container);
+	return deferHydrationAfterNavigation(
+		() => hydrate(typeof operation === 'function' ? operation() : operation, container, options),
+		container
+	);
 }
 
 export type { CoreHydrationRoot, HydrateOptions } from './types.js';

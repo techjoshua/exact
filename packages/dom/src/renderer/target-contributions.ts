@@ -1,3 +1,4 @@
+import { authoredEventKey } from '../events.js';
 import {
 	type AnyComponentInstance,
 	TargetOverrides,
@@ -294,14 +295,6 @@ function composeTargetProps(
 		else result[key] = computed(() => firstDefined(values));
 	}
 	return { props: result, events };
-}
-
-function authoredEventKey(key: string): string {
-	if (key.startsWith('__exactClosedInteraction:'))
-		return key.slice('__exactClosedInteraction:'.length);
-	if (key.startsWith('__exactDirectInteraction:'))
-		return key.slice('__exactDirectInteraction:'.length);
-	return key;
 }
 
 function compilerDirectInteraction(key: string): boolean {

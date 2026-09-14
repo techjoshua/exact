@@ -1,3 +1,4 @@
+import { supportsSsrRenderMode, ssrRenderMode } from './ssr-render-mode.mjs';
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
@@ -39,6 +40,14 @@ export async function close() {
 try {
 	service = await startComparisonServer();
 	for (const [index, id] of ['exact', 'react', 'sveltekit', 'nuxt', 'tanstack-start'].entries()) {
+		if (!supportsSsrRenderMode(id, ssrRenderMode())) continue;
+		const indexHtml = ['exact', 'react'].includes(id)
+			? await readFile(resolve(suiteRoot, 'participants', id, 'dist/index.html'), 'utf8')
+			: '';
+		const clientTags =
+			indexHtml
+				.match(/(?:<script[^>]+src="[^"]+"[^>]*><\/script>|<link[^>]+href="[^"]+"[^>]*>)/g)
+				?.join('\n') ?? '';
 		const worker = await startSsrWorker({
 			runtime: availableSsrRuntimes('bun')[0],
 			participantId: id,
@@ -46,7 +55,7 @@ try {
 			workerPath: resolve(suiteRoot, 'src/ssr-benchmark-worker.mjs'),
 			workingDirectory: suiteRoot,
 			serviceUrl: service.url,
-			environment: { COMPARISON_SSR_BOUNDED_TELEMETRY: '1' }
+			environment: { COMPARISON_SSR_BOUNDED_TELEMETRY: '1', COMPARISON_CLIENT_TAGS: clientTags }
 		});
 		workers.push(worker);
 		await startBrowserFrontend(id, 4401 + index, worker);
@@ -61,13 +70,6 @@ async function startBrowserFrontend(id, port, worker) {
 	const browserDirectory = ['exact', 'react'].includes(id)
 		? resolve(suiteRoot, 'participants', id, 'dist')
 		: undefined;
-	const index = browserDirectory
-		? await readFile(resolve(browserDirectory, 'index.html'), 'utf8')
-		: '';
-	const tags =
-		index
-			.match(/(?:<script[^>]+src="[^"]+"[^>]*><\/script>|<link[^>]+href="[^"]+"[^>]*>)/g)
-			?.join('\n') ?? '';
 	const server = createServer(async (request, response) => {
 		try {
 			const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
@@ -102,9 +104,7 @@ async function startBrowserFrontend(id, port, worker) {
 				)
 			);
 			response.writeHead(upstream.status, headers);
-			if (tags && upstream.headers.get('content-type')?.includes('text/html'))
-				response.end((await upstream.text()).replace('</head>', `${tags}</head>`));
-			else response.end(new Uint8Array(await upstream.arrayBuffer()));
+			response.end(new Uint8Array(await upstream.arrayBuffer()));
 		} catch (error) {
 			if (!response.headersSent) response.writeHead(500, { 'content-type': 'text/plain' });
 			response.end(String(error));

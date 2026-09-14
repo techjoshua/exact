@@ -1,13 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { ExactValueSerializationSchema } from '@exactjs/core/framework/component-contracts';
-import { ProjectedRecords } from './positional-projection.fixtures.test.js';
+import { describe, expect, it, vi } from 'vitest';
 import { validateJsonSafeHydrationValue } from './hydration-json.js';
+import { ProjectedRecords } from './positional-projection.fixtures.test.js';
 import { readServerComponentReference } from './render/server-component-reference.js';
-import { createOperation } from './test-support/native-operations.js';
 import {
 	readPositionalProjector,
 	registerPositionalProjector
 } from './runtime/positional-projection.js';
+import { createOperation } from './test-support/native-operations.js';
 
 vi.mock(
 	'@exactjs/ssr/runtime/positional-projection',
@@ -91,7 +91,7 @@ describe('compiled positional projection', () => {
 		}
 	);
 
-	it('falls back for unsupported projector versions and legacy tuples', () => {
+	it('falls back for unsupported projector versions and unregistered schemas', () => {
 		const project = readPositionalProjector(record)!;
 		const unsupported = vi.fn(project);
 		registerPositionalProjector(record, 2, unsupported);

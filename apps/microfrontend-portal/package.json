@@ -14,20 +14,20 @@
 		"test": "vitest run --testTimeout=60000"
 	},
 	"dependencies": {
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/hydrate": "^0.1.0",
-		"@exactjs/jsx": "^0.1.0",
-		"@exactjs/microfrontends": "^0.1.0",
-		"@exactjs/node-adapter": "^0.1.0",
-		"@exactjs/server": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/hydrate": "^0.5.0",
+		"@exactjs/jsx": "^0.5.0",
+		"@exactjs/microfrontends": "^0.5.0",
+		"@exactjs/node-adapter": "^0.5.0",
+		"@exactjs/server": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.2",
-		"@exactjs/vite-plugin": "^0.1.0",
+		"@exactjs/vite-plugin": "^0.5.0",
 		"typescript": "^7.0.2",
 		"vite": "^8.1.5",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	}
 }

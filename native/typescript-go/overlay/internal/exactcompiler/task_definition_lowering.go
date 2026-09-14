@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 type nativeTaskDependency struct {
@@ -79,6 +79,11 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		explicit = arguments[:len(arguments)-1]
 	}
 	contextBindings := lowering.taskContextWriteBindings(work, task.ID)
+	synchronousComputation := !task.Invoked &&
+		(lowering.contractProjection == ComponentContractProjectionHydrate ||
+			(lowering.target == TargetClient && directServerSetupComputation(task))) &&
+		strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") &&
+		!task.Async && len(contextBindings) == 0 && len(task.ResultWritePath) == 0
 	directServerComputation := lowering.target == TargetServer &&
 		directServerSetupComputation(task) && len(contextBindings) == 0
 	directComponent, directTransition, directServerSlice :=
@@ -265,7 +270,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			)
 			rebuiltTaskCallee = true
 		}
-	} else if lowering.target == TargetClient && task.Placement == "isomorphic" {
+	} else if lowering.target == TargetClient && task.Placement == "isomorphic" && !synchronousComputation {
 		// Hydration uses the compiler-owned continuation identity to suppress the
 		// initial client activation when the same setup work settled during SSR.
 		// Keep the authored isomorphic implementation, but brand the callable just
@@ -317,9 +322,11 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		rewrittenWork = lowering.inspectionSource(task.ID, rewrittenWork)
 	}
 	if !task.Invoked {
-		if lowering.contractProjection == ComponentContractProjectionHydrate &&
-			strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") &&
-			!task.Async && len(contextBindings) == 0 && len(task.ResultWritePath) == 0 {
+		// Pure synchronous client computations initialize state before SSR restoration in every
+		// projection. Scheduling them as tasks would overwrite restored state after construction.
+		// Computations have no cross-boundary task generation to brand. Passing the unbranded
+		// callable also preserves the synchronous helper's contextual signal-parameter type.
+		if synchronousComputation {
 			return lowering.taskHelperCall(
 				"activateComputationForHost",
 				lowering.names.activateComputation,

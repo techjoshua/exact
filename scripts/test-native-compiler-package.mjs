@@ -43,12 +43,15 @@ try {
 
 	const executable = path.join(packageRoot, process.platform === 'win32' ? 'exactc.exe' : 'exactc');
 	const response = await requestVersion(executable);
-	const contracts = await readFile(
-		path.resolve('native', 'typescript-go', 'overlay', 'internal', 'exactcompiler', 'contracts.go'),
-		'utf8'
+	// Read the source contract directly so this smoke test also works before workspace builds.
+	const contracts = JSON.parse(
+		await readFile(new URL('./contracts/compiler-abi.json', import.meta.url), 'utf8')
 	);
-	const expectedProtocol = contracts.match(/const ProtocolVersion = "([^"]+)"/)?.[1];
-	assert.ok(expectedProtocol, 'native protocol version was not declared');
+	const expectedProtocol = contracts.versions?.compilerProcess;
+	assert.ok(
+		typeof expectedProtocol === 'string' && expectedProtocol.length > 0,
+		'native protocol version was not declared'
+	);
 	assert.equal(response.protocolVersion, expectedProtocol);
 	assert.match(response.typescriptVersion, /^7\./);
 	assert.equal(response.backendVersion, expectedProtocol);

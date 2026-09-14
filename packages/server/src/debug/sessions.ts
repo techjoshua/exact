@@ -22,6 +22,12 @@ export type ExactDebugSession = {
 
 /** Session lifecycle and revocation operations owned by one server context. */
 export interface ExactDebugSessionManager {
+	/** Authorizes request-scoped remote correlation without creating or coordinating retained sessions. */
+	authorizeForwarded(
+		request: ExactRequestLike,
+		sessionId: string,
+		capability: ExactDebugCapability
+	): Promise<ExactDebugSession | undefined>;
 	open(
 		request: ExactRequestLike,
 		capabilities: readonly ExactDebugCapability[]
@@ -44,10 +50,29 @@ export function createExactDebugSessionManager(
 	limits: Required<Pick<ExactDebugLimits, 'maxSessions' | 'maxSessionMinutes'>>
 ): ExactDebugSessionManager {
 	const sessions = new Map<string, ExactDebugSession>();
+	let generation = 0;
 	const lifetime = limits.maxSessionMinutes * 60_000;
 	const inactivity = Math.min(lifetime, 5 * 60_000);
 	const manager: ExactDebugSessionManager = {
+		async authorizeForwarded(request, sessionId, capability) {
+			const authorizingGeneration = generation;
+			if (!sessionId || sessionId.length > 128 || /[\r\n\0]/.test(sessionId)) return undefined;
+			if (!(await authorize(context, request, capability))) return undefined;
+			const authenticatedIdentity = await resolveIdentity(context, request, capability);
+			if (authenticatedIdentity === null || authorizingGeneration !== generation) return undefined;
+			const openedAt = Date.now();
+			return {
+				id: sessionId,
+				openedAt,
+				absoluteExpiry: openedAt + lifetime,
+				expiresAt: openedAt + inactivity,
+				capabilities: new Set([capability]),
+				closeListeners: new Set(),
+				...(authenticatedIdentity ? { authenticatedIdentity } : {})
+			};
+		},
 		async open(request, requested) {
+			const openingGeneration = generation;
 			prune();
 			if (sessions.size >= limits.maxSessions) return undefined;
 			const capabilities = [...new Set(requested)];
@@ -59,7 +84,15 @@ export function createExactDebugSessionManager(
 				request,
 				capabilities[0] ?? 'snapshot'
 			);
-			if (authenticatedIdentity === null) return undefined;
+			// Authorization yields to other opens and shutdown. Publish only in the generation
+			// that started this request, with capacity checked at the actual insertion boundary.
+			prune();
+			if (
+				authenticatedIdentity === null ||
+				openingGeneration !== generation ||
+				sessions.size >= limits.maxSessions
+			)
+				return undefined;
 			const openedAt = Date.now();
 			const session: ExactDebugSession = {
 				id: randomSessionId(),
@@ -83,8 +116,16 @@ export function createExactDebugSessionManager(
 				manager.close(sessionId);
 				return undefined;
 			}
+			if (sessions.get(sessionId) !== session) return undefined;
+			if (expired(session)) {
+				manager.close(sessionId);
+				return undefined;
+			}
 			const authenticatedIdentity = await resolveIdentity(context, request, capability);
+			// A captured record is not authority after an await: revocation and expiry win.
+			if (sessions.get(sessionId) !== session) return undefined;
 			if (
+				expired(session) ||
 				authenticatedIdentity === null ||
 				authenticatedIdentity !== session.authenticatedIdentity
 			) {
@@ -121,6 +162,7 @@ export function createExactDebugSessionManager(
 			return true;
 		},
 		closeAll() {
+			generation++;
 			for (const id of [...sessions.keys()]) manager.close(id);
 		}
 	};
@@ -174,7 +216,8 @@ function authorizationContext(
 		request,
 		platformRequest: request.platformRequest ?? context.platformRequest,
 		capability,
-		binding: requestHeader(request, 'x-exact-binding'),
+		binding:
+			requestHeader(request, 'x-exact-binding') ?? requestHeader(request, 'x-exact-debug-binding'),
 		buildKey: requestHeader(request, 'x-exact-build'),
 		executionRoots:
 			context.inspectionCatalogs?.flatMap((catalog) => Object.keys(catalog.roots)) ?? []

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 type renderProgramContext struct {
@@ -18,6 +18,7 @@ type renderProgramSlot struct {
 	kind              string
 	textPrefix        string
 	textSuffix        string
+	textRun           bool
 	path              []int
 	node              int
 	name              string
@@ -44,21 +45,24 @@ type renderProgramSsrAttribute struct {
 
 // renderProgramBuild owns the finite intrinsic topology and its parallel server segments.
 type renderProgramBuild struct {
-	template       strings.Builder
-	serverSegment  strings.Builder
-	serverSegments []string
-	serverSlots    []int
-	slots          []renderProgramSlot
-	nodes          []renderProgramNode
-	namespace      string
-	declineReason  string
-	rootAttributes *ast.Node
-	rootStaticHtml string
-	rootStaticKeys []string
-	rootSsrPlan    []renderProgramSsrAttribute
-	rootSsrClosed  bool
-	directOperands map[int]componentUpdateDependency
-	nextMarker     int
+	template          strings.Builder
+	serverSegment     strings.Builder
+	serverSegments    []string
+	serverSlots       []int
+	slots             []renderProgramSlot
+	nodes             []renderProgramNode
+	namespace         string
+	declineReason     string
+	rootAttributes    *ast.Node
+	rootStaticHtml    string
+	rootStaticKeys    []string
+	rootSsrPlan       []renderProgramSsrAttribute
+	rootSsrClosed     bool
+	rootScalarValue   *ast.Node
+	rootScalarFactory *ast.Node
+	directOperands    map[int]componentUpdateDependency
+	textRuns          map[int][]*ast.Node
+	nextMarker        int
 }
 
 func (build *renderProgramBuild) decline(reason string) bool {
@@ -118,6 +122,9 @@ func (build *renderProgramBuild) serverSlot(index int) {
 // template is target-neutral; serverSegments also contain target-only attribute slots and cannot
 // define a client/server hydration contract.
 func (build *renderProgramBuild) markerlessTextSlot(index int) bool {
+	if build.slots[index].textRun {
+		return true
+	}
 	placeholder := fmt.Sprintf("<!---->\ue000exact:%d\ue001<!---->", index)
 	template := build.template.String()
 	position := strings.Index(template, placeholder)

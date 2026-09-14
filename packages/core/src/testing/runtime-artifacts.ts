@@ -80,7 +80,7 @@ export function createExactFrameworkFixtureArtifact<T extends AnyExactComponentC
 		return component;
 	}
 	if (existing && !existing.artifact) {
-		if (existing.version !== 3)
+		if (existing.version !== 1)
 			throw new TypeError('A framework fixture requires a current component contract');
 		const hasContexts =
 			(existing.resumption?.contexts.length ?? 0) !== 0 ||
@@ -184,7 +184,7 @@ function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
 		directServer
 	);
 	const contract: ExactComponentContract = {
-		version: 3,
+		version: 1,
 		placement: target,
 		role: target === 'client' ? 'client' : 'executor',
 		implementations: [

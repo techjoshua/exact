@@ -68,14 +68,15 @@ function mergeContractEntries<T>(
 	additional: Record<string, T> | undefined,
 	kind: string
 ): Record<string, T> {
-	const output = { ...base };
+	if (additional === undefined) return { ...base };
+	const output = new Map(Object.entries(base));
 	for (const [id, entry] of Object.entries(additional ?? {})) {
-		const previous = output[id];
+		const previous = output.get(id);
 		if (previous && !sameJsonData(previous, entry))
 			throw new Error(`Conflicting eXact executor ${kind} ${id}`);
-		output[id] = entry;
+		output.set(id, entry);
 	}
-	return output;
+	return Object.fromEntries(output);
 }
 
 /** Validates and removes empty per-operation endpoint maps. */
@@ -100,13 +101,12 @@ function normalizeEndpointMap(value: Record<string, string> | undefined): Record
 	if (value === undefined) return {};
 	if (!value || typeof value !== 'object' || Array.isArray(value))
 		throw new Error('Malformed eXact endpoint routes');
-	const output: Record<string, string> = {};
-	for (const [id, endpoint] of Object.entries(value)) {
+	const entries = Object.entries(value);
+	for (const [id, endpoint] of entries) {
 		if (!id || typeof endpoint !== 'string' || !endpoint)
 			throw new Error('Malformed eXact endpoint routes');
-		output[id] = endpoint;
 	}
-	return output;
+	return Object.fromEntries(entries);
 }
 
 /** Builds an application-owned operation contract without exposing compiler IDs. */

@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/accessibility",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Native-first accessibility enhancements and diagnostics for eXact",
 	"type": "module",
 	"files": [
@@ -8,7 +8,9 @@
 		"README.md",
 		"capability.d.ts",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -49,7 +51,7 @@
 		]
 	},
 	"exactComponentLibrary": {
-		"protocol": 2,
+		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	},
 	"exact": {
@@ -76,12 +78,12 @@
 		}
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.1.0",
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/language-extension-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/component-library": "^0.5.0",
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/language-extension-api": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"devDependencies": {
 		"prettier": "^3.6.2"
@@ -95,5 +97,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/accessibility"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

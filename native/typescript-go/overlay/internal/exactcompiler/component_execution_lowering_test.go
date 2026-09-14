@@ -572,7 +572,7 @@ func TestCompilerClosedServerRootSelectsNarrowStringRenderer(t *testing.T) {
 			AdapterExport: "adaptComponent",
 		},
 		Source: `
-			import { renderToStringAsync } from "@exactjs/ssr";
+			import { renderToString } from "@exactjs/ssr";
 			function Label(props: { label: string }) {
 				return () => <strong>{props.label}</strong>;
 			}
@@ -580,7 +580,7 @@ func TestCompilerClosedServerRootSelectsNarrowStringRenderer(t *testing.T) {
 				return () => <main><Label label={props.label} /></main>;
 			}
 			export function render(label: string) {
-				return renderToStringAsync(<Page label={label} />, { markers: false });
+				return renderToString(<Page label={label} />, { markers: false });
 			}
 		`,
 	})
@@ -588,7 +588,7 @@ func TestCompilerClosedServerRootSelectsNarrowStringRenderer(t *testing.T) {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	for _, expected := range []string{
-		`renderCompilerClosedUnmarkedToStringAsync as`,
+		`renderCompilerClosedUnmarkedToString as`,
 		`from "@exactjs/ssr/runtime/compiler-closed"`,
 		`__exactRenderClosedUnmarkedSsr(__exactComponentReceipt(Page`,
 	} {
@@ -597,7 +597,7 @@ func TestCompilerClosedServerRootSelectsNarrowStringRenderer(t *testing.T) {
 		}
 	}
 	if strings.Contains(response.Code, `from "@exactjs/ssr"`) ||
-		strings.Contains(response.Code, `renderToStringAsync(__exactComponentReceipt(Page`) {
+		strings.Contains(response.Code, `renderToString(__exactComponentReceipt(Page`) {
 		t.Fatalf("compiler-closed root retained the universal renderer:\n%s", response.Code)
 	}
 }
@@ -608,13 +608,13 @@ func TestCompilerClosedServerRootDoesNotRequireImportedChildGraphClosure(t *test
 	entryFile := filepath.Join(root, "entry.tsx")
 	childSource := `export function Child(props: { label: string }) { return () => <strong>{props.label}</strong>; }`
 	entrySource := `
-		import { renderToStringAsync } from "@exactjs/ssr";
+		import { renderToString } from "@exactjs/ssr";
 		import { Child } from "./child.js";
 		export function Page(props: { label: string }) {
 			return () => <main><Child label={props.label} /></main>;
 		}
 		export function render(label: string) {
-			return renderToStringAsync(<Page label={label} />, { markers: false });
+			return renderToString(<Page label={label} />, { markers: false });
 		}
 	`
 	for filename, source := range map[string]string{
@@ -632,9 +632,9 @@ func TestCompilerClosedServerRootDoesNotRequireImportedChildGraphClosure(t *test
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	for _, expected := range []string{
-		`renderCompilerClosedUnmarkedToStringAsync as`,
+		`renderCompilerClosedUnmarkedToString as`,
 		`from "@exactjs/ssr/runtime/compiler-closed"`,
-		`__exactSsr.directComponent(__exactContext, __exactOutput, Child,`,
+		`__exactSsr.reference(Child,`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("imported child ABI root is missing %q:\n%s", expected, response.Code)
@@ -649,16 +649,16 @@ func TestCompilerClosedMarkedServerRootRetainsMarkerFormatting(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-root-marked.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
-			import { renderToStringAsync } from "@exactjs/ssr";
+			import { renderToString } from "@exactjs/ssr";
 			export function Page() { return () => <main>ready</main>; }
-			export function render() { return renderToStringAsync(<Page />); }
+			export function render() { return renderToString(<Page />); }
 		`,
 	})
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
-		strings.Contains(response.Code, `renderCompilerClosedUnmarkedToStringAsync as`) {
+	if !strings.Contains(response.Code, `renderCompilerClosedToString as`) ||
+		strings.Contains(response.Code, `renderCompilerClosedUnmarkedToString as`) {
 		t.Fatalf("marked closed root did not retain marker formatting:\n%s", response.Code)
 	}
 }
@@ -667,13 +667,13 @@ func TestCompilerClosedServerRootInsideNestedArrowSelectsNarrowRenderer(t *testi
 	response := NewSession().Execute(Request{
 		ID: "server-root-nested-arrow.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
-			import { renderToStringAsync } from "@exactjs/ssr";
+			import { renderToString } from "@exactjs/ssr";
 			export function Page(props: { value: number }) {
 				return () => <main>{props.value}</main>;
 			}
 			export function renderMany(values: number[], markers: boolean) {
 				return Promise.all(values.map((value) =>
-					renderToStringAsync(<Page value={value} />, {
+					renderToString(<Page value={value} />, {
 						markers,
 						maxAsyncSsrConcurrency: 4
 					})
@@ -684,7 +684,7 @@ func TestCompilerClosedServerRootInsideNestedArrowSelectsNarrowRenderer(t *testi
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+	if !strings.Contains(response.Code, `renderCompilerClosedToString as`) ||
 		strings.Contains(response.Code, `from "@exactjs/ssr"`) {
 		t.Fatalf("nested compiler-closed root retained the universal renderer:\n%s", response.Code)
 	}
@@ -694,7 +694,7 @@ func TestCompilerClosedHydratableRootSelectsPairedRenderer(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-root-hydratable.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
-			import { renderToHydratableStringAsync } from "@exactjs/ssr";
+			import { renderToHydratableString } from "@exactjs/ssr";
 			function Label(props: { label: string }) {
 				return () => <strong>{props.label}</strong>;
 			}
@@ -702,7 +702,7 @@ func TestCompilerClosedHydratableRootSelectsPairedRenderer(t *testing.T) {
 				return () => <main><Label label={props.label} /></main>;
 			}
 			export function render(label: string) {
-				return renderToHydratableStringAsync(<Page label={label} />);
+				return renderToHydratableString(<Page label={label} />);
 			}
 		`,
 	})
@@ -710,7 +710,7 @@ func TestCompilerClosedHydratableRootSelectsPairedRenderer(t *testing.T) {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
 	for _, expected := range []string{
-		`renderCompilerClosedToHydratableStringAsync as`,
+		`renderCompilerClosedToHydratableString as`,
 		`from "@exactjs/ssr/runtime/compiler-closed"`,
 		`__exactRenderClosedHydratableSsr(__exactComponentReceipt(Page`,
 	} {
@@ -719,7 +719,7 @@ func TestCompilerClosedHydratableRootSelectsPairedRenderer(t *testing.T) {
 		}
 	}
 	if strings.Contains(response.Code, `from "@exactjs/ssr"`) ||
-		strings.Contains(response.Code, `renderToHydratableStringAsync(__exactComponentReceipt(Page`) {
+		strings.Contains(response.Code, `renderToHydratableString(__exactComponentReceipt(Page`) {
 		t.Fatalf("compiler-closed hydratable root retained the universal renderer:\n%s", response.Code)
 	}
 }
@@ -734,7 +734,7 @@ func TestUnmarkedClosedServerOnlyRootOmitsResumptionFormatting(t *testing.T) {
 				ID: "server-root-unmarked-" + name + ".tsx", Kind: "compile", Target: TargetServer,
 				Source: `
 					import { TaskContext } from "@exactjs/core";
-					import { renderToStringAsync } from "@exactjs/ssr";
+					import { renderToString } from "@exactjs/ssr";
 					declare class Component<State> { state: State }
 					` + exported + `function Page(this: Component<{ value: string }>) {
 						async function load(_task: TaskContext = TaskContext.server().blocking()) {
@@ -744,7 +744,7 @@ func TestUnmarkedClosedServerOnlyRootOmitsResumptionFormatting(t *testing.T) {
 						return () => <main>{this.state.value}</main>;
 					}
 					export function render() {
-						return renderToStringAsync(<Page />, { markers: false });
+						return renderToString(<Page />, { markers: false });
 					}
 				`,
 			})
@@ -793,21 +793,21 @@ func TestCompilerClosedServerRootIncludesDirectContextDescendant(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-root-generic-child.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
-			import { renderToStringAsync } from "@exactjs/ssr";
+			import { renderToString } from "@exactjs/ssr";
 			declare class Component { getContext(token: unknown): unknown }
 			function ContextChild(this: Component) {
 				this.getContext(Symbol.for("request"));
 				return () => <strong>ready</strong>;
 			}
 			export function Page() { return () => <main><ContextChild /></main>; }
-			export function render() { return renderToStringAsync(<Page />); }
+			export function render() { return renderToString(<Page />); }
 		`,
 	})
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
-		strings.Contains(response.Code, `renderToStringAsync(__exactComponentReceipt(Page`) ||
+	if !strings.Contains(response.Code, `renderCompilerClosedToString as`) ||
+		strings.Contains(response.Code, `renderToString(__exactComponentReceipt(Page`) ||
 		strings.Contains(response.Code, `lane: "generic"`) {
 		t.Fatalf("direct context descendant did not select the narrow renderer:\n%s", response.Code)
 	}
@@ -843,19 +843,19 @@ func TestCompilerClosedServerRootUsesFocusedChildOperationForGeneralChildSlot(t 
 	response := NewSession().Execute(Request{
 		ID: "server-root-general-child.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
-			import { renderToStringAsync } from "@exactjs/ssr";
+			import { renderToString } from "@exactjs/ssr";
 			export function Page(props: { content: unknown }) {
 				return () => <main>{props.content}</main>;
 			}
 			export function render(content: unknown) {
-				return renderToStringAsync(<Page content={content} />);
+				return renderToString(<Page content={content} />);
 			}
 		`,
 	})
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
+	if !strings.Contains(response.Code, `renderCompilerClosedToString as`) ||
 		!strings.Contains(response.Code, `__exactRenderClosedSsr(__exactComponentReceipt(Page`) {
 		t.Fatalf("general child slot did not retain its focused operation in the narrow renderer:\n%s", response.Code)
 	}
@@ -873,18 +873,18 @@ func TestCompilerClosedServerRootRetainsUniversalRendererForDynamicMarkupOptions
 			response := NewSession().Execute(Request{
 				ID: "server-root-" + name + ".tsx", Kind: "compile", Target: TargetServer,
 				Source: `
-					import { renderToStringAsync } from "@exactjs/ssr";
+					import { renderToString } from "@exactjs/ssr";
 					export function Page() { return () => <main>ready</main>; }
 					export function render(options: { reactMarkup?: boolean; markers?: boolean }) {
-						return renderToStringAsync(<Page />, ` + options + `);
+						return renderToString(<Page />, ` + options + `);
 					}
 				`,
 			})
 			if response.Error != "" || len(response.Diagnostics) != 0 {
 				t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 			}
-			if strings.Contains(response.Code, `renderCompilerClosedToStringAsync as`) ||
-				!strings.Contains(response.Code, `renderToStringAsync(__exactComponentReceipt(Page`) {
+			if strings.Contains(response.Code, `renderCompilerClosedToString as`) ||
+				!strings.Contains(response.Code, `renderToString(__exactComponentReceipt(Page`) {
 				t.Fatalf("%s render options incorrectly selected the narrow renderer:\n%s", name, response.Code)
 			}
 		})

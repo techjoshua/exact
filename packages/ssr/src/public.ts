@@ -1,6 +1,5 @@
 export { diffBoundaryHtml, diffKeyedListItems } from './diff.js';
 export { renderHydrationScript } from './hydration.js';
-export { renderToHydratableStringAsync, renderToStringAsync } from './render/async-rendering.js';
 export {
 	renderExactRequestToHtmlResponse,
 	renderExactRequestToProgressiveHtmlResponse,
@@ -8,17 +7,16 @@ export {
 	renderToHydratableDocumentStream,
 	renderToHydratableProgressiveHtmlResponse,
 	renderToHydratableProgressiveHtmlStream,
-	renderToHydratableString,
 	renderToProgressiveHtmlResponse,
 	renderToProgressiveHtmlStream,
-	renderToStream,
-	renderToString
+	renderToStream
 } from './render/entrypoints.js';
+export { renderToHydratableString, renderToString } from './render/render-output.js';
 export {
-	createInvocationRefreshHandler,
 	createBoundaryRefreshHandler,
 	createExactServerHandlerRegistry,
 	createExactServerRuntime,
+	createInvocationRefreshHandler,
 	createKeyedListRefreshHandler,
 	parseKeyedListSnapshotHtml,
 	renderKeyedListSnapshot

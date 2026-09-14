@@ -75,7 +75,7 @@ const measurements = {};
 		const fixture = await buildDevToolsPerformanceFixture(temporary);
 		const { renderLargeList } = await import(pathToFileURL(fixture).href);
 		const started = performance.now();
-		const rendered = renderLargeList(5_000);
+		const rendered = await renderLargeList(5_000);
 		measurements.ssrMs = performance.now() - started;
 		assert.ok(rendered.html.includes('item-4999'));
 		assert.ok(measurements.ssrMs < budgets.ssrMs);

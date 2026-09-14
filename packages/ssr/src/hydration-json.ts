@@ -1,7 +1,7 @@
-import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type { ExactValueSerializationSchema } from '@exactjs/core/framework/component-contracts';
-import type { SsrSerializedResumption } from './resumption.js';
+import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type { PositionalRootPublication } from './render/root-props.js';
+import type { SsrSerializedResumption } from './resumption.js';
 import {
 	readPositionalProjector,
 	type PositionalProjectionContext
@@ -17,7 +17,7 @@ import {
 type DirectHydrationShape = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 type ValidationState = Omit<PositionalProjectionContext, 'active'> & {
-	active: Set<object> | HydrationAncestors;
+	active: PositionalProjectionContext['active'];
 	readonly onValidatedArray?: (value: unknown[]) => void;
 	readonly path?: ValidationPath;
 	readonly positionalRoot?: PositionalRootPublication;
@@ -50,7 +50,8 @@ class HydrationAncestors {
 
 	/** Unwinds the most recently entered container, including early validation failures. */
 	delete(value: object): boolean {
-		if (this.values.at(-1) !== value) throw new Error('Unbalanced hydration ancestor');
+		if (this.values[this.values.length - 1] !== value)
+			throw new Error('Unbalanced hydration ancestor');
 		this.values.pop();
 		return true;
 	}
@@ -291,7 +292,19 @@ function validatePositionalValue(
 	depth: number,
 	state: ValidationState
 ): unknown | typeof positionalMismatch | typeof positionalUnsafe {
-	if (schema === 0) return validateValue(value, depth, state) ? value : positionalUnsafe;
+	if (schema === 0) {
+		// Primitive cells need the same budgets and JSON rules, but no container traversal.
+		if (value === null || typeof value !== 'object') {
+			if (++state.nodes > state.maxNodes || depth > state.maxDepth) return positionalUnsafe;
+			return value === null ||
+				typeof value === 'string' ||
+				typeof value === 'boolean' ||
+				(typeof value === 'number' && Number.isFinite(value))
+				? value
+				: positionalUnsafe;
+		}
+		return validateValue(value, depth, state) ? value : positionalUnsafe;
+	}
 	if (++state.nodes > state.maxNodes || depth > state.maxDepth) return positionalUnsafe;
 	if (!value || typeof value !== 'object' || state.active.has(value)) return positionalMismatch;
 	if (state.active instanceof HydrationAncestors && state.active.values.length >= 16)
@@ -309,8 +322,6 @@ function validatePositionalValue(
 			const projector =
 				value.length >= 16 && !state.path ? readPositionalProjector(schema[1]) : undefined;
 			if (projector) {
-				// Version-one projectors retain their native Set contract, including existing ancestors.
-				if (state.active instanceof HydrationAncestors) state.active = new Set(state.active.values);
 				for (let index = 0; index < value.length; index++) {
 					if (!Object.hasOwn(value, index)) return positionalMismatch;
 					const encoded = projector(

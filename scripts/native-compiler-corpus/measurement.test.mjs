@@ -1,3 +1,4 @@
+import { medianNativeProjectResults } from './measurement.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -5,7 +6,6 @@ import {
 	isNativeCompilerCorpusProject,
 	isNativeCompilerCorpusSource,
 	medianNativeCorpusResult,
-	medianNativeProjectElapsedMs,
 	nativeBaselineComparison,
 	nativeCorpusTimingReview,
 	normalizedNativeBaselineElapsedMs,
@@ -44,7 +44,7 @@ test('selects the median corpus sample by elapsed time', () => {
 });
 
 test('selects project medians independently of whole-corpus sample order', () => {
-	const medians = medianNativeProjectElapsedMs([
+	const medians = medianNativeProjectResults([
 		{
 			projects: [
 				{ config: 'a', elapsedMs: 10 },
@@ -67,8 +67,8 @@ test('selects project medians independently of whole-corpus sample order', () =>
 	assert.deepEqual(
 		[...medians],
 		[
-			['a', 20],
-			['b', 20]
+			['a', { config: 'a', elapsedMs: 20 }],
+			['b', { config: 'b', elapsedMs: 20 }]
 		]
 	);
 });
@@ -106,4 +106,16 @@ test('marks noisy local timing non-publishable without rejecting corpus evidence
 		guardRatio: 1.11,
 		maxBaselineRatio: 1.5
 	});
+});
+
+test('project medians retain the selected observation phases and counters', () => {
+	const sample = (elapsedMs, count) => ({
+		projects: [
+			{ config: 'app', elapsedMs, counters: { count }, phaseMicroseconds: { parse: count } }
+		]
+	});
+	const selected = medianNativeProjectResults([sample(30, 3), sample(10, 1), sample(20, 2)]).get(
+		'app'
+	);
+	assert.deepEqual(selected, sample(20, 2).projects[0]);
 });

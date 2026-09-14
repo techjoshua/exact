@@ -30,7 +30,10 @@ import { createForeignReplacementParking } from './replacement-parking.js';
 
 export { bindText } from './text-binding.js';
 
-/** Performs the patch children domain operation. */
+/**
+ * Reconciles a sibling list and publishes ownership-dependent completion afterward.
+ * A keyed item's nested single-child pass defers completion to its enclosing sibling pass.
+ */
 export function patchChildren(
 	root: Root,
 	parent: Node,
@@ -39,7 +42,8 @@ export function patchChildren(
 	parentInstance?: AnyComponentInstance,
 	parentScope?: EffectScope,
 	before?: Node | null,
-	structuralOwner?: Mounted
+	structuralOwner?: Mounted,
+	complete = true
 ): Mounted[] {
 	if (root.interactionWork) root.interactionWork.reconciliations++;
 	domDebug(root, 'patch children', () => ({
@@ -61,7 +65,8 @@ export function patchChildren(
 				parentInstance,
 				parentScope,
 				before,
-				structuralOwner
+				structuralOwner,
+				complete
 			);
 		})
 	);
@@ -76,7 +81,8 @@ function patchMixedNativeChildren(
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope | undefined,
 	before: Node | null | undefined,
-	structuralOwner: Mounted | undefined
+	structuralOwner: Mounted | undefined,
+	complete: boolean
 ): Mounted[] {
 	const oldKeys = new Map<string, { mounted: Mounted; index: number }>();
 	const oldUnkeyed: Array<{ mounted: Mounted; index: number }> = [];
@@ -169,11 +175,11 @@ function patchMixedNativeChildren(
 		}
 	}
 	throwTeardownFailure(teardown);
-	completeChildReconciliation(root, parentInstance, structuralOwner);
+	if (complete) completeChildReconciliation(root, parentInstance, structuralOwner);
 	return mounted;
 }
 
-/** Patches one compiler-issued operation without normalizing it into renderer topology. */
+/** Patches one compiler-issued operation; the enclosing sibling pass owns completion. */
 function patchCompilerChildReceipt(
 	root: Root,
 	parent: Node,
@@ -213,10 +219,7 @@ function patchCompilerChildReceipt(
 		parentScope,
 		structuralOwner
 	);
-	if (patched) {
-		completeChildReconciliation(root, parentInstance, structuralOwner);
-		return patched;
-	}
+	if (patched) return patched;
 	const previousParking = root.replacementParking;
 	const parking = createForeignReplacementParking(oldChild, parent);
 	root.replacementParking = parking;
@@ -235,7 +238,6 @@ function patchCompilerChildReceipt(
 	}
 	for (const remaining of parking.mounts.values())
 		for (const parked of remaining) disposeMounted(parked.parent, parked.mounted);
-	completeChildReconciliation(root, parentInstance, structuralOwner);
 	return replacement;
 }
 

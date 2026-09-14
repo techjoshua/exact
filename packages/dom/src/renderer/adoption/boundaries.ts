@@ -32,7 +32,7 @@ import { scalarText } from '../scalar-child.js';
 import { adoptCompiledRenderProgram } from '../render-program.js';
 import { countDomWork, withTreeDepth } from '../limits.js';
 
-/** Performs the boundary markers domain operation. */
+/** Finds the first direct-child exact marker and its matching closing comment, without mutating DOM. */
 export function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {
 	const comments = Array.from(container.childNodes).filter(
 		(node): node is Comment => node.nodeType === Node.COMMENT_NODE
@@ -43,7 +43,7 @@ export function boundaryMarkers(container: Element): { start: Comment; end: Comm
 	return end ? { start, end } : undefined;
 }
 
-/** Performs the content nodes between domain operation. */
+/** Collects following siblings up to the closing anchor, excluding both anchors. */
 export function contentNodesBetween(start: Node, end: Node): Node[] {
 	const nodes: Node[] = [];
 	for (let current = start.nextSibling; current && current !== end; current = current.nextSibling)
@@ -51,17 +51,17 @@ export function contentNodesBetween(start: Node, end: Node): Node[] {
 	return nodes;
 }
 
-/** Creates a range anchor. */
+/** Creates an empty anchor; document parents require a comment because text children are invalid. */
 export function createRangeAnchor(parent: Node): Node {
 	return parent.nodeType === Node.DOCUMENT_NODE
 		? document.createComment('exact:component-range')
 		: document.createTextNode('');
 }
 
-/** Defines the framework child range type contract. */
+/** Bounds framework-owned content that must be excluded from authored child adoption. */
 export type FrameworkChildRange = { start: Comment; end: Comment };
 
-/** Performs the framework child range domain operation. */
+/** Finds an ordered pair of direct-child framework body markers; incomplete ranges are not adopted. */
 export function frameworkChildRange(parent: Element): FrameworkChildRange | undefined {
 	const children = Array.from(parent.childNodes);
 	const startIndex = children.findIndex(
@@ -79,7 +79,7 @@ export function frameworkChildRange(parent: Element): FrameworkChildRange | unde
 	};
 }
 
-/** Performs the authored child nodes domain operation. */
+/** Selects authored siblings outside the framework range, excluding both of its markers. */
 export function authoredChildNodes(
 	parent: Element,
 	framework: FrameworkChildRange | undefined
@@ -101,7 +101,7 @@ export function authoredChildNodes(
 	return nodes;
 }
 
-/** Performs the adopt static children domain operation. */
+/** Adopts the complete requested node slice, releasing partial mounts if its topology does not match. */
 export function adoptStaticChildren(
 	root: Root,
 	children: Child[],
@@ -171,7 +171,11 @@ export function isChildRangeOpening(value: string): boolean {
 	return value === 'x' || value.startsWith('exact:dynamic:');
 }
 
-/** Performs the adopt static children range domain operation. */
+/**
+ * Matches compiler receipts to existing nodes and transfers their effect scopes to the adopting
+ * owner. A mismatch unmounts partial work and returns undefined. When requireAll is false,
+ * next identifies the first unconsumed node; otherwise the entire slice must match.
+ */
 export function adoptStaticChildrenRange(
 	root: Root,
 	children: Child[],

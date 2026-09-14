@@ -1,19 +1,21 @@
 {
 	"name": "@exactjs/create-exact-app",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Interactive project scaffolder for eXact web applications",
 	"type": "module",
 	"bin": {
 		"create-exact-app": "./dist/cli.js"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"LICENSE",
+		"NOTICE"
 	],
 	"dependencies": {
-		"@exactjs/agent-skill": "^0.1.0"
+		"@exactjs/agent-skill": "^0.5.0"
 	},
 	"devDependencies": {
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"scripts": {
 		"build": "tsc -b",
@@ -22,5 +24,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/create-exact-app"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

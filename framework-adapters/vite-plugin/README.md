@@ -42,9 +42,7 @@ For `target: 'server'`, compiler-recorded component package requests are resolve
 before Vite loads their implementations. Configure trust once through `componentLibraries` in
 `exact.config.*`; successful builds emit server-private authorization and audit manifests under
 `.exact/`. Client-only package components do not pass through this server authorization gate.
-Automatic dependency discovery is disabled for server targets so unresolved component candidates
-cannot be prebundled before that gate; authorized packages still participate in ordinary Rollup
-chunking after resolution.
+Server dependency discovery waits for authorization; allowed packages use ordinary Rollup chunking.
 
 Attributed enhancement imports populate the shared bundle-local enhancement catalog. The adapter
 routes renderers through facades that supply it; the compiler maintains no plugin registry. An
@@ -78,3 +76,5 @@ instrumentation. Production client and server builds should share a stable build
 
 See [eXact DevTools](../../docs/devtools.md) and [component registries](../../docs/component-registries.md). Component authorization permits
 in-process server execution and is not a JavaScript sandbox.
+
+Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.

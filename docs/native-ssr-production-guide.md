@@ -231,3 +231,10 @@ Before production release:
    ceilings.
 6. Confirm executable contracts and client/server assets come from one release.
 7. Verify logger redaction and trace correlation in the deployment environment.
+
+## Explicit server registry ownership
+
+Invocation and boundary contracts, executors, manual handlers, and payload decoders must be own
+entries of their registration records. Prototype-inherited entries grant no server authority.
+An unknown or inherited operation is rejected before execution. A manual payload still needs an
+explicitly registered decoder; an inherited decoder does not satisfy that requirement.

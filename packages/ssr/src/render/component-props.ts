@@ -1,3 +1,5 @@
+import { resumeSsrWork } from './resume-scheduling.js';
+import type { SsrRenderOptions } from './entrypoints.js';
 import { plannedContinuationDependency } from '@exactjs/core';
 import { serverComponentDependencyForValue } from '@exactjs/core/framework/server-component-execution';
 
@@ -5,19 +7,23 @@ import { serverComponentDependencyForValue } from '@exactjs/core/framework/serve
 export function prepareComponentProps(
 	props: Record<string, unknown>,
 	deferredTaskProps: readonly string[] | undefined,
-	signal: AbortSignal | undefined
+	options: SsrRenderOptions
 ): Record<string, unknown> | Promise<Record<string, unknown>> {
 	let resolved: Record<string, unknown> | undefined;
 	let pending: Promise<readonly [key: string, value: unknown]>[] | undefined;
 	for (const key in props) {
 		if (!Object.hasOwn(props, key) || deferredTaskProps?.includes(key)) continue;
-		const source =
-			serverComponentDependencyForValue(props[key]) ?? plannedContinuationDependency(props[key]);
+		const value = props[key];
+		if (value === null || (typeof value !== 'object' && typeof value !== 'function')) continue;
+		const source = serverComponentDependencyForValue(value) ?? plannedContinuationDependency(value);
 		if (!source) continue;
 		const snapshot = source.read();
 		if (snapshot.status === 'pending') {
 			(pending ??= []).push(
-				availableSnapshot(source, signal).then((available) => [key, settledValue(key, available)])
+				availableSnapshot(source, options.signal).then((available) => [
+					key,
+					settledValue(key, available)
+				])
 			);
 			continue;
 		}
@@ -28,7 +34,7 @@ export function prepareComponentProps(
 		return Promise.all(pending).then((entries) => {
 			const output = resolved ?? { ...props };
 			for (const [key, value] of entries) output[key] = value;
-			return output;
+			return resumeSsrWork(options, () => output);
 		});
 	return resolved ?? props;
 }

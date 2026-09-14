@@ -42,10 +42,10 @@ const hashPattern = /^[0-9a-f]{32}$/;
 /** Encodes transport-safe reactive data with caller-owned keyed metadata lookup. */
 export function encodeKeyedProtocolValue(
 	value: unknown,
-	extractorFor: (collection: unknown[]) => ((item: unknown) => string) | undefined,
+	extractorFor: (collection: unknown[]) => ((item: unknown) => string | number) | undefined,
 	metadataFor: (
 		collection: unknown[],
-		key?: (item: unknown) => string
+		key?: (item: unknown) => string | number
 	) => KeyedCollectionProtocolMetadata | undefined
 ): unknown {
 	return encodeValue(value, extractorFor, metadataFor, new WeakSet(), 0);
@@ -61,10 +61,10 @@ export function decodeKeyedProtocolValue(
 
 function encodeValue(
 	value: unknown,
-	extractorFor: (collection: unknown[]) => ((item: unknown) => string) | undefined,
+	extractorFor: (collection: unknown[]) => ((item: unknown) => string | number) | undefined,
 	metadataFor: (
 		collection: unknown[],
-		key?: (item: unknown) => string
+		key?: (item: unknown) => string | number
 	) => KeyedCollectionProtocolMetadata | undefined,
 	active: WeakSet<object>,
 	depth: number

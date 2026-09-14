@@ -41,7 +41,7 @@ if (!supportedTargets.has(target)) throw new Error(`Unsupported native compiler 
 const sourceRoot = path.resolve(source);
 const revision = (await run('git', ['rev-parse', 'HEAD'], sourceRoot)).trim();
 if (revision !== upstream.revision) {
-	throw new Error(`TypeScript-Go checkout is ${revision}; expected ${upstream.revision}`);
+	throw new Error(`TypeScript checkout is ${revision}; expected ${upstream.revision}`);
 }
 const outputDirectory = path.join(repositoryRoot, '.tmp', 'native-compiler');
 await mkdir(outputDirectory, { recursive: true });
@@ -65,22 +65,38 @@ if (current) {
 	await rm(stageRoot, { recursive: true, force: true });
 	await mkdir(path.dirname(stageRoot), { recursive: true });
 	await run('git', ['worktree', 'prune'], sourceRoot);
-	await run('git', ['worktree', 'add', '--detach', stageRoot, upstream.revision], sourceRoot, true);
+	await run(
+		'git',
+		['worktree', 'add', '--detach', '--no-checkout', stageRoot, upstream.revision],
+		sourceRoot,
+		true
+	);
+	// The upstream test corpus is not needed to compile or test the eXact overlay.
+	await run('git', ['sparse-checkout', 'set', 'tsc/internal', 'tsc/cmd', 'tools'], stageRoot, true);
+	await run('git', ['read-tree', '-mu', 'HEAD'], stageRoot, true);
+	const compilerRoot = path.join(stageRoot, 'tsc');
 
 	const overlayRoot = path.join(nativeRoot, 'overlay');
-	for (const relative of ['internal/exactcompiler', 'cmd/exactc']) {
-		await cp(path.join(overlayRoot, relative), path.join(stageRoot, relative), {
+	for (const relative of ['internal/exactcompiler', 'internal/compiler', 'cmd/exactc']) {
+		await cp(path.join(overlayRoot, relative), path.join(compilerRoot, relative), {
 			recursive: true,
 			force: true
 		});
 	}
 
+	await run(
+		'git',
+		['apply', '--ignore-space-change', path.join(overlayRoot, 'internal/compiler/program.patch')],
+		stageRoot,
+		true
+	);
+
 	const go = process.env.EXACT_GO || 'go';
-	await run(go, ['test', './internal/exactcompiler', './cmd/exactc'], stageRoot, true);
+	await run(go, ['test', './internal/exactcompiler', './cmd/exactc'], compilerRoot, true);
 	await run(
 		go,
 		['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc'],
-		stageRoot,
+		compilerRoot,
 		true,
 		{
 			...process.env,
@@ -95,7 +111,8 @@ if (current) {
 		console.log(
 			await stageNativeCompilerPackage({
 				executable,
-				license: path.join(stageRoot, 'LICENSE'),
+				license: path.join(stageRoot, 'LICENSE.txt'),
+				notice: path.join(stageRoot, 'NOTICE.txt'),
 				platform: targetPlatform,
 				arch: targetArch
 			})
