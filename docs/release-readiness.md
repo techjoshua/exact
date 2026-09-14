@@ -181,7 +181,8 @@ It skips exact matches and grants only `--allow-stage-publish`, never direct pub
 Conflicting permissions for this workflow stop setup for manual review in npm. Unrelated
 publishers are preserved; review their permissions separately if every publisher must stage.
 Partial setup can be rerun. Creation is paced two seconds apart to avoid registry rate limits.
-The npm 2FA prompt can offer a five-minute authentication window for bulk setup.
+An interactive trust-settings read establishes npm authentication before the script captures
+JSON for preflight. The npm 2FA prompt can offer a five-minute authentication window for bulk setup.
 
 The configured GitHub repository is `techjoshua/exact`, workflow filename
 `native-compiler-packages.yml`, with no environment restriction. Run the workflow on `main`

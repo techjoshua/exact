@@ -151,6 +151,10 @@ else if (args[0] === 'view') {
 test('bulk executable creates stage-only trust and skips a verified existing grant', async (t) => {
 	const npm = await fakeNpm(t);
 	npm.run('./configure-npm-trust.mjs', ['--packages=@exactjs/forms', '--execute']);
+	const reads = (await npm.calls()).filter((args) => args[0] === 'trust' && args[1] === 'list');
+	// Captured JSON output prevents npm from starting interactive web authentication.
+	assert.ok(!reads[0].includes('--json'));
+	assert.ok(reads[1].includes('--json'));
 	assert.equal(
 		(await npm.calls()).filter((args) => args[0] === 'trust' && args[1] === 'github').length,
 		1
