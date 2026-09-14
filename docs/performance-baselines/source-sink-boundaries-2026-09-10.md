@@ -54,16 +54,16 @@ shell, four assets, and hydration/bootstrap output are included; streams are ful
 through Response.text(). No build or test ran concurrently with timing. All complete document
 hashes match their controls. Units are microseconds per document, not HTTP requests/s.
 
-| Runtime | Document | Mode | Before | Boundary integration | Change |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | assets | string | 35.23 | 35.68 | +1.3% |
-| node | assets | stream | 55.91 | 54.49 | -2.6% |
-| node | large | string | 160.19 | 160.14 | -0.0% |
-| node | large | stream | 192.47 | 194.47 | +1.0% |
-| bun | assets | string | 34.67 | 35.22 | +1.6% |
-| bun | assets | stream | 50.80 | 49.98 | -1.6% |
-| bun | large | string | 225.04 | 226.77 | +0.8% |
-| bun | large | stream | 279.62 | 278.88 | -0.3% |
+| Runtime | Document | Mode   | Before | Boundary integration | Change |
+| ------- | -------- | ------ | -----: | -------------------: | -----: |
+| node    | assets   | string |  35.23 |                35.68 |  +1.3% |
+| node    | assets   | stream |  55.91 |                54.49 |  -2.6% |
+| node    | large    | string | 160.19 |               160.14 |  -0.0% |
+| node    | large    | stream | 192.47 |               194.47 |  +1.0% |
+| bun     | assets   | string |  34.67 |                35.22 |  +1.6% |
+| bun     | assets   | stream |  50.80 |                49.98 |  -1.6% |
+| bun     | large    | string | 225.04 |               226.77 |  +0.8% |
+| bun     | large    | stream | 279.62 |               278.88 |  -0.3% |
 
 The small sample count and machine variation do not establish a throughput improvement.
 This work removes correctness blockers for selecting the shared destination. React was not

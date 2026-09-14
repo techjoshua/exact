@@ -22,11 +22,11 @@ A through D order. Each measured block uses fresh drivers, as before.
 ## Results
 
 | Replica | Previous A-to-D warmup mean RPS | Reversed D-to-A warmup mean RPS | Reversed-run block wins |
-| --- | ---: | ---: | ---: |
-| A | 8,005 | 8,813 | 4/8 |
-| B | 8,242 | 8,161 | 2/8 |
-| C | 7,747 | 7,556 | 0/8 |
-| D | 10,276 | 8,095 | 2/8 |
+| ------- | ------------------------------: | ------------------------------: | ----------------------: |
+| A       |                           8,005 |                           8,813 |                     4/8 |
+| B       |                           8,242 |                           8,161 |                     2/8 |
+| C       |                           7,747 |                           7,556 |                     0/8 |
+| D       |                          10,276 |                           8,095 |                     2/8 |
 
 The prior column comes from `structural-count-warmup-2026-09-10.md`. These are
 different worker populations and wall-clock periods. Differences between columns

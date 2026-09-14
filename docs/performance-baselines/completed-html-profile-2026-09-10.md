@@ -10,17 +10,17 @@ The workstation remained in active use. Sampled durations include the profiler's
 
 Sampled microseconds per valid request:
 
-| Category | eXact | React |
-| --- | ---: | ---: |
-| Rendering and components, excluding eXact hydration helpers | 81.80 | 64.83 |
-| eXact hydration JSON serialization | 9.65 | Included in rendering |
-| eXact hydration validation/projection | 5.13 | Included in rendering |
-| Other eXact hydration publication | 0.79 | Included in rendering |
-| Response ownership and adapter | 2.36 | No matching separate category |
-| HTTP output and socket | 43.71 | 42.61 |
-| HTTP input and dispatch | 18.48 | 15.74 |
-| GC | 4.82 | 1.75 |
-| Benchmark telemetry | 10.81 | 9.27 |
+| Category                                                    | eXact |                         React |
+| ----------------------------------------------------------- | ----: | ----------------------------: |
+| Rendering and components, excluding eXact hydration helpers | 81.80 |                         64.83 |
+| eXact hydration JSON serialization                          |  9.65 |         Included in rendering |
+| eXact hydration validation/projection                       |  5.13 |         Included in rendering |
+| Other eXact hydration publication                           |  0.79 |         Included in rendering |
+| Response ownership and adapter                              |  2.36 | No matching separate category |
+| HTTP output and socket                                      | 43.71 |                         42.61 |
+| HTTP input and dispatch                                     | 18.48 |                         15.74 |
+| GC                                                          |  4.82 |                          1.75 |
+| Benchmark telemetry                                         | 10.81 |                          9.27 |
 
 React's document component serializes its bootstrap data; it is not credited with zero serialization work. Summing eXact's rendering and hydration categories gives 97.38 microseconds versus React's 64.83 rendering category. Socket-output samples are close. The profiler does not establish the cause of the smaller input/dispatch difference.
 
@@ -38,12 +38,12 @@ Replaying the captured graph uses 20,000 warmups and 100,000 measured calls per 
 
 Replay reuses strings and containers that have already been serialized. A separate instrumented renderer therefore times JSON.stringify and escaping on newly prepared hydration graphs. Each runtime warms 50,000 full renders, then measures 20,000 for each fixture. Three performance.now calls per serialization add instrumentation overhead. Output hashes match the control, including the exact small HTTP identity.
 
-| Runtime | Fixture | JSON microseconds | Escaping microseconds | Sum |
-| --- | --- | ---: | ---: | ---: |
-| Node | 3 incidents | 1.09 | 0.74 | 1.84 |
-| Node | 96 incidents | 10.45 | 2.13 | 12.58 |
-| Bun | 3 incidents | 1.50 | 0.70 | 2.20 |
-| Bun | 96 incidents | 15.21 | 3.14 | 18.36 |
+| Runtime | Fixture      | JSON microseconds | Escaping microseconds |   Sum |
+| ------- | ------------ | ----------------: | --------------------: | ----: |
+| Node    | 3 incidents  |              1.09 |                  0.74 |  1.84 |
+| Node    | 96 incidents |             10.45 |                  2.13 | 12.58 |
+| Bun     | 3 incidents  |              1.50 |                  0.70 |  2.20 |
+| Bun     | 96 incidents |             15.21 |                  3.14 | 18.36 |
 
 This tight-loop diagnostic differs from HTTP profiling and does not invalidate the profile. It does invalidate interpreting the 9.65-microsecond HTTP sample attribution as a demonstrated amount that a new serializer would save. Serialization scales with payload size, but the observed small-document gap requires attention to the rest of component preparation and traversal. No JSON semantics, validation guarantees, byte limits or escaping rules were weakened.
 

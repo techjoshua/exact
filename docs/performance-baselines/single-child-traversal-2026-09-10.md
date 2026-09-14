@@ -17,11 +17,12 @@ outputs match the uninstrumented controls byte-for-byte. Trace duration is not b
 ## Paired HTTP comparison
 
 | Runtime/output | Prior eXact requests/s | Candidate eXact requests/s | React requests/s | Change | Positive blocks |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Node string | 8,583 | 8,283 | 12,599 | -3.5% | 1/6 |
-| Node stream | 7,259 | 7,242 | 5,123 | -0.2% | 3/6 |
-| Bun string | 10,639 | 10,832 | 10,509 | +1.8% | 5/6 |
-| Bun stream | 8,491 | 8,633 | 8,447 | +1.7% | 5/6 |
+| -------------- | ---------------------: | -------------------------: | ---------------: | -----: | --------------: |
+| Node string    |                  8,583 |                      8,283 |           12,599 |  -3.5% |             1/6 |
+| Node stream    |                  7,259 |                      7,242 |            5,123 |  -0.2% |             3/6 |
+| Bun string     |                 10,639 |                     10,832 |           10,509 |  +1.8% |             5/6 |
+| Bun stream     |                  8,491 |                      8,633 |            8,447 |  +1.7% |             5/6 |
+
 962,350 valid responses, zero errors.
 
 Rejected added branch: Node strings were 3.5% lower in the HTTP round. A follow-up isolating async closures measured Node encoded medians of 30.69 us (retained), 30.60 us (first candidate), and 30.66 us (isolated candidate), essentially unchanged. These results do not justify the added traversal path. The useful node-accounting assertions remain.

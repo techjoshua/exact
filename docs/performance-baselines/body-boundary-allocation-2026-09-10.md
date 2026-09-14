@@ -14,12 +14,12 @@ This is an asserted bundle transformation, not a complete compiler change. The i
 
 Node 26.8.1, production mode, fresh processes, two reversed orders, 50,000 warmups. Separate inspector allocation samples cover 10,000 renders per process at a 16 KiB sampling interval, including minor-collected and major-collected objects. GC captures cover 20,000 measured renders per process. Both fixtures include four assets and full application-owned documents. Whole-document hashes match.
 
-| Fixture | Metric | Current | Body boundary |
-| --- | --- | ---: | ---: |
-| 3 incidents | Estimated allocated KB/render | 73.15 | 68.91 |
-| 96 incidents | Estimated allocated KB/render | 545.53 | 519.81 |
-| 3 incidents | Collections / 20,000 renders | 90 | 85 |
-| 96 incidents | Collections / 20,000 renders | 327 | 312.5 |
+| Fixture      | Metric                        | Current | Body boundary |
+| ------------ | ----------------------------- | ------: | ------------: |
+| 3 incidents  | Estimated allocated KB/render |   73.15 |         68.91 |
+| 96 incidents | Estimated allocated KB/render |  545.53 |        519.81 |
+| 3 incidents  | Collections / 20,000 renders  |      90 |            85 |
+| 96 incidents | Collections / 20,000 renders  |     327 |         312.5 |
 
 Both allocation pairs improve. The mean reductions are 5.8% and 4.7%. The allocation attributed to createChunkedHydratableResult falls from approximately 4.64 to 0.88 KB per small render and 26.95 to 0.88 KB per large render. The final join remains approximately 4.7 and 36.4 KB respectively. This is evidence that avoiding completed-document inspection removes an intermediate materialization, rather than eliminating the final output string.
 
@@ -29,12 +29,12 @@ These are sampled JavaScript heap allocations, not exact object counts, retained
 
 A separate small-document screen uses 50,000 warmups and 20,000 measured iterations per fresh production process. Each iteration renders the complete string, constructs a Response, and awaits its text consumption. This includes encoding/decoding and forces consumption, but is not an HTTP throughput test.
 
-| Runtime | Order | Current microseconds | Body-boundary microseconds |
-| --- | --- | ---: | ---: |
-| Node | Current then candidate | 53.24 | 41.48 |
-| Node | Candidate then current | 40.39 | 44.17 |
-| Bun | Current then candidate | 37.68 | 38.27 |
-| Bun | Candidate then current | 33.48 | 36.99 |
+| Runtime | Order                  | Current microseconds | Body-boundary microseconds |
+| ------- | ---------------------- | -------------------: | -------------------------: |
+| Node    | Current then candidate |                53.24 |                      41.48 |
+| Node    | Candidate then current |                40.39 |                      44.17 |
+| Bun     | Current then candidate |                37.68 |                      38.27 |
+| Bun     | Candidate then current |                33.48 |                      36.99 |
 
 Node directions are mixed. Bun is slower in both pairs, approximately 5.8% on the two-run means. These results do not establish a cross-runtime speedup and do not justify adopting the synchronous fixture prototype. They do establish a concrete source of avoidable allocation worth considering in a properly designed document-boundary contract.
 

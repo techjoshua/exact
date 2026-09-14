@@ -10,14 +10,14 @@ Thirty-six fresh production processes cover Node/Bun string/encoded/stream, with
 
 Mean microseconds per render, lower is better:
 
-| Runtime | Mode | Retained eXact | Inline candidate | React | Candidate change |
-| --- | --- | ---: | ---: | ---: | ---: |
-| node | string | 165.68 | 165.78 | 130.08 | +0.1% |
-| node | encoded | 194.00 | 199.47 | 183.90 | +2.8% |
-| node | stream | 184.81 | 182.45 | 328.12 | -1.3% |
-| bun | string | 219.16 | 218.51 | 206.05 | -0.3% |
-| bun | encoded | 229.33 | 217.96 | 222.21 | -5.0% |
-| bun | stream | 261.83 | 269.76 | 308.59 | +3.0% |
+| Runtime | Mode    | Retained eXact | Inline candidate |  React | Candidate change |
+| ------- | ------- | -------------: | ---------------: | -----: | ---------------: |
+| node    | string  |         165.68 |           165.78 | 130.08 |            +0.1% |
+| node    | encoded |         194.00 |           199.47 | 183.90 |            +2.8% |
+| node    | stream  |         184.81 |           182.45 | 328.12 |            -1.3% |
+| bun     | string  |         219.16 |           218.51 | 206.05 |            -0.3% |
+| bun     | encoded |         229.33 |           217.96 | 222.21 |            -5.0% |
+| bun     | stream  |         261.83 |           269.76 | 308.59 |            +3.0% |
 
 The Node string gain from the shorter-warmup experiments does not repeat. Node encoded responses are slower in both orders, while Bun encoded responses are faster in both. String rendering is effectively flat. The candidate adds generated branches and trades performance between runtimes rather than establishing a broad improvement, so it remains out of production. This decision follows the active-path results, not the earlier uncertain small-document regression. The measurements do not establish a causal engine-level explanation for the tradeoff.
 

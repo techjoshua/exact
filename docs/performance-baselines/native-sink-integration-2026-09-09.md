@@ -24,16 +24,16 @@ consumed with Response.text. These are renderer measurements, not HTTP requests/
 React DOM 19.2.0 from its participant directory. All samples are retained; no build or test ran
 concurrently with timing. Complete eXact document hashes match across all paired variants.
 
-| Runtime | Mode | Document | Current eXact | Previous prototype | First native emitter | React |
-| --- | --- | --- | ---: | ---: | ---: | ---: |
-| node | string | assets | 35.15 | 37.04 | 37.56 | 22.13 |
-| node | string | large | 160.66 | 162.12 | 178.01 | 131.06 |
-| node | stream | assets | 55.91 | 57.74 | 58.68 | 66.86 |
-| node | stream | large | 195.72 | 190.38 | 200.01 | 336.12 |
-| bun | string | assets | 35.66 | 34.40 | 35.43 | 33.06 |
-| bun | string | large | 223.82 | 214.07 | 216.70 | 187.35 |
-| bun | stream | assets | 50.61 | 50.42 | 52.33 | 53.29 |
-| bun | stream | large | 295.23 | 262.74 | 270.62 | 272.43 |
+| Runtime | Mode   | Document | Current eXact | Previous prototype | First native emitter |  React |
+| ------- | ------ | -------- | ------------: | -----------------: | -------------------: | -----: |
+| node    | string | assets   |         35.15 |              37.04 |                37.56 |  22.13 |
+| node    | string | large    |        160.66 |             162.12 |               178.01 | 131.06 |
+| node    | stream | assets   |         55.91 |              57.74 |                58.68 |  66.86 |
+| node    | stream | large    |        195.72 |             190.38 |               200.01 | 336.12 |
+| bun     | string | assets   |         35.66 |              34.40 |                35.43 |  33.06 |
+| bun     | string | large    |        223.82 |             214.07 |               216.70 | 187.35 |
+| bun     | stream | assets   |         50.61 |              50.42 |                52.33 |  53.29 |
+| bun     | stream | large    |        295.23 |             262.74 |               270.62 | 272.43 |
 
 For large string rendering, the first native emitter widens Node's excess time over React from
 22.6% to 35.8%, while narrowing Bun's from 19.5% to 15.7%. Its Bun large-stream result is only
@@ -51,16 +51,16 @@ not introduce a separate traversal engine or discard backpressure.
 The next 48 processes compare the same preceding prototype, frozen first native emitter, and
 refinement using the same protocol. These are a separate paired run from the React table above.
 
-| Runtime | Mode | Document | Previous prototype | First native emitter | Refined emitter | Refined vs first |
-| --- | --- | --- | ---: | ---: | ---: | ---: |
-| node | string | assets | 36.06 | 37.45 | 37.03 | -1.1% |
-| node | string | large | 163.31 | 176.13 | 171.54 | -2.6% |
-| node | stream | assets | 57.06 | 58.92 | 57.37 | -2.6% |
-| node | stream | large | 197.16 | 205.88 | 202.55 | -1.6% |
-| bun | string | assets | 34.75 | 35.34 | 35.82 | +1.4% |
-| bun | string | large | 210.33 | 219.82 | 215.02 | -2.2% |
-| bun | stream | assets | 51.14 | 51.44 | 52.00 | +1.1% |
-| bun | stream | large | 265.63 | 268.91 | 266.13 | -1.0% |
+| Runtime | Mode   | Document | Previous prototype | First native emitter | Refined emitter | Refined vs first |
+| ------- | ------ | -------- | -----------------: | -------------------: | --------------: | ---------------: |
+| node    | string | assets   |              36.06 |                37.45 |           37.03 |            -1.1% |
+| node    | string | large    |             163.31 |               176.13 |          171.54 |            -2.6% |
+| node    | stream | assets   |              57.06 |                58.92 |           57.37 |            -2.6% |
+| node    | stream | large    |             197.16 |               205.88 |          202.55 |            -1.6% |
+| bun     | string | assets   |              34.75 |                35.34 |           35.82 |            +1.4% |
+| bun     | string | large    |             210.33 |               219.82 |          215.02 |            -2.2% |
+| bun     | stream | assets   |              51.14 |                51.44 |           52.00 |            +1.1% |
+| bun     | stream | large    |             265.63 |               268.91 |          266.13 |            -1.0% |
 
 The refinements recover part of the large-document regression on both runtimes. They do not
 recover the previous prototype's large string result, and Bun's small cases regress slightly.
@@ -74,11 +74,11 @@ processes used the same warmup and iteration counts. This was a complete-collect
 not validation of a replacement backpressure protocol.
 
 | Runtime | Document | Pair 1: refined / property | Pair 2: refined / property |
-| --- | --- | ---: | ---: |
-| node | assets | 36.79 / 36.00 | 36.42 / 36.75 |
-| node | large | 167.10 / 166.54 | 166.29 / 173.04 |
-| bun | assets | 35.19 / 34.70 | 34.95 / 34.92 |
-| bun | large | 208.74 / 216.63 | 218.02 / 214.66 |
+| ------- | -------- | -------------------------: | -------------------------: |
+| node    | assets   |              36.79 / 36.00 |              36.42 / 36.75 |
+| node    | large    |            167.10 / 166.54 |            166.29 / 173.04 |
+| bun     | assets   |              35.19 / 34.70 |              34.95 / 34.92 |
+| bun     | large    |            208.74 / 216.63 |            218.02 / 214.66 |
 
 Direction changes between pairs in both large cases. This experiment is not retained, and the
 native emitter continues to use sink.ready().

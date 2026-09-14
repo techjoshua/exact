@@ -28,11 +28,11 @@ encoded-string renders, not HTTP throughput or native Bun adapter results.
 ## Mean sampled elapsed microseconds
 
 | Runtime | Variant | Publication | Result assembly | Final join |
-| --- | --- | ---: | ---: | ---: |
-| v26.8.1 | sampled | 5.989 | 3.934 | 1.226 |
-| v26.8.1 | cached | 0.292 | 3.592 | 1.163 |
-| 1.4.2 | sampled | 5.358 | 3.252 | 1.545 |
-| 1.4.2 | cached | 0.097 | 3.579 | 0.842 |
+| ------- | ------- | ----------: | --------------: | ---------: |
+| v26.8.1 | sampled |       5.989 |           3.934 |      1.226 |
+| v26.8.1 | cached  |       0.292 |           3.592 |      1.163 |
+| 1.4.2   | sampled |       5.358 |           3.252 |      1.545 |
+| 1.4.2   | cached  |       0.097 |           3.579 |      0.842 |
 
 Assembly includes document recognition, closing-body lookup, chunk slicing,
 hydration insertion, and result object/accessor construction. The final getter

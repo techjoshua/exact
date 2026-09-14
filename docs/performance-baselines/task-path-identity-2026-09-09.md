@@ -8,13 +8,13 @@ The hypothesis was that structured compiler reads could be matched against exist
 effects. Five compiler cases and 15 assertions demonstrate why the current flattened effect labels
 cannot serve as that identity.
 
-| Source | Read representation | Task write representation | Result |
-| --- | --- | --- | --- |
-| `state["page.title"]` | `["page.title"]` | `"page.title"` | Accepted |
-| `state.page.title` | `["page", "title"]` | `"page.title"` | Accepted |
-| Both writes in one task | Both distinct read paths | One `"page.title"` effect | Accepted, effects collapse |
-| `state.page["*"]` | `["page", "*"]`, broad | `"page.*"`, broad | Rejected with EXACT2001 |
-| `state.page[props.field]` read | `["page", "*"]`, broad | Concrete title write | Accepted |
+| Source                         | Read representation      | Task write representation | Result                     |
+| ------------------------------ | ------------------------ | ------------------------- | -------------------------- |
+| `state["page.title"]`          | `["page.title"]`         | `"page.title"`            | Accepted                   |
+| `state.page.title`             | `["page", "title"]`      | `"page.title"`            | Accepted                   |
+| Both writes in one task        | Both distinct read paths | One `"page.title"` effect | Accepted, effects collapse |
+| `state.page["*"]`              | `["page", "*"]`, broad   | `"page.*"`, broad         | Rejected with EXACT2001    |
+| `state.page[props.field]` read | `["page", "*"]`, broad   | Concrete title write      | Accepted                   |
 
 The first two properties are distinct JavaScript state locations. Splitting the write label on
 dots would incorrectly classify the literal dotted property. Joining the read path instead loses

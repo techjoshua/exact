@@ -14,16 +14,16 @@ with four assets, and two reversed-order pairs per cell. Each has 5,000 warmups 
 renders. Full document hashes match in every pair. No completed populations were discarded.
 Positive percentages mean slower rendering; these are local timings, not HTTP rates.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -0.22% | +0.07% |
-| node | string | large | -1.45% | -1.47% |
-| node | stream | small | +1.43% | -0.17% |
-| node | stream | large | -1.69% | -2.85% |
-| bun | string | small | -5.06% | -0.08% |
-| bun | string | large | -5.56% | -1.50% |
-| bun | stream | small | -2.13% | -0.63% |
-| bun | stream | large | -0.01% | -1.22% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             -0.22% |             +0.07% |
+| node    | string | large   |             -1.45% |             -1.47% |
+| node    | stream | small   |             +1.43% |             -0.17% |
+| node    | stream | large   |             -1.69% |             -2.85% |
+| bun     | string | small   |             -5.06% |             -0.08% |
+| bun     | string | large   |             -5.56% |             -1.50% |
+| bun     | stream | small   |             -2.13% |             -0.63% |
+| bun     | stream | large   |             -0.01% |             -1.22% |
 
 These observations are preserved separately from the older measurements because the build and
 asset workload differ. They do not establish that removing one wrapper closes the React gap.

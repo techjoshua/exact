@@ -23,10 +23,10 @@ may be using the workstation. Instrumentation and duplicate work perturb executi
 
 Mean microseconds per sampled document across both workers:
 
-| Native encoding | Loop before | HTTP | Loop after |
-| --- | ---: | ---: | ---: |
-| First call | 1.53 | 5.26 | 1.30 |
-| Immediate second call | 1.08 | 3.30 | 0.96 |
+| Native encoding       | Loop before | HTTP | Loop after |
+| --------------------- | ----------: | ---: | ---------: |
+| First call            |        1.53 | 5.26 |       1.30 |
+| Immediate second call |        1.08 | 3.30 |       0.96 |
 
 The immediate second call is cheaper, but remains substantially slower under HTTP.
 Thus a first-encoding penalty exists in this diagnostic, but does not account for

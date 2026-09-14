@@ -1,4 +1,9 @@
-import { renderToProgressiveHtmlStream, renderToHydratableString, renderToStream, renderToString } from '@exactjs/ssr/enhanced';
+import {
+	renderToProgressiveHtmlStream,
+	renderToHydratableString,
+	renderToStream,
+	renderToString
+} from '@exactjs/ssr/enhanced';
 import { describe, expect, it } from 'vitest';
 import { capabilitiesRoot } from './scenarios/capabilities.fixtures.js?exact-target=server';
 import { dynamicRoot } from './scenarios/dynamic.fixtures.js?exact-target=server';
@@ -26,13 +31,17 @@ describe('composition corpus server behavior', () => {
 		expect((await renderToString(fundamentalsRoot('server'), { markers: false })).html).toBe(
 			'<main data-scenario="fundamentals"><h1>Composition corpus</h1><strong data-role="label">server</strong><small data-role="label-suffix">!</small><span data-role="after-label">After</span></main>'
 		);
-		expect((await renderToString(stateRoot('count'), { markers: false })).html).toContain('count:1');
+		expect((await renderToString(stateRoot('count'), { markers: false })).html).toContain(
+			'count:1'
+		);
 		expect((await renderToString(structureRoot, { markers: false })).html).toContain('visible');
 		const capabilities = (await renderToString(capabilitiesRoot, { markers: false })).html;
 		expect(capabilities).toContain('provided');
 		expect(capabilities).toContain('a:mean');
 		expect(capabilities).toContain('b:mean');
-		expect((await renderToString(registryRoot('second'), { markers: false })).html).toContain('second');
+		expect((await renderToString(registryRoot('second'), { markers: false })).html).toContain(
+			'second'
+		);
 	});
 
 	it('serializes compiler-known state attributes with native semantics', async () => {
@@ -54,9 +63,9 @@ describe('composition corpus server behavior', () => {
 	});
 
 	it('preserves direct and authored synchronous server setup semantics', async () => {
-		expect((await renderToString(serverSetupProjectionRoot(' ready '), { markers: false })).html).toBe(
-			'<output data-scenario="server-setup-projection"> ready :READY</output>'
-		);
+		expect(
+			(await renderToString(serverSetupProjectionRoot(' ready '), { markers: false })).html
+		).toBe('<output data-scenario="server-setup-projection"> ready :READY</output>');
 	});
 
 	it('leaves an open dynamic component inert during async server rendering', async () => {
@@ -66,12 +75,14 @@ describe('composition corpus server behavior', () => {
 
 	it('renders both enhancement target forms on the server', async () => {
 		resetServerEnhancementTones();
-		const html = (await renderToString(enhancementsRoot, {
-			markers: false,
-			enhancementCatalog: new Map([
-				['./enhancement-routing.fixtures.js#corpus', serverCorpusEnhancement]
-			])
-		})).html;
+		const html = (
+			await renderToString(enhancementsRoot, {
+				markers: false,
+				enhancementCatalog: new Map([
+					['./enhancement-routing.fixtures.js#corpus', serverCorpusEnhancement]
+				])
+			})
+		).html;
 		expect(html).toContain('data-corpus-tone="intrinsic"');
 		expect(serverEnhancementTones()).toEqual(['intrinsic', 'component']);
 		expect(html).toContain('data-corpus-tone="component"');

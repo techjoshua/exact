@@ -12,10 +12,10 @@ The working hypothesis is a small reduction in allocation, approximately 1-3%, w
 
 Twelve fresh Node 26.8.1 production processes use two reversed orders for three variants and two fixture sizes. Each process performs 50,000 warmups and samples 10,000 renders with a 16 KiB interval, including minor-collected and major-collected objects. One process runs at a time with below-normal priority 10 while the user uses the PC. Complete document hashes match. Values are estimated allocated bytes per render, not retained memory or exact object counts.
 
-| Fixture | Before execution-target integration | Integrated current build | First props prototype |
-| --- | ---: | ---: | ---: |
-| 3 incidents | 70,077 | 67,679 | 66,591 |
-| 96 incidents | 525,233 | 497,411 | 485,082 |
+| Fixture      | Before execution-target integration | Integrated current build | First props prototype |
+| ------------ | ----------------------------------: | -----------------------: | --------------------: |
+| 3 incidents  |                              70,077 |                   67,679 |                66,591 |
+| 96 incidents |                             525,233 |                  497,411 |               485,082 |
 
 Both pairs improve for both comparisons and fixture sizes. The preceding-to-integrated comparison confirms the retained source optimization: approximately 3.4% lower allocation for the small page and 5.3% lower for the large page. The first props prototype reduces allocation a further 1.6% and 2.5%, respectively. These results do not establish throughput, GC count or GC duration changes.
 
@@ -39,12 +39,12 @@ Sixteen fresh production processes compare the corrected variant against the cur
 
 Mean microseconds per response-consumption iteration:
 
-| Runtime | Fixture | Current | Corrected prototype | Change |
-| --- | --- | ---: | ---: | ---: |
-| Node | 3 incidents | 47.62 | 46.57 | -2.2% |
-| Bun | 3 incidents | 35.66 | 37.23 | +4.4% |
-| Node | 96 incidents | 203.39 | 215.21 | +5.8% |
-| Bun | 96 incidents | 273.80 | 268.94 | -1.8% |
+| Runtime | Fixture      | Current | Corrected prototype | Change |
+| ------- | ------------ | ------: | ------------------: | -----: |
+| Node    | 3 incidents  |   47.62 |               46.57 |  -2.2% |
+| Bun     | 3 incidents  |   35.66 |               37.23 |  +4.4% |
+| Node    | 96 incidents |  203.39 |              215.21 |  +5.8% |
+| Bun     | 96 incidents |  273.80 |              268.94 |  -1.8% |
 
 Small Node pairs are 45.18 to 45.33 and 50.06 to 47.81, with mixed directions. Small Bun pairs are 35.65 to 37.08 and 35.66 to 37.38, both slower. Large Node pairs are 200.35 to 215.77 and 206.42 to 214.66, both slower. Large Bun pairs are 278.47 to 261.07 and 269.13 to 276.80, with mixed directions. All observations are retained, including the favorable populations. Shared workstation use limits precision, but the repeated regressions in two cases do not support adoption.
 
@@ -60,10 +60,10 @@ Second, eight fresh Node allocation populations repeat the 50,000-warmup, 10,000
 
 Third, eight unprofiled populations record process CPU usage around the measured loop alongside elapsed time. These retain reduced priority and the same 50,000 warmups and 20,000 encoded iterations. They focus on large Node and small Bun, the cases with repeated earlier regressions.
 
-| Case | Current mean elapsed, us | Candidate mean elapsed, us | Current process CPU, us/render | Candidate process CPU, us/render |
-| --- | ---: | ---: | ---: | ---: |
-| Node, 96 incidents | 196.88 | 214.91 | 199.65 | 216.00 |
-| Bun, 3 incidents | 35.28 | 35.79 | 46.10 | 47.28 |
+| Case               | Current mean elapsed, us | Candidate mean elapsed, us | Current process CPU, us/render | Candidate process CPU, us/render |
+| ------------------ | -----------------------: | -------------------------: | -----------------------------: | -------------------------------: |
+| Node, 96 incidents |                   196.88 |                     214.91 |                         199.65 |                           216.00 |
+| Bun, 3 incidents   |                    35.28 |                      35.79 |                          46.10 |                            47.28 |
 
 Node CPU pairs are 198.50 to 214.05 and 200.80 to 217.95 microseconds per render, both worse. Node elapsed pairs are 195.84 to 210.07 and 197.92 to 219.74, also both worse. The 8.2% higher mean process CPU consumption means lost scheduling time alone does not explain the Node regression. Process CPU sums work across the process's threads and can exceed elapsed time; it is not just renderer-thread time.
 
@@ -81,12 +81,12 @@ A bytecode inspection supplies a narrower structural hypothesis. The extracted p
 
 The new split prototype passes 24 full-output suspension comparisons on Node/Bun string/stream. It retains the corrected metadata arguments and does not introduce a second rendering engine. A three-way response-consumption screen compares current, corrected-unsplit and split in two reversed orders for large Node and small Bun. Each process warms 50,000 iterations, measures 20,000 and uses reduced priority during shared-PC use.
 
-| Case | Metric | Current | Corrected unsplit | Split |
-| --- | --- | ---: | ---: | ---: |
-| Node, 96 incidents | Mean elapsed us/render | 210.15 | 214.01 | 211.95 |
-| Node, 96 incidents | Process CPU us/render | 214.85 | 217.60 | 213.68 |
-| Bun, 3 incidents | Mean elapsed us/render | 35.95 | 36.19 | 35.65 |
-| Bun, 3 incidents | Process CPU us/render | 45.73 | 40.20 | 43.35 |
+| Case               | Metric                 | Current | Corrected unsplit |  Split |
+| ------------------ | ---------------------- | ------: | ----------------: | -----: |
+| Node, 96 incidents | Mean elapsed us/render |  210.15 |            214.01 | 211.95 |
+| Node, 96 incidents | Process CPU us/render  |  214.85 |            217.60 | 213.68 |
+| Bun, 3 incidents   | Mean elapsed us/render |   35.95 |             36.19 |  35.65 |
+| Bun, 3 incidents   | Process CPU us/render  |   45.73 |             40.20 |  43.35 |
 
 Node elapsed pairs are current 207.33/212.96, unsplit 214.63/213.39 and split 212.21/211.68. Node CPU pairs are current 213.25/216.45, unsplit 218.75/216.45 and split 214.85/212.50. The split improves against the unsplit extraction in both pairs for both metrics, but has mixed directions against current. Bun elapsed pairs are current 36.09/35.81, unsplit 36.62/35.76 and split 35.79/35.51, with both split pairs improving slightly against current. Bun process CPU is variable and does not rank the variants the same way as elapsed time.
 
@@ -100,10 +100,10 @@ Eight allocation populations directly compare the split helper with the current 
 
 The two previously unmeasured timing cases use another eight fresh processes, retaining 50,000 warmups, 20,000 measured encoded iterations and two reversed orders:
 
-| Case | Current elapsed us/render | Split elapsed us/render | Current CPU us/render | Split CPU us/render |
-| --- | ---: | ---: | ---: | ---: |
-| Node, 3 incidents | 41.86 | 42.66 | 42.18 | 44.53 |
-| Bun, 96 incidents | 285.50 | 278.22 | 362.90 | 353.53 |
+| Case              | Current elapsed us/render | Split elapsed us/render | Current CPU us/render | Split CPU us/render |
+| ----------------- | ------------------------: | ----------------------: | --------------------: | ------------------: |
+| Node, 3 incidents |                     41.86 |                   42.66 |                 42.18 |               44.53 |
+| Bun, 96 incidents |                    285.50 |                  278.22 |                362.90 |              353.53 |
 
 Node elapsed pairs are 43.89 to 42.38 and 39.83 to 42.93, with mixed directions. Node CPU pairs are 43.75 to 46.10 and 40.60 to 42.95, both worse. Bun elapsed pairs are 281.29 to 269.12 and 289.72 to 287.31, both better; CPU pairs are 360.15 to 350.00 and 365.65 to 357.05, also both better. Together with the previous two cases, this gives measured allocation benefits and several favorable timings, but not a universal runtime improvement or a resolution of the Node string gap. The split is not adopted yet.
 
@@ -123,11 +123,11 @@ Eight fresh Node allocation populations measure the narrower scope-only variant 
 
 Twelve additional reduced-priority response-consumption populations cover the remaining cases, with the same 50,000 warmups, 20,000 measured iterations and reversed orders:
 
-| Case | Current elapsed us/render | Scope-only elapsed us/render | Current CPU us/render | Scope-only CPU us/render |
-| --- | ---: | ---: | ---: | ---: |
-| Node, 96 incidents | 212.24 | 214.78 | 217.60 | 215.23 |
-| Bun, 3 incidents | 35.94 | 36.22 | 39.08 | 44.53 |
-| Bun, 96 incidents | 269.93 | 264.34 | 349.23 | 359.40 |
+| Case               | Current elapsed us/render | Scope-only elapsed us/render | Current CPU us/render | Scope-only CPU us/render |
+| ------------------ | ------------------------: | ---------------------------: | --------------------: | -----------------------: |
+| Node, 96 incidents |                    212.24 |                       214.78 |                217.60 |                   215.23 |
+| Bun, 3 incidents   |                     35.94 |                        36.22 |                 39.08 |                    44.53 |
+| Bun, 96 incidents  |                    269.93 |                       264.34 |                349.23 |                   359.40 |
 
 Large Node elapsed pairs are 199.66 to 217.26 and 224.81 to 212.30, with mixed directions. CPU pairs are 203.15 to 217.95 and 232.05 to 212.50, also mixed. Small Bun elapsed pairs are 35.05 to 36.23 and 36.84 to 36.20; CPU pairs are 38.30 to 46.05 and 39.85 to 43.00. Large Bun elapsed pairs are 272.91 to 267.54 and 266.94 to 261.14, both improving; CPU pairs are 333.60 to 343.75 and 364.85 to 375.05, both increasing. The CPU and elapsed-time tradeoffs remain unresolved, and lower allocation alone is not treated as proof of a better implementation.
 

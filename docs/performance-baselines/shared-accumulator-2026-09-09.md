@@ -43,31 +43,31 @@ absolute timings across batches. These local pairs are not confidence intervals 
 measurements. React was not rerun because no candidate advanced to adoption.
 
 | Variant | Runtime | Output | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | --- | ---: | ---: |
-| initial | node | string | small | +3.96% | +1.97% |
-| initial | node | string | large | -0.66% | +12.09% |
-| initial | node | stream | small | +0.51% | +2.21% |
-| initial | node | stream | large | +1.89% | +5.32% |
-| initial | bun | string | small | +6.61% | +9.63% |
-| initial | bun | string | large | +6.55% | +5.30% |
-| initial | bun | stream | small | +5.27% | +5.83% |
-| initial | bun | stream | large | +7.49% | +8.15% |
-| -direct | node | string | small | +0.89% | +4.84% |
-| -direct | node | string | large | +1.40% | +3.05% |
-| -direct | node | stream | small | -1.16% | +2.75% |
-| -direct | node | stream | large | +2.37% | +9.41% |
-| -direct | bun | string | small | +2.30% | +1.33% |
-| -direct | bun | string | large | -4.03% | -5.63% |
-| -direct | bun | stream | small | +3.04% | -5.19% |
-| -direct | bun | stream | large | +1.83% | -1.03% |
-| -ranges | node | string | small | +1.17% | -0.43% |
-| -ranges | node | string | large | +2.17% | +4.00% |
-| -ranges | node | stream | small | +0.68% | +0.69% |
-| -ranges | node | stream | large | +5.49% | -1.18% |
-| -ranges | bun | string | small | +1.97% | +2.41% |
-| -ranges | bun | string | large | +1.76% | +5.17% |
-| -ranges | bun | stream | small | +3.81% | +10.96% |
-| -ranges | bun | stream | large | -0.76% | +1.53% |
+| ------- | ------- | ------ | ------- | -----------------: | -----------------: |
+| initial | node    | string | small   |             +3.96% |             +1.97% |
+| initial | node    | string | large   |             -0.66% |            +12.09% |
+| initial | node    | stream | small   |             +0.51% |             +2.21% |
+| initial | node    | stream | large   |             +1.89% |             +5.32% |
+| initial | bun     | string | small   |             +6.61% |             +9.63% |
+| initial | bun     | string | large   |             +6.55% |             +5.30% |
+| initial | bun     | stream | small   |             +5.27% |             +5.83% |
+| initial | bun     | stream | large   |             +7.49% |             +8.15% |
+| -direct | node    | string | small   |             +0.89% |             +4.84% |
+| -direct | node    | string | large   |             +1.40% |             +3.05% |
+| -direct | node    | stream | small   |             -1.16% |             +2.75% |
+| -direct | node    | stream | large   |             +2.37% |             +9.41% |
+| -direct | bun     | string | small   |             +2.30% |             +1.33% |
+| -direct | bun     | string | large   |             -4.03% |             -5.63% |
+| -direct | bun     | stream | small   |             +3.04% |             -5.19% |
+| -direct | bun     | stream | large   |             +1.83% |             -1.03% |
+| -ranges | node    | string | small   |             +1.17% |             -0.43% |
+| -ranges | node    | string | large   |             +2.17% |             +4.00% |
+| -ranges | node    | stream | small   |             +0.68% |             +0.69% |
+| -ranges | node    | stream | large   |             +5.49% |             -1.18% |
+| -ranges | bun     | string | small   |             +1.97% |             +2.41% |
+| -ranges | bun     | string | large   |             +1.76% |             +5.17% |
+| -ranges | bun     | stream | small   |             +3.81% |            +10.96% |
+| -ranges | bun     | stream | large   |             -0.76% |             +1.53% |
 
 No variant establishes a broad win. The initial version is mostly slower. Removing completed-work
 callbacks improves the implementation but does not yield consistent gains across target workloads.
@@ -80,16 +80,16 @@ Separate untimed Node runs count program invocations using the shared accumulato
 capture. Each fixture/mode is repeated three times. This establishes how much of the actual tree
 the prototype reaches, rather than assuming that changing the root changes every descendant.
 
-| Variant | Fixture | Output | Shared programs | Captured programs |
-| --- | --- | --- | ---: | ---: |
-| shared-accumulator-direct | small | string | 20 | 4 |
-| shared-accumulator-direct | small | stream | 20 | 4 |
-| shared-accumulator-direct | large | string | 206 | 4 |
-| shared-accumulator-direct | large | stream | 206 | 4 |
-| shared-accumulator-ranges | small | string | 24 | 0 |
-| shared-accumulator-ranges | small | stream | 24 | 0 |
-| shared-accumulator-ranges | large | string | 210 | 0 |
-| shared-accumulator-ranges | large | stream | 210 | 0 |
+| Variant                   | Fixture | Output | Shared programs | Captured programs |
+| ------------------------- | ------- | ------ | --------------: | ----------------: |
+| shared-accumulator-direct | small   | string |              20 |                 4 |
+| shared-accumulator-direct | small   | stream |              20 |                 4 |
+| shared-accumulator-direct | large   | string |             206 |                 4 |
+| shared-accumulator-direct | large   | stream |             206 |                 4 |
+| shared-accumulator-ranges | small   | string |              24 |                 0 |
+| shared-accumulator-ranges | small   | stream |              24 |                 0 |
+| shared-accumulator-ranges | large   | string |             210 |                 0 |
+| shared-accumulator-ranges | large   | stream |             210 |                 0 |
 
 ## Compiler dependency finding and next work
 

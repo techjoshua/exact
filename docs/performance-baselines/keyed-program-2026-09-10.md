@@ -17,11 +17,11 @@ not a new compiler ABI or production implementation.
 Median microseconds per render, lower is better:
 
 | Runtime/output | Retained eXact | Candidate | React | Candidate change | Faster pairs |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Node string | 30.61 | 31.03 | 29.65 | +1.4% | 1/6 |
-| Node stream | 33.64 | 33.51 | 60.31 | -0.4% | 4/6 |
-| Bun string | 29.90 | 29.57 | 38.64 | -1.1% | 4/6 |
-| Bun stream | 46.88 | 46.39 | 56.48 | -1.1% | 4/6 |
+| -------------- | -------------: | --------: | ----: | ---------------: | -----------: |
+| Node string    |          30.61 |     31.03 | 29.65 |            +1.4% |          1/6 |
+| Node stream    |          33.64 |     33.51 | 60.31 |            -0.4% |          4/6 |
+| Bun string     |          29.90 |     29.57 | 38.64 |            -1.1% |          4/6 |
+| Bun stream     |          46.88 |     46.39 | 56.48 |            -1.1% |          4/6 |
 
 Each cell covers all six variant orders in fresh processes, 72 populations total. Every process
 warms 50,000 times and measures 20,000 complete renders. Node 26.8.1 uses the portable public

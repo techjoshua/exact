@@ -26,16 +26,16 @@ Each cell has two reversed-order pairs in fresh production-mode processes, with 
 and 10,000 measured iterations per process. Node 26.8.1 and Bun 1.4.2. Ranges show both samples;
 no completed sample is discarded. The second candidate is compared to the original sink.
 
-| Runtime | Rows | Threshold bytes | Original us | Candidate us |
-| --- | ---: | ---: | ---: | ---: |
-| node | 3 | 2048 | 3.57 to 3.60 | 1.29 to 1.33 |
-| node | 3 | 8192 | 3.58 to 3.68 | 1.35 to 1.39 |
-| node | 96 | 2048 | 106.98 to 117.77 | 24.98 to 25.37 |
-| node | 96 | 8192 | 229.23 to 233.75 | 23.04 to 23.69 |
-| bun | 3 | 2048 | 2.80 to 2.89 | 1.28 to 1.29 |
-| bun | 3 | 8192 | 2.84 to 2.87 | 1.28 to 1.41 |
-| bun | 96 | 2048 | 160.87 to 165.44 | 22.08 to 22.18 |
-| bun | 96 | 8192 | 420.87 to 424.74 | 20.47 to 20.51 |
+| Runtime | Rows | Threshold bytes |      Original us |   Candidate us |
+| ------- | ---: | --------------: | ---------------: | -------------: |
+| node    |    3 |            2048 |     3.57 to 3.60 |   1.29 to 1.33 |
+| node    |    3 |            8192 |     3.58 to 3.68 |   1.35 to 1.39 |
+| node    |   96 |            2048 | 106.98 to 117.77 | 24.98 to 25.37 |
+| node    |   96 |            8192 | 229.23 to 233.75 | 23.04 to 23.69 |
+| bun     |    3 |            2048 |     2.80 to 2.89 |   1.28 to 1.29 |
+| bun     |    3 |            8192 |     2.84 to 2.87 |   1.28 to 1.41 |
+| bun     |   96 |            2048 | 160.87 to 165.44 | 22.08 to 22.18 |
+| bun     |   96 |            8192 | 420.87 to 424.74 | 20.47 to 20.51 |
 
 ## Correctness and decision
 

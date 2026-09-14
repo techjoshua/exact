@@ -42,12 +42,12 @@ with Response.text(). Prototype and rebuilt batches both preserve all paired ful
 
 Positive means longer rendering time. These are two local pairs, not confidence intervals.
 
-| Runtime | Mode | Rebuilt pair 1 time change | Rebuilt pair 2 time change |
-| --- | --- | ---: | ---: |
-| node | string | -6.82% | -10.43% |
-| node | stream | -10.33% | +0.58% |
-| bun | string | -7.97% | -6.89% |
-| bun | stream | -4.91% | -3.69% |
+| Runtime | Mode   | Rebuilt pair 1 time change | Rebuilt pair 2 time change |
+| ------- | ------ | -------------------------: | -------------------------: |
+| node    | string |                     -6.82% |                    -10.43% |
+| node    | stream |                    -10.33% |                     +0.58% |
+| bun     | string |                     -7.97% |                     -6.89% |
+| bun     | stream |                     -4.91% |                     -3.69% |
 
 String gains repeated in both runtimes across prototype and rebuilt batches. Rebuilt Bun streams
 improved in both pairs; Node streaming showed one gain and one near-flat regression. The code is

@@ -11,11 +11,11 @@ declarations in the retained conditional-emission Node bundle. The fixture rende
 components and a full application-owned document with four asset tags and fresh hydration data.
 After 1,000 warmups, one request per mode is traced and compared with the uninstrumented bundle.
 
-| Mode | Generated writer entries | Saved continuation arrays | Response bytes |
-| --- | ---: | ---: | ---: |
-| Ready string | 18 | 0 | 4,672 |
-| Ready stream | 18 | 0 | 4,672 |
-| Stream with one injected pending head flush | 19 | 1 | 4,672 |
+| Mode                                        | Generated writer entries | Saved continuation arrays | Response bytes |
+| ------------------------------------------- | -----------------------: | ------------------------: | -------------: |
+| Ready string                                |                       18 |                         0 |          4,672 |
+| Ready stream                                |                       18 |                         0 |          4,672 |
+| Stream with one injected pending head flush |                       19 |                         1 |          4,672 |
 
 The final row is a positive instrumentation control: the probe substitutes a resolved promise for
 one synchronous head-flush result. It proves the continuation counter observes a forced pause and

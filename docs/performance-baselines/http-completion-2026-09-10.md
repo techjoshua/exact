@@ -9,11 +9,11 @@ the benchmark harness's extra asynchronous render-and-response helper without ch
 
 Each row is an independent capture. Rates must not be pooled across captures.
 
-| Capture | Current eXact RPS | Candidate RPS | React RPS | Candidate change | Faster pairs |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Ready buffered adapter completion | 8,390 | 8,322 | 12,619 | -0.8% | 3/6 |
-| Synchronous buffered harness helper | 10,375 | 8,419 | 13,571 | -18.9% | 0/6 |
-| Same harness change, phase totals collected | 8,535 | 9,815 | 12,220 | +15.0% | 5/6 |
+| Capture                                     | Current eXact RPS | Candidate RPS | React RPS | Candidate change | Faster pairs |
+| ------------------------------------------- | ----------------: | ------------: | --------: | ---------------: | -----------: |
+| Ready buffered adapter completion           |             8,390 |         8,322 |    12,619 |            -0.8% |          3/6 |
+| Synchronous buffered harness helper         |            10,375 |         8,419 |    13,571 |           -18.9% |          0/6 |
+| Same harness change, phase totals collected |             8,535 |         9,815 |    12,220 |           +15.0% |          5/6 |
 
 The adapter candidate keeps header assignment order and the existing buffered-body claim. It
 returns synchronously after a successful `end`, with pending production and failure cleanup still
@@ -36,11 +36,11 @@ to the changed await boundary. Fewer promises alone are not sufficient evidence 
 
 The phase-total capture reports mean elapsed microseconds:
 
-| Interval | Current eXact | Harness candidate | React |
-| --- | ---: | ---: | ---: |
-| Render timing wrapper | 56.52 | 49.94 | 34.58 |
-| Request entry to first response write | 63.47 | 56.20 | 41.78 |
-| Participant entry through response finish | 97.09 | 85.86 | 65.97 |
+| Interval                                  | Current eXact | Harness candidate | React |
+| ----------------------------------------- | ------------: | ----------------: | ----: |
+| Render timing wrapper                     |         56.52 |             49.94 | 34.58 |
+| Request entry to first response write     |         63.47 |             56.20 | 41.78 |
+| Participant entry through response finish |         97.09 |             85.86 | 65.97 |
 
 The first two means differ by approximately seven microseconds for each framework. These are
 elapsed intervals, not mutually exclusive CPU buckets. They include promise resumption and any
@@ -52,8 +52,8 @@ original harness, adds two clock reads and a constant-space counter per call, an
 original renderer result without awaiting or observing its promise. The existing `envelopeMs`
 telemetry slot, unused in this Node lane, stores this diagnostic interval.
 
-| Instrumented interval | eXact | React |
-| --- | ---: | ---: |
+| Instrumented interval      |    eXact |    React |
+| -------------------------- | -------: | -------: |
 | Synchronous renderer entry | 45.79 µs | 33.45 µs |
 | Full render timing wrapper | 50.08 µs | 35.80 µs |
 

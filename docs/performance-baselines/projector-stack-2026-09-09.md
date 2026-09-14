@@ -32,12 +32,12 @@ and final full-response SHA-256 against its eXact control. Asset tags are empty.
 Median microseconds per complete render, lower is better. Positive paired change means slower;
 this is the median of per-round changes, not a ratio of independent medians.
 
-| Runtime | Mode | Control us | Candidate us | Paired change |
-| --- | --- | ---: | ---: | ---: |
-| node | string | 161.63 | 153.57 | -5.2% |
-| node | stream | 197.55 | 193.00 | -2.3% |
-| bun | string | 250.34 | 245.34 | -2.2% |
-| bun | stream | 298.76 | 301.55 | +3.1% |
+| Runtime | Mode   | Control us | Candidate us | Paired change |
+| ------- | ------ | ---------: | -----------: | ------------: |
+| node    | string |     161.63 |       153.57 |         -5.2% |
+| node    | stream |     197.55 |       193.00 |         -2.3% |
+| bun     | string |     250.34 |       245.34 |         -2.2% |
+| bun     | stream |     298.76 |       301.55 |         +3.1% |
 
 Node strings improve in all three pairs. Bun strings improve in two of three, while Bun streams
 regress in two of three with a median paired regression of approximately 3%. Node streams are mixed.

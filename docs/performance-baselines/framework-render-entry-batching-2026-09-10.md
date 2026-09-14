@@ -6,10 +6,10 @@ The prototype transforms the frozen compiled artifact at that function boundary.
 
 Two fresh production Node 26.8.1 workers each run normal/batch/normal, ten seconds warmup and five-second blocks with two load drivers holding 16 requests each. Controls are averaged within each worker. Before/after isolated loops warm and measure 10,000 renders with queueing bypassed, verified by counters. Workstation load can vary.
 
-| Worker | Normal RPS | Framework-entry batch RPS | Gain | Mean batch size |
-| --- | ---: | ---: | ---: | ---: |
-| 1 | 8,664 | 14,386 | +66.04% | 15.93 |
-| 2 | 8,663 | 14,402 | +66.25% | 14.98 |
+| Worker | Normal RPS | Framework-entry batch RPS |    Gain | Mean batch size |
+| ------ | ---------: | ------------------------: | ------: | --------------: |
+| 1      |      8,664 |                    14,386 | +66.04% |           15.93 |
+| 2      |      8,663 |                    14,402 | +66.25% |           14.98 |
 
 All 317,488 measured responses matched the complete 4,672-byte document, with zero errors. Four ordinary/escaped output parity checks pass. Sixteen concurrent distinct documents match sequential retained-renderer results in one shared batch. Pre-aborted and queued-aborted renders reject with the original reason; a subsequent render succeeds. These are focused prototype checks, not comprehensive cancellation/lifecycle or browser validation.
 

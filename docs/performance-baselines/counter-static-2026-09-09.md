@@ -24,16 +24,16 @@ Each uses 5,000 warmups and 12,000 measured renders, with two reversed-order pai
 Median microseconds per complete render, lower is better. Positive paired change means slower.
 Paired change is the median of each round's percentage change, not a ratio of independent medians.
 
-| Runtime | Mode | Scenario | Control us | Candidate us | Paired change |
-| --- | --- | --- | ---: | ---: | ---: |
-| bun | stream | large | 286.84 | 344.22 | +20.2% |
-| bun | stream | unicode | 81.35 | 93.97 | +15.7% |
-| bun | string | large | 251.66 | 280.66 | +11.5% |
-| bun | string | unicode | 47.27 | 61.67 | +30.5% |
-| node | stream | large | 193.46 | 213.41 | +10.3% |
-| node | stream | unicode | 89.88 | 112.18 | +24.9% |
-| node | string | large | 167.06 | 182.44 | +9.3% |
-| node | string | unicode | 50.73 | 71.65 | +41.3% |
+| Runtime | Mode   | Scenario | Control us | Candidate us | Paired change |
+| ------- | ------ | -------- | ---------: | -----------: | ------------: |
+| bun     | stream | large    |     286.84 |       344.22 |        +20.2% |
+| bun     | stream | unicode  |      81.35 |        93.97 |        +15.7% |
+| bun     | string | large    |     251.66 |       280.66 |        +11.5% |
+| bun     | string | unicode  |      47.27 |        61.67 |        +30.5% |
+| node    | stream | large    |     193.46 |       213.41 |        +10.3% |
+| node    | stream | unicode  |      89.88 |       112.18 |        +24.9% |
+| node    | string | large    |     167.06 |       182.44 |         +9.3% |
+| node    | string | unicode  |      50.73 |        71.65 |        +41.3% |
 
 Native counting wins throughout these cases, including every paired Unicode result. Portable
 counting is retained as the host-capability fallback, not selected as a performance optimization.
@@ -51,12 +51,12 @@ The control is the same retained bundle passed through the same TypeScript print
 fresh processes cover Node/Bun and string/stream on the small 3-incident case, with 5,000 warmups,
 20,000 measured renders, and three alternating-order pairs per combination.
 
-| Runtime | Mode | Scenario | Control us | Candidate us | Paired change |
-| --- | --- | --- | ---: | ---: | ---: |
-| bun | stream | small | 43.11 | 43.02 | -1.0% |
-| bun | string | small | 30.67 | 30.13 | -1.6% |
-| node | stream | small | 41.29 | 40.93 | -0.1% |
-| node | string | small | 27.22 | 27.34 | +0.4% |
+| Runtime | Mode   | Scenario | Control us | Candidate us | Paired change |
+| ------- | ------ | -------- | ---------: | -----------: | ------------: |
+| bun     | stream | small    |      43.11 |        43.02 |         -1.0% |
+| bun     | string | small    |      30.67 |        30.13 |         -1.6% |
+| node    | stream | small    |      41.29 |        40.93 |         -0.1% |
+| node    | string | small    |      27.22 |        27.34 |         +0.4% |
 
 Results are mixed. Bun strings show a small gain in two of three pairs, while Node strings regress
 in two of three pairs. Stream results also vary. These short shared-PC runs do not establish a

@@ -22,20 +22,20 @@ warmups and 12,000 measurements. Both framework-order pairs are retained. Assets
 incidents with four assets; large means 96 incidents with the same four assets. All paired full
 document hashes match. No concurrent build or test workload ran during measurements.
 
-| Runtime | Scenario | Candidate | Pair 1 | Pair 2 |
-| --- | --- | --- | --- | --- |
-| node | assets | accumulator-control | 35.05 / 37.63 (+7.36%) | 34.78 / 35.73 (+2.71%) |
-| node | assets | string-sink | 35.05 / 44.47 (+26.88%) | 34.78 / 45.26 (+30.11%) |
-| node | assets | string-sink-accounted | 35.05 / 43.96 (+25.43%) | 34.78 / 44.29 (+27.34%) |
-| node | large | accumulator-control | 157.21 / 163.65 (+4.10%) | 156.32 / 165.41 (+5.81%) |
-| node | large | string-sink | 157.21 / 246.25 (+56.64%) | 156.32 / 251.47 (+60.86%) |
-| node | large | string-sink-accounted | 157.21 / 252.98 (+60.92%) | 156.32 / 262.52 (+67.94%) |
-| bun | assets | accumulator-control | 34.79 / 37.43 (+7.59%) | 35.37 / 37.31 (+5.48%) |
-| bun | assets | string-sink | 34.79 / 40.35 (+15.98%) | 35.37 / 39.77 (+12.43%) |
-| bun | assets | string-sink-accounted | 34.79 / 41.07 (+18.04%) | 35.37 / 40.21 (+13.68%) |
-| bun | large | accumulator-control | 221.13 / 227.58 (+2.92%) | 225.36 / 228.85 (+1.55%) |
-| bun | large | string-sink | 221.13 / 292.31 (+32.19%) | 225.36 / 268.42 (+19.11%) |
-| bun | large | string-sink-accounted | 221.13 / 282.92 (+27.94%) | 225.36 / 272.00 (+20.70%) |
+| Runtime | Scenario | Candidate             | Pair 1                    | Pair 2                    |
+| ------- | -------- | --------------------- | ------------------------- | ------------------------- |
+| node    | assets   | accumulator-control   | 35.05 / 37.63 (+7.36%)    | 34.78 / 35.73 (+2.71%)    |
+| node    | assets   | string-sink           | 35.05 / 44.47 (+26.88%)   | 34.78 / 45.26 (+30.11%)   |
+| node    | assets   | string-sink-accounted | 35.05 / 43.96 (+25.43%)   | 34.78 / 44.29 (+27.34%)   |
+| node    | large    | accumulator-control   | 157.21 / 163.65 (+4.10%)  | 156.32 / 165.41 (+5.81%)  |
+| node    | large    | string-sink           | 157.21 / 246.25 (+56.64%) | 156.32 / 251.47 (+60.86%) |
+| node    | large    | string-sink-accounted | 157.21 / 252.98 (+60.92%) | 156.32 / 262.52 (+67.94%) |
+| bun     | assets   | accumulator-control   | 34.79 / 37.43 (+7.59%)    | 35.37 / 37.31 (+5.48%)    |
+| bun     | assets   | string-sink           | 34.79 / 40.35 (+15.98%)   | 35.37 / 39.77 (+12.43%)   |
+| bun     | assets   | string-sink-accounted | 34.79 / 41.07 (+18.04%)   | 35.37 / 40.21 (+13.68%)   |
+| bun     | large    | accumulator-control   | 221.13 / 227.58 (+2.92%)  | 225.36 / 228.85 (+1.55%)  |
+| bun     | large    | string-sink           | 221.13 / 292.31 (+32.19%) | 225.36 / 268.42 (+19.11%) |
+| bun     | large    | string-sink-accounted | 221.13 / 282.92 (+27.94%) | 225.36 / 272.00 (+20.70%) |
 
 ## Exact accounting at string completion
 
@@ -46,12 +46,12 @@ validation. No partial string is published. This is a collecting-sink policy; it
 incremental checks on a sink that publishes bytes progressively. The existing production string
 path likewise validates completed root output before returning it.
 
-| Runtime | Scenario | Candidate | Pair 1 | Pair 2 |
-| --- | --- | --- | --- | --- |
-| node | assets | string-sink-deferred | 36.04 / 36.74 (+1.93%) | 34.60 / 36.66 (+5.95%) |
-| node | large | string-sink-deferred | 160.42 / 163.31 (+1.80%) | 158.84 / 165.01 (+3.88%) |
-| bun | assets | string-sink-deferred | 35.20 / 34.66 (-1.53%) | 35.21 / 34.61 (-1.72%) |
-| bun | large | string-sink-deferred | 224.51 / 214.64 (-4.39%) | 226.38 / 212.62 (-6.08%) |
+| Runtime | Scenario | Candidate            | Pair 1                   | Pair 2                   |
+| ------- | -------- | -------------------- | ------------------------ | ------------------------ |
+| node    | assets   | string-sink-deferred | 36.04 / 36.74 (+1.93%)   | 34.60 / 36.66 (+5.95%)   |
+| node    | large    | string-sink-deferred | 160.42 / 163.31 (+1.80%) | 158.84 / 165.01 (+3.88%) |
+| bun     | assets   | string-sink-deferred | 35.20 / 34.66 (-1.53%)   | 35.21 / 34.61 (-1.72%)   |
+| bun     | large    | string-sink-deferred | 224.51 / 214.64 (-4.39%) | 226.38 / 212.62 (-6.08%) |
 
 The deferred collector improves Bun in both pairs for both sizes, but remains slower on Node.
 Retain it as the collecting-sink candidate for integration, not as a production replacement.

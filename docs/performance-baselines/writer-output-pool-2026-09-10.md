@@ -44,16 +44,16 @@ populations, and both eXact variants agree. Both runtimes use the portable serve
 entry. This does not exercise Bun's native HTTP adapter and is not an HTTP RPS
 comparison. PC workload may vary. Values are mean microseconds, lower is better.
 
-| Runtime / mode | Fixture | Current | Pool | React |
-| --- | --- | ---: | ---: | ---: |
-| Node string | Standard | 30.21 | 30.47 | 22.60 |
-| Node string | 96 items | 137.93 | 139.70 | 130.15 |
-| Node stream | Standard | 51.86 | 53.10 | 68.87 |
-| Node stream | 96 items | 171.22 | 178.72 | 326.64 |
-| Bun string | Standard | 32.24 | 32.17 | 32.04 |
-| Bun string | 96 items | 197.32 | 202.52 | 183.53 |
-| Bun stream | Standard | 49.09 | 48.59 | 52.54 |
-| Bun stream | 96 items | 238.87 | 241.25 | 260.20 |
+| Runtime / mode | Fixture  | Current |   Pool |  React |
+| -------------- | -------- | ------: | -----: | -----: |
+| Node string    | Standard |   30.21 |  30.47 |  22.60 |
+| Node string    | 96 items |  137.93 | 139.70 | 130.15 |
+| Node stream    | Standard |   51.86 |  53.10 |  68.87 |
+| Node stream    | 96 items |  171.22 | 178.72 | 326.64 |
+| Bun string     | Standard |   32.24 |  32.17 |  32.04 |
+| Bun string     | 96 items |  197.32 | 202.52 | 183.53 |
+| Bun stream     | Standard |   49.09 |  48.59 |  52.54 |
+| Bun stream     | 96 items |  238.87 | 241.25 | 260.20 |
 
 All four large-fixture means are worse despite avoiding 203 output constructions.
 This does not establish a precise regression magnitude from only two populations,

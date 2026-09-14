@@ -29,15 +29,15 @@ These are medians of two local populations, not confidence intervals. There was 
 particularly Node small strings and Bun large strings; raw populations remain included.
 
 | Runtime | Output | Fixture | eXact microseconds | React microseconds | eXact time difference |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | small | 54.57 | 28.28 | +93.0% |
-| node | string | large | 239.08 | 163.78 | +46.0% |
-| node | stream | small | 87.94 | 91.24 | -3.6% |
-| node | stream | large | 254.34 | 371.31 | -31.5% |
-| bun | string | small | 49.41 | 36.67 | +34.8% |
-| bun | string | large | 276.84 | 203.67 | +35.9% |
-| bun | stream | small | 63.14 | 57.90 | +9.0% |
-| bun | stream | large | 307.22 | 270.03 | +13.8% |
+| ------- | ------ | ------- | -----------------: | -----------------: | --------------------: |
+| node    | string | small   |              54.57 |              28.28 |                +93.0% |
+| node    | string | large   |             239.08 |             163.78 |                +46.0% |
+| node    | stream | small   |              87.94 |              91.24 |                 -3.6% |
+| node    | stream | large   |             254.34 |             371.31 |                -31.5% |
+| bun     | string | small   |              49.41 |              36.67 |                +34.8% |
+| bun     | string | large   |             276.84 |             203.67 |                +35.9% |
+| bun     | stream | small   |              63.14 |              57.90 |                 +9.0% |
+| bun     | stream | large   |             307.22 |             270.03 |                +13.8% |
 
 React leads string rendering on both runtimes and both sizes. eXact leads Node stream completion;
 the small-document margin is much narrower than the historical empty-tag HTTP comparison. React

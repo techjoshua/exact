@@ -34,16 +34,16 @@ measured renders, below-normal priority. Both runtimes load the portable server
 entry. Streams are consumed with Response.text. All eXact document hashes match.
 PC workload may vary. Means are microseconds per complete render/consumption.
 
-| Runtime / mode | Fixture | Current | Bound helpers | React |
-| --- | --- | ---: | ---: | ---: |
-| Node string | Standard | 30.25 | 31.50 | 22.72 |
-| Node string | 96 items | 136.62 | 133.88 | 131.73 |
-| Node stream | Standard | 51.68 | 51.49 | 68.40 |
-| Node stream | 96 items | 174.38 | 167.52 | 324.51 |
-| Bun string | Standard | 33.23 | 32.49 | 31.59 |
-| Bun string | 96 items | 199.26 | 193.90 | 181.08 |
-| Bun stream | Standard | 49.12 | 48.14 | 52.79 |
-| Bun stream | 96 items | 237.89 | 240.03 | 265.56 |
+| Runtime / mode | Fixture  | Current | Bound helpers |  React |
+| -------------- | -------- | ------: | ------------: | -----: |
+| Node string    | Standard |   30.25 |         31.50 |  22.72 |
+| Node string    | 96 items |  136.62 |        133.88 | 131.73 |
+| Node stream    | Standard |   51.68 |         51.49 |  68.40 |
+| Node stream    | 96 items |  174.38 |        167.52 | 324.51 |
+| Bun string     | Standard |   33.23 |         32.49 |  31.59 |
+| Bun string     | 96 items |  199.26 |        193.90 | 181.08 |
+| Bun stream     | Standard |   49.12 |         48.14 |  52.79 |
+| Bun stream     | 96 items |  237.89 |        240.03 | 265.56 |
 
 Node standard-string candidates vary from 33.25 to 29.75, while controls are 30.12
 and 30.39. A longer confirmation was warranted instead of treating that mean as
@@ -55,12 +55,12 @@ Twenty-four fresh processes use 50,000 warmups and 20,000 measured renders, with
 the same two reversed orders, fixtures, controls and priority. These are separate
 populations; differences from the first screen are not implementation changes.
 
-| Runtime | Fixture | Current | Bound helpers | React |
-| --- | --- | ---: | ---: | ---: |
-| Node | Standard | 22.08 | 21.74 | 21.86 |
-| Node | 96 items | 132.08 | 129.52 | 135.45 |
-| Bun | Standard | 28.18 | 27.82 | 31.50 |
-| Bun | 96 items | 213.23 | 221.67 | 209.45 |
+| Runtime | Fixture  | Current | Bound helpers |  React |
+| ------- | -------- | ------: | ------------: | -----: |
+| Node    | Standard |   22.08 |         21.74 |  21.86 |
+| Node    | 96 items |  132.08 |        129.52 | 135.45 |
+| Bun     | Standard |   28.18 |         27.82 |  31.50 |
+| Bun     | 96 items |  213.23 |        221.67 | 209.45 |
 
 Node large-string improves in both orders: 133.30 to 130.45 and 130.87 to 128.60.
 Bun large-string gets slower in both: 215.74 to 223.01 and 210.71 to 220.34.

@@ -26,11 +26,11 @@ and after each block warm and measure 10,000 renders in the selected mode.
 ## Paired throughput
 
 | Worker | Pair | Shared RPS | Closures RPS | Closures change |
-| --- | ---: | ---: | ---: | ---: |
-| 1 | 1 | 8,674 | 8,739 | +0.75% |
-| 1 | 2 | 8,728 | 8,843 | +1.31% |
-| 2 | 1 | 8,614 | 8,732 | +1.37% |
-| 2 | 2 | 8,676 | 8,103 | -6.61% |
+| ------ | ---: | ---------: | -----------: | --------------: |
+| 1      |    1 |      8,674 |        8,739 |          +0.75% |
+| 1      |    2 |      8,728 |        8,843 |          +1.31% |
+| 2      |    1 |      8,614 |        8,732 |          +1.37% |
+| 2      |    2 |      8,676 |        8,103 |          -6.61% |
 
 All 432,023 measured responses match the complete 4,672-byte document,
 zero errors. Four ordinary/escaped parity cases pass. Counters verify callback
