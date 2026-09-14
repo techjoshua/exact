@@ -6,6 +6,14 @@ All repository changes must follow the
 [code maintainability standard](docs/code-maintainability.md). Treat its module ownership, JSDoc,
 testing, and change-acceptance rules as required review criteria rather than optional cleanup.
 
+## Automated PR review
+
+CodeRabbit review settings live in [`.coderabbit.yaml`](.coderabbit.yaml). Keep maintenance
+rules here and in the maintainability standard; use the YAML for review settings, artifact
+filters, and concise guidance about applying those rules. Raw benchmark captures and generated
+outputs are excluded from review, while source, fixtures, benchmark runners, and report prose
+remain eligible. Review findings require verification against current code before applying fixes.
+
 ## Keep documentation and agent guidance synchronized
 
 Every feature addition, removal, or behavior change must update all relevant engineering
