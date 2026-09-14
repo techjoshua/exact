@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
@@ -8,6 +9,12 @@ const fixtureRoot = path.resolve(
 	import.meta.dirname,
 	'../../../framework-adapters/vite-plugin/test-fixtures/adapter-app'
 );
+const adapterVersion = JSON.parse(
+	readFileSync(
+		new URL('../../../react-adapters/tanstack-query/package.json', import.meta.url),
+		'utf8'
+	)
+).version;
 
 describe('React compatibility build engine', () => {
 	it('reports a frozen registry and fast-paths irrelevant modules', () => {
@@ -54,7 +61,7 @@ describe('React compatibility build engine', () => {
 				expect.objectContaining({
 					code: 'compatibility-retained',
 					adapterPackage: '@exactjs/tanstack-query',
-					adapterVersion: '0.5.0',
+					adapterVersion,
 					sourceVersion: '>=5 <6',
 					sourceExport: 'QueryClientProvider',
 					replacementExport: 'QueryClientProvider'
@@ -71,7 +78,7 @@ describe('React compatibility build engine', () => {
 				sourceLocation: expect.stringContaining('node_modules'),
 				installedVersion: '5.101.2',
 				adapterPackage: '@exactjs/tanstack-query',
-				adapterVersion: '0.5.0',
+				adapterVersion,
 				targetModule: '@exactjs/tanstack-query/react',
 				targetExport: 'QueryClientProvider'
 			})
