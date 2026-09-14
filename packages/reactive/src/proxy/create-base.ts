@@ -1,8 +1,9 @@
+import { normalizeDescriptor, samePropertyDescriptor } from './property-descriptors.js';
 import { hasActiveTransaction, recordTransactionUndo, track, trigger } from '../internal/deps.js';
 
 import { markReactiveHashDirty } from '../internal/keyed-collections.js';
 
-import { iterateKey, proxyMarker, rawTarget } from '../internal/symbols.js';
+import { arrayLengthWriteKey, iterateKey, proxyMarker, rawTarget } from '../internal/symbols.js';
 
 import { isArrayStructureKey } from '../internal/objects.js';
 import { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
@@ -136,7 +137,10 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		const hadKey = Object.prototype.hasOwnProperty.call(target, key);
 		const changed = hasChanged(previous, unwrapped);
 		const ownDescriptor = Reflect.getOwnPropertyDescriptor(target, key);
-		if (!changed && ownDescriptor && 'value' in ownDescriptor) return true;
+		if (!changed && ownDescriptor && 'value' in ownDescriptor) {
+			if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
+			return true;
+		}
 		const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
 		this.record.forwardingSet = true;
 		let ok: boolean;
@@ -146,8 +150,13 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 			this.record.forwardingSet = false;
 		}
 		if (ok && undo && (!hadKey || !Object.is(previous, Reflect.get(target, key, receiver))))
-			recordTransactionUndo(undo, target, key);
+			recordTransactionUndo(
+				undo,
+				Array.isArray(target) && key === 'length' ? undefined : target,
+				key
+			);
 		if (ok && changed) {
+			if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
 			markReactiveHashDirty(target);
 			trigger(target, key);
 			for (const index of removedIndexes) trigger(target, String(index));
@@ -177,12 +186,28 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 			return false;
 		}
 		const previous = Reflect.getOwnPropertyDescriptor(target, key);
-		if (samePropertyDescriptor(previous, descriptor)) return true;
+		if (samePropertyDescriptor(previous, descriptor)) {
+			if (Array.isArray(target) && key === 'length' && 'value' in descriptor)
+				trigger(target, arrayLengthWriteKey);
+			return true;
+		}
 		const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
 		const oldLength = Array.isArray(target) ? target.length : undefined;
+		const previousIndexes =
+			Array.isArray(target) && key === 'length' ? Object.keys(target) : undefined;
 		const ok = Reflect.defineProperty(target, key, normalizeDescriptor(descriptor));
 		if (!ok) return false;
-		if (undo) recordTransactionUndo(undo, target, key);
+		if (Array.isArray(target) && key === 'length') {
+			trigger(target, arrayLengthWriteKey);
+			for (const index of previousIndexes ?? [])
+				if (!Reflect.has(target, index)) trigger(target, index);
+		}
+		if (undo)
+			recordTransactionUndo(
+				undo,
+				Array.isArray(target) && key === 'length' ? undefined : target,
+				key
+			);
 		markReactiveHashDirty(target);
 		trigger(target, key);
 		if (!previous || isArrayStructureKey(target, key)) trigger(target, iterateKey);
@@ -383,24 +408,6 @@ function registerProxySource(proxy: object, source: ReactiveRef): void {
 function trackProxySources(proxy: object): void {
 	const source = proxyRefs.get(proxy);
 	if (source) track(source.target, source.key);
-}
-
-function normalizeDescriptor(descriptor: PropertyDescriptor): PropertyDescriptor {
-	return 'value' in descriptor ? { ...descriptor, value: unwrap(descriptor.value) } : descriptor;
-}
-
-function samePropertyDescriptor(
-	left: PropertyDescriptor | undefined,
-	right: PropertyDescriptor
-): boolean {
-	if (!left) return false;
-	if ('value' in left !== 'value' in right) return false;
-	if (left.configurable !== right.configurable || left.enumerable !== right.enumerable)
-		return false;
-	if ('value' in left && 'value' in right) {
-		return left.writable === right.writable && !hasChanged(left.value, right.value);
-	}
-	return left.get === right.get && left.set === right.set;
 }
 
 function reactiveOptionsKey(options: ReactiveOptions): object {

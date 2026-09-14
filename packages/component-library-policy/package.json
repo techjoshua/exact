@@ -8,7 +8,8 @@
 		"dist",
 		"!dist/**/*.test.*",
 		"LICENSE",
-		"NOTICE"
+		"NOTICE",
+		"!dist/test-support/**"
 	],
 	"exports": {
 		".": {

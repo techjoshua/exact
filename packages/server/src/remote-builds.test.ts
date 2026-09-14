@@ -42,8 +42,8 @@ describe('build-keyed execution-root dispatch', () => {
 			{ ok: true, state: 'billing' },
 			{ ok: true, state: 'branding' }
 		]);
-		// The batch envelope and each decoded operation receive independent authorization.
-		expect(authorizationCalls).toBe(3);
+		// Request authentication runs once for the batch.
+		expect(authorizationCalls).toBe(1);
 	});
 
 	it('rejects an unsupported build before handler dispatch and advertises a preferred build', async () => {

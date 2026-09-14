@@ -121,6 +121,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			);
 			if (options.target === 'server')
 				componentAuthorization = new ExactBunComponentAuthorization({
+					warn: (message) => console.warn(message),
 					applicationRoot: options.applicationRoot,
 					buildKey: options.debug?.buildKey ?? (automaticDevelopment ? 'development' : undefined)
 				});

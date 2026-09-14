@@ -126,7 +126,14 @@ export function AdvancedPage(this: Component<{}>) {
 					from <code>@exactjs/hydrate/root</code> accepts an element or the current{' '}
 					<code>document</code>. It gives visible server HTML a rendering opportunity before
 					hydration, while activating synchronously if a user interaction arrives first. This can
-					improve initial paint while moving passive application readiness slightly later.
+					improve initial paint while moving passive application readiness slightly later. Pass a
+					synchronous root factory to defer preparation too, for example
+					<code>
+						{
+							'hydrateAfterNavigation(() => <App {...readPublishedRootProps(App, container)} />, container)'
+						}
+					</code>
+					. The factory runs once when activation starts; static imports still evaluate normally.
 				</p>
 				<p>
 					Use <code>renderMode: 'hydrate'</code> for browser builds that adopt server HTML,

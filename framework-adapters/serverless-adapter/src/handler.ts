@@ -20,6 +20,7 @@ export type ExactServerlessEvent = {
 export type ExactServerlessResult = {
 	statusCode: number;
 	headers: Record<string, string>;
+	multiValueHeaders?: Record<string, string[]>;
 	body: string;
 	isBase64Encoded: false;
 };
@@ -50,6 +51,9 @@ export async function responseToServerlessResult(
 	return {
 		statusCode: result.status,
 		headers: result.headers,
+		...(result.setCookies?.length
+			? { multiValueHeaders: { 'set-cookie': [...result.setCookies] } }
+			: {}),
 		body: result.stream ? await streamToText(result.stream) : (result.body ?? ''),
 		isBase64Encoded: false
 	};

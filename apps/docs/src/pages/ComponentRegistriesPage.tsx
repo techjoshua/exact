@@ -144,7 +144,9 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					An installed extension or external provider may return a compiler-branded component whose
 					candidate set cannot be listed at build time. <code>createDynamicComponent()</code> gives
 					that resolution a typed, cancelable client-owned boundary. Reactive selection changes
-					abort stale candidates, and pending resolution uses the nearest Suspense boundary.
+					abort stale candidates, and pending resolution uses the nearest Suspense boundary. Dynamic
+					components do not require a finite registry. Registries additionally preserve static
+					placement, SSR, and hydration guarantees for their known candidates.
 				</p>
 				<CodeBlock source={providerSource} language="tsx" title="Workspace.tsx" />
 				<p>

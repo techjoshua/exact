@@ -26,7 +26,11 @@ import {
 	type ReactTransitionOwnership
 } from './shared.js';
 
-/** Tracks the state owned by hook. */
+/**
+ * Owns positional hook slots only for React compatibility components. A render works on
+ * pending slots; subclasses publish or abandon them at commit. Dispatchers target committed
+ * slots and become inert after disposal. Native eXact component state does not use this model.
+ */
 export abstract class HookState {
 	protected committed: HookSlot[] = [];
 	protected working: HookSlot[] | undefined;
@@ -50,21 +54,21 @@ export abstract class HookState {
 		this.identifierPrefix = runtime?.identifierPrefix ?? '';
 	}
 
-	/** Performs the exact context domain operation for this hook state instance. */
+	/** Reads the durable owner's native context without consuming a React hook slot. */
 	exactContext<T>(context: ContextToken<T>): T {
 		return this.component.getContext(context);
 	}
 
 	protected abstract syncOwnerHooks(): void;
 
-	/** Performs the context changed domain operation for this hook state instance. */
+	/** Compares committed context observations with the current providers to decide whether to render. */
 	contextChanged(): boolean {
 		return this.committed.some(
 			(slot) => slot.kind === 'context' && !Object.is(slot.value, this.readContext(slot.context))
 		);
 	}
 
-	/** Performs the state domain operation for this hook state instance. */
+	/** Allocates state once per slot and returns its stable dispatcher; render-time updates are rejected. */
 	state(initializer: unknown | (() => unknown)): readonly [unknown, (value: unknown) => void] {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -79,7 +83,7 @@ export abstract class HookState {
 		return [slot.value, slot.dispatch];
 	}
 
-	/** Performs the reducer domain operation for this hook state instance. */
+	/** Retains state and dispatch identity while replacing the reducer used by subsequent dispatches. */
 	reducer(
 		reducer: (state: unknown, action: unknown) => unknown,
 		initialArg: unknown,
@@ -102,7 +106,7 @@ export abstract class HookState {
 		return [slot.value, slot.dispatch];
 	}
 
-	/** Performs the ref domain operation for this hook state instance. */
+	/** Retains one mutable ref object for this hook position across compatibility renders. */
 	ref(initial: unknown): { current: unknown } {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -114,7 +118,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
-	/** Performs the memo domain operation for this hook state instance. */
+	/** Recomputes during render when dependencies change, or on every render when dependencies are absent. */
 	memo(factory: () => unknown, deps: DependencyList | undefined): unknown {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -131,7 +135,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
-	/** Performs the debug domain operation for this hook state instance. */
+	/** Records the latest inspection value in a position-checked debug slot. */
 	debug(value: unknown): void {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -143,7 +147,7 @@ export abstract class HookState {
 		slot.value = value;
 	}
 
-	/** Performs the context domain operation for this hook state instance. */
+	/** Reads a provider and records its identity and value for subsequent context-change detection. */
 	context<T>(context: ReactContext<T>): T {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -161,7 +165,7 @@ export abstract class HookState {
 		return value as T;
 	}
 
-	/** Performs the provide domain operation for this hook state instance. */
+	/** Publishes a native context value or updates the existing reactive cell used by compatibility consumers. */
 	provide<T>(context: ReactContext<T>, value: T): void {
 		if (context._exactContextMode === 'value') {
 			this.component.setContext(contextToken(context), value);
@@ -177,7 +181,7 @@ export abstract class HookState {
 		cell.current = value;
 	}
 
-	/** Performs the effect domain operation for this hook state instance. */
+	/** Marks changed effects pending for commit; this registration never invokes create or cleanup. */
 	effect(
 		effectKind: EffectKind,
 		create: () => void | (() => void),
@@ -202,7 +206,7 @@ export abstract class HookState {
 		}
 	}
 
-	/** Performs the id value domain operation for this hook state instance. */
+	/** Returns a stable ID combining the root prefix, component identity, and hook position. */
 	idValue(): string {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -214,7 +218,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
-	/** Performs the external store domain operation for this hook state instance. */
+	/** Reads a snapshot during render and marks changed subscription inputs for commit-time installation. */
 	externalStore(subscribe: ExternalStoreSubscribe, getSnapshot: () => unknown): unknown {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -234,7 +238,7 @@ export abstract class HookState {
 		return value;
 	}
 
-	/** Performs the effect event domain operation for this hook state instance. */
+	/** Returns a stable callback that delegates to the slot's latest implementation. */
 	effectEvent<T extends AnyReactCallback>(implementation: T): T {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -252,7 +256,7 @@ export abstract class HookState {
 		return slot.callback as T;
 	}
 
-	/** Performs the deferred domain operation for this hook state instance. */
+	/** Coalesces input changes into deferred work; settlement updates only a live committed slot. */
 	deferred(value: unknown, initialValue: unknown, hasInitialValue: boolean): unknown {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -281,7 +285,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
-	/** Performs the optimistic domain operation for this hook state instance. */
+	/** Retains a stable dispatcher and resets its optimistic value when the authoritative base changes. */
 	optimistic(
 		base: unknown,
 		reducer?: (state: unknown, action: unknown) => unknown
@@ -302,7 +306,7 @@ export abstract class HookState {
 		return [slot.value, slot.dispatch];
 	}
 
-	/** Performs the memo cache domain operation for this hook state instance. */
+	/** Allocates the React compiler's sentinel-filled cache and rejects a changed size at the same slot. */
 	memoCache(size: number): unknown[] {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -319,7 +323,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
-	/** Performs the usable context domain operation for this hook state instance. */
+	/** Reads context without consuming a positional slot, as required by React's usable context API. */
 	usableContext<T>(context: ReactContext<T>): T {
 		return this.readContext(context as ReactContext<unknown>) as T;
 	}

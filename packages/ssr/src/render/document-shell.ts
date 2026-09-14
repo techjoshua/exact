@@ -13,6 +13,10 @@ export class DocumentShellScope {
 
 	/** Shell snapshots track boundary visits for rollback but publish no shell state. */
 	readonly capture: SsrResumptionCapture = {
+		// The capture interface requires a numeric checkpoint. Encode the application's record
+		// count in the quotient and this shell's visit flag in the remainder, avoiding a tuple
+		// allocation. Valid render checkpoints have zero or one visit; claim() rejects duplicates.
+		// Division by two restores the application checkpoint, and modulo two restores the flag.
 		checkpoint: () =>
 			(this.applicationOptions.resumptionCapture?.checkpoint() ?? 0) * 2 + this.visits,
 		rollback: (checkpoint) => {

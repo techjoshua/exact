@@ -134,6 +134,7 @@ export async function writeNodeResponse(
 ): Promise<void> {
 	response.statusCode = result.status;
 	for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
+	if (result.setCookies?.length) response.setHeader('set-cookie', [...result.setCookies]);
 	const body = exactResponseBodyOf(result);
 	if (body?.kind === 'produced' && body.writeSynchronously) {
 		try {

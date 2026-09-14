@@ -52,7 +52,7 @@ describe('@exactjs/server security-validation', () => {
 		expect(JSON.parse(trusted.body).patches[0].html).toBe('<p>Reviewed</p>');
 	});
 
-	it('normalizes a validated payload before authorization and handler execution', async () => {
+	it('normalizes a validated payload before operation authorization and handler execution', async () => {
 		const authorize = vi.fn((_request, input) =>
 			Promise.resolve((input as { payload?: { amount?: number } }).payload?.amount === 7)
 		);
@@ -63,7 +63,7 @@ describe('@exactjs/server security-validation', () => {
 				body: { type: 'invoke', id: 'allowed-action', payload: { amount: '7' } }
 			},
 			context({
-				authorize,
+				authorizeOperation: authorize,
 				invocations: { 'allowed-action': handler },
 				payloadDecoders: {
 					invocations: {
@@ -198,7 +198,7 @@ describe('@exactjs/server security-validation', () => {
 				body: { type: 'invoke', id: 'allowed-action', payload: { title: 'Ready' } }
 			},
 			context({
-				authorize,
+				authorizeOperation: authorize,
 				validateCsrf
 			})
 		);

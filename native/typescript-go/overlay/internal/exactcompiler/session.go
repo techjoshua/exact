@@ -176,6 +176,22 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	defer generation.release()
+	if request.Kind != "extension" && request.Kind != "diagnose" {
+		if edits := planNativePropCasing(generation.sourceFile, generation.checker); len(edits) != 0 {
+			normalization.apply(edits)
+			request.Source = normalization.text
+			if packageEnhancementSuffix != "" {
+				request.PackageEnhancementBoundary = utf16Length(request.Source)
+				request.Source += packageEnhancementSuffix
+			}
+			generation, err = project.advance(context.Background(), fileName, request.Source)
+			if err != nil {
+				response.Error = err.Error()
+				return response
+			}
+			defer generation.release()
+		}
+	}
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
 	if request.Kind == "extension" {
@@ -542,6 +558,7 @@ func (s *Session) Execute(request Request) Response {
 		)...,
 	)
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, nativePropDiagnostics(sourceFile, generation.checker)...)
 	response.Diagnostics = append(response.Diagnostics, componentBindingDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
@@ -600,6 +617,7 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	if hasErrorDiagnostic(response.Diagnostics) {
+		remapAuthoredLocations(&response, normalization, len(response.Diagnostics))
 		return response
 	}
 

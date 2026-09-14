@@ -135,7 +135,9 @@ export function CompilerTourPage(this: Component<{}>) {
 					Client-island activation follows that same compiled path. Hydration resolves the
 					island&apos;s browser artifact and passes its opaque component operation directly to mount
 					or markerless adoption; it does not wrap the component in a virtual node or rediscover how
-					to run it.
+					to run it. If a pending island moves outside its hydration container, the original
+					activation is discarded. Its new owner can hydrate it using the already loaded module.
+					Moving within the original container remains supported.
 				</p>
 				<p>
 					On the server, each native component follows the same target-local sequence. Its artifact

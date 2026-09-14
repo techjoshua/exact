@@ -1,7 +1,9 @@
+import { readGatewayBody } from '../gateway/body.js';
+export { exactResponseHeaders } from '../response-headers.js';
 import { runWithExactRequestScope } from '../context.js';
 import {
 	checkSecurityHooks,
-	dispatchExactOperation,
+	dispatchSecurityCheckedExactOperation,
 	isOperationError,
 	limitedJsonResponse,
 	logReject,
@@ -132,6 +134,22 @@ async function handleExactRequestOwned(
 		return jsonResponse(404, { error: 'not_found' });
 	}
 
+	const security = await checkSecurityHooks(request, context);
+	if (security !== 'allowed') {
+		logReject(context, 'rejected exact request security');
+		return jsonResponse(403, { error: 'forbidden' });
+	}
+	if (requestHeader(request, 'x-exact-binding') !== undefined) {
+		if (!context.gateway) return jsonResponse(404, { error: 'unknown_binding' });
+		let body: string | Uint8Array;
+		try {
+			body = await readGatewayBody(request, context.limits?.maxRequestBytes);
+		} catch {
+			return jsonResponse(400, { error: 'bad_request' });
+		}
+		return context.gateway.forward(request, body, context);
+	}
+
 	let input: ExactProtocolRequest;
 	try {
 		input = parseExactRequestBody(await readBody(request, context.limits?.maxRequestBytes), {
@@ -149,36 +167,6 @@ async function handleExactRequestOwned(
 		input.type === 'debug'
 			? (debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext))
 			: undefined;
-
-	// Batches, debug requests, and gateway forwarding require an envelope-level decision.
-	// Local operations authorize again after their operation-specific payload decoder runs.
-	const bindingRequest = requestHeader(request, 'x-exact-binding') !== undefined;
-	const security =
-		input.type === 'batch' || input.type === 'debug' || bindingRequest
-			? await checkSecurityHooks(request, input, context)
-			: 'allowed';
-	if (security === 'unauthorized') {
-		logReject(context, 'rejected unauthorized exact invocation');
-		return jsonResponse(403, { error: 'forbidden' });
-	}
-
-	if (security === 'csrf') {
-		logReject(context, 'rejected exact invocation with invalid csrf');
-		return jsonResponse(403, { error: 'forbidden' });
-	}
-
-	if (bindingRequest) {
-		if (!context.gateway) {
-			logReject(context, 'rejected exact invocation for unknown binding');
-			return jsonResponse(404, { error: 'unknown_binding' });
-		}
-		if (input.type === 'debug' && !(await debugRuntime!.authorize(request, input)))
-			return jsonResponse(404, { error: 'not_found' });
-		return context.gateway.forward(request, input, {
-			...context,
-			debugRuntime: debugOwnerContext.debugRuntime ?? exactServerDebugRuntime(debugOwnerContext)
-		});
-	}
 
 	if (input.type === 'debug') return debugRuntime!.handle(request, input);
 
@@ -203,12 +191,12 @@ async function handleExactRequestOwned(
 				operation: ExactInvocationRequest,
 				_base: ExactServerContext
 			) =>
-				dispatchExactOperation(
+				dispatchSecurityCheckedExactOperation(
 					operationRequest,
 					operation,
 					contextForRemoteOperation(responseContext, build, operation)
 				)
-		: dispatchExactOperation;
+		: dispatchSecurityCheckedExactOperation;
 
 	if (wantsStreaming(request)) {
 		return withBuildHeaders(

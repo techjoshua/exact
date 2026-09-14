@@ -1,3 +1,4 @@
+import { isServerSlotDiscriminator } from '@exactjs/core/framework/protocol-records';
 import type { ExactServerSlotReceiptData } from '@exactjs/core/runtime/component-abi';
 import { escapeAttr } from '../html.js';
 import type { SsrContext } from '../types.js';
@@ -78,34 +79,14 @@ export function serverSlotReference(value: unknown): value is ExactServerSlotRef
 		typeof slot.buildKey === 'string' &&
 		slot.buildKey.length > 0 &&
 		(slot.planEdgeId === slot.__exactServerSlot ||
-			(validServerSlotDiscriminator(slot.discriminator) &&
+			(isServerSlotDiscriminator(slot.discriminator) &&
 				(slot.discriminator as Record<string, unknown>).kind === 'keyed' &&
 				slot.__exactServerSlot.startsWith(`${slot.planEdgeId}:key:`))) &&
 		typeof slot.ownerComponentId === 'string' &&
 		slot.ownerComponentId.length > 0 &&
-		validServerSlotDiscriminator(slot.discriminator) &&
+		isServerSlotDiscriminator(slot.discriminator) &&
 		Number.isSafeInteger(slot.generation) &&
 		(slot.generation as number) > 0
-	);
-}
-
-function validServerSlotDiscriminator(value: unknown): boolean {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const discriminator = value as Record<string, unknown>;
-	if (discriminator.kind === 'single') return Object.keys(discriminator).length === 1;
-	if (discriminator.kind === 'branch')
-		return (
-			Object.keys(discriminator).length === 2 &&
-			typeof discriminator.branch === 'string' &&
-			!!discriminator.branch
-		);
-	return (
-		discriminator.kind === 'keyed' &&
-		Object.keys(discriminator).length === 3 &&
-		typeof discriminator.list === 'string' &&
-		!!discriminator.list &&
-		typeof discriminator.keyToken === 'string' &&
-		!!discriminator.keyToken
 	);
 }
 

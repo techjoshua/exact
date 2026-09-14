@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from 'vitest';
+import { unmount } from '@exactjs/dom/root';
 import { hydrateClientIslands, lazyClientIsland } from './index.js';
 import {
 	LazyCheckoutForm,
@@ -29,6 +30,72 @@ function activation(
 }
 
 describe('@exactjs/hydrate lazy islands', () => {
+	it.each([false, true])(
+		'fences a moved pending island (interaction: %s) and reuses its loaded module',
+		async (interaction) => {
+			const container = document.createElement('main');
+			const destination = document.createElement('aside');
+			container.innerHTML =
+				'<div data-exact-client-boundary="release" data-exact-client-name="Release" data-exact-client-generation="1"><button data-exact-id="release-button">Open</button></div>';
+			const boundary = container.firstElementChild!;
+			if (interaction) boundary.setAttribute('data-exact-client-hydration', 'interaction');
+			const loaded = deferred<typeof LazyRelease>();
+			let loads = 0;
+			const registry = {
+				Release: lazyClientIsland(
+					() => {
+						loads++;
+						return loaded.promise;
+					},
+					interaction ? activation('release-button', 'click', 'native-click') : undefined
+				)
+			};
+			const controller = new AbortController();
+			try {
+				hydrateClientIslands(container, registry, { signal: controller.signal });
+				if (interaction)
+					boundary
+						.querySelector('button')!
+						.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+				destination.append(boundary);
+				loaded.resolve(LazyRelease);
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				expect(boundary.hasAttribute('data-exact-client-hydrated')).toBe(false);
+				boundary.removeAttribute('data-exact-client-hydration');
+				hydrateClientIslands(destination, registry, { signal: controller.signal });
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				expect(boundary.getAttribute('data-exact-client-hydrated')).toBe('true');
+				expect(loads).toBe(1);
+			} finally {
+				controller.abort();
+				unmount(boundary);
+			}
+		}
+	);
+
+	it('allows a pending island to move within its original container', async () => {
+		const container = document.createElement('main');
+		container.innerHTML =
+			'<section><div data-exact-client-boundary="release" data-exact-client-name="Release"><button data-exact-id="release-button">Open</button></div></section><aside></aside>';
+		const boundary = container.querySelector('[data-exact-client-boundary]')!;
+		const loaded = deferred<typeof LazyRelease>();
+		const controller = new AbortController();
+		try {
+			hydrateClientIslands(
+				container,
+				{ Release: lazyClientIsland(() => loaded.promise) },
+				{ signal: controller.signal }
+			);
+			container.querySelector('aside')!.append(boundary);
+			loaded.resolve(LazyRelease);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			expect(boundary.getAttribute('data-exact-client-hydrated')).toBe('true');
+		} finally {
+			controller.abort();
+			unmount(boundary);
+		}
+	});
+
 	it('loads an interaction island once and replays ordered invocations after adoption', async () => {
 		const container = document.createElement('main');
 		container.innerHTML =
@@ -234,3 +301,11 @@ describe('@exactjs/hydrate lazy islands', () => {
 		}
 	});
 });
+
+function deferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void;
+	const promise = new Promise<T>((settle) => {
+		resolve = settle;
+	});
+	return { promise, resolve };
+}

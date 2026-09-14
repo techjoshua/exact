@@ -9,3 +9,5 @@ compile eXact modules and connect development and production runtime features.
 - Use `include` and `exclude` to define the complete compiler-owned module set.
 - Put component-library trust policy in `exact.config.*`; do not add adapter-local allowlists.
 - Treat generated `.exact` artifacts as build output; do not edit or recreate them in application code.
+
+- Resolve component-policy warnings before deploying; denied components reject at execution.

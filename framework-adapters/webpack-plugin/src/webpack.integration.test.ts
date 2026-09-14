@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -15,19 +16,23 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
 
-it('gates a real Webpack server compilation before building a denied component module', async () => {
+it('builds with a warning and rejects execution before a denied component runs', async () => {
 	const fixture = createFixture(true);
+	const candidate = path.join(fixture.root, 'node_modules', '@acme', 'cards', 'dist', 'index.js');
+	writeFileSync(
+		candidate,
+		"throw new Error('DENIED_IMPLEMENTATION_EVALUATED');\n" + readFileSync(candidate, 'utf8')
+	);
 	const stats = await compile(fixture.root);
-
-	expect(stats.hasErrors()).toBe(true);
-	expect(stats.toJson({ all: false, errors: true }).errors?.[0]?.message).toContain(
-		'matches deny rule @acme/cards'
+	expect(stats.hasErrors(), JSON.stringify(stats.toJson({ all: false, errors: true }).errors)).toBe(
+		false
 	);
-	expect(stats.toJson({ all: false, modules: true }).modules ?? []).not.toEqual(
-		expect.arrayContaining([
-			expect.objectContaining({ name: expect.stringContaining('@acme/cards') })
-		])
-	);
+	const execution = spawnSync(process.execPath, [path.join(fixture.root, 'dist', 'server.js')], {
+		encoding: 'utf8'
+	});
+	expect(execution.status).not.toBe(0);
+	expect(execution.stderr).toContain('explicitly-denied');
+	expect(execution.stderr).not.toContain('DENIED_IMPLEMENTATION_EVALUATED');
 });
 
 it('emits authorization artifacts from a real authorized Webpack server compilation', async () => {

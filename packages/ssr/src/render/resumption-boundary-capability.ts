@@ -1,13 +1,15 @@
 import { finalizedMarkerPair } from '../markers.js';
 import type { SsrContext } from '../types.js';
 import { ssrCapabilities } from './capability-registry.js';
+import type { SsrSerializedResumption } from '../resumption.js';
 
 type ResumptionBoundaryCapability = (
 	context: SsrContext,
 	id: string,
 	name: string,
 	html: string,
-	props: Record<string, unknown>
+	props: Record<string, unknown>,
+	resumptions?: readonly SsrSerializedResumption[]
 ) => string;
 
 const capabilityName = 'resumption-boundary';
@@ -23,8 +25,12 @@ export function renderPreparedResumableComponentBoundary(
 	id: string,
 	name: string,
 	html: string,
-	props: Record<string, unknown>
+	props: Record<string, unknown>,
+	resumptions?: readonly SsrSerializedResumption[]
 ): string {
 	const capability = ssrCapabilities[capabilityName] as ResumptionBoundaryCapability | undefined;
-	return capability?.(context, id, name, html, props) ?? finalizedMarkerPair(context, id, html);
+	return (
+		capability?.(context, id, name, html, props, resumptions) ??
+		finalizedMarkerPair(context, id, html)
+	);
 }

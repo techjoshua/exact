@@ -1,3 +1,9 @@
+import {
+	assertNativePropAllowed,
+	assertNativeEventHandler,
+	isNativeEventProp,
+	isNativeSrcdocProp
+} from '@exactjs/core/framework/render-structure';
 import type { RefBinding } from '@exactjs/core';
 import {
 	adoptElementId,
@@ -160,10 +166,13 @@ function renderAttribute(
 	customElement: boolean,
 	inputType?: unknown
 ): string {
-	if (!reactMarkup && name === 'dangerouslySetInnerHTML') {
-		throw new Error(
-			'Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.'
-		);
+	if (!reactMarkup) {
+		assertNativePropAllowed(name);
+		if (isNativeEventProp(name)) {
+			assertNativeEventHandler(unwrap(rawValue));
+			return '';
+		}
+		if (isNativeSrcdocProp(name)) name = 'srcdoc';
 	}
 	if (
 		(boundDetails && name === 'data-exact-ssr-open') ||

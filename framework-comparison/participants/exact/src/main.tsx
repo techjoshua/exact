@@ -15,10 +15,16 @@ const profileOptions = profileEvents
 const root = document.getElementById('app');
 if (!root) throw new Error('Missing incident application root');
 
-const published = readPublishedRootProps<{
-	initialData?: InitialData;
-	path?: string;
-}>(IncidentApp, root);
 if (root.childNodes.length > 0)
-	void hydrateAfterNavigation(<IncidentApp {...published} />, root, profileOptions);
+	void hydrateAfterNavigation(
+		() => {
+			const published = readPublishedRootProps<{
+				initialData?: InitialData;
+				path?: string;
+			}>(IncidentApp, root);
+			return <IncidentApp {...published} />;
+		},
+		root,
+		profileOptions
+	);
 else render(<IncidentApp />, root, profileOptions);

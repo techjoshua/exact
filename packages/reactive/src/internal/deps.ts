@@ -25,8 +25,16 @@ type MutationVersionRange = {
 	end: number;
 };
 
+/** Ownership checks and invalidation accounting shared by composite inverse operations. */
+export type MutationRestoration = {
+	/** Allows restoration only when intervening writes belong to the rollback group. */
+	allows(target: object, key: PropertyKey, baseline?: number): boolean;
+	/** Records an actually restored dependency without publishing intermediate array shapes. */
+	mark(target: object, key: PropertyKey): void;
+};
+
 type TransactionUndo = {
-	readonly apply: () => void;
+	readonly apply: (restoration: MutationRestoration) => void;
 	readonly target?: object;
 	readonly key?: PropertyKey;
 };
@@ -203,7 +211,11 @@ export function rollbackReactiveMutationJournals(
  * Supplying the mutated target and dependency key lets a retained optimistic
  * journal preserve a newer authoritative write to that path during rollback.
  */
-export function recordTransactionUndo(undo: () => void, target?: object, key?: PropertyKey): void {
+export function recordTransactionUndo(
+	undo: (restoration: MutationRestoration) => void,
+	target?: object,
+	key?: PropertyKey
+): void {
 	transactions[transactions.length - 1]?.undos?.push({ apply: undo, target, key });
 }
 
@@ -250,19 +262,18 @@ function rollbackTransaction(
 	const undos = transaction.undos;
 	if (!undos) return;
 	const restored = new Map<object, Set<PropertyKey>>();
+	const restoration: MutationRestoration = {
+		allows: (target, key, baseline = 0) =>
+			!protectedVersions ||
+			readMutationVersion(target, key) === (protectedVersions.get(target)?.get(key) ?? baseline),
+		mark: (target, key) => recordRestoredDependency(restored, target, key)
+	};
 	for (let index = undos.length - 1; index >= 0; index--) {
 		const undo = undos[index]!;
-		if (
-			protectedVersions &&
-			undo.target &&
-			undo.key !== undefined &&
-			readMutationVersion(undo.target, undo.key) !==
-				protectedVersions.get(undo.target)?.get(undo.key)
-		)
+		if (undo.target && undo.key !== undefined && !restoration.allows(undo.target, undo.key))
 			continue;
-		undo.apply();
-		if (undo.target && undo.key !== undefined)
-			recordRestoredDependency(restored, undo.target, undo.key);
+		undo.apply(restoration);
+		if (undo.target && undo.key !== undefined) restoration.mark(undo.target, undo.key);
 	}
 	advanceRestoredDependencyVersions(restored);
 }
@@ -342,28 +353,31 @@ function rollbackOwnedTransaction(
 ): void {
 	const undos = transaction.undos;
 	if (!undos || !transaction.versionRanges) return;
+	const restoration: MutationRestoration = {
+		allows(target, key, baseline = 0) {
+			if (blocked.get(target)?.has(key)) return false;
+			const expected = transaction.versionRanges!.get(target)?.get(key)?.end ?? baseline;
+			if (
+				versionsCovered(
+					expected + 1,
+					readMutationVersion(target, key),
+					covered.get(target)?.get(key) ?? []
+				)
+			)
+				return true;
+			let keys = blocked.get(target);
+			if (!keys) blocked.set(target, (keys = new Set()));
+			keys.add(key);
+			return false;
+		},
+		mark: (target, key) => recordRestoredDependency(restored, target, key)
+	};
 	for (let index = undos.length - 1; index >= 0; index--) {
 		const undo = undos[index]!;
-		if (undo.target && undo.key !== undefined) {
-			if (blocked.get(undo.target)?.has(undo.key)) continue;
-			const range = transaction.versionRanges.get(undo.target)?.get(undo.key);
-			if (
-				range &&
-				!versionsCovered(
-					range.end + 1,
-					readMutationVersion(undo.target, undo.key),
-					covered.get(undo.target)?.get(undo.key) ?? []
-				)
-			) {
-				let keys = blocked.get(undo.target);
-				if (!keys) blocked.set(undo.target, (keys = new Set()));
-				keys.add(undo.key);
-				continue;
-			}
-		}
-		undo.apply();
-		if (undo.target && undo.key !== undefined)
-			recordRestoredDependency(restored, undo.target, undo.key);
+		if (undo.target && undo.key !== undefined && !restoration.allows(undo.target, undo.key))
+			continue;
+		undo.apply(restoration);
+		if (undo.target && undo.key !== undefined) restoration.mark(undo.target, undo.key);
 	}
 }
 

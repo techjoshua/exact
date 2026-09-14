@@ -13,7 +13,7 @@ await server.register({
 });
 ```
 
-The plugin registers a POST route at the runtime endpoint, configures buffered JSON parsing,
+The plugin registers a POST route at the runtime endpoint, retains buffered raw bytes for runtime decoding or gateway forwarding,
 applies the runtime request-size limit, adapts streaming responses, and cancels work when the
 client disconnects.
 

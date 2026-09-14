@@ -59,6 +59,17 @@ export function ServerExecutionPage(this: Component<{}>) {
 			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
 		>
 			<section>
+				<h2>Resume interactive regions inside server pages</h2>
+				<p>
+					A server-rendered page can contain independently hydrated client regions. eXact keeps each
+					region's public props and captured state with its boundary, so lazy regions can load in
+					either order and adopt their existing DOM. Completed server work resumes from its captured
+					result. Components inside a single client root share that root's hydration ownership. The
+					same behavior applies to string and streaming SSR. Prop-derived initial values do not
+					overwrite restored server results; subsequent prop changes still update dependent values.
+				</p>
+			</section>
+			<section>
 				<h2>Use server resources in component code</h2>
 				<p>
 					A component may need a database, request-scoped service, secret, or server-only library
@@ -188,6 +199,17 @@ export function ServerExecutionPage(this: Component<{}>) {
 					closed after commitment. Error details stay in server logs.
 				</p>
 			</section>
+			<section>
+				<h2>Authenticate requests and authorize operations</h2>
+				<p>
+					Configure <code>authorize(request, context)</code> and
+					<code>validateCsrf(request, context)</code> to check request credentials and headers
+					before body parsing. Use <code>authorizeOperation(request, input, context)</code>
+					for policy that needs a decoded local operation. Forwarding hosts authenticate requests;
+					downstream services own their operation policy.
+				</p>
+			</section>
+
 			<Callout title="Compiler errors protect the boundary">
 				<p>
 					Compilation rejects undeclared captures, non-serializable results, server resources in

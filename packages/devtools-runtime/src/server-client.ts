@@ -42,7 +42,7 @@ export function createExactBrowserServerInspectionClient(
 					sessionId,
 					query: request
 				},
-				routeHeaders(request.params?.identity)
+				{ ...routeHeaders(request.params?.identity), 'x-exact-debug-session': sessionId }
 			);
 			return (await readJson(response)) as ExactInspectionResponse;
 		},

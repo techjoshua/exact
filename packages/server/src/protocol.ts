@@ -96,6 +96,11 @@ export function parseExactRequestBody(
 		maxRequestBytes?: number;
 	} = {}
 ): ExactProtocolRequest {
+	if (body instanceof Uint8Array) {
+		if (body.byteLength > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024))
+			throw new Error('request byte limit exceeded');
+		body = new TextDecoder('utf-8', { fatal: true }).decode(body);
+	}
 	if (
 		typeof body === 'string' &&
 		utf8Length(body) > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024)

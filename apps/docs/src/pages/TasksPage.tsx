@@ -245,6 +245,10 @@ export function TasksPage(this: Component<{}>) {
 					number, activation kind, snapshots, optimistic mutation, cleanup registration, and
 					disposable ownership. Application code never constructs or passes that final argument.
 				</p>
+				<p>
+					Optimistic rollback restores only changes still owned by that task. Later authoritative
+					writes survive, including array appends, individual slots, and explicit length changes.
+				</p>
 			</section>
 			<section>
 				<h2>Effects and results are separate</h2>

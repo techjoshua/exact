@@ -1,3 +1,4 @@
+import { prepareComponentProps } from './component-props.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import type { ExactComponentReceiptData } from '@exactjs/core/runtime/component-abi';
 import type { SsrContext } from '../types.js';
@@ -10,6 +11,9 @@ import { renderServerComponentArtifactOutput } from './server-component-abi-exec
 import { captureSsrProgramOutput } from './program-capture.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
 import type { ServerComponentReference } from './server-component-reference.js';
+import { createSsrResumptionCapture } from '../resumption.js';
+import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
+import { formatMarkerId } from '../markers.js';
 
 const publishComponent: DirectSsrComponentPublisher<ComponentPublication> = (
 	context,
@@ -43,6 +47,51 @@ export function renderComponentReference(
 		hasComponentAncestor = false;
 		omitRootBoundary = true;
 		omitCompilerOwnedBoundary = true;
+	}
+	if (!hasComponentAncestor && options.resumptionCapture) {
+		// Server roots serialize state but cannot adopt a client subtree themselves.
+		options = {
+			...options,
+			clientResumptionOwner:
+				component.contract.placement === 'isomorphic' || component.contract.placement === 'client'
+		};
+	}
+	const publication =
+		component.contract.artifact.target === 'server'
+			? component.contract.artifact.execution.publication
+			: undefined;
+	if (
+		hasComponentAncestor &&
+		publication?.kind === 'resumption' &&
+		!options.clientResumptionOwner
+	) {
+		const id = formatMarkerId(
+			'component',
+			context.nextId++,
+			component.contract.artifact.id,
+			component.key
+		);
+		const capture = createSsrResumptionCapture({ ...options, clientResumptionOwner: true });
+		// The island owns its complete activation sequence. Keep it out of the page's ordered
+		// capture so lazy siblings may settle in either order without sharing a cursor.
+		return captureSsrProgramOutput(context, () =>
+			mapRenderValue(
+				renderComponentReference(context, component, parent, capture.options, true, true),
+				(html) =>
+					mapRenderValue(
+						prepareComponentProps(component.props, undefined, capture.options),
+						(props) =>
+							renderPreparedResumableComponentBoundary(
+								context,
+								id,
+								publication.name,
+								html,
+								props,
+								capture.serializedRecords()
+							)
+					)
+			)
+		);
 	}
 	if (
 		context.writerSink &&

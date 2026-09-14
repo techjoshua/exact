@@ -34,7 +34,7 @@ func TestSynchronizedProjectMatchesFreshCrossFileCompilation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"jsx":"preserve"}}`), 0o600); err != nil {
+	if err := os.WriteFile(configFile, []byte(`{"compilerOptions":{"jsx":"preserve","jsxImportSource":"@exactjs/jsx"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

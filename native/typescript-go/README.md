@@ -54,3 +54,16 @@ JavaScript plugins continue through the explicit compatibility host; native
 extensions are registered statically at build time. Dynamic Go plugins are
 deliberately excluded because Go's plugin ABI is toolchain- and
 platform-sensitive.
+
+## JSX incremental reuse patch
+
+`overlay/internal/compiler/program.patch` narrowly extends the pinned upstream reuse guard.
+`exact_jsx_reuse.go` accepts an unchanged implicit JSX runtime import only when its resolution mode
+also matches. The cloned program owns a copied import map and fresh synthetic import nodes parented
+to the new source file. The old program and its nodes remain untouched. Changed authored imports,
+changed JSX runtime pragmas, helper imports, and content-mapped sibling guards still use upstream
+fallback rules. New project configurations are built through the normal project lifecycle.
+
+The build applies the patch to the verified pinned checkout and hashes it with the overlay. A failed
+patch application fails the build. Regression tests check unaffected source identity, synthetic-node
+ownership, changed imports, and incremental output against a fresh compilation.

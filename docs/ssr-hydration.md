@@ -721,8 +721,10 @@ const result = await renderToHydratableString(<App initialData={data} path={url.
 });
 
 // client
-const props = readPublishedRootProps<AppProps>(App, container);
-hydrateAfterNavigation(<App {...props} />, container);
+hydrateAfterNavigation(() => {
+	const props = readPublishedRootProps<AppProps>(App, container);
+	return <App {...props} />;
+}, container);
 ```
 
 `publishRootProps` requires a component root and cannot be combined with a separate hydration
@@ -836,6 +838,10 @@ the activation instead of leaving it indefinitely loading. The slice exists only
 region is constructed, so it cannot suppress or activate unrelated dormant components. Boundary
 generation replacement, abort, or unmount continues to fence loader completion, queued events, and
 task publications.
+Pending activation also retains its original hydration container. Moving an unhydrated boundary
+outside that container discards the old activation before contract registration or mounting.
+Movement within the container is supported. A new owner may activate the moved boundary using the
+shared loaded module, without repeating its import.
 
 ## Data boundary
 
@@ -916,3 +922,41 @@ Compiler-created root class expressions composed entirely of safe ASCII literals
 and conditional branches can use a proven class attribute operation. The compiler establishes this
 proof after constructing the root prop slot. Unknown strings, unsafe characters, and composed target
 props retain normal escaping. This removes repeated escape scans without caching request data.
+
+## Independent island resumption ownership
+
+A server-only page cannot adopt its client descendants. Each independently activated resumable
+island therefore retains a discoverable DOM boundary and a bounded inline payload containing its
+resolved public props and its own ordered component resumptions. Its records are not also published
+in the page capture. Nested components owned by a compiled client root retain the markerless path.
+This ownership rule is the same for string and progressive rendering.
+
+Lazy siblings may finish loading in either order. Hydration scopes the ordered activation cursor to
+one synchronous island mount, restores the enclosing cursor in `finally`, and preserves the same
+scope during adoption fallback. The existing component domain still owns transport, inspection,
+and cleanup. Malformed or oversized inline island payloads fail before activation instead of
+mounting with empty props and potentially replaying work without captured state.
+
+### Synchronous computations during resumption
+
+Compiler-owned neutral synchronous computations initialize before captured SSR state is applied,
+including when the browser artifact retains the complete component contract. This reconstructs
+values omitted from sparse capture without overwriting server task results after hydration.
+Computation dependency subscriptions arm after restoration; subsequent prop and state changes
+remain reactive. Indexed prop dependencies observe retained parent expressions as well as replacement
+of the prop slot and release those observations with the component. Explicit tasks retain their
+ordinary deferred activation and settled-continuation policy.
+
+Compact input plans attach observation only when a prop retains a parent reactive expression;
+finalized primitive props still use direct receiver updates. Hydration-only artifacts carry an
+optional `resumption.continuations` identity allowlist so compact SSR completion records remain
+validated even when the verbose client continuation catalog is omitted. This is compiler metadata,
+not application-authored protocol identity.
+
+Synchronous computation callbacks do not carry task-continuation branding: they have no remote
+task generation, and their signal context is typed by the synchronous activation helper.
+
+A synchronous factory passed to `hydrateAfterNavigation()` defers published-props decoding and
+root creation until activation. The factory runs once, including when an early interaction wins,
+and a thrown error rejects the hydration promise. Existing root values remain supported. This
+does not defer static module evaluation or guarantee that first contentful paint precedes activation.

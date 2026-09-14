@@ -76,7 +76,12 @@ time was spent, while benchmark scripts determine whether performance changed.
 
 The native compiler corpus records median end-to-end elapsed time, individual
 samples, output size, and compiler phase timings for both the corpus and each
-project in `.tmp/native-compiler-corpus.json`. A separate warmed single-edit
+project in `.tmp/native-compiler-corpus.json`. Each project's median observation keeps its own
+phase timings and counters, independently for cold and incremental runs. Reports and newly written
+baselines include SHA-256 identities for the compiler binary and workspace source/configuration
+inputs, including the dependency lockfile and excluding generated outputs. Project/file-count
+matching is a timing comparison, not proof that transitive inputs are identical. Older baselines
+without those identities remain historical comparisons. A separate warmed single-edit
 pass records program rebuilds, affected and reused sources, component link
 walks, callable analyses, and cache hits. Its throughput is compared with
 stable project/file-count pairs in

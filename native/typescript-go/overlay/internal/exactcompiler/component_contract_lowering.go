@@ -900,6 +900,12 @@ func rootComponentContractAttachment(
 	if component.Placement == "isomorphic" &&
 		projection != ComponentContractProjectionClient &&
 		hasResumption {
+		resumptionContinuations := []string{}
+		if target == TargetClient && projection == ComponentContractProjectionHydrate {
+			for _, continuation := range componentContinuations {
+				resumptionContinuations = append(resumptionContinuations, continuation.ID)
+			}
+		}
 		contractProperties = append(contractProperties, contractProperty(
 			factory,
 			"resumption",
@@ -909,6 +915,7 @@ func rootComponentContractAttachment(
 				resumptions,
 				boundaries,
 				target == TargetServer,
+				resumptionContinuations,
 			),
 		))
 	}
