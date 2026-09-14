@@ -36,5 +36,7 @@ discoverable structured data view; `Legend interactive` adds keyboard-operable s
 controls. Set `motion` to fade tooltip visibility through theme motion tokens; reduced-motion
 themes remain immediate. Import `@exactjs/charts/scales` when only the pure scale helpers are needed.
 
-See the [framework reference](../../docs/charts.md) for compact inputs, localization, accessibility,
+See the [framework reference](https://github.com/techjoshua/exact/blob/main/docs/charts.md) for compact inputs, localization, accessibility,
 theming, SSR, and behavior details.
+
+[Documentation](https://techjoshua.github.io/exact/#/components/charts) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/charts)

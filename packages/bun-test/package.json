@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/bun-test",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Bun test runner integration, DOM setup, compiler preload, and matchers for eXact",
 	"type": "module",
 	"files": [
@@ -56,8 +56,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/bun-test"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/testing",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"bun",
+		"testing",
+		"matchers"
+	]
 }

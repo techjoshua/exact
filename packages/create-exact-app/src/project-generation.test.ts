@@ -1,10 +1,39 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { bundlers, createExactApp, runtimes } from './project-generation.js';
 
 describe('create-exact-app', () => {
+	it('installs through the active npm CLI without executing a Windows command shim', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact installer '));
+		const previous = process.env.npm_execpath;
+		try {
+			const installer = path.join(root, 'npm-cli.mjs');
+			await writeFile(
+				installer,
+				'import { writeFileSync } from "node:fs"; writeFileSync("installed.json", JSON.stringify(process.argv.slice(2)));'
+			);
+			process.env.npm_execpath = installer;
+			const directory = path.join(root, 'app with spaces');
+			await createExactApp({
+				directory,
+				name: 'installer-test',
+				bundler: 'vite',
+				runtime: 'browser',
+				testRunner: 'none',
+				skill: false,
+				install: true
+			});
+			expect(JSON.parse(await readFile(path.join(directory, 'installed.json'), 'utf8'))).toEqual([
+				'install'
+			]);
+		} finally {
+			if (previous === undefined) delete process.env.npm_execpath;
+			else process.env.npm_execpath = previous;
+			await rm(root, { recursive: true, force: true });
+		}
+	});
 	it('rejects an unknown package manager before creating the target', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-invalid-manager-'));
 		const target = path.join(root, 'sample');
@@ -44,6 +73,10 @@ describe('create-exact-app', () => {
 		expect(manifest.scripts.typecheck).toBe('exactc --check .');
 		expect(manifest.devDependencies).toHaveProperty('@exactjs/compiler');
 		expect(config).toContain('exactVitest');
+		expect(config).toContain('from "vitest/config"');
+		expect(await readFile(path.join(target, 'src/env.d.ts'), 'utf8')).toContain(
+			'declare module "*.css"'
+		);
 		expect(
 			await readFile(path.join(target, '.agents/skills/exact-web-development/SKILL.md'), 'utf8')
 		).toContain('name: exact-web-development');
@@ -64,6 +97,13 @@ describe('create-exact-app', () => {
 		const manifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
 		expect(manifest.dependencies).toHaveProperty('@exactjs/hapi-adapter');
 		expect(manifest.devDependencies).toHaveProperty('@exactjs/jest');
+		expect(manifest.dependencies).toHaveProperty('@exactjs/server');
+		const config = await readFile(path.join(target, 'webpack.config.mjs'), 'utf8');
+		expect(config).toContain('extensionAlias');
+		expect(config).toContain('new HtmlWebpackPlugin({ template: "./index.html" })');
+		expect(await readFile(path.join(target, 'index.html'), 'utf8')).not.toContain(
+			'/src/client.tsx'
+		);
 		expect(await readFile(path.join(target, 'src/server.ts'), 'utf8')).toContain('exactHapiPlugin');
 	});
 
@@ -104,7 +144,12 @@ describe('create-exact-app', () => {
 
 		const manifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
 		expect(manifest.devDependencies).toHaveProperty('@exactjs/bun-test');
-		expect(manifest.scripts.test).toBe('bun test');
+		expect(manifest.scripts.test).toBe('bun --conditions=browser test');
+		const build = await readFile(path.join(target, 'scripts/build.ts'), 'utf8');
+		expect(build).toContain('Bun.write("dist/index.html", html)');
+		expect(build).toContain('await plugin.dispose()');
+		expect(manifest.scripts.dev).toBe('bun run scripts/dev.ts');
+		await expect(readFile(path.join(target, 'vitest.config.ts'), 'utf8')).rejects.toThrow();
 		expect(await readFile(path.join(target, 'bunfig.toml'), 'utf8')).toContain(
 			'@exactjs/bun-test/preload'
 		);

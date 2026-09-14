@@ -16,3 +16,5 @@ already established request scope.
 Supply a trusted `publicOrigin` when application code needs absolute public URLs. The package does
 not treat `Host` or forwarded headers as authority automatically; proxy and host validation belong
 to the surrounding server.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/server-execution) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/request)

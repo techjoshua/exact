@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/react-compat",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -113,8 +113,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/react-compat"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/react-compatibility",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "React API compatibility for running supported React components and packages inside eXact.",
+	"keywords": [
+		"exactjs",
+		"react",
+		"compatibility",
+		"components"
+	]
 }

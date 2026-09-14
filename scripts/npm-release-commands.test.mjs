@@ -172,10 +172,13 @@ test('bulk executable creates stage-only trust and skips a verified existing gra
 
 test('release executable submits the validated archive to staging, never direct publication', async (t) => {
 	const npm = await fakeNpm(t);
+	const { version } = JSON.parse(
+		await readFile(new URL('../component-libraries/forms/package.json', import.meta.url), 'utf8')
+	);
 	await mkdir(path.join(npm.directory, 'package'));
 	await writeFile(
 		path.join(npm.directory, 'package/package.json'),
-		JSON.stringify({ name: '@exactjs/forms', version: '0.5.0' })
+		JSON.stringify({ name: '@exactjs/forms', version })
 	);
 	const archive = path.join(npm.directory, 'forms.tgz');
 	execFileSync('tar', ['-czf', archive, '-C', npm.directory, 'package'], { windowsHide: true });
@@ -188,7 +191,7 @@ test('release executable submits the validated archive to staging, never direct 
 	const calls = await npm.calls();
 	assert.deepEqual(
 		calls.filter((args) => args[0] === 'stage'),
-		[npmSubmissionArguments(archive, '0.5.0', true)]
+		[npmSubmissionArguments(archive, version, true)]
 	);
 	assert.ok(!calls.some((args) => args[0] === 'publish'));
 });

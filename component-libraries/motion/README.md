@@ -44,6 +44,8 @@ This package has no framework-plugin manifest or host lifecycle. `@exactjs/motio
 `createViewTransitionCoordinator()` can wrap a router or another framework publisher without
 introducing a dependency between motion and that publisher.
 
-See [motion](../../docs/motion.md) for presence, layout, list, accessibility, and testing guidance.
+See [motion](https://github.com/techjoshua/exact/blob/main/docs/motion.md) for presence, layout, list, accessibility, and testing guidance.
 The package publishes inert component build facts for the consuming server bundler's
-[component-library policy](../../docs/component-library-trust.md).
+[component-library policy](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/components/motion) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/motion)

@@ -29,5 +29,7 @@ Application code does not import this package. Bundler adapters create an `IntlB
 and translate their host lifecycle hooks into its host-neutral operations. Source analysis remains
 in `@exactjs/intl-analyzer`, while browser-safe runtime contracts remain in `@exactjs/intl`.
 
-See the [internationalization reference](../../docs/internationalization.md) for the supported
+See the [internationalization reference](https://github.com/techjoshua/exact/blob/main/docs/internationalization.md) for the supported
 authoring and build behavior.
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins/internationalization) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/intl-build)

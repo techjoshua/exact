@@ -28,3 +28,5 @@ preserve eXact interaction typing, and finite registry members remain ordinary J
 values. Namespaced attributes are accepted as compiler-owned source syntax. Use `exactc --check`
 rather than raw `tsc --noEmit` when an application uses syntax such as component value/callback
 bindings; the compiler validates the finite pair and checks its lowered TypeScript representation.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/compiler-tour) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/jsx-runtime)

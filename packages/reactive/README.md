@@ -36,9 +36,11 @@ scopes, scheduling priorities, structural result equality, and external-source s
 Arrays, `Map`, and `Set` retain their familiar JavaScript operations.
 
 For application task and optimistic-state patterns, see
-[actions and forms](../../docs/actions-and-forms.md).
+[actions and forms](https://github.com/techjoshua/exact/blob/main/docs/actions-and-forms.md).
 
 An aborted `batch()` restores collection insertion order as well as values. Optimistic journals
 preserve newer authoritative writes when they roll back. Integrations can call
 `whenEffectScopeResumed(scope, signal)` to wait for resumption or disposal; aborting the optional
 signal resolves the wait and releases its registration without resuming the scope.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/state) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/reactive)

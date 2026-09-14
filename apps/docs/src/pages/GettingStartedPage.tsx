@@ -5,11 +5,11 @@ import { Callout } from './Callout.jsx';
 
 const createAppSource = `npm create @exactjs/exact-app@latest my-app`;
 
-const configuredCreateAppSource = `npm create @exactjs/exact-app@latest my-app -- \\
+const configuredCreateAppSource = `npm create --yes @exactjs/exact-app@latest my-app -- \\
   --bundler vite \\
   --runtime browser \\
   --test-runner vitest \\
-  --skill`;
+  --skill --yes`;
 
 const generatedAppSource = `import type { Component } from '@exactjs/core';
 
@@ -39,6 +39,7 @@ export function GettingStartedPage(this: Component<{}>) {
 		>
 			<section>
 				<h2>1. Run the scaffolder</h2>
+				<p>Use scaffolder version 0.5.1 or newer for this installation and build flow.</p>
 				<p>
 					Use npm&apos;s <code>create</code> command to run the latest released version of
 					<code>@exactjs/create-exact-app</code>. The generated package manifest uses the eXact
@@ -58,7 +59,8 @@ export function GettingStartedPage(this: Component<{}>) {
 				<Callout title="Repeatable setup" tone="tip">
 					<p>
 						For scripts and tutorials, pass the choices as flags. This example produces the same
-						default browser application without relying on interactive answers.
+						default browser application without relying on interactive answers. The first --yes
+						accepts npm's download prompt; the last accepts scaffolder defaults.
 					</p>
 				</Callout>
 				<CodeBlock
@@ -84,6 +86,27 @@ export function GettingStartedPage(this: Component<{}>) {
 					state once, and the returned view keeps the button text connected to that state.
 				</p>
 				<CodeBlock source={generatedAppSource} language="tsx" title="src/App.tsx" />
+			</section>
+
+			<section>
+				<h2>5. Check and build</h2>
+				<CodeBlock
+					source={`npm run typecheck\nnpm test\nnpm run build`}
+					language="shell"
+					title="Terminal"
+					compact
+				/>
+				<p>
+					Skip npm test if you selected no test runner. The browser build is written to{' '}
+					<code>dist/</code>. With Vite, use <code>npm run preview</code> to try the production
+					output locally; deploy that directory to your static host.
+				</p>
+				<p>
+					The Bun development server rebuilds edited source; refresh the browser to see changes.
+					Selecting a server adapter adds a transport endpoint example. Wire its generated server
+					contracts, page rendering, static assets, and platform hosting before deploying a server
+					application.
+				</p>
 			</section>
 
 			<section>

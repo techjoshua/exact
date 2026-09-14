@@ -48,4 +48,6 @@ Build-time inspection catalogs and browser runtime instrumentation are separate 
 only what the target environment needs, configure server authorization independently, and disable
 both for hardened output.
 
-See [eXact DevTools](../../docs/devtools.md) for the complete deployment model.
+See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md) for the complete deployment model.
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/config)

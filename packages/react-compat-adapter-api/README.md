@@ -20,4 +20,6 @@ exact-react-compat validate .
 Adapter roots should depend only on framework-neutral source packages. Put React-facing wrappers
 in isolated leaf exports and keep substitution ranges explicit and non-overlapping.
 
-See [React ecosystem adapters](../../docs/react-ecosystem-adapters.md).
+See [React ecosystem adapters](https://github.com/techjoshua/exact/blob/main/docs/react-ecosystem-adapters.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/react-compatibility) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/react-compat-adapter-api)

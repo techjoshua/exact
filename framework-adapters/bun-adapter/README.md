@@ -42,3 +42,5 @@ immediate. The outer handler owns scheduling when it dispatches to another eXact
 Forward `request.signal` to SSR so rendering inherits the same adaptive policy at render entry
 and after pending component data settles. Ready components continue synchronously. Responses
 are neither shared nor wrapped for scheduling; streaming and cancellation remain native.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/bun-adapter)

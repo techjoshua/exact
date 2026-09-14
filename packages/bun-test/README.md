@@ -31,3 +31,5 @@ condition belongs on the Bun process rather than in preload code.
 
 Use `configureExactBunTest()` for a custom preload, or import
 `@exactjs/bun-test/setup` when compilation and DOM setup are handled elsewhere.
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/testing) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/bun-test)

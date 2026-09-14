@@ -21,3 +21,5 @@ compiler-generated hydration data.
 
 Hardened builds should omit this package and disable both inspection catalog output and browser
 runtime instrumentation.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/devtools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/devtools-runtime)

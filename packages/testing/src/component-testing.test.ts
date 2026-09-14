@@ -2,11 +2,8 @@
  * @vitest-environment jsdom
  */
 import {
-	activateTaskForHost,
 	createEnhancementNode,
-	createContext,
 	createErrorContext,
-	defineTask,
 	ErrorContext,
 	Target,
 	type Child,
@@ -17,6 +14,14 @@ import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';
 import { createTestOperation as createOperation, markTestComponent } from './internal/fixtures.js';
+
+import {
+	Name,
+	Child as CounterChild,
+	Counter,
+	AsyncPanel,
+	Existing
+} from './test-support/client.fixtures.test.js';
 
 describe('component testing', () => {
 	it('mounts ordinary target boundaries with composed semantic properties', async () => {
@@ -62,31 +67,9 @@ describe('component testing', () => {
 	});
 
 	it('reads and writes state, contexts, components, and events', async () => {
-		const Name = createContext<string>('test.name');
-		function Child(this: Component<{}>) {
-			const name = this.getContext(Name);
-			return () => createOperation('span', null, name);
-		}
-		function Counter(this: Component<{ count: number }>, props: { initial: number }) {
-			this.state.count = props.initial;
-			return () =>
-				createOperation(
-					'section',
-					null,
-					createOperation(
-						'button',
-						{ onClick: () => this.state.count++ },
-						`Count ${this.state.count}`
-					),
-					createOperation(Child, {})
-				);
-		}
-		const view = await testComponent(markTestComponent(Counter))
-			.props({ initial: 1 })
-			.context(Name, 'Ada')
-			.mount();
+		const view = await testComponent(Counter).props({ initial: 1 }).context(Name, 'Ada').mount();
 		expect(view.root.state().count).toBe(1);
-		expect(view.root.find(Child).getByText('Ada').text()).toBe('Ada');
+		expect(view.root.find(CounterChild).getByText('Ada').text()).toBe('Ada');
 		await view.root.getByRole('button', { name: 'Count 1' }).click();
 		expect(view.root.state().count).toBe(2);
 		await view.root.setState({ count: 4 });
@@ -95,18 +78,7 @@ describe('component testing', () => {
 	});
 
 	it('settles retained asynchronous component tasks', async () => {
-		function AsyncPanel(this: Component<{ ready: boolean }>) {
-			this.state.ready = false;
-			activateTaskForHost(
-				this,
-				defineTask({}, async () => {
-					await Promise.resolve();
-					this.state.ready = true;
-				})
-			);
-			return () => createOperation('p', null, this.state.ready ? 'Ready' : 'Waiting');
-		}
-		const view = await testComponent(markTestComponent(AsyncPanel)).mount();
+		const view = await testComponent(AsyncPanel).mount();
 		expect(view.root.getByText('Ready')).toBeDefined();
 		view.unmount();
 	});
@@ -169,14 +141,6 @@ describe('component testing', () => {
 
 	it('rejects managed containers and reports replaced element handles', async () => {
 		const container = document.createElement('div');
-		function Existing(this: Component<{ alternate: boolean }>) {
-			this.state.alternate = false;
-			return () =>
-				this.state.alternate
-					? createOperation('span', null, 'New')
-					: createOperation('button', null, 'Old');
-		}
-		markTestComponent(Existing);
 		const first = await testComponent(Existing).container(container).mount();
 		await expect(testComponent(Existing).container(container).mount()).rejects.toThrow(
 			'already has a mounted eXact root'

@@ -18,3 +18,5 @@ export default {
 
 The adapter preserves the Worker handler signature and delegates protocol validation and dispatch
 to `@exactjs/server`.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/cloudflare-adapter)
