@@ -21,21 +21,20 @@ warmups and 10,000 measured iterations. Two reversed variant orders cover Node/B
 encoded string, and fully consumed streaming for small and 96-incident documents. Complete
 document hashes match between eXact variants. Units are microseconds per render, lower is better.
 
-| Runtime | Mode | Size | Current | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | small | 33.27 | 32.43 | 22.47 |
-| node | string | large | 167.12 | 162.67 | 131.80 |
-| node | encoded | small | 51.38 | 49.81 | 33.18 |
-| node | encoded | large | 201.92 | 207.67 | 181.34 |
-| node | stream | small | 54.68 | 54.38 | 68.51 |
-| node | stream | large | 198.07 | 200.03 | 335.37 |
-| bun | string | small | 37.59 | 36.83 | 32.29 |
-| bun | string | large | 217.96 | 212.22 | 184.79 |
-| bun | encoded | small | 38.92 | 38.09 | 38.00 |
-| bun | encoded | large | 222.77 | 223.23 | 203.57 |
-| bun | stream | small | 52.91 | 53.05 | 52.51 |
-| bun | stream | large | 296.01 | 301.43 | 268.66 |
-
+| Runtime | Mode    | Size  | Current | Candidate |  React |
+| ------- | ------- | ----- | ------: | --------: | -----: |
+| node    | string  | small |   33.27 |     32.43 |  22.47 |
+| node    | string  | large |  167.12 |    162.67 | 131.80 |
+| node    | encoded | small |   51.38 |     49.81 |  33.18 |
+| node    | encoded | large |  201.92 |    207.67 | 181.34 |
+| node    | stream  | small |   54.68 |     54.38 |  68.51 |
+| node    | stream  | large |  198.07 |    200.03 | 335.37 |
+| bun     | string  | small |   37.59 |     36.83 |  32.29 |
+| bun     | string  | large |  217.96 |    212.22 | 184.79 |
+| bun     | encoded | small |   38.92 |     38.09 |  38.00 |
+| bun     | encoded | large |  222.77 |    223.23 | 203.57 |
+| bun     | stream  | small |   52.91 |     53.05 |  52.51 |
+| bun     | stream  | large |  296.01 |    301.43 | 268.66 |
 
 String means improved across both runtimes and document sizes. Encoded and streaming results
 are mixed. In particular, large Node encoded candidate populations were 199.02 and 216.31
@@ -66,21 +65,20 @@ below.
 The corrected source build completed the same 72-population matrix, preserving complete
 document hashes. These measurements are separate from the prototype window:
 
-| Runtime | Mode | Size | Current | Rebuilt candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | small | 33.11 | 33.56 | 22.37 |
-| node | string | large | 166.49 | 166.14 | 132.19 |
-| node | encoded | small | 50.23 | 49.74 | 32.93 |
-| node | encoded | large | 202.11 | 199.73 | 179.18 |
-| node | stream | small | 54.43 | 52.85 | 67.27 |
-| node | stream | large | 191.48 | 192.41 | 334.49 |
-| bun | string | small | 36.96 | 36.08 | 32.10 |
-| bun | string | large | 213.53 | 213.11 | 182.57 |
-| bun | encoded | small | 38.98 | 37.42 | 37.73 |
-| bun | encoded | large | 221.30 | 222.64 | 201.31 |
-| bun | stream | small | 52.12 | 54.41 | 52.32 |
-| bun | stream | large | 302.07 | 293.83 | 272.76 |
-
+| Runtime | Mode    | Size  | Current | Rebuilt candidate |  React |
+| ------- | ------- | ----- | ------: | ----------------: | -----: |
+| node    | string  | small |   33.11 |             33.56 |  22.37 |
+| node    | string  | large |  166.49 |            166.14 | 132.19 |
+| node    | encoded | small |   50.23 |             49.74 |  32.93 |
+| node    | encoded | large |  202.11 |            199.73 | 179.18 |
+| node    | stream  | small |   54.43 |             52.85 |  67.27 |
+| node    | stream  | large |  191.48 |            192.41 | 334.49 |
+| bun     | string  | small |   36.96 |             36.08 |  32.10 |
+| bun     | string  | large |  213.53 |            213.11 | 182.57 |
+| bun     | encoded | small |   38.98 |             37.42 |  37.73 |
+| bun     | encoded | large |  221.30 |            222.64 | 201.31 |
+| bun     | stream  | small |   52.12 |             54.41 |  52.32 |
+| bun     | stream  | large |  302.07 |            293.83 | 272.76 |
 
 The rebuilt results remain mixed. Small Bun string and encoded means improve, but Node small
 string and Bun small stream regress. Large results fluctuate across populations. The added

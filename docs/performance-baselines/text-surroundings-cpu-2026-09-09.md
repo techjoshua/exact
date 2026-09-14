@@ -13,14 +13,14 @@ These CPU profiles include startup, warmup, and measurement. Percentages are sam
 not allocation bytes or inclusive bucket totals. Timings under the profiler are diagnostic and do
 not replace the unprofiled paired comparison. One process per cell does not establish variance.
 
-| Framework | Scenario | GC self time | Prominent serialization work |
-| --- | --- | ---: | --- |
-| React | assets | 5.4% | escapeTextForBrowser: 5.1% |
-| React | empty | 2.9% | escapeTextForBrowser: 5.0% |
-| React | large | 2.8% | escapeTextForBrowser: 12.2% |
-| eXact | assets | 10.7% | validatePositionalValue: 4.7%, serializeJson: 4.3% |
-| eXact | empty | 11.9% | validatePositionalValue: 5.1%, serializeJson: 4.2% |
-| eXact | large | 10.0% | validatePositionalValue: 4.9%, serializeJson: 6.4% |
+| Framework | Scenario | GC self time | Prominent serialization work                       |
+| --------- | -------- | -----------: | -------------------------------------------------- |
+| React     | assets   |         5.4% | escapeTextForBrowser: 5.1%                         |
+| React     | empty    |         2.9% | escapeTextForBrowser: 5.0%                         |
+| React     | large    |         2.8% | escapeTextForBrowser: 12.2%                        |
+| eXact     | assets   |        10.7% | validatePositionalValue: 4.7%, serializeJson: 4.3% |
+| eXact     | empty    |        11.9% | validatePositionalValue: 5.1%, serializeJson: 4.2% |
+| eXact     | large    |        10.0% | validatePositionalValue: 4.9%, serializeJson: 6.4% |
 
 ## Consequences for the next experiment
 

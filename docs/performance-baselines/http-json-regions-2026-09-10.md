@@ -25,11 +25,11 @@ document options are retained within each worker. User PC workload may vary.
 
 Mean exclusive microseconds per sampled document across both workers:
 
-| Region | Loop before | HTTP | Loop after |
-| --- | ---: | ---: | ---: |
-| JSON.stringify | 1.36 | 5.06 | 1.33 |
-| Script escaping | 0.83 | 1.98 | 0.86 |
-| Remaining serializeJson wrapper work | 0.75 | 1.26 | 0.58 |
+| Region                               | Loop before | HTTP | Loop after |
+| ------------------------------------ | ----------: | ---: | ---------: |
+| JSON.stringify                       |        1.36 | 5.06 |       1.33 |
+| Script escaping                      |        0.83 | 1.98 |       0.86 |
+| Remaining serializeJson wrapper work |        0.75 | 1.26 |       0.58 |
 
 Splitting the region introduces additional wrappers and timestamps. Its totals
 therefore should not be compared directly with the preceding unsplit trace as a

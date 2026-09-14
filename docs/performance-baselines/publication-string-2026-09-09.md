@@ -18,12 +18,12 @@ fixtures, not the framework-comparison application, and markers remain disabled.
 
 Times are microseconds per render: byte collection / native string (time change).
 
-| Runtime | Fixture | Pair 1 | Pair 2 |
-| --- | --- | --- | --- |
-| node | small | 84.88 / 62.20 (-26.72%) | 84.64 / 62.91 (-25.67%) |
-| node | large | 2375.80 / 2015.02 (-15.19%) | 2188.66 / 2121.37 (-3.07%) |
-| bun | small | 34.10 / 32.92 (-3.47%) | 33.95 / 32.05 (-5.60%) |
-| bun | large | 1243.60 / 1237.58 (-0.48%) | 1255.15 / 1220.46 (-2.76%) |
+| Runtime | Fixture | Pair 1                      | Pair 2                     |
+| ------- | ------- | --------------------------- | -------------------------- |
+| node    | small   | 84.88 / 62.20 (-26.72%)     | 84.64 / 62.91 (-25.67%)    |
+| node    | large   | 2375.80 / 2015.02 (-15.19%) | 2188.66 / 2121.37 (-3.07%) |
+| bun     | small   | 34.10 / 32.92 (-3.47%)      | 33.95 / 32.05 (-5.60%)     |
+| bun     | large   | 1243.60 / 1237.58 (-0.48%)  | 1255.15 / 1220.46 (-2.76%) |
 
 The string candidate improves every pair, most clearly on Node. This validates sink specialization
 within one traversal, not a speedup against React or the current production string renderer.

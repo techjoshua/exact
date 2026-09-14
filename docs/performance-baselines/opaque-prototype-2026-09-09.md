@@ -27,16 +27,16 @@ Response.text(). All paired full-document hashes match. No HTTP or browser timin
 Positive means longer rendering time. Both pairs are shown; two observations on a variable-load
 workstation are preliminary evidence, not confidence bounds.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -10.78% | -2.66% |
-| node | string | large | -4.86% | +8.37% |
-| node | stream | small | -1.60% | -0.17% |
-| node | stream | large | +7.06% | +1.79% |
-| bun | string | small | +4.65% | -2.79% |
-| bun | string | large | -3.21% | +9.30% |
-| bun | stream | small | +6.63% | +1.63% |
-| bun | stream | large | -2.70% | -9.61% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |            -10.78% |             -2.66% |
+| node    | string | large   |             -4.86% |             +8.37% |
+| node    | stream | small   |             -1.60% |             -0.17% |
+| node    | stream | large   |             +7.06% |             +1.79% |
+| bun     | string | small   |             +4.65% |             -2.79% |
+| bun     | string | large   |             -3.21% |             +9.30% |
+| bun     | stream | small   |             +6.63% |             +1.63% |
+| bun     | stream | large   |             -2.70% |             -9.61% |
 
 Small Node strings improve in both pairs, but large Node streams and small Bun streams regress in
 both pairs. Other cells are mixed or variable. This does not support a global representation change

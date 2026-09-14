@@ -35,14 +35,14 @@ the ready string trace. Component names are mapped from the artifact's attached
 compiler identities. Deferred callbacks in the pressure trace do not necessarily
 remain on that synchronous stack, so this attribution is not applied to them.
 
-| Component | Instances | Invocation constructions | Writer executions | Child-group renders | Sink writes | Props preparation calls | Sibling preparation calls |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Document | 1 | 8 | 8 | 11 | 25 | 1 | 1 |
-| IncidentApp | 1 | 1 | 1 | 0 | 5 | 1 | 1 |
-| IncidentQueue | 1 | 4 | 4 | 4 | 25 | 1 | 3 |
-| IncidentDetail | 1 | 5 | 7 | 6 | 26 | 1 | 1 |
-| SeverityBadge | 4 | 4 | 4 | 0 | 8 | 0 | 0 |
-| Total | 8 | 22 | 24 | 21 | 89 | 4 | 6 |
+| Component      | Instances | Invocation constructions | Writer executions | Child-group renders | Sink writes | Props preparation calls | Sibling preparation calls |
+| -------------- | --------: | -----------------------: | ----------------: | ------------------: | ----------: | ----------------------: | ------------------------: |
+| Document       |         1 |                        8 |                 8 |                  11 |          25 |                       1 |                         1 |
+| IncidentApp    |         1 |                        1 |                 1 |                   0 |           5 |                       1 |                         1 |
+| IncidentQueue  |         1 |                        4 |                 4 |                   4 |          25 |                       1 |                         3 |
+| IncidentDetail |         1 |                        5 |                 7 |                   6 |          26 |                       1 |                         1 |
+| SeverityBadge  |         4 |                        4 |                 4 |                   0 |           8 |                       0 |                         0 |
+| Total          |         8 |                       22 |                24 |                  21 |          89 |                       4 |                         6 |
 
 All eight component executions select the synchronous classification. Document
 and SeverityBadge select stateless mode; the other three select direct mode.

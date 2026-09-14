@@ -6,14 +6,14 @@ The loopback JSC inspector enables Heap events. A forced full collection before 
 
 JSC exports the collection timestamps in seconds in [InspectorHeapAgent](https://github.com/WebKit/WebKit/blob/main/Source/JavaScriptCore/inspector/agents/InspectorHeapAgent.cpp); durations below convert to milliseconds. Bun exposes the events through its [Heap inspector protocol](https://github.com/oven-sh/bun/blob/main/packages/bun-inspector-protocol/src/protocol/jsc/protocol.json). GC event spans are elapsed intervals, not exclusive CPU costs, and cannot simply be subtracted from CPU profiles or response latency.
 
-| Repeat | Framework | Policy | RPS | Full GC | Partial GC | Total GC span (ms) | Max GC span (ms) | GC span per request (us) | Response p99 A / B (ms) |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 1 | exact | normal | 2,615 | 13 | 1116 | 1166.75 | 3.97 | 44.56 | 15.919 / 15.919 |
-| 1 | exact | scheduled | 2,363 | 155 | 720 | 1311.61 | 9.66 | 55.45 | 22.015 / 25.455 |
-| 1 | react | normal | 2,813 | 22 | 1272 | 1133.55 | 2.77 | 40.24 | 15.239 / 15.183 |
-| 2 | react | normal | 2,843 | 19 | 1280 | 1096.24 | 3.80 | 38.51 | 14.887 / 15.071 |
-| 2 | exact | scheduled | 2,445 | 158 | 745 | 1310.01 | 9.31 | 53.52 | 24.383 / 20.527 |
-| 2 | exact | normal | 2,703 | 14 | 1153 | 1214.59 | 4.25 | 44.86 | 15.383 / 15.639 |
+| Repeat | Framework | Policy    |   RPS | Full GC | Partial GC | Total GC span (ms) | Max GC span (ms) | GC span per request (us) | Response p99 A / B (ms) |
+| ------ | --------- | --------- | ----: | ------: | ---------: | -----------------: | ---------------: | -----------------------: | ----------------------- |
+| 1      | exact     | normal    | 2,615 |      13 |       1116 |            1166.75 |             3.97 |                    44.56 | 15.919 / 15.919         |
+| 1      | exact     | scheduled | 2,363 |     155 |        720 |            1311.61 |             9.66 |                    55.45 | 22.015 / 25.455         |
+| 1      | react     | normal    | 2,813 |      22 |       1272 |            1133.55 |             2.77 |                    40.24 | 15.239 / 15.183         |
+| 2      | react     | normal    | 2,843 |      19 |       1280 |            1096.24 |             3.80 |                    38.51 | 14.887 / 15.071         |
+| 2      | exact     | scheduled | 2,445 |     158 |        745 |            1310.01 |             9.31 |                    53.52 | 24.383 / 20.527         |
+| 2      | exact     | normal    | 2,703 |      14 |       1153 |            1214.59 |             4.25 |                    44.86 | 15.383 / 15.639         |
 
 158,019 complete measured responses, zero errors. All native observers passed forced-GC calibration and all scheduling invocation guards pass.
 

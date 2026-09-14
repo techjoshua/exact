@@ -26,11 +26,11 @@ concurrent build or test workload during timing.
 Nanoseconds per fixture execution, including the common output-identity assertion:
 
 | Runtime | Pair | Nested continuations | Fallthrough continuation | Time reduction |
-| --- | --- | ---: | ---: | ---: |
-| Node | 1 | 92.35 | 56.29 | 39.1% |
-| Node | 2 | 89.48 | 56.79 | 36.5% |
-| Bun | 1 | 137.95 | 77.34 | 43.9% |
-| Bun | 2 | 143.38 | 74.98 | 47.7% |
+| ------- | ---- | -------------------: | -----------------------: | -------------: |
+| Node    | 1    |                92.35 |                    56.29 |          39.1% |
+| Node    | 2    |                89.48 |                    56.79 |          36.5% |
+| Bun     | 1    |               137.95 |                    77.34 |          43.9% |
+| Bun     | 2    |               143.38 |                    74.98 |          47.7% |
 
 These are isolated writer measurements, not full component rendering, hydration serialization,
 HTTP throughput, browser timing, or React comparisons. They justify retaining the flatter emitter

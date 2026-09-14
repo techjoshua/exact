@@ -30,12 +30,12 @@ simultaneous profiling, build, or tests. User PC workload may vary.
 
 All times are mean microseconds. RPS reflects two complete renders per request.
 
-| Worker | HTTP first invocation | HTTP second invocation | First post-return | Second post-return | Diagnostic RPS |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| eXact 1 | 59.397 | 45.172 | 5.960 | 1.159 | 5,481 |
-| React 1 | 43.664 | 35.130 | 3.511 | 0.254 | 7,140 |
-| React 2 | 44.778 | 36.034 | 3.722 | 0.271 | 6,909 |
-| eXact 2 | 58.374 | 44.327 | 5.968 | 1.206 | 5,550 |
+| Worker  | HTTP first invocation | HTTP second invocation | First post-return | Second post-return | Diagnostic RPS |
+| ------- | --------------------: | ---------------------: | ----------------: | -----------------: | -------------: |
+| eXact 1 |                59.397 |                 45.172 |             5.960 |              1.159 |          5,481 |
+| React 1 |                43.664 |                 35.130 |             3.511 |              0.254 |          7,140 |
+| React 2 |                44.778 |                 36.034 |             3.722 |              0.271 |          6,909 |
+| eXact 2 |                58.374 |                 44.327 |             5.968 |              1.206 |          5,550 |
 
 Isolated first/second invocation means across before/after captures range from
 22.948 to 24.007 microseconds for eXact, and 22.040 to 23.545 for React. eXact's

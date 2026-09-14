@@ -35,9 +35,9 @@ concurrent tests/builds/profilers. Full fresh documents and hydration are retain
 ## Results
 
 | Population | Before-loop renders | HTTP observed renders | After-loop renders | Entries per render | Active sites | Differing vectors |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| First | 10,000 | 30,088 | 10,000 | 2,369 | 265 | 0 |
-| Second | 10,000 | 31,658 | 10,000 | 2,369 | 265 | 0 |
+| ---------- | ------------------: | --------------------: | -----------------: | -----------------: | -----------: | ----------------: |
+| First      |              10,000 |                30,088 |             10,000 |              2,369 |          265 |                 0 |
+| Second     |              10,000 |                31,658 |             10,000 |              2,369 |          265 |                 0 |
 
 All six first vectors are identical. HTTP observation counts include two driver
 preflights per worker. Measured load stages total 61,742 valid responses with zero
@@ -48,17 +48,17 @@ user's existing Codex Node remains.
 
 Selected high-frequency sites per invocation:
 
-| Site | Entries |
-| --- | ---: |
-| StringProgramSink.ready | 184 |
-| StringProgramSink.write | 89 |
-| unwrap | 73 |
-| mapRenderValue | 69 |
-| appendProgramText | 60 |
-| countSsrNodes | 55 |
-| readPreparedServerRenderProgram | 42 |
-| validatePositionalValue | 40 |
-| Each of four boundary helpers | 28 |
+| Site                            | Entries |
+| ------------------------------- | ------: |
+| StringProgramSink.ready         |     184 |
+| StringProgramSink.write         |      89 |
+| unwrap                          |      73 |
+| mapRenderValue                  |      69 |
+| appendProgramText               |      60 |
+| countSsrNodes                   |      55 |
+| readPreparedServerRenderProgram |      42 |
+| validatePositionalValue         |      40 |
+| Each of four boundary helpers   |      28 |
 
 These are entry frequencies, not CPU rankings. For example, a no-op ready method
 may inline cheaply despite its high count. Do not target a helper solely because

@@ -33,20 +33,20 @@ Lower is better. Positive time difference means eXact took longer. These are des
 of two local populations, not confidence intervals. The Node empty-string and several Bun small
 populations varied substantially; raw observations are included.
 
-| Runtime | Output | Fixture | eXact | React | eXact time difference |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | empty | 38.09 | 25.17 | +51.3% |
-| node | string | assets | 50.08 | 28.13 | +78.1% |
-| node | string | large | 226.21 | 160.83 | +40.6% |
-| node | stream | empty | 61.88 | 73.90 | -16.3% |
-| node | stream | assets | 76.84 | 89.45 | -14.1% |
-| node | stream | large | 240.91 | 369.01 | -34.7% |
-| bun | string | empty | 36.70 | 32.97 | +11.3% |
-| bun | string | assets | 43.18 | 37.44 | +15.3% |
-| bun | string | large | 267.91 | 201.74 | +32.8% |
-| bun | stream | empty | 50.04 | 48.92 | +2.3% |
-| bun | stream | assets | 58.32 | 58.56 | -0.4% |
-| bun | stream | large | 303.11 | 266.97 | +13.5% |
+| Runtime | Output | Fixture |  eXact |  React | eXact time difference |
+| ------- | ------ | ------- | -----: | -----: | --------------------: |
+| node    | string | empty   |  38.09 |  25.17 |                +51.3% |
+| node    | string | assets  |  50.08 |  28.13 |                +78.1% |
+| node    | string | large   | 226.21 | 160.83 |                +40.6% |
+| node    | stream | empty   |  61.88 |  73.90 |                -16.3% |
+| node    | stream | assets  |  76.84 |  89.45 |                -14.1% |
+| node    | stream | large   | 240.91 | 369.01 |                -34.7% |
+| bun     | string | empty   |  36.70 |  32.97 |                +11.3% |
+| bun     | string | assets  |  43.18 |  37.44 |                +15.3% |
+| bun     | string | large   | 267.91 | 201.74 |                +32.8% |
+| bun     | stream | empty   |  50.04 |  48.92 |                 +2.3% |
+| bun     | stream | assets  |  58.32 |  58.56 |                 -0.4% |
+| bun     | stream | large   | 303.11 | 266.97 |                +13.5% |
 
 Node streaming favors eXact in every pair. String rendering favors React on both runtimes and all
 fixtures. Small Bun streaming is mixed by pair; large Bun streaming favors React in both pairs.

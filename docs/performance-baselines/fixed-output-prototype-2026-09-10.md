@@ -28,9 +28,9 @@ holding 16 requests in flight. The baseline is the mean of adjacent blocks.
 Independent isolated loops before/after each block warm and measure 10,000 renders.
 
 | Worker | Baseline RPS | Candidate RPS | Change | Baseline HTTP us | Candidate HTTP us |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 8,542 | 8,143 | -4.67% | 57.81 | 61.86 |
-| 2 | 8,660 | 8,406 | -2.94% | 57.55 | 60.54 |
+| ------ | -----------: | ------------: | -----: | ---------------: | ----------------: |
+| 1      |        8,542 |         8,143 | -4.67% |            57.81 |             61.86 |
+| 2      |        8,660 |         8,406 | -2.94% |            57.55 |             60.54 |
 
 All 255,020 measured responses match the complete 4,672-byte document;
 zero errors. Counters, artifact hashes and adapter hashes are checked. Owned
@@ -43,12 +43,12 @@ renders then 10,000 sampled renders, with a 16 KiB interval and collected minor/
 major-GC objects included. Sampling estimates allocated bytes, not retained heap
 or GC pause time. Allocation capture runs after HTTP, never concurrently.
 
-| Sample | Mode | Sampled bytes/render |
-| --- | --- | ---: |
-| 1 | none | 66,765 |
-| 2 | reuse | 65,134 |
-| 3 | reuse | 65,711 |
-| 4 | none | 67,546 |
+| Sample | Mode  | Sampled bytes/render |
+| ------ | ----- | -------------------: |
+| 1      | none  |               66,765 |
+| 2      | reuse |               65,134 |
+| 3      | reuse |               65,711 |
+| 4      | none  |               67,546 |
 
 ## Decision
 

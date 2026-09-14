@@ -15,16 +15,16 @@ These are local renderer timings, not HTTP throughput or browser performance.
 
 Positive percentages mean slower rendering. No completed population was discarded.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -4.24% | +1.37% |
-| node | string | large | -1.01% | -1.88% |
-| node | stream | small | -3.95% | -2.88% |
-| node | stream | large | -0.55% | -4.27% |
-| bun | string | small | +1.16% | +3.98% |
-| bun | string | large | -0.91% | +6.49% |
-| bun | stream | small | +11.29% | +6.61% |
-| bun | stream | large | -1.06% | +2.28% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             -4.24% |             +1.37% |
+| node    | string | large   |             -1.01% |             -1.88% |
+| node    | stream | small   |             -3.95% |             -2.88% |
+| node    | stream | large   |             -0.55% |             -4.27% |
+| bun     | string | small   |             +1.16% |             +3.98% |
+| bun     | string | large   |             -0.91% |             +6.49% |
+| bun     | stream | small   |            +11.29% |             +6.61% |
+| bun     | stream | large   |             -1.06% |             +2.28% |
 
 Node streaming and large Node strings improved in both pairs. Small Bun strings and streams
 regressed in both pairs, with small Bun streaming particularly unfavorable. Large Bun results

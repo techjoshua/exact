@@ -431,7 +431,10 @@ describe('@exactjs/hydrate adoption', () => {
 
 	it('repairs a stale static attribute without replacing compatible siblings', async () => {
 		const root = document.createElement('div');
-		const resumptions = await prepareServerHydration(root, serverSiblingRoot({ firstClass: 'stale' }));
+		const resumptions = await prepareServerHydration(
+			root,
+			serverSiblingRoot({ firstClass: 'stale' })
+		);
 		const stale = root.querySelectorAll('p')[0]!;
 		const sibling = root.querySelectorAll('p')[1]!;
 		hydrate(siblingRoot({ firstClass: 'fresh' }), root, { logger: noopLogger, resumptions });

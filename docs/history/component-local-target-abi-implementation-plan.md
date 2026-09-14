@@ -4,7 +4,6 @@
 > version numbers. Use [compiled component artifacts](../compiled-component-artifacts.md) and
 > [release readiness](../release-readiness.md) for the current ABI and release requirements.
 
-
 ## Status and relationship to the proposal
 
 This is the execution plan for the

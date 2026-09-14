@@ -109,8 +109,7 @@ it.each(['string', 'stream'])(
 				reader.releaseLock();
 			}
 		} else
-			html = (await renderToHydratableString(serverDocumentWithAssets, options))
-				.htmlWithHydration;
+			html = (await renderToHydratableString(serverDocumentWithAssets, options)).htmlWithHydration;
 		document.open();
 		document.write(html);
 		document.close();

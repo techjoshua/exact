@@ -44,16 +44,16 @@ remain unchanged over the experiment. Owned worker/load processes are closed.
 
 ## Corrected results
 
-| Stage | Worker | Normal RPS | Substituted RPS | Change |
-| --- | ---: | ---: | ---: | ---: |
-| root | 1 | 9,533 | 9,714 | +1.90% |
-| root | 2 | 9,614 | 9,721 | +1.11% |
-| options | 1 | 9,594 | 9,697 | +1.08% |
-| options | 2 | 9,712 | 9,640 | -0.74% |
-| metadata | 1 | 9,693 | 9,850 | +1.61% |
-| metadata | 2 | 9,652 | 9,684 | +0.32% |
-| bytes | 1 | 9,815 | 9,523 | -2.98% |
-| bytes | 2 | 9,380 | 9,788 | +4.36% |
+| Stage    | Worker | Normal RPS | Substituted RPS | Change |
+| -------- | -----: | ---------: | --------------: | -----: |
+| root     |      1 |      9,533 |           9,714 | +1.90% |
+| root     |      2 |      9,614 |           9,721 | +1.11% |
+| options  |      1 |      9,594 |           9,697 | +1.08% |
+| options  |      2 |      9,712 |           9,640 | -0.74% |
+| metadata |      1 |      9,693 |           9,850 | +1.61% |
+| metadata |      2 |      9,652 |           9,684 | +0.32% |
+| bytes    |      1 |      9,815 |           9,523 | -2.98% |
+| bytes    |      2 |      9,380 |           9,788 | +4.36% |
 
 Raw isolated and HTTP render durations are preserved in summary.json and
 capture.json in the evidence archive. Small changes require caution given

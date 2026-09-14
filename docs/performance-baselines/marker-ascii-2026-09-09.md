@@ -27,16 +27,16 @@ experiment. This is a frozen-bundle prototype only. No production source was cha
 Positive means longer rendering time. These preliminary local observations are not confidence
 bounds, HTTP throughput, or browser timings.
 
-| Runtime | Mode | Asset fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +2.27% | +9.41% |
-| node | string | unicode-assets | +4.89% | -0.84% |
-| node | stream | small | +12.15% | +0.30% |
-| node | stream | unicode-assets | +14.89% | -0.32% |
-| bun | string | small | -2.87% | -3.64% |
-| bun | string | unicode-assets | -3.77% | +4.79% |
-| bun | stream | small | -1.02% | -1.76% |
-| bun | stream | unicode-assets | +4.83% | -0.12% |
+| Runtime | Mode   | Asset fixture  | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | -------------- | -----------------: | -----------------: |
+| node    | string | small          |             +2.27% |             +9.41% |
+| node    | string | unicode-assets |             +4.89% |             -0.84% |
+| node    | stream | small          |            +12.15% |             +0.30% |
+| node    | stream | unicode-assets |            +14.89% |             -0.32% |
+| bun     | string | small          |             -2.87% |             -3.64% |
+| bun     | string | unicode-assets |             -3.77% |             +4.79% |
+| bun     | stream | small          |             -1.02% |             -1.76% |
+| bun     | stream | unicode-assets |             +4.83% |             -0.12% |
 
 Bun improves modestly on ASCII assets, while Node regresses in every ASCII pair. Unicode outcomes
 are mixed. The shortcut is not adopted because it adds a second encoding loop without a consistent

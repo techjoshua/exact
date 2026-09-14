@@ -30,11 +30,11 @@ application-owned documents include four asset tags. Means in microseconds per
 encoded render, lower is better:
 
 | Runtime | Document | Current | Append-built | Elapsed change |
-| --- | --- | ---: | ---: | ---: |
-| v26.8.1 | small | 52.99 | 52.25 | -1.4% |
-| 1.4.2 | small | 36.66 | 35.49 | -3.2% |
-| v26.8.1 | large | 219.32 | 204.00 | -7.0% |
-| 1.4.2 | large | 281.47 | 296.47 | 5.3% |
+| ------- | -------- | ------: | -----------: | -------------: |
+| v26.8.1 | small    |   52.99 |        52.25 |          -1.4% |
+| 1.4.2   | small    |   36.66 |        35.49 |          -3.2% |
+| v26.8.1 | large    |  219.32 |       204.00 |          -7.0% |
+| 1.4.2   | large    |  281.47 |       296.47 |           5.3% |
 
 Both orders favor the candidate on Node and on the small Bun case. Both large
 Bun comparisons favor the current implementation. The candidate is not adopted

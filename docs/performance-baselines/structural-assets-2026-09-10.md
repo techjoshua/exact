@@ -24,13 +24,13 @@ and cleanup failure test is still needed before claiming lifecycle acceptance.
 
 ## Observations
 
-| Work per ready render | Retained | Stage one | Asset traversal |
-| --- | ---: | ---: | ---: |
-| Prepared program constructions | 22 | 15 | 15 |
-| Writer executions | 24 | 21 | 21 |
-| Child-group renders | 21 | 20 | 12 |
-| Component executions | 8 | 8 | 8 |
-| Sink writes | 89 | 89 | 89 |
+| Work per ready render          | Retained | Stage one | Asset traversal |
+| ------------------------------ | -------: | --------: | --------------: |
+| Prepared program constructions |       22 |        15 |              15 |
+| Writer executions              |       24 |        21 |              21 |
+| Child-group renders            |       21 |        20 |              12 |
+| Component executions           |        8 |         8 |               8 |
+| Sink writes                    |       89 |        89 |              89 |
 
 Counts come from isolated instrumented Node string output. Ready streaming also
 matches complete output. This reduction is actual call-entry evidence; it is not

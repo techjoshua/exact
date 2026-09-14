@@ -37,12 +37,12 @@ holding 16 requests in flight. Controls average adjacent normal blocks in the
 same worker. Separate isolated loops before/after each block warm and measure
 10,000 renders. Artifact and adapter hashes remain unchanged.
 
-| Prototype | Worker | Normal RPS | Candidate RPS | Change |
-| --- | ---: | ---: | ---: | ---: |
-| branch-output | 1 | 8,666 | 8,842 | +2.04% |
-| branch-output | 2 | 8,677 | 8,604 | -0.84% |
-| merged-output | 1 | 8,596 | 8,565 | -0.36% |
-| merged-output | 2 | 8,600 | 8,376 | -2.61% |
+| Prototype     | Worker | Normal RPS | Candidate RPS | Change |
+| ------------- | -----: | ---------: | ------------: | -----: |
+| branch-output |      1 |      8,666 |         8,842 | +2.04% |
+| branch-output |      2 |      8,677 |         8,604 | -0.84% |
+| merged-output |      1 |      8,596 |         8,565 | -0.36% |
+| merged-output |      2 |      8,600 |         8,376 | -2.61% |
 
 All measured responses match the complete 4,672-byte document, zero errors.
 Raw render timings and per-worker blocks are preserved in the archive.
@@ -54,12 +54,12 @@ orders. Each warms 50,000 renders and samples 10,000 at a 16 KiB interval,
 including objects collected by minor and major GC. These estimate allocation
 volume, not retained heap, exact counts or GC pause time.
 
-| Sample | Mode | Sampled bytes/render |
-| --- | --- | ---: |
-| 1 | none | 67,299 |
-| 2 | reuse | 66,401 |
-| 3 | reuse | 66,523 |
-| 4 | none | 66,996 |
+| Sample | Mode  | Sampled bytes/render |
+| ------ | ----- | -------------------: |
+| 1      | none  |               67,299 |
+| 2      | reuse |               66,401 |
+| 3      | reuse |               66,523 |
+| 4      | none  |               66,996 |
 
 Eliminating wrapper constructions does not remove all their fields: the merged
 prototype adds output fields to existing objects. Shape changes and property

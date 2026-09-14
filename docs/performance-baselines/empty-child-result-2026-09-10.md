@@ -14,22 +14,22 @@ Fresh production processes use the previous completed-HTML build as control, wit
 
 Node allocation sampling measures 10,000 renders at a 16 KiB interval and includes minor-collected and major-collected objects. Mean estimated allocated bytes per render:
 
-| Fixture | Previous | Candidate | Reduction |
-| --- | ---: | ---: | ---: |
-| 3 incidents | 73,198 | 71,717 | 2.0% |
-| 96 incidents | 544,671 | 539,968 | 0.9% |
+| Fixture      | Previous | Candidate | Reduction |
+| ------------ | -------: | --------: | --------: |
+| 3 incidents  |   73,198 |    71,717 |      2.0% |
+| 96 incidents |  544,671 |   539,968 |      0.9% |
 
 Both pairs improve for each fixture. These are sampled JavaScript heap allocations, not exact object counts, retained memory or total native memory. No GC event reduction is claimed from these measurements.
 
 Response-consumption screens measure 20,000 iterations after warmup. Each iteration renders the full string, constructs a Response and awaits its text consumption. These are not HTTP capacity measurements. Mean microseconds per iteration:
 
-| Runtime | Fixture | Previous | Candidate |
-| --- | --- | ---: | ---: |
-| Node | 3 incidents | 42.83 | 42.02 |
-| Bun | 3 incidents | 35.15 | 34.38 |
-| Node | 96 incidents | 203.48 | 197.01 |
-| Bun | 96 incidents | 250.38 | 264.55 |
-| Bun confirmation | 96 incidents | 238.62 | 232.05 |
+| Runtime          | Fixture      | Previous | Candidate |
+| ---------------- | ------------ | -------: | --------: |
+| Node             | 3 incidents  |    42.83 |     42.02 |
+| Bun              | 3 incidents  |    35.15 |     34.38 |
+| Node             | 96 incidents |   203.48 |    197.01 |
+| Bun              | 96 incidents |   250.38 |    264.55 |
+| Bun confirmation | 96 incidents |   238.62 |    232.05 |
 
 Small Node directions are mixed; both small Bun pairs improve. Both large Node pairs improve. Initial large Bun pairs are 272.12 to 267.90 and 228.65 to 261.19, including a substantial second-pair regression. The focused confirmation is 230.76 to 234.15 and 246.48 to 229.94, also mixed. All observations remain evidence. The confirmation does not erase the regression; together they do not establish a stable large-Bun timing effect. The small implementation is retained for lower measured allocation volume and preserved behavior, not a claimed universal speedup.
 

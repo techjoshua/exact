@@ -6,16 +6,16 @@ This is migration work, not the completed compiler cutover. writeProgramChild is
 
 Production Node 26.8.1 and Bun 1.4.2. Each cell averages two fresh processes in reversed order, with 5,000 warmups and 12,000 measured complete app-owned document renders per process. Streams are fully consumed. These are in-process timings, not HTTP throughput. Small documents contain three incidents, large documents 96, and both include four asset tags. Complete document hashes match the saved += control. React was not rerun for this refactor guard.
 
-| Runtime | Mode | Document | Previous (µs) | Shared publication (µs) |
-| --- | --- | --- | ---: | ---: |
-| node | string | assets | 35.49 | 35.75 |
-| node | string | large | 167.08 | 165.20 |
-| node | stream | assets | 56.58 | 55.73 |
-| node | stream | large | 196.67 | 198.62 |
-| bun | string | assets | 35.27 | 34.95 |
-| bun | string | large | 236.28 | 228.77 |
-| bun | stream | assets | 51.50 | 50.93 |
-| bun | stream | large | 276.17 | 273.37 |
+| Runtime | Mode   | Document | Previous (µs) | Shared publication (µs) |
+| ------- | ------ | -------- | ------------: | ----------------------: |
+| node    | string | assets   |         35.49 |                   35.75 |
+| node    | string | large    |        167.08 |                  165.20 |
+| node    | stream | assets   |         56.58 |                   55.73 |
+| node    | stream | large    |        196.67 |                  198.62 |
+| bun     | string | assets   |         35.27 |                   34.95 |
+| bun     | string | large    |        236.28 |                  228.77 |
+| bun     | stream | assets   |         51.50 |                   50.93 |
+| bun     | stream | large    |        276.17 |                  273.37 |
 
 Small differences on the shared workstation do not establish a repeatable gain. The shared implementation is retained to keep boundary semantics consistent during compiler integration.
 

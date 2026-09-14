@@ -1,6 +1,10 @@
 node_modules/
 coverage/
 .tmp/
+# Local task artifacts and generated browser/build state.
+/output/
+/.svelte-kit/
+/test-results/
 **/dist/
 **/*.tsbuildinfo
 package-lock.json

@@ -25,15 +25,14 @@ with four asset tags. Both applications render complete owned documents. Encoded
 the string through Response.text(), and stream mode fully consumes the framework stream.
 Complete eXact document hashes match. Units are microseconds per render, lower is better.
 
-| Runtime | Mode | Current | Candidate | React |
-| --- | --- | ---: | ---: | ---: |
-| node | string | 167.83 | 169.40 | 134.24 |
-| node | encoded | 209.66 | 206.86 | 180.73 |
-| node | stream | 195.44 | 196.47 | 330.07 |
-| bun | string | 212.58 | 215.99 | 182.99 |
-| bun | encoded | 216.11 | 224.03 | 203.92 |
-| bun | stream | 294.13 | 301.38 | 264.84 |
-
+| Runtime | Mode    | Current | Candidate |  React |
+| ------- | ------- | ------: | --------: | -----: |
+| node    | string  |  167.83 |    169.40 | 134.24 |
+| node    | encoded |  209.66 |    206.86 | 180.73 |
+| node    | stream  |  195.44 |    196.47 | 330.07 |
+| bun     | string  |  212.58 |    215.99 | 182.99 |
+| bun     | encoded |  216.11 |    224.03 | 203.92 |
+| bun     | stream  |  294.13 |    301.38 | 264.84 |
 
 Node string rendering is slower in both orders. Bun string, encoded, and streaming means also
 regress; only Node encoded mean improves, with inconsistent per-population direction. The

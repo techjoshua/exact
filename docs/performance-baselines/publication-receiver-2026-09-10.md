@@ -14,10 +14,10 @@ Hypothesis: removing one callback and captured environment per synchronous compo
 
 Node 26.8.1 fresh production processes, 50,000 warmups, two reversed orders, 10,000 sampled renders per population, 16 KiB inspector sampling interval, including minor-collected and major-collected objects. Complete HTML hashes match, including full shells and four asset tags.
 
-| Fixture | Current allocated KB/render | Receiver allocated KB/render |
-| --- | ---: | ---: |
-| 3 incidents | 73.43 | 72.41 |
-| 96 incidents | 544.70 | 540.18 |
+| Fixture      | Current allocated KB/render | Receiver allocated KB/render |
+| ------------ | --------------------------: | ---------------------------: |
+| 3 incidents  |                       73.43 |                        72.41 |
+| 96 incidents |                      544.70 |                       540.18 |
 
 Both pairs improve, by approximately 1.4% and 0.8% on the means. These are sampled JavaScript heap allocation estimates, not exact object counts, retained memory or native allocation. No allocation measurement is claimed for the explicit-argument variant, and no GC event measurement is claimed for either variant.
 
@@ -27,12 +27,12 @@ Each fresh production process warms 50,000 iterations and measures 20,000. Every
 
 Mean microseconds per iteration:
 
-| Screen | Runtime | Current | Receiver | Explicit argument |
-| --- | --- | ---: | ---: | ---: |
-| Initial | Node | 41.27 | 42.70 | n/a |
-| Initial | Bun | 33.76 | 33.16 | n/a |
-| Three-way | Node | 36.78 | 37.10 | 38.49 |
-| Three-way | Bun | 32.21 | 34.37 | 31.92 |
+| Screen    | Runtime | Current | Receiver | Explicit argument |
+| --------- | ------- | ------: | -------: | ----------------: |
+| Initial   | Node    |   41.27 |    42.70 |               n/a |
+| Initial   | Bun     |   33.76 |    33.16 |               n/a |
+| Three-way | Node    |   36.78 |    37.10 |             38.49 |
+| Three-way | Bun     |   32.21 |    34.37 |             31.92 |
 
 The initial Node directions are mixed; both initial Bun pairs improve. In the three-way screen, receiver Node directions are mixed and both Bun pairs are slower. Explicit-argument Node is nearly tied in one pair and slower in the other; Bun is mixed. These inconsistent results do not justify migrating the internal callback contract. The allocation reduction remains a measured fact rather than being converted into an unsupported throughput claim.
 

@@ -21,24 +21,24 @@ Short windows reduce separation between compared variants but do not eliminate m
 ## Interleaved results
 
 | Runtime | Normal eXact req/s | Publication bypass req/s | Normal React req/s | Bypass vs normal eXact |
-| --- | ---: | ---: | ---: | ---: |
-| node | 6,728 | 9,409 | 10,145 | +39.8% |
-| bun | 8,684 | 10,135 | 9,160 | +16.7% |
+| ------- | -----------------: | -----------------------: | -----------------: | ---------------------: |
+| node    |              6,728 |                    9,409 |             10,145 |                 +39.8% |
+| bun     |              8,684 |                   10,135 |              9,160 |                 +16.7% |
 
-| Runtime / group | Normal eXact | Publication bypass | React |
-| --- | ---: | ---: | ---: |
-| node / 1 | 5,680 | 9,833 | 10,027 |
-| node / 2 | 6,292 | 9,399 | 10,099 |
-| node / 3 | 6,810 | 9,047 | 9,853 |
-| node / 4 | 7,208 | 9,538 | 10,365 |
-| node / 5 | 7,280 | 9,339 | 10,202 |
-| node / 6 | 7,101 | 9,300 | 10,325 |
-| bun / 1 | 8,625 | 9,980 | 9,158 |
-| bun / 2 | 8,889 | 10,247 | 9,029 |
-| bun / 3 | 8,386 | 10,205 | 9,177 |
-| bun / 4 | 8,594 | 10,177 | 8,813 |
-| bun / 5 | 8,750 | 10,100 | 9,188 |
-| bun / 6 | 8,858 | 10,101 | 9,595 |
+| Runtime / group | Normal eXact | Publication bypass |  React |
+| --------------- | -----------: | -----------------: | -----: |
+| node / 1        |        5,680 |              9,833 | 10,027 |
+| node / 2        |        6,292 |              9,399 | 10,099 |
+| node / 3        |        6,810 |              9,047 |  9,853 |
+| node / 4        |        7,208 |              9,538 | 10,365 |
+| node / 5        |        7,280 |              9,339 | 10,202 |
+| node / 6        |        7,101 |              9,300 | 10,325 |
+| bun / 1         |        8,625 |              9,980 |  9,158 |
+| bun / 2         |        8,889 |             10,247 |  9,029 |
+| bun / 3         |        8,386 |             10,205 |  9,177 |
+| bun / 4         |        8,594 |             10,177 |  8,813 |
+| bun / 5         |        8,750 |             10,100 |  9,188 |
+| bun / 6         |        8,858 |             10,101 |  9,595 |
 
 All 489,569 measured interleaved responses pass validation with zero errors. Publication bypass improves over normal eXact in all six groups on each runtime. On Node, the descriptive fraction of the local throughput gap removed ranges from 68.2% to 95.5%, calculated as (diagnostic - normal) / (React - normal). This is not a CPU-time fraction or a forecast for a safe implementation. Bun diagnostic throughput exceeds React in all six groups.
 

@@ -37,16 +37,16 @@ hash against the previous eXact artifact and verifies document framing.
 Median microseconds per complete render, lower is better. The final column is the median of each
 round's percentage reduction versus previous eXact, not the ratio of independently calculated medians.
 
-| Runtime | Mode | Size | Previous eXact | Current eXact | React | Paired reduction |
-| --- | --- | --- | ---: | ---: | ---: | ---: |
-| node | string | small | 35.41 | 35.00 | 23.47 | +1.2% |
-| node | string | large | 207.71 | 196.96 | 147.38 | +9.5% |
-| node | stream | small | 46.46 | 45.25 | 64.86 | +2.6% |
-| node | stream | large | 213.39 | 202.50 | 341.33 | +5.3% |
-| bun | string | small | 32.29 | 32.98 | 31.30 | -2.2% |
-| bun | string | large | 269.19 | 248.95 | 195.40 | +7.5% |
-| bun | stream | small | 48.26 | 47.19 | 47.36 | +2.2% |
-| bun | stream | large | 318.50 | 313.15 | 265.96 | -0.0% |
+| Runtime | Mode   | Size  | Previous eXact | Current eXact |  React | Paired reduction |
+| ------- | ------ | ----- | -------------: | ------------: | -----: | ---------------: |
+| node    | string | small |          35.41 |         35.00 |  23.47 |            +1.2% |
+| node    | string | large |         207.71 |        196.96 | 147.38 |            +9.5% |
+| node    | stream | small |          46.46 |         45.25 |  64.86 |            +2.6% |
+| node    | stream | large |         213.39 |        202.50 | 341.33 |            +5.3% |
+| bun     | string | small |          32.29 |         32.98 |  31.30 |            -2.2% |
+| bun     | string | large |         269.19 |        248.95 | 195.40 |            +7.5% |
+| bun     | stream | small |          48.26 |         47.19 |  47.36 |            +2.2% |
+| bun     | stream | large |         318.50 |        313.15 | 265.96 |            -0.0% |
 
 The change is retained for the consistent large-string gains on both runtimes and the Node-stream
 gain. Large Bun streaming is effectively unchanged by paired results, despite a slightly lower

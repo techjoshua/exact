@@ -20,14 +20,14 @@ Ordinary property reads, enumeration order, lazy materialization, cached HTML, s
 
 The asserted bundle prototype precedes source integration. Node GC-event capture uses two reversed orders of retained/candidate/React, 50,000 warmup and 20,000 measured renders per fresh process. GC durations are elapsed event durations, not sampled process CPU time. No allocation sampler runs concurrently.
 
-| Fixture | Variant | Microseconds/render | GC duration per 20,000 renders, ms |
-| --- | --- | ---: | ---: |
-| 3 incidents | Retained | 26.01 | 54.88 |
-| 3 incidents | Candidate | 23.79 | 13.58 |
-| 3 incidents | React | 21.52 | 8.59 |
-| 96 incidents | Retained | 171.66 | 320.66 |
-| 96 incidents | Candidate | 138.23 | 71.70 |
-| 96 incidents | React | 134.09 | 56.21 |
+| Fixture      | Variant   | Microseconds/render | GC duration per 20,000 renders, ms |
+| ------------ | --------- | ------------------: | ---------------------------------: |
+| 3 incidents  | Retained  |               26.01 |                              54.88 |
+| 3 incidents  | Candidate |               23.79 |                              13.58 |
+| 3 incidents  | React     |               21.52 |                               8.59 |
+| 96 incidents | Retained  |              171.66 |                             320.66 |
+| 96 incidents | Candidate |              138.23 |                              71.70 |
+| 96 incidents | React     |              134.09 |                              56.21 |
 
 Both Node orders improve. The large renderer gap to React narrows to 3.1%, while GC duration falls approximately 78%. This supports the result-storage representation as a source of avoidable GC cost; it does not prove the exact engine-level retention mechanism.
 
@@ -48,12 +48,12 @@ Platform-boundary bundling and compiled-ABI validation also pass. Frozen artifac
 
 Twenty-four fresh processes compare previous/candidate/React for both runtimes and modes, with ten seconds of warmup and six seconds of measurement, two load drivers at concurrency 16 each, complete response identities and two reversed orders. All measured responses pass, with zero errors. Each framework owns its complete document. These are focused controlled-fixture throughput measurements, not a rerun of the full public benchmark suite.
 
-| Runtime | Mode | Previous requests/s | Candidate requests/s | React requests/s |
-| --- | --- | ---: | ---: | ---: |
-| Node | String | 6705.4 | 7130.1 | 9300.7 |
-| Node | Stream | 5934.5 | 6032.1 | 3783.6 |
-| Bun | String | 7911.0 | 7580.8 | 8180.0 |
-| Bun | Stream | 5908.8 | 5943.2 | 5844.4 |
+| Runtime | Mode   | Previous requests/s | Candidate requests/s | React requests/s |
+| ------- | ------ | ------------------: | -------------------: | ---------------: |
+| Node    | String |              6705.4 |               7130.1 |           9300.7 |
+| Node    | Stream |              5934.5 |               6032.1 |           3783.6 |
+| Bun     | String |              7911.0 |               7580.8 |           8180.0 |
+| Bun     | Stream |              5908.8 |               5943.2 |           5844.4 |
 
 Node string improves 6.3%, Node streaming 1.6%, and Bun streaming 0.6%. Bun string declines 4.2%; the first pair is nearly flat and the second is slower. A separate four-process Bun string confirmation retains the same warmup and measurement duration and two reversed orders. It averages 7950.7 previous versus 7748.1 candidate requests/s, a 2.5% decline. One confirmation pair is slower and the other approximately tied. Both captures remain intact; no slow population is discarded.
 

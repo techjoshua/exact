@@ -36,12 +36,12 @@ diagnosis, not framework benchmark performance or an optimization to ship.
 RPS gives equal weight to two blocks per mode in each worker. Invocation and end
 times are request-weighted means in microseconds.
 
-| Worker | Fresh RPS | Cached RPS | Change | Invocation fresh/cached | response.end fresh/cached |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| eXact 1 | 10,182 | 9,742 | -4.33% | 43.90 / 45.65 | 23.33 / 25.41 |
-| React 1 | 12,765 | 13,945 | +9.24% | 32.35 / 31.39 | 18.46 / 17.24 |
-| React 2 | 12,740 | 13,410 | +5.26% | 32.23 / 32.81 | 18.88 / 18.11 |
-| eXact 2 | 9,655 | 9,312 | -3.55% | 45.41 / 46.20 | 24.16 / 26.38 |
+| Worker  | Fresh RPS | Cached RPS | Change | Invocation fresh/cached | response.end fresh/cached |
+| ------- | --------: | ---------: | -----: | ----------------------: | ------------------------: |
+| eXact 1 |    10,182 |      9,742 | -4.33% |           43.90 / 45.65 |             23.33 / 25.41 |
+| React 1 |    12,765 |     13,945 | +9.24% |           32.35 / 31.39 |             18.46 / 17.24 |
+| React 2 |    12,740 |     13,410 | +5.26% |           32.23 / 32.81 |             18.88 / 18.11 |
+| eXact 2 |     9,655 |      9,312 | -3.55% |           45.41 / 46.20 |             24.16 / 26.38 |
 
 The 16 blocks complete 551,355 valid responses with zero errors, excluding warmups
 and preflights. Complete document sizes remain 4,672 bytes for eXact and 3,660 for

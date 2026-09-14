@@ -6,23 +6,23 @@ Twenty-four fresh production processes compare the preceding individual-getter b
 
 Mean valid requests per second:
 
-| Runtime | Mode | Previous eXact | Current eXact | React |
-| --- | --- | ---: | ---: | ---: |
-| Node | String | 6,285.6 | 6,606.8 | 9,297.1 |
-| Node | Stream | 5,403.3 | 5,322.9 | 3,459.8 |
-| Bun | String | 8,144.7 | 8,006.5 | 9,056.4 |
-| Bun | Stream | 4,835.9 | 4,825.0 | 4,821.6 |
+| Runtime | Mode   | Previous eXact | Current eXact |   React |
+| ------- | ------ | -------------: | ------------: | ------: |
+| Node    | String |        6,285.6 |       6,606.8 | 9,297.1 |
+| Node    | Stream |        5,403.3 |       5,322.9 | 3,459.8 |
+| Bun     | String |        8,144.7 |       8,006.5 | 9,056.4 |
+| Bun     | Stream |        4,835.9 |       4,825.0 | 4,821.6 |
 
 Relative to previous eXact: Node string +5.1%, Node stream -1.5%, Bun string -1.7%, Bun stream -0.2%. Current eXact trails React in both string modes, leads Node streaming and is effectively tied in this Bun streaming capture. No minimum percentage is used to conceal the regressions or declare the overall goal achieved.
 
 Individual observations, rounded requests/s, are preserved to expose workload variation:
 
 | Runtime/mode | Previous pair 1 / 2 | Current pair 1 / 2 | React pair 1 / 2 |
-| --- | --- | --- | --- |
-| Node string | 6,569 / 6,002 | 6,786 / 6,427 | 9,767 / 8,827 |
-| Node stream | 5,334 / 5,473 | 5,303 / 5,343 | 3,480 / 3,440 |
-| Bun string | 6,869 / 9,420 | 6,634 / 9,379 | 7,286 / 10,827 |
-| Bun stream | 4,890 / 4,782 | 4,741 / 4,910 | 4,853 / 4,791 |
+| ------------ | ------------------- | ------------------ | ---------------- |
+| Node string  | 6,569 / 6,002       | 6,786 / 6,427      | 9,767 / 8,827    |
+| Node stream  | 5,334 / 5,473       | 5,303 / 5,343      | 3,480 / 3,440    |
+| Bun string   | 6,869 / 9,420       | 6,634 / 9,379      | 7,286 / 10,827   |
+| Bun stream   | 4,890 / 4,782       | 4,741 / 4,910      | 4,853 / 4,791    |
 
 The current implementation remains in the working source for its simpler completed-value semantics and observed Node string improvement. Its Bun HTTP gap remains unresolved. The response-consumption improvement documented in [the integration report](completed-html-result-2026-09-10.md) must not be substituted for these HTTP measurements.
 

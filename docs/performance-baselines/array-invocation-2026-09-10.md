@@ -19,18 +19,18 @@ An initial scratch build failed its raw-hash assertion because text newline norm
 Fresh Node sampling processes warm 50,000 renders, then measure 10,000 with 16 KiB allocation sampling including objects collected by minor and major GC. Two reversed orders run below-normal priority. The user is actively using the PC.
 
 | Fixture | Current estimated bytes/render | Array carrier | Change |
-| --- | ---: | ---: | ---: |
-| small | 68,125 | 67,520 | -0.89% |
-| large | 497,810 | 500,245 | +0.49% |
+| ------- | -----------------------------: | ------------: | -----: |
+| small   |                         68,125 |        67,520 | -0.89% |
+| large   |                        497,810 |       500,245 | +0.49% |
 
 Sixteen separate production timing processes use 50,000 warmups and 20,000 measured renders, consuming each complete string through new Response(html).text(). These are response-consumption timings, not HTTP rates. Both runtimes use the same portable Node entry; Bun HTTP uses a different entry in the independent HTTP report. Lower is better.
 
 | Runtime / fixture | Current us/render | Carrier us/render | Current CPU us/render | Carrier CPU us/render |
-| --- | ---: | ---: | ---: | ---: |
-| node / small | 41.16 | 41.72 | 41.02 | 42.20 |
-| node / large | 204.53 | 207.98 | 206.23 | 208.98 |
-| bun / small | 35.54 | 36.28 | 39.08 | 42.98 |
-| bun / large | 279.26 | 274.84 | 374.20 | 369.48 |
+| ----------------- | ----------------: | ----------------: | --------------------: | --------------------: |
+| node / small      |             41.16 |             41.72 |                 41.02 |                 42.20 |
+| node / large      |            204.53 |            207.98 |                206.23 |                208.98 |
+| bun / small       |             35.54 |             36.28 |                 39.08 |                 42.98 |
+| bun / large       |            279.26 |            274.84 |                374.20 |                369.48 |
 
 Raw timing uses the label split for the array carrier and current for the retained build. Allocation uses candidate and integrated, respectively. Both large allocation pairs increase; both small pairs decrease. Node elapsed timing has mixed pair directions for both fixtures. Small Bun elapsed timing is mixed, with higher candidate CPU in both pairs. Large Bun elapsed and CPU improve in both pairs. These tradeoffs do not establish a general improvement. CPU totals include all process threads and remain sensitive to machine conditions.
 

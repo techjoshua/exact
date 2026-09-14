@@ -30,10 +30,10 @@ server and Node adapter modules. The direct comparison performs those operations
 response object. Every output is checked for identity and the total call count is verified.
 
 | Population | Direct microseconds/handoff | eXact microseconds/handoff | Added time |
-| --- | ---: | ---: | ---: |
-| 1 | 0.166 | 0.588 | 0.422 |
-| 2 | 0.154 | 0.564 | 0.411 |
-| 3 | 0.154 | 0.581 | 0.427 |
+| ---------- | --------------------------: | -------------------------: | ---------: |
+| 1          |                       0.166 |                      0.588 |      0.422 |
+| 2          |                       0.154 |                      0.564 |      0.411 |
+| 3          |                       0.154 |                      0.581 |      0.427 |
 
 This is a microbenchmark with mocked header and socket operations. It isolates ownership and
 dispatch, not real HTTP behavior. It cannot measure Node's header-generation choices, socket

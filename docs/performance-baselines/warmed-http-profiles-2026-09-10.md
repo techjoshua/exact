@@ -10,12 +10,12 @@ The CPU capture completed 119,971 valid responses with 29 scheduling misses and 
 
 Weighted process CPU time was 210.0 microseconds/request for eXact and 171.9 for React. CPU sampling used a 250-microsecond interval. The following stack-attributed sample durations are diagnostic estimates, not independently timed phases or an additive decomposition of process CPU time:
 
-| Sampled work, microseconds/request | eXact | React |
-| --- | ---: | ---: |
-| Combined rendering and hydration publication | 81.1 | 50.7 |
-| Garbage collection | 6.6 | 2.5 |
-| HTTP output and sockets | 39.3 | 38.0 |
-| HTTP input and dispatch | 14.9 | 14.0 |
+| Sampled work, microseconds/request           | eXact | React |
+| -------------------------------------------- | ----: | ----: |
+| Combined rendering and hydration publication |  81.1 |  50.7 |
+| Garbage collection                           |   6.6 |   2.5 |
+| HTTP output and sockets                      |  39.3 |  38.0 |
+| HTTP input and dispatch                      |  14.9 |  14.0 |
 
 Within eXact's combined render bucket, hydration JSON serialization accounts for 8.8, validation/projection 4.6, and other hydration publication 0.8. React's application serialization remains inside its rendering bucket, so a zero React hydration column would misrepresent the comparison. Response ownership and the eXact adapter account for another 2.0 sampled microseconds/request.
 
@@ -27,15 +27,15 @@ Total estimated allocation is 93.02 kB/request for eXact versus 93.74 for React,
 
 Largest individual eXact allocation sites:
 
-| Attributed site | kB/request |
-| --- | ---: |
-| renderPreparedSsrProgram | 5.88 |
-| executeSynchronousArtifact | 4.89 |
-| createChunkedHydratableResult | 4.87 |
-| Node handleWriteReq | 4.87 |
-| Final htmlWithHydration join | 4.74 |
-| writeProgramChild | 3.94 |
-| renderComponentReference | 3.26 |
+| Attributed site               | kB/request |
+| ----------------------------- | ---------: |
+| renderPreparedSsrProgram      |       5.88 |
+| executeSynchronousArtifact    |       4.89 |
+| createChunkedHydratableResult |       4.87 |
+| Node handleWriteReq           |       4.87 |
+| Final htmlWithHydration join  |       4.74 |
+| writeProgramChild             |       3.94 |
+| renderComponentReference      |       3.26 |
 
 Grouped by source module, render-program accounts for 10.60 kB/request, synchronous-artifact 7.28, children 4.97, operation-target 4.02, and program-boundary 3.94. These module totals overlap the site table and must not be added to it. The final join stack passes through the htmlWithHydration getter. The traversal sink still accumulates with +=; final hydration assembly is a separate step.
 

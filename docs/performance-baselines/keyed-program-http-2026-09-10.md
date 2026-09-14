@@ -5,11 +5,11 @@ initial rejection based on the Node string result was premature as an end-to-end
 decision. This follow-up measures the unchanged candidate through the native HTTP adapters.
 
 | Runtime/output | Current eXact RPS | Candidate RPS | React RPS | Candidate change | Faster pairs |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Node string | 8,368 | 8,283 | 11,544 | -1.0% | 3/6 |
-| Node stream | 7,054 | 7,276 | 5,143 | +3.2% | 3/6 |
-| Bun string | 10,579 | 10,485 | 10,537 | -0.9% | 2/6 |
-| Bun stream | 8,461 | 8,385 | 8,175 | -0.9% | 2/6 |
+| -------------- | ----------------: | ------------: | --------: | ---------------: | -----------: |
+| Node string    |             8,368 |         8,283 |    11,544 |            -1.0% |          3/6 |
+| Node stream    |             7,054 |         7,276 |     5,143 |            +3.2% |          3/6 |
+| Bun string     |            10,579 |        10,485 |    10,537 |            -0.9% |          2/6 |
+| Bun stream     |             8,461 |         8,385 |     8,175 |            -0.9% |          2/6 |
 
 There were 941,279 valid measured responses and zero errors. Every started measured request
 completed and passed response identity validation. The candidate and current eXact documents match
