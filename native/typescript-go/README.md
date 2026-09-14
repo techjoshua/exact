@@ -50,6 +50,12 @@ which must match the pinned revision. Sparse checkouts retain the compiler and
 tool modules without materializing the upstream test corpus. Native packages
 include the upstream Apache license and `NOTICE.txt` attribution content.
 
+After packing the host-platform package, run
+`node scripts/test-native-compiler-package.mjs <directory containing the single tarball>`.
+This installs and executes the packaged binary in an isolated fixture and checks its reported
+protocol against `scripts/contracts/compiler-abi.json`. It requires no generated workspace
+outputs and does not depend on how Go declares its generated version constants.
+
 JavaScript plugins continue through the explicit compatibility host; native
 extensions are registered statically at build time. Dynamic Go plugins are
 deliberately excluded because Go's plugin ABI is toolchain- and

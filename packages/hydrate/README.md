@@ -56,16 +56,11 @@ Passing the compiled root binds any compiler-proven compact positional payload t
 client artifact. Named payloads from older or structurally open roots remain supported. The later
 hydration call reuses the same decoded object graph.
 
-`hydrateAfterNavigation()` accepts an element or the current `document`, so authored document
-components can use the same scheduling policy as fragment roots. It gives visible SSR content one rendering opportunity after
-`DOMContentLoaded`, then schedules activation as user-visible work. If a pointer, keyboard, input,
-change, or submit interaction reaches the root first, a capture listener activates synchronously
-before normal target and bubble handling. Hidden documents use a task directly because animation
-frames may be throttled indefinitely. Scheduling and event ownership follow the executing window's
-current document. Activation settles once: a scheduling or hydration failure removes pending hooks
-and rejects without a later retry. Hydration roots must belong to that current document; hydrate an
-embedded document from the eXact runtime executing inside it instead of asking its parent window to
-own it.
+`hydrateAfterNavigation()` accepts an element or the executing window's current `document`.
+After `DOMContentLoaded`, visible documents get one rendering opportunity before activation is
+scheduled; hidden documents use a task directly. An earlier pointer, keyboard, input, change, or
+submit event activates the root synchronously before target and bubble handlers. Failure removes
+pending hooks and rejects without retry. Hydrate embedded documents from their own window's runtime.
 
 Because that static entry does not expose the optional capabilities, bundlers can remove their
 implementations completely. Use the main entry whenever the compiled application contains server
@@ -75,10 +70,10 @@ Use `ExactClient.applyPatches()` only for framework integrations that deliberate
 patches within that client's root. Direct transport invocation and unscoped patch application are
 package-private implementation details.
 
-See [SSR and hydration](../../docs/ssr-hydration.md) and
-[component registries](../../docs/component-registries.md).
-
 A synchronous factory passed to `hydrateAfterNavigation()` defers published-props decoding and
 root creation until activation. The factory runs once, including when an early interaction wins,
 and a thrown error rejects the hydration promise. Existing root values remain supported. This
 does not defer static module evaluation or guarantee that first contentful paint precedes activation.
+
+See [SSR and hydration](../../docs/ssr-hydration.md) and
+[component registries](../../docs/component-registries.md).
