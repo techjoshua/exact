@@ -91,11 +91,12 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<CodeBlock source={remoteConsumerSource} language="ts" title="page/exact.config.ts" />
 				<p>
 					The browser receives only the client entry binding it needs. The private endpoint remains
-					a server concern, where the eXact binding gateway validates and forwards task invocation
-					and refresh traffic. An integrity pin is enforced by the browser before the generated
-					module executes. Without one, the configured entry URL is intentionally trusted executable
-					code; replacement resolvers should return both the new URL and its generation-specific
-					integrity.
+					a server concern. The eXact gateway authenticates the request and forwards its original
+					payload, cookies, and authorization headers. Each service authenticates independently;
+					applications may add agreed service credentials through the forwarding header hook. An
+					integrity pin is enforced by the browser before the generated module executes. Without
+					one, the configured entry URL is intentionally trusted executable code; replacement
+					resolvers should return both the new URL and its generation-specific integrity.
 				</p>
 			</section>
 			<section>

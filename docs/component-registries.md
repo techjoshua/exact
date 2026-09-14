@@ -79,7 +79,8 @@ eager or lazy provenance, placement, module/export ownership, and target
 artifacts, and includes that information in optional explanation output.
 Authored registry and entry names remain diagnostics, not protocol identifiers.
 
-Dynamic selection must be a finite registry key. The compiler follows static
+Selection within a registry must use a finite registry key. This requirement does not apply to
+the open dynamic fallback described below. The compiler follows static
 members, immutable aliases, and reactive finite indices. It rejects mutation,
 scoped lazy factories that escape their definition, client/server
 contradictions, and lazy imports whose export cannot be proven.

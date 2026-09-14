@@ -1,3 +1,5 @@
+import { checkSecurityHooks } from './request-security.js';
+export { checkSecurityHooks, type ExactSecurityResult } from './request-security.js';
 import { ownRegistryEntry } from './registry-entry.js';
 import { logFrameworkEvent } from '@exactjs/core';
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
@@ -16,7 +18,6 @@ import type {
 	ExactInvocationRequest,
 	ExactOperationError,
 	ExactOperationResult,
-	ExactProtocolRequest,
 	ExactRequestLike,
 	ExactResponseLike,
 	ExactServerContext
@@ -31,9 +32,6 @@ import {
 	stateResponseMatchesContract,
 	stateMatchesContract
 } from './validation.js';
-
-/** Describes the result produced by exact security. */
-export type ExactSecurityResult = 'allowed' | 'unauthorized' | 'csrf';
 
 /** Returns whether an operation result is the protocol's structured error variant. */
 export function isOperationError(result: ExactOperationResult): result is ExactOperationError {
@@ -56,45 +54,6 @@ export async function dispatchSecurityCheckedExactOperation(
 	context: ExactServerContext
 ): Promise<ExactOperationResult> {
 	return dispatchExactOperationAfterSecurity(request, input, context, true);
-}
-
-/** Runs authorization and CSRF hooks, converting hook failures into closed security results. */
-export async function checkSecurityHooks(
-	request: ExactRequestLike,
-	input: ExactProtocolRequest,
-	context: ExactServerContext
-): Promise<ExactSecurityResult> {
-	if (context.authorize) {
-		try {
-			if (!(await context.authorize(request, input, context))) return 'unauthorized';
-		} catch (error) {
-			logFrameworkEvent(
-				'error',
-				'server',
-				'security',
-				'exact authorization hook failed',
-				error,
-				context.logger
-			);
-			return 'unauthorized';
-		}
-	}
-	if (context.validateCsrf) {
-		try {
-			if (!(await context.validateCsrf(request, input, context))) return 'csrf';
-		} catch (error) {
-			logFrameworkEvent(
-				'error',
-				'server',
-				'security',
-				'exact csrf hook failed',
-				error,
-				context.logger
-			);
-			return 'csrf';
-		}
-	}
-	return 'allowed';
 }
 
 /** Serializes an extension-processed response while enforcing the configured byte limit. */
@@ -149,6 +108,14 @@ async function dispatchExactOperationAfterSecurity(
 		logReject(context, message);
 		return { ok: false, type: input.type, id: input.id, opId: input.opId, status, error };
 	};
+
+	if (!securityChecked) {
+		const security = await checkSecurityHooks(request, context);
+		if (security === 'unauthorized')
+			return reject(403, 'forbidden', 'rejected unauthorized exact invocation');
+		if (security === 'csrf')
+			return reject(403, 'forbidden', 'rejected exact invocation with invalid csrf');
+	}
 
 	// Compiler-emitted opaque IDs form the execution boundary; module paths and
 	// function names supplied by a client are never resolved dynamically.
@@ -237,12 +204,13 @@ async function dispatchExactOperationAfterSecurity(
 		}
 	}
 
-	if (!securityChecked) {
-		const security = await checkSecurityHooks(request, input, context);
-		if (security === 'unauthorized')
-			return reject(403, 'forbidden', 'rejected unauthorized exact invocation');
-		if (security === 'csrf')
-			return reject(403, 'forbidden', 'rejected exact invocation with invalid csrf');
+	if (context.authorizeOperation) {
+		try {
+			if (!(await context.authorizeOperation(request, input, context)))
+				return reject(403, 'forbidden', 'rejected unauthorized exact operation');
+		} catch {
+			return reject(403, 'forbidden', 'exact operation authorization failed');
+		}
 	}
 
 	const handler =

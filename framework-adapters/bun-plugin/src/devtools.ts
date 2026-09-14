@@ -1,3 +1,4 @@
+import { mergeInspectionRedactions } from '@exactjs/devtools-protocol';
 import {
 	createExactBuildInspectionCatalog,
 	createExactInspectionBuildKey,
@@ -94,28 +95,4 @@ export function createBunInspectionCatalog(
 	if (componentAuthorization && componentAuthorization.buildKey !== catalog.buildKey)
 		throw new Error('Component authorization and Bun inspection build keys do not match');
 	return componentAuthorization ? Object.freeze({ ...catalog, componentAuthorization }) : catalog;
-}
-
-function mergeInspectionRedactions(
-	generated: readonly import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog[],
-	configured: Partial<import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog> = {}
-): import('@exactjs/devtools-protocol').ExactInspectionRedactionCatalog {
-	return {
-		statePaths: [
-			...new Set([
-				...generated.flatMap((value) => value.statePaths),
-				...(configured.statePaths ?? [])
-			])
-		].sort(),
-		contextTokens: [
-			...generated.flatMap((value) => value.contextTokens),
-			...(configured.contextTokens ?? [])
-		],
-		secretNames: [
-			...new Set([
-				...generated.flatMap((value) => value.secretNames),
-				...(configured.secretNames ?? [])
-			])
-		].sort()
-	};
 }

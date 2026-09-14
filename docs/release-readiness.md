@@ -9,6 +9,26 @@ changes together for the initial release; an older runtime's general compiled-ro
 is not compatible with that new emission. This is a prepublication semantic contract update,
 not a reason to regenerate released ABI fixtures or add an obsolete implementation.
 
+The initial 0.5.0 audit remediation changes request hooks to `authorize(request, context)` and
+`validateCsrf(request, context)`, with decoded local policy in `authorizeOperation`. Gateways accept
+raw bytes/text, forward credentials and original bodies, and do not coordinate remote debug sessions.
+Ship server, SSR, DevTools client, and adapter changes together. Response adapters preserve separate
+cookies. These replace unreleased APIs without compatibility aliases or an ABI epoch change.
+
+Native intrinsic prop compilation now rejects forbidden setters and event strings, normalizes known
+casing, and diagnoses statically known invalid names. Ship the compiler with DOM/SSR guards. Helper
+signatures and hydration schemas are unchanged. Component-policy build denials produce warnings and
+execution guards; ship matching bundler and policy packages together. Released fixtures remain frozen.
+
+The initial 0.5.0 compiler/core pairing also initializes neutral synchronous browser computations
+before applying resumed state, then arms their dependencies after restoration. Complete browser
+artifacts now use the existing synchronous computation helper as hydrate artifacts already did.
+Ship compiler, core, and hydrate together: helper signatures and wire schemas are unchanged, but
+construction ordering is a semantic artifact correction. Hydration artifacts additionally carry
+the optional compact `resumption.continuations` allowlist; older contract validators reject that
+field, so the compiler must not be released ahead of the matching core and hydrate packages. Retain frozen released fixtures; no ABI epoch or package
+major change is required for this approved prepublication correction.
+
 ## Independent package releases
 
 The initial SSR scheduling hook accepts `void | Promise<void>`. A ready adapter gate returns
@@ -269,3 +289,17 @@ object. The matching SSR provider serializes it directly or reconstructs the ori
 for target composition. This changes emitted artifact semantics and requires the matching initial
 0.5.0 compiler, core types, and SSR provider; older providers cannot consume these new artifacts.
 Existing released-fixture inputs remain unmodified.
+
+### Independent island payload correction before 0.5.0
+
+Resumable islands under server-only roots now serialize their resolved public props and ordered
+resumptions inside their own boundary payload. They no longer depend on a page-wide activation cursor.
+Ship the SSR and hydration providers together for this corrected initial contract. Client-root-owned
+subtrees keep their existing capture representation and compiler helper signatures are unchanged.
+Malformed inline payloads now fail before mounting. No released fixture was regenerated.
+
+The initial unpublished 0.5.0 hydration contract also accepts a synchronous root factory in
+`hydrateAfterNavigation()`. Compiler-proven factories use the existing compiled deferred-root
+helper with the callable preserved until activation. Existing operation-valued calls retain their
+semantics; factory-emitting compilers require the matching provider implementation. This establishes
+the initial contract without changing the ABI epoch or preserving an unreleased alternate helper.

@@ -1,0 +1,26 @@
+--- a/tsc/internal/compiler/program.go
++++ b/tsc/internal/compiler/program.go
+@@ -360,12 +360,12 @@
+ 	if !p.canReplaceFileInProgram(oldFile, newFile) {
+ 		return nil, newFile, false
+ 	}
+-	// Cloning does not recompute synthetic helper or JSX-runtime import bookkeeping. Fall back to a full
+-	// build whenever either version requires those imports.
++	// Synthetic helper imports retain the conservative upstream fallback. Unchanged JSX imports
++	// can reuse resolution after replacing their source-owned synthetic nodes in the cloned map.
+ 	if p.importHelpersImportSpecifiers[oldFile.Path()] != nil || p.needsImportHelpersImportSpecifier(newFile) {
+ 		return nil, newFile, false
+ 	}
+-	if p.jsxRuntimeImportSpecifiers[oldFile.Path()] != nil || p.jsxRuntimeImportSpecifier(newFile) != "" {
++	if !p.canReuseExactJSXRuntimeImport(oldFile, newFile) {
+ 		return nil, newFile, false
+ 	}
+ 	if len(oldSupplementalFiles) != len(newSupplementalFiles) {
+@@ -397,6 +397,7 @@
+ 	result.unresolvedImports.tryReuse(&p.unresolvedImports)
+ 	result.knownSymlinks.tryReuse(&p.knownSymlinks)
+ 	result.packageNames.tryReuse(&p.packageNames)
++	result.replaceExactJSXRuntimeImport(newFile)
+ 	result.initCheckerPool()
+ 	index := core.FindIndex(result.files, func(file *ast.SourceFile) bool { return file.Path() == newFile.Path() })
+ 	result.files = slices.Clone(result.files)

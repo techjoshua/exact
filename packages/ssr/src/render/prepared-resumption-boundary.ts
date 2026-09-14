@@ -5,6 +5,7 @@ import { markerId, finalizedMarkerPair } from '../markers.js';
 import type { SsrContext } from '../types.js';
 import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
 import { withSsrReactivePeek } from './reactive-tracking-capability.js';
+import type { SsrSerializedResumption } from '../resumption.js';
 
 /** Serializes a compiler-selected resumption boundary without reopening its component contract. */
 export function renderPreparedResumptionBoundary(
@@ -12,12 +13,14 @@ export function renderPreparedResumptionBoundary(
 	id: string,
 	name: string,
 	html: string,
-	props: Record<string, unknown>
+	props: Record<string, unknown>,
+	resumptions?: readonly SsrSerializedResumption[]
 ): string {
 	const snapshot = withSsrReactivePeek(() => snapshotResumptionProps(props));
-	const unsafePath = jsonUnsafePath(snapshot);
+	const data = { props: snapshot, ...(resumptions ? { resumptions } : {}) };
+	const unsafePath = jsonUnsafePath(data);
 	if (unsafePath) throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
-	const payload = serializeHydrationPayload({ props: snapshot });
+	const payload = serializeHydrationPayload(data);
 	const opening = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(payload)}" data-exact-client-resumption="true">`;
 	context.outputSink?.account(opening);
 	context.outputSink?.accountKnown('</div>', 6);

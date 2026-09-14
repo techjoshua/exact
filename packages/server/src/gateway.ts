@@ -1,329 +1,74 @@
 import { jsonResponse } from './protocol.js';
-import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
-import {
-	exactDebugCapabilityForRequest,
-	type ExactDebugCapability
-} from '@exactjs/devtools-protocol';
+import { normalizeProtocolLimit } from '@exactjs/core/framework/protocol-records';
 import type {
 	ExactBindingGateway,
 	ExactBindingGatewayOptions,
 	ExactGatewayRejectEvent,
-	ExactProtocolRequest,
-	ExactRequestLike,
-	ExactResponseLike,
-	ExactServerContext
+	ExactResponseLike
 } from './types.js';
-import { debugRoute, remoteDebugRequest, translateDebugResponse } from './gateway-debug.js';
-import { exactServerDebugRuntime } from './debug/runtime.js';
-import { copyValidatedGatewayResponse } from './gateway-response.js';
+import { copyGatewayResponse } from './gateway/response.js';
+import { gatewayHeaders } from './gateway/headers.js';
 
-const hopByHopHeaders = new Set([
-	'connection',
-	'keep-alive',
-	'proxy-authenticate',
-	'proxy-authorization',
-	'te',
-	'trailer',
-	'transfer-encoding',
-	'upgrade'
-]);
-
-/** Creates page-host forwarding behavior consumed by handleExactRequest after security. */
+/** Routes raw authenticated requests to an application-configured service without interpreting its protocol. */
 export function createExactBindingGateway(
 	options: ExactBindingGatewayOptions
 ): ExactBindingGateway {
 	const bindings = Object.freeze({ ...options.bindings });
-	const maximumBindingLength = positiveLimit(options.maxBindingLength, 128);
-	const children = new Map<
-		string,
-		{
-			parentSessionId: string;
-			childSessionId: string;
-			binding: string;
-			buildKey: string;
-			capabilities: Set<ExactDebugCapability>;
-		}
-	>();
-	const gateway: ExactBindingGateway = {
-		async forward(request, input, context) {
-			const binding = headerValue(request.headers, 'x-exact-binding');
-			if (!validBinding(binding, maximumBindingLength))
+	const maximum = normalizeProtocolLimit(options.maxBindingLength, 128);
+	return Object.freeze({
+		async forward(request, body, context) {
+			const headers = gatewayHeaders(request.headers);
+			const binding = headers.get('x-exact-binding') ?? undefined;
+			if (!validBinding(binding, maximum))
 				return reject(options, 'invalid_binding', undefined, 400);
-			const target = bindings[binding];
+			const target = Object.hasOwn(bindings, binding) ? bindings[binding] : undefined;
 			if (!target) return reject(options, 'unknown_binding', binding, 404);
-			const buildKey = headerValue(request.headers, 'x-exact-build');
-			if (!buildKey || !/^[0-9a-f]{40}$/i.test(buildKey))
-				return reject(options, 'invalid_build', binding, 400);
-			if (input.type !== 'debug') {
-				const parentSessionId = headerValue(request.headers, 'x-exact-debug-session');
-				const forwardedHeaders = new Headers(request.headers as HeadersInit | undefined);
-				forwardedHeaders.delete('x-exact-debug-session');
-				if (!parentSessionId)
-					return forwardEnvelope(
-						{ ...request, headers: forwardedHeaders },
-						input,
-						binding,
-						buildKey,
-						target.endpoint,
+			const buildKey = headers.get('x-exact-build') ?? undefined;
+			headers.delete('x-exact-binding');
+			// Preserve correlation without leaving a routing instruction for a downstream gateway.
+			headers.delete('x-exact-debug-binding');
+			if (headers.has('x-exact-debug-session')) headers.set('x-exact-debug-binding', binding);
+			headers.delete('host');
+			const base = { method: 'POST', url: target.endpoint, headers, body, signal: request.signal };
+			let forwarded = base;
+			if (options.transformForwardedRequest) {
+				try {
+					const transformed = await options.transformForwardedRequest(
+						base,
+						{ binding, buildKey, endpoint: target.endpoint },
 						context
 					);
-				const authorization = await exactServerDebugRuntime(context).createRequestRuntime(
-					request,
-					parentSessionId
-				);
-				if (!authorization)
-					return forwardEnvelope(
-						{ ...request, headers: forwardedHeaders },
-						input,
-						binding,
-						buildKey,
-						target.endpoint,
-						context
-					);
-				authorization.dispose();
-				const child = await ensureChildSession(
-					request,
-					parentSessionId,
-					binding,
-					buildKey,
-					target.endpoint,
-					'events',
-					context
-				);
-				if (!child) return reject(options, 'upstream_unavailable', binding, 404);
-				forwardedHeaders.set('x-exact-debug-session', child.childSessionId);
-				const response = await forwardEnvelope(
-					{ ...request, headers: forwardedHeaders },
-					input,
-					binding,
-					buildKey,
-					target.endpoint,
-					context
-				);
-				return translateDebugResponse(
-					response,
-					child.childSessionId,
-					parentSessionId,
-					binding,
-					buildKey
-				);
+					if (
+						!transformed ||
+						transformed.method.toUpperCase() !== 'POST' ||
+						String(transformed.url) !== target.endpoint ||
+						transformed.body !== body ||
+						transformed.signal !== request.signal
+					)
+						throw new TypeError('Forwarding transforms may change headers only');
+					const transformedHeaders = gatewayHeaders(transformed.headers);
+					transformedHeaders.delete('x-exact-binding');
+					transformedHeaders.delete('host');
+					forwarded = { ...base, headers: transformedHeaders };
+				} catch {
+					return reject(options, 'transform_failed', binding, 502);
+				}
 			}
-			if (input.request === 'open' || input.request === 'close')
-				return reject(options, 'invalid_binding', binding, 400);
-			const route = debugRoute(input);
-			if (!route || route.buildKey !== buildKey)
-				return reject(options, 'invalid_build', binding, 400);
-			const allowedRoots = target.debugBuilds?.[buildKey];
-			if (!allowedRoots?.includes(route.executionRoot))
-				return reject(options, 'invalid_build', binding, 404);
-			const capability = exactDebugCapabilityForRequest(input);
-			const child = await ensureChildSession(
-				request,
-				input.sessionId,
-				binding,
-				buildKey,
-				target.endpoint,
-				capability,
-				context
-			);
-			if (!child) return reject(options, 'upstream_unavailable', binding, 404);
-			const translated = remoteDebugRequest(input, child.childSessionId);
-			const response = await forwardEnvelope(
-				request,
-				translated,
-				binding,
-				buildKey,
-				target.endpoint,
-				context
-			);
-			return translateDebugResponse(
-				response,
-				child.childSessionId,
-				input.sessionId,
-				binding,
-				buildKey
-			);
-		},
-		async closeDebugSession(sessionId, context) {
-			const owned = [...children.entries()].filter(
-				([, child]) => child.parentSessionId === sessionId
-			);
-			for (const [key, child] of owned) {
-				children.delete(key);
-				const target = bindings[child.binding];
-				if (!target) continue;
-				await forwardEnvelope(
-					{
-						method: 'POST',
-						headers: { 'x-exact-build': child.buildKey },
-						body: ''
-					},
-					{
-						type: 'debug',
-						version: 1,
-						request: 'close',
-						sessionId: child.childSessionId
-					},
-					child.binding,
-					child.buildKey,
-					target.endpoint,
-					context
-				).catch(() => undefined);
-			}
-		}
-	};
-	return Object.freeze(gateway);
-
-	async function ensureChildSession(
-		request: ExactRequestLike,
-		parentSessionId: string,
-		binding: string,
-		buildKey: string,
-		endpoint: string,
-		capability: ExactDebugCapability,
-		context: ExactServerContext
-	): Promise<
-		| {
-				parentSessionId: string;
-				childSessionId: string;
-				binding: string;
-				buildKey: string;
-				capabilities: Set<ExactDebugCapability>;
-		  }
-		| undefined
-	> {
-		const key = `${parentSessionId}\0${binding}\0${buildKey}`;
-		const existing = children.get(key);
-		if (existing?.capabilities.has(capability)) return existing;
-		const capabilities = existing
-			? [...new Set([...existing.capabilities, capability])]
-			: [capability];
-		const response = await forwardEnvelope(
-			request,
-			{ type: 'debug', version: 1, request: 'open', capabilities },
-			binding,
-			buildKey,
-			endpoint,
-			context
-		);
-		if (response.status !== 200) return undefined;
-		try {
-			const parsed = JSON.parse(response.body) as {
-				session?: { id?: unknown };
-			};
-			if (typeof parsed.session?.id !== 'string') return undefined;
-			const child = {
-				parentSessionId,
-				childSessionId: parsed.session.id,
-				binding,
-				buildKey,
-				capabilities: new Set(capabilities)
-			};
-			children.set(key, child);
-			if (existing) {
-				void forwardEnvelope(
-					request,
-					{
-						type: 'debug',
-						version: 1,
-						request: 'close',
-						sessionId: existing.childSessionId
-					},
-					binding,
-					buildKey,
-					endpoint,
-					context
-				).catch(() => undefined);
-			}
-			return child;
-		} catch {
-			return undefined;
-		}
-	}
-
-	async function forwardEnvelope(
-		request: ExactRequestLike,
-		input: ExactProtocolRequest,
-		binding: string,
-		buildKey: string,
-		endpoint: string,
-		context: ExactServerContext
-	): Promise<ExactResponseLike> {
-		const body = JSON.stringify(input);
-		const forwardedHeaders = sanitizedRequestHeaders(request.headers);
-		forwardedHeaders.set('content-type', 'application/json');
-		forwardedHeaders.set('x-exact-build', buildKey);
-		const base: ExactRequestLike = {
-			method: 'POST',
-			url: endpoint,
-			headers: forwardedHeaders,
-			body,
-			signal: request.signal
-		};
-		let transformed = base;
-		if (options.transformForwardedRequest) {
 			try {
-				transformed = await options.transformForwardedRequest(
-					base,
-					{ binding, buildKey, endpoint },
-					context
-				);
-				assertSafeTransform(transformed, base, endpoint, buildKey);
+				const upstream = await (options.fetch ?? globalThis.fetch)(target.endpoint, {
+					method: 'POST',
+					headers: forwarded.headers,
+					body: body as BodyInit,
+					signal: request.signal,
+					// A downstream redirect is a response to relay, not permission to send credentials elsewhere.
+					redirect: 'manual'
+				});
+				return copyGatewayResponse(upstream, context);
 			} catch {
-				return reject(options, 'transform_failed', binding, 502);
+				return reject(options, 'upstream_unavailable', binding, 502);
 			}
 		}
-		const fetchImpl = options.fetch ?? globalThis.fetch;
-		if (!fetchImpl) return reject(options, 'upstream_unavailable', binding, 502);
-		let upstream: Response;
-		try {
-			upstream = await fetchImpl(endpoint, {
-				method: 'POST',
-				headers: new Headers(transformed.headers as HeadersInit),
-				body,
-				signal: request.signal,
-				redirect: 'follow'
-			});
-		} catch {
-			return reject(options, 'upstream_unavailable', binding, 502);
-		}
-		try {
-			return await copyValidatedGatewayResponse(upstream, context);
-		} catch {
-			return reject(options, 'upstream_invalid_response', binding, 502);
-		}
-	}
-}
-
-function assertSafeTransform(
-	transformed: ExactRequestLike,
-	base: ExactRequestLike,
-	endpoint: string,
-	buildKey: string
-): void {
-	if (
-		!transformed ||
-		transformed.method.toUpperCase() !== 'POST' ||
-		String(transformed.url) !== endpoint ||
-		transformed.body !== base.body ||
-		transformed.signal !== base.signal ||
-		headerValue(transformed.headers, 'x-exact-binding') !== undefined ||
-		headerValue(transformed.headers, 'x-exact-build') !== buildKey
-	)
-		throw new Error('Unsafe forwarded eXact request transform');
-}
-
-function sanitizedRequestHeaders(headers: ExactRequestLike['headers']): Headers {
-	const result = new Headers(headers as HeadersInit | undefined);
-	result.delete('x-exact-binding');
-	result.delete('cookie');
-	result.delete('authorization');
-	result.delete('origin');
-	result.delete('referer');
-	result.delete('host');
-	result.delete('content-length');
-	for (const header of hopByHopHeaders) result.delete(header);
-	return result;
+	} satisfies ExactBindingGateway);
 }
 
 function reject(
@@ -338,14 +83,4 @@ function reject(
 
 function validBinding(value: string | undefined, maximum: number): value is string {
 	return !!value && value.length <= maximum && /^[A-Za-z0-9._-]+$/.test(value);
-}
-
-function headerValue(headers: ExactRequestLike['headers'], name: string): string | undefined {
-	if (!headers) return undefined;
-	if (headers instanceof Headers) return headers.get(name) ?? undefined;
-	for (const [key, value] of Object.entries(headers)) {
-		if (key.toLowerCase() !== name) continue;
-		return Array.isArray(value) ? value[0] : value;
-	}
-	return undefined;
 }

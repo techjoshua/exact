@@ -26,6 +26,10 @@ Custom synchronous producers that already know their complete UTF-8 body size ca
 `environment?.setBodyByteLength?.(bytes)` after their final write. Include every output span;
 otherwise omit the hint and let the adapter count. See [SSR output accounting](../../docs/ssr-hydration.md).
 
+A binding gateway forwards original payload bytes and credentials after request authentication.
+Each service owns its operation policy. Add agreed service headers with `transformForwardedRequest`;
+keep gateway endpoints ahead of JSON body-parsing middleware.
+
 ## Security model
 
 Dispatch only compiler-generated contracts. Component labels, module names, debug identifiers,
@@ -33,7 +37,7 @@ and client payloads are not operation authority. Keep application services, priv
 request resources, and secrets in trusted server context.
 
 Register a payload decoder for every manual operation that accepts client data. It runs before
-authorization and the handler. Manual replacement/list HTML must be wrapped with
+`authorizeOperation` and the handler. Request-level `authorize` and `validateCsrf` run before body parsing. Manual replacement/list HTML must be wrapped with
 `unsafeExactHtml()`; raw strings are rejected, while compiler/SSR output retains framework-owned
 provenance. The unsafe constructor is an explicit audit capability, not an escaping function.
 

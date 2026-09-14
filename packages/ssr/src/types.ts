@@ -99,6 +99,8 @@ export type RenderToStringOptions = {
 	onDirectComponentRendered?: (snapshot: DirectSsrComponentSnapshot) => void;
 	/** @internal Request-owned compact resumption capture selected by hydratable entry points. */
 	resumptionCapture?: import('./resumption.js').SsrResumptionCapture;
+	/** @internal True only while a compiled client root owns adoption of this subtree. */
+	clientResumptionOwner?: boolean;
 	/** @internal Allows framework-owned observers to be replayed after independent sibling work. */
 	allowIndependentComponentObservation?: boolean;
 	/** Receives SSR rendering profiling observations. */
@@ -273,6 +275,7 @@ export type ExactServerRuntimeOptions = ExactServerHandlerRegistryOptions &
 	ExactServerContextConfiguration & {
 		authorize?: ExactServerContext['authorize'];
 		validateCsrf?: ExactServerContext['validateCsrf'];
+		authorizeOperation?: ExactServerContext['authorizeOperation'];
 		payloadDecoders?: ExactServerContext['payloadDecoders'];
 		resolvePartitionAuthority?: ExactServerContext['resolvePartitionAuthority'];
 		remoteBuilds?: ExactServerContext['remoteBuilds'];

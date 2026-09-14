@@ -128,7 +128,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'Summary.tsx' }
 		);
-		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('__exactActivateComputation(this,');
 		expect(output).toContain('__exactActivationDependency(() => this.state.quantity)');
 		expect(output).toContain('__exactActivationDependency(() => this.state.price)');
 		expect(output).toContain('__exactWriteState(this.state, 2');
@@ -266,7 +266,7 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'TrySummary.tsx' }
 		);
-		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('__exactActivateComputation(this,');
 		expect(output).toContain('__exactActivationDependency(() => this.state.input)');
 		expect(output).toContain('try {');
 		expect(output).toContain('catch (error)');

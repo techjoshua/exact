@@ -217,7 +217,7 @@ function identityRuntime(identity: PublicIdentity) {
 				]
 			];
 		},
-		authorize: async (_request, _input, context) => {
+		authorize: async (_request, context) => {
 			const authorization = await context.contexts!.get(ServerAuthorizationContext);
 			return authorization.roles().includes('editor');
 		}

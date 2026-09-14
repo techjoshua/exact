@@ -1,6 +1,7 @@
 import {
 	isReactiveValue,
 	peekIndexedReactiveSlot,
+	readIndexedReactiveSource,
 	reactiveIndexedDependencies,
 	ref as reactiveRef,
 	subscribe,
@@ -256,12 +257,36 @@ class IndexedContinuationDependency<T> implements ContinuationDependencySource<T
 	}
 
 	subscribe(notify: () => void): Disposable {
-		return disposable(
-			subscribeKeys(this.target, [this.key], () => {
-				this.version++;
-				notify();
-			})
-		);
+		let stopValue: (() => void) | undefined;
+		const publish = (): void => {
+			this.version++;
+			notify();
+		};
+		// Props can retain a parent-owned reactive expression inside an unchanged indexed slot.
+		// Observe that source as well as slot replacement, retaining the direct primitive path.
+		const bindValue = (): void => {
+			stopValue?.();
+			stopValue = undefined;
+			const source = readIndexedReactiveSource(this.input, this.index);
+			if (source.present && isReactiveValue(source.value)) {
+				const ref = reactiveRef(source.value);
+				if (ref) stopValue = subscribe(ref, publish);
+			}
+		};
+		const stopSlot = subscribeKeys(this.target, [this.key], () => {
+			bindValue();
+			publish();
+		});
+		try {
+			bindValue();
+		} catch (error) {
+			stopSlot();
+			throw error;
+		}
+		return disposable(() => {
+			stopSlot();
+			stopValue?.();
+		});
 	}
 }
 

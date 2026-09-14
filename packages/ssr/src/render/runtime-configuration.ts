@@ -13,6 +13,7 @@ type ServerConfigurationKeys =
 	| keyof ExactServerContextConfiguration
 	| 'authorize'
 	| 'validateCsrf'
+	| 'authorizeOperation'
 	| 'payloadDecoders'
 	| 'resolvePartitionAuthority'
 	| 'remoteBuilds'
@@ -61,6 +62,7 @@ export function normalizeExactServerRuntimeOptions(options: ExactServerRuntimeOp
 		onDirectComponentCreated: undefined,
 		onDirectComponentRendered: undefined,
 		resumptionCapture: undefined,
+		clientResumptionOwner: undefined,
 		allowIndependentComponentObservation: undefined,
 		onProfile: options.onProfile,
 		inspection: options.inspection,
@@ -90,6 +92,7 @@ export function normalizeExactServerRuntimeOptions(options: ExactServerRuntimeOp
 		onDebugAudit: options.onDebugAudit,
 		authorize: options.authorize,
 		validateCsrf: options.validateCsrf,
+		authorizeOperation: options.authorizeOperation,
 		payloadDecoders: options.payloadDecoders,
 		resolvePartitionAuthority: options.resolvePartitionAuthority,
 		remoteBuilds: options.remoteBuilds,

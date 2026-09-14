@@ -66,7 +66,7 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		});
 	});
 
-	it('rejects a denied server package while leaving the same client-only resolution alone', async () => {
+	it('rejects a denied development server package while leaving the same client-only resolution alone', async () => {
 		const fixture = createViteFixture();
 		writeFileSync(
 			path.join(fixture.root, 'exact.config.mjs'),
@@ -77,6 +77,7 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 			applicationRoot: fixture.root,
 			reactCompatibility: false
 		});
+		server.configResolved?.({ command: 'serve' });
 		await server.buildStart?.call({ addWatchFile() {} });
 		server.transform(fixture.pageSource, fixture.pageFile);
 		await expect(

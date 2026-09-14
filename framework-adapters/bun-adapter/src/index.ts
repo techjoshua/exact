@@ -1,5 +1,6 @@
 import {
 	exactResponseBodyOf,
+	exactResponseHeaders,
 	handleExactFetchRequest,
 	type ExactResponseLike,
 	type ExactServerContext
@@ -20,14 +21,16 @@ export {
 export function exactResponseToBunResponse(result: ExactResponseLike): Response {
 	const body = exactResponseBodyOf(result);
 	return new Response(
-		body
-			? body.kind === 'produced'
-				? body.toReadableStream()
-				: body.toText()
-			: (result.stream ?? result.body ?? ''),
+		[204, 205, 304].includes(result.status)
+			? null
+			: body
+				? body.kind === 'produced'
+					? body.toReadableStream()
+					: body.toText()
+				: (result.stream ?? result.body ?? ''),
 		{
 			status: result.status,
-			headers: result.headers
+			headers: exactResponseHeaders(result)
 		}
 	);
 }

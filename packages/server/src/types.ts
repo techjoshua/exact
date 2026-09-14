@@ -257,6 +257,8 @@ export type ExactContextRuntime = {
 export type ExactResponseLike = {
 	status: number;
 	headers: Record<string, string>;
+	/** Separate Set-Cookie fields, which cannot be combined into a comma-delimited header. */
+	setCookies?: readonly string[];
 	body: string;
 	stream?: ReadableStream<Uint8Array>;
 };
@@ -266,20 +268,14 @@ export type ExactProtocolRequest = ExactInvocationRequest | ExactBatchRequest | 
 
 /** Reports a bounded page-gateway rejection without request credentials or payloads. */
 export type ExactGatewayRejectEvent = {
-	reason:
-		| 'invalid_binding'
-		| 'unknown_binding'
-		| 'invalid_build'
-		| 'transform_failed'
-		| 'upstream_unavailable'
-		| 'upstream_invalid_response';
+	reason: 'invalid_binding' | 'unknown_binding' | 'transform_failed' | 'upstream_unavailable';
 	binding?: string;
 };
 
-/** Rewrites one validated page request into the request sent to its component host. */
+/** Enriches forwarded headers. Method, URL, body, and cancellation ownership must remain unchanged. */
 export type TransformForwardedExactRequest = (
 	request: ExactRequestLike,
-	target: { binding: string; buildKey: string; endpoint: string },
+	target: { binding: string; buildKey?: string; endpoint: string },
 	context: ExactServerContext
 ) => ExactRequestLike | Promise<ExactRequestLike>;
 
@@ -290,8 +286,6 @@ export type ExactBindingGatewayOptions = {
 			string,
 			{
 				endpoint: string;
-				/** Exact retained builds and roots eligible for federated inspection. */
-				debugBuilds?: Readonly<Record<string, readonly string[]>>;
 			}
 		>
 	>;
@@ -301,15 +295,13 @@ export type ExactBindingGatewayOptions = {
 	onReject?: (event: ExactGatewayRejectEvent) => void;
 };
 
-/** Forwards already parsed and security-checked binding-routed requests. */
+/** Forwards raw binding-routed requests after the host has authenticated their request metadata. */
 export type ExactBindingGateway = {
 	forward(
 		request: ExactRequestLike,
-		input: ExactProtocolRequest,
+		body: string | Uint8Array,
 		context: ExactServerContext
 	): Promise<ExactResponseLike>;
-	/** Closes every remote child debug session owned by one page session. */
-	closeDebugSession?(sessionId: string, context: ExactServerContext): Promise<void>;
 };
 
 /** Patch authored by an application handler; structural HTML requires explicit trust. */
@@ -369,14 +361,14 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 	preferredBuildKey?: string;
 	/** Optional page-host alternate dispatch configured for trusted remote bindings. */
 	gateway?: ExactBindingGateway;
-	authorize?(
+	/** Authenticates the HTTP request before reading or parsing its body, including forwarded requests. */
+	authorize?(request: ExactRequestLike, context: ExactServerContext): Promise<boolean> | boolean;
+	/** Validates request credentials or headers before body parsing. */
+	validateCsrf?(request: ExactRequestLike, context: ExactServerContext): Promise<boolean> | boolean;
+	/** Authorizes a decoded local operation at the service that executes it. Never runs in a forwarding host. */
+	authorizeOperation?(
 		request: ExactRequestLike,
-		input: ExactProtocolRequest,
-		context: ExactServerContext
-	): Promise<boolean> | boolean;
-	validateCsrf?(
-		request: ExactRequestLike,
-		input: ExactProtocolRequest,
+		input: ExactInvocationRequest,
 		context: ExactServerContext
 	): Promise<boolean> | boolean;
 	logger?: Logger;

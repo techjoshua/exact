@@ -245,18 +245,24 @@ export function installOwnedEventSubscription(
 	return () => element.removeEventListener(type, listener, capture);
 }
 
+/** Removes compiler interaction policy prefixes while preserving the authored event identity. */
+export function authoredEventKey(key: string): string {
+	if (key.startsWith('__exactClosedInteraction:'))
+		return key.slice('__exactClosedInteraction:'.length);
+	if (key.startsWith('__exactDirectInteraction:'))
+		return key.slice('__exactDirectInteraction:'.length);
+	return key;
+}
+
 /** Converts JSX's DOM-style handler names to platform event names and capture mode. */
 export function eventTypeForProp(key: string): { type: string; capture: boolean } {
+	const lower = key.toLowerCase();
 	// Pointer capture lifecycle events are event names, not capture-phase variants.
-	const pointerCaptureLifecycle = key === 'onLostPointerCapture' || key === 'onGotPointerCapture';
-	const capture = key.endsWith('Capture') && !pointerCaptureLifecycle;
-	const name = key.slice(2, capture ? -7 : undefined);
-	const aliases: Record<string, string> = {
-		DoubleClick: 'dblclick',
-		FocusIn: 'focusin',
-		FocusOut: 'focusout'
-	};
-	return { type: aliases[name] ?? name.toLowerCase(), capture };
+	const pointerCaptureLifecycle =
+		lower === 'onlostpointercapture' || lower === 'ongotpointercapture';
+	const capture = lower.endsWith('capture') && !pointerCaptureLifecycle;
+	const name = lower.slice(2, capture ? -7 : undefined);
+	return { type: name === 'doubleclick' ? 'dblclick' : name, capture };
 }
 
 function nextEventGeneration(owner: object): number {

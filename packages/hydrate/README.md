@@ -46,8 +46,10 @@ record instead of shipping a second application-data script:
 
 ```tsx
 const container = document.getElementById('app')!;
-const props = readPublishedRootProps<AppProps>(App, container);
-hydrateAfterNavigation(<App {...props} />, container);
+hydrateAfterNavigation(() => {
+	const props = readPublishedRootProps<AppProps>(App, container);
+	return <App {...props} />;
+}, container);
 ```
 
 Passing the compiled root binds any compiler-proven compact positional payload to the matching
@@ -75,3 +77,8 @@ package-private implementation details.
 
 See [SSR and hydration](../../docs/ssr-hydration.md) and
 [component registries](../../docs/component-registries.md).
+
+A synchronous factory passed to `hydrateAfterNavigation()` defers published-props decoding and
+root creation until activation. The factory runs once, including when an early interaction wins,
+and a thrown error rejects the hydration promise. Existing root values remain supported. This
+does not defer static module evaluation or guarantee that first contentful paint precedes activation.

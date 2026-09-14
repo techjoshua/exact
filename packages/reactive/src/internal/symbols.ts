@@ -8,3 +8,5 @@ export const rawTarget = Symbol.for('exact.reactive.raw');
 export const reactiveValueRef = Symbol.for('exact.reactive.valueRef');
 /** Provides the canonical iterate key value. */
 export const iterateKey = Symbol.for('exact.reactive.iterate');
+/** Separates authored length assignments from implicit length changes caused by array methods. */
+export const arrayLengthWriteKey = Symbol.for('exact.reactive.arrayLengthWrite');

@@ -12,3 +12,6 @@ eXact HTML and activate compiler-generated islands.
 - Use generated operation, component, registry, and invocation identities without rewriting them.
 - Keep transport invocation and patch authority behind `ExactClient`; use its root-scoped methods
   only when an integration genuinely needs them.
+
+- Pass a synchronous root factory to `hydrateAfterNavigation()` when published-props decoding
+  should wait until hydration activates. Keep the factory synchronous for early interactions.

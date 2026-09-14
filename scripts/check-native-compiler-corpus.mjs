@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -13,7 +15,7 @@ import { createComponentLocalTargetAbiStructuralReport } from './component-local
 import {
 	nativeBaselineComparison,
 	medianNativeCorpusResult,
-	medianNativeProjectElapsedMs,
+	medianNativeProjectResults,
 	nativeCorpusTimingReview,
 	positiveInteger,
 	readNativeCompilerCorpusBaseline,
@@ -161,11 +163,12 @@ for (let sample = 0; sample < sampleCount; sample += 1) {
 	samples.push({ ...result, elapsedMs: performance.now() - started });
 }
 const result = medianNativeCorpusResult(samples);
-const projectElapsedByConfig = medianNativeProjectElapsedMs(samples);
+const projectObservations = medianNativeProjectResults(samples);
 const incrementalSamples = [];
 for (let sample = 0; sample < sampleCount; sample += 1) {
 	incrementalSamples.push(await runNativeCorpus({ ...corpusInput, mode: 'incremental' }));
 }
+
 const incrementalResult = medianNativeCorpusResult(incrementalSamples);
 // Structural coverage is deliberately outside the timed samples. Compile the same synchronized
 // production source set for both target projections so timing and evidence cannot contaminate one
@@ -194,10 +197,7 @@ function corpusProjectBoundary(config) {
 	if (relative.startsWith('plugins/')) return 'plugin';
 	return 'native';
 }
-const incrementalElapsedByConfig = medianNativeProjectElapsedMs(incrementalSamples);
-const incrementalByConfig = new Map(
-	incrementalResult.projects.map((project) => [project.config, project])
-);
+const incrementalByConfig = medianNativeProjectResults(incrementalSamples);
 const structuralByConfig = new Map(
 	structuralResult.projects.map((project) => [project.config, project])
 );
@@ -208,16 +208,13 @@ const outputBytes = result.outputBytes;
 const phaseMicroseconds = result.phaseMicroseconds;
 const counters = result.counters;
 const structure = result.structure;
-const projects = result.projects
+const projects = [...projectObservations.values()]
 	.map((project) => ({
 		...project,
 		// Project guards need their own medians: selecting by aggregate wall time can retain an
 		// unrelated per-project scheduling outlier and falsely fail an otherwise stable corpus.
-		elapsedMs: projectElapsedByConfig.get(project.config) ?? project.elapsedMs,
 		config: path.relative(root, project.config).replaceAll('\\', '/'),
-		incrementalElapsedMs:
-			incrementalElapsedByConfig.get(project.config) ??
-			incrementalByConfig.get(project.config)?.elapsedMs,
+		incrementalElapsedMs: incrementalByConfig.get(project.config)?.elapsedMs,
 		incrementalPhaseMicroseconds: incrementalByConfig.get(project.config)?.phaseMicroseconds,
 		incrementalCounters: incrementalByConfig.get(project.config)?.counters,
 		structureByTarget: structuralByConfig.get(project.config)?.structureByTarget,
@@ -238,7 +235,41 @@ const significantProjectRatio = Math.max(
 );
 const guardRatio = comparison ? Math.max(comparison.ratio, significantProjectRatio) : undefined;
 const timingReview = nativeCorpusTimingReview(guardRatio, maxBaselineRatio);
+// Record source provenance without claiming config path and source count prove identical inputs.
+const sourceInputs = execFileSync(
+	'git',
+	['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+	{ cwd: root, encoding: 'utf8' }
+)
+	.split('\0')
+	.filter(
+		(filename) =>
+			/\.(?:[cm]?[jt]sx?|json|go|mjs|patch)$/.test(filename) &&
+			!/(?:^|\/)(?:node_modules|dist|build|output|test-results|\.svelte-kit|\.exact|\.tmp)\//.test(
+				filename
+			)
+	)
+	.sort();
+const sourceHash = createHash('sha256');
+for (const filename of new Set(sourceInputs)) {
+	try {
+		sourceHash
+			.update(filename)
+			.update('\0')
+			.update(readFileSync(path.join(root, filename)))
+			.update('\0');
+	} catch (error) {
+		if (error.code !== 'ENOENT') throw error;
+	}
+}
+const inputIdentity = {
+	compilerSha256: createHash('sha256').update(readFileSync(executable)).digest('hex'),
+	workspaceSourceSha256: sourceHash.digest('hex'),
+	scope:
+		'tracked and unignored source/configuration files plus dependency lockfile; excludes generated outputs'
+};
 const record = {
+	inputIdentity,
 	schemaVersion: 3,
 	generatedAt: new Date().toISOString(),
 	elapsedMs,

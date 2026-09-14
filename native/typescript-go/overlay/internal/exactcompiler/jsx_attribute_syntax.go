@@ -2,15 +2,20 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
-// planPropPunning relies on TypeScript's JSX parser and scanner to own tags,
+// planJSXAttributeSyntax relies on TypeScript's JSX parser and scanner to own tags,
 // trivia, literals, templates, regular expressions, comments, and expression
 // nesting. Parser recovery represents `{name}` in an attribute list as a JSX
 // spread attribute with a missing `...`; the exact raw span distinguishes that
-// recoverable shorthand from a valid spread or another malformed expression.
-func planPropPunning(fileName string, source string) []sourceEdit {
+// recoverable shorthand from a valid spread or another malformed expression. Standard DOM
+// casing shares this syntax pass so synchronized and individual sources bind identically.
+func planJSXAttributeSyntax(fileName string, source string) []sourceEdit {
 	sourceFile := parseNormalizationSource(fileName, source)
 	edits := []sourceEdit{}
+	native := !usesForeignJSXRuntime(sourceFile)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if native {
+			edits = append(edits, standardNativePropCasing(sourceFile, node)...)
+		}
 		if !ast.IsJsxSpreadAttribute(node) {
 			return true
 		}

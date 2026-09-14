@@ -78,6 +78,9 @@ eXact endpoint and inherit its origin, CSRF, request-size, cancellation, and ada
 Sessions are opaque, expiring, and bounded by count. The server uses them to authorize catalog,
 snapshot, source, and per-request observation capabilities; it does not retain a cross-request
 event timeline or keep an observation stream open.
+Capacity is enforced when asynchronous authorization completes. Revocation, expiry, and runtime
+shutdown take precedence over pending authorization or identity checks; a late result cannot
+renew a closed session or create one after shutdown.
 
 While browser DevTools is attached, the hydration transport adds the opaque session ID to each
 ordinary eXact request. After reauthorization, that request alone creates a bounded observation
@@ -154,22 +157,22 @@ source excerpts, errors, audit records, and exports must never contain secret va
 
 ## Microfrontend federation
 
-The page host owns the browser session and client tree. A remote root is routed through the page's
-existing binding gateway using its registered binding, build, and execution root. The gateway:
+The page host routes remote requests through its existing binding gateway. Its request-level
+`authorize` and `validateCsrf` hooks run before body reading. The gateway forwards the original
+payload, browser credentials, and debug session correlation header. It consumes the routing
+header and supplies the selected binding as correlation metadata for the service.
 
-1. reauthorizes the page session;
-2. validates the exact registered route;
-3. opens a bounded child session at the component host's existing eXact endpoint;
-4. lets the component host independently evaluate `allowDebug`;
-5. strips browser cookies, authorization, origin, and referrer headers before forwarding; and
-6. translates child session IDs and remote event identities back to the page session and binding.
+Each service independently authenticates the request and evaluates `allowDebug`. A forwarded
+session ID is correlation data, never proof of authorization. Services authorize that correlation
+for the current request without opening retained child sessions or exchanging keys. Applications
+may enrich forwarded headers with a JWT or other credentials through `transformForwardedRequest`;
+eXact does not coordinate their authentication policies. Configure the service's public origin to
+match its browser-facing origin when requests cross an internal endpoint.
 
-For remote operations, the page gateway reauthorizes the parent session, establishes the remote
-host's independently authorized child capability, forwards only that child ID, and rewrites the
-observations in the same response back to the page identity and binding. The browser then assigns
-one page-owned cursor across page, branding, billing, and other responses. It preserves arrival
-order but does not claim a cross-host wall-clock total order. One unavailable remote remains visible
-without hiding healthy client or sibling roots.
+Services produce their own response and observation identities using the original session ID and
+binding. The gateway relays response bytes unchanged. Closing a page session does not send remote
+close requests. The browser assigns a page-owned cursor across responses; arrival order does not
+claim a cross-host wall-clock total order. An unavailable service does not hide healthy roots.
 
 ## Chromium and agent use
 

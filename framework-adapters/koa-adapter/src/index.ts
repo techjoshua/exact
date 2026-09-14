@@ -21,7 +21,7 @@ export type ExactKoaContext = {
 	res?: ExactDisconnectSource;
 	status: number;
 	body: unknown;
-	set(name: string, value: string): void;
+	set(name: string, value: string | string[]): void;
 };
 
 /** Defines the exact koa next type contract. */
@@ -64,6 +64,7 @@ export function createExactKoaMiddleware(
 		}
 		ctx.status = result.status;
 		for (const [name, value] of Object.entries(result.headers)) ctx.set(name, value);
+		if (result.setCookies?.length) ctx.set('set-cookie', [...result.setCookies]);
 		ctx.body = result.stream
 			? withAdapterStreamCleanup(result.stream, lifetime.cleanup)
 			: (result.body ?? '');

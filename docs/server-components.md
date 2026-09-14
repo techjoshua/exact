@@ -248,7 +248,7 @@ context values, database clients, credentials, or arbitrary component names.
 Unknown operation and boundary IDs are rejected.
 
 Manual operations that accept a payload must register an operation-specific decoder. Decoding runs
-after transport limits and before authorization, so authorization and business logic receive the
+after transport limits and request authentication, but before `authorizeOperation`, so operation policy and business logic receive the
 same validated value. The protocol allowlist and structural checks do not validate business rules.
 Compiler-generated operations carry their framework-owned contract automatically.
 
@@ -280,3 +280,7 @@ Normal builds remain quiet.
 See [the server-components sample](../apps/server-components/README.md) for
 generated artifact composition, hydratable rendering, server context
 projection, authorization, and client/server tests.
+
+Request-level `authorize(request, context)` and `validateCsrf(request, context)` inspect credentials
+and headers before body parsing. `authorizeOperation(request, input, context)` runs only at the
+executing service after decoding a local operation. A forwarding host does not inspect operations.

@@ -77,7 +77,7 @@ describe('server context scopes', () => {
 					}
 				]
 			],
-			authorize(_request, _input, scoped) {
+			authorize(_request, scoped) {
 				securityScope = scoped.contexts;
 				return true;
 			},

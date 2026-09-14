@@ -1,3 +1,4 @@
+import { stateNodeMatchesWrites } from '@exactjs/core/framework/protocol-records';
 import type {
 	ExactCollectionMutation,
 	ExactContinuationStatePathContract
@@ -238,21 +239,6 @@ function setPath(target: Record<string, unknown>, path: string, value: unknown):
 	const last = segments[segments.length - 1]!;
 	if (Array.isArray(cursor) && !isArrayIndex(last)) return;
 	writeContainerValue(cursor, last, value);
-}
-
-/** Validates a partial state response against exact writable paths. */
-function stateNodeMatchesWrites(value: object, path: string, writes: readonly string[]): boolean {
-	for (const key of Object.keys(value)) {
-		if (!isSafeObjectKey(key)) return false;
-		if (Array.isArray(value) && !isArrayIndex(key)) return false;
-		const childPath = path ? `${path}.${key}` : key;
-		if (writes.includes(childPath)) continue;
-		if (!writes.some((write) => write.startsWith(`${childPath}.`))) return false;
-		const child = (value as Record<string, unknown>)[key];
-		if (!child || typeof child !== 'object') return false;
-		if (!stateNodeMatchesWrites(child, childPath, writes)) return false;
-	}
-	return true;
 }
 
 /** Clones the root container so state commits do not mutate a prior snapshot. */

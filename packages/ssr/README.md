@@ -36,11 +36,8 @@ document-owned tasks; other document views wait. Whole-document output transform
 The Web Stream queues up to four thresholds of read-ahead, plus any final complete span that
 crosses that budget, before applying backpressure. Awaiting reader cancellation waits for cleanup.
 
-String results retain request-owned chunks internally and join lazily when their public HTML is
-read. Request response helpers pass those chunks directly to capable Node adapters; exact UTF-8
-output limits are checked without constructing an encoded validation copy. Fetch-native
-adapters can claim the same chunks as a platform-encoded Blob, so Bun does not pass SSR output
-through Node compatibility streams.
+String results join their request-owned chunks lazily. Response helpers pass chunks directly to
+capable Node adapters or use a platform-encoded Blob on Fetch hosts, avoiding extra output copies.
 
 Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate` and the matching
 compiler-generated client artifacts. Component inputs included in hydration must be deterministic
@@ -73,8 +70,6 @@ property semantics, so serializable input getters must be deterministic and free
 Generated server entries pass their bundle-local enhancement catalog through render
 options. Available declarations run as ordinary server components; absent optional capabilities
 leave authored output unchanged and warn once per identity.
-
-Generated task handlers, component identities, resumptions, and registry selections are opaque contracts.
 
 `createExactServerRuntime()` accepts the complete server policy as one flat options object. It
 normalizes context, rendering, authorization, decoding, partition, retained-build, gateway, and

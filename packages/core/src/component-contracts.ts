@@ -139,6 +139,8 @@ export type ExactComponentResumptionContract = Readonly<{
 	statePaths: readonly string[];
 	/** State path and root-prop path pairs that client setup can reconstruct. */
 	stateInputs: readonly (readonly [statePath: string, propPath: string])[];
+	/** Compact completion allowlist when a hydration artifact omits its execution catalog. */
+	continuations?: readonly string[];
 	/** Server-only primitive setup values that sparse capture may omit. */
 	stateDefaults?: readonly (readonly [
 		statePath: string,

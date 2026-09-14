@@ -1,17 +1,27 @@
 # JavaScript performance measurement
 
-The [fresh client benchmark capture](performance-baselines/client-fresh-2026-09-12.md) is the current
+The [deferred root preparation repeat](performance-baselines/client-deferred-repeat-2026-09-13.md) is the current
 browser timing, startup CPU, and retained heap baseline. It includes all five frameworks, 30 browser
 timing samples per framework, ten startup samples at each of three CPU throttle rates, and five heap
 composition snapshots per framework. Browser and heap charts use this capture; startup profiles
-remain separately reported diagnostics. The SSR results below retain their independent capture.
+remain separately reported diagnostics. Fresh before/after controls do not establish an FCP benefit
+from moving root preparation into the hydration activation callback.
 
-The [fresh SSR benchmark capture](performance-baselines/ssr-fresh-2026-09-12.md) is the current
-Node and native Bun SSR baseline. It repeats the full sweep with bounded idle pooling in the
-benchmark clients and unchanged framework artifacts. Primary offered-load results retain abrupt
-connection growth; separately reported controls prepare connections gradually. The capture includes
-both API modes, normal and preloaded loading, burst latency, startup, retention, and server
-diagnostics. Historical captures and client-side browser measurements remain available unchanged.
+The [post-audit SSR benchmark capture](performance-baselines/ssr-audit-2026-09-13.md) is the current
+Node and native Bun SSR baseline. It retains its post-audit source snapshot, including
+audit remediation and the compiler typing correction found during benchmark preflight. The SSR sweep
+includes string and streaming APIs, normal and preloaded loading, offered load, burst latency, startup,
+retention, and server diagnostics. Primary offered-load results retain abrupt connection growth;
+separate controls prepare connections gradually. Recorded request errors and missed arrivals remain visible.
+
+The preceding [client](performance-baselines/client-fresh-2026-09-12.md) and
+[SSR](performance-baselines/ssr-fresh-2026-09-12.md) captures remain historical evidence. Comparisons
+across captures on this shared PC do not isolate the effect of the audit changes.
+
+The [client startup and interaction investigation](performance-baselines/client-path-profile-2026-09-13.md)
+uses repeated CPU traces and script-removal controls to investigate SvelteKit's FCP and optimistic
+feedback lead. It identifies pre-paint eXact startup work and additional synchronous reactive work
+before request dispatch. These diagnostic controls supplement the baseline without changing charts.
 
 The [SSR tail and connection investigation](performance-baselines/ssr-followup-2026-09-12.md)
 traces Node burst tails to the data-fetch path, confirms that Bun adaptive scheduling activates

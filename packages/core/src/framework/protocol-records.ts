@@ -37,3 +37,43 @@ export function hasOnlySafeProtocolKeys(value: unknown): boolean {
 	}
 	return true;
 }
+
+/** Validates the exact finite discriminator shape used by server slots and hydration. */
+export function isServerSlotDiscriminator(value: unknown): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const discriminator = value as Record<string, unknown>;
+	if (discriminator.kind === 'single') return Object.keys(discriminator).length === 1;
+	if (discriminator.kind === 'branch')
+		return (
+			Object.keys(discriminator).length === 2 &&
+			typeof discriminator.branch === 'string' &&
+			!!discriminator.branch
+		);
+	return (
+		discriminator.kind === 'keyed' &&
+		Object.keys(discriminator).length === 3 &&
+		typeof discriminator.list === 'string' &&
+		!!discriminator.list &&
+		typeof discriminator.keyToken === 'string' &&
+		!!discriminator.keyToken
+	);
+}
+
+/** Validates a partial response tree without traversing authorized subtrees. */
+export function stateNodeMatchesWrites(
+	value: object,
+	path: string,
+	writes: readonly string[]
+): boolean {
+	for (const key of Object.keys(value)) {
+		if (!isSafeProtocolKey(key)) return false;
+		if (Array.isArray(value) && !/^(0|[1-9]\d*)$/.test(key)) return false;
+		const childPath = path ? `${path}.${key}` : key;
+		if (writes.includes(childPath)) continue;
+		if (!writes.some((write) => write.startsWith(`${childPath}.`))) return false;
+		const child = (value as Record<string, unknown>)[key];
+		if (!child || typeof child !== 'object') return false;
+		if (!stateNodeMatchesWrites(child, childPath, writes)) return false;
+	}
+	return true;
+}

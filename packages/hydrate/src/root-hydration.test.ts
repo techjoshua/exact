@@ -6,7 +6,10 @@ import { renderToString } from '@exactjs/ssr';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate, hydrateAfterNavigation } from './root.js';
-import { hydrateCompiledComponentRoot } from './framework/component-root.js';
+import {
+	hydrateCompiledComponentRoot,
+	hydrateCompiledComponentRootAfterNavigation
+} from './framework/component-root.js';
 import { documentRoot as clientDocumentRoot } from './test-support/bootstrap.fixtures.js';
 import { documentRoot as serverDocumentRoot } from './test-support/bootstrap.fixtures.js?exact-target=server';
 import {
@@ -125,7 +128,9 @@ describe('hydration-only root capability', () => {
 			const vnode = readyParagraphRoot;
 			const container = document.createElement('main');
 			container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
-			const pending = hydrateAfterNavigation(vnode, container);
+			const createRoot = vi.fn(() => vnode);
+			const pending = hydrateAfterNavigation(createRoot, container);
+			expect(createRoot).not.toHaveBeenCalled();
 
 			expect(container.dataset.exactHydrated).toBeUndefined();
 			expect(tasks).toHaveLength(0);
@@ -142,6 +147,53 @@ describe('hydration-only root capability', () => {
 			vi.unstubAllGlobals();
 		}
 	});
+
+	it.each([hydrateAfterNavigation, hydrateCompiledComponentRootAfterNavigation])(
+		'defers root creation and runs it once when interaction wins',
+		async (defer) => {
+			vi.useFakeTimers();
+			try {
+				const container = document.createElement('main');
+				container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
+				const paragraph = container.querySelector('p')!;
+				const createRoot = vi.fn(() => readyParagraphRoot);
+				const pending = defer(createRoot, container);
+				expect(createRoot).not.toHaveBeenCalled();
+				paragraph.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+				expect(createRoot).toHaveBeenCalledTimes(1);
+				expect(container.dataset.exactHydrated).toBe('true');
+				const root = await pending;
+				await vi.runAllTimersAsync();
+				expect(createRoot).toHaveBeenCalledTimes(1);
+				expect(container.querySelector('p')).toBe(paragraph);
+				root.dispose();
+			} finally {
+				vi.useRealTimers();
+			}
+		}
+	);
+
+	it.each([hydrateAfterNavigation, hydrateCompiledComponentRootAfterNavigation])(
+		'rejects a failed root factory and releases its activation triggers',
+		async (defer) => {
+			vi.useFakeTimers();
+			try {
+				const container = document.createElement('main');
+				const createRoot = vi.fn(() => {
+					throw new Error('factory failed');
+				});
+				const pending = defer(createRoot, container);
+				const rejected = expect(pending).rejects.toThrow('factory failed');
+				container.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+				await rejected;
+				container.dispatchEvent(new Event('keydown', { bubbles: true }));
+				await vi.runAllTimersAsync();
+				expect(createRoot).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
+		}
+	);
 
 	it('activates synchronously when interaction precedes deferred navigation hydration', async () => {
 		vi.useFakeTimers();
@@ -308,7 +360,9 @@ describe('hydration-only root capability', () => {
 
 	it('adopts and owns SSR DOM without exposing optional request methods', async () => {
 		const container = document.createElement('main');
-		const rendered = await renderToHydratableString(serverIdentifiedParagraphRoot('message', 'ready'));
+		const rendered = await renderToHydratableString(
+			serverIdentifiedParagraphRoot('message', 'ready')
+		);
 		container.innerHTML = rendered.html;
 		const paragraph = container.querySelector('p');
 
@@ -351,7 +405,9 @@ describe('hydration-only root capability', () => {
 		};
 		const attach = vi.spyOn(artifact, 'attach');
 		const container = document.createElement('main');
-		const rendered = await renderToHydratableString(serverIdentifiedParagraphRoot('recovered', 'ready'));
+		const rendered = await renderToHydratableString(
+			serverIdentifiedParagraphRoot('recovered', 'ready')
+		);
 		container.innerHTML = rendered.html;
 		container.querySelector('p')!.replaceWith(document.createElement('section'));
 

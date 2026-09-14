@@ -28,6 +28,11 @@ export function renderDocumentRootOutput(
 	const reference = readServerComponentReference(operation);
 	if (!reference) return renderChildren(context, [operation], undefined, options);
 	const contract = receiptExecutionContract(reference);
+	if (options.resumptionCapture)
+		options = {
+			...options,
+			clientResumptionOwner: contract.placement === 'client' || contract.placement === 'isomorphic'
+		};
 	if (
 		reference.enhancement ||
 		contract.artifact.selection ||

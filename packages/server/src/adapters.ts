@@ -1,3 +1,4 @@
+import { exactResponseHeaders } from './response-headers.js';
 import {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,
@@ -24,7 +25,7 @@ export type ExactExpressRequest = {
 /** Defines the exact express response type contract. */
 export type ExactExpressResponse = {
 	status(code: number): ExactExpressResponse;
-	setHeader(name: string, value: string): void;
+	setHeader(name: string, value: string | readonly string[]): void;
 	write?(chunk: Uint8Array): boolean | void;
 	end?(): void;
 	send(body: unknown): void;
@@ -60,7 +61,7 @@ export type ExactHapiToolkit<Response extends ExactHapiResponse = ExactHapiRespo
 
 /** Defines the exact hapi response type contract. */
 export type ExactHapiResponse = {
-	header(name: string, value: string): ExactHapiResponse;
+	header(name: string, value: string | readonly string[]): ExactHapiResponse;
 };
 
 /** Creates a Fetch API compatible eXact endpoint handler. */
@@ -93,10 +94,13 @@ export function handleExactFetchRequest(
 
 /** Translates the canonical eXact response into a Fetch Response. */
 export function exactResponseToFetchResponse(response: ExactResponseLike): Response {
-	return new Response(response.stream ?? response.body ?? '', {
-		status: response.status,
-		headers: response.headers
-	});
+	return new Response(
+		[204, 205, 304].includes(response.status) ? null : (response.stream ?? response.body ?? ''),
+		{
+			status: response.status,
+			headers: exactResponseHeaders(response)
+		}
+	);
 }
 
 /** Creates an Express-style eXact endpoint handler. */
@@ -127,6 +131,7 @@ export function createExpressHandler(
 			(result) => {
 				response.status(result.status);
 				for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
+				if (result.setCookies?.length) response.setHeader('set-cookie', result.setCookies);
 				if (result.stream && response.write && response.end) {
 					void pipeReadableStream(result.stream, response, disconnect.signal)
 						.finally(disconnect.cleanup)
@@ -184,6 +189,7 @@ export function createHapiHandler<Response extends ExactHapiResponse = ExactHapi
 			: (result.body ?? '');
 		const response = h.response(body).code(result.status);
 		for (const [name, value] of Object.entries(result.headers)) response.header(name, value);
+		if (result.setCookies?.length) response.header('set-cookie', result.setCookies);
 		if (!result.stream) disconnect.cleanup();
 		return response;
 	};
